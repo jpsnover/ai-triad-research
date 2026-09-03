@@ -62,7 +62,7 @@ for both the argument bindings and the `about[]` projection. It never re-extract
 | `args[]` | array | Participants in the event. |
 | `args[].role` | enum | Thematic role: `agent \| patient \| theme \| recipient \| instrument \| location \| source \| goal \| beneficiary \| cause \| manner`. (Neo-Davidsonian participation predicates; extend only with CL sign-off + register note.) |
 | `args[].ref` | string | **MUST be an `ent-*` id drawn from this claim's `entity_refs[].ref`** — never a re-invented id (t/2294). If the participant is not a registered entity, use a literal `lit:"…"` or an event var; record `sort` regardless. |
-| `args[].sort` | enum | The entity's DOLCE-lite sort, **pinned to the register's `DolceCategory` closed set** (`lib/entities/types.ts`): `agentive-physical-object \| non-agentive-functional-artifact \| perdurant \| normative-description \| non-agentive-social-object`. Copied verbatim from the referenced entity's `dolce_category`; for a `lit:`/event arg, CL-assigned from the same 5-value set. Copy-not-judge (rule 2). |
+| `args[].sort` | enum | The entity's DOLCE-lite sort, **pinned to the register's `DolceCategory` closed set** (`lib/entities/types.ts`): `agentive-physical-object \| non-agentive-functional-artifact \| perdurant \| normative-description \| non-agentive-social-object`. Copied verbatim from the referenced entity's `dolce_category`; for a `lit:`/event arg, CL-assigned from the same 5-value set. Copy-not-judge (rule 2). A `term:*` **concept** ref (node `logical_form`) instead takes sort **`universal`** — the 6th arg-slot sort for kinds, distinct from the 5 particular values (t/3251). |
 | `args[].match_level` | enum | Copied verbatim from the entity_ref: `exact \| instance_of \| subclass \| superclass \| related`. Load-bearing for the prover — a claim about a superclass matched to an instance is a different assertion (§6, R4). **⚠️ Exact-only in practice (t/3238):** the resolver (`ClaimEntityResolution.ps1`) hardcodes `match_level="exact"` and surface-matches only — **540/540** entity_refs corpus-wide are `exact`. The non-exact values are an **aspirational vocabulary** until a hierarchical/taxonomic resolver exists; the prover's match_level-sensitivity (§6/R4) and the t/3127/t/3128 axiom modules are therefore **untested on real data** and testable only via constructed golden cases (`analyses/logical-form-golden/` con-2..con-5). Making resolution ontology-aware is a separate resolution-strategy initiative, out of the FOL-track scope. |
 | `about[]` | array | **Topical grounding (additive, optional):** `[{ref, match_level}]` — the `ent-*` ids the claim is *about* (its topical subject). **Superset convention (pinned, D3b):** `about[]` is the **complete** topical index — every resolved entity the claim is about, **including** those that also fill an `args[]` role (a participant that is topical appears in *both*). Same ids as the claim's `entity_refs[]` (a logical-form projection, **no new resolution**). Governed by the `about[]` conditions below. |
 | `polarity` | enum | `positive \| negative`. Negation of the core predication (`¬acquire(e1)`), not attitude negation. |
@@ -171,8 +171,9 @@ of one schema). Port-specific behavior that does NOT change the shape:
 
 - The **node port (#3b)** forces `modality.holder` = camp (from the node-id prefix) and `attitude` =
   category mechanically, and grounds args one-identity from node `entity_refs[]` (register `dolce_category`)
-  + `concept_refs[]` (universals). Concept-ref (universal) sorts are the **blanket `non-agentive-social-object`
-  placeholder** pending the t/3251 refinement — "universal, sort unrefined," never a committed leaf (t/3162#5(b)).
+  + `concept_refs[]`. Concept-ref participants are typed **`universal`** (the 6th arg-slot sort, t/3251
+  ratified / lib #1856), distinct from the 5 particular `DolceCategory` sorts; `lit:`/event args take a
+  particular sort. Universal sub-typing (`universal:kind` etc.) is a deferred monotone v2 (t/3162#5(b)).
 - The **claim port (#3a)** reads `canonical_proposition` (BDI) / `point`+`verbatim` (factual) and sets
   `modality: null` for `factual_claims`.
 

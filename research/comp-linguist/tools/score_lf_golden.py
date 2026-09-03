@@ -28,6 +28,8 @@ ORIGIN_FILES = ("accelerationist.json", "safetyist.json", "skeptic.json")
 VALID_SORTS = frozenset({
     "agentive-physical-object", "non-agentive-functional-artifact",
     "perdurant", "normative-description", "non-agentive-social-object",
+    "universal",  # t/3251: concept_refs (term:*) are universals — a 6th arg-slot sort, distinct
+                  # from the 5 particular DolceCategory values (ratified TL t/3251#5, lib #1856).
 })
 VERDICTS = ("correct", "minor", "wrong")
 
@@ -58,7 +60,7 @@ def off_enum_gate():
                 violations.append((nid, a.get("ref"), sort))
     print(f"\n=== off-enum-sort gate (all frames, no labels) ===")
     if not violations:
-        print("PASS — every arg sort is in the 5-value DOLCE-lite set.")
+        print("PASS — every arg sort is in the DOLCE-lite set (5 particular + universal).")
         return True
     print(f"FAIL — {len(violations)} arg(s) with off-enum sort:")
     for nid, ref, sort in violations:
