@@ -16,12 +16,13 @@
 - **Colloquial:** term key + long "when" description + camp name (`accelerationist`/…) all concatenated; the colored camp name is glued to the sentence end.
 - Header, tabs, and filters are likewise unspaced (`Dictionary (45)Colloquial (24)Lint`, title jammed against the doc-link and stats).
 
-**Fix approach — UNIFY, do not duplicate (revised after TL/owner review, t/3287#2).** `debate-workspace/VocabularyPanel.css` **already defines every one of these class names** (`.vocabulary-panel`, `.vocab-entry`, `.vocab-entry-header`, `.canonical`, `.display-form`, `.node-count`, `.status-badge`, `.resolution`, `.camp-tag`, `.ambiguous-when`, `.lint-*`, …) as **global** selectors — the shared panel is unstyled only because that sheet isn't loaded where it renders. So authoring a **new** co-located sheet with the same names would cascade-collide. Instead:
+**Fix approach — NAMESPACE the shared panel (option b; settled decision, t/3287#4–#6).** `debate-workspace/VocabularyPanel.css` **already defines every one of these class names** (`.vocabulary-panel`, `.vocab-entry`, `.vocab-entry-header`, `.canonical`, `.display-form`, `.node-count`, `.status-badge`, `.resolution`, `.camp-tag`, `.ambiguous-when`, `.lint-*`, …) as **global** selectors, and both sheets can co-persist in `<head>` in one session — so a *new* co-located sheet with the same names would cascade-collide. The fix:
 
-- **Extract the vocab rules into ONE shared stylesheet** (`shared/VocabularyPanel.css`) imported by **both** `shared/VocabularyPanel.tsx` **and** `debate-workspace/VocabularyPanel.tsx` (the debate file keeps only genuinely debate-specific rules, e.g. `.vocab-term` inline annotations). Single source of truth; no duplicate-name collision.
-- **Fix the theme-unsafe values while extracting** (this is why the existing sheet isn't 4-theme-clean): `rgba(255,255,255,0.03/0.04/0.05)` white-alpha on `.vocab-entry:hover`/`.expanded`/`.canonical`/`.node-count` (invisible/wrong on light + harvard) → `var(--bg-hover)`/`var(--bg-secondary)`; hardcoded hex in `.lint-badge`/`.phrase-tag`/`.status-badge.*`/`.severity-*` → `--danger`/`--warning`/`--success` (+ `--error-text` for text-on-light). `.camp-tag` keeps its inline POV color.
+- **Scope the shared panel's rules under a distinguishing root class** (e.g. add `vocab-standalone` to the shared panel's `.vocabulary-panel` root; prefix selectors `.vocab-standalone .vocab-entry …`). Single-scope (Rosetta owns `components/shared/`), self-cert, ships immediately, no collision with the debate panel's global names. **Author it token-clean per §3–§8** (columns/spacing/tokens/a11y) — the shared panel's new sheet has none of the legacy theme bugs.
+- Rejected alternatives: authoring an *unscoped* duplicate (collides); the **unify/extract** into one shared sheet imported by both panels (option c) — cleaner DRY but crosses into DebateWorkspace scope + is architectural, so it must not gate this urgent readability fix. **Deferred** (revisit only if the two namespaced sheets duplicate painfully).
+- **The debate-workspace theme bugs are handled separately** (not in this ticket): the existing sheet's `rgba(255,255,255,0.03/0.04/0.05)` white-alpha hovers (invisible/wrong on light + harvard) and hardcoded hex (`.lint-badge`/`.phrase-tag`/`.status-badge.*`/`.severity-*` → `--danger`/`--warning`/`--success`) are filed as a standalone **DebateWorkspace** ticket, fixed in place regardless of any future unify.
 
-The JSX structure is already correct — **no logic change** beyond the stylesheet import(s) and the small a11y touch in §7. The layout/column/spacing/token direction below (§3–§8) applies to the **unified** sheet; the extraction also makes the debate-workspace panel 4-theme-clean as a bonus, so design review covers **both** panels.
+The JSX structure is already correct — **no logic change** beyond the scoped-stylesheet import + wrapper class and the small a11y touch in §7. The layout/column/spacing/token direction below (§3–§8) applies to the scoped shared sheet. Design review covers the shared panel (this ticket) and — when the DebateWorkspace theme-fix lands — that panel too, across four themes.
 
 ## 2. Design principles
 
@@ -86,7 +87,7 @@ Expanded detail (`.vocab-entry-detail`, `.detail-row`, `.phrase-tag`, `.see-also
 ## 9. What NOT to do
 
 - Do **not** restyle by adding hard-coded colors — every value is a token.
-- Do **not** author a *new* stylesheet with the same global class names the `debate-workspace` panel already defines — that cascade-collides (see §1). Extract to ONE shared `shared/VocabularyPanel.css` imported by both panels instead.
+- Do **not** author a stylesheet with the debate panel's *unscoped* global class names — that cascade-collides (see §1). Scope the shared panel's rules under a distinguishing root class (`vocab-standalone`) so they can't collide.
 - Do **not** collapse the machine key entirely — it's the identifier/sort field; demote it to a muted mono secondary, don't delete it.
 - Do **not** truncate the readable label or the "when" description — wrap.
 
