@@ -26,6 +26,10 @@ export type GeminiModel =
   | typeof DEFAULT_MODEL
   | 'gemini-3-flash-preview'
   | 'gemini-3.1-pro-preview'
+  | 'gemini-3.8-flash'      // t/3277
+  | 'gemini-3.6-flash'      // t/3277
+  | 'gemini-3.5-flash'      // t/3277
+  | 'gemini-3.1-flash-lite' // t/3277
   | 'gemini-2.5-flash'
   | 'gemini-2.5-flash-lite'
   | 'gemini-2.5-pro';
@@ -94,6 +98,10 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
     { value: DEFAULT_MODEL, label: '3.1 Flash Lite Preview (default)' },
     { value: 'gemini-3-flash-preview', label: '3 Flash Preview' },
     { value: 'gemini-3.1-pro-preview', label: '3.1 Pro Preview (best quality)' },
+    { value: 'gemini-3.8-flash', label: '3.8 Flash' },
+    { value: 'gemini-3.6-flash', label: '3.6 Flash' },
+    { value: 'gemini-3.5-flash', label: '3.5 Flash' },
+    { value: 'gemini-3.1-flash-lite', label: '3.1 Flash Lite' },
     { value: 'gemini-2.5-flash', label: '2.5 Flash' },
     { value: 'gemini-2.5-flash-lite', label: '2.5 Flash Lite (fastest)' },
     { value: 'gemini-2.5-pro', label: '2.5 Pro' },
