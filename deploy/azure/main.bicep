@@ -540,6 +540,12 @@ var baseEnv = [
   // green (loop max 39.6ms under 1536 concurrent computes). MUST stay in sync with deploy-azure.yml's
   // ExpectedEnvVars config-drift gate (Gate Co-Location — the gate verifies this value is deployed).
   { name: 'EMBEDDING_WORKER_OFFLOAD', value: '1' }
+  // t/3163 G8a (STAGED enable, TL GO): enable inline grounding reconcile on the write path.
+  // Deployed AHEAD of G8b (GROUNDING_SWEEP_ENABLED), which TL holds until this deploy's real
+  // write-cycle lock telemetry is clean (grounding_lock held ≤~2s, zero stale-break/contention).
+  // baseEnv — never a CLI --set-env-vars (wiped by the next template apply). MUST stay in sync with
+  // deploy-azure.yml ExpectedEnvVars (Gate Co-Location — the config-drift gate verifies it's deployed).
+  { name: 'GROUNDING_RECONCILE_INLINE', value: '1' }
 ]
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
