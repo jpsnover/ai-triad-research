@@ -1,0 +1,1818 @@
+{
+  "_note": "t/3229 DERIVED assessment — 31 observed (single-prompt hardened candidates; 25 D3b re-run 1f1ef8be/t/3255 + 3 bias-free D3a 78b3ed2f + 3 added) + 4 constructed axis cases. All candidates from the hardened prompt (post-t/3227). match_level all-exact (t/3238).",
+  "rows": [
+    {
+      "id": "b-02",
+      "provenance": "observed",
+      "source_file": "2025-foundation-model-transparency-index-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "The FMTI team developed an automated evaluation agent using the Claude 4 API to assess transparency disclosures for six AI companies: Anthropic, xAI, Alibaba, Deepseek, Midjourney, and Mistral.",
+      "entity_refs": [
+        {
+          "ref": "ent-034",
+          "surface": "Claude",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "develop",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"the FMTI team\"",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"an automated evaluation agent\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "instrument",
+            "ref": "ent-034",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "goal",
+            "ref": "lit:\"assess transparency disclosures for six AI companies\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-034",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.7,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-03",
+      "provenance": "observed",
+      "source_file": "2026-ai-laws-update-key-regulations-practical-guidance-2026.json (saf-intentions-134)",
+      "category": "Intentions",
+      "camp": "safetyist",
+      "proposition": "The EU's layered regulatory approach, including the AI Act and GDPR, is presented as a necessary framework to manage systemic risks from powerful AI models. Safetyists support these mandates as essential for preventing broad, society-wide harm through mandatory safety evaluations and incident reporting.",
+      "entity_refs": [
+        {
+          "ref": "ent-071",
+          "surface": "GDPR",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "manage",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"the EU's layered regulatory approach\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"systemic risks from powerful AI models\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:saf",
+          "attitude": "intention"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-071",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-04",
+      "provenance": "observed",
+      "source_file": "2026-ai-laws-update-key-regulations-practical-guidance-2026.json (skp-desires-003)",
+      "category": "Desires",
+      "camp": "skeptic",
+      "proposition": "The document highlights GDPR Article 22 as a mechanism to protect individual autonomy against solely automated decision-making. Skeptics support these rights as critical safeguards against the dehumanizing effects of algorithmic management and the erosion of individual agency in high-stakes domains like hiring and credit.",
+      "entity_refs": [
+        {
+          "ref": "ent-071",
+          "surface": "GDPR",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "protect",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "instrument",
+            "ref": "ent-071",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"individual autonomy\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "source",
+            "ref": "lit:\"solely automated decision-making\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:skp",
+          "attitude": "desire"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-071",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-05",
+      "provenance": "observed",
+      "source_file": "2026-ai-laws-update-key-regulations-practical-guidance-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "President Trump signed an Executive Order on December 11, 2025, titled 'Ensuring a National Policy Framework for Artificial Intelligence' to consolidate federal AI oversight.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "President Trump",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "sign",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-032",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"executive order ensuring a national policy framework for artificial intelligence\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "at",
+          "value": "2025-12-11"
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.9,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-06",
+      "provenance": "observed",
+      "source_file": "2026-ai-laws-update-key-regulations-practical-guidance-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "GDPR Article 22 grants individuals the right to contest solely automated decisions that produce legal or similarly significant effects, requiring controllers to provide human intervention and transparency.",
+      "entity_refs": [
+        {
+          "ref": "ent-071",
+          "surface": "GDPR",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "grant",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-071",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "recipient",
+            "ref": "lit:\"individuals\"",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"the right to contest solely automated decisions\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-071",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.8,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-07",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-2026-1.json (acc-intentions-024)",
+      "category": "Intentions",
+      "camp": "accelerationist",
+      "proposition": "The document highlights the Trump administration's strategy to create a pro-development environment by removing regulatory barriers to AI innovation. This includes executive orders aimed at helping American firms achieve global dominance in AI. From an accelerationist perspective, this approach is essential to maintain competitive advantage and foster rapid technological progress. The document notes that this policy framework is actively being used to challenge state-level legislation that might otherwise obstruct national AI priorities.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "remove",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-032",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"regulatory barriers to AI innovation\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "intention"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.55,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-08",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-2026-2.json (acc-intentions-024)",
+      "category": "Intentions",
+      "camp": "accelerationist",
+      "proposition": "The document highlights the Trump administration's strategy to create a permissive regulatory environment for AI, including the July 2025 AI Action Plan. This policy framework aims to remove barriers to innovation and adoption to help American firms achieve global dominance. By directing the FTC to modify consent orders that burden AI innovation, the administration seeks to foster a pro-development landscape. This aligns with the accelerationist goal of prioritizing rapid iteration and technological leadership over restrictive oversight.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        },
+        {
+          "ref": "ent-049",
+          "surface": "AI Action Plan",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "remove",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-032",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"barriers to innovation and adoption\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "intention"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          },
+          {
+            "ref": "ent-049",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-09",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-2026-2.json (acc-beliefs-043)",
+      "category": "Beliefs",
+      "camp": "accelerationist",
+      "proposition": "The document identifies state-level AI legislation as a significant obstacle to a unified national AI policy, noting that the Trump administration is actively seeking to preempt these laws. The administration views state-level restrictions as an obstruction to interstate commerce and national AI goals. Accelerationists support this federal preemption, arguing that a fragmented regulatory landscape creates unnecessary friction that hinders the scaling of AI technologies across the country.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "obstruct",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"state-level AI legislation\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"unified national AI policy\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-11",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-2026-2.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "The Trump administration issued an AI Action Plan in July 2025, which includes policy recommendations such as the encouragement of open-source and open-weight AI models.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        },
+        {
+          "ref": "ent-049",
+          "surface": "AI Action Plan",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "issue",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-032",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "ent-049",
+            "sort": "normative-description",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "at",
+          "value": "2025-07"
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          },
+          {
+            "ref": "ent-049",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.85,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-13",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-2026-3.json (acc-beliefs-086)",
+      "category": "Beliefs",
+      "camp": "accelerationist",
+      "proposition": "The document notes that the Trump administration's AI Action Plan encourages open-source and open-weight AI models to promote competition and innovation. This policy reflects the belief that open access to foundational models prevents monopolistic capture and accelerates the diffusion of transformative technology. By fostering an environment where smaller entrants can compete with legacy firms, the administration aims to maximize the societal benefits of AI. This aligns with the accelerationist view that widespread access to AI capabilities is inherently beneficial.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        },
+        {
+          "ref": "ent-049",
+          "surface": "AI Action Plan",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "prevent",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"open access to foundational models\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"monopolization\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          },
+          {
+            "ref": "ent-049",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-14",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-2026-3.json (acc-beliefs-043)",
+      "category": "Beliefs",
+      "camp": "accelerationist",
+      "proposition": "The document describes how the Trump administration's Executive Order seeks to preempt state-level AI legislation that is inconsistent with national priorities. This reflects the belief that fragmented, state-by-state regulation creates unnecessary obstacles to the development and deployment of AI. By centralizing policy, the administration aims to create a uniform, pro-innovation environment that allows firms to scale rapidly across the country. This is a key accelerationist strategy to prevent regulatory bottlenecks from hindering technological progress.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "obstruct",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"fragmented state-by-state regulation\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"the development and deployment of AI\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-15",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-2026-3.json (saf-beliefs-100)",
+      "category": "Beliefs",
+      "camp": "safetyist",
+      "proposition": "The document highlights the concern that AI-powered price recommendation algorithms, such as those used by RealPage, can lead to harmful outcomes. This reflects the safetyist belief that AI systems can have wide-ranging negative impacts on economic stability and social norms. The document notes that while the Trump administration settled the case, state-level lawsuits remain pending, indicating a broader societal concern about the unchecked use of AI in critical sectors. This supports the safetyist argument that AI deployment requires careful, ongoing monitoring to prevent systemic harm.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "harm",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"AI-powered price recommendation algorithms\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"economic stability and social norms\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:saf",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.45,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-19",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-wilson-sonsini-2026-1.json (acc-intentions-114)",
+      "category": "Intentions",
+      "camp": "accelerationist",
+      "proposition": "The administration's AI Action Plan explicitly encourages the development of open-source and open-weight AI models. This aligns with the accelerationist view that open access to foundational models fosters a more competitive and innovative ecosystem. By promoting these models, the policy aims to prevent monopolistic capture of AI infrastructure. The document notes that federal agencies are aligning their enforcement activities with these pro-openness goals.",
+      "entity_refs": [
+        {
+          "ref": "ent-049",
+          "surface": "AI Action Plan",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "encourage",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-049",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"development of open-source and open-weight AI models\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "intention"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-049",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.7,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-20",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-wilson-sonsini-2026-1.json (acc-intentions-047)",
+      "category": "Intentions",
+      "camp": "accelerationist",
+      "proposition": "The document describes a shift in regulatory philosophy where agencies are encouraged to modify consent orders to avoid burdening AI innovation. This reflects an accelerationist desire to minimize the 'red tape' that could slow down the development of transformative technologies. The strategy is to ensure that antitrust enforcement does not inadvertently create bottlenecks for emerging AI firms. The document notes that this is a direct implementation of the administration's AI Action Plan.",
+      "entity_refs": [
+        {
+          "ref": "ent-049",
+          "surface": "AI Action Plan",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "modify",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"agencies\"",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"consent orders\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "goal",
+            "ref": "lit:\"avoid burdening AI innovation\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "intention"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-049",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-21",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-wilson-sonsini-2026-1.json (saf-intentions-003)",
+      "category": "Intentions",
+      "camp": "safetyist",
+      "proposition": "The document highlights a tension between federal 'pro-adoption' policies and state-level efforts to regulate AI to protect against harmful uses. Safetyists generally support state-level interventions as necessary guardrails when federal policy is too permissive. The document notes that the Trump administration is actively seeking to preempt these state laws, which safetyists would view as a dangerous removal of essential safety protections. This conflict underscores the safetyist concern that federal policy is prioritizing speed over the mitigation of real-world harms.",
+      "entity_refs": [
+        {
+          "ref": "ent-032",
+          "surface": "Trump",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "protect",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"state-level AI regulation\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "source",
+            "ref": "lit:\"harmful uses of AI\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:saf",
+          "attitude": "intention"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-032",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-23",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-wilson-sonsini-2026-2.json (acc-desires-004)",
+      "category": "Desires",
+      "camp": "accelerationist",
+      "proposition": "The document highlights the administration's encouragement of open-source and open-weight AI models as a key policy recommendation within the AI Action Plan. By promoting open access, the government aims to lower barriers to entry and foster a more competitive ecosystem. This aligns with the accelerationist desire to democratize AI infrastructure and prevent monopolistic capture by a few legacy firms. The document notes that this policy is being mirrored by agency leadership in their enforcement remarks.",
+      "entity_refs": [
+        {
+          "ref": "ent-049",
+          "surface": "AI Action Plan",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "lower",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"the government\"",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"barriers to entry\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "desire"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-049",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-25",
+      "provenance": "observed",
+      "source_file": "2026-antitrust-year-preview-ai-wilson-sonsini-2026.json (acc-intentions-078)",
+      "category": "Intentions",
+      "camp": "accelerationist",
+      "proposition": "The document describes how the administration's AI Action Plan encourages open-source and open-weight AI models to promote a pro-development environment. This policy move is intended to lower barriers to entry and foster a more competitive ecosystem. By aligning enforcement with these goals, the administration seeks to prevent incumbents from monopolizing AI infrastructure. This supports the accelerationist view that open access is a key driver of innovation.",
+      "entity_refs": [
+        {
+          "ref": "ent-049",
+          "surface": "AI Action Plan",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "encourage",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-049",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"open-source and open-weight AI models\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "intention"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-049",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.6,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-28",
+      "provenance": "observed",
+      "source_file": "250322732v1-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "Qwen2.5-Coder-32B outperforms Claude Sonnet 3.5 on the HumanEval benchmark with a score of 92.7 compared to 92.1.",
+      "entity_refs": [
+        {
+          "ref": "ent-034",
+          "surface": "Claude",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "outperform",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"Qwen2.5-Coder-32B\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "ent-034",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "location",
+            "ref": "lit:\"HumanEval benchmark\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-034",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.85,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-29",
+      "provenance": "observed",
+      "source_file": "250412170v1-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "OpenAI's GPT-4 model was available internally for six months prior to its public external deployment.",
+      "entity_refs": [
+        {
+          "ref": "ent-014",
+          "surface": "GPT-4",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "available",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "theme",
+            "ref": "ent-014",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "manner",
+            "ref": "lit:\"internally\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "before",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-014",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.6,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-30",
+      "provenance": "observed",
+      "source_file": "250610408v1-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "DeepRetrieval uses reinforcement learning (PPO) to train an LLM to rewrite user queries for better retrieval performance, using recall and NDCG as reward signals.",
+      "entity_refs": [
+        {
+          "ref": "ent-006",
+          "surface": "DeepRetrieval",
+          "match_level": "exact"
+        },
+        {
+          "ref": "ent-008",
+          "surface": "PPO",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "train",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-006",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"an LLM\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "instrument",
+            "ref": "ent-008",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "goal",
+            "ref": "lit:\"rewrite user queries\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-006",
+            "match_level": "exact"
+          },
+          {
+            "ref": "ent-008",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.55,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-31",
+      "provenance": "observed",
+      "source_file": "250610408v1-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "ReZero improves agentic search by incentivizing persistence, rewarding the agent for issuing additional search queries when the initial attempt fails.",
+      "entity_refs": [
+        {
+          "ref": "ent-007",
+          "surface": "ReZero",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "improve",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-007",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"agentic search\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          },
+          {
+            "role": "manner",
+            "ref": "lit:\"incentivizing persistence\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-007",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.6,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-32",
+      "provenance": "observed",
+      "source_file": "260108005v3-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "Anthropic CEO Dario Amodei reported that approximately 90% of internal code at Anthropic was AI-generated using tools like Claude Code.",
+      "entity_refs": [
+        {
+          "ref": "ent-034",
+          "surface": "Claude",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "generate",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"AI tools\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"approximately 90% of internal code at Anthropic\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "instrument",
+            "ref": "ent-034",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-034",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.55,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-33",
+      "provenance": "observed",
+      "source_file": "260111699v4-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "Third-party pre-deployment testing conducted by government institutions such as the UK AI Security Institute (AISI) and US Center for AI Standards and Innovation (CAISI) has successfully identified safety and security vulnerabilities that frontier AI developers subsequently addressed prior to public release.",
+      "entity_refs": [
+        {
+          "ref": "ent-077",
+          "surface": "CAISI",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "identify",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"third-party pre-deployment testing by government institutions\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"safety and security vulnerabilities\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-077",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.55,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-34",
+      "provenance": "observed",
+      "source_file": "260312277v6-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "Frontier models such as gpt-oss-20b, gpt-oss-120b, and o4-mini achieve attack success rates exceeding 80% against STRONGREJECT when subjected to CoT Forgery, despite near-zero attack success rates on raw harmful prompts and standard jailbreaks.",
+      "entity_refs": [
+        {
+          "ref": "ent-018",
+          "surface": "o4-mini",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "achieve",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"frontier models (gpt-oss-20b, gpt-oss-120b, o4-mini)\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"attack success rates exceeding 80% against STRONGREJECT\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "cause",
+            "ref": "lit:\"CoT Forgery\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-018",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.6,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-36",
+      "provenance": "observed",
+      "source_file": "260320004v2-2026.json (acc-beliefs-039)",
+      "category": "Beliefs",
+      "camp": "accelerationist",
+      "proposition": "The document demonstrates that ReViSQL achieves human-level accuracy on the BIRD benchmark, outperforming prior state-of-the-art methods. It argues that this milestone elevates LLMs from capable assistants to reliable, autonomous systems. This supports the accelerationist belief that AI can inherently surpass human cognitive constraints in complex problem-solving tasks like database querying.",
+      "entity_refs": [
+        {
+          "ref": "ent-067",
+          "surface": "BIRD",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "elevate",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"ReViSQL's human-level-accuracy milestone\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"LLMs\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "goal",
+            "ref": "lit:\"reliable autonomous systems\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-067",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.45,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-37",
+      "provenance": "observed",
+      "source_file": "260320004v2-2026.json (skp-beliefs-095)",
+      "category": "Beliefs",
+      "camp": "skeptic",
+      "proposition": "The document documents how pervasive annotation errors in widely used datasets like BIRD and Spider 2 compromise the epistemological integrity of AI training. It argues that these errors are not just minor noise but fundamental barriers that mislead models and hinder the development of reliable systems. This aligns with the skeptic view that AI systems are currently built on fragile, contaminated data foundations that degrade their overall utility and reliability.",
+      "entity_refs": [
+        {
+          "ref": "ent-067",
+          "surface": "BIRD",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "compromise",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"pervasive annotation errors in datasets\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"the epistemological integrity of AI training\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:skp",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-067",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.5,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-38",
+      "provenance": "observed",
+      "source_file": "260320004v2-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "ReViSQL-235B-A22B achieves 93.78% execution accuracy on the Arcwise-Plat-Full benchmark, exceeding the proxy human-level accuracy of 92.96%.",
+      "entity_refs": [
+        {
+          "ref": "ent-063",
+          "surface": "ReViSQL-235B-A22B",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "achieve",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-063",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"93.78% execution accuracy\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "location",
+            "ref": "lit:\"Arcwise-Plat-Full benchmark\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-063",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.8,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "b-39",
+      "provenance": "observed",
+      "source_file": "260320004v2-2026.json (None)",
+      "category": "factual",
+      "camp": "",
+      "proposition": "Annotation errors were identified in 52.1% of SQL queries, 26.2% of natural language questions, and 18.2% of external knowledge in the BIRD Train set subset.",
+      "entity_refs": [
+        {
+          "ref": "ent-067",
+          "surface": "BIRD",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "identify",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "patient",
+            "ref": "lit:\"annotation errors\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "location",
+            "ref": "ent-067",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-067",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.7,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "obs-1",
+      "provenance": "observed-biasfree",
+      "source_file": "2026-antitrust-year-preview-ai-2026-1.json (skp-beliefs-231)",
+      "category": "Beliefs",
+      "camp": "skp",
+      "proposition": "Massive capital requirements for AI infrastructure consolidate control among a small number of hardware-owning firms, creating proprietary bottlenecks.",
+      "entity_refs": [
+        {
+          "ref": "ent-048",
+          "surface": "CHIPS Act",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "consolidate",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"massive capital requirements for AI infrastructure\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"control over AI infrastructure\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "beneficiary",
+            "ref": "lit:\"a small number of hardware-owning firms\"",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:skp",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-048",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.7,
+        "status": "proposed",
+        "_ref_note": "CHIPS Act is TOPICAL, not a participant -> about[], not args. No resolved entity is a core arg; participants are lit:. Illustrates the 88%-single-topical-ref reality."
+      }
+    },
+    {
+      "id": "obs-2",
+      "provenance": "observed-biasfree",
+      "source_file": "(skp-beliefs-098)",
+      "category": "Beliefs",
+      "camp": "skp",
+      "proposition": "Generative AI developers systematically exploit unauthorized copyrighted works for model training, bypassing creator consent.",
+      "entity_refs": [
+        {
+          "ref": "ent-034",
+          "surface": "Claude",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "exploit",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"generative AI developers\"",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"unauthorized copyrighted works\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "goal",
+            "ref": "lit:\"model training\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          },
+          {
+            "role": "manner",
+            "ref": "lit:\"bypassing creator consent\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:skp",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-034",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.75,
+        "status": "proposed",
+        "_ref_note": "Claude is an instance of the developers' output -> topical about[], not an arg."
+      }
+    },
+    {
+      "id": "obs-3",
+      "provenance": "observed-biasfree",
+      "source_file": "(saf-beliefs-250)",
+      "category": "Beliefs",
+      "camp": "saf",
+      "proposition": "Popular interactive toys fail to securely encrypt data traffic and silently collect children's information.",
+      "entity_refs": [
+        {
+          "ref": "ent-071",
+          "surface": "General Data Protection Regulation",
+          "match_level": "exact"
+        }
+      ],
+      "reference": {
+        "predicate": "collect",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"popular interactive toys\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"children's information\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:saf",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-071",
+            "match_level": "exact"
+          }
+        ],
+        "formalization_confidence": 0.55,
+        "status": "proposed",
+        "_ref_note": "COMPOUND proposition (fail-to-encrypt AND collect). Reference picks the primary event (collect) per the single-predicate rule; low confidence flags the compression. GDPR is topical -> about[]. A candidate that instead formalizes 'fail_to_encrypt' is not wrong on predicate alone — scored as a near-miss."
+      }
+    },
+    {
+      "id": "con-3",
+      "provenance": "constructed",
+      "note": "subclass match_level (real corpus is all-exact — t/3238).",
+      "category": "factual",
+      "camp": "",
+      "proposition": "GPT-4 memorizes portions of its training data.",
+      "entity_refs": [
+        {
+          "ref": "ent-090",
+          "surface": "GPT-4",
+          "match_level": "subclass"
+        }
+      ],
+      "reference": {
+        "predicate": "memorize",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "ent-090",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "subclass"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"portions of its training data\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-090",
+            "match_level": "subclass"
+          }
+        ],
+        "formalization_confidence": 0.8,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "con-4",
+      "provenance": "constructed",
+      "note": "instance_of match_level.",
+      "category": "factual",
+      "camp": "",
+      "proposition": "Claude 3 Opus underwent third-party safety evaluation before release.",
+      "entity_refs": [
+        {
+          "ref": "ent-034",
+          "surface": "Claude 3 Opus",
+          "match_level": "instance_of"
+        }
+      ],
+      "reference": {
+        "predicate": "evaluate",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"third-party evaluators\"",
+            "sort": "agentive-physical-object",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "ent-034",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "instance_of"
+          }
+        ],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "before",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-034",
+            "match_level": "instance_of"
+          }
+        ],
+        "formalization_confidence": 0.8,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "con-5",
+      "provenance": "constructed",
+      "note": "related match_level + BDI.",
+      "category": "Beliefs",
+      "camp": "skp",
+      "proposition": "Export controls on advanced chips constrain AI development.",
+      "entity_refs": [
+        {
+          "ref": "ent-048",
+          "surface": "CHIPS Act export controls",
+          "match_level": "related"
+        }
+      ],
+      "reference": {
+        "predicate": "constrain",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"export controls on advanced chips\"",
+            "sort": "normative-description",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"AI development\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:skp",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [
+          {
+            "ref": "ent-048",
+            "match_level": "related"
+          }
+        ],
+        "formalization_confidence": 0.6,
+        "status": "proposed"
+      }
+    },
+    {
+      "id": "con-rej",
+      "provenance": "constructed",
+      "note": "meta-descriptive, no recoverable embedded assertion -> status:rejected (real batch produced none).",
+      "category": "factual",
+      "camp": "",
+      "proposition": "The document provides a comprehensive overview of the current AI regulatory landscape across jurisdictions.",
+      "entity_refs": [],
+      "reference": {
+        "predicate": "overview",
+        "event_ref": "e1",
+        "args": [],
+        "polarity": "positive",
+        "modality": null,
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "about": [],
+        "formalization_confidence": 0.2,
+        "status": "rejected"
+      }
+    }
+  ]
+}

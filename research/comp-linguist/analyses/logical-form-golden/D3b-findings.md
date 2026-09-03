@@ -166,5 +166,45 @@ of the original criterion is **unachievable from real data** (t/3238) and is dro
 stays constructed-only.
 
 ```
-python score_golden.py --golden golden_set_expanded.json --candidates candidates_expanded.json   # -> STRICT 0.791 (n=28)
+python score_golden.py --golden golden_set_expanded.json --candidates candidates_expanded.json   # -> STRICT 0.791 (n=28, mixed-prompt, superseded)
+```
+
+## DERIVED — n=31 single-prompt hardened baseline (t/3229 / t/3255)
+
+The mixed-prompt confound was removed by re-running the pass with `-Force` over the 15 D3b golden-source
+files under the hardened prompt (`ai-triad-data` `1f1ef8be` / t/3255), giving an **all-hardened** candidate
+set (25 re-run D3b + 3 bias-free D3a already hardened + 3 newly-added rows). Golden grown to **n=31 observed**
+(`golden_set_derived.json` + `candidates_derived.json`).
+
+**Result (STRICT, n=31): `formalization_accuracy` = 0.802.**
+
+| component | n=28 mixed-prompt | n=28 single-prompt | **n=31 single-prompt (derived)** |
+|---|---|---|---|
+| predicate | 0.643 | 0.714 | **0.677** |
+| args | 0.281 | 0.303 | 0.295 |
+| polarity / modality | 1.00 | 1.00 | 1.00 |
+| temporal | 0.929 | 0.929 | 0.935 |
+| about | 0.893 | 0.893 | 0.903 |
+| **OVERALL** | 0.791 | 0.806 | **0.802** |
+| *diag* predicate_syn | 0.696 | 0.732 | 0.694 |
+| *diag* args_participant | 0.429 | 0.492 | 0.466 |
+
+- **The hardened prompt fixed the attitude-leaks on real data**: b-04 `support`→`protect`, b-08
+  `aim-to-remove`→`remove`, b-13 `promote`→`prevent` all now match the reference; b-03 `support`→`prevent`
+  (leak gone, though still a different clause than the reference's `manage`). Single-prompt predicate rose
+  0.643→0.714 on the same 28 rows.
+- The 3 added rows net predicate down slightly (b-31 `improve` matched; b-21 `protect`/`preempt` and b-36
+  `elevate`/`surpass` are clause-selection misses) — expected, more diverse, truer estimate.
+- **predicate (0.68) stays the weak axis**, now purely clause-selection/synonymy on multi-clause
+  meta-descriptive BDI (no attitude-leaks left); `predicate_syn` 0.69 shows part is synonymy.
+
+**Provenance: `formalization_accuracy` promoted stipulated → DERIVED** (0.802, n=31, single all-hardened
+prompt). Gate met: n≥30, one consistent prompt, blind-authored stratified references incl. bias-free rows,
+reproducible. **Caveats (recorded, not blockers):** agreement is vs the CL reference (single-annotator, no
+inter-annotator agreement); `match_level` is all-`exact` (that axis is constructed-only, t/3238); predicate
+0.68 / args 0.30 are the honest weak axes. `formalization_confidence` remains a stipulated self-rating until
+correlated with golden correctness.
+
+```
+python score_golden.py --golden golden_set_derived.json --candidates candidates_derived.json   # -> STRICT 0.802 (n=31, DERIVED)
 ```
