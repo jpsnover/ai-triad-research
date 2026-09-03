@@ -8,7 +8,16 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { mergeGuardVerdict } from './merge-guard-predicate.mjs';
+
+const MODULE = fileURLToPath(new URL('./merge-guard-predicate.mjs', import.meta.url));
+// Invoke the module the SAME way the feedback rule does — proves runtime (CLI shim) == the tested
+// function (test==runtime, TL GV t/3270#4). Returns the shim's stdout: 'fire' to block, '' to allow.
+function runShim(command) {
+  return execFileSync(process.execPath, [MODULE, command], { encoding: 'utf8' });
+}
 
 test('BLOCK arm: manual merge without --match-head-commit', () => {
   const v = mergeGuardVerdict('gh pr merge 1901 --squash');
@@ -67,4 +76,20 @@ test('edge: a bare --match-head-commit with NO value does NOT count as guarded (
 test('edge: empty / undefined command is a no-op', () => {
   assert.equal(mergeGuardVerdict('').block, false);
   assert.equal(mergeGuardVerdict(undefined).block, false);
+});
+
+// --- CLI shim: prove the RUNTIME the feedback rule invokes (test==runtime, TL GV t/3270#4) ---
+
+test('CLI shim: BLOCKs (emits "fire") on a manual merge missing the flag', () => {
+  assert.equal(runShim('gh pr merge 1901 --squash'), 'fire');
+});
+
+test('CLI shim: ALLOWs (no output) on a guarded merge — both flag forms', () => {
+  assert.equal(runShim('gh pr merge 1901 --squash --match-head-commit 1578b0a0'), '');
+  assert.equal(runShim('gh pr merge 1901 --squash --match-head-commit=1578b0a0'), '');
+});
+
+test('CLI shim: ALLOWs --auto (exempt) and non-merge commands', () => {
+  assert.equal(runShim('gh pr merge 1901 --auto'), '');
+  assert.equal(runShim('gh pr view 1901 --json headRefOid'), '');
 });

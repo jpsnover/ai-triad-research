@@ -40,15 +40,13 @@ export function mergeGuardVerdict(command) {
   return { block: true, reason: 'missing-match-head-commit' };
 }
 
-/**
- * INLINE_FOR_RULE — the exact node -e body the pre-self-merge-verify rule runs when flipped to
- * type:block (kept co-located so the flip is copy-paste and the test above proves the same logic):
- *
- *   const c=process.argv[2]||'';
- *   if(!/\bgh(?:\.exe)?\s+pr\s+merge\b/.test(c))process.exit(0);
- *   if(/(?:^|\s)--auto(?:[=\s]|$)/.test(c))process.exit(0);
- *   if(/--match-head-commit(?:=|\s+)\S/.test(c))process.exit(0);
- *   process.stdout.write('fire');
- *
- * (allow == exit 0 no stdout; block == write 'fire'; command passed positionally after `--`.)
- */
+// CLI shim (t/3270#4, TL GV): the pre-self-merge-verify feedback rule invokes THIS module directly
+//   node <path>/merge-guard-predicate.mjs "<command>"
+// so the rule runs the exact logic the both-arms test proves — test == runtime. (A hand-copied
+// inline node -e would let a typo in the un-tested copy brick every merge or silently negate the
+// gate; TL's load-bearing fix.) Convention: BLOCK == write 'fire' to stdout; ALLOW == exit 0, no
+// stdout — the worktree-path-guard blocking contract. The endsWith guard makes this fire only on
+// direct invocation (any path form), never when imported by the test.
+if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('merge-guard-predicate.mjs')) {
+  if (mergeGuardVerdict(process.argv[2] || '').block) process.stdout.write('fire');
+}
