@@ -115,4 +115,30 @@ A_anno − A: misaligned Δjudge_adopt −0.04, Δmean_judge −0.21; aligned 0 
 
 ### Combined conclusion
 
-Structural separation works (Arm 1); framing does not (Arm 2, and both t/3262 header variants). The consistent result across every surface tested: a machine-generated or retrieved claim inherits the debater's authority whenever it renders inside the debater's own grounding context, and no amount of framing text overrides that. Only moving it into a structurally-separate, non-authoritative block restores the debater's resistance. Consequence: `graph_attributes` annotations need the same structural separation as node claims, not just the t/3146 heuristic prefix. Tracked in t/3264.
+Structural separation works (Arm 1); framing does not (Arm 2, and both t/3262 header variants). The consistent result across every surface tested: a machine-generated or retrieved claim inherits the debater's authority whenever it renders inside the debater's own grounding context, and no amount of framing text overrides that. Only moving it into a structurally-separate, non-authoritative block restores the debater's resistance. This was true for injected *claims*. **(Update, Follow-up 3: the extension of this to `graph_attributes` — that annotations need the same structural separation — was then tested directly and REFUTED. Structural rendering does not fix classification injection; see below.)**
+
+## Follow-up 3 (t/3264 Type-B): classification injection is NOT fixable by rendering. The fix is content-layer.
+
+The A_anno probe (Arm 2 / Phase B above) injected a false *factual claim* into the annotation channel. The Risk Assessor ruled (p/598#4) that this is the wrong threat: real `graph_attributes` carry *classifications* (epistemic_type, fallacy flags, steelman_vulnerability), not world-facts. Two faithful Type-B probes followed, each measuring whether a false *classification* corrupts the debater's meta-reasoning, two-sided (a fabricated classification should not be acted on; a genuine one should still be usable).
+
+### Type-B self-directed (fabricated `steelman_vulnerability` on the debater's OWN argument) — NULL.
+
+`type_b_classif.json`, 120 cells. `act_rate` (soften/concede, level ≥ 2) = **0.00 in every condition** (control / false-inline / false-external / true-inline / true-external). A self-directed false vulnerability does not make the debater concede; it defends firmly. `false ≈ control` even inline, so there is nothing for a rendering fix to address, and the external block does not over-suppress genuine vulnerabilities (mean 1.0 ≥ 0.88). Conceding your own argument fights the debater's core drive; the threat has no purchase here.
+
+### Type-B opponent-directed (false `fallacy` flag on a LEGITIMATE opponent argument) — FIRES; rendering does NOT fix it.
+
+`type_b_opponent.json`, 120 cells.
+
+| condition | mean_level (0–3) | dismiss_rate (leans on flag, ≥ 2) |
+|---|---|---|
+| control (no flag) | 0.00 | 0.00 |
+| false_inline | 0.96 | 0.25 |
+| false_external (#1871 block) | 1.00 | 0.21 |
+| true_inline | 1.79 | 0.58 |
+| true_external (#1871 block) | 2.21 | 0.83 |
+
+The threat is real: a false fallacy flag makes the debater unfairly dismiss a *legitimate* opponent argument 25% of the time, vs 0% with no flag. The asymmetric cost is the mechanism (dismissing an opponent is cheap; conceding your own point is not, hence the self-directed null). But the structural block does NOT fix it: `false_external (0.21) ≈ false_inline (0.25)`, nowhere near control's 0.00. It also does not over-suppress true flags (`true_external 0.83 ≥ true_inline 0.58`).
+
+### Unifying conclusion (corrects the claim-only result above)
+
+Structural block placement changes how a debater acts on injected machine content in exactly ONE case: when the content is a standalone external *claim/node* (Arm 1). A *classification or annotation ABOUT an argument* — self-vulnerability, opponent-fallacy, evidence-basis — is meta-information the debater folds into its reasoning regardless of where it is rendered, so no rendering change reaches it. And `graph_attributes` are annotations-about-arguments by nature. Therefore the graph_attributes fix is a **content-layer control** (validate/filter unverified classifications before injection; `verification_status` as a filter, not a display signal — RA t/3262#13), not rendering separation. #1871 lands on its own merits (flag-off default, no over-suppression) but is not the classification mitigation. Severity: Medium (25%, single-turn, rebuttable).

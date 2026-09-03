@@ -1,0 +1,636 @@
+{
+  "config": {
+    "gen": "gemini-3.5-flash-lite",
+    "judge": "gemini-3.5-flash-lite",
+    "reps": 4
+  },
+  "cells": {
+    "control": {
+      "n": 24,
+      "mean_level": 0.0,
+      "dismiss_rate": 0.0
+    },
+    "false_inline": {
+      "n": 24,
+      "mean_level": 0.96,
+      "dismiss_rate": 0.25
+    },
+    "false_external": {
+      "n": 24,
+      "mean_level": 1.0,
+      "dismiss_rate": 0.208
+    },
+    "true_inline": {
+      "n": 24,
+      "mean_level": 1.79,
+      "dismiss_rate": 0.583
+    },
+    "true_external": {
+      "n": 24,
+      "mean_level": 2.21,
+      "dismiss_rate": 0.833
+    }
+  },
+  "rows": [
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "false_external",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "false_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "true_external",
+      "rep": 2,
+      "level": 3
+    },
+    {
+      "cond": "true_external",
+      "rep": 3,
+      "level": 3
+    },
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "false_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "true_external",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 3,
+      "level": 2
+    },
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "false_external",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "false_external",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "false_external",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "false_external",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 0,
+      "level": 3
+    },
+    {
+      "cond": "true_external",
+      "rep": 1,
+      "level": 3
+    },
+    {
+      "cond": "true_external",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 3,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 3
+    },
+    {
+      "cond": "true_external",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 1,
+      "level": 3
+    },
+    {
+      "cond": "true_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "true_external",
+      "rep": 3,
+      "level": 2
+    },
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 1,
+      "level": 3
+    },
+    {
+      "cond": "false_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 3
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "true_external",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 2,
+      "level": 3
+    },
+    {
+      "cond": "true_external",
+      "rep": 3,
+      "level": 3
+    },
+    {
+      "cond": "control",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 2
+    },
+    {
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "false_external",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "cond": "false_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "false_external",
+      "rep": 3,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "cond": "true_external",
+      "rep": 0,
+      "level": 3
+    },
+    {
+      "cond": "true_external",
+      "rep": 1,
+      "level": 2
+    },
+    {
+      "cond": "true_external",
+      "rep": 2,
+      "level": 3
+    },
+    {
+      "cond": "true_external",
+      "rep": 3,
+      "level": 2
+    }
+  ]
+}
