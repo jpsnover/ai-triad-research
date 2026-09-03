@@ -31,4 +31,5 @@ Active UX specs in `docs/ux/`. Design owns these; coding agents reference them d
 | `usage-hierarchy-navigation.md` | Presentation UX for the roll-up: breadcrumb drill-down + tree + user/session scope filtering across all tools (Taxonomy/Chat/Lineage/Situations); KIND registry, leaf cross-axis, endpoint additions. Builds on `usage-analytics-instrumentation.md`, supersedes `analytics-dashboard.md` §3 |
 | `oped-studio.md` | Op-Ed Studio — GUI for `New-OpEd`: My/Community library, multi-voice create (one topic → one op-ed per camp), tabbed multi-voice sets, clickable taxonomy grounding (t/2570) |
 | `debate-setup-details.md` | Debate Setup drill-in — modal surfacing full topic, source URL/document pointer, background, and setup config; retires the situations-only `Details`/`CrossCuttingDialog` (t/2731) |
+| `vocabulary-panel-readability.md` | Vocabulary panel (shared) readability fix — the panel ships with NO CSS (unstyled run-on rows); columns/spacing/tokens/a11y spec for Dictionary/Colloquial/Lint (t/2895) |
 | `design-system.md` | Design system reference (living document) |
