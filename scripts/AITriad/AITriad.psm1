@@ -815,6 +815,7 @@ Export-ModuleMember -Function @(
     'Find-GraphPath'
     'Approve-Edge'
     'Approve-TaxonomyProposal'
+    'Get-Concept'   # t/3291 — standardized dictionary reader + concept<->node reverse map
     'Get-Edge'
     'Get-Situation'
     'Set-Edge'
