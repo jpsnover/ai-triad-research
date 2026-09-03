@@ -24,6 +24,7 @@ export const FREE_TIER_AI_POST_PATHS: readonly string[] = [
   '/api/embeddings/compute',
   '/api/embeddings/query',
   '/api/ai/chat-stream', // t/2489: anonymous users may use AI chat (free-tier Gemini)
+  '/api/taxonomy/relevant-nodes', // t/3284: anon debates reach server-side relevance (local ONNX, free-tier rate-limited)
 ];
 
 /**

@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { isFreeTierAiPath, FREE_TIER_AI_POST_PATHS } from '../anonAiRoutes.js';
+import { isAnonAllowedRoute } from '../security/accessControl.js';
 
 describe('t/2489 — free-tier AI route allowlist (anon chat exemption)', () => {
   it('POST /api/ai/chat-stream is on the allowlist (the new anon-chat exemption)', () => {
@@ -19,6 +20,21 @@ describe('t/2489 — free-tier AI route allowlist (anon chat exemption)', () => 
     expect(isFreeTierAiPath('POST', '/api/ai/generate')).toBe(true);
     expect(isFreeTierAiPath('POST', '/api/embeddings/compute')).toBe(true);
     expect(isFreeTierAiPath('POST', '/api/embeddings/query')).toBe(true);
+  });
+
+  // ── t/3284 — /api/taxonomy/relevant-nodes anon-gate ──
+  it('t/3284: POST /api/taxonomy/relevant-nodes is free-tier exempt (predicate true)', () => {
+    expect(isFreeTierAiPath('POST', '/api/taxonomy/relevant-nodes')).toBe(true);
+    expect(FREE_TIER_AI_POST_PATHS).toContain('/api/taxonomy/relevant-nodes');
+  });
+
+  it('t/3284: GET /api/taxonomy/relevant-nodes is NOT exempt (method-scoped)', () => {
+    expect(isFreeTierAiPath('GET', '/api/taxonomy/relevant-nodes')).toBe(false);
+  });
+
+  it('t/3284 security negative: /api/taxonomy/relevant-nodes is NOT in the anon-safe allowlist (wrong bucket guard)', () => {
+    // Must be free-tier gated (rate-limited), NOT the blanket ANON_SAFE_POST_PATHS which bypasses rate limits.
+    expect(isAnonAllowedRoute('POST', '/api/taxonomy/relevant-nodes')).toBe(false);
   });
 
   // ── Negative arm (TL guardrail #1): other AI routes stay anon-blocked ──
