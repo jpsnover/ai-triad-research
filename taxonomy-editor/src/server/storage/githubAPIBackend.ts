@@ -403,25 +403,6 @@ export class GitHubAPIBackend implements StorageBackend {
       return;
     }
 
-    // t/3267: guard — if no forced ref and no session context, the caller forgot to
-    // call ensureSessionBranch(). Failing loudly here prevents a ~100s hang on the
-    // GitHub Contents API (which times out on multi-MB files and lacks a session-branch
-    // target). This is always a caller bug in the session-branch write path.
-    if (!forceRef && !this.hasSessionContext()) {
-      this.recordEvent({ type: 'system.error', component: 'github-api-backend', level: 'error',
-        message: `writeFile: no session context — Contents API slow-path blocked (t/3267): ${repoPath}`,
-        data: { path: repoPath, ref, hasSessionContext: false } });
-      throw new ActionableError({
-        goal: `Write file: ${repoPath}`,
-        problem: 'No session branch context: ensureSessionBranch() was not called before this write. Blocking to prevent a ~100s GitHub Contents API timeout (t/3267).',
-        location: `GitHubAPIBackend.writeFile(${repoPath})`,
-        nextSteps: [
-          'Call ensureSessionBranch() before any write operation',
-          'Verify the request runs inside runWithUser() to initialize the ALS context',
-        ],
-      });
-    }
-
     // Guard: a forced ref that differs from the configured base branch would bypass
     // base-branch isolation (e.g. forced 'main' on a staging deployment leaks to prod).
     // Zero current consumers (t/2657) — this future-proofs against re-arming the incident.
