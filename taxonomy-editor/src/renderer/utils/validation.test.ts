@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { povTaxonomyFileSchema, extractPovErrors } from './validation';
+import { povTaxonomyFileSchema, extractPovErrors, stripInvalidLogicalForm } from './validation';
 
 function validNode(overrides: Record<string, unknown> = {}) {
   return {
@@ -212,5 +212,60 @@ describe('extractPovErrors', () => {
       expect(msg).toBeDefined();
       expect(msg.length).toBeGreaterThan(5);
     }
+  });
+});
+
+// t/3250: canonical logical_form is now validated (not silently .passthrough()'d), with a
+// graceful-degrade at load so a malformed *proposed* frame never drops the whole node.
+const validLogicalForm = {
+  predicate: 'resolve',
+  event_ref: 'e1',
+  args: [{ role: 'agent', ref: 'ent-001', sort: 'agentive-physical-object', match_level: 'exact' }],
+  polarity: 'positive',
+  modality: { holder: 'camp:acc', attitude: 'desire' },
+  temporal: { type: 'unspecified', value: null },
+  formalization_confidence: 0.9,
+  status: 'proposed',
+};
+
+describe('povNodeSchema.logical_form (t/3250) — validated, not silently accepted', () => {
+  it('accepts a node carrying a valid logical_form', () => {
+    const result = povTaxonomyFileSchema.safeParse(validFile({ logical_form: validLogicalForm }));
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an out-of-vocab enum (was silently passed through before)', () => {
+    const result = povTaxonomyFileSchema.safeParse(validFile({ logical_form: { ...validLogicalForm, polarity: 'maybe' } }));
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a logical_form missing a required field', () => {
+    const noPredicate = { ...validLogicalForm } as Record<string, unknown>;
+    delete noPredicate.predicate;
+    const result = povTaxonomyFileSchema.safeParse(validFile({ logical_form: noPredicate }));
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('stripInvalidLogicalForm (t/3250) — graceful degrade at load', () => {
+  it('keeps a valid logical_form untouched (removed:false)', () => {
+    const node: Record<string, unknown> = { id: 'acc-desires-001', logical_form: { ...validLogicalForm } };
+    const r = stripInvalidLogicalForm(node);
+    expect(r.removed).toBe(false);
+    expect(node.logical_form).toBeDefined();
+  });
+
+  it('strips a malformed frame + reports the issue, node survives with field omitted (NOT dropped)', () => {
+    const node: Record<string, unknown> = { id: 'acc-desires-002', logical_form: { ...validLogicalForm, status: 'bogus' } };
+    const r = stripInvalidLogicalForm(node);
+    expect(r.removed).toBe(true);
+    expect(r.issue).toBeTruthy();
+    expect(node.logical_form).toBeUndefined(); // field omitted
+    expect(node.id).toBe('acc-desires-002');   // rest of the node intact
+  });
+
+  it('is a no-op when the node has no logical_form', () => {
+    const node: Record<string, unknown> = { id: 'acc-desires-003' };
+    expect(stripInvalidLogicalForm(node).removed).toBe(false);
   });
 });
