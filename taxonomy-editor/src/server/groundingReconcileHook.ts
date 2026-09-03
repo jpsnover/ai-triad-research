@@ -44,7 +44,16 @@ const RECONCILE_TIMEOUT_MS = 120_000;
 const RECONCILE_MAX_BUFFER = 10 * 1024 * 1024;
 
 // ── Injectable runner (testability — tests drive flush/coalesce/failure without spawning python) ──
-export interface ReconcilerStats { changed: number | null; skipped: number | null; removed: number | null }
+export interface ReconcilerStats {
+  changed: number | null;
+  skipped: number | null;
+  removed: number | null;
+  /** t/3265: the reconciler's `grounding_lock held Xs` (stderr) — surfaced on the SUCCESS path so the
+   *  lock-hold trend is greppable in LA, not only on failure. null when the line is absent (parse miss). */
+  lockHeldS?: number | null;
+  /** t/3265: the reconciler's stale-lock-break WARN line (stderr), forwarded when present. */
+  staleBreak?: string | null;
+}
 export type ReconcilerRunner = (nodeIds: string[]) => Promise<ReconcilerStats>;
 
 // Node-id charset: `{pov}-{cat}-{NNN}`, `pol-*`, `term:*`, `sei:*`, `summary:*` — word chars, ':',
@@ -73,7 +82,9 @@ function defaultRunner(nodeIds: string[]): Promise<ReconcilerStats> {
       { timeout: RECONCILE_TIMEOUT_MS, maxBuffer: RECONCILE_MAX_BUFFER },
       (err, stdout, stderr) => {
         if (err) { reject(new Error(`reconcile_grounding.py exited non-zero/timeout: ${err.message}\n${stderr}`)); return; }
-        resolve(parseStats(stdout));
+        // t/3265: on SUCCESS, also carry the reconciler's stderr lock-hold telemetry (previously discarded
+        // here — only the FAILURE reject echoed stderr), so a healthy sweep still reports `grounding_lock held Xs`.
+        resolve({ ...parseStats(stdout), ...parseLockTelemetry(stderr) });
       },
     );
   });
@@ -90,6 +101,22 @@ export function parseStats(stdout: string): ReconcilerStats {
     }
   } catch { /* telemetry — silent by design: a stdout parse miss yields null stats, never throws (observability field only) */ }
   return { changed: null, skipped: null, removed: null };
+}
+
+/** t/3265: extract the reconciler's lock-hold telemetry from STDERR — `grounding_lock held Xs`
+ *  (reconcile_grounding.py:593) and the stale-lock-break WARN (…:150). Observability only; a parse
+ *  miss yields nulls, never throws. Couples to those two stderr strings — noted here so the coupling
+ *  is greppable if CL changes them. Exported for unit test. */
+export function parseLockTelemetry(stderr: string): { lockHeldS: number | null; staleBreak: string | null } {
+  let lockHeldS: number | null = null;
+  let staleBreak: string | null = null;
+  try {
+    const held = stderr.match(/grounding_lock held ([\d.]+)s/);
+    if (held) { const n = Number.parseFloat(held[1]); if (Number.isFinite(n)) lockHeldS = n; }
+    const stale = stderr.match(/WARN grounding_lock: breaking stale lock[^\n]*/);
+    if (stale) staleBreak = stale[0];
+  } catch { /* telemetry — silent by design: a stderr parse miss yields null, never throws */ }
+  return { lockHeldS, staleBreak };
 }
 
 let _runner: ReconcilerRunner = defaultRunner;
@@ -133,6 +160,22 @@ async function flush(): Promise<void> {
       message: `grounding_reconcile_inline: reconciled ${ids.length} node(s) — ${stats.changed ?? '?'} changed`,
       data: { node_ids: ids, changed: stats.changed, skipped: stats.skipped, removed: stats.removed, duration_ms: Date.now() - startedMs },
     });
+    // t/3265: forward the reconciler's `grounding_lock held Xs` (stderr) to log.server.info on the SUCCESS
+    // path so the lock-hold trend is continuously greppable in Log Analytics — previously it echoed stderr
+    // only on FAILURE, so a healthy sweep emitted NO lock telemetry (the t/3165 present-but-unobservable
+    // class; the exact metric the G8 lock-hold gate wants). Fire-and-forget: a parse miss → no line.
+    if (stats.lockHeldS != null) {
+      log.server.info(
+        { component: 'grounding-reconcile', node_ids: ids, lock_held_s: stats.lockHeldS, reconcile_ms: Date.now() - startedMs },
+        `grounding_lock held ${stats.lockHeldS}s (inline reconcile)`,
+      );
+    }
+    if (stats.staleBreak) {
+      log.server.warn(
+        { component: 'grounding-reconcile', node_ids: ids, stale_break: stats.staleBreak },
+        'grounding_lock: stale lock broken during inline reconcile',
+      );
+    }
   } catch (err) {
     // Fallback-Path Logging: a failed/skipped reconcile must be visible (silently-stale grounding is
     // invisible degradation) — WARN it — but NEVER propagate: the taxonomy write already succeeded,
