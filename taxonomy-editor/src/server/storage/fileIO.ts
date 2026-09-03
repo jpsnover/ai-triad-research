@@ -1375,7 +1375,7 @@ export async function loadDictionary(): Promise<{ standardized: unknown[]; collo
     if (stdJson.length === 0) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'file-io', level: 'warn',
-        message: 'loadDictionary: standardized dir present but zero .json files — returning empty (t/3289)',
+        message: 'loadDictionary: standardized dir present but zero .json files (empty-listing) — returning empty (t/3289)',
         data: { dir: stdDir, cause: 'empty-listing', fileCount: stdFiles.length },
       });
     }
@@ -1401,7 +1401,7 @@ export async function loadDictionary(): Promise<{ standardized: unknown[]; collo
     if (colJson.length === 0) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'file-io', level: 'warn',
-        message: 'loadDictionary: colloquial dir present but zero .json files — returning empty (t/3289)',
+        message: 'loadDictionary: colloquial dir present but zero .json files (empty-listing) — returning empty (t/3289)',
         data: { dir: colDir, cause: 'empty-listing', fileCount: colFiles.length },
       });
     }
