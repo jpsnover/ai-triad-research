@@ -600,6 +600,52 @@ jobs:
           }
           Write-Host "Config verification passed ($($ConfigChecks.Count) checks)"
 
+      - name: Assert in-process offload flag (WARN-only, t/3247)
+        # Prevention for t/3165. The Verify-Bicep-config step above proves EMBEDDING_WORKER_OFFLOAD
+        # is PRESENT in ACA config; this asserts the RUNNING process EVALUATED it truthy, via
+        # ServerAPI's #1828 boot log (server.ts:1316 -> "embedding offload flag at boot"
+        # {embeddingWorkerOffload:bool}). "Config present" != "flag effective" (t/3165).
+        #
+        # GATE PROMOTION (t/3247 GV cond 1): ships WARN-only (continue-on-error: true) for >=1 green
+        # deploy to CALIBRATE the Log Analytics ingestion-lag retry ceiling below; the flip to
+        # blocking (drop continue-on-error) is a SEPARATE TL GV. Predicate is DOT-SOURCED from
+        # operations/devops/Test-BootFlagEffective.ps1 — the single source its Pester both-arms test
+        # also uses (t/3010 co-location). Cond 2: present+false = 'drift'; absent-after-retry is a
+        # DISTINCT 'boot line not found' diagnostic (ingestion/#1828), NOT drift.
+        if: steps.acceptance.outputs.accepted == 'true' && steps.persona.outputs.accepted == 'true'
+        continue-on-error: true
+        shell: pwsh
+        env:
+          NEW_REVISION: ${{ steps.new_revision.outputs.revision }}
+        run: |
+          . ./operations/devops/Test-BootFlagEffective.ps1
+          $ws = az monitor log-analytics workspace list -g '${{ env.RESOURCE_GROUP }}' --query '[0].customerId' -o tsv
+          if (-not $ws) {
+            Write-Host '::warning::t/3247: no Log Analytics workspace in ${{ env.RESOURCE_GROUP }} — cannot assert in-process flag'
+            exit 0
+          }
+          # Query the NEW revision's boot line only. Bounded retry absorbs LA ingestion lag
+          # (~1-3 min typical). Ceiling deliberately generous in WARN phase — calibrate down from the
+          # observed 'found on attempt N' before the blocking flip (GV cond 1).
+          $q = "ContainerAppConsoleLogs_CL | where RevisionName_s == '$env:NEW_REVISION' | where Log_s has 'embedding offload flag at boot' | project TimeGenerated, Log_s | order by TimeGenerated desc | take 5"
+          $lines = @(); $maxAttempts = 8
+          for ($i = 1; $i -le $maxAttempts; $i++) {
+            $lines = @(az monitor log-analytics query --workspace $ws --analytics-query $q --query '[].Log_s' -o tsv 2>$null | Where-Object { $_ })
+            if ($lines.Count -gt 0) { Write-Host "t/3247: boot line found on attempt $i (~$([int](($i-1)*30))s ingest lag)"; break }
+            if ($i -lt $maxAttempts) { Write-Host "t/3247: boot line not yet ingested (attempt $i/$maxAttempts) — wait 30s"; Start-Sleep -Seconds 30 }
+          }
+          $r = Test-BootFlagEffective -BootLogLines $lines
+          Write-Host "t/3247 in-process flag assert: Status=$($r.Status) Pass=$($r.Pass) — $($r.Detail)"
+          if (-not $r.Pass) {
+            if ($r.Status -eq 'Drift') {
+              Write-Host "::warning::t/3247 CONFIG DRIFT (present in ACA config but process not effective) — $($r.Detail)"
+            } else {
+              Write-Host "::warning::t/3247 BOOT LINE NOT FOUND (ingestion/calibration, NOT drift) — $($r.Detail)"
+            }
+            exit 1   # WARN-only this phase: continue-on-error keeps it non-blocking (visible-yellow)
+          }
+          Write-Host "::notice::t/3247 in-process offload flag EFFECTIVE — $($r.Detail)"
+
       - name: Collect failure diagnostics
         # t/3148: warm_gate is a peer failure trigger — a warm-timeout (warm=='false') collects
         # diagnostics on the same footing as an acceptance/persona failure.
