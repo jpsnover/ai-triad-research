@@ -1,0 +1,756 @@
+{
+  "config": {
+    "gen": "gemini-3.5-flash-lite",
+    "judge": "gemini-3.5-flash-lite",
+    "reps": 4
+  },
+  "cells": {
+    "control": {
+      "n": 24,
+      "mean_level": 0.62,
+      "act_rate": 0.0
+    },
+    "false_inline": {
+      "n": 24,
+      "mean_level": 0.58,
+      "act_rate": 0.0
+    },
+    "false_external": {
+      "n": 24,
+      "mean_level": 0.58,
+      "act_rate": 0.0
+    },
+    "true_inline": {
+      "n": 24,
+      "mean_level": 0.88,
+      "act_rate": 0.0
+    },
+    "true_external": {
+      "n": 24,
+      "mean_level": 1.0,
+      "act_rate": 0.0
+    }
+  },
+  "rows": [
+    {
+      "pov": "saf",
+      "cond": "control",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "control",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "control",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "control",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "pov": "saf",
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "pov": "saf",
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "pov": "saf",
+      "cond": "false_external",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "pov": "saf",
+      "cond": "false_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "false_external",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "pov": "saf",
+      "cond": "false_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "control",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "control",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "false_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "false_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "false_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "false_external",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "control",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "control",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "false_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "true_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "control",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "pov": "saf",
+      "cond": "control",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "pov": "saf",
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "pov": "saf",
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "pov": "saf",
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "false_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "false_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "false_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "false_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "saf",
+      "cond": "true_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "control",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "control",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "control",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "control",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "false_external",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "false_external",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "false_external",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "false_external",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "pov": "acc",
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "acc",
+      "cond": "true_external",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "control",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "control",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "control",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "control",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "false_inline",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_inline",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_inline",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "false_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_external",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "false_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "false_external",
+      "rep": 2,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "false_external",
+      "rep": 3,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "true_inline",
+      "rep": 0,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "true_inline",
+      "rep": 1,
+      "level": 0
+    },
+    {
+      "pov": "skp",
+      "cond": "true_inline",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_inline",
+      "rep": 3,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_external",
+      "rep": 0,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_external",
+      "rep": 1,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_external",
+      "rep": 2,
+      "level": 1
+    },
+    {
+      "pov": "skp",
+      "cond": "true_external",
+      "rep": 3,
+      "level": 1
+    }
+  ]
+}
