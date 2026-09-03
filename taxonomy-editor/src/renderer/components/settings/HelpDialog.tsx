@@ -358,7 +358,7 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
   const [showSupportForm, setShowSupportForm] = useState(false);
   const { unreadCount, fetchCases: fetchSupportCases } = useSupportStore();
   const [pos, setPos] = useState({ x: 0, y: 0 });
-  const [size, setSize] = useState({ w: 700, h: 480 });
+  const [size, setSize] = useState({ w: 900, h: 520 });
   const [centered, setCentered] = useState(true);
   const dialogRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
