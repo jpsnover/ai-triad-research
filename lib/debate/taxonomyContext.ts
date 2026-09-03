@@ -119,15 +119,6 @@ export interface FormatContextConfig {
    * No-op today (no nodes have verification_status set); safe to land inert.
    */
   retrievedContextEnabled?: boolean;
-  /**
-   * Enable the EXTERNAL ANALYTICAL SIGNALS block — moves graph_attributes annotations out of the
-   * inline BDI node rendering into a structurally-separate, fully-external-voice block (t/3264
-   * Phase B v3, Option A). Third-party observational voice severs ownership association:
-   * "External analysis of argument [id]..." rather than "[id]: VULNERABLE: ..." (t/3264#19).
-   * DEFAULT: false (behavior-preserving). Annotations are live today, so flipping changes prompt
-   * behavior. Land flag-OFF → CL A_anno_struct_v3 validates → TL GV → then flip on.
-   */
-  machineAnnotationsEnabled?: boolean;
 }
 
 /** Generate per-node inline guidance lines from metadata.
@@ -176,59 +167,6 @@ export function generateNodeGuidance(node: PovNode, category: string): string[] 
   }
 
   return lines;
-}
-
-/** Generate fully-external-voice annotation lines for a node (t/3264 Phase B v3, Option A).
- *  Third-party observational voice: "External analysis of argument [id]..." with [id] as pointer only.
- *  Severs ownership by NOT using assertive-ownership syntax ("[id]: VULNERABLE: ..."). */
-export function generateExternalAnnotationLines(node: PovNode): string[] {
-  const ga = node.graph_attributes;
-  if (!ga) return [];
-
-  const contentLines: string[] = [];
-
-  if (ga.epistemic_type) {
-    const guidance: Record<string, string> = {
-      empirical_claim: 'opponents may demand primary sources and peer-reviewed evidence',
-      normative_prescription: 'opponents may challenge coherence with stated principles or tradeoffs',
-      strategic_recommendation: 'opponents may challenge feasibility, implementation, or cost-benefit',
-      interpretive_lens: 'opponents may challenge explanatory power or offer counter-interpretations',
-    };
-    const hint = guidance[ga.epistemic_type] ?? '';
-    contentLines.push(`    epistemic_type: ${ga.epistemic_type}${hint ? ` — ${hint}` : ''}`);
-  }
-
-  if (ga.falsifiability) {
-    const guidance: Record<string, string> = {
-      high: 'opponents may use counter-evidence, methodological critique, or replication failure',
-      medium: 'opponents may exploit scope limits, competing frameworks, or edge cases',
-      low: 'opponents may use coherence challenges, analogical breakdown, or generalization failure',
-    };
-    const hint = guidance[ga.falsifiability] ?? '';
-    contentLines.push(`    falsifiability: ${ga.falsifiability}${hint ? ` — ${hint}` : ''}`);
-  }
-
-  if (ga.assumes?.length) {
-    const top2 = ga.assumes.slice(0, 2).map(a => `"${a}"`).join(', ');
-    contentLines.push(`    assumes: ${top2} — these premises may be challenged`);
-  }
-
-  if (ga.steelman_vulnerability) {
-    const sv = ga.steelman_vulnerability;
-    const svText = typeof sv === 'string' ? sv : Object.values(sv).filter(Boolean).join(' | ');
-    if (svText) contentLines.push(`    steelman_vulnerability: "${svText}" [external assessment — verify independently]`);
-  }
-
-  if (node.doctrinally_anchored) {
-    contentLines.push(`    doctrinally_anchored: true — high concession cost flagged`);
-  }
-
-  if (contentLines.length === 0) return [];
-
-  return [
-    `  External analysis of argument [${node.id}] ("${node.label}"):`,
-    ...contentLines,
-  ];
 }
 
 /** Compute weighted sort score: Beliefs use relevance×confidence, Desires use relevance×(priority/5), Intentions use relevance×(operationality/5). */
@@ -357,8 +295,8 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       sorted = sorted.slice(0, maxDesires);
     }
 
-    // t/3146: machine-origin signal (inline mode — suppressed when machineAnnotationsEnabled moves guidance to its own block)
-    if (!cfg.machineAnnotationsEnabled && sorted.length > 0) {
+    // t/3146: machine-origin signal — emitted once per category section, before any node guidance
+    if (sorted.length > 0) {
       lines.push('  [heuristic] The following tactical annotations are machine-estimated heuristics, not established facts — use them as suggestions.');
     }
     for (let i = 0; i < sorted.length; i++) {
@@ -370,11 +308,8 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
         const weightLabel = nodeWeightLabel(n, cat);
         lines.push(`${prefix}[${n.id}]${weightLabel}`);
         lines.push(`  "${n.label}" — ${stripExcludes(n.description)}`);
-        // t/3264 Phase B: guidance moves to MACHINE ANNOTATIONS block when flag is on; inline otherwise
-        if (!cfg.machineAnnotationsEnabled) {
-          const guidance = generateNodeGuidance(n, cat);
-          lines.push(...guidance);
-        }
+        const guidance = generateNodeGuidance(n, cat);
+        lines.push(...guidance);
       } else {
         lines.push(`${prefix}[${n.id}] "${n.label}"`);
       }
@@ -414,22 +349,6 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       lines.push(`  "${n.label}" — ${stripExcludes(n.description)}`);
     }
     lines.push('');
-  }
-
-  // t/3264 Phase B v3: EXTERNAL ANALYTICAL SIGNALS block — fully-external-voice, Option A (flag-gated, default off)
-  if (cfg.machineAnnotationsEnabled) {
-    const annotationEntries = povSlice
-      .map(n => generateExternalAnnotationLines(n))
-      .filter(entry => entry.length > 0);
-    if (annotationEntries.length > 0) {
-      lines.push('=== EXTERNAL ANALYTICAL SIGNALS (unverified — not your beliefs or position assessments) ===');
-      lines.push('Third-party analytical classifications of arguments in this debate domain. Machine-generated and unverified — treat as external observations, not your own position assessments.');
-      lines.push('');
-      for (const entry of annotationEntries) {
-        lines.push(...entry);
-      }
-      lines.push('');
-    }
   }
 
   // Situations section — hierarchy-grouped with Lost-in-the-Middle ordering
