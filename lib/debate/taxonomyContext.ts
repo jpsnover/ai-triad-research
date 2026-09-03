@@ -314,6 +314,11 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   }
 
   // Reasoning watchlist — configurable confidence filter
+  // t/3273 gate co-location: NOT dropped by t/3269 blanket-drop because the opponent-dismissal
+  // ceiling-adoption mechanism is absent here — injection is self-directed (own povSlice only),
+  // tail-positioned (after all BDI grounding), and confidence-gated ('likely' filter). Worst case
+  // is mild self-hedging, a different/lower threat class than the 25% unfair-dismissal validated
+  // in t/3262. Residual chill risk from systematic bias deferred to future classification_source axis.
   const fallacyLines: string[] = [];
   const fallacyEnabled = cfg.fallacyEnabled ?? true;
   const fallacyFilter = cfg.fallacyConfidence ?? 'likely';
