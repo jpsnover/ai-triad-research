@@ -34,11 +34,13 @@ import {
   __resetGroundingHookForTest,
   __stateForTest,
   parseStats,
+  parseLockTelemetry,
   sanitizeNodeIds,
   DEBOUNCE_QUIET_MS,
   DEBOUNCE_MAX_WAIT_MS,
   type ReconcilerStats,
 } from '../groundingReconcileHook.js';
+import { log } from '../logger.js'; // mocked above → log.server.info/warn are vi.fns we assert on
 
 const okStats = (n = 1): ReconcilerStats => ({ changed: n, skipped: 0, removed: 0 });
 const warnRecords = () => recordSpy.mock.calls.map(c => c[0] as { level?: string; message?: string; data?: Record<string, unknown> })
@@ -170,5 +172,36 @@ describe('groundingReconcileHook (t/3171 G8a)', () => {
     const stdout = '{\n  "changed": 3,\n  "skipped": 1,\n  "removed": 0\n}\nscoped nodes: 4  touched POVs: [\'accelerationist\']\nAPPLIED (scoped): 1 POV file(s), 2 dict file(s)';
     expect(parseStats(stdout)).toEqual({ changed: 3, skipped: 1, removed: 0 });
     expect(parseStats('no json here')).toEqual({ changed: null, skipped: null, removed: null });
+  });
+
+  it('t/3265: SUCCESS path forwards the reconciler `grounding_lock held Xs` (stderr) to log.server.info', async () => {
+    __setReconcilerRunnerForTest(null); // REAL defaultRunner → exercises the stderr parse + the flush forward
+    mockExecFile.mockClear();
+    vi.mocked(log.server.info).mockClear();
+    // reconciler SUCCESS: stats on stdout, lock-hold telemetry on stderr (reconcile_grounding.py:593).
+    mockExecFile.mockImplementationOnce((_f: string, _a: string[], _o: unknown, cb: (e: Error | null, o: string, s: string) => void) =>
+      cb(null, '{"changed":1,"skipped":0,"removed":0}', 'grounding_lock held 0.42s (node:* merge; PS-shared critical section)\n'));
+
+    enqueueGroundingReconcile(['acc-beliefs-003']);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_QUIET_MS + 10);
+
+    // Previously the lock-held line was echoed only on FAILURE; now a healthy run surfaces it to LA.
+    expect(log.server.info).toHaveBeenCalledWith(
+      expect.objectContaining({ component: 'grounding-reconcile', lock_held_s: 0.42, node_ids: ['acc-beliefs-003'] }),
+      expect.stringContaining('grounding_lock held 0.42s'),
+    );
+  });
+
+  it('parseLockTelemetry extracts lock-held + stale-break from stderr; nulls on a miss (never throws)', () => {
+    expect(parseLockTelemetry('grounding_lock held 0.42s (node:* merge; PS-shared critical section)\n'))
+      .toEqual({ lockHeldS: 0.42, staleBreak: null });
+    const stale = 'WARN grounding_lock: breaking stale lock (mtime age 130s > 120s) at /x/lock; prior holder presumed dead\n';
+    expect(parseLockTelemetry(stale).staleBreak).toContain('breaking stale lock');
+    expect(parseLockTelemetry(stale).lockHeldS).toBeNull();
+    const both = stale + 'grounding_lock held 1.10s (node:* merge)\n';
+    expect(parseLockTelemetry(both).lockHeldS).toBe(1.1);
+    expect(parseLockTelemetry(both).staleBreak).toContain('breaking stale lock');
+    expect(parseLockTelemetry('APPLIED (scoped): 1 POV file(s)')).toEqual({ lockHeldS: null, staleBreak: null });
+    expect(parseLockTelemetry('')).toEqual({ lockHeldS: null, staleBreak: null });
   });
 });
