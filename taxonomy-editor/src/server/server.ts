@@ -34,8 +34,9 @@ import {
   getStoredApiKeys, addApiKey, removeApiKey, resolveDataPath,
   getPaidGeminiFallbackKey, setPaidGeminiFallbackKey, deletePaidGeminiFallbackKey,
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
-  STORAGE_MODE, CACHE_DIR, isEmbeddingWorkerOffloadEnabled,
+  STORAGE_MODE, CACHE_DIR, isEmbeddingWorkerOffloadEnabled, getEmbeddingWorkerPoolSize,
 } from './config.js';
+import { configureEmbeddingWorkerPool } from '../../../lib/embeddings/offThreadEmbedding.js';
 import { GitHubAPIBackend } from './storage/githubAPIBackend.js';
 import { SessionBranchManager } from './storage/sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, getSessionBranchName, setSessionBranchName, deriveStorageUserId, type UserContext } from './security/userContext.js';
@@ -1319,6 +1320,13 @@ server.listen(PORT, BIND_HOST, () => {
   // the next deploy, not asserted blind from the ACA vCPU config (cgroup quota can differ). DevOps reads
   // this before any 4-vCPU bump + POOL_SIZE flip (p/526#75).
   log.server.info({ availableParallelism: os.availableParallelism(), cpus: os.cpus().length }, 'host core count at boot');
+  // t/3211: configure the embedding-worker POOL once at startup with the RAW EMBEDDING_WORKER_POOL_SIZE
+  // (default 1 → single worker, today's exact behavior). Shared Lib's configureEmbeddingWorkerPool
+  // SELF-CLAMPS to min(size, availableParallelism()-1) + WARNs, so a mis-set value can't oversubscribe
+  // the main loop. Inert until POOL_SIZE>1 on a container with spare cores (needs the 4-vCPU SKU + flip).
+  const poolSize = getEmbeddingWorkerPoolSize();
+  configureEmbeddingWorkerPool(poolSize);
+  log.server.info({ requestedPoolSize: poolSize }, 'embedding worker pool configured at boot');
   void warmupEmbeddings().catch((err: unknown) => {
     log.server.error({ err: String(err) }, 'ONNX embedding warmup failed at boot');
     getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'ONNX embedding warmup failed at boot', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });

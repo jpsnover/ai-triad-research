@@ -413,6 +413,16 @@ export function isEmbeddingWorkerOffloadEnabled(): boolean {
   return v === '1' || v === 'true';
 }
 
+/** t/3211: desired embedding-worker POOL size (K). DEFAULT 1 → today's single-worker behavior exactly,
+ *  so this lands inert until EMBEDDING_WORKER_POOL_SIZE>1 AND a container with spare cores is deployed.
+ *  The RAW value is passed to configureEmbeddingWorkerPool, which SELF-CLAMPS to
+ *  min(size, availableParallelism()-1) + WARNs (Shared Lib owns the safety) so a mis-set value can never
+ *  oversubscribe the main event loop. A non-positive/NaN env → 1. */
+export function getEmbeddingWorkerPoolSize(): number {
+  const n = Number.parseInt(process.env.EMBEDDING_WORKER_POOL_SIZE ?? '', 10);
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
+
 // t/3206 (t/3165 storm-replay canary): per-revision capability switch for the canary loop-lag
 // sampler + its two /internal/canary/loop-sampler routes. DEFAULT OFF — when off the routes 404 AND
 // the anon-exemption for /internal/canary/* does not exist (double-closed; zero prod exposure).
