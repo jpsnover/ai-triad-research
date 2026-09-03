@@ -28,10 +28,7 @@ function makeBackend(
   listFn: (dir: string) => Promise<string[]>,
   readFn: (p: string) => Promise<string | null> = async () => null,
 ): StorageBackend {
-  return {
-    listDirectory: listFn,
-    readFile: readFn,
-  } as unknown as StorageBackend;
+  return { listDirectory: listFn, readFile: readFn } as unknown as StorageBackend;
 }
 
 // ── Tests ──
