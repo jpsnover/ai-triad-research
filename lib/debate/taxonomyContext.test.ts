@@ -232,3 +232,87 @@ describe('formatTaxonomyContext — flag-gated situation register-statement inje
     expect(output).not.toContain('ACC-BELIEF-MARKER');
   });
 });
+
+function makeNode(id: string, label: string, desc: string, verificationStatus?: 'curated' | 'ai-retrieved' | 'unverified'): PovNode {
+  return {
+    id, category: 'Beliefs', label, description: desc,
+    parent_id: null, children: [], situation_refs: [],
+    graph_attributes: verificationStatus ? { verification_status: verificationStatus } : undefined,
+  };
+}
+
+describe('formatTaxonomyContext — RETRIEVED CONTEXT block (t/3264)', () => {
+  it('renders no RETRIEVED CONTEXT block when all nodes are curated (absent verification_status)', () => {
+    const ctx = {
+      povNodes: [makeNode('acc-bel-001', 'Curated Node', 'curated desc')],
+      situationNodes: [],
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).not.toContain('RETRIEVED CONTEXT');
+  });
+
+  it('routes ai-retrieved node to RETRIEVED CONTEXT block, not grounding block (AC1)', () => {
+    const ctx = {
+      povNodes: [
+        makeNode('acc-bel-001', 'Curated Node', 'curated desc'),
+        makeNode('acc-bel-002', 'Retrieved Node', 'retrieved desc', 'ai-retrieved'),
+      ],
+      situationNodes: [],
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).toContain('RETRIEVED CONTEXT');
+    expect(output).toContain('acc-bel-002');
+    expect(output).toContain('ai-retrieved');
+    // Grounding block should contain curated but not retrieved node
+    const groundingSection = output.split('RETRIEVED CONTEXT')[0];
+    expect(groundingSection).toContain('acc-bel-001');
+    expect(groundingSection).not.toContain('acc-bel-002');
+  });
+
+  it('routes unverified node to RETRIEVED CONTEXT block', () => {
+    const ctx = {
+      povNodes: [makeNode('acc-bel-003', 'Unverified Node', 'unverified desc', 'unverified')],
+      situationNodes: [],
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).toContain('RETRIEVED CONTEXT');
+    expect(output).toContain('acc-bel-003');
+    expect(output).toContain('unverified');
+  });
+
+  it('keeps curated nodes (explicit) in grounding block only', () => {
+    const ctx = {
+      povNodes: [makeNode('acc-bel-004', 'Explicit Curated', 'curated desc', 'curated')],
+      situationNodes: [],
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).not.toContain('RETRIEVED CONTEXT');
+    expect(output).toContain('acc-bel-004');
+  });
+
+  it('retrievedContextEnabled:false disables the split — all nodes go to grounding block', () => {
+    const ctx = {
+      povNodes: [
+        makeNode('acc-bel-001', 'Curated', 'curated desc'),
+        makeNode('acc-bel-002', 'Retrieved', 'retrieved desc', 'ai-retrieved'),
+      ],
+      situationNodes: [],
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, { retrievedContextEnabled: false });
+    expect(output).not.toContain('RETRIEVED CONTEXT');
+    expect(output).toContain('acc-bel-001');
+    expect(output).toContain('acc-bel-002');
+  });
+
+  it('RETRIEVED CONTEXT block appears after BDI grounding section and before SITUATIONS', () => {
+    const ctx = {
+      povNodes: [makeNode('acc-bel-002', 'Retrieved', 'retrieved desc', 'ai-retrieved')],
+      situationNodes: [makeSit('sit-001', 'Test Situation')],
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    const retrievedIdx = output.indexOf('RETRIEVED CONTEXT');
+    const situationsIdx = output.indexOf('SITUATIONS');
+    expect(retrievedIdx).toBeGreaterThan(-1);
+    expect(situationsIdx).toBeGreaterThan(retrievedIdx);
+  });
+});

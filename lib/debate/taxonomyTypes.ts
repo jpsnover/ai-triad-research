@@ -44,6 +44,10 @@ export interface GraphAttributes {
   aphorism?: string;
   _phrase_regen_pending?: boolean;
   debate_tested?: DebateTestedRecord;
+  /** Data-integrity provenance signal (t/3264). Absent = 'curated'. Used by formatTaxonomyContext
+   *  to route ai-retrieved/unverified nodes to the RETRIEVED CONTEXT block instead of the
+   *  debater's grounding block, preventing false-claim laundering via structural authority. */
+  verification_status?: 'curated' | 'ai-retrieved' | 'unverified';
 }
 
 // ── Debate-Tested (t/1523, Phase 0) ──────────────────────────────────────
