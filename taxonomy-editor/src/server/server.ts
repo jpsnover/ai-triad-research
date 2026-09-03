@@ -1314,6 +1314,11 @@ server.listen(PORT, BIND_HOST, () => {
   // in ACA config but process.env evaluated false" regression (bicep value-form) is then visible
   // immediately, not inferred from a debate's compute path.
   log.server.info({ embeddingWorkerOffload: isEmbeddingWorkerOffloadEnabled() }, 'embedding offload flag at boot');
+  // t/3211: log the live cgroup-effective core count at boot so the embedding-worker-pool SKU sizing
+  // (K = min(EMBEDDING_WORKER_POOL_SIZE, availableParallelism()-1)) is confirmed EMPIRICALLY from LA on
+  // the next deploy, not asserted blind from the ACA vCPU config (cgroup quota can differ). DevOps reads
+  // this before any 4-vCPU bump + POOL_SIZE flip (p/526#75).
+  log.server.info({ availableParallelism: os.availableParallelism(), cpus: os.cpus().length }, 'host core count at boot');
   void warmupEmbeddings().catch((err: unknown) => {
     log.server.error({ err: String(err) }, 'ONNX embedding warmup failed at boot');
     getGlobalRecorder()?.record({ type: 'system.error', component: 'server', level: 'error', message: 'ONNX embedding warmup failed at boot', error: { name: (err as Error)?.name ?? 'Error', message: String(err), stack: (err as Error)?.stack } });
