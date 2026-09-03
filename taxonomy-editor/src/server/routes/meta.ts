@@ -106,7 +106,11 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
     // AI key status is always included so deployment gates can verify readiness.
     const geminiReady = await hasApiKey('gemini');
     const freeKeyPoolSize = proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length;
-    if (!community.isAdmin()) { json(res, { status: 'ok', ai: { geminiKeyConfigured: geminiReady, freeTierKeyPoolSize: freeKeyPoolSize } }); return; }
+    // t/3278 Arm-1: buildSha in the UNAUTH branch — the drift checker (Arm-2) hits /health anonymously
+    // to compare the running image's SHA against origin/main HEAD. Public repo → the commit SHA is not
+    // secret. `?? null` so a build that didn't bake BUILD_SHA is a visible null (a vacuous compare the
+    // checker treats as sha-unavailable), never a crash.
+    if (!community.isAdmin()) { json(res, { status: 'ok', buildSha: process.env.BUILD_SHA ?? null, ai: { geminiKeyConfigured: geminiReady, freeTierKeyPoolSize: freeKeyPoolSize } }); return; }
     const base: Record<string, unknown> = {
       status: 'ok',
       version: ctx.serverVersion,
