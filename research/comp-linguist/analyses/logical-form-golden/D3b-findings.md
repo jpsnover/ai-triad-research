@@ -119,3 +119,52 @@ under the hardened prompt lands with the t/3229 real top-up run.
 ```
 python score_golden.py --golden golden_set_d3b.json --candidates candidates_d3b_t3227probe.json   # -> 0.857 (8 rows)
 ```
+
+## t/3229 expansion — n=28 observed golden
+
+The seed golden set was expanded from 10 to **28 observed rows** (`golden_set_expanded.json` +
+`candidates_expanded.json`): the original 10, plus **15 new** D3b claims CL-authored **blind** (diverse
+across factual/belief/intention; the batch's ~14 near-duplicate Trump/AI-Action-Plan intentions were
+deliberately not all labelled — see the diversity-ceiling note), plus the **3 bias-free D3a nodes**
+(`skp-beliefs-231`, `skp-beliefs-098`, `saf-beliefs-250` — references authored in D3a *before* any pass
+output; candidates from the hardened prompt, `ai-triad-data` `78b3ed2f` / t/3238). Plus **4 constructed
+axis cases** (reference-only, no candidate) covering match_level `subclass`/`instance_of`/`related` and a
+`status:rejected` case.
+
+**Result (STRICT, n=28):**
+
+| component | n=10 seed | n=28 |
+|---|---|---|
+| predicate | 0.50 | **0.643** |
+| args | 0.32 | 0.281 |
+| polarity / modality | 1.00 | 1.00 |
+| temporal | 1.00 | 0.929 |
+| about | 1.00 | 0.893 |
+| **OVERALL** | 0.803 | **0.791** |
+| *diag* predicate_syn | 0.65 | 0.696 |
+| *diag* args_participant | 0.46 | 0.429 |
+
+- **The 3 bias-free rows all matched predicate** (consolidate / exploit / collect) — the least-anchored
+  rows (reference written before the pass existed) agree with the hardened pass on the core predicate.
+- **predicate 0.643 is a floor, not the hardened-prompt figure.** 25 of the 28 candidates are the
+  **old-prompt** D3b batch (pre-t/3227), so b-03/b-04 still show the attitude-leak (`support`) the
+  t/3227 fix removes. A clean single-prompt re-baseline needs all-hardened candidates (see below).
+- **args (0.28) is the genuine low axis** — richer arg structures in the diverse new claims diverge on
+  role labels and completeness; `args_participant` 0.43 shows part is role-labeling, not missed participants.
+- temporal 0.929 = two defensible judgment misses (b-08 dates the intention; b-33 before-vs-unspecified).
+
+**Structural finding carried in (t/3238):** every `entity_ref` in the corpus is `match_level:"exact"`
+(540/540) because the resolver hardcodes it. The non-exact axis (`subclass`/`instance_of`/`related`;
+`superclass` in `golden_set.json` con-2) is **only reachable via constructed cases** and cannot be scored
+against real pass output until a hierarchical resolver exists. See `logical-form-schema.md`.
+
+**Still `measured (seed)`, not `derived`.** Blocking: (1) n=28 < 30; (2) **mixed prompt versions** in the
+candidate set (25 old-prompt + 3 hardened) — a clean baseline needs one prompt; (3) the batch's diversity
+ceiling (~25 distinct claim shapes; the rest are near-duplicates). Path to `derived`: a single all-hardened
+re-run over the ~28 golden claims reaching n≥30 (one more PowerShell run). The match_level-diversity part
+of the original criterion is **unachievable from real data** (t/3238) and is dropped — non-exact coverage
+stays constructed-only.
+
+```
+python score_golden.py --golden golden_set_expanded.json --candidates candidates_expanded.json   # -> STRICT 0.791 (n=28)
+```
