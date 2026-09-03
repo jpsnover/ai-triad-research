@@ -642,7 +642,7 @@
     },
     {
       "name": "fast-uri",
-      "version": "3.1.5",
+      "version": "3.1.7",
       "license": "BSD-2-Clause"
     },
     {
@@ -2830,7 +2830,7 @@
       "packages": [
         {
           "name": "fast-uri",
-          "version": "3.1.5"
+          "version": "3.1.7"
         }
       ],
       "licenseType": "BSD-2-Clause",
