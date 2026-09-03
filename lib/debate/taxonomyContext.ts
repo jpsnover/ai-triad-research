@@ -119,6 +119,15 @@ export interface FormatContextConfig {
    * No-op today (no nodes have verification_status set); safe to land inert.
    */
   retrievedContextEnabled?: boolean;
+  /**
+   * Enable the MACHINE ANNOTATIONS block — moves generateNodeGuidance output (epistemic_type,
+   * falsifiability, assumes, steelman_vulnerability, doctrinal anchor) out of the inline BDI node
+   * rendering into a structurally-separate advisory block (t/3264 Phase B, Arm 2 mitigation).
+   * DEFAULT: false (behavior-preserving). Graph_attributes annotations are written live today, so
+   * flipping changes live prompt behavior. Land flag-OFF → CL A_anno_structural validates → TL GV
+   * → then flip on. Set true only after probe clears.
+   */
+  machineAnnotationsEnabled?: boolean;
 }
 
 /** Generate per-node inline guidance lines from metadata.
@@ -295,8 +304,8 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       sorted = sorted.slice(0, maxDesires);
     }
 
-    // t/3146: machine-origin signal — emitted once per category section, before any node guidance
-    if (sorted.length > 0) {
+    // t/3146: machine-origin signal (inline mode — suppressed when machineAnnotationsEnabled moves guidance to its own block)
+    if (!cfg.machineAnnotationsEnabled && sorted.length > 0) {
       lines.push('  [heuristic] The following tactical annotations are machine-estimated heuristics, not established facts — use them as suggestions.');
     }
     for (let i = 0; i < sorted.length; i++) {
@@ -308,8 +317,11 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
         const weightLabel = nodeWeightLabel(n, cat);
         lines.push(`${prefix}[${n.id}]${weightLabel}`);
         lines.push(`  "${n.label}" — ${stripExcludes(n.description)}`);
-        const guidance = generateNodeGuidance(n, cat);
-        lines.push(...guidance);
+        // t/3264 Phase B: guidance moves to MACHINE ANNOTATIONS block when flag is on; inline otherwise
+        if (!cfg.machineAnnotationsEnabled) {
+          const guidance = generateNodeGuidance(n, cat);
+          lines.push(...guidance);
+        }
       } else {
         lines.push(`${prefix}[${n.id}] "${n.label}"`);
       }
@@ -349,6 +361,22 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       lines.push(`  "${n.label}" — ${stripExcludes(n.description)}`);
     }
     lines.push('');
+  }
+
+  // t/3264 Phase B: MACHINE ANNOTATIONS block — structurally separate advisory signals (flag-gated, default off)
+  if (cfg.machineAnnotationsEnabled) {
+    const annotatedNodes = povSlice.filter(n => generateNodeGuidance(n, n.category || 'Beliefs').length > 0);
+    if (annotatedNodes.length > 0) {
+      lines.push('=== MACHINE ANNOTATIONS (advisory signals — use as tactical guidance, not grounding) ===');
+      lines.push('These are machine-generated signals about your nodes. They are advisory — useful prompts for argument construction, not authoritative facts about your position.');
+      lines.push('');
+      for (const n of annotatedNodes) {
+        const guidance = generateNodeGuidance(n, n.category || 'Beliefs');
+        lines.push(`  [${n.id}] "${n.label}":`);
+        lines.push(...guidance);
+      }
+      lines.push('');
+    }
   }
 
   // Situations section — hierarchy-grouped with Lost-in-the-Middle ordering

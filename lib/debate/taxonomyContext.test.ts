@@ -316,3 +316,54 @@ describe('formatTaxonomyContext — RETRIEVED CONTEXT block (t/3264)', () => {
     expect(situationsIdx).toBeGreaterThan(retrievedIdx);
   });
 });
+
+function makeAnnotatedNode(id: string, label: string): PovNode {
+  return {
+    id, category: 'Beliefs', label, description: 'desc',
+    parent_id: null, children: [], situation_refs: [],
+    graph_attributes: { epistemic_type: 'empirical_claim', steelman_vulnerability: 'key vulnerability here' },
+  };
+}
+
+describe('formatTaxonomyContext — MACHINE ANNOTATIONS block (t/3264 Phase B)', () => {
+  it('flag OFF (default) keeps generateNodeGuidance inline — no MACHINE ANNOTATIONS block', () => {
+    const ctx = { povNodes: [makeAnnotatedNode('acc-bel-010', 'Annotated')], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).not.toContain('MACHINE ANNOTATIONS');
+    expect(output).toContain('ARGUE:');
+    expect(output).toContain('VULNERABLE:');
+  });
+
+  it('flag ON renders MACHINE ANNOTATIONS block and removes guidance from inline BDI section', () => {
+    const ctx = { povNodes: [makeAnnotatedNode('acc-bel-010', 'Annotated')], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, { machineAnnotationsEnabled: true });
+    expect(output).toContain('MACHINE ANNOTATIONS');
+    expect(output).toContain('advisory signals');
+    expect(output).toContain('acc-bel-010');
+    // Guidance appears in the block
+    expect(output).toContain('ARGUE:');
+    // The inline [heuristic] prefix is suppressed
+    expect(output).not.toContain('[heuristic] The following tactical annotations');
+  });
+
+  it('flag ON emits no MACHINE ANNOTATIONS block when nodes have no guidance fields', () => {
+    const ctx = {
+      povNodes: [makeNode('acc-bel-011', 'Plain', 'plain desc')],
+      situationNodes: [],
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, { machineAnnotationsEnabled: true });
+    expect(output).not.toContain('MACHINE ANNOTATIONS');
+  });
+
+  it('MACHINE ANNOTATIONS block appears after RETRIEVED CONTEXT and before SITUATIONS', () => {
+    const ctx = {
+      povNodes: [makeAnnotatedNode('acc-bel-010', 'Annotated')],
+      situationNodes: [makeSit('sit-001', 'A Situation')],
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, { machineAnnotationsEnabled: true });
+    const machineIdx = output.indexOf('MACHINE ANNOTATIONS');
+    const situationsIdx = output.indexOf('SITUATIONS');
+    expect(machineIdx).toBeGreaterThan(-1);
+    expect(situationsIdx).toBeGreaterThan(machineIdx);
+  });
+});
