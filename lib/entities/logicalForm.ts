@@ -30,25 +30,48 @@ export const lfRoleSchema = z.enum([
   'location', 'source', 'goal', 'beneficiary', 'cause', 'manner',
 ]);
 
-// DOLCE-lite sort + match-level value lists are kept LOCAL (so the Zod enums are first-class),
-// then pinned to the `lib/entities/types.ts` types by the bidirectional `Equals` guards at the
-// bottom of this file — `tsc` fails if either list drifts from its type in EITHER direction
-// (TL t/3250#2(1): exact equality, not one-way `satisfies`).
+// An arg-slot `sort` lies on the DOLCE particular/universal axis (§12.1 / claims-entity-fol-
+// recommendations line 240: an arg slot is "an endurant, a perdurant, or a universal"). The two
+// spaces are kept SEPARATE by construction so the category error — typing a universal with a
+// particular's sort — is unrepresentable (TL t/3251#2(3) + sign-off p/342#266). `lfSortSchema`
+// (the arg-slot validator) is their UNION.
+
+// PARTICULAR sorts — the 5 DOLCE-lite leaves that type particulars (`ent-*` refs). Kept LOCAL so
+// the Zod enum is first-class, then pinned EXACT to `types.ts` DolceCategory by the bidirectional
+// `Equals` guard at the bottom — `tsc` fails on drift in EITHER direction (TL t/3250#2(1)).
 const DOLCE_CATEGORIES = [
   'agentive-physical-object', 'non-agentive-functional-artifact',
   'perdurant', 'normative-description', 'non-agentive-social-object',
 ] as const;
-/** The referenced entity's DOLCE-lite sort — copied verbatim from the entity register
- *  (`dolce_category`), never re-judged per claim (schema doc rule 2). */
-export const lfSortSchema = z.enum(DOLCE_CATEGORIES);
+/** A PARTICULAR's DOLCE-lite sort — copied verbatim from the entity register (`dolce_category`),
+ *  never re-judged per claim (schema doc rule 2). Pinned exact to `DolceCategory`. */
+export const particularSortSchema = z.enum(DOLCE_CATEGORIES);
+
+// UNIVERSAL sorts — its OWN guarded space (t/3251). A `concept_ref` (`term:*`) is a universal/kind,
+// the peer top-level arg-slot type disjoint from all 5 particular sorts (§12.1). v1 is a single
+// `universal`; the list is MONOTONE-EXTENSIBLE — v2 sub-types (`universal:kind`, `universal-of(<dolce>)`)
+// append here with no breaking change and no re-formalization (TL t/3251#2(2)).
+const UNIVERSAL_SORTS = ['universal'] as const;
+/** A UNIVERSAL's sort. `universal` is disjoint from the 5 particular sorts; a particular arg bridges
+ *  to a universal via `match_level: instance_of` (GPT-4 instance_of large-language-model), which is
+ *  the §240 kind-vs-particular distinction the t/3127 sort-checker needs. */
+export const universalSortSchema = z.enum(UNIVERSAL_SORTS);
+
+// The arg-slot sort accept-set = particular ∪ universal (5 + 1 = 6). `as const` keeps it a readonly
+// tuple of literals so `z.enum` infers the exact union. The particular space stays pinned to
+// DolceCategory (guard below); `universal` never leaks into that enum.
+const ARG_SORTS = [...DOLCE_CATEGORIES, ...UNIVERSAL_SORTS] as const;
+/** The sort of an event participant — a particular DOLCE sort (`ent-*`) OR `universal` (`term:*`). */
+export const lfSortSchema = z.enum(ARG_SORTS);
 
 const MATCH_LEVELS = ['exact', 'instance_of', 'subclass', 'superclass', 'related'] as const;
 /** How the ref matched its target relative to the register — copied verbatim from the
  *  entity_ref; load-bearing for the prover (schema doc §args[].match_level). */
 export const lfMatchLevelSchema = z.enum(MATCH_LEVELS);
 
-/** One event participant. `ref` is an `ent-*` id from the claim's `entity_refs[]`, or a
- *  `lit:"…"` / event var for an unresolved participant (schema doc rule 1). */
+/** One event participant. `ref` is an `ent-*` particular (`entity_refs[]`) → a particular `sort`,
+ *  a `term:*` universal (`concept_refs[]`) → `sort: 'universal'`, or a `lit:"…"` / event var for an
+ *  unresolved participant (schema doc rule 1). `sort` is the particular∪universal union. */
 export const lfArgSchema = z.object({
   role: lfRoleSchema,
   ref: z.string(),
@@ -121,7 +144,12 @@ type Assert<T extends true> = T;
 
 // If either line errors, a closed vocabulary drifted from its `lib/entities/types.ts` type —
 // reconcile this file with types.ts (and the schema doc) before shipping.
-export type _AssertSortMatchesDolceCategory =
-  Assert<Equals<z.infer<typeof lfSortSchema>, DolceCategory>>;
+//
+// The guard pins the PARTICULAR space exactly to `DolceCategory` (NOT the `lfSortSchema` union — that
+// now also admits `universal`, which is deliberately NOT a `DolceCategory` member: an entity is never a
+// universal, so `Entity.dolce_category` stays the 5 particular sorts). `universal` living outside this
+// guard is the point — it keeps the particular/universal spaces separate by construction (t/3251).
+export type _AssertParticularSortMatchesDolceCategory =
+  Assert<Equals<z.infer<typeof particularSortSchema>, DolceCategory>>;
 export type _AssertMatchLevelMatchesEntityMatchLevel =
   Assert<Equals<z.infer<typeof lfMatchLevelSchema>, EntityMatchLevel>>;
