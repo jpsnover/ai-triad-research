@@ -338,7 +338,7 @@ describe('formatTaxonomyContext — MACHINE ANNOTATIONS block (t/3264 Phase B)',
     const ctx = { povNodes: [makeAnnotatedNode('acc-bel-010', 'Annotated')], situationNodes: [] };
     const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, { machineAnnotationsEnabled: true });
     expect(output).toContain('MACHINE ANNOTATIONS');
-    expect(output).toContain('advisory signals');
+    expect(output).toContain('NOT established facts about your position');
     expect(output).toContain('acc-bel-010');
     // Guidance appears in the block
     expect(output).toContain('ARGUE:');

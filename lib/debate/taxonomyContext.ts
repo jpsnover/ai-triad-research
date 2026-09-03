@@ -367,8 +367,8 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   if (cfg.machineAnnotationsEnabled) {
     const annotatedNodes = povSlice.filter(n => generateNodeGuidance(n, n.category || 'Beliefs').length > 0);
     if (annotatedNodes.length > 0) {
-      lines.push('=== MACHINE ANNOTATIONS (advisory signals — use as tactical guidance, not grounding) ===');
-      lines.push('These are machine-generated signals about your nodes. They are advisory — useful prompts for argument construction, not authoritative facts about your position.');
+      lines.push('=== MACHINE ANNOTATIONS (unverified signals — NOT established facts about your position) ===');
+      lines.push('These machine-generated signals are external to your verified beliefs. A claim here you cannot independently confirm is a candidate to evaluate — not yours to assert.');
       lines.push('');
       for (const n of annotatedNodes) {
         const guidance = generateNodeGuidance(n, n.category || 'Beliefs');
