@@ -1,0 +1,177 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Co-located styles for BdiGroundingPanel (t/3292) */
+
+.bdi-gr-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+  overflow-y: auto;
+}
+
+.bdi-gr-empty {
+  color: var(--text-secondary);
+  padding: 16px;
+  font-size: var(--text-sm);
+}
+
+/* ─── Section ─────────────────────────────────────────── */
+
+.bdi-gr-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bdi-gr-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 2px;
+}
+
+.bdi-gr-section-title {
+  font-weight: 700;
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+.bdi-gr-section-count {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.bdi-gr-section-empty {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  padding: 6px 2px;
+  margin: 0;
+  font-style: italic;
+}
+
+/* ─── DOLCE type badge ────────────────────────────────── */
+
+.bdi-gr-dolce {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.bdi-gr-dolce--kind {
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.bdi-gr-dolce--particular {
+  background: rgba(6, 182, 212, 0.1);
+  color: #0891b2;
+  border: 1px solid rgba(6, 182, 212, 0.25);
+}
+
+/* ─── Row ─────────────────────────────────────────────── */
+
+.bdi-gr-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 6px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  transition: background 0.1s;
+  font-size: var(--text-xs);
+}
+
+.bdi-gr-row:hover {
+  background: rgba(59, 130, 246, 0.07);
+  border-color: var(--focus-ring);
+}
+
+.bdi-gr-row--proposed {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.bdi-gr-row--proposed .bdi-gr-surface {
+  color: var(--text-secondary);
+}
+
+.bdi-gr-surface {
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bdi-gr-ref {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.bdi-gr-conf {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ─── Method badge ────────────────────────────────────── */
+
+.bdi-gr-method {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.bdi-gr-method--surface,
+.bdi-gr-method--exact,
+.bdi-gr-method--alias {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.bdi-gr-method--embedding {
+  background: rgba(249, 115, 22, 0.1);
+  color: #ea580c;
+}
+
+/* ─── Status badge ────────────────────────────────────── */
+
+.bdi-gr-status {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.bdi-gr-status--linked {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.bdi-gr-status--proposed {
+  background: rgba(234, 179, 8, 0.12);
+  color: #ca8a04;
+}

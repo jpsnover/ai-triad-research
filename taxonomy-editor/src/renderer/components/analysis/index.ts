@@ -11,6 +11,7 @@ export * from './CalibrationReviewViewer';
 export * from './ConvergenceSignalsPanel';
 export * from './ExtractionTimelinePanel';
 export * from './FactsPanel';
+export * from './BdiGroundingPanel';
 export * from './FallacyPanel';
 export * from './GroundingPanel';
 export * from './LineagePanel';
