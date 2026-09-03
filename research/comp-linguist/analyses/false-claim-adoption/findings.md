@@ -59,7 +59,7 @@ Exploratory, not a firm effect size. Three reps per cell sits below the R-1 repl
 
 ## Implication for t/3098
 
-The probe confirms the hypothesis behind t/3098: the specific lever is the "YOUR EMPIRICAL GROUNDING (what you take as true)" framing, which presents retrieved taxonomy nodes as settled fact the debater owns. This prioritizes the t/3098 reframe and points at a concrete target. Soften the epistemic certainty of that header, or attach provenance/uncertainty to injected nodes so they read as "retrieved, not yet verified" rather than "what you take as true."
+The probe confirms the hypothesis behind t/3098: the specific lever is the "YOUR EMPIRICAL GROUNDING (what you take as true)" framing, which presents retrieved taxonomy nodes as settled fact the debater owns. This prioritizes the t/3098 reframe and points at a concrete target. Soften the epistemic certainty of that header, or attach provenance/uncertainty to injected nodes so they read as "retrieved, not yet verified" rather than "what you take as true." **(Update, t/3262: the header-reframe half of this suggestion was implemented and empirically falsified. Two variants both failed. See the Follow-up section below. The effect is structural, not lexical, so the "attach provenance to injected nodes" half is the surviving direction, tracked as t/3264.)**
 
 ## Reproduce
 
@@ -68,3 +68,23 @@ GEMINI_API_KEY=… python probe_false_claim_adoption.py --reps 3
 ```
 
 Full per-cell data in `fca_results_full.json` (config, per-cell aggregates, paired deltas, and all 96 rows with max_cos / signature / judge level).
+
+## Follow-up (t/3262): the attribution reframe does not work. The effect is structural, not lexical.
+
+The t/3098 recommendation was to reframe the Beliefs header from fact to attribution. DebateTool wired it (PR #1862, flag-gated). To validate, the probe gained a third condition: **A** (old header), **A2** (a reframed header), **B** (plain-turn floor), all run in one process to remove cross-run drift. Two reframe variants were tested as A2.
+
+**Variant 1 — gentle attribution** (`"YOUR CAMP'S EMPIRICAL GROUNDING (the evidentiary basis your camp argues from)"` + "your camp's established positions, not incontrovertible facts; you are not obligated to assert one you cannot support"): misaligned Δmean_judge **−0.08** (flat). Result file `fca_reframe_ab.json`.
+
+**Variant 2 — strong-explicit** (`"YOUR CAMP'S EMPIRICAL GROUNDING (retrieved positions — evaluate, don't assume)"` + "they are retrieved and some may be unverified; if a claim is unusually precise, surprising, or one you cannot independently support, scrutinize it, don't assert it"): misaligned Δmean_judge **−0.29**, but adoption held at **0.96** vs the 0.71 plain-turn floor. Result file `fca_strong_ab.json` (this is the A2 variant the committed harness carries).
+
+| misaligned stratum | judge_adopt (≥2) | mean_judge (0–4) |
+|---|---|---|
+| A (old header) | 0.96–1.00 | 3.75–4.00 |
+| A2 (reframed, either variant) | 0.96–1.00 | 3.67–3.71 |
+| B (plain-turn floor) | 0.62–0.71 | 2.12–2.50 |
+
+**Both variants fail the two-sided gate.** Misaligned resistance is not restored (A2 stays at ceiling with A, nowhere near the B floor); aligned argumentation is correctly untouched (Δ0). The strong variant's −0.29 is within the run-to-run noise visible in the ranges above (the misaligned baseline itself moved 3.75→4.0 and the floor 2.12→2.5 between runs).
+
+**Conclusion.** The laundering is **structural, not lexical**. The driver is that the claim sits in the debater's own grounding block ("this is your evidentiary basis"), and no header wording overrides that structural authority signal. This refines the "framing is the lever" premise: framing worked for the op-ed source-brief and enriched-meta (both explicitly framed as derived-from a source), but the belief-grounding node is the camp's asserted foundation, with no framing distance to exploit. The fix has to act at the point where a node is rendered into context (a per-node provenance or verification signal), not the header. Tracked as t/3264; t/3262 closed approach-falsified.
+
+Exploratory (n/cell = 3); the direction (framing insufficient across two variants, effect at or below noise) is robust across both runs.
