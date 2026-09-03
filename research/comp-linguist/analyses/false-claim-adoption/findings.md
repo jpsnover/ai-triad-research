@@ -88,3 +88,31 @@ The t/3098 recommendation was to reframe the Beliefs header from fact to attribu
 **Conclusion.** The laundering is **structural, not lexical**. The driver is that the claim sits in the debater's own grounding block ("this is your evidentiary basis"), and no header wording overrides that structural authority signal. This refines the "framing is the lever" premise: framing worked for the op-ed source-brief and enriched-meta (both explicitly framed as derived-from a source), but the belief-grounding node is the camp's asserted foundation, with no framing distance to exploit. The fix has to act at the point where a node is rendered into context (a per-node provenance or verification signal), not the header. Tracked as t/3264; t/3262 closed approach-falsified.
 
 Exploratory (n/cell = 3); the direction (framing insufficient across two variants, effect at or below noise) is robust across both runs.
+
+## Follow-up 2 (t/3264): structural separation succeeds where framing failed. Two arms.
+
+The t/3262 diagnosis predicted that a *structural* change (moving injected content out of the debater's own grounding block) would restore resistance where a *lexical* change (rewording) could not. t/3264 (PR #1869) implemented the structural change: nodes with `verification_status` of `ai-retrieved`/`unverified` route to a separate RETRIEVED CONTEXT block instead of the grounding block. Two arms were validated, each with A (grounding block) / candidate / B (plain-turn floor), 144 cells, run via `--mitigation A_ret` and `--mitigation A_anno`.
+
+### Arm 1 — node-claim structural separation (RETRIEVED CONTEXT block). PASS.
+
+| misaligned stratum | judge_adopt (≥2) | mean_judge (0–4) |
+|---|---|---|
+| A (grounding block) | 1.00 | 3.79 |
+| A_ret (RETRIEVED CONTEXT block) | 0.67 | 2.67 |
+| B (plain-turn floor) | 0.71 | 2.46 |
+
+A_ret − A: misaligned Δjudge_adopt −0.33, Δmean_judge −1.12; aligned 0 / 0. The structural separation drops misaligned adoption from ceiling to the plain-turn floor (0.67 sits at the 0.71 floor) while leaving aligned argumentation identical. Both sides of the two-sided gate clear. `fca_arm1_retrieved.json`.
+
+### Arm 2 — `graph_attributes` annotation framing (current t/3146 rendering). FAIL.
+
+| misaligned stratum | judge_adopt (≥2) | mean_judge (0–4) |
+|---|---|---|
+| A (grounding block) | 0.96 | 3.71 |
+| A_anno (t/3146-framed annotation) | 0.92 | 3.50 |
+| B (plain-turn floor) | 0.52 | 1.79 |
+
+A_anno − A: misaligned Δjudge_adopt −0.04, Δmean_judge −0.21; aligned 0 / 0. A false claim rendered as a t/3146-framed `graph_attributes` annotation ("machine-estimated heuristics, use as suggestions") is adopted at ceiling, statistically the grounding-block rate and far above the floor. The heuristic framing does essentially nothing. `fca_arm2_annotation.json`.
+
+### Combined conclusion
+
+Structural separation works (Arm 1); framing does not (Arm 2, and both t/3262 header variants). The consistent result across every surface tested: a machine-generated or retrieved claim inherits the debater's authority whenever it renders inside the debater's own grounding context, and no amount of framing text overrides that. Only moving it into a structurally-separate, non-authoritative block restores the debater's resistance. Consequence: `graph_attributes` annotations need the same structural separation as node claims, not just the t/3146 heuristic prefix. Tracked in t/3264.
