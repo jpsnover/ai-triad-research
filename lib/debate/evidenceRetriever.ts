@@ -12,6 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { cosineSimilarity } from './taxonomyRelevance.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -135,7 +136,8 @@ function extractRelevantParagraphs(
   let content: string;
   try {
     content = fs.readFileSync(snapshotPath, 'utf-8');
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'evidence-retriever', level: 'warn', message: 'snapshot file unreadable — returning empty evidence. err=' + String(err) });
     return [];
   }
 

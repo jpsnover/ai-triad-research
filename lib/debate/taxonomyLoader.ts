@@ -159,7 +159,8 @@ export function loadSituationStatements(dataRoot: string): SituationStatements |
       return out;
     }
     return null;
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-loader', level: 'warn', message: 'situation statements unreadable — returning null. err=' + String(err) });
     return null;
   }
 }

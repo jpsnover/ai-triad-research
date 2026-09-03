@@ -13,6 +13,7 @@ import path from 'node:path';
 import { DEFAULT_TEMPERATURE } from '../../ai-client/defaults.js';
 import { DEFAULT_ATTACK_WEIGHTS } from '../qbaf.js';
 import { POLARITY_RESOLVED_THRESHOLD, SEMANTIC_RECYCLING_THRESHOLD, ATTACK_DEDUP_THRESHOLD } from '../constants.js';
+import { getGlobalRecorder } from '../../flight-recorder/index.js';
 
 // ── Parameter snapshots & history ────────────────────────────
 
@@ -148,7 +149,8 @@ export function readParameterHistory(dataRoot: string): ParameterHistoryEntry[] 
 
   try {
     return JSON.parse(fs.readFileSync(histPath, 'utf-8'));
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'calibration-history', level: 'warn', message: 'parameter-history.json unreadable — returning empty history. err=' + String(err) });
     return [];
   }
 }

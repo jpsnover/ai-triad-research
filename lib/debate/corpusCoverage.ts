@@ -135,7 +135,8 @@ export function loadCoverageMap(dataRoot: string): CorpusCoverageMap | null {
     const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
     if (raw && raw.version === 1 && raw.node_stats) return raw as CorpusCoverageMap;
     return null;
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'corpus-coverage', level: 'warn', message: 'corpus coverage file unreadable or invalid — returning null. err=' + String(err) });
     return null;
   }
 }
