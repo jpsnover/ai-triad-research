@@ -17,6 +17,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
 import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, isEmbeddingWorkerOffloadEnabled, type AIBackend } from '../config.js';
+import { writeAICallLogEntry, isAICallLogEnabled } from './aiCallLog.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { parseJsonRobust } from '../../../../lib/debate/helpers.js';
 import { extractProviderReason, deriveKeyErrorMessage } from './providerErrors.js';
@@ -496,6 +497,18 @@ export async function generateTextWithSearch(
 
 // ── UsageID wrappers (t/1262) ──
 
+/** t/3245: classify a generateText failure into an AI-call-log Status string — the HTTP/API status when
+ *  the error carries one, else a coarse aborted/timeout/error class. Never throws (used on a catch path). */
+function deriveCallLogStatus(err: unknown): string {
+  const e = err as { statusCode?: number; status?: number; name?: string; message?: string };
+  const code = e?.statusCode ?? e?.status;
+  if (typeof code === 'number' && Number.isFinite(code)) return String(code);
+  const msg = (e?.message ?? '').toLowerCase();
+  if (e?.name === 'AbortError' || msg.includes('abort')) return 'aborted';
+  if (msg.includes('timeout') || msg.includes('timed out')) return 'timeout';
+  return 'error';
+}
+
 /**
  * Resolve AI call parameters from the UsageID registry, then delegate to
  * generateText(). Tier-based model overrides and key rotation are preserved —
@@ -523,7 +536,22 @@ export async function generateTextByUsage(
     data: { usageId, model: merged.model, hasOverrides: !!overrides, valueKeys: Object.keys(values) },
   });
 
-  return generateText(prompt, merged.model, onRetry, merged.timeoutMs, explicitApiKey, { temperature: merged.temperature, signal });
+  // t/3245: AI Call Log capture (TS side of t/3242's PS hook). Logs ONE record per call with the final
+  // status + total retry count — PS logs per-attempt, a documented granularity divergence (t/3245 PR).
+  // Flag off → the onRetry wrap and the write are both skipped (zero overhead). Scenario defaults to
+  // usageId, mirroring the PS -Scenario default.
+  if (!isAICallLogEnabled()) {
+    return generateText(prompt, merged.model, onRetry, merged.timeoutMs, explicitApiKey, { temperature: merged.temperature, signal });
+  }
+  let retryCount = 0;
+  const countingOnRetry = (p: GenerateTextProgress): void => { retryCount++; onRetry?.(p); };
+  // .then(onFulfilled, onRejected), not try/catch: the audit write is a settle-time side effect and the
+  // error is re-thrown UNCHANGED. generateText already records its own failures, so this wrapper must not
+  // double-record — the error propagates to the existing recorder (ADR-003: no swallow).
+  return await generateText(prompt, merged.model, countingOnRetry, merged.timeoutMs, explicitApiKey, { temperature: merged.temperature, signal }).then(
+    (result) => { writeAICallLogEntry({ scenario: usageId, promptId: usageId, promptStart: prompt, retryCount, status: '200' }); return result; },
+    (err: unknown) => { writeAICallLogEntry({ scenario: usageId, promptId: usageId, promptStart: prompt, retryCount, status: deriveCallLogStatus(err) }); throw err; },
+  );
 }
 
 /**
@@ -552,7 +580,15 @@ export async function generateTextWithSearchByUsage(
     data: { usageId, model: merged.model, hasOverrides: !!overrides, valueKeys: Object.keys(values) },
   });
 
-  return generateTextWithSearch(prompt, merged.model, explicitApiKey);
+  // t/3245: AI Call Log capture. generateTextWithSearch exposes no retry callback → RetryCount 0. Same
+  // .then(onFulfilled, onRejected) settle-side-effect pattern as generateTextByUsage (no double-record).
+  if (!isAICallLogEnabled()) {
+    return generateTextWithSearch(prompt, merged.model, explicitApiKey);
+  }
+  return await generateTextWithSearch(prompt, merged.model, explicitApiKey).then(
+    (result) => { writeAICallLogEntry({ scenario: usageId, promptId: usageId, promptStart: prompt, retryCount: 0, status: '200' }); return result; },
+    (err: unknown) => { writeAICallLogEntry({ scenario: usageId, promptId: usageId, promptStart: prompt, retryCount: 0, status: deriveCallLogStatus(err) }); throw err; },
+  );
 }
 
 // ── Embeddings ──
