@@ -11,6 +11,7 @@ import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { registerMetaRoutes } from './meta.js';
 import { registerTaxonomyRoutes } from './taxonomy.js';
+import { registerRelevantNodesRoutes } from './relevantNodes.js';
 import { registerConflictsRoutes } from './conflicts.js';
 import { registerOrganizationsRoutes } from './organizations.js';
 import { registerEntityRoutes } from './entity.js';
@@ -40,6 +41,7 @@ import { registerCanaryRoutes } from './canary.js';
 export function registerAllRoutes(router: Router, ctx: ServerCtx): void {
   registerMetaRoutes(router, ctx);
   registerTaxonomyRoutes(router, ctx);
+  registerRelevantNodesRoutes(router, ctx); // t/3257 T2 — POST /api/taxonomy/relevant-nodes (server-side relevance)
   registerConflictsRoutes(router, ctx);
   registerOrganizationsRoutes(router, ctx);
   registerEntityRoutes(router, ctx);
