@@ -1,0 +1,1163 @@
+{
+  "b-04": {
+    "predicate": "support",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"skeptics\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"rights under GDPR Article 22 as critical safeguards against dehumanizing effects of algorithmic management and erosion of individual agency in high-stakes domains\"",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "ent-071",
+        "sort": "normative-description",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:skp",
+      "attitude": "desire"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-071",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.55,
+    "status": "proposed"
+  },
+  "b-05": {
+    "predicate": "sign",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-032",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"Executive Order titled 'Ensuring a National Policy Framework for Artificial Intelligence'\"",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:\"consolidate federal AI oversight\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "at",
+      "value": "2025-12-11"
+    },
+    "about": [
+      {
+        "ref": "ent-032",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.88,
+    "status": "proposed"
+  },
+  "b-07": {
+    "predicate": "remove",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-032",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "patient",
+        "ref": "lit:\"regulatory barriers to AI innovation\"",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:\"pro-development environment enabling American firms to achieve global dominance in AI\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "lit:\"executive orders\"",
+        "sort": "normative-description",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:acc",
+      "attitude": "intention"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-032",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.62,
+    "status": "proposed"
+  },
+  "b-09": {
+    "predicate": "hinder",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"fragmented regulatory landscape\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "patient",
+        "ref": "lit:\"scaling of AI technologies across the country\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:acc",
+      "attitude": "belief"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-032",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.45,
+    "status": "proposed"
+  },
+  "b-13": {
+    "predicate": "promote",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-049",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:open-source and open-weight AI models",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:competition and innovation",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:acc",
+      "attitude": "belief"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-032",
+        "match_level": "exact"
+      },
+      {
+        "ref": "ent-049",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.62,
+    "status": "proposed"
+  },
+  "b-19": {
+    "predicate": "encourage",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-049",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"development of open-source and open-weight AI models\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:acc",
+      "attitude": "intention"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-049",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.62,
+    "status": "proposed"
+  },
+  "b-23": {
+    "predicate": "democratize",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"the administration\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"AI infrastructure\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "ent-049",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:\"prevent monopolistic capture by a few legacy firms\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:acc",
+      "attitude": "desire"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-049",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.55,
+    "status": "proposed"
+  },
+  "b-28": {
+    "predicate": "outperform",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"Qwen2.5-Coder-32B\"",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "patient",
+        "ref": "ent-034",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "location",
+        "ref": "lit:\"HumanEval benchmark\"",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "manner",
+        "ref": "lit:\"score of 92.7 compared to 92.1\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-034",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.85,
+    "status": "proposed"
+  },
+  "b-29": {
+    "predicate": "be-available",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "theme",
+        "ref": "ent-014",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "location",
+        "ref": "lit:\"internally\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "manner",
+        "ref": "lit:\"six months prior to public external deployment\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "before",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-014",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.78,
+    "status": "proposed"
+  },
+  "b-39": {
+    "predicate": "identify",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "theme",
+        "ref": "lit:\"annotation errors\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "location",
+        "ref": "lit:\"52.1% of SQL queries, 26.2% of natural language questions, and 18.2% of external knowledge in the BIRD Train set subset\"",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-067",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.72,
+    "status": "proposed"
+  },
+  "b-02": {
+    "predicate": "develop",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"FMTI team\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"automated evaluation agent\"",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "ent-034",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:\"assess transparency disclosures for six AI companies: Anthropic, xAI, Alibaba, Deepseek, Midjourney, and Mistral\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-034",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.82,
+    "status": "proposed"
+  },
+  "b-03": {
+    "predicate": "support",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"safetyists\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"layered regulatory mandates including AI Act and GDPR\"",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:\"preventing broad society-wide harm through mandatory safety evaluations and incident reporting\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:saf",
+      "attitude": "intention"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-071",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.62,
+    "status": "proposed"
+  },
+  "b-06": {
+    "predicate": "grant",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-071",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "recipient",
+        "ref": "lit:\"individuals\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"the right to contest solely automated decisions that produce legal or similarly significant effects\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-071",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.62,
+    "status": "proposed"
+  },
+  "b-08": {
+    "predicate": "aim-to-remove",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-032",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:barriers to AI innovation and adoption",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:global dominance for American firms in AI",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "ent-049",
+        "sort": "normative-description",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:acc",
+      "attitude": "intention"
+    },
+    "temporal": {
+      "type": "at",
+      "value": "2025-07"
+    },
+    "about": [
+      {
+        "ref": "ent-032",
+        "match_level": "exact"
+      },
+      {
+        "ref": "ent-049",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.55,
+    "status": "proposed"
+  },
+  "b-11": {
+    "predicate": "issue",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-032",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "ent-049",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:policy recommendations including encouragement of open-source and open-weight AI models",
+        "sort": "normative-description",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "at",
+      "value": "2025-07"
+    },
+    "about": [
+      {
+        "ref": "ent-032",
+        "match_level": "exact"
+      },
+      {
+        "ref": "ent-049",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.78,
+    "status": "proposed"
+  },
+  "b-14": {
+    "predicate": "preempt",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-032",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "lit:\"Executive Order\"",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "patient",
+        "ref": "lit:\"state-level AI legislation inconsistent with national priorities\"",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:\"uniform, pro-innovation environment allowing firms to scale rapidly across the country\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:acc",
+      "attitude": "belief"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-032",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.62,
+    "status": "proposed"
+  },
+  "b-15": {
+    "predicate": "require",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "theme",
+        "ref": "lit:\"AI deployment\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"careful ongoing monitoring to prevent systemic harm\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:saf",
+      "attitude": "belief"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-032",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.42,
+    "status": "proposed"
+  },
+  "b-20": {
+    "predicate": "implement",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"the administration\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"modification of consent orders to avoid burdening AI innovation\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "ent-049",
+        "sort": "normative-description",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:acc",
+      "attitude": "intention"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-049",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.52,
+    "status": "proposed"
+  },
+  "b-25": {
+    "predicate": "encourage",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-049",
+        "sort": "normative-description",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"open-source and open-weight AI models\"",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:\"pro-development environment\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:acc",
+      "attitude": "intention"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-049",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.55,
+    "status": "proposed"
+  },
+  "b-30": {
+    "predicate": "train",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-006",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"an LLM\"",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "ent-008",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:\"rewrite user queries for better retrieval performance\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      },
+      {
+        "role": "manner",
+        "ref": "lit:\"recall and NDCG as reward signals\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-006",
+        "match_level": "exact"
+      },
+      {
+        "ref": "ent-008",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.72,
+    "status": "proposed"
+  },
+  "b-32": {
+    "predicate": "generate",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "instrument",
+        "ref": "ent-034",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:approximately 90% of internal code at Anthropic",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "agent",
+        "ref": "lit:AI tools",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-034",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.72,
+    "status": "proposed"
+  },
+  "b-33": {
+    "predicate": "identify",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"third-party pre-deployment testing conducted by government institutions such as the UK AI Security Institute (AISI) and US Center for AI Standards and Innovation (CAISI)\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"safety and security vulnerabilities\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "patient",
+        "ref": "lit:\"frontier AI developers\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "ent-077",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "before",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-077",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.45,
+    "status": "proposed"
+  },
+  "b-34": {
+    "predicate": "achieve",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"frontier models such as gpt-oss-20b, gpt-oss-120b, and o4-mini\"",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"attack success rates exceeding 80% against STRONGREJECT\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "lit:\"CoT Forgery\"",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "manner",
+        "ref": "lit:\"despite near-zero attack success rates on raw harmful prompts and standard jailbreaks\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-018",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.62,
+    "status": "proposed"
+  },
+  "b-37": {
+    "predicate": "compromise",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"pervasive annotation errors in widely used datasets\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "patient",
+        "ref": "lit:\"epistemological integrity of AI training\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "instrument",
+        "ref": "ent-067",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:skp",
+      "attitude": "belief"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-067",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.62,
+    "status": "proposed"
+  },
+  "b-38": {
+    "predicate": "achieve",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "ent-063",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"93.78% execution accuracy on the Arcwise-Plat-Full benchmark\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "manner",
+        "ref": "lit:\"exceeding the proxy human-level accuracy of 92.96%\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": null,
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [
+      {
+        "ref": "ent-063",
+        "match_level": "exact"
+      }
+    ],
+    "formalization_confidence": 0.85,
+    "status": "proposed"
+  },
+  "obs-1": {
+    "predicate": "consolidate",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "cause",
+        "ref": "lit:\"massive capital requirements for AI infrastructure\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"control\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:\"a small number of hardware-owning firms\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "manner",
+        "ref": "lit:\"creating proprietary bottlenecks\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:skp",
+      "attitude": "belief"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [],
+    "formalization_confidence": 0.62,
+    "status": "proposed"
+  },
+  "obs-2": {
+    "predicate": "exploit",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"generative AI developers\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "theme",
+        "ref": "lit:\"unauthorized copyrighted works\"",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "goal",
+        "ref": "lit:\"model training\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      },
+      {
+        "role": "manner",
+        "ref": "lit:\"bypassing creator consent\"",
+        "sort": "perdurant",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:skp",
+      "attitude": "belief"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [],
+    "formalization_confidence": 0.72,
+    "status": "proposed"
+  },
+  "obs-3": {
+    "predicate": "collect",
+    "event_ref": "e1",
+    "args": [
+      {
+        "role": "agent",
+        "ref": "lit:\"popular interactive toys\"",
+        "sort": "non-agentive-functional-artifact",
+        "match_level": "exact"
+      },
+      {
+        "role": "patient",
+        "ref": "lit:\"children's information\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      },
+      {
+        "role": "manner",
+        "ref": "lit:\"silently\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    ],
+    "polarity": "positive",
+    "modality": {
+      "holder": "camp:saf",
+      "attitude": "belief"
+    },
+    "temporal": {
+      "type": "unspecified",
+      "value": null
+    },
+    "about": [],
+    "formalization_confidence": 0.55,
+    "status": "proposed"
+  }
+}
