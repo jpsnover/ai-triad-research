@@ -270,7 +270,13 @@ jobs:
           load: ${{ steps.push_mode.outputs.load }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: BUILD_SHA=${{ github.sha }}
+          # BUILD_SHA MUST match the checkout ref (inputs.sha || github.sha), NOT bare
+          # github.sha — on a workflow_dispatch build with an explicit `sha`, github.sha is
+          # the dispatch ref HEAD while the checkout builds inputs.sha. Baking the dispatch
+          # HEAD would make the image report a commit it does NOT contain, and the t/3278
+          # deploy-drift gate would then compare a WRONG running SHA vs main (t/3110 sink:
+          # a misleading marker is worse than none). Keep this expression identical to `ref:`.
+          build-args: BUILD_SHA=${{ inputs.sha || github.sha }}
           cache-from: type=gha,scope=shared-docker
           cache-to: type=gha,scope=shared-docker,mode=min
 
