@@ -15,6 +15,9 @@ overrides:
   '@opentelemetry/core': '>=2.8.0'
   js-yaml: '>=4.3.1'
   image-size: '>=1.2.2'
+  fast-uri: '>=3.1.6 <4'
+  '@xmldom/xmldom': '>=0.8.15 <0.9'
+  browserslist: '>=4.28.7'
 
 importers:
 
@@ -5916,7 +5919,7 @@ packages:
     resolution: {integrity: sha512-ZZ61DsRsOnakl74HAmp3oSN4aXUmEWXf+i/yv0h7tIBfICc3VdrFErQKUUKPgu3AMsTUMbcongALEN4l6GSUrQ==}
     hasBin: true
     peerDependencies:
-      browserslist: '>= 4.21.0'
+      browserslist: '>=4.28.7'
 
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}

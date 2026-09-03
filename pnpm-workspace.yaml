@@ -17,6 +17,15 @@ overrides:
   "@opentelemetry/core": ">=2.8.0"
   js-yaml: ">=4.3.1"
   image-size: ">=1.2.2"
+  # Security bumps (t/3283, Dependabot #338-341/#336/#326). Capped to the patched line, NOT
+  # bare ">=", so (a) the fix stays minimal-blast-radius — fast-uri <4 avoids a major-version
+  # jump, @xmldom <0.9 stays in the 0.8 line — and (b) the root and standalone lockfiles
+  # converge on the SAME version (a bare ">=" let the standalone lockfile the prod image uses
+  # resolve fast-uri@4.1.4 / @xmldom@0.9.12 while root resolved 3.1.7 / 0.8.15 — prod would
+  # then run code CI never verified). Relax a cap only with a deliberate major/minor upgrade.
+  fast-uri: ">=3.1.6 <4"
+  "@xmldom/xmldom": ">=0.8.15 <0.9"
+  browserslist: ">=4.28.7"
 
 allowBuilds:
   '@google/genai': true
