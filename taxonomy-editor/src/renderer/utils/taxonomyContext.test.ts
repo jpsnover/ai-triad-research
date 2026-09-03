@@ -138,10 +138,10 @@ describe('formatTaxonomyContext', () => {
     expect(nodeIdx).toBeGreaterThan(intentionsIdx);
   });
 
-  it('contains inline vulnerability annotation on nodes with steelman_vulnerability', () => {
+  it('drops classification guidance — all AI-generated (t/3269 blanket-drop)', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    expect(output).toContain('VULNERABLE:');
-    expect(output).toContain('Assumes benefits are evenly distributed');
+    expect(output).not.toContain('VULNERABLE:');
+    expect(output).not.toContain('ARGUE:');
   });
 
   it('contains REASONING WATCHLIST with likely fallacies only', () => {

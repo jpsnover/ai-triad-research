@@ -316,3 +316,48 @@ describe('formatTaxonomyContext — RETRIEVED CONTEXT block (t/3264)', () => {
     expect(situationsIdx).toBeGreaterThan(retrievedIdx);
   });
 });
+
+function makeAnnotatedNode(id: string, label: string): PovNode {
+  return {
+    id, category: 'Beliefs', label, description: 'desc',
+    parent_id: null, children: [], situation_refs: [],
+    graph_attributes: { epistemic_type: 'empirical_claim', steelman_vulnerability: 'key vulnerability here' },
+  };
+}
+
+describe('formatTaxonomyContext — classification default-drop (t/3269)', () => {
+  it('absent verification_status drops classification guidance (default-drop)', () => {
+    const ctx = { povNodes: [makeAnnotatedNode('acc-bel-020', 'No Status')], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).not.toContain('ARGUE:');
+    expect(output).not.toContain('VULNERABLE:');
+    expect(output).toContain('[acc-bel-020]');
+  });
+
+  it('verification_status=curated drops classification guidance (all classifications AI-generated)', () => {
+    const node: PovNode = { ...makeAnnotatedNode('acc-bel-021', 'Curated'), graph_attributes: { epistemic_type: 'empirical_claim', steelman_vulnerability: 'sv', verification_status: 'curated' } };
+    const ctx = { povNodes: [node], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).not.toContain('ARGUE:');
+    expect(output).not.toContain('VULNERABLE:');
+    expect(output).toContain('[acc-bel-021]');
+  });
+
+  it('verification_status=ai-retrieved drops classification guidance (default-drop)', () => {
+    const node: PovNode = { ...makeAnnotatedNode('acc-bel-022', 'AI-Retrieved'), graph_attributes: { epistemic_type: 'empirical_claim', steelman_vulnerability: 'sv', verification_status: 'ai-retrieved' } };
+    const ctx = { povNodes: [node], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).not.toContain('ARGUE:');
+    expect(output).not.toContain('VULNERABLE:');
+    expect(output).toContain('[acc-bel-022]');
+  });
+
+  it('verification_status=unverified drops classification guidance (default-drop)', () => {
+    const node: PovNode = { ...makeAnnotatedNode('acc-bel-023', 'Unverified'), graph_attributes: { epistemic_type: 'empirical_claim', steelman_vulnerability: 'sv', verification_status: 'unverified' } };
+    const ctx = { povNodes: [node], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).not.toContain('ARGUE:');
+    expect(output).not.toContain('VULNERABLE:');
+    expect(output).toContain('[acc-bel-023]');
+  });
+});

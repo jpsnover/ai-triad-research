@@ -295,10 +295,6 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       sorted = sorted.slice(0, maxDesires);
     }
 
-    // t/3146: machine-origin signal — emitted once per category section, before any node guidance
-    if (sorted.length > 0) {
-      lines.push('  [heuristic] The following tactical annotations are machine-estimated heuristics, not established facts — use them as suggestions.');
-    }
     for (let i = 0; i < sorted.length; i++) {
       const n = sorted[i];
       const isPrimary = !hasScores || i < PRIMARY_COUNT;
@@ -308,8 +304,8 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
         const weightLabel = nodeWeightLabel(n, cat);
         lines.push(`${prefix}[${n.id}]${weightLabel}`);
         lines.push(`  "${n.label}" — ${stripExcludes(n.description)}`);
-        const guidance = generateNodeGuidance(n, cat);
-        lines.push(...guidance);
+        // t/3269: classifications are always AI-generated — drop by default until
+        // a classification-level verified signal exists.
       } else {
         lines.push(`${prefix}[${n.id}] "${n.label}"`);
       }
