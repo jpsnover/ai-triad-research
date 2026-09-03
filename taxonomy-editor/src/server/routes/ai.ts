@@ -187,6 +187,10 @@ export async function generateWithPaidFallback(
         message: `Paid fallback succeeded for ${backend}/${requestModel}`,
         data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000, responseLength: result.text?.length ?? 0 },
       });
+      // t/3110 (t/3274): the record() above is FR-ring only — never reaches stdout/Log Analytics, so
+      // DevOps's overflow-cost alert (#1733) that keys on "Paid fallback succeeded" could never fire.
+      // Emit the same marker to Pino/stdout too (record() kept for forensics). Pattern: log.api.warn @659.
+      log.api.info({ component: 'ai-generate', model: requestModel, backend, fallback: 'paid' }, `Paid fallback succeeded for ${backend}/${requestModel}`);
       return result;
     } catch (fallbackErr) {
       getGlobalRecorder()?.record({
@@ -238,6 +242,12 @@ export async function generateWithSearch(
         : `generate+search success ${backend}/${requestModel}`,
       data: { model: requestModel, backend, responseLength: result.text?.length ?? 0, search: true, ...(fallback ? { fallback } : {}) },
     });
+    // t/3110 (t/3274): the record() above is FR-ring only. On the PAID branch (billed overflow), also emit
+    // the "Paid fallback succeeded" marker to Pino/stdout so DevOps's overflow-cost alert (#1733) can fire —
+    // it can't see the FR ring. Paid branch only (never the non-fallback success), matching the record().
+    if (fallback === 'paid') {
+      log.api.info({ component: 'ai-generate', model: requestModel, backend, fallback: 'paid', search: true }, `Paid fallback succeeded (search) ${backend}/${requestModel}`);
+    }
   };
   try {
     const result = await ai.generateTextWithSearchByUsage('server.search', { prompt }, overrides, explicitKey);
