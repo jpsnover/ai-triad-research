@@ -47,11 +47,18 @@ export interface TaxonomyContext {
   nodeScores?: Map<string, number>;
 }
 
+// t/3262: attribution reframe — on by default; set DEBATE_BELIEFS_ATTRIBUTION_REFRAME=0 to restore old text
+const BELIEFS_ATTRIBUTION_REFRAME = process.env.DEBATE_BELIEFS_ATTRIBUTION_REFRAME !== '0';
+
 /** Map taxonomy categories to BDI sections */
 export const CATEGORY_TO_BDI: Record<string, { header: string; framing: string }> = {
   'Beliefs': {
-    header: '=== YOUR EMPIRICAL GROUNDING (what you take as true) ===',
-    framing: 'These are the factual claims and empirical observations that ground your worldview.',
+    header: BELIEFS_ATTRIBUTION_REFRAME
+      ? '=== YOUR CAMP\'S EMPIRICAL GROUNDING (the evidentiary basis your camp argues from) ==='
+      : '=== YOUR EMPIRICAL GROUNDING (what you take as true) ===',
+    framing: BELIEFS_ATTRIBUTION_REFRAME
+      ? 'These are the factual claims and empirical observations your camp treats as its evidentiary foundation — argue from them with conviction. They are your camp\'s established positions, not incontrovertible facts: if a specific claim here is one you cannot support or that contradicts what you know, you are not obligated to assert it as established fact.'
+      : 'These are the factual claims and empirical observations that ground your worldview.',
   },
   'Desires': {
     header: '=== YOUR NORMATIVE COMMITMENTS (what you argue should happen) ===',
