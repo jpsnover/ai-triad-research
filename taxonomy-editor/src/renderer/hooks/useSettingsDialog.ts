@@ -7,17 +7,22 @@ import { create } from 'zustand';
  * Global signal for opening the Settings dialog from surfaces outside the
  * Toolbar (t/3190). The dialog itself is rendered/owned by the Toolbar, which
  * subscribes to `isOpen`; any component (e.g. the daily-quota banners) can call
- * `useSettingsDialog.getState().open()` to route the user to Settings → API Keys
- * without threading callbacks through the tree.
+ * `useSettingsDialog.getState().open('apiKeys')` to route the user to Settings →
+ * API Keys without threading callbacks through the tree (t/3295).
  */
+
+export type SettingsSection = 'apiKeys';
+
 interface SettingsDialogStore {
   isOpen: boolean;
-  open: () => void;
+  requestedSection: SettingsSection | null;
+  open: (section?: SettingsSection) => void;
   close: () => void;
 }
 
 export const useSettingsDialog = create<SettingsDialogStore>((set) => ({
   isOpen: false,
-  open: () => set({ isOpen: true }),
-  close: () => set({ isOpen: false }),
+  requestedSection: null,
+  open: (section) => set({ isOpen: true, requestedSection: section ?? null }),
+  close: () => set({ isOpen: false, requestedSection: null }),
 }));

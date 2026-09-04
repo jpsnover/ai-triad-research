@@ -336,3 +336,36 @@
   font-size: 0.78rem;
   font-style: italic;
 }
+
+/* ─── Settings tab bar (t/3295) ───────────────────────── */
+
+.settings-tab-bar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settings-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 12px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-bottom: -1px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.settings-tab:hover {
+  color: var(--text-primary);
+}
+
+.settings-tab--active {
+  color: var(--text-primary);
+  border-bottom-color: var(--focus-ring);
+  font-weight: 600;
+}

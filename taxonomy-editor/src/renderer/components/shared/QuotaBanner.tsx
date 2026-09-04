@@ -53,7 +53,7 @@ export function QuotaBanner() {
       {warning.level === 'error' && (
         <button
           className="quota-banner-action"
-          onClick={openSettings}
+          onClick={() => openSettings('apiKeys')}
         >
           Add API key
         </button>
