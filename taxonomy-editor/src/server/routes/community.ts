@@ -18,6 +18,8 @@ import { rateLimitResponseBody } from '../security/rateLimitResponse.js';
 import * as rateLimiter from '../security/rateLimiter.js';
 import { getStorageUserId } from '../security/userContext.js';
 import * as community from '../community/community.js';
+import { mintCommunityOpedShare, revokeCommunityOpedShare, getCommunityOpedShareEntry } from '../community/communityOpedShares.js';
+import { writePublicCommunityOpEd, deletePublicCommunityOpEd, type CommunityOpEdItem } from '../storage/communityOpedShareStore.js';
 
 export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post, del } = r;
@@ -159,6 +161,77 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       error(res, String(err), 404);
+    }
+  });
+
+  // ── t/3315: public no-login share link for a COMMUNITY op-ed (Pattern-A publish-on-share). ──
+  // Any authed user may mint (rate-limited); a community-scoped registry returns ONE stable shareId
+  // per item to all callers. The public copy is the anonymous positive-allowlist projection served by
+  // the existing GET /api/public/oped/:shareId + PublicOpEdView — zero new public surface. Consent:
+  // PI ruled community = public (t/3315#7). TL GV conditions in t/3315#9.
+  post('/api/community/opeds/:id/share', async (req, res) => {
+    try {
+      const id = param(req, 'id', '/api/community/opeds/:id/share');
+
+      // Condition 3: mint = any authed user, RATE-LIMITED (per-user bucket; idempotent so repeats are cheap).
+      const userId = getStorageUserId();
+      const rate = rateLimiter.checkRate(`community-oped-share:${userId}`, 20, 60_000);
+      if (!rate.allowed) {
+        const retryAfter = Math.ceil((rate.retryAfterMs ?? 60_000) / 1000);
+        res.setHeader('Retry-After', String(retryAfter));
+        json(res, { error: 'rate_limited', retryAfter }, 429);
+        return;
+      }
+
+      const item = await community.getCommunityOpEd(id);
+      if (!item) { error(res, 'not_found', 404); return; }
+
+      // Condition 4: assert PRESENCE before minting — never register a shareId for an empty/partial
+      // read (ADR-001 silent-empty guard on the hosted github-api path). writePublicCommunityOpEd re-checks.
+      const it = item as { topic?: unknown; opeds?: unknown; community_metadata?: { submitted_by_display?: string } };
+      if (!it.topic || !Array.isArray(it.opeds) || it.opeds.length === 0) {
+        error(res, 'Community op-ed is empty or malformed — cannot mint a public copy', 422);
+        return;
+      }
+
+      // submittedBy is tracked server-side ONLY for the revoke-auth check; the PUBLIC copy stays anonymous
+      // (projectPublicOpEd strips all community_metadata — condition 1).
+      const submittedBy = it.community_metadata?.submitted_by_display ?? '';
+      const shareId = await mintCommunityOpedShare(id, submittedBy);
+      await writePublicCommunityOpEd(item as unknown as CommunityOpEdItem, shareId);
+
+      json(res, { shareId, url: `/share/oped/${shareId}` });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'error',
+        message: 'Failed to mint community op-ed public share',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
+    }
+  });
+
+  // Revoke a community op-ed's public link. Condition 3: admin (REQUIRED) OR the original submitter
+  // (optional). Deletes the registry entry + the public projection → a leaked link is permanently
+  // dead; re-share mints a fresh shareId. Idempotent: revoking an unshared item is a no-op 200.
+  del('/api/community/opeds/:id/share', async (req, res) => {
+    try {
+      const id = param(req, 'id', '/api/community/opeds/:id/share');
+      const entry = await getCommunityOpedShareEntry(id);
+      const isSubmitter = !!entry && entry.submittedBy !== '' && getStorageUserId() === entry.submittedBy;
+      if (!community.isAdmin() && !isSubmitter) { json(res, { error: 'Forbidden' }, 403); return; }
+
+      const removed = await revokeCommunityOpedShare(id);
+      if (!removed) { json(res, { revoked: false }); return; } // not shared — idempotent no-op
+      await deletePublicCommunityOpEd(removed.shareId);
+      json(res, { revoked: true });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'error',
+        message: 'Failed to revoke community op-ed public share',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
     }
   });
 
