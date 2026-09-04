@@ -20,10 +20,29 @@ import type { OpEdProgressEvent as LibEvent } from '../../../../lib/oped/generat
 const mockSpawn = vi.hoisted(() => vi.fn());
 vi.mock('child_process', () => ({ default: { spawn: mockSpawn }, spawn: mockSpawn }));
 
+// Node fetch mock (fetchUrlForPromptBinary — t/3306)
+const mockFetchBinary = vi.hoisted(() => vi.fn());
+vi.mock('../../../../lib/url-fetch/fetchUrlForPrompt.js', () => ({
+  fetchUrlForPromptBinary: (...args: unknown[]) => mockFetchBinary(...args),
+}));
+
+// fs + os mocks (temp file write/cleanup)
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  return { ...actual, writeFileSync: vi.fn(), rmSync: vi.fn() };
+});
+
+vi.mock('os', () => ({
+  default: { tmpdir: () => '/tmp' },
+  tmpdir: () => '/tmp',
+}));
+
 vi.mock('electron', () => ({
   ipcMain: { handle: vi.fn() },
   dialog: {},
   BrowserWindow: { fromWebContents: vi.fn() },
+  app: { getPath: vi.fn(() => '/tmp') },
+  safeStorage: { isEncryptionAvailable: vi.fn(() => false) },
 }));
 
 vi.mock('../opedIO.js', () => ({
@@ -57,6 +76,15 @@ const mockGenerateOpEdSet = vi.fn();
 vi.mock('../../../../lib/oped/generate.js', () => ({
   generateOpEdSet: (...args: unknown[]) => mockGenerateOpEdSet(...args),
 }));
+
+const FAKE_FETCH_RESULT = {
+  ok: true as const,
+  bytes: Buffer.from('fake content'),
+  contentType: 'text/html; charset=utf-8',
+  finalUrl: 'https://example.com/article',
+};
+
+const flushPromises = (): Promise<void> => new Promise(r => setImmediate(r));
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
@@ -104,6 +132,7 @@ beforeEach(() => {
   vi.mocked(saveOpEdSetTemp).mockClear();
   mockGenerateOpEdSet.mockClear();
   mockSpawn.mockClear();
+  mockFetchBinary.mockResolvedValue(FAKE_FETCH_RESULT);
   registerOpEdHandlers();
 });
 
@@ -327,7 +356,7 @@ describe('t/2899: source provenance persisted on the set', () => {
 
     const handler = captureHandler('create-oped-set');
     const p = handler(fakeEvent(makeSender()), { topic: 'topic', url: 'https://example.com/article', params: {}, voices: ['accelerationist'] });
-    await Promise.resolve();
+    await flushPromises();
     emitPrepResult(prep, FAKE_SOURCE_PREP);
     await p;
 
@@ -352,7 +381,7 @@ describe('t/2899: source provenance persisted on the set', () => {
 
     const handler = captureHandler('create-oped-set');
     const p = handler(fakeEvent(makeSender()), { topic: 'topic', url: 'https://example.com/article', params: {}, voices: ['accelerationist'] });
-    await Promise.resolve();
+    await flushPromises();
     emitPrepResult(prep, FAKE_SOURCE_PREP);
     try { await p; } catch { /* abort */ }
 
