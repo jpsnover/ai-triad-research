@@ -97,7 +97,7 @@ BeforeAll {
         # Edges (t/3314#6):
         @{ File = 'scripts/AITriad/Public/Test-GitHubHealth.ps1';         Function = 'Test-GitHubHealth';         Reason = 'GitHub Actions runs API ($RunsUri from api.github.com — github health, edge c)' }
         @{ File = 'scripts/AITriad/Private/Submit-ToWaybackMachine.ps1';  Function = 'Submit-ToWaybackMachine';   Reason = 'outbound archival POST to web.archive.org — not external-content ingestion (edge a)' }
-        @{ File = 'scripts/TalmudicDebate/Initialize-TalmudicCorpus.ps1'; Function = 'Get-SefariaVersion';        Reason = 'Sefaria API version fetch — allowlisted PENDING REVIEW; likely external-content, migrates under follow-up t/3327 (edge b)' }
+        @{ File = 'scripts/TalmudicDebate/Initialize-TalmudicCorpus.ps1'; Function = 'Get-SefariaVersion';        Reason = 'www.sefaria.org — a known-good public JSON API on a literal host; GV-confirmed NOT WAF-fetch-class, no migration (t/3327 Done, edge b). Variable-URL (-Uri $uri), so per-site allowlisted under the literal-only guard' }
         # NOTE: Invoke-DependencyCheck.ps1 L163/180/195 (Gemini/Anthropic/Groq key probes) auto-allow by
         # host-literal (incl. $Uri var-resolution) — no per-site entry (t/3314#8 Finding 2).
     )
