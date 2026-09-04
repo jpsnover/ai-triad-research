@@ -55,7 +55,6 @@ BeforeAll {
     $script:AllowedHosts = @(
         'localhost', '127.0.0.1',
         'api.anthropic.com', 'api.groq.com', 'api.openai.com', 'api.z.ai',
-        'generativelanguage.googleapis.com',
         'api.github.com', 'www.githubstatus.com', 'githubstatus.com', 'ghcr.io',
         'api.loganalytics.io', 'management.azure.com'
     )
@@ -92,7 +91,7 @@ BeforeAll {
 
         # AI-provider APIs (called directly by key, not user-supplied URLs):
         @{ File = 'scripts/AITriad/Public/Get-AICostReport.ps1';          Function = 'Get-AICostReport';          Reason = 'AI-provider models/pricing endpoint (provider APIs, by key)' }
-        @{ File = 'scripts/AITriad/Public/Register-AIBackend.ps1';        Function = 'Register-AIBackend';        Reason = 'Ollama model-list probe ($OllamaUrl, localhost by default); other provider probes auto-allow by host' }
+        @{ File = 'scripts/AITriad/Public/Register-AIBackend.ps1';        Function = 'Register-AIBackend';        Reason = 'AI-provider key-validation probes in Register-AIBackend ($OllamaUrl localhost + $Uri Gemini) — provider APIs by key, not user URLs' }
         @{ File = 'scripts/AITriad/Public/Test-AIApiKey.ps1';             Function = '_Probe-Backend';            Reason = 'AI-provider key-validation probes (provider APIs, by key)' }
 
         # Edges (t/3314#6):
@@ -103,28 +102,20 @@ BeforeAll {
         # host-literal (incl. $Uri var-resolution) — no per-site entry (t/3314#8 Finding 2).
     )
 
-    # Host from the first "http(s)://<host>" literal in a text fragment (no interpolation in the host).
-    function Get-HostFromUrlLiteral {
-        param([string]$Text)
-        $m = [regex]::Match($Text, "['`"]https?://([^/:'`"\s\$]+)", 'IgnoreCase')
-        if ($m.Success) { return $m.Groups[1].Value.ToLowerInvariant() }
-        return $null
-    }
-
-    # Resolve the -Uri host of a call: a literal on the statement, or a local `$var = "https://…"`
-    # assignment a few lines above when the call is `-Uri $var`. Returns $null if not statically known.
-    function Resolve-CallHost {
-        param([string[]]$Lines, [int]$Index, [string]$Statement)
-        $lit = [regex]::Match($Statement, "-Uri\s+(['`"]https?://[^'`"\s]+)", 'IgnoreCase')
-        if ($lit.Success) { return (Get-HostFromUrlLiteral -Text $lit.Groups[1].Value) }
-        $var = [regex]::Match($Statement, '-Uri\s+\$([A-Za-z_]\w*)', 'IgnoreCase')
-        if (-not $var.Success) { return $null }
-        $name = [regex]::Escape($var.Groups[1].Value)
-        for ($j = $Index; $j -ge [Math]::Max(0, $Index - 12); $j--) {
-            $a = [regex]::Match($Lines[$j], "^\s*\`$$name\s*=\s*(['`"]https?://[^'`"\s]+)", 'IgnoreCase')
-            if ($a.Success) { return (Get-HostFromUrlLiteral -Text $a.Groups[1].Value) }
-        }
-        return $null
+    # Extract the LITERAL host of a -Uri argument, even when the path/port/query is interpolated
+    # ("http://localhost:$Port/…" → localhost). Returns $null when the host itself is a variable
+    # ("$BaseUrl/…" / "http://$Server/…") or the arg is a splat — host not statically resolvable, so
+    # the call must declare itself with a co-located marker or a per-site allowlist entry.
+    #
+    # LITERAL-ONLY BY DESIGN (t/3314#10): we deliberately do NOT resolve `-Uri $var` back to an
+    # assignment — static back-resolution on a security gate has false-PASS gaps (intervening
+    # reassignment stale-resolves; a back-walk can cross function boundaries). A genuinely-internal
+    # variable-URL fetch declares itself with a `# fetch-allowlist:` marker instead.
+    function Get-UriHostLiteral {
+        param([string]$Statement)
+        $m = [regex]::Match($Statement, "-Uri\s+['`"]https?://([^/:'`"\s\$]+)", 'IgnoreCase')
+        if (-not $m.Success) { return $null }
+        return $m.Groups[1].Value.ToLowerInvariant()
     }
 
     # PURE: given content, return 1-based line numbers FLAGGED by host/marker/comment classification.
@@ -147,7 +138,7 @@ BeforeAll {
             $k = $i
             while ($lines[$k].TrimEnd().EndsWith('`') -and ($k + 1) -lt $lines.Count) { $k++; $stmt += "`n" + $lines[$k] }
 
-            $uriHost = Resolve-CallHost -Lines $lines -Index $i -Statement $stmt
+            $uriHost = Get-UriHostLiteral -Statement $stmt
             if ($uriHost -and ($script:AllowedHosts -contains $uriHost)) { continue }
 
             $hasMarker = $false
@@ -241,13 +232,8 @@ Describe 'WAF-fetch prevention guard (t/3314)' -Tag 'waf-fetch-guard' {
         It 'ALLOWS a literal internal host with an interpolated port/path' {
             Get-WafFetchViolations -Content 'Invoke-RestMethod -Uri "http://localhost:$Port/health"' | Should -BeNullOrEmpty
         }
-        It 'ALLOWS a -Uri $var resolved from a nearby literal assignment to an internal host' {
-            $c = '$Uri = "https://generativelanguage.googleapis.com/v1beta/models?key=$k"' + "`n" +
-                 '$R = Invoke-RestMethod -Uri $Uri -Method Get'
-            Get-WafFetchViolations -Content $c | Should -BeNullOrEmpty
-        }
-        It 'still FLAGS a -Uri $var resolved to a NON-allowlisted host' {
-            $c = '$Uri = "https://evil.example.com/x"' + "`n" + '$R = Invoke-RestMethod -Uri $Uri'
+        It 'FLAGS a -Uri $var even when a literal assignment appears nearby (literal-only, no back-resolution)' {
+            $c = '$Uri = "https://api.github.com/x"' + "`n" + '$R = Invoke-RestMethod -Uri $Uri'
             Get-WafFetchViolations -Content $c | Should -Not -BeNullOrEmpty
         }
         It 'ALLOWS a variable-URL fetch with a co-located # fetch-allowlist: marker' {

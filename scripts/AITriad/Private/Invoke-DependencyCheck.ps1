@@ -159,6 +159,7 @@ function Invoke-DependencyCheck {
 
     if ($env:GEMINI_API_KEY) {
         try {
+            # fetch-allowlist: Gemini key-validation probe (generativelanguage.googleapis.com, a by-key provider API like the anthropic/groq literals below — not a user URL, not the WAF-fetch class; t/3314)
             $Uri = "https://generativelanguage.googleapis.com/v1beta/models?key=$($env:GEMINI_API_KEY)"
             $R = Invoke-RestMethod -Uri $Uri -Method Get -TimeoutSec 10 -ErrorAction Stop
             $ModelCount = @($R.models).Count
