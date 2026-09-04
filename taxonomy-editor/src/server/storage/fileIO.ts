@@ -1363,6 +1363,9 @@ export async function readSourceDocumentPdf(docId: string): Promise<Buffer | nul
   return backend.readBinaryFile(pdfPath);
 }
 
+// ── Data-root validation (t/3296) — extracted to dataRootValidator.ts ──
+export { validateDataRoot } from './dataRootValidator.js';
+
 // ── Dictionary ──
 
 export async function loadDictionary(): Promise<{ standardized: unknown[]; colloquial: unknown[]; lintViolations: unknown[] }> {
