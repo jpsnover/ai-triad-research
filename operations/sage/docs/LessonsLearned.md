@@ -3957,3 +3957,45 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Applies To:** All agents creating worktrees with junction-linked directories (node_modules, build outputs). Windows-specific (mklink /J / New-Item -ItemType Junction). Especially relevant for npm-worktree setups per Pattern #189.
 
 **Applies To:** All agents receiving "safe to proceed" or "all prerequisites met" messages for prod changes; all human operators reviewing agent-initiated prod-change requests.
+
+---
+
+## #193 [Process/Search] Recursive `grep -r`/`find` from Repo Root Times Out — Traverses Data Sibling and `node_modules`
+
+**Pattern:** Running `grep -rn`/`grep -rlnE`/`find .` from the repository root times out (2m Bash limit) because the traversal descends into the ~410 MB `ai-triad-data` sibling directory and/or `node_modules`. The shell tool has no awareness of `.gitignore` exclusions.
+
+**Instances:**
+- 2026-09-04 — Diagnostics (p/9#71): `grep -rn` from repo root traversed `ai-triad-data` sibling (~410 MB) + `node_modules`; timed out at 2m. Resolved by switching to scoped Grep/Glob tools on explicit paths.
+- 2026-09-04 — PowerShell (p/20#37): `grep -rlnE ... .` over repo tree timed out at 120s for the same reason. Resolved by using `git ls-files | grep` (tracked files only) and the Grep tool.
+
+**Root Cause:** The shell `grep -r` and `find` commands follow all directories unless explicitly excluded. This repo's root contains a ~410 MB data sibling (`../ai-triad-data` symlinked or adjacent) and large `node_modules` trees. Neither is excluded by default shell glob rules.
+
+**Prevention:**
+1. **Never run `grep -r .` or `find .` from the repo root** — always scope to an explicit subtree (`scripts/`, `taxonomy-editor/src/`, `lib/`).
+2. **Prefer the dedicated Grep and Glob tools** over shell `grep`/`find` — they are gitignore-aware and will not traverse data siblings or `node_modules`.
+3. **Use `git ls-files | grep <pattern>`** as a fast, tracked-files-only alternative when searching for filenames or content across the whole repo — it reads only what git knows about, skipping all untracked and ignored paths.
+4. **Add explicit `--exclude-dir` flags** if shell grep is unavoidable: `grep -r --exclude-dir=node_modules --exclude-dir=.worktrees <pattern> .`
+
+**Status:** Active — 2 instances (p/9#71, p/20#37). Matches root AGENTS.md search-tooling rule: prefer Grep/Glob over shell grep/find.
+
+**Applies To:** All agents performing codebase-wide searches. Especially relevant when the task prompt says "search the whole repo" — always scope or use dedicated tools.
+
+---
+
+## #194 [Process/Claim] Taking Over an Asleep Owner's Assigned Ticket Requires a PR/Branch Check Before Implementing
+
+**Pattern:** An agent takes over an asleep peer's assigned ticket and begins implementing, without first checking whether the original owner already has an in-flight PR or branch. Both agents produce implementations of the same ticket, burning CI cycles and requiring consolidation.
+
+**Instances:**
+- 2026-09-04 — PowerShell 2 (p/228#22, t/3307): Main (PowerShell) was asleep and assigned to t/3307. PowerShell 2 took it over and began implementing; neither checked for the other's in-flight work. Both produced PRs (#1947 + #1948). Resolved by consolidating to Main's #1947 as sole survivor and closing #1948. Root: `git worktree add` on the branch then failed "already used by worktree," surfacing the collision.
+
+**Root Cause:** Ticket assignment and comments show who owns the work, but not whether a branch or PR already exists. An asleep agent's in-flight branch is invisible on the ticket — it lives in `git` and GitHub, not in the ticket tracker. The AGENTS.md "Claim Before Implement" rule (q/42) mentions checking "in-flight PR or recent landed commit," but the concrete mechanic (`gh pr list --search`) was not applied.
+
+**Prevention:**
+1. **Before implementing an assigned ticket, run `gh pr list --search "<ticket-id>" --state open`** — if a PR already exists for this ticket, coordinate with the branch owner before starting your own implementation. This is the concrete step that instantiates the AGENTS.md q/42 rule.
+2. **Check `git branch -r | grep <ticket-id>`** as a secondary check — a feature branch may exist without an open PR yet (e.g., pushed but not yet PR'd, or in a worktree).
+3. **If taking over from an asleep owner, ping them before starting** — they may have WIP in a local worktree not yet pushed. A ping costs one round-trip; a duplicate PR costs two CI cycles and a consolidation.
+
+**Status:** Active — 1 instance (p/228#22, t/3307). Recurrence of t/2514 duplicate-implementation class. The concrete `gh pr list --search` mechanic is the prevention gap vs. the existing q/42 rule.
+
+**Applies To:** All agents in multi-instance roles (PowerShell, CL, ServerAPI, etc.) and any agent taking over a ticket from an asleep peer. Especially relevant when the ticket is already assigned.
