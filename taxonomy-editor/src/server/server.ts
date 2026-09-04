@@ -1293,6 +1293,21 @@ initAnonymousSessionStore({
 
 // ── Start ──
 assertStateRootIsolation(); // t/2643: refuse start if staging's state root wasn't isolated (env drift) — no-op prod/local
+// t/3296 (t/3290 prevention): fail LOUD on an unresolved/misprovisioned data root. Backends are set
+// above; assert taxonomy/ + dictionary/ are present AND non-empty via the ACTIVE backend (validateDataRoot
+// uses listDirectoryStrict — profile-agnostic: fs for local, GitHub Contents for hosted; a transient
+// GitHub blip throws rather than false-empties). On failure: no showErrorBox (server-side) — log the
+// ActionableError to stdout (→ Log Analytics) + exit non-zero so the container crash-loops VISIBLY
+// instead of silently serving empty panels. Before listen, so an un-provisioned revision never serves.
+try {
+  await fileIO.validateDataRoot();
+} catch (err) {
+  log.server.error(
+    { err: err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : String(err) },
+    'Data root validation failed at boot — refusing to start',
+  );
+  process.exit(1);
+}
 // t/2532 (M12): loopback (127.0.0.1) in dev / 0.0.0.0 in prod; HOST opts into LAN exposure (logged loudly below).
 const BIND_HOST = resolveBindHost(process.env);
 server.listen(PORT, BIND_HOST, () => {
