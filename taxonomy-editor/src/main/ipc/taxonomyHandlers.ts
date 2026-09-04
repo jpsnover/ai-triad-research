@@ -190,9 +190,27 @@ export function registerTaxonomyHandlers(): void {
       const stdDir = path.join(dictDir, 'standardized');
       const colDir = path.join(dictDir, 'colloquial');
 
+      // t/3290 (mirrors the server-side t/3289 WARN): a missing/empty standardized dir silently
+      // blanked the Vocabulary panel with no signal. Emit a WARN recording the discriminating cause
+      // (dir-missing vs empty-listing) + the RESOLVED data root, so "which root did getDataRootPath()
+      // resolve to?" is answerable (the suspected Electron root cause — env not inherited at GUI launch).
       const standardized: unknown[] = [];
-      if (fs.existsSync(stdDir)) {
-        for (const f of fs.readdirSync(stdDir).filter(f => f.endsWith('.json'))) {
+      if (!fs.existsSync(stdDir)) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ipc-handlers', level: 'warn',
+          message: 'load-dictionary: standardized dir missing — returning empty (t/3290)',
+          data: { dir: stdDir, cause: 'dir-missing', dataRoot: getDataRootPath() },
+        });
+      } else {
+        const stdJson = fs.readdirSync(stdDir).filter(f => f.endsWith('.json'));
+        if (stdJson.length === 0) {
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'ipc-handlers', level: 'warn',
+            message: 'load-dictionary: standardized dir present but zero .json files (empty-listing) — returning empty (t/3290)',
+            data: { dir: stdDir, cause: 'empty-listing' },
+          });
+        }
+        for (const f of stdJson) {
           try {
             standardized.push(JSON.parse(fs.readFileSync(path.join(stdDir, f), 'utf-8')));
           } catch { /* telemetry — silent by design;  skip malformed */ }
@@ -200,7 +218,13 @@ export function registerTaxonomyHandlers(): void {
       }
 
       const colloquial: unknown[] = [];
-      if (fs.existsSync(colDir)) {
+      if (!fs.existsSync(colDir)) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ipc-handlers', level: 'warn',
+          message: 'load-dictionary: colloquial dir missing — returning empty (t/3290)',
+          data: { dir: colDir, cause: 'dir-missing', dataRoot: getDataRootPath() },
+        });
+      } else {
         for (const f of fs.readdirSync(colDir).filter(f => f.endsWith('.json'))) {
           try {
             colloquial.push(JSON.parse(fs.readFileSync(path.join(colDir, f), 'utf-8')));
