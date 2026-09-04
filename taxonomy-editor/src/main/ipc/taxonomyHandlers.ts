@@ -41,6 +41,14 @@ import { recordLockHolder } from '../../../../lib/debate/lockHolder.js';
 import { stampNodeAuthorship } from '../../server/storage/editMeta.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { VALID_POV } from '../ipcSchemas.js';
+import {
+  assembleNodeEmbeddings,
+  selectRelevantTaxonomy,
+  type ANClaimInput,
+  type SelectRelevantTaxonomyInput,
+} from '../../../../lib/debate/relevanceSelection.js';
+import { POVER_INFO } from '../../../../lib/debate/poverInfo.js';
+import { computeEmbeddings, computeQueryEmbedding } from '../embeddings.js';
 
 // Recorder-backed sink for the rationale re-merge's "baseline twin matched no incoming edge"
 // case: a real rationale isn't written, logged so a systematic tie-break mismatch is
@@ -461,5 +469,72 @@ export function registerTaxonomyHandlers(): void {
 
   ipcMain.handle('update-synthetic-embeddings', (_event, nodeId: string, pov: string, vectors: number[][]) => {
     updateSyntheticEmbeddings(nodeId, pov, vectors);
+  });
+
+  // t/3258 (T3): fetch-relevant-nodes — main-process mirror of server routes/relevantNodes.ts.
+  // Packaged Electron runs no embedded API server; the renderer reaches relevance selection via IPC.
+  // Logic is field-for-field identical to the server route (parity by construction — both invoke
+  // the same shared-lib assembleNodeEmbeddings + selectRelevantTaxonomy with ONNX embed cbs).
+  ipcMain.handle('fetch-relevant-nodes', async (_event, payload: unknown) => {
+    const POV_FILE_KEYS = new Set(['accelerationist', 'safetyist', 'skeptic']);
+    const b = (payload ?? {}) as {
+      pov: string;
+      topic: string;
+      recentTranscript: string;
+      threshold?: number;
+      session?: {
+        anClaimEmbeddings?: ANClaimInput[];
+        lineageFrame?: { cluster_id: string; label?: string }[];
+        sourceType?: string;
+        excludeGreatestHits?: boolean;
+        greatestHitsList?: string[];
+      };
+    };
+    const { pov, topic, recentTranscript } = b;
+    if (!POV_FILE_KEYS.has(pov)) throw new Error(`Invalid or missing pov (expected accelerationist|safetyist|skeptic), got: ${String(pov)}`);
+    if (typeof topic !== 'string' || typeof recentTranscript !== 'string') throw new Error('Missing topic/recentTranscript');
+
+    // Corpus embed cb — BATCH, mirrors the client's api.computeEmbeddings (t/3257#22).
+    const corpusEmbed = (texts: string[], ids?: string[]): Promise<number[][]> =>
+      computeEmbeddings(texts, ids);
+    // Boundary + topic-query embed cb — per-text, mirrors the client's api.computeQueryEmbedding.
+    const queryEmbed = (texts: string[]): Promise<number[][]> =>
+      Promise.all(texts.map(t => computeQueryEmbedding(t)));
+
+    const povFile = readTaxonomyFile(pov) as { nodes?: SelectRelevantTaxonomyInput['povNodes'] };
+    const povNodes = povFile?.nodes ?? [];
+    const sitFile = readTaxonomyFile('situations') as { nodes?: SelectRelevantTaxonomyInput['situationNodes'] };
+    const situationNodes = sitFile?.nodes ?? [];
+    const policyRaw = readPolicyRegistry() as { policies?: { id: string; action: string; source_povs?: string[] }[] } | null;
+    const policyRegistry = (policyRaw?.policies ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
+    const lineageRaw = readLineageCategories() as { mapping?: Record<string, { l2: string }> } | null;
+    const lineageMapping = lineageRaw?.mapping;
+    const povInfo = Object.values(POVER_INFO).find(i => (i as { pov?: string }).pov === pov) as { doctrinal_boundaries?: string[] } | undefined;
+    const doctrinalBoundaries = (povInfo?.doctrinal_boundaries?.length ?? 0) > 0
+      ? { strings: povInfo!.doctrinal_boundaries ?? [] }
+      : undefined;
+
+    // Map loadSyntheticEmbeddings() ({pov,vectors}) → {nodeId: vectors[][]} for assembleNodeEmbeddings.
+    const synthRaw = loadSyntheticEmbeddings();
+    const synth: Record<string, number[][]> | null = synthRaw
+      ? Object.fromEntries(Object.entries(synthRaw).map(([id, e]) => [id, e.vectors]))
+      : null;
+
+    const { nodeEmbeddings } = await assembleNodeEmbeddings(pov, povNodes, situationNodes, corpusEmbed, synth);
+
+    const session = {
+      anClaimEmbeddings: b.session?.anClaimEmbeddings ?? [],
+      lineageFrame: b.session?.lineageFrame,
+      sourceType: b.session?.sourceType,
+      excludeGreatestHits: b.session?.excludeGreatestHits,
+      greatestHitsList: b.session?.greatestHitsList,
+    };
+
+    return selectRelevantTaxonomy({
+      povNodes, situationNodes, policyRegistry, nodeEmbeddings, lineageMapping, doctrinalBoundaries,
+      session,
+      params: { pov, topic, recentTranscript, threshold: b.threshold },
+      embed: queryEmbed,
+    });
   });
 }

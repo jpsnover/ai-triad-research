@@ -194,6 +194,9 @@ try {
   importKeysFromSharing: (payload: unknown, passphrase: string): Promise<string[]> =>
     ipcRenderer.invoke('import-keys-from-sharing', payload, passphrase),
 
+  fetchRelevantNodes: (payload: unknown): Promise<unknown> =>
+    ipcRenderer.invoke('fetch-relevant-nodes', payload),
+
   computeEmbeddings: (texts: string[], ids?: string[]): Promise<{ vectors: number[][] }> =>
     ipcRenderer.invoke('compute-embeddings', texts, ids),
 
