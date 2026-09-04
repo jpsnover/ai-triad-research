@@ -15,52 +15,58 @@
     REOPENING: it scans scripts/**/*.ps1 and FLAGS any Invoke-WebRequest / Invoke-RestMethod call that
     isn't accounted for.
 
-    HYBRID allowlist (TL Decision 2, t/3314#2, refined per t/3314#6):
-      - Known-internal hosts (literal -Uri) → host-literal AUTO-ALLOW (AllowedHosts). Extracts the
-        literal host even when the port/path is interpolated ("http://localhost:$Port/…" → localhost).
-      - **Per-call-site allowlist keyed by {file, function} + a one-line reason** ($AllowedSites) for
-        today's grandfathered internal variable-URL fetches. Per-SITE (never whole-file/dir skip — a
-        dir/file exempt is a reopening hole, t/3314#6): a NEW fetching function not in the list FLAGS.
-      - The co-located `# fetch-allowlist: <reason>` **source marker** is the mechanism for NEW/future
-        genuinely-internal variable fetches (Decision 2's letter).
-      - Anything else (a bare unmarked variable-URL fetch, or a literal non-allowlisted external host)
-        → FLAG → migrate to the Node fetcher or add a justified entry.
+    A fetch is accounted for iff ONE of:
+      1. Host-literal AUTO-ALLOW — the -Uri resolves to a known-internal host (AllowedHosts). Resolves
+         a literal ("https://host/…", incl. an interpolated port/path "http://localhost:$Port/…") AND
+         a local variable assigned a literal URL a few lines above (`$u = "https://host/…"; … -Uri $u`).
+      2. A co-located `# fetch-allowlist: <reason>` source marker — the mechanism for a NEW
+         genuinely-internal variable-URL fetch (TL Decision 2's letter).
+      3. A grandfathered per-{file,function} entry in AllowedSites (with a reason) — per-SITE, never
+         whole-file/dir skip (t/3314#6: a dir/file exempt is a reopening hole).
+    Anything else → FLAG → migrate to Get-UrlViaSharedFetcher or add a justified entry.
 
-    Pure predicates (t/2971): Get-WafFetchViolations (host/marker/comment classify) and
-    Test-FetchSiteAllowlisted ({file,function} → allowed) are both unit-testable; both arms are forced
-    with a fixture .ps1 (t/3247). Modeled on tests/DataWriteSinkGuard.Tests.ps1.
+    ATTRIBUTION IS AST-BASED (t/3314#8 Finding 1): the enclosing function of each call is the innermost
+    FunctionDefinitionAst whose extent spans the call line — scope-aware (respects braces / nested +
+    closed functions), so a call in an outer body after an inner function closed is NOT mis-attributed
+    to the inner (which would silently turn a per-site entry into a whole-file hole).
 
-    GV NOTE (Decision-2 refinement, t/3314#6): the grandfathered exemptions live as guard-side
-    per-{file,function} entries (≡ the call-site marker, co-located at the guard) rather than ~26 source
-    markers — zero source churn. New sites still require the source marker. Flagged for Main GV to ratify.
+    Pure predicates (t/2971): Get-WafFetchViolations (classify) + Test-FetchSiteAllowlisted (allowlist).
+    Both arms are fixture-forced (t/3247), incl. an end-to-end nested-function fixture that exercises
+    the scanner's AST attribution. Modeled on tests/DataWriteSinkGuard.Tests.ps1.
+
+    GV NOTE (Decision-2 refinement, RATIFIED t/3314#8): grandfathered exemptions are guard-side
+    per-{file,function} entries (≡ the call-site marker, co-located at the guard) — zero source churn;
+    NEW sites still require the source marker.
 #>
 
 BeforeAll {
     $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 
     $script:ScanDirs = @('scripts')
-    # Test-scope exclusions (NOT production dir-skips): *.Tests.ps1 are Pester unit tests; CuiTests/
-    # are browser-CUI end-to-end harnesses that drive the LOCAL app under test via $BaseUrl. Both are
-    # test infrastructure, not production fetchers. (GV: flagged as the one dir-level exclusion.)
+    # Test-scope exclusions (dir-level, accepted at GV t/3314#8 with the residual noted): *.Tests.ps1
+    # are Pester unit tests; CuiTests/ are browser-CUI e2e harnesses that drive the LOCAL app via
+    # $BaseUrl. Test infrastructure, not production fetchers. (A fetch added inside a test file slips —
+    # low risk; these drive the local app.)
     $script:SkipDirs = @('archive', '.worktrees', 'dist', 'node_modules', '.git', '.claude',
                          'Project-Template', 'CuiTests', 'en-US')
 
-    # Known-internal hosts: a literal -Uri to one of these auto-allows.
+    # Known-internal hosts: a (literal-or-var-resolved) -Uri to one of these auto-allows. The provider
+    # APIs are called directly by key (not user-supplied URLs), same class as anthropic/groq/openai.
     $script:AllowedHosts = @(
         'localhost', '127.0.0.1',
         'api.anthropic.com', 'api.groq.com', 'api.openai.com', 'api.z.ai',
+        'generativelanguage.googleapis.com',
         'api.github.com', 'www.githubstatus.com', 'githubstatus.com', 'ghcr.io',
         'api.loganalytics.io', 'management.azure.com'
     )
 
-    # Co-located call-site marker for a genuinely-internal (or migrating) NEW variable-URL fetch.
     $script:MarkerPattern = '#\s*fetch-allowlist:'
-
     $script:CallToken = '\b(?:Invoke-WebRequest|Invoke-RestMethod)\b'
 
     # ── Per-call-site allowlist (grandfathered internal fetches), keyed by {file, function} + reason.
     # Per-SITE, auditable, zero source churn (t/3314#6). A NEW fetching function must migrate to the
-    # Node fetcher or add a justified entry here — the list can't hide a new external fetch.
+    # Node fetcher or add a justified entry — the list can't hide a new external fetch (AST attribution
+    # guarantees a call is attributed to its real enclosing function, t/3314#8).
     $script:AllowedSites = @(
         # Our own taxonomy-editor app admin/API (not user-supplied external content):
         @{ File = 'scripts/AITriad/Private/New-AnonymousWebSession.ps1'; Function = 'New-AnonymousWebSession'; Reason = 'establishes an anonymous session against our taxonomy-editor app' }
@@ -72,7 +78,7 @@ BeforeAll {
         @{ File = 'scripts/AITriad/Public/Sync-FreeTierKeys.ps1';         Function = 'Invoke-GeminiKeyProbe';     Reason = 'Gemini free-tier key probe (provider API, called by key)' }
         @{ File = 'scripts/AITriad/Public/Test-ServiceWorkerHealth.ps1';  Function = 'Test-ServiceWorkerHealth';  Reason = "checks our app's service-worker URL health" }
 
-        # Local infra (localhost/container, host is a variable so not caught by host-literal):
+        # Local infra (localhost/container; host is a variable, not caught by host-literal):
         @{ File = 'scripts/AITriad/Private/Docker-Helpers.ps1';           Function = 'Wait-ForHealthEndpoint';    Reason = 'polls a local Docker container health endpoint (localhost container)' }
         @{ File = 'scripts/AITriad/Public/Get-ViteDevStatus.ps1';         Function = 'Get-ViteHttpStatus';        Reason = 'local Vite dev-server status (localhost)' }
         @{ File = 'scripts/AITriad/Public/Export-TaxonomyToGraph.ps1';    Function = 'Invoke-Cypher';             Reason = 'local graph DB (neo4j) Cypher write' }
@@ -82,30 +88,46 @@ BeforeAll {
         @{ File = 'scripts/AITriad/Public/Get-AzureFlightRecorder.ps1';   Function = 'Invoke-FRApi';              Reason = 'Azure Log Analytics / management query (our tenant, AAD-authed)' }
         @{ File = 'scripts/AITriad/Public/Get-TaxonomySnapshot.ps1';      Function = 'Get-SnapshotFile';          Reason = 'downloads a taxonomy snapshot from our Azure blob storage' }
         @{ File = 'scripts/AITriad/Private/Invoke-GitHubApi.ps1';         Function = 'Invoke-GitHubApi';          Reason = 'GitHub REST API client (api.github.com via $Params)' }
-        @{ File = 'scripts/AITriad/Private/Invoke-RemoteCheck.ps1';       Function = 'Invoke-RemoteCheck';        Reason = 'health-check utility for our own deployment endpoints (@WebParams) — GV: confirm not arbitrary-URL' }
-        @{ File = 'scripts/AITriad/Private/Invoke-DependencyCheck.ps1';   Function = 'Install-Pkg';               Reason = 'dependency/package availability probe — GV: confirm registry endpoint is fixed/internal' }
+        @{ File = 'scripts/AITriad/Private/Invoke-RemoteCheck.ps1';       Function = 'Invoke-RemoteCheck';        Reason = 'health-check utility for our own deployment endpoints ($BaseUrl+$Path; GV-confirmed internal, t/3314#8)' }
 
         # AI-provider APIs (called directly by key, not user-supplied URLs):
         @{ File = 'scripts/AITriad/Public/Get-AICostReport.ps1';          Function = 'Get-AICostReport';          Reason = 'AI-provider models/pricing endpoint (provider APIs, by key)' }
-        @{ File = 'scripts/AITriad/Public/Register-AIBackend.ps1';        Function = 'Send-Forbidden';            Reason = 'AI-provider key-validation probes (Ollama localhost + provider APIs)' }
-        @{ File = 'scripts/AITriad/Public/Test-AIApiKey.ps1';             Function = 'Test-AIApiKey';             Reason = 'AI-provider key-validation probes (provider APIs)' }
+        @{ File = 'scripts/AITriad/Public/Register-AIBackend.ps1';        Function = 'Register-AIBackend';        Reason = 'Ollama model-list probe ($OllamaUrl, localhost by default); other provider probes auto-allow by host' }
+        @{ File = 'scripts/AITriad/Public/Test-AIApiKey.ps1';             Function = '_Probe-Backend';            Reason = 'AI-provider key-validation probes (provider APIs, by key)' }
 
         # Edges (t/3314#6):
         @{ File = 'scripts/AITriad/Public/Test-GitHubHealth.ps1';         Function = 'Test-GitHubHealth';         Reason = 'GitHub Actions runs API ($RunsUri from api.github.com — github health, edge c)' }
         @{ File = 'scripts/AITriad/Private/Submit-ToWaybackMachine.ps1';  Function = 'Submit-ToWaybackMachine';   Reason = 'outbound archival POST to web.archive.org — not external-content ingestion (edge a)' }
         @{ File = 'scripts/TalmudicDebate/Initialize-TalmudicCorpus.ps1'; Function = 'Get-SefariaVersion';        Reason = 'Sefaria API version fetch — allowlisted PENDING REVIEW; likely external-content, migrates under follow-up t/3327 (edge b)' }
+        # NOTE: Invoke-DependencyCheck.ps1 L163/180/195 (Gemini/Anthropic/Groq key probes) auto-allow by
+        # host-literal (incl. $Uri var-resolution) — no per-site entry (t/3314#8 Finding 2).
     )
 
-    # Extract the LITERAL host of a -Uri argument, even when the path/port/query is interpolated.
-    function Get-UriHostLiteral {
-        param([string]$Statement)
-        $m = [regex]::Match($Statement, "-Uri\s+['`"]https?://([^/:'`"\s\$]+)", 'IgnoreCase')
-        if (-not $m.Success) { return $null }
-        return $m.Groups[1].Value.ToLowerInvariant()
+    # Host from the first "http(s)://<host>" literal in a text fragment (no interpolation in the host).
+    function Get-HostFromUrlLiteral {
+        param([string]$Text)
+        $m = [regex]::Match($Text, "['`"]https?://([^/:'`"\s\$]+)", 'IgnoreCase')
+        if ($m.Success) { return $m.Groups[1].Value.ToLowerInvariant() }
+        return $null
     }
 
-    # PURE: given a file's content, return the 1-based line numbers of call-sites FLAGGED by the
-    # host-literal / marker / comment classification (before the per-site allowlist is applied).
+    # Resolve the -Uri host of a call: a literal on the statement, or a local `$var = "https://…"`
+    # assignment a few lines above when the call is `-Uri $var`. Returns $null if not statically known.
+    function Resolve-CallHost {
+        param([string[]]$Lines, [int]$Index, [string]$Statement)
+        $lit = [regex]::Match($Statement, "-Uri\s+(['`"]https?://[^'`"\s]+)", 'IgnoreCase')
+        if ($lit.Success) { return (Get-HostFromUrlLiteral -Text $lit.Groups[1].Value) }
+        $var = [regex]::Match($Statement, '-Uri\s+\$([A-Za-z_]\w*)', 'IgnoreCase')
+        if (-not $var.Success) { return $null }
+        $name = [regex]::Escape($var.Groups[1].Value)
+        for ($j = $Index; $j -ge [Math]::Max(0, $Index - 12); $j--) {
+            $a = [regex]::Match($Lines[$j], "^\s*\`$$name\s*=\s*(['`"]https?://[^'`"\s]+)", 'IgnoreCase')
+            if ($a.Success) { return (Get-HostFromUrlLiteral -Text $a.Groups[1].Value) }
+        }
+        return $null
+    }
+
+    # PURE: given content, return 1-based line numbers FLAGGED by host/marker/comment classification.
     function Get-WafFetchViolations {
         param([string]$Content)
         $lines = $Content -split "`r?`n"
@@ -123,11 +145,9 @@ BeforeAll {
 
             $stmt = $line
             $k = $i
-            while ($lines[$k].TrimEnd().EndsWith('`') -and ($k + 1) -lt $lines.Count) {
-                $k++; $stmt += "`n" + $lines[$k]
-            }
+            while ($lines[$k].TrimEnd().EndsWith('`') -and ($k + 1) -lt $lines.Count) { $k++; $stmt += "`n" + $lines[$k] }
 
-            $uriHost = Get-UriHostLiteral -Statement $stmt
+            $uriHost = Resolve-CallHost -Lines $lines -Index $i -Statement $stmt
             if ($uriHost -and ($script:AllowedHosts -contains $uriHost)) { continue }
 
             $hasMarker = $false
@@ -141,13 +161,23 @@ BeforeAll {
         return $flagged
     }
 
-    # The function enclosing a given line (nearest preceding `function <Name>`); '<script>' if none.
-    function Get-EnclosingFunction {
-        param([string[]]$Lines, [int]$Index)
-        for ($j = $Index; $j -ge 0; $j--) {
-            $m = [regex]::Match($Lines[$j], '^\s*function\s+([A-Za-z][\w-]*)')
-            if ($m.Success) { return $m.Groups[1].Value }
+    # AST-based enclosing-function attribution (scope-aware): innermost FunctionDefinitionAst whose
+    # extent spans the 1-based line. '<script>' if the call is at script scope (no enclosing function).
+    function Get-EnclosingFunctionName {
+        param([string]$Content, [int]$Line)
+        $errs = $null; $tokens = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseInput($Content, [ref]$tokens, [ref]$errs)
+        $funcs = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+        $best = $null
+        foreach ($f in $funcs) {
+            if ($Line -ge $f.Extent.StartLineNumber -and $Line -le $f.Extent.EndLineNumber) {
+                if ($null -eq $best -or
+                    ($f.Extent.EndLineNumber - $f.Extent.StartLineNumber) -lt ($best.Extent.EndLineNumber - $best.Extent.StartLineNumber)) {
+                    $best = $f
+                }
+            }
         }
+        if ($best) { return $best.Name }
         return '<script>'
     }
 
@@ -160,7 +190,20 @@ BeforeAll {
         return $false
     }
 
-    # Walk scripts/**/*.ps1 (minus skip dirs / test files) → real violations after the allowlist.
+    # Scan ONE file's content → real violations (classify → AST-attribute → allowlist filter). Used by
+    # the real-tree walker AND the end-to-end fixture tests, so attribution is exercised, not bypassed.
+    function Get-FileFetchViolations {
+        param([string]$Content, [string]$RelPath)
+        $viol = @()
+        $lines = $Content -split "`r?`n"
+        foreach ($ln in (Get-WafFetchViolations -Content $Content)) {
+            $fn = Get-EnclosingFunctionName -Content $Content -Line $ln
+            if (Test-FetchSiteAllowlisted -RelPath $RelPath -Function $fn) { continue }
+            $viol += [PSCustomObject]@{ File = $RelPath; Line = $ln; Function = $fn }
+        }
+        return $viol
+    }
+
     function Get-RealTreeFetchViolations {
         $viol = @()
         foreach ($d in $script:ScanDirs) {
@@ -169,21 +212,14 @@ BeforeAll {
             $files = Get-ChildItem -Path $root -Recurse -File -Filter '*.ps1' | Where-Object {
                 if ($_.Name -match '\.Tests\.ps1$') { return $false }
                 $rel = $_.FullName.Substring($script:RepoRoot.Length + 1) -replace '\\', '/'
-                foreach ($sd in $script:SkipDirs) {
-                    if ($rel -match "(^|/)$([regex]::Escape($sd))(/|$)") { return $false }
-                }
+                foreach ($sd in $script:SkipDirs) { if ($rel -match "(^|/)$([regex]::Escape($sd))(/|$)") { return $false } }
                 return $true
             }
             foreach ($f in $files) {
                 $rel = $f.FullName.Substring($script:RepoRoot.Length + 1) -replace '\\', '/'
                 $content = Get-Content -Raw -Path $f.FullName
                 if (-not $content) { continue }
-                $lines = $content -split "`r?`n"
-                foreach ($ln in (Get-WafFetchViolations -Content $content)) {
-                    $fn = Get-EnclosingFunction -Lines $lines -Index ($ln - 1)
-                    if (Test-FetchSiteAllowlisted -RelPath $rel -Function $fn) { continue }
-                    $viol += [PSCustomObject]@{ File = $rel; Line = $ln; Function = $fn }
-                }
+                $viol += Get-FileFetchViolations -Content $content -RelPath $rel
             }
         }
         return $viol
@@ -205,6 +241,15 @@ Describe 'WAF-fetch prevention guard (t/3314)' -Tag 'waf-fetch-guard' {
         It 'ALLOWS a literal internal host with an interpolated port/path' {
             Get-WafFetchViolations -Content 'Invoke-RestMethod -Uri "http://localhost:$Port/health"' | Should -BeNullOrEmpty
         }
+        It 'ALLOWS a -Uri $var resolved from a nearby literal assignment to an internal host' {
+            $c = '$Uri = "https://generativelanguage.googleapis.com/v1beta/models?key=$k"' + "`n" +
+                 '$R = Invoke-RestMethod -Uri $Uri -Method Get'
+            Get-WafFetchViolations -Content $c | Should -BeNullOrEmpty
+        }
+        It 'still FLAGS a -Uri $var resolved to a NON-allowlisted host' {
+            $c = '$Uri = "https://evil.example.com/x"' + "`n" + '$R = Invoke-RestMethod -Uri $Uri'
+            Get-WafFetchViolations -Content $c | Should -Not -BeNullOrEmpty
+        }
         It 'ALLOWS a variable-URL fetch with a co-located # fetch-allowlist: marker' {
             Get-WafFetchViolations -Content "# fetch-allowlist: internal API base`n`$r = Invoke-WebRequest -Uri `$Uri" | Should -BeNullOrEmpty
         }
@@ -214,6 +259,45 @@ Describe 'WAF-fetch prevention guard (t/3314)' -Tag 'waf-fetch-guard' {
         }
         It 'sees a -Uri literal on a backtick continuation line' {
             Get-WafFetchViolations -Content "Invoke-RestMethod ```n    -Uri 'https://api.groq.com/openai/v1/models' -Method Get" | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'AST attribution — scope-aware (t/3314#8 Finding 1)' {
+        It 'attributes a call in the OUTER body to the outer function, not a closed inner function' {
+            $c = @'
+function Get-OuterExternal {
+    param([string]$Url)
+    function Get-InnerNoop { 'noop' }
+    $r = Invoke-WebRequest -Uri $Url -TimeoutSec 30
+    return $r
+}
+'@
+            $line = ($c -split "`r?`n" | Select-String 'Invoke-WebRequest').LineNumber
+            Get-EnclosingFunctionName -Content $c -Line $line | Should -Be 'Get-OuterExternal'
+        }
+        It 'end-to-end: the mis-attribution hole is closed — outer-body fetch FLAGS under scanning' {
+            $c = @'
+function Get-InnerNoop { 'noop' }
+function Get-OuterExternal {
+    param([string]$Url)
+    $r = Invoke-WebRequest -Uri $Url
+    return $r
+}
+'@
+            # A file NOT in AllowedSites: the outer fetch must flag, attributed to Get-OuterExternal
+            # (a scope-unaware scan would say Get-InnerNoop).
+            $viol = Get-FileFetchViolations -Content $c -RelPath 'scripts/AITriad/Public/Some-NewCmdlet.ps1'
+            @($viol).Count               | Should -Be 1
+            $viol[0].Function            | Should -Be 'Get-OuterExternal'
+        }
+    }
+
+    Context 'Per-site allowlist predicate (both arms)' {
+        It 'ALLOWS a grandfathered {file, function} site' {
+            Test-FetchSiteAllowlisted -RelPath 'scripts/AITriad/Private/Invoke-GitHubApi.ps1' -Function 'Invoke-GitHubApi' | Should -BeTrue
+        }
+        It 'FLAGS a NEW fetching function in an otherwise-allowlisted file (no whole-file hole)' {
+            Test-FetchSiteAllowlisted -RelPath 'scripts/AITriad/Private/Invoke-GitHubApi.ps1' -Function 'Invoke-SomethingNew' | Should -BeFalse
         }
     }
 
@@ -227,34 +311,19 @@ Describe 'WAF-fetch prevention guard (t/3314)' -Tag 'waf-fetch-guard' {
         }
     }
 
-    Context 'Per-site allowlist predicate (both arms)' {
-        It 'ALLOWS a grandfathered {file, function} site' {
-            Test-FetchSiteAllowlisted -RelPath 'scripts/AITriad/Private/Invoke-GitHubApi.ps1' -Function 'Invoke-GitHubApi' | Should -BeTrue
-        }
-        It 'FLAGS a NEW fetching function in an otherwise-allowlisted file (no whole-file hole)' {
-            Test-FetchSiteAllowlisted -RelPath 'scripts/AITriad/Private/Invoke-GitHubApi.ps1' -Function 'Invoke-SomethingNew' | Should -BeFalse
-        }
-        It 'FLAGS a site in a file with no allowlist entry' {
-            Test-FetchSiteAllowlisted -RelPath 'scripts/AITriad/Public/Brand-NewCmdlet.ps1' -Function 'Brand-NewCmdlet' | Should -BeFalse
-        }
-    }
-
     Context 'Real tree — the load-bearing gate: NO unaccounted fetch sites' {
-        It 'every scripts/ Invoke-* fetch is host-literal-internal, marked, or a grandfathered allowlist entry' {
+        It 'every scripts/ Invoke-* fetch is host-internal, marked, or a grandfathered allowlist entry' {
             $viol = Get-RealTreeFetchViolations
             $report = ($viol | ForEach-Object { "  $($_.File):$($_.Line)  [$($_.Function)]" }) -join "`n"
             $viol | Should -BeNullOrEmpty -Because @"
 Unaccounted Invoke-WebRequest / Invoke-RestMethod site(s) in scripts/:
 $report
 
-Each fetch must be one of: a literal known-internal host (AllowedHosts); a co-located
-`# fetch-allowlist: <reason>` marker (for a genuinely-internal NEW variable-URL fetch); or a
-grandfathered per-{file,function} entry in `AllowedSites` (with a reason) in this test. If this is a
-NEW external-content fetch, route it through the shared Node fetch-CLI (Get-UrlViaSharedFetcher,
-t/3312) instead of Invoke-*. (t/3314; mirrors DataWriteSinkGuard.Tests.ps1.)
+Each fetch must be a known-internal host (AllowedHosts), a co-located `# fetch-allowlist: <reason>`
+marker (NEW internal variable-URL fetch), or a grandfathered per-{file,function} entry in AllowedSites.
+If this is a NEW external-content fetch, route it through Get-UrlViaSharedFetcher (t/3312), not Invoke-*.
 "@
         }
-
         It 'reaches scripts/ (guards against a vacuous pass)' {
             @(Get-ChildItem -Path (Join-Path $script:RepoRoot 'scripts') -Recurse -Filter '*.ps1').Count | Should -BeGreaterThan 0
         }
