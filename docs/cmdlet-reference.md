@@ -87,8 +87,8 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 ### Op-Ed Generation
 | Cmdlet | Use when |
 |--------|----------|
-| `Get-OpEdSource` | Fetch, convert (PDF/DOCX/HTML routing), and validate a source URL once — returns a SourcePrep object to pass to New-OpEd for one or multiple POVs (t/2586) |
-| `New-OpEd` | Generate a publication-ready op-ed in a POV camp voice, grounded in the project taxonomy; accepts -Topic, -Url (fetches internally via Get-OpEdSource), or -SourcePrep (pre-built prep object for multi-voice runs) |
+| `Get-OpEdSource` | Convert (PDF/DOCX/HTML, dispatched on Content-Type) and validate PRE-FETCHED source content — takes a temp-file path + content-type, returns a SourcePrep object for New-OpEd. Convert-only: the URL fetch moved to the shared Node fetcher (t/2586, t/3307) |
+| `New-OpEd` | Generate a publication-ready op-ed in a POV camp voice, grounded in the project taxonomy; accepts -Topic, -Url (CLI best-effort fetch then convert — desktop fetches via the hardened Node fetcher, t/3312), or -SourcePrep (pre-built prep object for multi-voice runs) |
 
 ### Sources & Ingestion
 | Cmdlet | Use when |

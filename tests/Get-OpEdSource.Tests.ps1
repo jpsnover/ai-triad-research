@@ -1,4 +1,4 @@
-# Tag: oped (t/2586)
+# Tag: oped (t/2586, t/3307)
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
@@ -6,11 +6,13 @@
 
 <#
 .SYNOPSIS
-    Unit tests for Get-OpEdSource (t/2586).
+    Unit tests for Get-OpEdSource — convert-only (t/3307).
 .DESCRIPTION
-    Mocks Invoke-WebRequest and the DocConverter cmdlets to verify format
-    detection, readability gate, truncation, and output shape without network
-    access or binary tools.
+    Get-OpEdSource no longer fetches (the URL fetch moved to the shared Node fetcher, t/3306). It
+    reads a caller-owned temp file, dispatches on -ContentType (authoritative, not the extension),
+    converts, applies the readability gate, and returns the prep object — or throws an ActionableError
+    whose TargetObject carries {ErrorType,Goal,Problem,Location,NextSteps} for the shim to serialize.
+    Mocks the DocConverter cmdlets so no binary tools / network are needed.
 #>
 
 BeforeAll {
@@ -32,27 +34,39 @@ BeforeAll {
         'building continuous learning adaptation resilience measurement metrics ' +
         'impact assessment reporting accountability frameworks enforcement ' +
         'mechanisms remediation pathways and meaningful public participation. '
-    ) * 2  # repeat to ensure well above 100 words
+    ) * 2
+
+    # Create a temp file with given bytes/text; tracked for cleanup. Returns the path.
+    $script:TempFiles = [System.Collections.Generic.List[string]]::new()
+    function script:New-SourceTemp {
+        param([string]$Text = 'placeholder', [string]$Extension = '.dat')
+        $path = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(),
+            "opedsrc-$([System.Guid]::NewGuid().ToString('n'))$Extension")
+        [System.IO.File]::WriteAllText($path, $Text)
+        $script:TempFiles.Add($path)
+        return $path
+    }
 }
 
-Describe 'Get-OpEdSource' -Tag 'oped' {
+AfterAll {
+    foreach ($f in $script:TempFiles) {
+        if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
+    }
+}
 
-    Context 'HTML source (default)' {
+Describe 'Get-OpEdSource (convert-only)' -Tag 'oped' {
+
+    Context 'HTML source (default dispatch)' {
         BeforeEach {
-            Mock Invoke-WebRequest -ModuleName AITriad {
-                [PSCustomObject]@{
-                    Content    = "<html><body><p>$($script:ReadableText)</p></body></html>"
-                    Headers    = @{ 'Content-Type' = 'text/html; charset=utf-8' }
-                    StatusCode = 200
-                }
-            }
             Mock ConvertFrom-Html -ModuleName AITriad { $script:ReadableText }
+            $script:HtmlPath = script:New-SourceTemp -Text "<html><body><p>$($script:ReadableText)</p></body></html>" -Extension '.html'
         }
 
         It 'Returns a prep object with required fields' {
-            $Prep = Get-OpEdSource -Url 'https://example.com/article.html'
-            $Prep | Should -Not -BeNullOrEmpty
-            $Prep.Url                  | Should -Be 'https://example.com/article.html'
+            $Prep = Get-OpEdSource -ContentPath $script:HtmlPath -ContentType 'text/html; charset=utf-8' -SourceUrl 'https://example.com/article.html'
+            $Prep                      | Should -Not -BeNullOrEmpty
+            $Prep.SourceUrl            | Should -Be 'https://example.com/article.html'
+            $Prep.ContentType          | Should -Be 'text/html; charset=utf-8'
             $Prep.SourceMarkdown       | Should -Not -BeNullOrEmpty
             $Prep.SourceFormat         | Should -Be 'html'
             $Prep.SourceExtractionTool | Should -Be 'ConvertFrom-Html'
@@ -68,179 +82,142 @@ Describe 'Get-OpEdSource' -Tag 'oped' {
         }
 
         It 'ContentHash is deterministic for the same content' {
-            $P1 = Get-OpEdSource -Url 'https://example.com/a.html'
-            $P2 = Get-OpEdSource -Url 'https://example.com/a.html'
+            $P1 = Get-OpEdSource -ContentPath $script:HtmlPath -ContentType 'text/html'
+            $P2 = Get-OpEdSource -ContentPath $script:HtmlPath -ContentType 'text/html'
             $P1.ContentHash | Should -Be $P2.ContentHash
         }
 
         It 'FetchedAt is a valid ISO 8601 timestamp' {
-            $Prep = Get-OpEdSource -Url 'https://example.com/article.html'
+            $Prep = Get-OpEdSource -ContentPath $script:HtmlPath -ContentType 'text/html'
             { [System.DateTime]::Parse($Prep.FetchedAt) } | Should -Not -Throw
         }
+
+        It 'Treats empty ContentType as HTML' {
+            $Prep = Get-OpEdSource -ContentPath $script:HtmlPath -ContentType ' '
+            $Prep.SourceFormat | Should -Be 'html'
+        }
     }
 
-    Context 'PDF source — content-type detection' {
+    Context 'ContentType is authoritative over the filename extension (t/3306#4)' {
         BeforeEach {
-            Mock Invoke-WebRequest -ModuleName AITriad {
-                [PSCustomObject]@{
-                    Content    = [byte[]]@(0x25, 0x50, 0x44, 0x46)
-                    Headers    = @{ 'Content-Type' = 'application/pdf' }
-                    StatusCode = 200
-                }
-            }
             $script:PdfConvCalled = $false
             Mock Invoke-PdfConversion -ModuleName AITriad { $script:PdfConvCalled = $true; $script:ReadableText }
+            Mock ConvertFrom-Html    -ModuleName AITriad { throw 'ConvertFrom-Html must NOT be called for a PDF content-type' }
+            # File named .html but the bytes are a PDF — ContentType must win.
+            $script:MisnamedPath = script:New-SourceTemp -Text 'dummy' -Extension '.html'
         }
 
-        It 'Routes to ConvertFrom-Pdf when Content-Type is application/pdf' {
-            $Prep = Get-OpEdSource -Url 'https://example.com/report'
+        It 'Routes a .html-named file to the PDF converter when ContentType is application/pdf' {
+            $Prep = Get-OpEdSource -ContentPath $script:MisnamedPath -ContentType 'application/pdf'
             $Prep.SourceFormat         | Should -Be 'pdf'
             $Prep.SourceExtractionTool | Should -Be 'ConvertFrom-Pdf'
-            $script:PdfConvCalled      | Should -BeTrue -Because 'Invoke-PdfConversion must be called for PDF routing'
+            $script:PdfConvCalled      | Should -BeTrue -Because 'dispatch keys on ContentType, not the .html extension'
         }
     }
 
-    Context 'PDF source — URL extension detection' {
+    Context 'DOCX dispatch by ContentType' {
         BeforeEach {
-            Mock Invoke-WebRequest -ModuleName AITriad {
-                [PSCustomObject]@{
-                    Content    = [byte[]]@(0x25, 0x50, 0x44, 0x46)
-                    Headers    = @{ 'Content-Type' = 'application/octet-stream' }
-                    StatusCode = 200
-                }
-            }
-            $script:PdfConvCalled = $false
-            Mock Invoke-PdfConversion -ModuleName AITriad { $script:PdfConvCalled = $true; $script:ReadableText }
-        }
-
-        It 'Routes to ConvertFrom-Pdf when URL ends in .pdf' {
-            $Prep = Get-OpEdSource -Url 'https://example.com/report.pdf'
-            $Prep.SourceFormat    | Should -Be 'pdf'
-            $script:PdfConvCalled | Should -BeTrue -Because 'Invoke-PdfConversion must be called for .pdf extension routing'
-        }
-    }
-
-    Context 'DOCX source — URL extension detection' {
-        BeforeEach {
-            Mock Invoke-WebRequest -ModuleName AITriad {
-                [PSCustomObject]@{
-                    Content    = [byte[]]@(0x50, 0x4B, 0x03, 0x04)
-                    Headers    = @{ 'Content-Type' = 'application/octet-stream' }
-                    StatusCode = 200
-                }
-            }
             $script:DocxConvCalled = $false
             Mock Invoke-DocxConversion -ModuleName AITriad { $script:DocxConvCalled = $true; $script:ReadableText }
+            $script:DocxPath = script:New-SourceTemp -Text 'dummy' -Extension '.bin'
         }
 
-        It 'Routes to ConvertFrom-Docx when URL ends in .docx' {
-            $Prep = Get-OpEdSource -Url 'https://example.com/brief.docx'
+        It 'Routes to ConvertFrom-Docx for the wordprocessingml content-type' {
+            $Prep = Get-OpEdSource -ContentPath $script:DocxPath -ContentType 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             $Prep.SourceFormat          | Should -Be 'docx'
             $Prep.SourceExtractionTool  | Should -Be 'ConvertFrom-Docx'
-            $script:DocxConvCalled      | Should -BeTrue -Because 'Invoke-DocxConversion must be called for .docx extension routing'
+            $script:DocxConvCalled      | Should -BeTrue
         }
     }
 
-    Context 'Readability gate — PDF bytes through HTML converter (the 2/10 incident)' {
-        BeforeEach {
-            Mock Invoke-WebRequest -ModuleName AITriad {
-                [PSCustomObject]@{
-                    Content    = [byte[]]@(0x25, 0x50, 0x44, 0x46)
-                    Headers    = @{ 'Content-Type' = 'text/html' }  # wrong Content-Type
-                    StatusCode = 200
-                }
-            }
-            # Simulate what ConvertFrom-Html actually returns for PDF bytes:
-            # space-separated decimal byte values — zero alpha tokens.
-            Mock ConvertFrom-Html -ModuleName AITriad {
-                '37 80 68 70 45 49 46 48 10 37 226 227 207 211'
-            }
-        }
-
-        It 'Throws ActionableError when extracted text has no readable words' {
-            { Get-OpEdSource -Url 'https://example.com/report.pdf' } | Should -Throw
-        }
-
-        It 'Error message names the format and readable word count' {
-            try {
-                Get-OpEdSource -Url 'https://example.com/report.pdf'
-            } catch {
-                $_.Exception.Message | Should -Match 'readable word'
-            }
+    Context 'ContentPathMissing' {
+        It 'Throws with ErrorType ContentPathMissing when the file does not exist' {
+            $err = $null
+            try { Get-OpEdSource -ContentPath (Join-Path ([System.IO.Path]::GetTempPath()) 'does-not-exist-xyz.dat') -ContentType 'application/pdf' }
+            catch { $err = $_ }
+            $err | Should -Not -BeNullOrEmpty
+            $err.TargetObject.ErrorType | Should -Be 'ContentPathMissing'
+            $err.TargetObject.NextSteps | Should -Not -BeNullOrEmpty
         }
     }
 
-    Context 'Readability gate — MinReadableWords threshold' {
-        BeforeEach {
-            Mock Invoke-WebRequest -ModuleName AITriad {
-                [PSCustomObject]@{
-                    Content    = '<p>ok</p>'
-                    Headers    = @{ 'Content-Type' = 'text/html' }
-                    StatusCode = 200
-                }
-            }
-            # Returns 3 readable words — below the default threshold of 100
-            Mock ConvertFrom-Html -ModuleName AITriad { 'Artificial intelligence policy' }
+    Context 'UnsupportedContentType' {
+        It 'Throws with ErrorType UnsupportedContentType for a binary image' {
+            $path = script:New-SourceTemp -Text 'binary' -Extension '.png'
+            $err = $null
+            try { Get-OpEdSource -ContentPath $path -ContentType 'image/png' } catch { $err = $_ }
+            $err.TargetObject.ErrorType | Should -Be 'UnsupportedContentType'
+        }
+    }
+
+    Context 'ConversionFailed' {
+        It 'Throws with ErrorType ConversionFailed when the converter throws' {
+            Mock Invoke-PdfConversion -ModuleName AITriad { throw 'pdftotext not found' }
+            $path = script:New-SourceTemp -Text 'dummy' -Extension '.pdf'
+            $err = $null
+            try { Get-OpEdSource -ContentPath $path -ContentType 'application/pdf' } catch { $err = $_ }
+            $err.TargetObject.ErrorType | Should -Be 'ConversionFailed'
+        }
+    }
+
+    Context 'Readability gate' {
+        It 'Throws InsufficientReadableText when extracted text is byte-garbage (the 2/10 incident)' {
+            # Simulate a mis-converted PDF: space-joined decimal byte values, zero alpha tokens.
+            Mock ConvertFrom-Html -ModuleName AITriad { '37 80 68 70 45 49 46 48 10 37 226 227 207 211' }
+            $path = script:New-SourceTemp -Text 'garbage' -Extension '.html'
+            $err = $null
+            try { Get-OpEdSource -ContentPath $path -ContentType 'text/html' } catch { $err = $_ }
+            $err.TargetObject.ErrorType | Should -Be 'InsufficientReadableText'
+            $err.Exception.Message      | Should -Match 'readable word'
         }
 
         It 'Throws when readable word count is below MinReadableWords' {
-            { Get-OpEdSource -Url 'https://example.com/stub.html' } | Should -Throw
+            Mock ConvertFrom-Html -ModuleName AITriad { 'Artificial intelligence policy' }
+            $path = script:New-SourceTemp -Text 'stub' -Extension '.html'
+            { Get-OpEdSource -ContentPath $path -ContentType 'text/html' } | Should -Throw
         }
 
         It 'Passes when MinReadableWords is lowered to match' {
-            $Prep = Get-OpEdSource -Url 'https://example.com/stub.html' -MinReadableWords 2
+            Mock ConvertFrom-Html -ModuleName AITriad { 'Artificial intelligence policy' }
+            $path = script:New-SourceTemp -Text 'stub' -Extension '.html'
+            $Prep = Get-OpEdSource -ContentPath $path -ContentType 'text/html' -MinReadableWords 2 -MinAlphaDensity 0.5
             $Prep.ReadableWords | Should -BeGreaterOrEqual 2
         }
     }
 
     Context 'Truncation' {
         BeforeEach {
-            # Build text well over 2000 chars with enough readable words
             $script:LongText = $script:ReadableText * 10
-            Mock Invoke-WebRequest -ModuleName AITriad {
-                [PSCustomObject]@{
-                    Content    = "<p>$($script:LongText)</p>"
-                    Headers    = @{ 'Content-Type' = 'text/html' }
-                    StatusCode = 200
-                }
-            }
             Mock ConvertFrom-Html -ModuleName AITriad { $script:LongText }
+            $script:LongPath = script:New-SourceTemp -Text 'long' -Extension '.html'
         }
 
         It 'Truncates SourceMarkdown to MaxChars and sets Truncated=true' {
-            $Prep = Get-OpEdSource -Url 'https://example.com/long.html' -MaxChars 1000
-            $Prep.Truncated         | Should -Be $true
-            $Prep.CharsUsed         | Should -Be 1000
-            $Prep.SourceMarkdown.Length | Should -BeLessOrEqual 1030  # 1000 + truncation notice
-            $Prep.CharsTotal        | Should -BeGreaterThan 1000
+            $Prep = Get-OpEdSource -ContentPath $script:LongPath -ContentType 'text/html' -MaxChars 1000
+            $Prep.Truncated             | Should -Be $true
+            $Prep.CharsUsed             | Should -Be 1000
+            $Prep.SourceMarkdown.Length | Should -BeLessOrEqual 1030
+            $Prep.CharsTotal            | Should -BeGreaterThan 1000
         }
 
         It 'ContentHash reflects the full untruncated text regardless of MaxChars' {
-            $Prep1 = Get-OpEdSource -Url 'https://example.com/long.html' -MaxChars 1000
-            $Prep2 = Get-OpEdSource -Url 'https://example.com/long.html' -MaxChars 2000
-            $Prep1.ContentHash | Should -Be $Prep2.ContentHash
-        }
-    }
-
-    Context 'Network failure' {
-        BeforeEach {
-            Mock Invoke-WebRequest -ModuleName AITriad {
-                throw [System.Net.WebException]::new('Connection refused')
-            }
-        }
-
-        It 'Throws ActionableError when the URL is unreachable' {
-            { Get-OpEdSource -Url 'https://unreachable.example.com/' } | Should -Throw
+            $P1 = Get-OpEdSource -ContentPath $script:LongPath -ContentType 'text/html' -MaxChars 1000
+            $P2 = Get-OpEdSource -ContentPath $script:LongPath -ContentType 'text/html' -MaxChars 2000
+            $P1.ContentHash | Should -Be $P2.ContentHash
         }
     }
 
     Context 'Parameter validation' {
-        It 'Rejects empty Url' {
-            { Get-OpEdSource -Url '' } | Should -Throw
+        It 'Rejects empty ContentPath' {
+            { Get-OpEdSource -ContentPath '' -ContentType 'text/html' } | Should -Throw
         }
-
+        It 'Rejects empty ContentType' {
+            $path = script:New-SourceTemp -Text 'x' -Extension '.html'
+            { Get-OpEdSource -ContentPath $path -ContentType '' } | Should -Throw
+        }
         It 'Rejects MaxChars below minimum (1000)' {
-            { Get-OpEdSource -Url 'https://example.com/' -MaxChars 999 } | Should -Throw
+            $path = script:New-SourceTemp -Text 'x' -Extension '.html'
+            { Get-OpEdSource -ContentPath $path -ContentType 'text/html' -MaxChars 999 } | Should -Throw
         }
     }
 }

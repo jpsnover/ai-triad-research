@@ -38,26 +38,57 @@ function New-ActionableError {
         [Parameter(Mandatory)]
         [string[]]$NextSteps,
 
+        # Optional machine-readable failure category (e.g. 'ContentPathMissing'). When set it renders
+        # a `Type:` line AND is carried structurally on -AsErrorRecord's TargetObject so a subprocess
+        # shim can serialize it to a contract field without parsing the human message (t/3307).
+        [string]$ErrorType,
+
         [System.Management.Automation.ErrorRecord]$InnerError,
 
         [switch]$Throw,
 
-        [switch]$PassThru
+        [switch]$PassThru,
+
+        # Return a [System.Management.Automation.ErrorRecord] whose TargetObject is an ordered
+        # hashtable {ErrorType, Goal, Problem, Location, NextSteps}. Lets a catcher (the op-ed shim)
+        # emit the {ErrorType,Goal,Problem,NextSteps} wire contract from structured fields — never by
+        # regex-parsing the rendered string (which is the silent parse-fail class, t/3306#4). Backward
+        # compatible: existing default/-Throw/-PassThru callers are unaffected (t/3307).
+        [switch]$AsErrorRecord
     )
 
     $StepList = ($NextSteps | ForEach-Object { $i = [int]($NextSteps.IndexOf($_)) + 1; "   $i. $_" }) -join "`n"
     if ($InnerError) { $InnerDetail = "`n   Inner error: $($InnerError.Exception.Message)" } else { $InnerDetail = '' }
+    # Only emitted when -ErrorType is supplied, so pre-existing rendered output is byte-for-byte unchanged.
+    $TypeSegment = if ($ErrorType) { "  Type:     $ErrorType`n" } else { '' }
 
     $Message = @"
 
   Goal:     $Goal
   Error:    $Problem$InnerDetail
-  Location: $Location
+$($TypeSegment)  Location: $Location
   Resolve:
 $StepList
 "@
 
-    if ($PassThru) {
+    if ($AsErrorRecord) {
+        $exc = [System.Exception]::new($Message)
+        $targetData = [ordered]@{
+            ErrorType = $ErrorType
+            Goal      = $Goal
+            Problem   = $Problem
+            Location  = $Location
+            NextSteps = @($NextSteps)
+        }
+        $errorId = if ($ErrorType) { "ActionableError:$ErrorType" } else { 'ActionableError' }
+        # Pass the structured payload as the constructor's targetObject arg — ErrorRecord.TargetObject
+        # is read-only after construction, so it cannot be assigned afterward.
+        $rec = [System.Management.Automation.ErrorRecord]::new(
+            $exc, $errorId,
+            [System.Management.Automation.ErrorCategory]::NotSpecified, $targetData)
+        return $rec
+    }
+    elseif ($PassThru) {
         return $Message
     }
     elseif ($Throw) {
