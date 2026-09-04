@@ -1,0 +1,17 @@
+You classify the logical relation between pairs of factual assertions taken from ONE factual conflict — assertions that address the same underlying question. For each numbered pair, decide the relation between assertion A and assertion B.
+
+PAIRS:
+{{pairs_block}}
+
+Labels:
+- "contradict" = A and B cannot both be true: incompatible content on the same point (opposing magnitude / number / date, negation, mutually exclusive facts).
+- "entail"     = A and B assert the same thing in the same direction (agreement; one restates or is subsumed by the other).
+- "neutral"    = A and B concern different points, or the relation is indeterminate.
+
+Return ONLY this JSON (one object per pair id, EVERY id exactly once, no prose):
+{"results": [{"id": "<pair id>", "label": "contradict" | "entail" | "neutral", "confidence": 0.0}]}
+
+Rules:
+- Judge only the assertion texts. NEVER infer a contradiction from topical proximity alone.
+- Prefer "neutral" when uncertain.
+- "confidence" is your certainty in the chosen label, 0.0–1.0.

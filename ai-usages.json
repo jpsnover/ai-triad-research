@@ -550,6 +550,20 @@
       "qbaf"
     ]
   },
+  "enrichment.contradiction-classify": {
+    "description": "Fork-B semantic-opposition (t/3302): classify the logical relation (contradict|entail|neutral) of within-conflict assertion pairs. Per-conflict batch via invoke-contradiction-classifier.ps1; temperature pinned 0 for determinism. CALIBRATION-PROVISIONAL until CL scores the frozen golden (P>=0.85 / R>=0.50).",
+    "model": "gemini-3.5-flash-lite",
+    "temperature": 0,
+    "maxTokens": 2000,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "messageTemplate": "{{prompt}}",
+    "tags": [
+      "enrichment",
+      "qbaf",
+      "fork-b"
+    ]
+  },
   "enrichment.logical-form-formalization": {
     "description": "Formalize one claim's proposition into a neo-Davidsonian first-order logical form (t/3126 schema, t/3215 pass). CL owns the schema + prompt (research/comp-linguist/docs/logical-form-schema.md); PowerShell's Invoke-LogicalFormPass renders logical-form-formalization.prompt per claim and runs this over claims carrying entity_refs[]. jsonMode WITHOUT responseSchema — the nested args[]/about[] object tripped Gemini structured-output HTTP 400s (same failure as enrichment.org-stance-extraction); the prompt enforces a single strict-JSON object and the pass parses + validates + grounds defensively. model/temperature are CALIBRATION-PROVISIONAL until CL's D3b formalization_accuracy run against the golden set.",
     "model": "claude-sonnet-4-6",
