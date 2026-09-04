@@ -353,6 +353,19 @@ async function computeTaxonomyAttribution(newNodes: NewAnNode[], speaker: Speake
 
           // Merge synthetic multi-vector embeddings when available
           const synVecs = await loadSyntheticVectors();
+          if (!synVecs) {
+            // t/3298 (t/3297 c-floor): loadSyntheticVectors returned null — the synthetic-embeddings
+            // corpus GET is auth-gated (t/3259), so it 403s for ANON debates → the synthetic
+            // multi-vector merge is DROPPED and claim attribution runs on BASE embeddings only. Make
+            // this degradation observable HERE (Fallback-Path Logging) with a specific WARN + marker,
+            // rather than letting it be inferred from downstream attribution quality or swallowed by
+            // the generic catch below. (Structural fix = the t/3297 (a)-spike, ServerAPI.)
+            getGlobalRecorder()?.record({
+              type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn',
+              message: 'Claim attribution degraded — synthetic-vector merge dropped (synthetic corpus unavailable; likely the anon corpus-gate 403, t/3259). Attribution runs on base embeddings only.',
+              data: { fallback: 'synthetic-merge-skipped', cause: 'synthetic-vectors-null', base_node_count: Object.keys(baseNodeEmbeddings).length },
+            });
+          }
           const nodeEmbeddings = synVecs
             ? mergeSyntheticVectors(baseNodeEmbeddings, synVecs)
             : baseNodeEmbeddings;
