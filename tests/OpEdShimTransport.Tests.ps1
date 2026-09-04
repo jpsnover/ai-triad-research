@@ -63,56 +63,76 @@ Describe 'invoke-get-oped-source shim — base64 content transport (t/2928)' {
         $parsed = $script:Json | ConvertFrom-Json
         $parsed.data.ReadableWords | Should -Be 640
     }
+
+    It 'success line carries the locked SourceMarkdown field name under data (contract t/3306#4)' {
+        $parsed = $script:Json | ConvertFrom-Json
+        $parsed.type | Should -Be 'result'
+        $parsed.data.PSObject.Properties.Name | Should -Contain 'SourceMarkdown'
+    }
 }
 
-# ── Locked cross-role wire contract (t/3306#4, t/3307) ────────────────────────────────────────────
-# The shim (invoke-get-oped-source.ps1) EMIT side must use the exact field names the TS parse side
-# (opedShimTransport.ts) reads. TL's non-negotiable guard: assert the exact field names on emit here;
-# the TS test (opedShimTransport.test.ts) asserts the same names on parse. Success carries
-# SourceMarkdown; failure carries EXACTLY {ErrorType, Goal, Problem, NextSteps} on stderr.
-Describe 'op-ed shim ↔ handler LOCKED wire contract (t/3307)' {
+# ─────────────────────────────────────────────────────────────────────────────
+# Convert-only failure-transport round-trip (t/3306/t/3307).
+#
+# The producer/consumer split (PowerShell authors the shim serialization; ElectronMain owns the
+# opedHandlers parse) is only safe if the field names match EXACTLY. The locked failure contract
+# (t/3306#4) is: PS emits `{ ErrorType, Goal, Problem, NextSteps }` as the LAST stderr line + exit 1;
+# opedHandlers JSON.parses that last line and reads Problem (string) / Goal / NextSteps (array).
+# These tests fail if either side renames a field.
+# ─────────────────────────────────────────────────────────────────────────────
+Describe 'invoke-get-oped-source shim — structured failure transport round-trip (t/3307)' {
     BeforeAll {
-        $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-        Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+        $script:RepoRoot = Split-Path -Parent $PSScriptRoot
+        $script:ShimPath = Join-Path $script:RepoRoot 'taxonomy-editor' 'src' 'main' 'ps' 'invoke-get-oped-source.ps1'
     }
 
-    It 'success result carries the SourceMarkdown field name' {
-        $prep = [PSCustomObject]@{ SourceMarkdown = 'body'; Excerpt = 'lead'; SourceFormat = 'html' }
-        $line = [ordered]@{ type = 'result'; data = $prep } | ConvertTo-Json -Depth 10 -Compress
-        $parsed = $line | ConvertFrom-Json
-        $parsed.type                                    | Should -Be 'result'
-        $parsed.data.PSObject.Properties.Name           | Should -Contain 'SourceMarkdown'
+    It 'end-to-end: emits the exact failure field names as the last stderr line and exits 1' {
+        # ContentPathMissing needs no converter — exercises the real Get-OpEdSource structured throw
+        # → real shim serialization → real field names (the definitive rename guard, both sides).
+        $missing = Join-Path ([System.IO.Path]::GetTempPath()) ('nope-' + [guid]::NewGuid() + '.pdf')
+        $stdin = [ordered]@{ ContentPath = $missing; ContentType = 'application/pdf' } | ConvertTo-Json -Compress
+        $errFile = [System.IO.Path]::GetTempFileName()
+        try {
+            $stdin | pwsh -NoProfile -NonInteractive -File $script:ShimPath 2>$errFile | Out-Null
+            $code = $LASTEXITCODE
+            $stderr = Get-Content -LiteralPath $errFile -Raw
+
+            $code | Should -Be 1 -Because 'a convert failure must exit non-zero'
+            $lines = @($stderr -split "`r?`n" | Where-Object { $_.Trim() -ne '' })
+            $lines.Count | Should -BeGreaterThan 0 -Because 'the shim must write a structured failure line to stderr'
+            $lastLine = $lines[-1].Trim()
+
+            $parsed = $lastLine | ConvertFrom-Json   # must be valid JSON (opedHandlers JSON.parses it)
+            $names = $parsed.PSObject.Properties.Name
+            $names | Should -Contain 'ErrorType'
+            $names | Should -Contain 'Goal'
+            $names | Should -Contain 'Problem'
+            $names | Should -Contain 'NextSteps'
+            # Exact-set guard (no extra / renamed fields) — folds in #1947's original assertion so a
+            # NEW field on either side also fails, not just a rename.
+            @($names | Sort-Object) | Should -Be @('ErrorType', 'Goal', 'NextSteps', 'Problem')
+            $parsed.ErrorType | Should -Be 'ContentPathMissing'
+            $parsed.Problem   | Should -BeOfType [string]
+            $parsed.NextSteps -is [array] | Should -BeTrue -Because 'opedHandlers does Array.isArray(parsed.NextSteps)'
+        } finally {
+            Remove-Item -LiteralPath $errFile -Force -ErrorAction SilentlyContinue
+        }
     }
 
-    It 'failure serialization emits EXACTLY {ErrorType,Goal,Problem,NextSteps} from the structured TargetObject' {
-        # Build the real structured error Get-OpEdSource throws, then replicate the shim catch verbatim.
-        $rec = InModuleScope AITriad {
-            New-ActionableError -AsErrorRecord -ErrorType 'ContentPathMissing' `
-                -Goal 'Convert pre-fetched source content for op-ed generation' `
-                -Problem "Content file not found: 'x'" `
-                -Location 'Get-OpEdSource' `
-                -NextSteps @('Confirm the fetcher wrote the temp file', 'Supply -Topic text instead')
+    It 'serializes NextSteps as a JSON array even with a single element (Array.isArray guard)' {
+        # Mirror the shim catch serialization on a single-element NextSteps — the classic PS
+        # single-element-array-collapses-to-scalar gotcha would silently break opedHandlers' array read.
+        $payload = [PSCustomObject]@{ ErrorType = 'X'; Goal = 'g'; Problem = 'p'; NextSteps = [string[]]@('only one') }
+        $out = [ordered]@{
+            ErrorType = [string]$payload.ErrorType
+            Goal      = [string]$payload.Goal
+            Problem   = [string]$payload.Problem
+            NextSteps = [string[]]@($payload.NextSteps)
         }
-        $to = $rec.TargetObject
-        $to | Should -BeOfType [System.Collections.IDictionary]
-
-        # Verbatim mirror of the shim's catch-block serialization.
-        $err = [ordered]@{
-            ErrorType = [string]$to['ErrorType']
-            Goal      = [string]$to['Goal']
-            Problem   = [string]$to['Problem']
-            NextSteps = @($to['NextSteps'])
-        }
-        $json   = $err | ConvertTo-Json -Depth 6 -Compress
-        $parsed = $json | ConvertFrom-Json
-
-        # EXACT field-name set — no more, no less (a drift here = the silent parse-fail class).
-        $names = @($parsed.PSObject.Properties.Name | Sort-Object)
-        $names | Should -Be @('ErrorType', 'Goal', 'NextSteps', 'Problem')
-
-        $parsed.ErrorType | Should -Be 'ContentPathMissing'
-        $parsed.Goal      | Should -Be 'Convert pre-fetched source content for op-ed generation'
-        $parsed.Problem   | Should -Match 'Content file not found'
-        @($parsed.NextSteps).Count | Should -Be 2
+        $json = $out | ConvertTo-Json -Depth 5 -Compress
+        $json | Should -Match '"NextSteps":\['
+        $reparsed = $json | ConvertFrom-Json
+        @($reparsed.NextSteps).Count | Should -Be 1
+        $reparsed.NextSteps -is [array] | Should -BeTrue
     }
 }

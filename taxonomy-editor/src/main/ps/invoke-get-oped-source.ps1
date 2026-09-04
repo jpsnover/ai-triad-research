@@ -55,14 +55,16 @@ catch {
             ErrorType = [string]$to['ErrorType']
             Goal      = [string]$to['Goal']
             Problem   = [string]$to['Problem']
-            NextSteps = @($to['NextSteps'])
+            # [string[]] forces a JSON array even for a single element (PS collapses 1-element arrays to
+            # a scalar) — opedHandlers does Array.isArray(NextSteps).
+            NextSteps = [string[]]@($to['NextSteps'])
         }
     } else {
         $err = [ordered]@{
             ErrorType = 'Unknown'
             Goal      = 'Convert pre-fetched source content for op-ed generation'
             Problem   = [string]$_.Exception.Message
-            NextSteps = @('Verify the stdin payload (ContentPath, ContentType) and that the AITriad module loads')
+            NextSteps = [string[]]@('Verify the stdin payload (ContentPath, ContentType) and that the AITriad module loads')
         }
     }
     [Console]::Error.WriteLine(($err | ConvertTo-Json -Depth 6 -Compress))
