@@ -28,7 +28,7 @@ import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorde
 import { getCurrentUserId, getSessionBranchName } from '../security/userContext.js';
 import { GitHubRestClient, normalizeErrorForEvent, type CircuitState } from './githubRestClient.js';
 import { getDataRoot } from '../config.js';
-import { writeFramedNdjson } from '../logger.js';
+import { writeFramedNdjson, log } from '../logger.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -572,6 +572,8 @@ export class GitHubAPIBackend implements StorageBackend {
       }
     } else if (!(this.rest.isTripped())) {
       await this.fetchDirectoryFromAPI(repoPath, opts, seen);
+    } else {
+      log.server.warn({ dir: repoPath, cause: 'circuit-breaker-open' }, 'listDirectory returning [] — circuit breaker open, may be false-empty (t/3300)');
     }
 
     // Merge the session overlay so files written this session are visible and
@@ -634,7 +636,11 @@ export class GitHubAPIBackend implements StorageBackend {
         `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
       if (resp.ok && Array.isArray(resp.data)) {
         for (const e of resp.data as Array<{ name: string }>) seen.add(e.name);
+      } else if (!resp.ok) {
+        log.server.warn({ dir: repoPath, status: (resp as { status?: number }).status, cause: 'api-non-ok' }, 'listDirectory returning [] — GitHub API non-ok response, may be false-empty (t/3300)');
       }
+    } else {
+      log.server.warn({ dir: repoPath, cause: 'no-credentials' }, 'listDirectory returning [] — no GitHub credentials available, may be false-empty (t/3300)');
     }
   }
 
