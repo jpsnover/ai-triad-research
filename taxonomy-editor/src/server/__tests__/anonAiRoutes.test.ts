@@ -37,6 +37,21 @@ describe('t/2489 — free-tier AI route allowlist (anon chat exemption)', () => 
     expect(isAnonAllowedRoute('POST', '/api/taxonomy/relevant-nodes')).toBe(false);
   });
 
+  // ── t/3297 — /api/argument-network/attribution anon-gate (post-turn sibling of relevant-nodes) ──
+  it('t/3297: POST /api/argument-network/attribution is free-tier exempt (predicate true)', () => {
+    expect(isFreeTierAiPath('POST', '/api/argument-network/attribution')).toBe(true);
+    expect(FREE_TIER_AI_POST_PATHS).toContain('/api/argument-network/attribution');
+  });
+
+  it('t/3297: GET /api/argument-network/attribution is NOT exempt (method-scoped)', () => {
+    expect(isFreeTierAiPath('GET', '/api/argument-network/attribution')).toBe(false);
+  });
+
+  it('t/3297 security negative: /api/argument-network/attribution is NOT in the anon-safe allowlist (wrong bucket guard)', () => {
+    // Must be free-tier gated (rate-limited), NOT the blanket ANON_SAFE_POST_PATHS which bypasses rate limits.
+    expect(isAnonAllowedRoute('POST', '/api/argument-network/attribution')).toBe(false);
+  });
+
   // ── Negative arm (TL guardrail #1): other AI routes stay anon-blocked ──
   it('other AI routes are NOT exempt — the anon block still applies to them', () => {
     // These have cost/abuse/key surface and must keep returning anon_route_blocked.
