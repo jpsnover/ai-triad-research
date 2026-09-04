@@ -9,6 +9,9 @@ import { ArgStrengthTab } from './ArgStrengthTab';
 // Mocks — isolate the tab from qbaf math, INodeRow detail, and POV metadata.
 // ---------------------------------------------------------------------------
 vi.mock('@lib/debate/qbaf', () => ({ computeQbafStrengths: () => ({ strengths: new Map() }) }));
+vi.mock('@lib/debate/debateTested', () => ({
+  DEBATE_TESTED_DEFAULTS: { SEVERE_ATTACK_THRESHOLD: 0.5 },
+}));
 vi.mock('../shared/INodeRow', () => ({
   INodeRow: (props: { node?: { id?: string } }) => <div data-testid={`inode-${props.node?.id}`} />,
 }));
@@ -188,5 +191,71 @@ describe('ArgStrengthTab — t/3301 tested filter, count line, attack badge', ()
     render(<ArgStrengthTab {...makeProps(NODES)} />);
     fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
     expect(screen.getAllByTestId(/^inode-a/)).toHaveLength(7);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// t/3303: Debate-Tested tier badge + secondary sort axis
+// ---------------------------------------------------------------------------
+describe('ArgStrengthTab — t/3303 tier badge + sort-by-tier', () => {
+  // a1: severe attacker (strength derives from computed_strength of source, default 0.5 for mock)
+  // In our mock, computeQbafStrengths returns empty Map, so strengthMap.get() = undefined,
+  // and we fall back to baseStrengths. a4 base_strength = 0.5 >= threshold → a1 is 'contested'.
+  // a0: supported by a4 (support edge, not attack) → 'cited' (has incoming, no severe attack).
+  // a3: no incoming edges → 'untested'.
+  const TIER_EDGES = [
+    edge('a4', 'a1', 'attacks'),   // a1 gets contested (a4 base=0.5 >= threshold)
+    edge('a4', 'a0', 'supports'),  // a0 gets cited (support only)
+  ];
+
+  it('Sort: Strength button is active by default', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, TIER_EDGES)} />);
+    const btn = screen.getByRole('button', { name: 'Strength' });
+    expect(btn.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('Sort: Tier button is inactive by default', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, TIER_EDGES)} />);
+    const btn = screen.getByRole('button', { name: 'Tier' });
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('Sort: clicking Tier makes it active and Strength inactive', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, TIER_EDGES)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tier' }));
+    expect(screen.getByRole('button', { name: 'Tier' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Strength' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('tier badge renders for every visible node (All filter)', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, TIER_EDGES)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    // Every node row should have an aria-label starting "Tier:"
+    const badges = screen.getAllByLabelText(/^Tier:/);
+    // 11 total nodes in NODES fixture
+    expect(badges).toHaveLength(11);
+  });
+
+  it('contested tier badge title matches SEVERE_ATTACK_THRESHOLD semantics', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, TIER_EDGES)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    // a1 is contested — has title with "strength >= 0.5"
+    const contested = screen.getByTitle(/Contested — survived ≥1 severe attack/);
+    expect(contested).toBeTruthy();
+  });
+
+  it('untested tier badge renders for node with no incoming edges', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, TIER_EDGES)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    // a3 has no edges — should have "Tier: untested" aria-label
+    const untested = screen.getAllByLabelText('Tier: untested');
+    expect(untested.length).toBeGreaterThan(0);
+  });
+
+  it('cited tier badge renders for node with support-only incoming edges', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, TIER_EDGES)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    const cited = screen.getAllByLabelText('Tier: cited');
+    expect(cited.length).toBeGreaterThan(0);
   });
 });

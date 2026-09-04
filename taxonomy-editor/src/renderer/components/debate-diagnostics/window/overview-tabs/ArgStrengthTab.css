@@ -144,10 +144,51 @@
   font-weight: 600;
 }
 
-/* row that holds the expand/collapse button (right-aligned) */
+/* row that holds sort toggles + expand/collapse (t/3303: sort added left-side) */
 .ast-toolbar-row {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+/* t/3303: sort axis controls */
+.ast-sort-label {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ast-sort-btns {
+  display: flex;
+  gap: 3px;
+}
+
+.ast-sort-btn {
+  font-size: var(--text-2xs);
+  padding: 1px 7px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ast-sort-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ast-sort-btn.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* pushes expand/collapse to the right */
+.ast-toolbar-spacer {
+  flex: 1;
 }
 
 .ast-expand-btn {
@@ -271,6 +312,35 @@
   color: var(--danger);
   white-space: nowrap;
   opacity: 0.9;
+}
+
+/* t/3303: Debate-Tested tier badge — second axis, inline before each argument row */
+.ast-tier-badge {
+  display: inline-block;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: 3px;
+  vertical-align: middle;
+  cursor: default;
+  user-select: none;
+  margin-right: 4px;
+  min-width: 14px;
+  text-align: center;
+}
+
+.ast-tier-untested {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+.ast-tier-cited {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.ast-tier-contested {
+  color: var(--success, #16a34a);
 }
 
 .ast-empty {
