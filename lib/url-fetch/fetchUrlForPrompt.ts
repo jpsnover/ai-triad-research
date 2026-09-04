@@ -38,7 +38,7 @@ import { promises as dns } from 'node:dns';
 import * as http from 'node:http';
 import * as https from 'node:https';
 import { sanitizeText } from '../sanitize/contentSanitizerCore.js';
-import type { UrlFetchOptions, UrlFetchResult } from './types.js';
+import type { UrlFetchOptions, UrlFetchResult, UrlFetchBinaryResult, UrlFetchFailureReason } from './types.js';
 
 const DEFAULT_MAX_BYTES = 1_572_864; // 1.5 MB
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -107,6 +107,7 @@ function makeRequest(
   path: string,
   isHttps: boolean,
   timeoutMs: number,
+  accept: string,
 ): Promise<http.IncomingMessage> {
   return new Promise((resolve, reject) => {
     let timedOut = false;
@@ -122,7 +123,7 @@ function makeRequest(
       headers: {
         'Host': hostHeader,   // correct HTTP/1.1 virtual-host routing
         'User-Agent': 'AI-Triad-Research/1.0 (url-fetch)',
-        'Accept': 'text/html, text/plain;q=0.9, */*;q=0.1',
+        'Accept': accept,     // text variant: HTML/plain-biased; binary variant: */*
         'Accept-Encoding': 'identity', // avoid gzip complications
       },
     };
@@ -142,22 +143,22 @@ function makeRequest(
 
 // ── Streaming body reader with mid-stream abort (TL change #3) ────────────
 
-function readBody(res: http.IncomingMessage, maxBytes: number): Promise<string | null> {
+function readBody(res: http.IncomingMessage, maxBytes: number): Promise<Buffer | null> {
   return new Promise(resolve => {
     let settled = false;
-    const done = (val: string | null) => { if (!settled) { settled = true; resolve(val); } };
+    const done = (val: Buffer | null) => { if (!settled) { settled = true; resolve(val); } };
     const chunks: Buffer[] = [];
     let total = 0;
     res.on('data', (chunk: Buffer) => {
       total += chunk.length;
       if (total > maxBytes) {
-        res.destroy(); // abort mid-stream immediately
+        res.destroy(); // abort mid-stream immediately — bounds size DURING accumulation (TL t/3311 cond 2)
         done(null);
         return;
       }
       chunks.push(chunk);
     });
-    res.on('end', () => done(Buffer.concat(chunks).toString('utf-8')));
+    res.on('end', () => done(Buffer.concat(chunks)));  // raw bytes; text variant decodes utf-8
     res.on('error', () => done(null));
     // destroy() triggers 'close' but not 'end' — ensure we resolve
     res.on('close', () => done(null));
@@ -205,10 +206,23 @@ function htmlToText(html: string): { text: string; title: string | undefined } {
 
 // ── Main entry point ───────────────────────────────────────────────────────
 
-export async function fetchUrlForPrompt(
+// ── Shared SSRF-guarded transport core (t/3311) ────────────────────────────
+//
+// The ENTIRE transport loop — URL/protocol parse → DNS + SSRF private-range check (RE-RUN FOR EVERY
+// HOP, incl. redirect targets: TL t/3311 cond 1, the classic SSRF-via-redirect bypass) → IP-pinned
+// request → redirect cap → HTTP-error → Content-Length precheck → mid-stream maxBytes abort (cond 2).
+// Both entry points (fetchUrlForPrompt/text, fetchUrlForPromptBinary/bytes) call this ONE core, so
+// the security path is never duplicated (drift-free). `acceptContentType` is a content-SUITABILITY
+// filter, NOT a security control; the core returns the raw response bytes + content-type + final URL.
+interface RawFetchOk { ok: true; bytes: Buffer; contentType: string; finalUrl: string }
+type RawFetchResult = RawFetchOk | { ok: false; reason: UrlFetchFailureReason; status?: number };
+
+async function fetchRawResponse(
   url: string,
-  opts: UrlFetchOptions = {},
-): Promise<UrlFetchResult> {
+  opts: UrlFetchOptions,
+  acceptContentType: (contentType: string) => boolean,
+  acceptHeader: string,
+): Promise<RawFetchResult> {
   const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxRedirects = opts.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
@@ -234,7 +248,8 @@ export async function fetchUrlForPrompt(
     const port = parsed.port ? parseInt(parsed.port, 10) : (isHttps ? 443 : 80);
     const path = (parsed.pathname || '/') + parsed.search;
 
-    // DNS pre-resolution + SSRF check (TL changes #1, #4)
+    // DNS pre-resolution + SSRF check (TL changes #1, #4). This block runs on EVERY loop iteration,
+    // so a redirect to a private/metadata IP is re-validated and blocked (TL t/3311 cond 1).
     let resolvedIp: string;
     try {
       const addrs = await dns.lookup(hostname, { all: true });
@@ -250,13 +265,14 @@ export async function fetchUrlForPrompt(
     // IP-pinned request (TL change #2)
     let res: http.IncomingMessage;
     try {
-      res = await makeRequest(resolvedIp, hostname, port, path, isHttps, timeoutMs);
+      res = await makeRequest(resolvedIp, hostname, port, path, isHttps, timeoutMs, acceptHeader);
     } catch (err) {
       if ((err as { isTimeout?: boolean }).isTimeout) return { ok: false, reason: 'timeout' };
       return { ok: false, reason: 'network' };
     }
 
-    // Redirect handling (TL change #5 — distinct reason)
+    // Redirect handling (TL change #5 — distinct reason). `continue` re-enters the loop, which
+    // re-parses + re-validates the new hop through the SSRF check above (cond 1).
     if (res.statusCode !== undefined && res.statusCode >= 300 && res.statusCode < 400) {
       const location = res.headers.location;
       res.destroy();
@@ -278,11 +294,10 @@ export async function fetchUrlForPrompt(
       return { ok: false, reason: 'http-error', status };
     }
 
-    // Content-Type gate — only fetch text (HTML or plain)
+    // Content-Type SUITABILITY filter (caller-supplied; NOT a security control). Text passes
+    // html/plain; binary passes accept-all. Reject-before-body-read is preserved for the text path.
     const contentType = res.headers['content-type'] ?? '';
-    const isHtml = contentType.includes('text/html');
-    const isText = contentType.includes('text/plain');
-    if (!isHtml && !isText) {
+    if (!acceptContentType(contentType)) {
       res.destroy();
       return { ok: false, reason: 'unsupported-content' };
     }
@@ -294,31 +309,65 @@ export async function fetchUrlForPrompt(
       return { ok: false, reason: 'too-large' };
     }
 
-    // Stream with mid-stream abort (TL change #3 — second half)
-    const raw = await readBody(res, maxBytes);
-    if (raw === null) return { ok: false, reason: 'too-large' };
+    // Stream with mid-stream abort (TL change #3 / t/3311 cond 2 — bounds size DURING accumulation)
+    const bytes = await readBody(res, maxBytes);
+    if (bytes === null) return { ok: false, reason: 'too-large' };
 
-    // HTML → text, then XSS safety pass via shared core. rawBody callers run
-    // their own converter over the markup, so both steps are skipped for them
-    // (the transport-level SSRF guarantees above still applied).
-    let text: string;
-    let title: string | undefined;
-    if (opts.rawBody) {
-      text = raw;
-      title = isHtml ? extractTitle(raw) : undefined;
-    } else {
-      const extracted = isHtml ? htmlToText(raw) : { text: raw, title: undefined };
-      title = extracted.title;
-      text = sanitizeText(extracted.text);
-    }
-
-    // Soft token-budget truncation
-    let truncated = false;
-    if (opts.tokenBudget !== undefined && text.length > opts.tokenBudget) {
-      text = text.slice(0, opts.tokenBudget);
-      truncated = true;
-    }
-
-    return { ok: true, text, title, finalUrl: currentUrl, truncated };
+    return { ok: true, bytes, contentType, finalUrl: currentUrl };
   }
+}
+
+// ── Text entry point — HTML/plain only, extracted + XSS-sanitized text ──────
+export async function fetchUrlForPrompt(
+  url: string,
+  opts: UrlFetchOptions = {},
+): Promise<UrlFetchResult> {
+  const raw = await fetchRawResponse(
+    url,
+    opts,
+    contentType => contentType.includes('text/html') || contentType.includes('text/plain'),
+    'text/html, text/plain;q=0.9, */*;q=0.1',
+  );
+  if (!raw.ok) return raw;
+
+  const isHtml = raw.contentType.includes('text/html');
+  const body = raw.bytes.toString('utf-8');
+
+  // HTML → text, then XSS safety pass via shared core. rawBody callers run their own converter over
+  // the markup, so both steps are skipped for them (the transport-level SSRF guarantees still applied).
+  let text: string;
+  let title: string | undefined;
+  if (opts.rawBody) {
+    text = body;
+    title = isHtml ? extractTitle(body) : undefined;
+  } else {
+    const extracted = isHtml ? htmlToText(body) : { text: body, title: undefined };
+    title = extracted.title;
+    text = sanitizeText(extracted.text);
+  }
+
+  // Soft token-budget truncation
+  let truncated = false;
+  if (opts.tokenBudget !== undefined && text.length > opts.tokenBudget) {
+    text = text.slice(0, opts.tokenBudget);
+    truncated = true;
+  }
+
+  return { ok: true, text, title, finalUrl: raw.finalUrl, truncated };
+}
+
+// ── Binary entry point — any content-type → raw bytes (PDF op-ed sources, t/3311) ──
+//
+// IDENTICAL SSRF core as the text path (every guard + per-hop re-validation + mid-stream maxBytes
+// abort reused via fetchRawResponse). The ONLY differences: accept any content-type (skip the
+// text-only suitability filter) and return the raw bytes instead of extracted/sanitized text.
+// maxBytes still bounds the response, so a large binary cannot OOM the process (TL t/3311 cond 2).
+// The bytes are returned untrusted — the caller (PDF parser etc.) owns any content-level safety.
+export async function fetchUrlForPromptBinary(
+  url: string,
+  opts: UrlFetchOptions = {},
+): Promise<UrlFetchBinaryResult> {
+  const raw = await fetchRawResponse(url, opts, () => true, '*/*');
+  if (!raw.ok) return raw;
+  return { ok: true, bytes: raw.bytes, contentType: raw.contentType, finalUrl: raw.finalUrl };
 }

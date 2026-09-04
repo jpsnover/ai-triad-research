@@ -20,6 +20,16 @@ export type UrlFetchResult =
   | { ok: true; text: string; title: string | undefined; finalUrl: string; truncated: boolean }
   | { ok: false; reason: UrlFetchFailureReason; status?: number };
 
+/**
+ * Result of a binary (bytes) fetch — {@link fetchUrlForPromptBinary}, t/3311. Same SSRF-guarded
+ * transport as {@link UrlFetchResult} but returns the raw response body instead of extracted text,
+ * for content types the text path rejects (PDF op-ed sources). The success arm never carries
+ * `unsupported-content` (binary accepts any content type); the failure arm reuses the shared reasons.
+ */
+export type UrlFetchBinaryResult =
+  | { ok: true; bytes: Buffer; contentType: string; finalUrl: string }
+  | { ok: false; reason: UrlFetchFailureReason; status?: number };
+
 export interface UrlFetchOptions {
   /** Max response body size in bytes before abort. Default: 1.5 MB. */
   maxBytes?: number;

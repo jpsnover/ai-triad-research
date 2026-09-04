@@ -17,7 +17,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../sanitize/contentSanitizerCore.js', () => ({
   sanitizeText: (s: string) => s,
 }));
-import { fetchUrlForPrompt, isPrivateIp, normalizeIp } from './fetchUrlForPrompt.js';
+import { fetchUrlForPrompt, fetchUrlForPromptBinary, isPrivateIp, normalizeIp } from './fetchUrlForPrompt.js';
 
 // All happy-path tests override checkAddress to allow 127.0.0.1 (our test server).
 // SSRF tests use the default isPrivateIp so 127.0.0.1 is naturally blocked.
@@ -367,5 +367,146 @@ describe('fetchUrlForPrompt', () => {
     expect(result.text).not.toContain('evil');
     expect(result.text).toContain('safe');
     expect(result.text).toContain('end');
+  });
+});
+
+// ── fetchUrlForPromptBinary integration tests (t/3311) ─────────────────────
+// The binary path is NEW; the tests above guard the TEXT path (both share fetchRawResponse).
+// These assert the binary variant (a) returns raw bytes for content types the text path rejects,
+// and (b) STILL enforces every SSRF/size/redirect control — incl. per-hop redirect re-validation.
+describe('fetchUrlForPromptBinary', () => {
+  let server: http.Server | undefined;
+  let baseUrl: string;
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    if (server) {
+      await stopServer(server);
+      server = undefined;
+    }
+  });
+
+  it('returns raw bytes + contentType for a PDF (bypasses the text-only content gate)', async () => {
+    const pdfBytes = Buffer.from('%PDF-1.7\n%\xff\xff binary\x00\x01\x02', 'binary');
+    ({ url: baseUrl, server } = await startServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/pdf' });
+      res.end(pdfBytes);
+    }));
+
+    const result = await fetchUrlForPromptBinary(baseUrl, { checkAddress: ALLOW_ALL });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(Buffer.isBuffer(result.bytes)).toBe(true);
+    expect(result.bytes.equals(pdfBytes)).toBe(true);   // bytes returned verbatim, not utf-8-mangled
+    expect(result.contentType).toContain('application/pdf');
+    expect(result.finalUrl).toBe(baseUrl);
+  });
+
+  it('STILL blocks loopback via default isPrivateIp (SSRF on the binary path)', async () => {
+    ({ url: baseUrl, server } = await startServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/pdf' });
+      res.end('%PDF');
+    }));
+    const result = await fetchUrlForPromptBinary(baseUrl); // default checkAddress → 127.0.0.1 blocked
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('ssrf-blocked');
+  });
+
+  it('STILL blocks when injected checkAddress returns true', async () => {
+    ({ url: baseUrl, server } = await startServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/pdf' });
+      res.end('%PDF');
+    }));
+    const result = await fetchUrlForPromptBinary(baseUrl, { checkAddress: () => true });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('ssrf-blocked');
+  });
+
+  it('RE-VALIDATES each redirect hop — a redirect target that fails the SSRF check is blocked (TL cond 1)', async () => {
+    // checkAddress allows the first hop, blocks the second → proves the redirect target is
+    // re-checked through the SSRF path, not just the initial URL (the classic SSRF-via-redirect bypass).
+    let hop = 0;
+    const blockSecondHop = (): boolean => ++hop >= 2;
+    ({ url: baseUrl, server } = await startServer((req, res) => {
+      if (req.url === '/') {
+        res.writeHead(302, { Location: '/internal' });
+        res.end();
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/pdf' });
+        res.end('%PDF should not reach');
+      }
+    }));
+
+    const result = await fetchUrlForPromptBinary(baseUrl, { checkAddress: blockSecondHop });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('ssrf-blocked'); // the redirect hop was re-validated and blocked
+    expect(hop).toBe(2);                         // SSRF check ran on BOTH the initial + redirect hop
+  });
+
+  it('STILL enforces the redirect cap', async () => {
+    ({ url: baseUrl, server } = await startServer((_req, res) => {
+      res.writeHead(302, { Location: `${baseUrl}/next` });
+      res.end();
+    }));
+    const result = await fetchUrlForPromptBinary(baseUrl, { checkAddress: ALLOW_ALL, maxRedirects: 2 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('too-many-redirects');
+  });
+
+  it('STILL rejects via Content-Length precheck (too-large)', async () => {
+    ({ url: baseUrl, server } = await startServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Length': '1000000' });
+      res.end('x');
+    }));
+    const result = await fetchUrlForPromptBinary(baseUrl, { checkAddress: ALLOW_ALL, maxBytes: 100 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('too-large');
+  });
+
+  it('STILL aborts mid-stream when the binary body exceeds maxBytes (bounds size during accumulation)', async () => {
+    ({ url: baseUrl, server } = await startServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/pdf' }); // no Content-Length → streaming counter must catch it
+      res.write('A'.repeat(60));
+      res.write('B'.repeat(60));
+      res.end('C'.repeat(60));
+    }));
+    const result = await fetchUrlForPromptBinary(baseUrl, { checkAddress: ALLOW_ALL, maxBytes: 100 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('too-large');
+  });
+
+  it('carries the HTTP status on a non-2xx (403/404 distinguishable for callers)', async () => {
+    ({ url: baseUrl, server } = await startServer((_req, res) => {
+      res.writeHead(403, { 'Content-Type': 'application/pdf' });
+      res.end('denied');
+    }));
+    const result = await fetchUrlForPromptBinary(baseUrl, { checkAddress: ALLOW_ALL });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('http-error');
+    expect(result.status).toBe(403);
+  });
+
+  it('follows a redirect and reports finalUrl (binary happy path)', async () => {
+    ({ url: baseUrl, server } = await startServer((req, res) => {
+      if (req.url === '/') {
+        res.writeHead(301, { Location: '/doc.pdf' });
+        res.end();
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/pdf' });
+        res.end(Buffer.from('%PDF-final'));
+      }
+    }));
+    const result = await fetchUrlForPromptBinary(baseUrl, { checkAddress: ALLOW_ALL });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.finalUrl).toContain('/doc.pdf');
+    expect(result.bytes.toString('utf-8')).toContain('%PDF-final');
   });
 });
