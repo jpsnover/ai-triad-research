@@ -123,6 +123,65 @@ export function getDataRootPath(): string {
   return resolveDataPath('.');
 }
 
+/**
+ * Validate the resolved data root at startup. Throws ActionableError when the
+ * expected top-level sentinel directories (taxonomy/, dictionary/) are absent,
+ * naming the resolved path and how it was resolved so the fix is one glance.
+ * Call this before opening the main window so mis-provisioned installs fail loud
+ * instead of showing silent-empty panels (t/3296, prevention for t/3290).
+ */
+export function validateDataRoot(): void {
+  const config = loadDataConfig();
+  const envRoot = process.env.AI_TRIAD_DATA_ROOT;
+  const dataRoot = envRoot
+    ? path.resolve(envRoot)
+    : path.isAbsolute(config.data_root)
+      ? config.data_root
+      : path.resolve(PROJECT_ROOT, config.data_root);
+
+  let method: string;
+  if (envRoot) {
+    method = 'AI_TRIAD_DATA_ROOT env var';
+  } else if (fs.existsSync(path.join(PROJECT_ROOT, '.aitriad.json'))) {
+    method = '.aitriad.json data_root field';
+  } else if (IS_PACKAGED) {
+    method = 'packaged-app platform default (no .aitriad.json override)';
+  } else {
+    method = 'PROJECT_ROOT fallback (dev mode, no .aitriad.json found)';
+  }
+
+  const REQUIRED_DIRS = ['taxonomy', 'dictionary'] as const;
+  for (const dir of REQUIRED_DIRS) {
+    const fullPath = path.join(dataRoot, dir);
+    // Use readdirSync directly — ENOENT = definitive absent (same ActionableError class as empty).
+    // Mirrors the server fs convention; eliminates the TOCTOU gap between existsSync + readdirSync.
+    let entryCount: number;
+    try {
+      entryCount = fs.readdirSync(fullPath).length;
+    } catch (fsErr) {
+      /* telemetry — silent by design: ENOENT is immediately surfaced as ActionableError below */
+      if ((fsErr as NodeJS.ErrnoException).code === 'ENOENT') {
+        entryCount = 0;
+      } else {
+        throw fsErr;
+      }
+    }
+    if (entryCount === 0) {
+      throw new ActionableError({
+        goal: 'Load application data',
+        problem: `Data root resolved to "${dataRoot}" (via ${method}) but "${dir}/" is missing or empty`,
+        location: 'main/fileIO.ts → validateDataRoot',
+        nextSteps: [
+          `Set AI_TRIAD_DATA_ROOT to your ai-triad-data clone root (e.g. set AI_TRIAD_DATA_ROOT=C:\\path\\to\\ai-triad-data)`,
+          `Or update "data_root" in ${path.join(PROJECT_ROOT, '.aitriad.json')} to point at the data repo`,
+          `Confirm the ai-triad-data repo is cloned and the path is correct: ${dataRoot}`,
+          `Expected top-level directories inside the data root: ${REQUIRED_DIRS.map(d => d + '/').join(', ')}`,
+        ],
+      });
+    }
+  }
+}
+
 /** Persist a new data_root into .aitriad.json. Caller should relaunch the app afterward. */
 export function setDataRootPath(newRoot: string): void {
   const configPath = path.join(PROJECT_ROOT, '.aitriad.json');
