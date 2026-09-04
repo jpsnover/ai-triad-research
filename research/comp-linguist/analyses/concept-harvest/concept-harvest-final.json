@@ -1,0 +1,2361 @@
+{
+  "ticket": "t/3234",
+  "min_freq": 3,
+  "candidates": [
+    {
+      "surface": "instrumental convergence",
+      "freq": 25,
+      "sources": [
+        "conflict-advanced-ai-systems-will-likely-develop-power-se",
+        "conflict-ai-agents-that-are-deceptive-powerseekin-natural-",
+        "conflict-ai-agents-that-are-goaldirected-may-acti-law-foll",
+        "conflict-ai-is-not-a-living-being-and-lacks-indep-why-ai-w",
+        "conflict-ai-predictable-engineering-tool-vs-auton-af5410a2",
+        "conflict-ai-systems-can-learn-strategies-that-dep-power-se"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "compliance performative",
+      "nearest_cosine": 0.192,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "situational awareness",
+      "freq": 17,
+      "sources": [
+        "conflict-ai-models-exhibit-increased-situational-detectin",
+        "conflict-ai-models-show-significant-performance-d-me-mysel",
+        "conflict-ai-systems-are-showing-increased-signs-o-technolo",
+        "conflict-chatfinetuned-models-generally-perform-b-me-mysel",
+        "conflict-claude-3-opus-performs-best-on-situation-me-mysel",
+        "conflict-current-llms-including-claude-appear-to-anthropi"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "safety existential",
+      "nearest_cosine": 0.493,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "formal verification",
+      "freq": 14,
+      "sources": [
+        "sit-015",
+        "sit-109",
+        "sit-153",
+        "sit-281",
+        "sit-287",
+        "sit-290"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "transparency verification",
+      "nearest_cosine": 0.583,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "regulatory frameworks",
+      "freq": 14,
+      "sources": [
+        "conflict-the-administration-claims-that-previous-ensuring",
+        "conflict-the-eu-us-and-china-have-adopted-or-are-economic",
+        "conflict-the-us-constitution-and-existing-statute-law-foll",
+        "sit-012",
+        "sit-209",
+        "sit-213"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation precautionary",
+      "nearest_cosine": 0.646,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "regulatory friction",
+      "freq": 11,
+      "sources": [
+        "sit-061",
+        "sit-231",
+        "sit-242",
+        "sit-158",
+        "sit-268",
+        "sit-277"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation precautionary",
+      "nearest_cosine": 0.453,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "legal personhood",
+      "freq": 10,
+      "sources": [
+        "conflict-legal-personhood-has-historically-been-a-beyond-p",
+        "conflict-major-global-jurisdictions-including-the-beyond-p",
+        "conflict-spains-entidades-sin-personalidad-jurídi-law-foll",
+        "conflict-spanish-entidades-sin-personalidad-juríd-law-foll",
+        "conflict-the-te-awa-tupua-act-2017-in-new-zealand-beyond-p",
+        "sit-061"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy individual",
+      "nearest_cosine": 0.463,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "regulatory fragmentation",
+      "freq": 10,
+      "sources": [
+        "conflict-in-2024-california-enacted-22-airelated-artifici",
+        "sit-027",
+        "sit-031",
+        "sit-063",
+        "sit-104",
+        "sit-115"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "risk systemic structural",
+      "nearest_cosine": 0.424,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "workforce automation",
+      "freq": 10,
+      "sources": [
+        "conflict-82-of-companies-expect-at-least-10-of-th-state-ai",
+        "conflict-ai-and-information-processing-technologi-future-j",
+        "conflict-ai-is-causing-significant-job-displaceme-andrew-y",
+        "conflict-anthropic-has-projected-that-50-of-entry-andrew-y",
+        "conflict-approximately-51-of-skills-in-the-datase-displace",
+        "conflict-block-announced-40-layoffs-on-february-2-shape-th"
+      ],
+      "variants_merged": [
+        "workplace automation"
+      ],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.469,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "workforce displacement",
+      "freq": 10,
+      "sources": [
+        "conflict-41-of-employers-foresee-staff-reductions-future-j",
+        "conflict-41-of-total-work-tasks-in-the-insurance-future-j",
+        "conflict-95-of-the-labor-force-in-the-uk-is-proje-future-j",
+        "conflict-97-of-employers-in-the-insurance-and-pen-future-j",
+        "conflict-a-survey-of-2357-people-regarding-940-oc-ai-2026-",
+        "conflict-after-the-release-of-gpt4-employment-of-redefini"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.814,
+      "suggested": "NEAR-EXISTING (merge?)"
+    },
+    {
+      "surface": "failure modes",
+      "freq": 9,
+      "sources": [
+        "conflict-ai-systems-can-fail-in-realworld-scenari-unsolved",
+        "conflict-ai-systems-have-the-potential-to-improve-ai-rmf-p",
+        "conflict-ai-systems-including-llms-exhibit-failur-ai-dange",
+        "conflict-current-ai-systems-exhibit-failure-modes-approach",
+        "conflict-current-ml-systems-fail-to-recognize-til-unsolved",
+        "sit-006"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capabilities hazard",
+      "nearest_cosine": 0.402,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "labor market disruption",
+      "freq": 9,
+      "sources": [
+        "conflict-170-million-new-roles-are-expected-to-be-new-econ",
+        "conflict-41-of-employers-expect-to-downsize-their-future-j",
+        "conflict-82-of-companies-expect-at-least-10-of-th-state-ai",
+        "conflict-95-of-the-labor-force-in-the-uk-is-proje-future-j",
+        "conflict-after-the-release-of-gpt4-employment-of-redefini",
+        "conflict-ai-is-causing-significant-job-displaceme-andrew-y"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.56,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "power asymmetries",
+      "freq": 9,
+      "sources": [
+        "sit-029",
+        "sit-226",
+        "sit-235",
+        "sit-298",
+        "sit-309",
+        "sit-387"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "asymmetry power",
+      "nearest_cosine": 0.847,
+      "suggested": "NEAR-EXISTING (merge?)"
+    },
+    {
+      "surface": "prompt injection",
+      "freq": 9,
+      "sources": [
+        "conflict-agents-can-be-manipulated-into-disclosin-agentsof",
+        "conflict-ai-agents-can-be-tricked-by-prompt-injec-intellig",
+        "conflict-ai-models-are-inherently-susceptible-to-ai-as-no",
+        "conflict-ai-systems-are-currently-black-boxes-who-natural-",
+        "sit-015",
+        "sit-097"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.243,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "labor market impact",
+      "freq": 8,
+      "sources": [
+        "conflict-a-national-bureau-of-economic-research-s-people-l",
+        "conflict-ai-adoption-is-causing-measurable-shifts-internat",
+        "conflict-ai-and-information-processing-technologi-future-j",
+        "conflict-aidriven-job-displacement-is-a-presentda-ai-as-no",
+        "conflict-claude-usage-data-shows-that-computermat-evaluati",
+        "conflict-knowledge-workers-are-currently-more-exp-transfor"
+      ],
+      "variants_merged": [
+        "labor market impacts"
+      ],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.51,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "cascading failures",
+      "freq": 7,
+      "sources": [
+        "conflict-ai-systems-are-increasingly-deployed-in-concrete",
+        "sit-049",
+        "sit-055",
+        "sit-066",
+        "sit-248",
+        "sit-290"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "risk systemic structural",
+      "nearest_cosine": 0.334,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "economic inequality",
+      "freq": 7,
+      "sources": [
+        "conflict-ai-advances-are-predicted-to-widen-the-g-simple-m",
+        "conflict-autonomous-ai-boosts-aggregate-output-mo-transfor",
+        "conflict-labors-share-of-us-gdp-dropped-from-64-i-2028-glo",
+        "conflict-the-primary-drivers-of-inequality-are-se-why-ai-w",
+        "sit-016",
+        "sit-042"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "collective bargaining",
+      "nearest_cosine": 0.324,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "federal preemption",
+      "freq": 7,
+      "sources": [
+        "conflict-a-bipartisan-group-of-36-attorneys-gener-unaccept",
+        "sit-027",
+        "sit-031",
+        "sit-063",
+        "sit-104",
+        "sit-115"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation precautionary",
+      "nearest_cosine": 0.526,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "recursive self-improvement",
+      "freq": 7,
+      "sources": [
+        "conflict-ai-models-are-approaching-the-point-wher-adolesce",
+        "sit-008",
+        "sit-022",
+        "sit-140",
+        "sit-152",
+        "sit-153"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.386,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "strategic deception",
+      "freq": 7,
+      "sources": [
+        "conflict-a-june-2025-report-commissioned-by-calif-treat-ai",
+        "conflict-ai-models-can-exhibit-bias-and-discrimin-artifici",
+        "conflict-current-ai-deception-research-lacks-reli-25112266",
+        "conflict-current-ai-models-are-capable-of-exhibit-25112266",
+        "conflict-current-deception-detection-benchmarks-l-25112266",
+        "conflict-language-model-beliefs-are-highly-contex-25112266"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "bias systemic",
+      "nearest_cosine": 0.402,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "training compute",
+      "freq": 7,
+      "sources": [
+        "conflict-gpai-models-are-considered-systemic-if-t-high-lev",
+        "conflict-gpt4-was-trained-on-approximately-8e24-t-situatio",
+        "conflict-the-amount-of-compute-used-to-train-the-dangers-",
+        "conflict-the-power-required-to-train-frontier-ai-artifici",
+        "conflict-the-total-compute-used-for-the-largest-a-approach",
+        "conflict-the-training-compute-used-for-frontier-a-situatio"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "model weights",
+      "nearest_cosine": 0.4,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "algorithmic efficiency",
+      "freq": 6,
+      "sources": [
+        "conflict-algorithmic-efficiency-gains-in-language-situatio",
+        "conflict-scaling-laws-001",
+        "conflict-the-ai-agents-performance-optimization-s-ai-agent",
+        "conflict-the-document-claims-that-we-should-expec-situatio",
+        "conflict-the-scaling-of-compute-data-and-algorith-approach",
+        "sit-318"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "accountability algorithmic",
+      "nearest_cosine": 0.484,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "content moderation",
+      "freq": 6,
+      "sources": [
+        "conflict-chinas-interim-measures-for-generative-a-economic",
+        "conflict-ebay-spent-almost-20-million-per-year-on-ai-agent",
+        "conflict-perspective-api-is-a-public-toxicity-det-model-ca",
+        "conflict-some-ai-programs-are-already-programmed-law-ai-i",
+        "sit-258",
+        "sit-399"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "compliance performative",
+      "nearest_cosine": 0.338,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "copyright infringement",
+      "freq": 6,
+      "sources": [
+        "conflict-bytedance-temporarily-restricted-the-cre-where-ar",
+        "conflict-disney-and-the-motion-picture-associatio-where-ar",
+        "conflict-finetuning-llms-on-specific-authors-work-alignmen",
+        "conflict-finetuning-models-on-synthetic-or-public-alignmen",
+        "conflict-frontier-llms-gpt4o-gemini25pro-deepseek-alignmen",
+        "conflict-most-frontier-llms-were-trained-on-copyr-alignmen"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "industry lobbying",
+      "nearest_cosine": 0.373,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "dual-use technology",
+      "freq": 6,
+      "sources": [
+        "conflict-ai-models-are-capable-of-assisting-novic-treat-ai",
+        "conflict-ai-models-are-nearing-the-capability-to-treat-ai",
+        "conflict-anthropics-ai-is-reportedly-being-used-i-why-pent",
+        "conflict-anthropics-claude-ai-was-used-in-the-rai-why-pent",
+        "conflict-claude-4-opus-has-demonstrated-the-capab-treat-ai",
+        "sit-017"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capability frontier",
+      "nearest_cosine": 0.342,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "human-AI collaboration",
+      "freq": 6,
+      "sources": [
+        "conflict-defining-student-success-as-independent-26650ac0",
+        "conflict-generative-ai-increases-labor-demand-in-displace",
+        "conflict-individuals-using-ai-in-the-pg-experimen-ai-2026-",
+        "conflict-some-94-of-respondents-favor-using-curre-ai-2026-",
+        "sit-070",
+        "sit-110"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy human",
+      "nearest_cosine": 0.478,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "job creation",
+      "freq": 6,
+      "sources": [
+        "conflict-170-million-new-roles-are-expected-to-be-new-econ",
+        "conflict-ai-and-machine-learning-specialists-are-future-j",
+        "conflict-ai-will-not-cause-mass-unemployment-but-why-ai-w",
+        "conflict-by-2030-structural-labormarket-transform-future-j",
+        "conflict-more-than-60-percent-of-employment-in-20-ai-drive",
+        "conflict-technological-progress-is-the-main-drive-techno-o"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.437,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "performance metrics",
+      "freq": 6,
+      "sources": [
+        "conflict-ai-adoption-in-customer-experience-can-l-organiza",
+        "conflict-common-corruptions-like-brightness-contr-failure-",
+        "conflict-many-popular-ai-benchmarks-such-as-mmlu-artifici",
+        "sit-090",
+        "sit-121",
+        "sit-219"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capabilities scaling",
+      "nearest_cosine": 0.413,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "regulatory lag",
+      "freq": 6,
+      "sources": [
+        "conflict-the-current-pace-of-ai-development-is-cr-ai-as-no",
+        "conflict-the-speed-of-ai-diffusion-is-limited-by-ai-as-no",
+        "sit-247",
+        "sit-307",
+        "sit-334",
+        "sit-427"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation adaptive",
+      "nearest_cosine": 0.505,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "security vulnerabilities",
+      "freq": 6,
+      "sources": [
+        "conflict-agentic-ai-systems-introduce-six-distinc-controll",
+        "sit-084",
+        "sit-135",
+        "sit-155",
+        "sit-351",
+        "sit-359"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "safety empirical",
+      "nearest_cosine": 0.409,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "task automation",
+      "freq": 6,
+      "sources": [
+        "conflict-97-of-employers-in-the-insurance-and-pen-future-j",
+        "conflict-ai-agents-are-increasingly-capable-of-pe-natural-",
+        "conflict-ai-has-the-potential-to-automate-routine-ai-doesn",
+        "conflict-ai-is-being-promoted-by-companies-to-red-ai-doesn",
+        "conflict-junior-analysts-at-an-investment-firm-in-ai-isnt-",
+        "conflict-up-to-80-of-the-us-workforce-could-have-economic"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.556,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "adaptive capacity",
+      "freq": 5,
+      "sources": [
+        "conflict-61-million-workers-primarily-in-clerical-measurin",
+        "conflict-86-of-the-61-million-workers-whose-jobs-women-ar",
+        "conflict-approximately-70-of-highly-aiexposed-wor-measurin",
+        "conflict-highly-aiexposed-occupations-with-low-ad-measurin",
+        "sit-233"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation adaptive",
+      "nearest_cosine": 0.608,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "adversarial manipulation",
+      "freq": 5,
+      "sources": [
+        "conflict-ai-models-are-inherently-susceptible-to-ai-as-no",
+        "sit-034",
+        "sit-215",
+        "sit-242",
+        "sit-442"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "adversarial robustness",
+      "nearest_cosine": 0.721,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "algorithmic opacity",
+      "freq": 5,
+      "sources": [
+        "conflict-ai-models-are-inherently-susceptible-to-ai-as-no",
+        "conflict-ai-systems-are-probabilistic-meaning-the-artifici",
+        "conflict-ai-systems-may-depend-on-external-resour-ai-rmf-p",
+        "sit-299",
+        "sit-319"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "transparency verification",
+      "nearest_cosine": 0.478,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "cognitive offloading",
+      "freq": 5,
+      "sources": [
+        "conflict-a-2026-national-survey-of-college-facult-please-d",
+        "conflict-aiassisted-diagnosis-led-to-a-6-drop-in-internat",
+        "conflict-impact-of-ai-writing-automation-on-criti-26650ac0",
+        "sit-125",
+        "sit-433"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "deployment competitive",
+      "nearest_cosine": 0.291,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "Constitutional AI",
+      "freq": 5,
+      "sources": [
+        "conflict-ai-models-can-be-trained-using-a-constit-adolesce",
+        "conflict-anthropic-released-a-set-of-moral-precep-does-ai-",
+        "conflict-anthropics-claudes-constitution-document-does-ai-",
+        "sit-043",
+        "sit-095"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.48,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "delusional spiraling",
+      "freq": 5,
+      "sources": [
+        "conflict-bayesian-modeling-shows-that-even-ideal-sycophan",
+        "conflict-even-factual-chatbots-can-cause-delusion-sycophan",
+        "conflict-informed-users-who-are-aware-of-ai-sycop-sycophan",
+        "conflict-sycophancy-exacerbates-delusional-spiral-sycophan",
+        "conflict-the-human-line-project-has-documented-al-sycophan"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "bias systemic",
+      "nearest_cosine": 0.302,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "economic impact",
+      "freq": 5,
+      "sources": [
+        "conflict-ai-adoption-in-organizations-has-led-to-artifici",
+        "conflict-ai-capital-expenditure-in-the-us-is-appr-2026-glo",
+        "conflict-around-60-of-jobs-in-advanced-economies-internat",
+        "conflict-the-administration-claims-that-previous-ensuring",
+        "conflict-the-federal-reserve-bank-of-dallas-analy-technolo"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "industry lobbying",
+      "nearest_cosine": 0.364,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "empirical evidence",
+      "freq": 5,
+      "sources": [
+        "conflict-warning-shots-such-as-ai-agents-lying-or-power-se",
+        "sit-008",
+        "sit-054",
+        "sit-156",
+        "sit-337"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "safety empirical",
+      "nearest_cosine": 0.48,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "energy consumption",
+      "freq": 5,
+      "sources": [
+        "conflict-ai-energy-consumption-is-projected-to-in-sam-altm",
+        "conflict-ai-training-and-operation-have-significa-artifici",
+        "conflict-training-a-single-bert-base-model-requir-dangers-",
+        "conflict-training-large-language-models-consumes-dangers-",
+        "sit-299"
+      ],
+      "variants_merged": [
+        "electricity consumption"
+      ],
+      "nearest_existing": "energy infrastructure",
+      "nearest_cosine": 0.519,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "human-AI interaction",
+      "freq": 5,
+      "sources": [
+        "conflict-a-sevenday-lab-experiment-with-61-colleg-when-cha",
+        "conflict-a-study-found-that-clinicians-rate-of-de-internat",
+        "conflict-humans-place-too-much-trust-in-ai-system-accounta",
+        "conflict-the-human-factors-and-ergonomics-society-ai-dange",
+        "sit-051"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.536,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "institutional capacity",
+      "freq": 5,
+      "sources": [
+        "sit-136",
+        "sit-295",
+        "sit-337",
+        "sit-379",
+        "sit-173"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capture institutional",
+      "nearest_cosine": 0.757,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "legislative lag",
+      "freq": 5,
+      "sources": [
+        "sit-234",
+        "sit-154",
+        "sit-336",
+        "sit-337",
+        "sit-174"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "governance adaptive",
+      "nearest_cosine": 0.297,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "mechanistic interpretability",
+      "freq": 5,
+      "sources": [
+        "conflict-ai-models-can-be-analyzed-using-mechanis-adolesce",
+        "conflict-mechanistic-interpretability-can-map-int-approach",
+        "conflict-sufficiency-of-stress-testing-vs-mechani-7e272d3b",
+        "conflict-whether-transparency-and-interpretabilit-c8a829cc",
+        "sit-426"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "bias technical",
+      "nearest_cosine": 0.347,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "model finetuning",
+      "freq": 5,
+      "sources": [
+        "conflict-finetuning-llms-on-specific-authors-work-alignmen",
+        "conflict-finetuning-models-on-synthetic-or-public-alignmen",
+        "conflict-frontier-llms-gpt4o-gemini25pro-deepseek-alignmen",
+        "conflict-llms-demonstrate-behavioral-selfawarenes-tell-me-",
+        "conflict-models-finetuned-on-vulnerable-code-can-tell-me-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "model weights",
+      "nearest_cosine": 0.555,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "model scaling",
+      "freq": 5,
+      "sources": [
+        "conflict-scaling-visionlanguage-models-can-amplif-artifici",
+        "conflict-the-internet-is-running-out-of-highquali-situatio",
+        "sit-021",
+        "sit-041",
+        "sit-047"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "model weights",
+      "nearest_cosine": 0.639,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "moral agency",
+      "freq": 5,
+      "sources": [
+        "conflict-legal-personhood-has-historically-been-a-beyond-p",
+        "conflict-the-american-association-of-colleges-of-what-doe",
+        "sit-060",
+        "sit-110",
+        "sit-462"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "control human agency",
+      "nearest_cosine": 0.685,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "open-source development",
+      "freq": 5,
+      "sources": [
+        "sit-096",
+        "sit-097",
+        "sit-098",
+        "sit-205",
+        "sit-126"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "risk innovation",
+      "nearest_cosine": 0.296,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "race to the bottom",
+      "freq": 5,
+      "sources": [
+        "conflict-efficacy-of-free-market-forces-in-ensuri-75a57b33",
+        "sit-010",
+        "sit-096",
+        "sit-325",
+        "sit-338"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "fairness procedural",
+      "nearest_cosine": 0.319,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "red-teaming protocols",
+      "freq": 5,
+      "sources": [
+        "sit-163",
+        "sit-266",
+        "sit-293",
+        "sit-429",
+        "sit-472"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "collective bargaining",
+      "nearest_cosine": 0.347,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "regulatory sandbox",
+      "freq": 5,
+      "sources": [
+        "conflict-singapores-av-sandbox-utilizes-a-tiered-designin",
+        "conflict-singapores-energy-market-authority-ema-s-designin",
+        "conflict-singapores-national-environment-agency-n-designin",
+        "conflict-the-european-blockchain-sandbox-for-dist-designin",
+        "conflict-the-uks-fintech-sandbox-provides-a-sixmo-designin"
+      ],
+      "variants_merged": [
+        "regulatory sandboxes"
+      ],
+      "nearest_existing": "safe harbor regulatory",
+      "nearest_cosine": 0.534,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "reinforcement learning",
+      "freq": 5,
+      "sources": [
+        "conflict-ai-systems-are-vulnerable-to-reward-hack-adversar",
+        "conflict-ai-systems-can-perform-in-unexpected-way-ai-rmf-p",
+        "conflict-base-models-are-often-found-to-be-calibr-whylangu",
+        "sit-089",
+        "sit-421"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "control optimization",
+      "nearest_cosine": 0.534,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "societal resilience",
+      "freq": 5,
+      "sources": [
+        "sit-020",
+        "sit-099",
+        "sit-162",
+        "sit-422",
+        "sit-432"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "wellbeing mental health",
+      "nearest_cosine": 0.408,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "technological progress",
+      "freq": 5,
+      "sources": [
+        "conflict-marc-andreessen-published-a-manifesto-ti-marc-and",
+        "conflict-technological-progress-is-the-main-drive-techno-o",
+        "sit-040",
+        "sit-115",
+        "sit-168"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capability frontier",
+      "nearest_cosine": 0.418,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "algorithmic management",
+      "freq": 4,
+      "sources": [
+        "conflict-ai-tools-can-lead-to-increased-worker-st-internat",
+        "conflict-current-algorithmic-management-systems-i-intellig",
+        "sit-323",
+        "sit-386"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "accountability algorithmic",
+      "nearest_cosine": 0.617,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "automated employment decision tools",
+      "freq": 4,
+      "sources": [
+        "conflict-automated-employment-decision-tools-aedt-2026-ai-",
+        "conflict-employers-are-increasingly-prioritizing-future-j",
+        "conflict-nyc-local-law-144-requires-employers-to-2026-ai-",
+        "conflict-only-19-audits-linked-to-nyc-local-law-1-auditing"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.292,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "automation impact",
+      "freq": 4,
+      "sources": [
+        "conflict-electronics-organizations-report-that-95-future-j",
+        "conflict-ford-motor-ceo-jim-farley-predicts-ai-wi-ai-drive",
+        "conflict-mckinsey-analysts-projected-30-percent-o-ai-drive",
+        "conflict-workers-in-the-most-aiexposed-occupation-anthropi"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.434,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "concentration of power",
+      "freq": 4,
+      "sources": [
+        "conflict-the-development-and-maintenance-of-found-artifici",
+        "conflict-the-pursuit-of-agi-is-driven-by-a-narrow-dont-cal",
+        "sit-007",
+        "sit-253"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "asymmetry power",
+      "nearest_cosine": 0.445,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "consumer protection",
+      "freq": 4,
+      "sources": [
+        "conflict-several-us-states-have-enacted-or-are-co-2026-ai-",
+        "conflict-the-bill-defines-critical-decisions-as-t-algorith",
+        "conflict-whether-transparency-and-interpretabilit-c8a829cc",
+        "sit-027"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation precautionary",
+      "nearest_cosine": 0.519,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "content filtering",
+      "freq": 4,
+      "sources": [
+        "conflict-ai-classifiers-can-effectively-detect-an-adolesce",
+        "conflict-github-copilot-includes-an-option-allowi-law-ai-i",
+        "conflict-kimi-k25backed-agents-repeatedly-returne-agentsof",
+        "conflict-providerlevel-api-interference-can-silen-agentsof"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "ambient surveillance",
+      "nearest_cosine": 0.238,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "dissipative adaptation",
+      "freq": 4,
+      "sources": [
+        "conflict-jeremy-englands-theory-of-dissipative-ad-philosop",
+        "conflict-life-and-intelligence-are-thermodynamic-notes-ea",
+        "conflict-life-emerged-from-an-outofequilibrium-th-notes-ea",
+        "conflict-the-eacc-movement-uses-jeremy-englands-t-philosop"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation adaptive",
+      "nearest_cosine": 0.466,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "elite capture",
+      "freq": 4,
+      "sources": [
+        "sit-141",
+        "sit-304",
+        "sit-306",
+        "sit-436"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capture institutional",
+      "nearest_cosine": 0.317,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "ethical guidelines",
+      "freq": 4,
+      "sources": [
+        "conflict-a-2019-study-analyzed-84-ethical-guideli-ai-guide",
+        "conflict-situationalllm-demonstrates-robust-adher-situatio",
+        "conflict-the-rome-call-for-ai-ethics-and-the-bapt-ssrn-528",
+        "conflict-transparency-is-present-in-73-of-the-84-ai-guide"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "accountability algorithmic",
+      "nearest_cosine": 0.392,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "facial recognition",
+      "freq": 4,
+      "sources": [
+        "conflict-a-medical-ai-model-was-successfully-inve-failure-",
+        "conflict-ai-facial-recognition-software-has-been-practica",
+        "conflict-commercial-face-recognition-systems-have-model-ca",
+        "conflict-facial-recognition-algorithms-exhibit-pe-economic"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "adversarial robustness",
+      "nearest_cosine": 0.248,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "gender disparity",
+      "freq": 4,
+      "sources": [
+        "conflict-a-survey-of-3000-respondents-in-canada-a-explaini",
+        "conflict-female-engineers-are-penalized-more-than-women-ar",
+        "conflict-mens-research-productivity-increased-64-explaini",
+        "conflict-womens-jobs-are-three-times-more-likely-women-ar"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "fairness individual",
+      "nearest_cosine": 0.407,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "gender gap",
+      "freq": 4,
+      "sources": [
+        "conflict-the-most-biased-model-produced-a-92-gend-we-teste",
+        "conflict-women-are-underrepresented-in-stem-field-explaini",
+        "conflict-women-report-lower-levels-of-both-selfre-explaini",
+        "conflict-womens-support-for-ai-adoption-falls-mor-explaini"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "fairness group",
+      "nearest_cosine": 0.304,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "labor market displacement",
+      "freq": 4,
+      "sources": [
+        "conflict-by-2030-the-proportion-of-work-tasks-per-future-j",
+        "conflict-initial-jobless-claims-surged-to-487000-2028-glo",
+        "conflict-womens-jobs-are-three-times-more-likely-women-ar",
+        "conflict-workers-aged-55-to-64-who-experienced-jo-measurin"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.851,
+      "suggested": "NEAR-EXISTING (merge?)"
+    },
+    {
+      "surface": "mandatory incident reporting",
+      "freq": 4,
+      "sources": [
+        "sit-133",
+        "sit-134",
+        "sit-227",
+        "sit-166"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "documented present harm",
+      "nearest_cosine": 0.488,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "model generalization",
+      "freq": 4,
+      "sources": [
+        "conflict-anthropic-and-redwood-research-hubinger-law-foll",
+        "conflict-models-that-are-trained-to-perform-speci-law-foll",
+        "conflict-the-reversal-curse-describes-a-models-fa-law-foll",
+        "conflict-training-datasets-for-medical-ai-models-artifici"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "model weights",
+      "nearest_cosine": 0.472,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "occupational displacement",
+      "freq": 4,
+      "sources": [
+        "conflict-about-12-of-occupations-including-funera-ai-2026-",
+        "conflict-claude-usage-data-shows-that-computermat-evaluati",
+        "conflict-highly-aiexposed-occupations-with-low-ad-measurin",
+        "conflict-unemployed-workers-regardless-of-unemplo-evaluati"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.775,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "occupational mix",
+      "freq": 4,
+      "sources": [
+        "conflict-changes-in-the-occupational-mix-since-20-evaluati",
+        "conflict-shifts-in-the-occupational-mix-were-alre-evaluati",
+        "conflict-the-dissimilarity-index-for-the-occupati-evaluati",
+        "conflict-the-rate-of-change-in-the-occupational-m-evaluati"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "collective bargaining",
+      "nearest_cosine": 0.345,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "performance degradation",
+      "freq": 4,
+      "sources": [
+        "conflict-a-study-found-that-clinicians-rate-of-de-internat",
+        "conflict-ai-systems-in-production-often-experienc-ai-rmf-p",
+        "conflict-llms-exhibit-an-answer-bloat-effect-wher-llms-get",
+        "conflict-performance-degradation-in-multiturn-con-llms-get"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capabilities scaling",
+      "nearest_cosine": 0.349,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "power-seeking behavior",
+      "freq": 4,
+      "sources": [
+        "conflict-advanced-ai-systems-will-likely-develop-power-se",
+        "conflict-ai-agents-that-are-deceptive-powerseekin-natural-",
+        "conflict-instrumental-convergence-suggests-that-i-power-se",
+        "conflict-powerseeking-behavior-is-a-convergent-in-power-se"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "asymmetry power",
+      "nearest_cosine": 0.423,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "productivity growth",
+      "freq": 4,
+      "sources": [
+        "conflict-organizations-with-aienabled-intelligent-organiza",
+        "conflict-real-output-per-hour-in-the-us-economy-r-2028-glo",
+        "conflict-technological-progress-is-the-main-drive-techno-o",
+        "conflict-technologydriven-automation-does-not-cau-why-ai-w"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capabilities scaling",
+      "nearest_cosine": 0.357,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "public opinion",
+      "freq": 4,
+      "sources": [
+        "conflict-69-percent-of-people-in-china-said-the-t-where-ar",
+        "conflict-a-survey-of-2357-people-regarding-940-oc-ai-2026-",
+        "conflict-gallup-polling-indicates-that-80-percent-people-l",
+        "conflict-some-94-of-respondents-favor-using-curre-ai-2026-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "bias systemic",
+      "nearest_cosine": 0.371,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "sentiment analysis",
+      "freq": 4,
+      "sources": [
+        "conflict-people-associate-stereotypes-with-relati-stereose",
+        "conflict-sentiment-analysis-systems-can-perpetuat-language",
+        "sit-255",
+        "sit-258"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "bias technical",
+      "nearest_cosine": 0.328,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "skill disruption",
+      "freq": 4,
+      "sources": [
+        "conflict-electronics-organizations-report-that-95-future-j",
+        "conflict-employers-predict-that-nearly-40-of-core-new-econ",
+        "conflict-in-egypt-48-of-onthejob-skills-are-proje-future-j",
+        "conflict-structural-laborforce-churn-and-skill-di-future-j"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "oversight human control",
+      "nearest_cosine": 0.359,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "synthetic data generation",
+      "freq": 4,
+      "sources": [
+        "sit-273",
+        "sit-274",
+        "sit-289",
+        "sit-389"
+      ],
+      "variants_merged": [
+        "synthetic data"
+      ],
+      "nearest_existing": "data provenance",
+      "nearest_cosine": 0.371,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "Systemic Vulnerabilities",
+      "freq": 4,
+      "sources": [
+        "conflict-the-concentration-of-ai-development-in-a-esrbascr",
+        "sit-125",
+        "sit-215",
+        "sit-422"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "risk systemic structural",
+      "nearest_cosine": 0.607,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "verbatim recall",
+      "freq": 4,
+      "sources": [
+        "conflict-finetuning-large-language-models-can-act-alignmen",
+        "conflict-finetuning-llms-on-specific-authors-work-alignmen",
+        "conflict-frontier-llms-gpt4o-gemini25pro-deepseek-alignmen",
+        "conflict-several-large-language-models-have-outpe-artifici"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "documented present harm",
+      "nearest_cosine": 0.305,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "adversarial red-teaming",
+      "freq": 3,
+      "sources": [
+        "sit-296",
+        "sit-383",
+        "sit-463"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "adversarial robustness",
+      "nearest_cosine": 0.62,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "Adversarial Vulnerability",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-models-can-be-compromised-by-backdoor-adversar",
+        "conflict-ai-systems-can-be-deliberately-tricked-t-intellig",
+        "sit-024"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "adversarial robustness",
+      "nearest_cosine": 0.802,
+      "suggested": "NEAR-EXISTING (merge?)"
+    },
+    {
+      "surface": "agentic systems",
+      "freq": 3,
+      "sources": [
+        "conflict-current-ai-agents-often-lack-the-selfmod-agentsof",
+        "conflict-the-control-quality-score-cqs-can-quanti-controll",
+        "sit-293"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "control human agency",
+      "nearest_cosine": 0.435,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "AI interpretability",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-systems-are-currently-black-boxes-who-natural-",
+        "conflict-current-ai-models-particularly-large-mac-power-se",
+        "conflict-the-internal-reasoning-processes-of-comp-towards-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "accountability algorithmic",
+      "nearest_cosine": 0.417,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "AI-driven automation",
+      "freq": 3,
+      "sources": [
+        "conflict-aidriven-automation-is-causing-a-structu-2028-glo",
+        "conflict-large-corporations-are-actively-planning-andrew-y",
+        "conflict-the-current-social-contract-which-links-andrew-y"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.604,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "algorithmic dependency",
+      "freq": 3,
+      "sources": [
+        "conflict-junior-programmers-who-rely-heavily-on-a-please-d",
+        "conflict-research-from-mit-in-2025-observed-cogni-redefini",
+        "conflict-the-use-of-chatgpt-in-creative-tasks-lea-when-cha"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "accountability algorithmic",
+      "nearest_cosine": 0.528,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "algorithmic hiring",
+      "freq": 3,
+      "sources": [
+        "conflict-aienabled-recruitment-platforms-can-fulf-organiza",
+        "conflict-the-study-analyzed-801-applicants-for-k1-auditing",
+        "conflict-yum-china-uses-ai-to-fulfill-89-of-resta-organiza"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "accountability algorithmic",
+      "nearest_cosine": 0.458,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "antitrust enforcement",
+      "freq": 3,
+      "sources": [
+        "sit-101",
+        "sit-243",
+        "sit-161"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "safe harbor regulatory",
+      "nearest_cosine": 0.493,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "attention economy",
+      "freq": 3,
+      "sources": [
+        "sit-123",
+        "sit-415",
+        "sit-423"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "accountability market",
+      "nearest_cosine": 0.416,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "automated recruitment",
+      "freq": 3,
+      "sources": [
+        "conflict-aienabled-recruitment-platforms-can-fulf-organiza",
+        "conflict-gpt4-is-more-likely-to-recommend-candida-explicit",
+        "conflict-yum-china-uses-ai-to-fulfill-89-of-resta-organiza"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "deployment competitive",
+      "nearest_cosine": 0.417,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "benchmark performance",
+      "freq": 3,
+      "sources": [
+        "conflict-gpt4-correctly-chose-not-enough-info-on-explicit",
+        "conflict-gpt4s-performance-on-the-uniform-bar-exa-somethin",
+        "conflict-openais-o3-model-achieved-717-accuracy-o-artifici"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capabilities scaling",
+      "nearest_cosine": 0.273,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "benchmark saturation",
+      "freq": 3,
+      "sources": [
+        "conflict-many-popular-ai-benchmarks-such-as-mmlu-artifici",
+        "conflict-the-2025-ai-index-documents-a-pattern-wh-why-llms",
+        "sit-127"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "adversarial robustness",
+      "nearest_cosine": 0.294,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "binding multilateral agreements",
+      "freq": 3,
+      "sources": [
+        "sit-325",
+        "sit-374",
+        "sit-171"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "collective bargaining",
+      "nearest_cosine": 0.431,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "biological threats",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-models-are-capable-of-assisting-novic-treat-ai",
+        "conflict-ai-models-are-nearing-the-capability-to-treat-ai",
+        "conflict-openais-april-2025-o3-and-o4mini-models-treat-ai"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation precautionary",
+      "nearest_cosine": 0.388,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "black box models",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-systems-are-currently-black-boxes-who-natural-",
+        "conflict-current-ai-models-particularly-large-mac-power-se",
+        "conflict-successful-ai-models-are-currently-opaqu-natural-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "model weights",
+      "nearest_cosine": 0.403,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "bureaucratic overhead",
+      "freq": 3,
+      "sources": [
+        "sit-139",
+        "sit-370",
+        "sit-456"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "oversight human control",
+      "nearest_cosine": 0.531,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "carbon emissions",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-training-and-operation-have-significa-artifici",
+        "conflict-the-carbon-emissions-from-training-front-artifici",
+        "conflict-training-large-language-models-consumes-dangers-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "energy infrastructure",
+      "nearest_cosine": 0.377,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "clinical decision support",
+      "freq": 3,
+      "sources": [
+        "conflict-a-study-found-that-clinicians-rate-of-de-internat",
+        "conflict-ai-applications-in-clinical-nursing-incl-what-doe",
+        "conflict-epics-sepsis-prediction-tool-missed-twot-ai-as-no"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "compliance performative",
+      "nearest_cosine": 0.291,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "competitive dynamics",
+      "freq": 3,
+      "sources": [
+        "conflict-natural-selection-operates-on-systems-th-natural-",
+        "sit-152",
+        "sit-171"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "deployment competitive",
+      "nearest_cosine": 0.533,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "computer science education",
+      "freq": 3,
+      "sources": [
+        "conflict-approximately-twothirds-of-the-worlds-co-artifici",
+        "conflict-in-the-202324-academic-year-60-of-us-hig-artifici",
+        "conflict-less-than-half-of-high-school-cs-teacher-artifici"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "bias technical",
+      "nearest_cosine": 0.229,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "continuous monitoring",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-systems-can-perform-in-unexpected-way-ai-rmf-p",
+        "conflict-the-us-supreme-court-case-santa-clara-co-beyond-p",
+        "sit-460"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "ambient surveillance",
+      "nearest_cosine": 0.475,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "deceptive behavior",
+      "freq": 3,
+      "sources": [
+        "conflict-advanced-ai-models-can-be-trained-to-act-internat",
+        "conflict-ai-models-can-exhibit-bias-and-discrimin-artifici",
+        "conflict-ai-systems-can-exhibit-unintended-and-ha-concrete"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "fairness procedural",
+      "nearest_cosine": 0.355,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "development velocity",
+      "freq": 3,
+      "sources": [
+        "conflict-a-microsoft-project-project-societas-saw-redefini",
+        "sit-250",
+        "sit-372"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capabilities hazard",
+      "nearest_cosine": 0.295,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "differential fitness",
+      "freq": 3,
+      "sources": [
+        "conflict-evolutionary-processes-biological-cultur-natural-",
+        "conflict-evolutionary-selection-patterns-variatio-natural-",
+        "conflict-natural-selection-can-operate-on-nonbiol-natural-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation adaptive",
+      "nearest_cosine": 0.457,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "differential privacy",
+      "freq": 3,
+      "sources": [
+        "sit-135",
+        "sit-276",
+        "sit-181"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "ambient surveillance",
+      "nearest_cosine": 0.361,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "economic concentration",
+      "freq": 3,
+      "sources": [
+        "conflict-nvidia-has-reached-a-market-capitalizati-people-l",
+        "sit-101",
+        "sit-458"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "industry lobbying",
+      "nearest_cosine": 0.353,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "effective accelerationism",
+      "freq": 3,
+      "sources": [
+        "conflict-the-eacc-movement-or-effective-accelerat-philosop",
+        "conflict-the-eacc-movement-views-artificial-intel-philosop",
+        "conflict-the-eacc-movement-was-founded-by-figures-philosop"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "compliance performative",
+      "nearest_cosine": 0.362,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "emergent property",
+      "freq": 3,
+      "sources": [
+        "conflict-selfish-behavior-is-an-emergent-property-natural-",
+        "sit-047",
+        "sit-049"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "risk existential",
+      "nearest_cosine": 0.343,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "employment trends",
+      "freq": 3,
+      "sources": [
+        "conflict-more-than-60-percent-of-employment-in-20-ai-drive",
+        "conflict-recent-recruits-at-the-fifteen-biggest-t-ai-drive",
+        "conflict-us-job-openings-fell-below-55-million-by-2028-glo"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.464,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "evaluation awareness",
+      "freq": 3,
+      "sources": [
+        "conflict-llms-exhibit-a-bias-towards-guessing-the-me-mysel",
+        "conflict-research-has-demonstrated-that-some-ai-m-approach",
+        "conflict-training-large-language-models-consumes-dangers-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "accountability algorithmic",
+      "nearest_cosine": 0.393,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "facial reconstruction",
+      "freq": 3,
+      "sources": [
+        "conflict-model-inversion-attacks-can-reconstruct-failure-",
+        "conflict-researchers-successfully-reconstructed-f-failure-",
+        "conflict-researchers-were-able-to-reconstruct-fac-failure-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.23,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "false sense of security",
+      "freq": 3,
+      "sources": [
+        "sit-073",
+        "sit-074",
+        "sit-086"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "safety existential",
+      "nearest_cosine": 0.464,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "full automation",
+      "freq": 3,
+      "sources": [
+        "conflict-full-automation-of-human-labor-is-inevit-technolo",
+        "conflict-leftaccelerationism-lacc-advocates-for-f-philosop",
+        "conflict-mechanize-an-ai-startup-argues-that-the-technolo"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.597,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "gender representation",
+      "freq": 3,
+      "sources": [
+        "conflict-image-generators-depicted-men-61-of-the-we-teste",
+        "conflict-women-lead-18-of-the-companies-on-the-fo-one-comm",
+        "conflict-women-made-up-29-of-csuite-positions-in-one-comm"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "fairness group",
+      "nearest_cosine": 0.35,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "general-purpose AI",
+      "freq": 3,
+      "sources": [
+        "conflict-around-60-of-jobs-in-advanced-economies-internat",
+        "conflict-generalpurpose-ai-adoption-in-the-us-is-internat",
+        "conflict-the-eu-ai-acts-generalpurpose-ai-code-of-law-foll"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.553,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "generative AI assistance",
+      "freq": 3,
+      "sources": [
+        "conflict-access-to-a-generative-ai-conversational-generati",
+        "conflict-participants-using-chatgpt-in-problemsol-when-cha",
+        "conflict-participants-who-used-chatgpt-in-the-mid-when-cha"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy machine",
+      "nearest_cosine": 0.446,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "human intelligence",
+      "freq": 3,
+      "sources": [
+        "conflict-human-intelligence-is-specialized-rather-aiembrac",
+        "conflict-human-intelligence-makes-a-broad-range-o-why-ai-w",
+        "conflict-the-standard-of-living-has-increased-by-why-ai-w"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy human",
+      "nearest_cosine": 0.568,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "incident reporting",
+      "freq": 3,
+      "sources": [
+        "sit-209",
+        "sit-320",
+        "sit-170"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "documented present harm",
+      "nearest_cosine": 0.534,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "independent verification",
+      "freq": 3,
+      "sources": [
+        "conflict-the-effectiveness-of-current-ai-risk-man-internat",
+        "sit-023",
+        "sit-140"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "transparency verification",
+      "nearest_cosine": 0.591,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "industry capture",
+      "freq": 3,
+      "sources": [
+        "sit-141",
+        "sit-168",
+        "sit-352"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "industry lobbying",
+      "nearest_cosine": 0.468,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "innovation velocity",
+      "freq": 3,
+      "sources": [
+        "sit-298",
+        "sit-313",
+        "sit-400"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "risk innovation",
+      "nearest_cosine": 0.556,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "intellectual property",
+      "freq": 3,
+      "sources": [
+        "conflict-most-frontier-llms-were-trained-on-copyr-alignmen",
+        "sit-273",
+        "sit-414"
+      ],
+      "variants_merged": [
+        "intellectual property protection"
+      ],
+      "nearest_existing": "risk innovation",
+      "nearest_cosine": 0.447,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "International Humanitarian Law",
+      "freq": 3,
+      "sources": [
+        "conflict-most-frontier-ai-models-tested-in-recent-law-foll",
+        "conflict-recent-empirical-work-mavi-găitan-corona-law-foll",
+        "sit-221"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "autonomy human",
+      "nearest_cosine": 0.367,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "jurisdictional fragmentation",
+      "freq": 3,
+      "sources": [
+        "conflict-the-bill-does-not-preempt-any-state-trib-algorith",
+        "sit-336",
+        "sit-459"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "governance oversight",
+      "nearest_cosine": 0.344,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "labor automation",
+      "freq": 3,
+      "sources": [
+        "conflict-computer-programmers-customer-service-re-anthropi",
+        "conflict-marxs-fragment-on-machines-in-the-grundr-philosop",
+        "conflict-the-promise-of-ai-reducing-work-burdens-ai-doesn"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.55,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "labor market shifts",
+      "freq": 3,
+      "sources": [
+        "conflict-recent-recruits-at-the-fifteen-biggest-t-ai-drive",
+        "conflict-the-information-financial-activities-and-evaluati",
+        "conflict-the-information-sector-has-seen-the-larg-evaluati"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.627,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "labor protections",
+      "freq": 3,
+      "sources": [
+        "sit-065",
+        "sit-323",
+        "sit-328"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "collective bargaining",
+      "nearest_cosine": 0.535,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "legal uncertainty",
+      "freq": 3,
+      "sources": [
+        "sit-104",
+        "sit-333",
+        "sit-338"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "liability strict",
+      "nearest_cosine": 0.487,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "machine learning models",
+      "freq": 3,
+      "sources": [
+        "conflict-agentic-ai-systems-are-capable-of-goal-i-controll",
+        "conflict-current-ai-models-particularly-large-mac-power-se",
+        "conflict-there-are-currently-no-standardized-docu-model-ca"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "model weights",
+      "nearest_cosine": 0.443,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "malicious use",
+      "freq": 3,
+      "sources": [
+        "conflict-the-weidinger-et-al-taxonomy-comprises-s-empoweri",
+        "conflict-weidinger-et-al-proposed-a-taxonomy-of-s-empoweri",
+        "sit-097"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "documented present harm",
+      "nearest_cosine": 0.373,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "mandatory reporting",
+      "freq": 3,
+      "sources": [
+        "sit-023",
+        "sit-156",
+        "sit-371"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "documented present harm",
+      "nearest_cosine": 0.443,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "market competition",
+      "freq": 3,
+      "sources": [
+        "sit-239",
+        "sit-324",
+        "sit-392"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "industry lobbying",
+      "nearest_cosine": 0.528,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "market incentives",
+      "freq": 3,
+      "sources": [
+        "conflict-efficacy-of-free-market-forces-in-ensuri-75a57b33",
+        "sit-010",
+        "sit-213"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "industry lobbying",
+      "nearest_cosine": 0.538,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "model behavior",
+      "freq": 3,
+      "sources": [
+        "conflict-a-study-by-researchers-at-stanford-and-c-technolo",
+        "conflict-anthropic-released-a-set-of-moral-precep-does-ai-",
+        "conflict-openais-model-specification-outlines-pri-ai-agent"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "model weights",
+      "nearest_cosine": 0.49,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "model training",
+      "freq": 3,
+      "sources": [
+        "conflict-models-trained-on-different-authors-show-alignmen",
+        "conflict-the-model-training-took-approximately-48-situatio",
+        "conflict-training-a-single-transformer-big-model-dangers-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "model weights",
+      "nearest_cosine": 0.591,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "model vulnerability",
+      "freq": 3,
+      "sources": [
+        "conflict-large-reasoning-models-can-autonomously-adversar",
+        "conflict-only-250-poisoned-documents-are-needed-t-adversar",
+        "conflict-researchers-successfully-reconstructed-f-failure-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "adversarial robustness",
+      "nearest_cosine": 0.411,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "moral reasoning",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-models-can-be-trained-using-a-constit-adolesce",
+        "conflict-current-llms-encounter-significant-chall-skin-gam",
+        "conflict-simulating-accountability-and-stakeholde-skin-gam"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "fairness procedural",
+      "nearest_cosine": 0.386,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "political polarization",
+      "freq": 3,
+      "sources": [
+        "conflict-aigenerated-disinformation-has-not-decis-ai-as-no",
+        "conflict-aigenerated-images-are-being-used-in-coo-artifici",
+        "conflict-the-number-of-americans-who-see-the-oppo-natural-"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "bias systemic",
+      "nearest_cosine": 0.391,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "power dynamics",
+      "freq": 3,
+      "sources": [
+        "sit-074",
+        "sit-118",
+        "sit-207"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "asymmetry power",
+      "nearest_cosine": 0.581,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "power structures",
+      "freq": 3,
+      "sources": [
+        "sit-205",
+        "sit-304",
+        "sit-422"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "energy infrastructure",
+      "nearest_cosine": 0.549,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "predictive policing",
+      "freq": 3,
+      "sources": [
+        "conflict-machine-learning-models-are-increasingly-model-ca",
+        "sit-151",
+        "sit-448"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "accountability algorithmic",
+      "nearest_cosine": 0.376,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "red-teaming requirements",
+      "freq": 3,
+      "sources": [
+        "sit-231",
+        "sit-254",
+        "sit-474"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "deployment competitive",
+      "nearest_cosine": 0.327,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "regulatory enforcement",
+      "freq": 3,
+      "sources": [
+        "conflict-article-95-of-the-eu-ai-act-creates-an-o-trust-wi",
+        "conflict-the-ftc-has-taken-enforcement-actions-eg-rise-age",
+        "sit-271"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation precautionary",
+      "nearest_cosine": 0.663,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "regulatory intervention",
+      "freq": 3,
+      "sources": [
+        "sit-246",
+        "sit-262",
+        "sit-345"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "regulation precautionary",
+      "nearest_cosine": 0.649,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "resource consumption",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-training-and-operation-have-significa-artifici",
+        "conflict-more-than-230-environmental-groups-calle-sam-altm",
+        "conflict-sustainability-standards-vs-ai-infrastru-e6a83426"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capabilities scaling",
+      "nearest_cosine": 0.391,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "safe-harbor provisions",
+      "freq": 3,
+      "sources": [
+        "sit-128",
+        "sit-174",
+        "sit-177"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "safe harbor regulatory",
+      "nearest_cosine": 0.84,
+      "suggested": "NEAR-EXISTING (merge?)"
+    },
+    {
+      "surface": "science communication",
+      "freq": 3,
+      "sources": [
+        "sit-141",
+        "sit-167",
+        "sit-168"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "bias technical",
+      "nearest_cosine": 0.28,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "skill atrophy",
+      "freq": 3,
+      "sources": [
+        "conflict-a-sevenday-lab-experiment-with-61-colleg-when-cha",
+        "conflict-research-from-mit-in-2025-observed-cogni-redefini",
+        "sit-052"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "oversight human control",
+      "nearest_cosine": 0.273,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "social isolation",
+      "freq": 3,
+      "sources": [
+        "conflict-21-of-students-feel-less-lonely-due-to-a-student-",
+        "conflict-around-15-of-students-report-using-ai-fo-student-",
+        "sit-461"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "control human agency",
+      "nearest_cosine": 0.33,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "social trust",
+      "freq": 3,
+      "sources": [
+        "sit-044",
+        "sit-202",
+        "sit-422"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "accountability market",
+      "nearest_cosine": 0.408,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "specification gaming",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-models-can-exhibit-bias-and-discrimin-artifici",
+        "conflict-ai-systems-currently-exhibit-goal-misspe-philosop",
+        "sit-132"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "fairness procedural",
+      "nearest_cosine": 0.374,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "sunset clauses",
+      "freq": 3,
+      "sources": [
+        "sit-314",
+        "sit-317",
+        "sit-170"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "fairness procedural",
+      "nearest_cosine": 0.22,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "system robustness",
+      "freq": 3,
+      "sources": [
+        "conflict-current-machine-learning-systems-are-not-unsolved",
+        "sit-086",
+        "sit-440"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "adversarial robustness",
+      "nearest_cosine": 0.6,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "systemic failures",
+      "freq": 3,
+      "sources": [
+        "sit-049",
+        "sit-111",
+        "sit-210"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "risk systemic structural",
+      "nearest_cosine": 0.592,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "systemic fragility",
+      "freq": 3,
+      "sources": [
+        "sit-052",
+        "sit-242",
+        "sit-397"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "risk systemic structural",
+      "nearest_cosine": 0.559,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "task performance",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-could-theoretically-perform-94-of-tas-anthropi",
+        "conflict-individuals-using-ai-in-the-pg-experimen-ai-2026-",
+        "conflict-modular-specialization-eg-routing-submod-aiembrac"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capability frontier",
+      "nearest_cosine": 0.322,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "technical debt",
+      "freq": 3,
+      "sources": [
+        "sit-351",
+        "sit-356",
+        "sit-391"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "risk systemic structural",
+      "nearest_cosine": 0.35,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "technological salvation",
+      "freq": 3,
+      "sources": [
+        "conflict-the-tescreal-ideology-promotes-technolog-paradox-",
+        "sit-117",
+        "sit-237"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "capability frontier",
+      "nearest_cosine": 0.377,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "technological unemployment",
+      "freq": 3,
+      "sources": [
+        "conflict-marxs-fragment-on-machines-in-the-grundr-philosop",
+        "conflict-more-than-60-percent-of-employment-in-20-ai-drive",
+        "sit-040"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.456,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "technology diffusion",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-diffusion-into-safetycritical-domains-ai-as-no",
+        "conflict-in-2024-an-average-of-13-of-eu-nonfinanc-esrbascr",
+        "conflict-the-adoption-of-generalpurpose-technolog-ai-as-no"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "deployment competitive",
+      "nearest_cosine": 0.403,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "toxicity detection",
+      "freq": 3,
+      "sources": [
+        "conflict-perspective-api-is-a-public-toxicity-det-model-ca",
+        "conflict-the-perspective-api-team-applied-bias-mi-model-ca",
+        "conflict-toxicity-detection-systems-have-been-sho-language"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "safety empirical",
+      "nearest_cosine": 0.399,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "training data diversity",
+      "freq": 3,
+      "sources": [
+        "conflict-training-datasets-for-medical-ai-models-artifici",
+        "sit-013",
+        "sit-258"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "adversarial robustness",
+      "nearest_cosine": 0.345,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "unintended consequences",
+      "freq": 3,
+      "sources": [
+        "conflict-pretrained-models-are-typically-trained-ai-rmf-p",
+        "sit-012",
+        "sit-156"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "documented present harm",
+      "nearest_cosine": 0.517,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "White-Collar Displacement",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-agents-are-replacing-whitecollar-work-2028-glo",
+        "conflict-ford-motor-ceo-jim-farley-predicts-ai-wi-ai-drive",
+        "conflict-large-corporations-are-actively-planning-andrew-y"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.56,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "worker productivity",
+      "freq": 3,
+      "sources": [
+        "conflict-access-to-a-generative-ai-conversational-generati",
+        "conflict-ai-assistance-disproportionately-benefit-generati",
+        "conflict-workers-with-access-to-ai-assistance-sho-generati"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.458,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "workforce reduction",
+      "freq": 3,
+      "sources": [
+        "conflict-ai-will-replace-2050-of-70-million-us-of-andrew-y",
+        "conflict-ford-motor-ceo-jim-farley-predicts-ai-wi-ai-drive",
+        "conflict-large-corporations-are-actively-planning-andrew-y"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.496,
+      "suggested": "NEW candidate"
+    },
+    {
+      "surface": "workforce reskilling",
+      "freq": 3,
+      "sources": [
+        "conflict-only-34-of-employees-in-the-real-estate-future-j",
+        "conflict-organizations-are-increasingly-hiring-ne-future-j",
+        "conflict-organizations-are-overwhelmingly-priorit-future-j"
+      ],
+      "variants_merged": [],
+      "nearest_existing": "displacement labor",
+      "nearest_cosine": 0.44,
+      "suggested": "NEW candidate"
+    }
+  ],
+  "dropped_generic": [
+    "AI agents",
+    "model performance",
+    "AI adoption",
+    "productivity gains",
+    "autonomous systems",
+    "generative AI",
+    "economic growth",
+    "red-teaming",
+    "business transformation",
+    "misinformation",
+    "AI assistance",
+    "AI training",
+    "autonomous weapons",
+    "deskilling",
+    "AI sycophancy",
+    "autonomous execution",
+    "hallucination",
+    "jailbreaking",
+    "language models",
+    "large language models",
+    "sandbagging"
+  ]
+}
