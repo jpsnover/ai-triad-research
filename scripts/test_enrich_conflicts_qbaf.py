@@ -157,6 +157,46 @@ def test_testedness_adversarial_when_attack_present():
     assert tm["stance_hist"] == {"supports": 1, "disputes": 1}
 
 
+# _detect_numeric_temporal_conflict — deterministic complement (t/3302 fork-B, TL's mandatory
+# high-precision detector). Conservative: subject overlap + same-kind disjoint quantities.
+
+def test_numeric_conflicting_percentages_same_subject():
+    assert eq._detect_numeric_temporal_conflict(
+        "Compute among safety labs grew 30 percent last year",
+        "Compute among safety labs grew 10 percent last year") is True
+
+
+def test_numeric_same_percentage_no_conflict():
+    assert eq._detect_numeric_temporal_conflict(
+        "Compute among safety labs grew 30 percent last year",
+        "Compute among safety labs grew 30 percent last year") is False
+
+
+def test_numeric_different_subject_no_conflict():
+    # Different percentages but the subjects don't overlap (<3 shared content words) -> no fire.
+    assert eq._detect_numeric_temporal_conflict(
+        "GDP rose 30 percent", "unemployment fell 10 percent") is False
+
+
+def test_temporal_conflicting_years_same_subject():
+    assert eq._detect_numeric_temporal_conflict(
+        "The superintelligence ban takes effect by 2027 under this act",
+        "The superintelligence ban takes effect by 2030 under this act") is True
+
+
+def test_bare_numbers_conflict_requires_strong_overlap():
+    # 4+ shared content words + disjoint bare numbers -> conflict.
+    assert eq._detect_numeric_temporal_conflict(
+        "The frontier training run used 3 data centers in the cluster",
+        "The frontier training run used 7 data centers in the cluster") is True
+
+
+def test_bare_numbers_weak_overlap_no_conflict():
+    # Disjoint numbers but too few shared words -> no fire (subject gate not met).
+    assert eq._detect_numeric_temporal_conflict(
+        "labs used 3 chips", "labs used 7 servers") is False
+
+
 if __name__ == "__main__":
     import pytest
 

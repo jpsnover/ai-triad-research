@@ -20,6 +20,7 @@ Usage:
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
@@ -193,6 +194,78 @@ def _detect_edges(instances):
                 })
 
     return edges
+
+
+# ── Fork-B: deterministic numeric/temporal contradiction detector (t/3302) ────────────────
+# TL's mandatory high-precision complement to the LLM classifier (the naive strawman caught 0/6).
+# Fires ONLY when two within-conflict assertions share a subject AND cite directly incompatible
+# quantities of the SAME kind (percentages, years, or bare numbers). Conservative by design — a miss
+# is fine (the LLM classifier / base prior covers it); a false attack CORRUPTS strength. CL scores
+# its precision/recall separately on the golden (edges carry detector='numeric').
+
+_CC_STOPWORDS = frozenset(
+    "the a an of to in on for and or but with by from as at is are was were be been being this that "
+    "these those it its their his her our your not no than then over under about into within will "
+    "would could should may might can has have had do does did more most less least very".split()
+)
+_CC_WORD_RE = re.compile(r"[a-z]{3,}")
+_CC_PCT_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:%|percent|percentage points?|pp\b)", re.IGNORECASE)
+_CC_YEAR_RE = re.compile(r"\b(19\d{2}|20\d{2})\b")
+_CC_NUM_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)")
+
+
+def _cc_content_words(text):
+    return {w for w in _CC_WORD_RE.findall((text or "").lower()) if w not in _CC_STOPWORDS}
+
+
+def _cc_percents(text):
+    return {round(float(m.group(1)), 3) for m in _CC_PCT_RE.finditer(text or "")}
+
+
+def _cc_years(text):
+    return {int(m.group(1)) for m in _CC_YEAR_RE.finditer(text or "")}
+
+
+def _cc_bare_numbers(text):
+    """Numbers that are neither a percentage value nor a 4-digit year."""
+    t = text or ""
+    pct_spans = [m.span(1) for m in _CC_PCT_RE.finditer(t)]
+    years = _cc_years(t)
+    out = set()
+    for m in _CC_NUM_RE.finditer(t):
+        if any(s <= m.start(1) < e for (s, e) in pct_spans):
+            continue
+        try:
+            f = float(m.group(1))
+        except ValueError:
+            continue
+        if f == int(f) and int(f) in years:
+            continue
+        out.add(round(f, 3))
+    return out
+
+
+def _detect_numeric_temporal_conflict(text_a, text_b):
+    """True iff A and B share a subject AND cite directly incompatible quantities of the same kind.
+
+    Conservative (high precision): requires >=3 shared content words, and a same-kind numeric set that
+    is non-empty on BOTH sides and disjoint (percentages, years, or bare numbers). Bare numbers demand
+    a stronger subject overlap (>=4) since they are the most ambiguous. Returns False on any doubt.
+    """
+    shared = _cc_content_words(text_a) & _cc_content_words(text_b)
+    if len(shared) < 3:
+        return False
+    pa, pb = _cc_percents(text_a), _cc_percents(text_b)
+    if pa and pb and pa.isdisjoint(pb):
+        return True
+    ya, yb = _cc_years(text_a), _cc_years(text_b)
+    if ya and yb and ya.isdisjoint(yb):
+        return True
+    if len(shared) >= 4:
+        na, nb = _cc_bare_numbers(text_a), _cc_bare_numbers(text_b)
+        if na and nb and na.isdisjoint(nb):
+            return True
+    return False
 
 
 def _qbaf_testedness(qbaf, instances):
