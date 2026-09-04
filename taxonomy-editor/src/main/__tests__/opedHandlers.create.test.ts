@@ -12,13 +12,33 @@ import { EventEmitter } from 'events';
 import { ipcMain } from 'electron';
 import type { OpEdSet } from '../../../../lib/oped/types.js';
 
-// ── child_process.spawn mock (Stage A only) ───────────────────────────────────
+// ── child_process.spawn mock (Stage A convert-only PS runner) ────────────────
 
 const mockSpawn = vi.hoisted(() => vi.fn());
 
 vi.mock('child_process', () => ({
   default: { spawn: mockSpawn },
   spawn: mockSpawn,
+}));
+
+// ── Node fetch mock (fetchUrlForPromptBinary — t/3306) ────────────────────────
+
+const mockFetchBinary = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../../lib/url-fetch/fetchUrlForPrompt.js', () => ({
+  fetchUrlForPromptBinary: (...args: unknown[]) => mockFetchBinary(...args),
+}));
+
+// ── fs + os mocks (temp file write/cleanup) ───────────────────────────────────
+
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  return { ...actual, writeFileSync: vi.fn(), rmSync: vi.fn() };
+});
+
+vi.mock('os', () => ({
+  default: { tmpdir: () => '/tmp' },
+  tmpdir: () => '/tmp',
 }));
 
 // ── Electron mock ─────────────────────────────────────────────────────────────
@@ -113,6 +133,17 @@ async function* makeCompleteGenerator(set: OpEdSet): AsyncGenerator<{ type: stri
   yield { type: 'complete', set };
 }
 
+// Flush the microtask + macrotask queues so async fetch chains complete before
+// we emit PS stdout. One Promise.resolve() is not enough once fetch is async.
+const flushPromises = (): Promise<void> => new Promise(r => setImmediate(r));
+
+const FAKE_FETCH_RESULT = {
+  ok: true as const,
+  bytes: Buffer.from('fake content'),
+  contentType: 'text/html; charset=utf-8',
+  finalUrl: 'https://example.com',
+};
+
 const baseParams = { wordCount: 600, model: 'test-model' };
 
 const FAKE_SET: OpEdSet = {
@@ -127,6 +158,8 @@ const FAKE_SET: OpEdSet = {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGenerateOpEdSet.mockImplementation(() => makeCompleteGenerator(FAKE_SET));
+  // Default: fetch succeeds (tests that simulate fetch failure override this).
+  mockFetchBinary.mockResolvedValue(FAKE_FETCH_RESULT);
   registerOpEdHandlers();
 });
 
@@ -214,8 +247,8 @@ describe('create-oped-set — Stage-A source hoist', () => {
       { topic: 'topic', url: 'https://example.com', params: baseParams, voices: ['accelerationist'] },
     ) as Promise<unknown>;
 
-    // Let Stage A start, then emit prep result to unblock
-    await Promise.resolve();
+    // flushPromises lets the async fetch chain complete before the PS spawn starts.
+    await flushPromises();
     emitPrepResult(prepChild, FAKE_SOURCE_PREP);
     await resultP;
 
@@ -239,7 +272,7 @@ describe('create-oped-set — Stage-A source hoist', () => {
       { topic: 'topic', url: 'https://example.com', params: baseParams, voices: ['accelerationist'] },
     ) as Promise<unknown>;
 
-    await Promise.resolve();
+    await flushPromises();
     emitPrepResult(prepChild, FAKE_SOURCE_PREP);
     await resultP;
 
@@ -248,7 +281,7 @@ describe('create-oped-set — Stage-A source hoist', () => {
     expect(request.sourceMaterial).toBe(FAKE_SOURCE_PREP.SourceMarkdown);
   });
 
-  it('fail-fast: unreadable source throws ActionableError, no generateOpEdSet call, no finalize', async () => {
+  it('fail-fast: PS convert exits non-zero → throws ActionableError, no generateOpEdSet call', async () => {
     const prepChild = makePrepChild();
     mockSpawn.mockReturnValue(prepChild);
 
@@ -260,16 +293,34 @@ describe('create-oped-set — Stage-A source hoist', () => {
       { topic: 'topic', url: 'https://example.com', params: baseParams, voices: ['accelerationist'] },
     ) as Promise<unknown>;
 
-    await Promise.resolve();
-    // Prep shim exits non-zero (readability gate trip)
+    await flushPromises();
+    // PS convert shim exits non-zero (e.g. unsupported format)
     prepChild.emit('close', 1);
 
     await expect(resultP).rejects.toThrow();
     expect(mockFinalize).not.toHaveBeenCalled();
     expect(mockGenerateOpEdSet).not.toHaveBeenCalled();
-    // Only the prep shim was spawned — no voice shims
+    // Only the convert shim was spawned — no voice shims
     expect(mockSpawn).toHaveBeenCalledTimes(1);
     expect((mockSpawn.mock.calls[0] as [string, string[]])[1][3]).toContain(PREP_SHIM_FILE);
+  });
+
+  it('fail-fast: fetch 403 → throws ActionableError naming HTTP 403, no spawn, no generateOpEdSet call', async () => {
+    mockFetchBinary.mockResolvedValue({ ok: false, reason: 'http-error', status: 403 });
+
+    const { sender } = makeSender();
+    const handler = getHandler('create-oped-set');
+
+    const resultP = handler(
+      { sender },
+      { topic: 'topic', url: 'https://example.com', params: baseParams, voices: ['accelerationist'] },
+    ) as Promise<unknown>;
+
+    await expect(resultP).rejects.toThrow(/403/);
+    // Fetch failed before PS was invoked
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockFinalize).not.toHaveBeenCalled();
+    expect(mockGenerateOpEdSet).not.toHaveBeenCalled();
   });
 
   it('no Stage-A spawn when url is absent (topic-only path)', async () => {
@@ -281,6 +332,7 @@ describe('create-oped-set — Stage-A source hoist', () => {
 
     // No spawns at all — Stage A skipped, Stage B is in-process
     expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockFetchBinary).not.toHaveBeenCalled();
     expect(mockGenerateOpEdSet).toHaveBeenCalledOnce();
   });
 });

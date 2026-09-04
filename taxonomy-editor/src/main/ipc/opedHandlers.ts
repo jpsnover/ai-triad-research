@@ -10,11 +10,13 @@ import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { spawn } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { assertSafeId } from '../../../../lib/electron-shared/safeId.js';
+import { fetchUrlForPromptBinary } from '../../../../lib/url-fetch/fetchUrlForPrompt.js';
 import { PROJECT_ROOT, getDataRootPath } from '../fileIO.js';
 import { saveOpEdSetTemp, finalizeOpEdSet, loadOpEdSet, deleteOpEdSet, listOpEdSets, saveOpEdSet } from '../opedIO.js';
 import type { OpEdSet, OpEdMember, OpEdParams } from '../../../../lib/oped/types.js';
@@ -28,7 +30,7 @@ import { parseShimLine, decodeB64Fields } from './opedShimTransport.js';
 // Shared prompts dir: op-ed-*.prompt artifacts (relocated to lib/oped/prompts by t/2609).
 const PROMPTS_DIR = path.join(PROJECT_ROOT, 'lib', 'oped', 'prompts');
 
-// Stage-A fetch shim (FromUrl path only — stays PS, t/2604 P2 will migrate to TS).
+// Stage-A: Node fetches bytes (bypasses PS/WAF fingerprint block — t/3306), PS converts only.
 const PREP_SHIM_PATH = path.join(PROJECT_ROOT, 'taxonomy-editor', 'src', 'main', 'ps', 'invoke-get-oped-source.ps1');
 
 // Read generation.opedVoiceTimeoutMs from {dataRoot}/admin/runtime-config.json on each run.
@@ -61,9 +63,61 @@ interface OpEdProgressEvent {
 
 // Shim stdout line shapes + parse/decode transport live in ./opedShimTransport (pure, unit-tested).
 
-// ── Stage-A: source prep runner ───────────────────────────────────────────────
+// ── Stage-A: fetch bytes via Node (bypasses WAF fingerprint block — t/3306) ──
 
-function runGetOpEdSource(url: string, signal: AbortSignal): Promise<Record<string, unknown>> {
+async function fetchOpEdSourceBytes(
+  url: string,
+  timeoutMs: number,
+): Promise<{ tempPath: string; contentType: string }> {
+  const result = await fetchUrlForPromptBinary(url, { timeoutMs });
+  if (!result.ok) {
+    const statusPart = result.status != null ? ` (HTTP ${result.status})` : '';
+    let problem: string;
+    let nextSteps: string[];
+    if (result.reason === 'http-error' && result.status === 403) {
+      problem = `Could not fetch "${url}": server returned HTTP 403 Forbidden`;
+      nextSteps = [
+        'The server blocked the request — the URL may restrict automated access',
+        'Try a different publicly accessible URL for the same source',
+        'Use the topic-based op-ed mode if the URL is behind a paywall or access control',
+      ];
+    } else if (result.reason === 'http-error') {
+      problem = `Could not fetch "${url}": HTTP error${statusPart}`;
+      nextSteps = [`The server returned an error — check the URL is correct and publicly accessible`];
+    } else if (result.reason === 'timeout') {
+      problem = `Could not fetch "${url}": request timed out`;
+      nextSteps = ['The server did not respond in time — check the URL is accessible and try again'];
+    } else if (result.reason === 'ssrf-blocked') {
+      problem = `Could not fetch "${url}": the URL resolves to a private or restricted network address`;
+      nextSteps = ['Use a publicly accessible URL'];
+    } else if (result.reason === 'too-large') {
+      problem = `Could not fetch "${url}": the response body exceeds the size limit`;
+      nextSteps = ['Use a URL that points to a smaller document'];
+    } else {
+      problem = `Could not fetch "${url}": ${result.reason}`;
+      nextSteps = ['Check the URL is correct and the page is publicly accessible'];
+    }
+    throw new ActionableError({
+      goal: 'Fetch op-ed source material',
+      problem,
+      location: 'opedHandlers → fetchOpEdSourceBytes',
+      nextSteps,
+    });
+  }
+  // Write bytes to temp file for PS converter. Extension is advisory — PS dispatches on ContentType.
+  const ext = result.contentType.includes('pdf') ? '.pdf' : result.contentType.includes('html') ? '.html' : '.bin';
+  const tempPath = path.join(os.tmpdir(), `oped-source-${crypto.randomUUID()}${ext}`);
+  fs.writeFileSync(tempPath, result.bytes);
+  return { tempPath, contentType: result.contentType };
+}
+
+// ── Stage-A: convert-only PS runner (accepts pre-fetched content — t/3306/t/3307) ──
+
+function runGetOpEdConvert(
+  tempPath: string,
+  contentType: string,
+  signal: AbortSignal,
+): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const child = spawn('pwsh', ['-NoProfile', '-NonInteractive', '-File', PREP_SHIM_PATH], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -71,6 +125,7 @@ function runGetOpEdSource(url: string, signal: AbortSignal): Promise<Record<stri
 
     let settled = false;
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    let stderrBuf = '';
 
     function onAbort(): void {
       settle(() => { child.kill('SIGTERM'); reject(Object.assign(new Error('cancelled'), { name: 'AbortError' })); });
@@ -88,10 +143,11 @@ function runGetOpEdSource(url: string, signal: AbortSignal): Promise<Record<stri
     signal.addEventListener('abort', onAbort, { once: true });
 
     timeoutHandle = setTimeout(() => {
-      settle(() => { child.kill('SIGTERM'); reject(new Error('Get-OpEdSource timed out')); });
+      settle(() => { child.kill('SIGTERM'); reject(new Error('Get-OpEdSource convert timed out')); });
     }, getVoiceTimeoutMs());
 
-    child.stdin.write(JSON.stringify({ Url: url }), 'utf-8');
+    // Contract: { ContentPath, ContentType } (t/3306/t/3307 locked interface).
+    child.stdin.write(JSON.stringify({ ContentPath: tempPath, ContentType: contentType }), 'utf-8');
     child.stdin.end();
 
     let stdoutBuf = '';
@@ -107,7 +163,7 @@ function runGetOpEdSource(url: string, signal: AbortSignal): Promise<Record<stri
           msg = parseShimLine(trimmed);
         } catch (err) {
           // A result-looking line that fails to parse is a hard serialization failure — record it
-          // and surface it, never swallow into the opaque close-handler "No result received" (t/2928).
+          // and surface it, never swallow into the opaque close-handler (t/2928).
           getGlobalRecorder()?.record({
             type: 'system.error', component: 'opedHandlers', level: 'error',
             message: 'Get-OpEdSource emitted an unparseable result line',
@@ -123,16 +179,50 @@ function runGetOpEdSource(url: string, signal: AbortSignal): Promise<Record<stri
     });
 
     child.stderr.on('data', (chunk: Buffer) => {
+      const text = chunk.toString('utf-8');
+      stderrBuf += text;
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'opedHandlers', level: 'warn',
-        message: `Get-OpEdSource stderr: ${chunk.toString('utf-8').slice(0, 500)}`,
+        message: `Get-OpEdSource stderr: ${text.slice(0, 500)}`,
       });
     });
 
     child.on('error', (err) => settle(() => reject(err)));
     child.on('close', (code) => settle(() => {
-      if (code !== 0) reject(new Error(`Get-OpEdSource exited with code ${code}`));
-      else reject(new Error('No result received from Get-OpEdSource'));
+      if (code !== 0) {
+        // Parse structured ActionableError from stderr (t/3307 shim emits JSON on failure).
+        let parsed: { Goal?: string; Problem?: string; NextSteps?: string[] } | null = null;
+        try {
+          /* telemetry — silent by design: stderr may not be JSON (non-shim output) */
+          const lastLine = stderrBuf.trim().split('\n').pop() ?? '';
+          const candidate = JSON.parse(lastLine) as Record<string, unknown>;
+          if (typeof candidate.Problem === 'string') {
+            parsed = candidate as { Goal?: string; Problem?: string; NextSteps?: string[] };
+          }
+        } catch { /* telemetry — silent by design */ }
+        if (parsed?.Problem) {
+          reject(new ActionableError({
+            goal: parsed.Goal ?? 'Convert op-ed source',
+            problem: parsed.Problem,
+            location: 'Get-OpEdSource.ps1',
+            nextSteps: Array.isArray(parsed.NextSteps) ? parsed.NextSteps as string[] : [],
+          }));
+        } else {
+          reject(new ActionableError({
+            goal: 'Convert op-ed source',
+            problem: `Get-OpEdSource exited with code ${code}${stderrBuf.trim() ? `: ${stderrBuf.trim().slice(0, 300)}` : ''}`,
+            location: 'opedHandlers → runGetOpEdConvert',
+            nextSteps: ['Check the server logs for Get-OpEdSource stderr output'],
+          }));
+        }
+      } else {
+        reject(new ActionableError({
+          goal: 'Convert op-ed source',
+          problem: 'No result received from Get-OpEdSource',
+          location: 'opedHandlers → runGetOpEdConvert',
+          nextSteps: ['Check the server logs for unexpected Get-OpEdSource output'],
+        }));
+      }
     }));
   });
 }
@@ -193,32 +283,36 @@ export function registerOpEdHandlers(): void {
       if (!event.sender.isDestroyed()) event.sender.send('oped-progress', data);
     };
 
-    // Stage A: hoist Get-OpEdSource once before generation (FromUrl path).
-    // Fail fast if readability gate trips — don't fan out to draft on garbage (TL cond 3).
+    // Stage A: Node fetches bytes → temp file → PS convert-only (t/3306).
+    // Fail fast if source prep fails — don't fan out to draft on garbage.
     let sourceBrief: string | undefined;
     if (url) {
       send({ set_id: setId, stage: 'preparing-source' });
+      let tempPath: string | undefined;
       try {
-        const sourcePrep = await runGetOpEdSource(url, controller.signal);
-        // Extract markdown text for the lib/oped sourceMaterial slot ({{SOURCE_MATERIAL}}).
-        // Structured fields (SOURCE_AUTHOR etc.) are P2 — empty in P1 (t/2604).
-        sourceBrief = sourcePrep.SourceMarkdown != null ? String(sourcePrep.SourceMarkdown) : undefined;
+        const fetched = await fetchOpEdSourceBytes(url, getVoiceTimeoutMs());
+        tempPath = fetched.tempPath;
+        try {
+          const sourcePrep = await runGetOpEdConvert(fetched.tempPath, fetched.contentType, controller.signal);
+          // Extract markdown text for the lib/oped sourceMaterial slot ({{SOURCE_MATERIAL}}).
+          sourceBrief = sourcePrep.SourceMarkdown != null ? String(sourcePrep.SourceMarkdown) : undefined;
+        } finally {
+          if (tempPath) fs.rmSync(tempPath, { force: true });
+        }
       } catch (err) {
         activeOpEdRuns.delete(setId);
         getGlobalRecorder()?.record({
           type: 'system.error', component: 'opedHandlers', level: 'error',
-          message: `Stage A Get-OpEdSource failed for set ${setId}: ${(err as Error).message}`,
+          message: `Stage A source prep failed for set ${setId}: ${(err as Error).message}`,
           error: { name: (err as Error).name ?? 'Error', message: String((err as Error).message ?? err), stack: (err as Error).stack },
         });
-        const errProblem = err instanceof ActionableError ? err.problem : (err instanceof Error ? err.message : String(err));
+        // Surface the ActionableError directly — fetch/convert already set correct goal/problem/nextSteps.
+        if (err instanceof ActionableError) throw err;
         throw new ActionableError({
           goal: 'Prepare source material for op-ed set',
-          problem: `Get-OpEdSource failed: ${errProblem}`,
+          problem: err instanceof Error ? err.message : String(err),
           location: 'opedHandlers create-oped-set Stage A',
-          nextSteps: [
-            'Check that the URL is publicly accessible',
-            'Verify the page contains sufficient readable text (minimum word count required)',
-          ],
+          nextSteps: ['Check that the URL is publicly accessible'],
           innerError: err,
         });
       }
