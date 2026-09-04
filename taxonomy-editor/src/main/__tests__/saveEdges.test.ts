@@ -50,6 +50,10 @@ vi.mock('../fileIO.js', () => {
 
 vi.mock('../../server/storage/editMeta.js', () => ({ stampNodeAuthorship: (_old: unknown, next: unknown) => next }));
 
+// taxonomyHandlers now imports ../embeddings.js (for fetch-relevant-nodes); mock it so
+// embeddings.ts module-level ONNX/fileIO init doesn't run under vitest.
+vi.mock('../embeddings.js', () => ({ computeEmbeddings: vi.fn(), computeQueryEmbedding: vi.fn() }));
+
 // Imported AFTER the mocks so taxonomyHandlers binds the mocked deps.
 import { registerTaxonomyHandlers } from '../ipc/taxonomyHandlers.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
