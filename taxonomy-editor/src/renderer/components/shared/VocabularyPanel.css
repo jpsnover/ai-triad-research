@@ -345,3 +345,24 @@
   padding: 24px 12px;
   color: var(--text-muted);
 }
+/* t/3290: load-FAILURE state (distinct from a genuine empty result). */
+.vocab-shared .vocab-load-error {
+  color: var(--text-primary);
+}
+.vocab-shared .vocab-load-error button {
+  margin-top: 8px;
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.vocab-shared .vocab-load-error button:hover {
+  background: var(--bg-hover);
+}
+.vocab-shared .vocab-load-error button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
