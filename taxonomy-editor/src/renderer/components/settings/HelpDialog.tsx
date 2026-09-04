@@ -358,16 +358,23 @@ export function HelpDialog({ onClose, initialTab }: HelpDialogProps) {
   const [showSupportForm, setShowSupportForm] = useState(false);
   const { unreadCount, fetchCases: fetchSupportCases } = useSupportStore();
   const [pos, setPos] = useState({ x: 0, y: 0 });
-  const [size, setSize] = useState({ w: 900, h: 520 });
+  const [size, setSize] = useState({ w: 900, h: 600 });
   const [centered, setCentered] = useState(true);
   const dialogRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const resizing = useRef<{ startX: number; startY: number; origW: number; origH: number } | null>(null);
 
-  // Center on first render
+  // Center on first render with viewport bounds checking
   useEffect(() => {
     if (centered) {
-      setPos({ x: (window.innerWidth - size.w) / 2, y: (window.innerHeight - size.h) / 2 });
+      const maxW = Math.max(400, window.innerWidth * 0.95);
+      const maxH = Math.max(300, window.innerHeight * 0.95);
+      const clampedW = Math.min(size.w, maxW);
+      const clampedH = Math.min(size.h, maxH);
+      const x = Math.max(0, (window.innerWidth - clampedW) / 2);
+      const y = Math.max(0, (window.innerHeight - clampedH) / 2);
+      setSize({ w: clampedW, h: clampedH });
+      setPos({ x, y });
     }
   }, [centered, size.w, size.h]);
 
