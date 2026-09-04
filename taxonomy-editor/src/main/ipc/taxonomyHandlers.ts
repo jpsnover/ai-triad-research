@@ -49,6 +49,8 @@ import {
 } from '../../../../lib/debate/relevanceSelection.js';
 import { POVER_INFO } from '../../../../lib/debate/poverInfo.js';
 import { computeEmbeddings, computeQueryEmbedding } from '../embeddings.js';
+import { computeClaimTaxonomyAttribution } from '../../../../lib/debate/argumentNetwork/attribution.js';
+import type { ArgumentNetworkNode, ClaimTaxonomyAttribution } from '../../../../lib/debate/types.js';
 
 // Recorder-backed sink for the rationale re-merge's "baseline twin matched no incoming edge"
 // case: a real rationale isn't written, logged so a systematic tie-break mismatch is
@@ -560,5 +562,62 @@ export function registerTaxonomyHandlers(): void {
       params: { pov, topic, recentTranscript, threshold: b.threshold },
       embed: queryEmbed,
     });
+  });
+
+  // t/3322: compute-attribution — main-process mirror of server routes/attribution.ts.
+  // Same pure fn (computeClaimTaxonomyAttribution), same ONNX embed cbs, local corpus
+  // read (readTaxonomyFile) matching fetch-relevant-nodes — both desktop-local paths stay coherent.
+  ipcMain.handle('compute-attribution', async (_event, payload: unknown) => {
+    const POV_FILE_KEYS = new Set(['accelerationist', 'safetyist', 'skeptic']);
+    interface AttributionClaim {
+      id: string;
+      embedding?: number[];
+      attribution_embedding?: number[];
+      claim_taxonomy_attribution?: ClaimTaxonomyAttribution;
+    }
+    const b = (payload ?? {}) as { pov: string; claims: AttributionClaim[]; topN?: number };
+    const { pov } = b;
+    if (!POV_FILE_KEYS.has(pov)) throw new Error(`Invalid or missing pov (expected accelerationist|safetyist|skeptic), got: ${String(pov)}`);
+    if (!Array.isArray(b.claims)) throw new Error('Missing claims (expected array)');
+
+    const corpusEmbed = (texts: string[], ids?: string[]): Promise<number[][]> =>
+      computeEmbeddings(texts, ids);
+
+    const povFile = readTaxonomyFile(pov) as { nodes?: SelectRelevantTaxonomyInput['povNodes'] };
+    const povNodes = povFile?.nodes ?? [];
+    const sitFile = readTaxonomyFile('situations') as { nodes?: SelectRelevantTaxonomyInput['situationNodes'] };
+    const situationNodes = sitFile?.nodes ?? [];
+    const synthRaw = loadSyntheticEmbeddings();
+    const synth: Record<string, number[][]> | null = synthRaw
+      ? Object.fromEntries(Object.entries(synthRaw).map(([id, e]) => [id, e.vectors]))
+      : null;
+
+    const { nodeEmbeddings } = await assembleNodeEmbeddings(pov, povNodes, situationNodes, corpusEmbed, synth);
+    const candidateNodeIds = new Set(povNodes.map((n: { id: string }) => n.id));
+
+    const claims = b.claims;
+    const summary = computeClaimTaxonomyAttribution(
+      claims as unknown as ArgumentNetworkNode[],
+      pov,
+      nodeEmbeddings,
+      candidateNodeIds,
+      typeof b.topN === 'number' ? b.topN : undefined,
+    );
+
+    const attributions: Record<string, ClaimTaxonomyAttribution> = {};
+    for (const c of claims) {
+      if (c.claim_taxonomy_attribution) attributions[c.id] = c.claim_taxonomy_attribution;
+    }
+
+    return {
+      attributions,
+      summary: {
+        attributed: summary.attributed,
+        unattributed: summary.unattributed,
+        missing_embedding: summary.missing_embedding,
+        novel_argument: summary.novel_argument,
+        decisions: summary.decisions,
+      },
+    };
   });
 }
