@@ -370,6 +370,21 @@ export async function getRelevantTaxonomyContext(
       session: { anClaimEmbeddings, lineageFrame, sourceType: debate?.source_type, excludeGreatestHits, greatestHitsList },
     });
 
+    // ── ADR-001 graceful-empty guard (t/3258, TL t/3258#14) ──
+    // A real debate never legitimately selects 0 nodes, so an empty selection means the endpoint's
+    // github-api-backed read returned empty (a data-read FAILURE), not "no relevant nodes." Make it
+    // observable + degrade to the unfiltered fallback rather than silently shipping empty grounding to
+    // the debate (make-degradation-observable rule). Worst case is observable-unfiltered, never
+    // silent-empty — this keeps the hard client-swap safe regardless of the endpoint's deploy state.
+    if (result.povNodes.length === 0 && result.situationNodes.length === 0) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'debate-store', level: 'warn',
+        message: 'relevant-nodes returned 0 selected on a real debate — suspected server-side data-read gap (ADR-001 graceful-empty); using unfiltered fallback',
+        data: { pov, candidatePovNodes: allPovNodes.length, candidateCcNodes: allCCNodes.length, anClaims: anClaimEmbeddings.length, sourceType: debate?.source_type },
+      });
+      return buildUnfilteredFallback(state, allPovNodes, allCCNodes, new Error('relevant-nodes returned empty selection (suspected data-read failure)'));
+    }
+
     // ── Re-apply the doctrinal-anchoring side-effect to the store's Belief nodes ──
     // (mirrors the old in-place mutation EXACTLY: doctrinally_anchored always; confidence floor
     // only when applied — that's why DoctrinalAdjustment carries floorApplied, t/3257#16 Δ1.)
