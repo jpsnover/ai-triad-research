@@ -59,7 +59,14 @@ vi.mock('../ai/proxyTiers.js', () => ({
 vi.mock('../ai/aiBackends.js', () => ({ resolveBackend: () => 'gemini', isRegisteredModel: () => true }));
 vi.mock('../../../../lib/ai-client/index.js', () => ({ DEFAULT_MODEL: 'gemini-flash' }));
 vi.mock('../config.js', () => ({ getProjectRoot: () => '/repo' }));
-vi.mock('../storage/fileIO.js', () => ({ isSafeId: (v: string) => /^[a-zA-Z0-9_-]+$/.test(v) }));
+vi.mock('../storage/fileIO.js', () => ({
+  isSafeId: (v: string) => /^[a-zA-Z0-9_-]+$/.test(v),
+  // t/2893: oped.ts now persists run-control via these (re-exported from fileIO) — no-op stubs;
+  // this integration test asserts the PARTIAL-set persist (opedStore), not the run-control store.
+  upsertOpedRun: async () => {},
+  countRunningOpedRuns: async () => 0,
+  getOpedRun: async () => null,
+}));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: (e: { type: string; message?: string }) => { h.events.push(e); } }) }));
 
 function member(pov: string, status: 'complete' | 'cancelled'): Record<string, unknown> {

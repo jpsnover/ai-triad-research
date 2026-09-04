@@ -22,7 +22,9 @@ import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { clientSafeMessage } from '../security/accessControl.js';
-import { isSafeId, fetchUrlContent } from '../storage/fileIO.js';
+import { isSafeId, fetchUrlContent, upsertOpedRun, countRunningOpedRuns, getOpedRun } from '../storage/fileIO.js';
+import type { RunControlRecord, VoiceState } from '../storage/opedRunStore.js';
+import { log } from '../logger.js';
 import { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet } from '../storage/opedStore.js';
 import type { OpEdSet, OpEdMember, OpEdParams, PovKey } from '../../../../lib/oped/types.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps, OpEdProgressEvent } from '../../../../lib/oped/generate.js';
@@ -43,42 +45,17 @@ const ROUTE_ID = '/api/oped-sets/:id';
 // without rejecting legitimately long topic lines. Used by both create and rename.
 const MAX_TOPIC_LEN = 2000;
 
-// ── t/2610: op-ed generation run registry (per-replica) ───────────────────────
-// Drives the per-user concurrency cap and the observational GET /api/oped-runs/:runId.
-// Completion is authoritative via the durable finalized set (opedStore), NOT this map —
-// a cross-replica reconnect / replica recycle recovers via the sets GET (TL Q2, t/2610#3).
-// TTL-swept so an abandoned run can't leak a concurrency slot.
+// ── t/2610/t/2893: op-ed generation run registry — SHARED blob store ───────────
+// Run-control state (status, per-voice, the per-user concurrency cap, the observational
+// GET /api/oped-runs/:runId) lives in a per-user blob store (`opedRunStore`, re-exported via
+// fileIO), NOT a per-process Map — so it survives across replicas (maxReplicas>1) and the
+// t/2884-class race (an SSE/status request routed to a different replica than the running job)
+// is gone. Completion stays authoritative via the durable finalized set (opedStore), NOT this
+// store — a cross-replica reconnect / replica recycle recovers via the sets GET (TL Q2, t/2610#3).
+// The store lazy-expires stale 'running' blobs (crashed-A protection); no local sweep needed.
+// The @INMEMORY_JOB_STORE marker is removed — this ticket IS that migration.
 const MAX_CONCURRENT_OPED_RUNS = 1;          // per user, P1 (TL Q1)
-const OPED_RUN_TTL_MS = 10 * 60_000;
 const OPED_HEARTBEAT_MS = 15_000;
-
-type VoiceState = 'pending' | 'complete' | 'failed' | 'cancelled';
-interface OpEdRun {
-  runId: string;
-  userId: string;
-  setId: string;
-  status: 'running' | 'complete' | 'cancelled' | 'error';
-  perVoice: Record<string, VoiceState>;
-  startedAt: number;
-}
-// @INMEMORY_JOB_STORE — active op-ed generation runs (status, SSE progress, cancel signal,
-// per-voice state) live in a per-process Map, NOT shared across replicas. Remove this marker
-// when migrated to a shared/blob store (t/2893). The CI gate Test-InMemoryJobStoreScaleGuard.ps1
-// reads this marker and blocks maxReplicas > 1 while it is present (t/2884-class race: an SSE
-// stream or cancel routed to a different replica than the one running the job 404s silently).
-const opedRuns = new Map<string, OpEdRun>();
-
-function sweepOpedRuns(): void {
-  const now = Date.now();
-  for (const [id, run] of opedRuns) {
-    if (run.status !== 'running' && now - run.startedAt > OPED_RUN_TTL_MS) opedRuns.delete(id);
-  }
-}
-function countRunningOpedRuns(userId: string): number {
-  let n = 0;
-  for (const run of opedRuns.values()) if (run.userId === userId && run.status === 'running') n++;
-  return n;
-}
 
 // ── create-request parsing (FromTopic + FromSource-URL) ──
 interface ParsedOpEdCreate { topic: string; povs: string[]; params: OpEdParams; url?: string }
@@ -113,10 +90,25 @@ function toOpEdRecorder(): OpEdGeneratorDeps['recorder'] {
   return r ? { record: (e: Record<string, unknown>) => r.record(e as never) } : null;
 }
 
-function applyEventToRun(run: OpEdRun, event: OpEdProgressEvent, completed: OpEdMember[]): void {
+function applyEventToRun(run: RunControlRecord, event: OpEdProgressEvent, completed: OpEdMember[]): void {
   if (event.type === 'voice_complete') { run.perVoice[event.pov] = 'complete'; completed.push(event.member); }
   else if (event.type === 'voice_failed') run.perVoice[event.pov] = 'failed';
   else if (event.type === 'voice_cancelled') run.perVoice[event.pov] = 'cancelled';
+}
+
+/** t/2687: a voice failure is streamed to the client but was NOT logged server-side, so a prod
+ *  "voice failed — 0 words" left no diagnostic trail. Emit a structured error with the model/backend/
+ *  underlying error so it's detectable, not invisible (silent-degradation rule). No-op for non-failures.
+ *  Module-level so it doesn't add branch-complexity to driveOpEdRun. */
+function logVoiceFailure(event: OpEdProgressEvent, model: string): void {
+  if (event.type !== 'voice_failed') return;
+  const evt = event as { pov: string; error?: string };
+  const backend = resolveBackend(model || DEFAULT_MODEL);
+  getGlobalRecorder()?.record({
+    type: 'system.error', component: 'oped', level: 'error',
+    message: `Op-ed voice failed to generate (pov=${evt.pov}, model=${model}, backend=${backend})`,
+    error: { name: 'VoiceGenerationError', message: String(evt.error ?? 'unknown') },
+  });
 }
 
 /** Drive the shared lib/oped generator, streaming each event as an SSE frame and
@@ -125,13 +117,21 @@ function applyEventToRun(run: OpEdRun, event: OpEdProgressEvent, completed: OpEd
  *  TL gap 1). A throw before the core's own 'complete' still persists whatever finished. */
 async function driveOpEdRun(
   res: import('http').ServerResponse,
-  run: OpEdRun,
+  run: RunControlRecord,
   request: GenerateOpEdRequest,
   writeFrame: (event: Record<string, unknown>) => void,
   heartbeat: ReturnType<typeof setInterval>,
   isClientGone: () => boolean,
 ): Promise<void> {
   const completed: OpEdMember[] = [];
+  // t/2893: persist the run-control record to the shared store on each transition so the per-user
+  // concurrency cap + the observational GET see current state cross-replica. BEST-EFFORT — a persist
+  // failure must NOT error the run (the SSE stream + generation continue); it only means the
+  // status-GET may lag. Never let a blob write mask a successful generation.
+  const persist = async (): Promise<void> => {
+    try { await upsertOpedRun(run); }
+    catch (e) { log.server.warn({ runId: run.runId, status: run.status, err: String(e) }, 'oped run-control persist failed (best-effort; run continues)'); }
+  };
   try {
     // 4-ups matches tsconfig.server rootDir=../ + outDir=dist/server: source
     // src/server/routes/oped.ts + lib/oped/generate.ts land at dist/server/taxonomy-editor/
@@ -153,26 +153,18 @@ async function driveOpEdRun(
     for await (const event of generateOpEdSet(request, deps) as AsyncGenerator<OpEdProgressEvent>) {
       applyEventToRun(run, event, completed);
       writeFrame(event as unknown as Record<string, unknown>);
-      if (event.type === 'voice_failed') {
-        // t/2687: a voice failure is streamed to the client but was NOT logged server-side, so a
-        // prod "voice failed — 0 words" left no diagnostic trail. Emit a structured error with the
-        // model/backend/underlying error so it is detectable, not invisible (silent-degradation rule).
-        const evt = event as { pov: string; error?: string };
-        const backend = resolveBackend(request.params.model || DEFAULT_MODEL);
-        getGlobalRecorder()?.record({
-          type: 'system.error', component: 'oped', level: 'error',
-          message: `Op-ed voice failed to generate (pov=${evt.pov}, model=${request.params.model}, backend=${backend})`,
-          error: { name: 'VoiceGenerationError', message: String(evt.error ?? 'unknown') },
-        });
-      }
+      logVoiceFailure(event, request.params.model);
       if (event.type === 'complete') {
         await finalizeOpedSet(event.set);
         run.status = Object.values(run.perVoice).some(s => s === 'cancelled') ? 'cancelled' : 'complete';
       }
+      await persist(); // per-event: persist perVoice + status progress for the cross-replica status-GET
     }
     if (run.status === 'running') run.status = 'complete';
+    await persist(); // terminal (generator ended without an explicit 'complete' event)
   } catch (err) {
     run.status = 'error';
+    await persist(); // terminal: persist the error status for the status-GET
     const opedErrMsg = err instanceof ActionableError
       ? `Op-ed generation failed — goal: ${err.goal} | problem: ${err.problem}`
       : 'Op-ed generation failed';
@@ -188,7 +180,9 @@ async function driveOpEdRun(
     });
   } finally {
     clearInterval(heartbeat);
-    run.startedAt = Date.now(); // restart the TTL clock from the terminal state (status-GET window)
+    // t/2893: no startedAt restart — that fed the removed in-process TTL sweep. The shared store
+    // lazy-expires stale 'running' only; a TERMINAL record persists for the status-GET window (its
+    // status is terminal → never counted toward the concurrency cap). Terminal state was persisted above.
     if (!isClientGone()) { try { res.end(); } catch { /* telemetry — silent by design (already closed) */ } }
   }
 }
@@ -229,10 +223,10 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     if (enforceBackendAllowed(res, tier, backend)) return;
 
     const userId = getStorageUserId();
-    sweepOpedRuns();
     const quota = await getOpedSetsQuotaStatus();
     if (!quota.allowed) { json(res, { error: 'quota_exceeded', resource: quota.resource, current: quota.current, limit: quota.limit }, 429); return; }
-    if (countRunningOpedRuns(userId) >= MAX_CONCURRENT_OPED_RUNS) {
+    // Shared-store count (self-healing: lazy-expires stale 'running' blobs). No local sweep.
+    if (await countRunningOpedRuns(userId) >= MAX_CONCURRENT_OPED_RUNS) {
       json(res, { error: 'concurrency_limit', message: 'You already have an op-ed generating; wait for it to finish.', limit: MAX_CONCURRENT_OPED_RUNS }, 429); return;
     }
 
@@ -258,8 +252,8 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     const runId = randomUUID();
     const setId = randomUUID();
     const ac = new AbortController();
-    const run: OpEdRun = { runId, userId, setId, status: 'running', perVoice: Object.fromEntries(povs.map(p => [p, 'pending'])), startedAt: Date.now() };
-    opedRuns.set(runId, run);
+    const run: RunControlRecord = { runId, userId, setId, status: 'running', perVoice: Object.fromEntries(povs.map(p => [p, 'pending' as VoiceState])), startedAt: Date.now() };
+    await upsertOpedRun(run); // shared store (was opedRuns.set): persist BEFORE the SSE commits so the cap + status-GET see it cross-replica. Throws → httpKit 500 before writeHead (no partial SSE).
 
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
     let seq = 0;
@@ -285,10 +279,13 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
   // orphaning the run. Own namespace (not /api/oped-sets/:id) to avoid the :id wildcard.
   // Completion truth is the durable set, so a reconnect that finds no run should fall back
   // to GET /api/oped-sets/:setId (client contract).
-  get('/api/oped-runs/:runId', (req, res) => {
+  get('/api/oped-runs/:runId', async (req, res) => {
     const runId = param(req, 'runId', '/api/oped-runs/:runId');
     if (rejectUnsafeId(res, runId)) return;
-    const run = opedRuns.get(runId);
+    // Shared store (was opedRuns.get). getOpedRun scopes to the caller's user dir, so another user's
+    // run resolves to null → 404; the explicit userId check is defence-in-depth. A cross-replica
+    // reconnect that finds no run falls back to GET /api/oped-sets/:setId (client contract, t/2610#3).
+    const run = await getOpedRun(runId);
     if (!run || run.userId !== getStorageUserId()) { error(res, 'Run not found', 404); return; }
     json(res, { runId: run.runId, setId: run.setId, status: run.status, perVoice: run.perVoice });
   });
