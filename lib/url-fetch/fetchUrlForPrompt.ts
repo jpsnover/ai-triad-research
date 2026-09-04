@@ -37,7 +37,12 @@
 import { promises as dns } from 'node:dns';
 import * as http from 'node:http';
 import * as https from 'node:https';
-import { sanitizeText } from '../sanitize/contentSanitizerCore.js';
+// NOTE: `sanitizeText` is loaded LAZILY (dynamic import) inside the text path below — NOT eagerly here.
+// This keeps the module's eager runtime imports to node builtins only, so the standalone binary CLI
+// (`fetch-url-cli.mjs`, t/3324) can `import { fetchUrlForPromptBinary }` under plain `node`
+// type-stripping without pulling in the sanitizer's `.js`-specifier deps (decode-named-character-
+// reference etc.), which plain node cannot resolve. The binary path never sanitizes; the text path's
+// bundled/vitest callers resolve the dynamic import normally. Type-only imports below are erased.
 import type { UrlFetchOptions, UrlFetchResult, UrlFetchBinaryResult, UrlFetchFailureReason } from './types.js';
 
 const DEFAULT_MAX_BYTES = 1_572_864; // 1.5 MB
@@ -343,6 +348,9 @@ export async function fetchUrlForPrompt(
   } else {
     const extracted = isHtml ? htmlToText(body) : { text: body, title: undefined };
     title = extracted.title;
+    // Lazy import (see the top-of-file note): keeps the sanitizer out of the module's eager graph so
+    // the binary CLI stays plain-node-importable. Bundled/vitest callers resolve this normally.
+    const { sanitizeText } = await import('../sanitize/contentSanitizerCore.js');
     text = sanitizeText(extracted.text);
   }
 
