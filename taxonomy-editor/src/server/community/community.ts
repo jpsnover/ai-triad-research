@@ -242,6 +242,24 @@ export async function loadCommunityItem(type: 'chats' | 'debates' | 'opeds', id:
   return parsed;
 }
 
+/**
+ * Internal accessor for a community op-ed — returns the raw parsed item including
+ * full community_metadata (not stripped for public exposure). Intended for
+ * share-projection callers that need submittedBy and the full voice list.
+ * ADR-001 non-empty guard: returns null if the item has no voices, which indicates
+ * a GitHub API silent-empty response rather than a legitimate zero-voice item.
+ */
+export async function getCommunityOpEd(id: string): Promise<Record<string, unknown> | null> {
+  assertSafeId(id, 'community oped id');
+  const backend = getUserContentBackend();
+  const raw = await backend.readFile(path.join(communityOpedsDir(), `oped-${id}.json`));
+  if (raw === null) return null;
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  // ADR-001: GitHub API can return empty content on network hiccups; a real oped always has voices.
+  if (!Array.isArray(parsed.opeds) || (parsed.opeds as unknown[]).length === 0) return null;
+  return parsed;
+}
+
 // ── Submissions ──
 
 interface Submission {
