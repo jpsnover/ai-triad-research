@@ -2,7 +2,10 @@
 
 a.vocab-term,
 .vocab-term {
-  --_vocab-color: var(--color-vocab, #a855f7);
+  /* t/3293: deliberate brand-accent purple (theme-invariant by design, not a themeable token —
+     the vocab underline reads on all 4 themes; only white-alpha/hex bugs were in scope). The
+     local var + color-mix keeps one source for the 35/80/8% alpha variants. */
+  --_vocab-color: #a855f7;
   color: inherit;
   text-decoration: underline;
   text-decoration-style: dotted;
