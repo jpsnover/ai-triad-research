@@ -993,10 +993,10 @@ const rawApi: AppAPI = {
 
   // Embeddings & NLI
   computeEmbeddings: (texts, ids) => computeEmbeddingsChunked(post, texts, ids), // ≤EMBEDDINGS_MAX_BATCH sequential chunks so an oversized batch can't blow the 50s server timeout (t/3072)
-  // Web transport: server embed backend has no DirectML GPU-OOM mode → nothing goes stale → always [] (t/2060 staleNodeIds contract).
-  updateNodeEmbeddings: (nodes) => post('/api/embeddings/update-nodes', { nodes }).then(() => ({ staleNodeIds: [] as string[] })),
+  updateNodeEmbeddings: (nodes) => post('/api/embeddings/update-nodes', { nodes }).then(() => ({ staleNodeIds: [] as string[] })), // Web: server embed backend has no GPU-OOM mode → nothing stale → always [] (t/2060).
   computeQueryEmbedding: (text) => post('/api/embeddings/query', { text }),
-  fetchRelevantNodes: (payload) => post('/api/taxonomy/relevant-nodes', payload), // t/3258 (T3): EXACT path (no trailing slash/query) — anon free-tier gate is exact-match, else anon debates 403 (TL t/3284#2)
+  fetchRelevantNodes: (payload) => post('/api/taxonomy/relevant-nodes', payload), // t/3258 (T3): EXACT path — anon free-tier gate is exact-match (TL t/3284#2)
+  fetchClaimAttribution: (payload) => post('/api/argument-network/attribution', payload), // t/3316 (t/3297 client half): server-side per-claim attribution
   nliClassify: (pairs) => post('/api/nli/classify', { pairs }),
 
   // Source evidence
