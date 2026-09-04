@@ -12,6 +12,7 @@ import type { ServerCtx } from './context.js';
 import { registerMetaRoutes } from './meta.js';
 import { registerTaxonomyRoutes } from './taxonomy.js';
 import { registerRelevantNodesRoutes } from './relevantNodes.js';
+import { registerAttributionRoutes } from './attribution.js';
 import { registerConflictsRoutes } from './conflicts.js';
 import { registerOrganizationsRoutes } from './organizations.js';
 import { registerEntityRoutes } from './entity.js';
@@ -42,6 +43,7 @@ export function registerAllRoutes(router: Router, ctx: ServerCtx): void {
   registerMetaRoutes(router, ctx);
   registerTaxonomyRoutes(router, ctx);
   registerRelevantNodesRoutes(router, ctx); // t/3257 T2 — POST /api/taxonomy/relevant-nodes (server-side relevance)
+  registerAttributionRoutes(router, ctx); // t/3297 — POST /api/argument-network/attribution (server-side claim attribution)
   registerConflictsRoutes(router, ctx);
   registerOrganizationsRoutes(router, ctx);
   registerEntityRoutes(router, ctx);

@@ -25,10 +25,9 @@ import { log } from '../logger.js';
 import * as fileIO from '../storage/fileIO.js';
 import * as ai from '../ai/aiBackends.js';
 import { POVER_INFO } from '../../../../lib/debate/poverInfo.js';
+import { getAssembledCorpus } from './corpusAssemblyCache.js';
 import {
   selectRelevantTaxonomy,
-  assembleNodeEmbeddings,
-  type SelectRelevantTaxonomyInput,
   type ANClaimInput,
 } from '../../../../lib/debate/relevanceSelection.js';
 
@@ -50,24 +49,10 @@ interface RelevantNodesBody {
   };
 }
 
-/** Corpus embed cb — BATCH, mirrors the client's api.computeEmbeddings (t/3257#22). Same server ONNX
- *  the client's bridge routes to → vector-identical by construction. */
-const corpusEmbed = (texts: string[], ids?: string[]): Promise<number[][]> =>
-  ai.computeEmbeddings(texts, ids, undefined, { requester: 'relevant-nodes:corpus' }).then(r => r.vectors);
-
-/** Boundary + topic-query embed cb — per-text, mirrors the client's api.computeQueryEmbedding. */
+/** Boundary + topic-query embed cb — per-text ai.computeQueryEmbedding, mirrors the client's
+ *  api.computeQueryEmbedding (t/3257#22). The corpus (batch) embed lives in corpusAssemblyCache. */
 const queryEmbed = (texts: string[]): Promise<number[][]> =>
   Promise.all(texts.map(t => ai.computeQueryEmbedding(t)));
-
-/** Map loadSyntheticEmbeddings() ({pov,vectors}) → the {nodeId: vectors[][]} shape assembleNodeEmbeddings wants. */
-function synthVectorsForAssembly(
-  synth: Record<string, { pov: string; vectors: number[][] }> | null,
-): Record<string, number[][]> | null {
-  if (!synth) return null;
-  const out: Record<string, number[][]> = {};
-  for (const [nodeId, entry] of Object.entries(synth)) out[nodeId] = entry.vectors;
-  return out;
-}
 
 export function registerRelevantNodesRoutes(r: Router, _ctx: ServerCtx): void {
   const { post } = r;
@@ -79,12 +64,13 @@ export function registerRelevantNodesRoutes(r: Router, _ctx: ServerCtx): void {
       if (!POV_FILE_KEYS.has(pov)) { error(res, `Invalid or missing pov (expected accelerationist|safetyist|skeptic)`, 400); return; }
       if (typeof topic !== 'string' || typeof recentTranscript !== 'string') { error(res, 'Missing topic/recentTranscript', 400); return; }
 
-      // ── Server-derived (static) — mirrors getRelevantTaxonomyContext's store reads ──
-      const povFile = await fileIO.readTaxonomyFile(pov) as { nodes?: SelectRelevantTaxonomyInput['povNodes'] };
-      const povNodes = povFile?.nodes ?? [];
-      const sitFile = await fileIO.readTaxonomyFile('situations') as { nodes?: SelectRelevantTaxonomyInput['situationNodes'] };
-      const situationNodes = sitFile?.nodes ?? [];
+      // ── Corpus (main-pinned + process-memoized): povNodes + situations + synthetic → nodeEmbeddings.
+      // Shared with /api/argument-network/attribution. ref:'main' makes base embeddings coherent with
+      // the precomputed corpus AND immutable, enabling the memo (t/3297#8/#9). This is also the fix for
+      // the shipped incoherence — base nodes previously read the session branch. ──
+      const { nodeEmbeddings, povNodes, situationNodes } = await getAssembledCorpus(pov);
 
+      // ── Other static selection inputs (per-request; NOT part of the embedded corpus) ──
       const policyRaw = await fileIO.readPolicyRegistry() as { policies?: { id: string; action: string; source_povs?: string[] }[] } | null;
       const policyRegistry = (policyRaw?.policies ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
 
@@ -95,10 +81,6 @@ export function registerRelevantNodesRoutes(r: Router, _ctx: ServerCtx): void {
       const doctrinalBoundaries = (povInfo?.doctrinal_boundaries?.length ?? 0) > 0
         ? { strings: povInfo!.doctrinal_boundaries ?? [] }
         : undefined;
-
-      // Corpus map — assembled by the SHARED lib helper (parity by construction), synthetic merge included.
-      const synth = synthVectorsForAssembly(await fileIO.loadSyntheticEmbeddings());
-      const { nodeEmbeddings } = await assembleNodeEmbeddings(pov, povNodes, situationNodes, corpusEmbed, synth);
 
       // ── Per-session (from the request body — the server cannot reconstruct these) ──
       const session = {
