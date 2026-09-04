@@ -126,22 +126,9 @@ function Repair-PovLineage {
         Write-Verbose "Loaded $($Cache.Count) cached enrichments"
     }
 
-    # ── URL validation helper (GET-based, soft 404 detection) ────────────────
-    function Test-LineageUrl {
-        param([string]$Url)
-        if ([string]::IsNullOrWhiteSpace($Url) -or $Url -notmatch '^https?://') { return $false }
-        try {
-            $Resp = Invoke-WebRequest -Uri $Url -Method Get -TimeoutSec 8 -MaximumRedirection 5 `
-                -ErrorAction Stop -UseBasicParsing
-            if ($Resp.StatusCode -ne 200) { return $false }
-            # Soft 404 detection: check first 1KB of body for "not found" signals
-            $BodySnippet = if ($Resp.Content.Length -gt 1024) { $Resp.Content.Substring(0, 1024) } else { $Resp.Content }
-            if ($BodySnippet -match '(?i)(page not found|does not exist|no article|404 error|there is no page)') {
-                return $false
-            }
-            return $true
-        } catch { return $false }
-    }
+    # URL validation helper (GET-based, soft-404 detection) lives in Private/Test-LineageUrl.ps1 —
+    # migrated to the shared Node fetch-CLI (Get-UrlViaSharedFetcher) so live WAF-protected citations
+    # aren't 403'd-as-dead by the PS client fingerprint (t/3313). Extracted for unit-testability.
 
     function Get-WikipediaFallbackUrl {
         param([string]$Name)
