@@ -1302,11 +1302,19 @@ assertStateRootIsolation(); // t/2643: refuse start if staging's state root wasn
 try {
   await fileIO.validateDataRoot();
 } catch (err) {
-  log.server.error(
-    { err: err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : String(err) },
-    'Data root validation failed at boot — refusing to start',
-  );
-  process.exit(1);
+  // t/3296/t/3305: the hard exit(1) is ENFORCE-gated (default WARN-only). A credential-less boot —
+  // the container liveness smoke test (github-api mode, NO GitHub App creds) — MUST still start, so
+  // exit(1) fires ONLY when DATA_ROOT_VALIDATION_ENFORCE is set. DevOps sets it in staging→prod (real
+  // creds + data present) as the gated promotion to prod-blocking (t/2683 real-env-first): staging
+  // proves the exit path against the real backend before prod. Default warn-only is OBSERVABLE (WARN
+  // to stdout→Log_s), never a silent-empty; only the credential-less smoke boot relies on it.
+  const enforce = /^(1|true|yes|on)$/i.test(process.env.DATA_ROOT_VALIDATION_ENFORCE ?? '');
+  const errObj = err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : String(err);
+  if (enforce) {
+    log.server.error({ err: errObj, enforce }, 'Data root validation failed at boot — refusing to start (DATA_ROOT_VALIDATION_ENFORCE)');
+    process.exit(1);
+  }
+  log.server.warn({ err: errObj, enforce }, 'Data root validation failed at boot — WARN-only (DATA_ROOT_VALIDATION_ENFORCE unset); continuing');
 }
 // t/2532 (M12): loopback (127.0.0.1) in dev / 0.0.0.0 in prod; HOST opts into LAN exposure (logged loudly below).
 const BIND_HOST = resolveBindHost(process.env);
