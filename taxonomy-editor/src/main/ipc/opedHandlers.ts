@@ -13,7 +13,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-import { ActionableError } from '../../../../lib/debate/errors.js';
+import { ActionableError, errorMessage } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { assertSafeId } from '../../../../lib/electron-shared/safeId.js';
 import { fetchUrlForPromptBinary } from '../../../../lib/url-fetch/fetchUrlForPrompt.js';
@@ -310,7 +310,7 @@ export function registerOpEdHandlers(): void {
         if (err instanceof ActionableError) throw err;
         throw new ActionableError({
           goal: 'Prepare source material for op-ed set',
-          problem: err instanceof Error ? err.message : String(err),
+          problem: err instanceof ActionableError ? err.problem : errorMessage(err),
           location: 'opedHandlers create-oped-set Stage A',
           nextSteps: ['Check that the URL is publicly accessible'],
           innerError: err,
