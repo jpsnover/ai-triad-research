@@ -121,6 +121,42 @@ def test_same_debate_doc_same_stance_produces_support_edge():
     assert edges[0]["type"] == "supports"
 
 
+# _qbaf_testedness — observability metric (t/3302)
+
+def _qbaf(nodes, edges):
+    return {"graph": {"nodes": nodes, "edges": edges}}
+
+
+def test_testedness_all_prior_when_no_edges():
+    q = _qbaf([{"id": "inst-0"}, {"id": "inst-1"}], [])
+    tm = eq._qbaf_testedness(q, [_inst("supports", "d1"), _inst("supports", "d2")])
+    assert tm["testedness"] == "all_prior"
+    assert tm["n_edges"] == 0 and tm["n_attack_edges"] == 0
+    assert tm["n_untested_nodes"] == 2          # nothing attacked
+    assert tm["has_opposing_stances"] is False
+    assert tm["stance_hist"] == {"supports": 2}
+
+
+def test_testedness_support_only_when_edges_but_no_attacks():
+    q = _qbaf([{"id": "inst-0"}, {"id": "inst-1"}],
+              [{"source": "inst-0", "target": "inst-1", "type": "supports"}])
+    tm = eq._qbaf_testedness(q, [_inst("supports", "d1"), _inst("supports", "d2")])
+    assert tm["testedness"] == "support_only"
+    assert tm["n_support_edges"] == 1 and tm["n_attack_edges"] == 0
+    assert tm["n_untested_nodes"] == 2          # no attacks → all untested
+
+
+def test_testedness_adversarial_when_attack_present():
+    q = _qbaf([{"id": "inst-0"}, {"id": "inst-1"}],
+              [{"source": "inst-0", "target": "inst-1", "type": "attacks"}])
+    tm = eq._qbaf_testedness(q, [_inst("supports", "d1"), _inst("disputes", "d2")])
+    assert tm["testedness"] == "adversarial"
+    assert tm["n_attack_edges"] == 1
+    assert tm["n_untested_nodes"] == 1          # inst-1 attacked, inst-0 not
+    assert tm["has_opposing_stances"] is True
+    assert tm["stance_hist"] == {"supports": 1, "disputes": 1}
+
+
 if __name__ == "__main__":
     import pytest
 

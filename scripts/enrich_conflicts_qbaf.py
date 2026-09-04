@@ -195,6 +195,52 @@ def _detect_edges(instances):
     return edges
 
 
+def _qbaf_testedness(qbaf, instances):
+    """Observability metric for one resolved QBAF (t/3302).
+
+    Surfaces the "how tested is this resolution" signal so all-prior debates (a
+    computed_strength that is purely the unrevised base prior) are visible rather than
+    presenting as substantive. Schema confirmed by CL (t/3302#2). Pure read of the
+    finalized qbaf + its source instances; no side effects.
+
+    testedness tiers:
+      all_prior     — 0 edges: the resolution is unrevised base strengths.
+      support_only  — has edges but 0 attacks: agreement only, never adversarially tested.
+      adversarial   — >=1 attack edge: at least one node was genuinely challenged.
+    """
+    graph = qbaf.get("graph") or {}
+    edges = graph.get("edges") or []
+    nodes = graph.get("nodes") or []
+    n_attack = sum(1 for e in edges if e.get("type") == "attacks")
+    n_support = sum(1 for e in edges if e.get("type") == "supports")
+    attacked = {e.get("target") for e in edges if e.get("type") == "attacks"}
+    n_untested = sum(1 for n in nodes if n.get("id") not in attacked)
+
+    stance_hist = {}
+    for inst in instances:
+        s = str(inst.get("stance", "neutral"))
+        stance_hist[s] = stance_hist.get(s, 0) + 1
+    has_opposing = ("supports" in stance_hist and "disputes" in stance_hist)
+
+    if not edges:
+        tier = "all_prior"
+    elif n_attack == 0:
+        tier = "support_only"
+    else:
+        tier = "adversarial"
+
+    return {
+        "n_instances": len(instances),
+        "n_edges": len(edges),
+        "n_support_edges": n_support,
+        "n_attack_edges": n_attack,
+        "n_untested_nodes": n_untested,
+        "testedness": tier,
+        "has_opposing_stances": has_opposing,
+        "stance_hist": stance_hist,
+    }
+
+
 def _safe_env():
     """Build a minimal environment for subprocess calls — no API keys leaked."""
     import os
@@ -474,6 +520,8 @@ def main():
     enriched = 0
     failed = 0
     no_edges = 0
+    # t/3302 observability — aggregate testedness tiers across this run (CL schema t/3302#2).
+    tier_counts = {"all_prior": 0, "support_only": 0, "adversarial": 0}
 
     # Phase 1: build local graphs (no subprocess)
     pre_results = []  # (index, path, conflict, pre_data_or_qbaf)
@@ -536,6 +584,18 @@ def main():
             qbaf = pre
             no_edges += 1
 
+        # t/3302 observability: record the testedness metric on the qbaf + accumulate the tier.
+        # WARN per-conflict on all_prior (Fallback-Path Logging: a resolution that is purely the
+        # unrevised base prior is a measurement gap); aggregate-count support_only rather than
+        # per-conflict WARN it (CL t/3302#2).
+        tm = _qbaf_testedness(qbaf, conflict.get("instances") or [])
+        qbaf["testedness"] = tm
+        tier_counts[tm["testedness"]] = tier_counts.get(tm["testedness"], 0) + 1
+        if tm["testedness"] == "all_prior":
+            _log(f"  WARN: QBAF all_prior (0 edges) for {conflict.get('claim_id')} — "
+                 f"{tm['n_instances']} instances, stance_hist={tm['stance_hist']}; resolution is "
+                 f"unrevised base strengths (measurement gap, t/3302).")
+
         conflict["qbaf"] = qbaf
         enriched += 1
 
@@ -559,6 +619,12 @@ def main():
     _log(f"  Enriched with QBAF: {enriched}")
     _log(f"  No edges (base strength only): {no_edges}")
     _log(f"  Failed: {failed}")
+    # t/3302 observability — testedness tier distribution across this run.
+    _tt = enriched or 1
+    _log(f"  Testedness: all_prior={tier_counts['all_prior']} "
+         f"({100*tier_counts['all_prior']/_tt:.0f}%) | support_only={tier_counts['support_only']} "
+         f"({100*tier_counts['support_only']/_tt:.0f}%) | adversarial={tier_counts['adversarial']} "
+         f"({100*tier_counts['adversarial']/_tt:.0f}%)")
     if not args.write:
         _log(f"  DRY RUN — use --write to persist")
     _log(f"{'=' * 60}")
@@ -570,6 +636,7 @@ def main():
         "enriched": enriched,
         "no_edges": no_edges,
         "failed": failed,
+        "testedness_tiers": tier_counts,
     }, sys.stdout, indent=2)
     print()
 
