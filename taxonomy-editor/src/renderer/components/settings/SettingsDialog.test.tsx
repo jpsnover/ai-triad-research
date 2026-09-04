@@ -1,6 +1,7 @@
 ﻿import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 
 const { mockApi } = vi.hoisted(() => ({
   mockApi: {
@@ -80,13 +81,16 @@ describe('SettingsDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDescMode = 'plain';
+    useSettingsDialog.setState({ isOpen: false, requestedSection: null });
   });
 
-  it('renders with heading and all setting sections', () => {
+  it('renders with heading and all setting sections', async () => {
+    const user = userEvent.setup();
     render(<SettingsDialog onClose={onClose} />);
     expect(screen.getByText('Settings')).toBeInTheDocument();
     expect(screen.getByText('AI Backend')).toBeInTheDocument();
     expect(screen.getByText('Model')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Appearance' }));
     expect(screen.getByText('Theme')).toBeInTheDocument();
     expect(screen.getByText('Pane 2 Item Spacing')).toBeInTheDocument();
     expect(screen.getByText('Description Display')).toBeInTheDocument();
@@ -104,8 +108,10 @@ describe('SettingsDialog', () => {
     );
   });
 
-  it('renders theme options', () => {
+  it('renders theme options', async () => {
+    const user = userEvent.setup();
     render(<SettingsDialog onClose={onClose} />);
+    await user.click(screen.getByRole('tab', { name: 'Appearance' }));
     expect(screen.getByText('Light')).toBeInTheDocument();
     expect(screen.getByText('Dark')).toBeInTheDocument();
     expect(screen.getByText('Harvard')).toBeInTheDocument();
@@ -129,16 +135,18 @@ describe('SettingsDialog', () => {
   it('changes theme when a new option is selected', async () => {
     const user = userEvent.setup();
     render(<SettingsDialog onClose={onClose} />);
-    const selects = screen.getAllByRole('combobox');
-    const themeSelect = selects.find(s =>
+    await user.click(screen.getByRole('tab', { name: 'Appearance' }));
+    const themeSelect = screen.getAllByRole('combobox').find(s =>
       Array.from(s.querySelectorAll('option')).some(o => o.textContent === 'Dark'),
     )!;
     await user.selectOptions(themeSelect, 'dark');
     expect(mockSetColorScheme).toHaveBeenCalledWith('dark');
   });
 
-  it('renders description mode radio buttons with correct selection', () => {
+  it('renders description mode radio buttons with correct selection', async () => {
+    const user = userEvent.setup();
     render(<SettingsDialog onClose={onClose} />);
+    await user.click(screen.getByRole('tab', { name: 'Appearance' }));
     const plainRadio = screen.getByRole('radio', { name: 'Plain' });
     const formalRadio = screen.getByRole('radio', { name: 'Formal' });
     expect(plainRadio).toBeChecked();
@@ -148,6 +156,7 @@ describe('SettingsDialog', () => {
   it('saves API key and shows success message', async () => {
     const user = userEvent.setup();
     render(<SettingsDialog onClose={onClose} />);
+    await user.click(screen.getByRole('tab', { name: 'API Keys' }));
     const keyInput = screen.getByPlaceholderText('AIza...');
     await user.type(keyInput, 'AIzaSyTestKey');
     await user.click(screen.getByText('Save'));
