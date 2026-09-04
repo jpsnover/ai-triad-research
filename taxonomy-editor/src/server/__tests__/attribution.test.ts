@@ -142,6 +142,15 @@ describe('POST /api/argument-network/attribution — server parity (t/3297)', ()
     expect((res._body.attributions as Record<string, { unattributed_reason?: string }>)['an-3'].unattributed_reason).toBe('no_embedding');
   });
 
+  it('t/3323: summary includes per-claim decisions[] (ExtractionTimelinePanel contract)', async () => {
+    const res = fakeRes();
+    await post(fakeReq(), res, { pov: 'accelerationist', claims: structuredClone(CLAIMS) });
+    const summary = res._body.summary as { decisions?: { claim_id: string }[] };
+    expect(Array.isArray(summary.decisions)).toBe(true);
+    expect(summary.decisions).toHaveLength(CLAIMS.length); // one decision per claim, incl. the no-embedding one
+    expect(summary.decisions!.map(d => d.claim_id)).toEqual(CLAIMS.map(c => c.id)); // order-preserving
+  });
+
   it('rejects an invalid pov with 400', async () => {
     const res = fakeRes();
     await post(fakeReq(), res, { pov: 'bogus', claims: [] });
