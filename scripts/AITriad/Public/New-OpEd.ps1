@@ -260,48 +260,10 @@ function New-OpEd {
         $Prep = $SourcePrep
     } elseif ($PSCmdlet.ParameterSetName -eq 'FromUrl') {
         Write-Verbose "Fetching + converting source material from $Url"
-        # INTERIM CLI-only fetch (t/3312). Get-OpEdSource is convert-only (t/3307): the desktop/Electron
-        # path fetches via the shared SSRF-guarded Node fetcher, but the standalone CLI has no Node
-        # orchestrator, so it fetches here then hands the bytes to the converter. PowerShell's
-        # Invoke-WebRequest is WAF-fingerprint-blocked (403) on some hosts (Akamai .gov, t/3306) where
-        # the Node fetcher gets 200 — so CLI -Url is BEST-EFFORT until it migrates to the shared Node
-        # fetch-CLI under t/3312 (this cmdlet is on that consumer list).
-        $TempSource = $null
-        try {
-            $Resp = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 60
-            $CT   = [string]($Resp.Headers['Content-Type'] ?? '')
-            # Persist the RAW bytes so binary sources (PDF/DOCX) stay intact; the converter reads them.
-            # Property-guarded access (StrictMode-safe): a real BasicHtmlWebResponseObject exposes
-            # RawContentStream; test doubles may not.
-            $TempSource = [System.IO.Path]::GetTempFileName()
-            $HasRaw = $Resp.PSObject.Properties['RawContentStream'] -and $null -ne $Resp.RawContentStream
-            $Bytes = if ($HasRaw) {
-                $Ms = [System.IO.MemoryStream]::new()
-                try { $Resp.RawContentStream.Position = 0; $Resp.RawContentStream.CopyTo($Ms); $Ms.ToArray() }
-                finally { $Ms.Dispose() }
-            } elseif ($Resp.PSObject.Properties['Content'] -and ($Resp.Content -is [byte[]])) {
-                $Resp.Content
-            } else {
-                [System.Text.Encoding]::UTF8.GetBytes([string]$Resp.Content)
-            }
-            [System.IO.File]::WriteAllBytes($TempSource, $Bytes)
-            $Prep = Get-OpEdSource -ContentPath $TempSource -ContentType $CT -SourceUrl $Url `
-                -Verbose:($VerbosePreference -ne 'SilentlyContinue')
-        } catch {
-            throw (New-ActionableError -PassThru `
-                -Goal 'Fetch + convert source URL for op-ed generation (CLI path)' `
-                -Problem "Could not fetch '$Url': $($_.Exception.Message)" `
-                -Location 'New-OpEd (FromUrl)' `
-                -NextSteps @(
-                    'This CLI fetch is WAF-limited (t/3312); the desktop app fetches via the hardened Node fetcher',
-                    'Confirm the URL is reachable and publicly accessible',
-                    'Supply material via -Topic text instead'
-                ))
-        } finally {
-            if ($TempSource -and (Test-Path -LiteralPath $TempSource)) {
-                Remove-Item -LiteralPath $TempSource -Force -ErrorAction SilentlyContinue
-            }
-        }
+        # Get-OpEdSource is convert-only (t/3307); the CLI's best-effort fetch lives in the localized
+        # Private helper Get-OpEdSourceFromUrl (WAF-limited interim, migrates to the shared Node
+        # fetch-CLI under t/3312 — one entry point for the migration + any WAF-fetch prevention guard).
+        $Prep = Get-OpEdSourceFromUrl -Url $Url -Verbose:($VerbosePreference -ne 'SilentlyContinue')
     }
 
     $SourceMaterial = '(no external source supplied — argue from the topic and general knowledge)'
