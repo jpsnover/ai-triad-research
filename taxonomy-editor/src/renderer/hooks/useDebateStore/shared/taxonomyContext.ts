@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { PovNode, CrossCuttingNode as SituationNode } from '../../../types/taxonomy';
-import { POVER_INFO, POV_KEYS } from '../../../types/debate';
+import { POV_KEYS } from '../../../types/debate';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 // Circular import — safe because all references are at call-time, never at module init
 import { useDebateStore } from '../store';
@@ -14,7 +14,12 @@ import { computeLineageDistribution, formatLineageContext } from '@lib/debate/to
 // t/3257: the relevance-selection pipeline moved to lib-pure; this file is now the thin CLIENT
 // wrapper (build corpus embeddings + fetch greatest-hits + assemble session state → call the pure
 // fn → re-apply anchoring + emit diagnostics + map the result). The server calls the SAME fn (T2).
-import { selectRelevantTaxonomy, assembleNodeEmbeddings } from '@lib/debate/relevanceSelection';
+// t/3258 (T3): the client no longer calls selectRelevantTaxonomy locally — it delegates to the
+// server/main via api.fetchRelevantNodes (both run the SAME lib fn → parity by construction).
+// assembleNodeEmbeddings stays for buildNodeEmbeddingMap, which the t/3165 corpus-dedup regression
+// test still exercises (the production corpus-fetch path is now dead — cleanup deferred to a
+// follow-up, gated on this flip being parity-GV-proven so the old path stays as rollback).
+import { assembleNodeEmbeddings } from '@lib/debate/relevanceSelection';
 import type { ANClaimInput } from '@lib/debate/relevanceSelection';
 // t/3257#21: corpus assembly + synthetic merge relocated to lib so the server (T2) + client build
 // the corpus map identically (parity by construction). Re-exported here for argumentNetwork.ts.
@@ -338,38 +343,31 @@ export async function getRelevantTaxonomyContext(
   try {
     const debate = useDebateStore.getState().activeDebate;
 
-    // Corpus embeddings — renderer IO + per-debate memo — passed to the pure fn (server builds its own).
-    const { nodeEmbeddings } = await buildNodeEmbeddingMap(pov, allPovNodes, allCCNodes);
-
-    // ── Assemble the pure-fn input (session state crosses the wire in the T2/T3 split) ──
+    // ── T3 (t/3258): assemble ONLY the per-session state that crosses the wire. The server/main side
+    // derives everything static itself — the corpus (assembleNodeEmbeddings), taxonomy nodes,
+    // policyRegistry, lineage L2 map and doctrinal boundaries — then runs the SAME shared lib fn
+    // (selectRelevantTaxonomy) → parity by construction. The client no longer fetches the corpus to
+    // score locally (the t/3165 architectural fast-follow). ──
     const anClaimEmbeddings: ANClaimInput[] = (debate?.argument_network?.nodes ?? [])
       .filter(n => n.embedding && n.embedding.length > 0)
       .map(n => ({ id: n.id, vector: n.embedding!, strength: n.computed_strength, text: n.text }));
     const lineageFrame = debate?.topic?.critique?.lineage_frame;
     const excludeGreatestHits = !!debate?.exclude_greatest_hits;
+    // Greatest-hits is per-debate session state the server can't reconstruct — fetch client-side and
+    // send it (Set→string[]) or the exclusion silently no-ops server-side (TL D3, t/3256#2).
     const greatestHitsList = excludeGreatestHits ? await getGreatestHits() : undefined;
-    // Static/server-derivable: current POV's doctrinal boundaries (POVER_INFO) + the lineage L2 map.
-    const povInfo = Object.values(POVER_INFO).find(i => i.pov === pov);
-    const doctrinalBoundaries = (povInfo?.doctrinal_boundaries?.length ?? 0) > 0
-      ? { strings: povInfo!.doctrinal_boundaries ?? [] }
-      : undefined;
-    const lineageMapping = isLineageDataLoaded() ? getLineageMapping() : undefined;
-    // Boundary + topic-query embeddings use computeQueryEmbedding (matches the pre-extraction path).
-    const embed = async (texts: string[]): Promise<number[][]> =>
-      Promise.all(texts.map(async t => (await api.computeQueryEmbedding(t)).vector));
 
     recordLineageBoostCheck(lineageFrame, debate?.source_type === 'topic');
 
-    const result = await selectRelevantTaxonomy({
-      povNodes: allPovNodes,
-      situationNodes: allCCNodes,
-      policyRegistry: (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs })),
-      nodeEmbeddings,
-      lineageMapping,
-      doctrinalBoundaries,
+    // Single transport call — web: REST POST /api/taxonomy/relevant-nodes; electron: IPC → a main
+    // handler mirroring the server route. Returns the full RelevantTaxonomyResult (W1) — the client
+    // presentation below (anchoring re-apply, diagnostics, id→node mapping) is unchanged.
+    const result = await api.fetchRelevantNodes({
+      pov,
+      topic,
+      recentTranscript,
+      threshold,
       session: { anClaimEmbeddings, lineageFrame, sourceType: debate?.source_type, excludeGreatestHits, greatestHitsList },
-      params: { pov, topic, recentTranscript, threshold },
-      embed,
     });
 
     // ── Re-apply the doctrinal-anchoring side-effect to the store's Belief nodes ──

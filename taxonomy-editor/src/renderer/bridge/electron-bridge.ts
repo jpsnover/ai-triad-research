@@ -274,6 +274,9 @@ export const api: AppAPI = {
     return window.electronAPI.computeQueryEmbedding(text);
   },
   nliClassify: (pairs) => window.electronAPI.nliClassify(pairs),
+  // t/3258 (T3): packaged Electron has no embedded server, so this delegates to a main-process
+  // handler that mirrors routes/relevantNodes.ts via the SAME shared lib (parity by construction).
+  fetchRelevantNodes: (payload) => window.electronAPI.fetchRelevantNodes(payload),
 
   // Debate sessions
   getDebateQuotaStatus: () => Promise.resolve({ allowed: true, resource: 'debates', current: 0, limit: Infinity }),

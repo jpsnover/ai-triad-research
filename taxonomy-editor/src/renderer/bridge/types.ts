@@ -82,6 +82,39 @@ export type DebateTestedEntry = _DebateTestedEntry;
 import type { DebateDelta as _DebateDelta } from '@lib/debate/types';
 export type DebateDelta = _DebateDelta;
 
+// t/3258 (T3): the relevance-selection result + AN-claim input the fetchRelevantNodes bridge method
+// carries. Both transports call the SAME shared lib (selectRelevantTaxonomy) so the result is
+// parity-identical by construction — this is the exact contract the server route already types against.
+import type { ANClaimInput as _ANClaimInput, RelevantTaxonomyResult as _RelevantTaxonomyResult } from '@lib/debate/relevanceSelection';
+export type ANClaimInput = _ANClaimInput;
+export type RelevantTaxonomyResult = _RelevantTaxonomyResult;
+
+/**
+ * Payload for `fetchRelevantNodes` (t/3258 T3). Mirrors `SelectRelevantTaxonomyInput['session']` +
+ * `params` — ONLY the per-session state the server/main cannot reconstruct crosses the wire; the
+ * static corpus (nodeEmbeddings), taxonomy nodes, policyRegistry, lineage map and doctrinal
+ * boundaries are derived on the server/main side. Field-for-field identical to the server route's
+ * `RelevantNodesBody` (routes/relevantNodes.ts) so the two callers stay in lockstep.
+ */
+export interface FetchRelevantNodesPayload {
+  /** POV file key: accelerationist | safetyist | skeptic. */
+  pov: string;
+  topic: string;
+  recentTranscript: string;
+  /** Default 0.45 (applied by the lib fn when omitted). */
+  threshold?: number;
+  session: {
+    /** `argument_network.nodes[]` with embeddings — the PRIMARY scoring signal; `text` for provenance. */
+    anClaimEmbeddings: ANClaimInput[];
+    lineageFrame?: { cluster_id: string; label?: string }[];
+    /** `debate.source_type`; lineage frame is only "expected" for `'topic'` debates. */
+    sourceType?: string;
+    excludeGreatestHits?: boolean;
+    /** Fetched caller-side (renderer: bridge `getGreatestHits`) and passed as an array. */
+    greatestHitsList?: string[];
+  };
+}
+
 import type { OpEdSet, OpEdSetSummary, PovKey } from '../../../../lib/oped/types';
 import type { BriefPreset, ExportJobState, ExportErrorCode, BriefArtifactName } from '../../../../lib/brief/types';
 
@@ -300,6 +333,12 @@ export interface AppAPI {
   // (t/2060). Electron computes it; the web transport returns [] (server backend doesn't DML-OOM).
   updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string; exclusionText?: string }[]) => Promise<{ staleNodeIds: string[] }>;
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
+  // t/3258 (T3): server/main-side taxonomy relevance selection — the debate client stops fetching
+  // the corpus to score locally. Both transports run the SAME shared lib (selectRelevantTaxonomy),
+  // so the result is parity-identical by construction. Web → REST POST /api/taxonomy/relevant-nodes;
+  // Electron → IPC → a main handler mirroring routes/relevantNodes.ts (packaged Electron has no
+  // embedded server). Only per-session state crosses the wire; the corpus is assembled server/main-side.
+  fetchRelevantNodes: (payload: FetchRelevantNodesPayload) => Promise<RelevantTaxonomyResult>;
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>) => Promise<{
     results: Array<{
       nli_label: string;
