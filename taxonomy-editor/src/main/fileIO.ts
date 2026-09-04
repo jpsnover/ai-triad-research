@@ -153,10 +153,19 @@ export function validateDataRoot(): void {
   const REQUIRED_DIRS = ['taxonomy', 'dictionary'] as const;
   for (const dir of REQUIRED_DIRS) {
     const fullPath = path.join(dataRoot, dir);
-    // Check exists AND non-empty — an empty directory is the same silent-degradation
-    // class as a missing one (every read returns empty, no error) (t/3296).
-    const isEmpty = !fs.existsSync(fullPath) || fs.readdirSync(fullPath).length === 0;
-    if (isEmpty) {
+    // Use readdirSync directly — ENOENT = definitive absent (same ActionableError class as empty).
+    // Mirrors the server fs convention; eliminates the TOCTOU gap between existsSync + readdirSync.
+    let entryCount: number;
+    try {
+      entryCount = fs.readdirSync(fullPath).length;
+    } catch (fsErr) {
+      if ((fsErr as NodeJS.ErrnoException).code === 'ENOENT') {
+        entryCount = 0;
+      } else {
+        throw fsErr;
+      }
+    }
+    if (entryCount === 0) {
       throw new ActionableError({
         goal: 'Load application data',
         problem: `Data root resolved to "${dataRoot}" (via ${method}) but "${dir}/" is missing or empty`,

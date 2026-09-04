@@ -7,13 +7,12 @@ import fs from 'fs';
 /**
  * t/3296: validateDataRoot() in fileIO.ts must throw ActionableError when the
  * resolved data root lacks the expected sentinel directories (taxonomy/,
- * dictionary/), naming the resolved path and resolution method so the fix is
- * one glance. Prevention for the t/3290 silent-empty-panels incident.
+ * dictionary/) — either absent (ENOENT) or empty (0 entries). Names the resolved
+ * path and resolution method so the fix is one glance. Prevention for t/3290.
  *
- * Strategy: mock electron + heavy deps so fileIO.ts loads under vitest, then
- * spy on fs.existsSync to control which sentinel dirs "exist" per test.
- * AI_TRIAD_DATA_ROOT env var controls the data root (highest priority path,
- * cleanest way to inject a known root without touching config files).
+ * Implementation uses readdirSync + ENOENT catch (mirrors server fs convention).
+ * Tests spy on readdirSync to control per-path counts; existsSync is only spied
+ * for the method-detection (.aitriad.json presence) tests.
  */
 
 vi.mock('electron', () => ({
@@ -36,6 +35,18 @@ import { ActionableError } from '../../../../lib/debate/errors.js';
 
 const DATA_ROOT = '/test-data-root';
 
+/** Stub readdirSync: return non-empty for listed dirs, ENOENT for everything else. */
+function stubReaddirSync(presentDirs: string[]): void {
+  vi.spyOn(fs, 'readdirSync').mockImplementation((p) => {
+    const s = String(p);
+    if (presentDirs.some(d => s.endsWith(d))) {
+      return ['somefile.json'] as unknown as fs.Dirent[];
+    }
+    const err = Object.assign(new Error(`ENOENT: no such file or directory, scandir '${s}'`), { code: 'ENOENT' });
+    throw err;
+  });
+}
+
 beforeEach(() => {
   process.env.AI_TRIAD_DATA_ROOT = DATA_ROOT;
 });
@@ -46,47 +57,39 @@ afterEach(() => {
 });
 
 describe('validateDataRoot (t/3296)', () => {
-  it('passes when both taxonomy/ and dictionary/ exist', () => {
-    vi.spyOn(fs, 'existsSync').mockImplementation((p) => {
-      const s = String(p);
-      return s.endsWith('taxonomy') || s.endsWith('dictionary');
-    });
+  it('passes when both taxonomy/ and dictionary/ are non-empty', () => {
+    stubReaddirSync(['taxonomy', 'dictionary']);
     expect(() => validateDataRoot()).not.toThrow();
   });
 
-  it('throws ActionableError when taxonomy/ is missing', () => {
-    vi.spyOn(fs, 'existsSync').mockImplementation((p) => {
-      return String(p).endsWith('dictionary');
-    });
+  it('throws ActionableError when taxonomy/ is absent (ENOENT)', () => {
+    stubReaddirSync(['dictionary']);
     expect(() => validateDataRoot()).toThrow(ActionableError);
   });
 
-  it('throws ActionableError when dictionary/ is missing', () => {
-    vi.spyOn(fs, 'existsSync').mockImplementation((p) => {
-      return String(p).endsWith('taxonomy');
-    });
+  it('throws ActionableError when dictionary/ is absent (ENOENT)', () => {
+    stubReaddirSync(['taxonomy']);
     expect(() => validateDataRoot()).toThrow(ActionableError);
   });
 
-  it('throws ActionableError when both sentinel dirs are missing', () => {
-    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+  it('throws ActionableError when both sentinels are absent', () => {
+    stubReaddirSync([]);
     expect(() => validateDataRoot()).toThrow(ActionableError);
   });
 
   it('throws ActionableError when taxonomy/ exists but is empty (same silent-degradation class as absent)', () => {
-    vi.spyOn(fs, 'existsSync').mockImplementation((p) => {
-      const s = String(p);
-      return s.endsWith('taxonomy') || s.endsWith('dictionary');
-    });
     vi.spyOn(fs, 'readdirSync').mockImplementation((p) => {
-      // taxonomy/ is empty, dictionary/ has content
-      return (String(p).endsWith('taxonomy') ? [] : ['somefile.json']) as unknown as fs.Dirent[];
+      const s = String(p);
+      if (s.endsWith('dictionary')) return ['somefile.json'] as unknown as fs.Dirent[];
+      if (s.endsWith('taxonomy')) return [] as unknown as fs.Dirent[];
+      const err = Object.assign(new Error(`ENOENT: ${s}`), { code: 'ENOENT' });
+      throw err;
     });
     expect(() => validateDataRoot()).toThrow(ActionableError);
   });
 
   it('error names the resolved data root path', () => {
-    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    stubReaddirSync([]);
     let err: ActionableError | undefined;
     try { validateDataRoot(); } catch (e) { err = e as ActionableError; }
     expect(err).toBeInstanceOf(ActionableError);
@@ -94,7 +97,7 @@ describe('validateDataRoot (t/3296)', () => {
   });
 
   it('error names AI_TRIAD_DATA_ROOT as resolution method when env var is set', () => {
-    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    stubReaddirSync([]);
     let err: ActionableError | undefined;
     try { validateDataRoot(); } catch (e) { err = e as ActionableError; }
     expect(err!.problem).toContain('AI_TRIAD_DATA_ROOT env var');
@@ -102,10 +105,9 @@ describe('validateDataRoot (t/3296)', () => {
 
   it('error names .aitriad.json as resolution method when env var is absent but config file exists', () => {
     delete process.env.AI_TRIAD_DATA_ROOT;
-    vi.spyOn(fs, 'existsSync').mockImplementation((p) => {
-      // Config file exists; sentinel dirs do not
-      return String(p).endsWith('.aitriad.json');
-    });
+    // existsSync: .aitriad.json present; readdirSync: sentinels absent
+    vi.spyOn(fs, 'existsSync').mockImplementation((p) => String(p).endsWith('.aitriad.json'));
+    stubReaddirSync([]);
     let err: ActionableError | undefined;
     try { validateDataRoot(); } catch (e) { err = e as ActionableError; }
     expect(err).toBeInstanceOf(ActionableError);
@@ -115,6 +117,7 @@ describe('validateDataRoot (t/3296)', () => {
   it('error names PROJECT_ROOT fallback when no env var and no config file', () => {
     delete process.env.AI_TRIAD_DATA_ROOT;
     vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    stubReaddirSync([]);
     let err: ActionableError | undefined;
     try { validateDataRoot(); } catch (e) { err = e as ActionableError; }
     expect(err).toBeInstanceOf(ActionableError);
