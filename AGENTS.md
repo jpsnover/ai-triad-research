@@ -61,6 +61,7 @@ The `pre-self-merge-verify` hook **blocks** a manual `gh pr merge` that omits `-
 - **Batch sequential same-feature work** onto one branch / one PR unless the diff exceeds ~400 lines, mixes concerns, or a peer needs an intermediate step on `main`.
 - **Merge promptly on green** — verify (above) and merge within ~15 min, or record the hold as a PR/ticket comment. An unmerged green PR with no recorded hold is drift.
 - **Gated PRs stay draft; never enable auto-merge on a gated PR.** A comment/design/`blocks` hold gives visibility but does **not** gate GitHub; only draft enforces. Un-draft only when the gate is verifiably clear (t/2603/#997).
+- **Co-merge / joint-GV PRs carry the `joint-gv` label; never `--auto` them.** When two+ PRs must land together (a locked cross-role contract) or a PR is gated on a joint TL Gate-Verification, label it `joint-gv`. Auto-merge fires the moment checks go green and merges the PR ALONE on whatever head is current — jumping the group and stranding reviewed work (t/3307: #1947 auto-merged without its ElectronMain pair, briefly breaking main). Merge these manually with `--match-head-commit` after the GV. The DevOps `auto-merge-jointgv-guard` (extends the t/3270 merge-guard: `operations/devops/merge-guard-predicate.mjs`) blocks `gh pr merge --auto` on a `joint-gv`-labeled PR; a normal `--match-head-commit` self-merge is unaffected (t/3318).
 
 ### Claim Before Implement (q/42)
 
