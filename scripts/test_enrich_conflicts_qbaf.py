@@ -197,6 +197,61 @@ def test_bare_numbers_weak_overlap_no_conflict():
         "labs used 3 chips", "labs used 7 servers") is False
 
 
+# detect_semantic_edges + enrich_conflict extra_edges — fork-B wiring (t/3302, AI mocked)
+
+def _si(stance, doc, text):
+    return {"stance": stance, "doc_id": doc, "assertion": text}
+
+
+def test_detect_semantic_edges_numeric_and_llm():
+    to_process = [
+        (None, {"claim_id": "c0", "instances": [
+            _si("neutral", "d1", "compute among safety labs grew 30 percent last year"),
+            _si("neutral", "d2", "compute among safety labs grew 10 percent last year")]}),
+        (None, {"claim_id": "c1", "instances": [
+            _si("neutral", "d1", "cats are calm household pets"),
+            _si("neutral", "d2", "dogs are loud household pets")]}),
+    ]
+    # Only c1's pair (id "1:0:1") reaches the LLM (c0 is caught by the numeric detector first).
+    def runner(batch, mode, temp):
+        ids = {p["id"] for c in batch for p in c["pairs"]}
+        assert ids == {"1:0:1"}, f"numeric pair must not reach the LLM; got {ids}"
+        return {"1:0:1": {"label": "contradict", "confidence": 0.9}}
+    by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.5, mode="per-conflict", cc_runner=runner)
+    assert by_ci[0][0]["detector"] == "numeric" and by_ci[0][0]["type"] == "attacks"
+    assert by_ci[1][0]["detector"] == "llm" and by_ci[1][0]["type"] == "attacks"
+    assert by_ci[1][0]["confidence"] == 0.9
+
+
+def test_detect_semantic_edges_entail_is_support():
+    to_process = [(None, {"claim_id": "c0", "instances": [
+        _si("neutral", "d1", "the model reduces latency"),
+        _si("neutral", "d2", "the model cuts latency")]})]
+    runner = lambda batch, mode, temp: {"0:0:1": {"label": "entail", "confidence": 0.8}}
+    by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.5, cc_runner=runner)
+    assert by_ci[0][0]["type"] == "supports"
+    assert by_ci[0][0]["detector"] == "llm"
+
+
+def test_detect_semantic_edges_low_confidence_dropped():
+    to_process = [(None, {"claim_id": "c0", "instances": [
+        _si("neutral", "d1", "alpha beta gamma"),
+        _si("neutral", "d2", "delta epsilon zeta")]})]
+    runner = lambda batch, mode, temp: {"0:0:1": {"label": "contradict", "confidence": 0.2}}
+    by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.5, cc_runner=runner)
+    assert by_ci == {}  # below threshold -> no edge
+
+
+def test_enrich_conflict_merges_extra_edges_with_provenance():
+    conflict = {"instances": [_si("neutral", "d1", "aaa"), _si("neutral", "d2", "bbb")]}
+    extra = [{"source": "inst-0", "target": "inst-1", "type": "attacks", "weight": 0.6,
+              "attack_type": "rebut", "detector": "llm", "edge_origin": "semantic", "confidence": 0.77}]
+    pre = eq.enrich_conflict(conflict, {}, extra_edges=extra)
+    assert pre.get("_needs_bridge") is True   # extra edge -> needs propagation
+    eo = pre["edge_output"][0]
+    assert eo["detector"] == "llm" and eo["edge_origin"] == "semantic" and eo["confidence"] == 0.77
+
+
 if __name__ == "__main__":
     import pytest
 
