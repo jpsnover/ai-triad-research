@@ -258,6 +258,18 @@ quality**; a judge `pass` is not ground truth.
 | Mechanical thresholds — `MIN_CHARS=40`, `MAX_CHARS=400`, `MIN_NOVEL_WORDS=4`, `RESTATEMENT_OVERLAP=0.60`, `RESTATEMENT_NOVEL_MAX=6` | **stipulated** | Token-heuristic flags (`empty` / `too_short` / `too_long` / `low_novelty` / `restatement` / `both_labels_verbatim`). Values asserted by design; `MAX_CHARS` tracks the backfill prompt's ~300-char target with slack. Two-arm proven in `test_check_rationale_quality.py` (good rationale → 0 flags; each defect → its flag) but never tuned against a labeled sample. **Path off stipulated:** score flags against a hand-labeled rationale sample; promote to `derived` only with that evidence pointer. |
 | LLM-judge verdict (`grounded` 0–2, `specific_to_type` 0–2, `not_restatement` 0–1; verdict `pass`/`weak`/`fail`) | **stipulated** | `judge-prompt.txt` rubric asserted by design. A junk screen (catches empty / off-type / label-restatement), not a calibrated quality metric — the model's own scores do not transport across backends. **Path off stipulated:** agreement study vs a human-labeled rationale sample; until then never read a `pass` as validated quality. |
 
+## 10. Semantic-opposition validation gate (t/3302 Fork-B)
+
+Two-sided gate for the Fork-B semantic-opposition edge pass (`enrich_conflicts_qbaf.py`, factual-conflicts
+only): the pass must raise testedness (recall) AND keep false attacks bounded (precision). Golden +
+protocol: `research/comp-linguist/analyses/semantic-opposition-golden/` (`build_golden.py`,
+`semantic-opposition-golden.json`, README).
+
+| Instrument / threshold | Provenance | Evidence / notes |
+|---|---|---|
+| Semantic-opposition golden (122 pairs: 113 observed + 9 constructed), labels `contradict`/`entail`/`neutral` | **human-validated** (CL-authored **blind** — assertion texts only, before any classifier output); PI spot-confirm available | Reference the detector is scored against. Pools: `REP` (80, true ~6% base rate + hard-negative precision traps), `ENR` (33, candidate-enriched cross-stance/vs positives — recall only, never the precision denominator), `CONSTRUCTED` (9, numeric/temporal detector-validation — excluded from observed metrics). Deterministic sampling (sorted ids + stride, no RNG); labels embedded in `build_golden.py`. Single-annotator (CL) reference, no inter-annotator agreement. |
+| Acceptance bar — **precision ≥ 0.85** on produced attack edges (false-attack ≤ 15%), **recall ≥ 0.50** on labeled contradicts | **stipulated-provisional** (CL t/3302#6, TL-approved t/3302#7) | Threshold derived on TUNE; precision reported on REP `held_out` (base-rate-honest); recall on all `held_out` contradicts. Deliverable is the P/R curve → operating point picked from data. Wide CIs at these n (observed contradict base rate ~6%; the deterministic numeric/temporal subset has only 2 *observed* contradicts — the constructed cases validate the mechanism, not real-world recall). **Path off stipulated:** score the detector on the frozen golden; promote to derived once the P/R curve on `held_out` clears the bar with acceptable CI, and `qbaf.testedness` (#1935) confirms the before/after tier lift on the full corpus. Sentinel: golden-set scores stay OUT of any auto-tune objective. |
+
 ## Maintenance
 
 - Every PR adding or modifying a metric, threshold, weight, or lexicon must state its provenance class and update this register in the same PR (CL review checklist item).
