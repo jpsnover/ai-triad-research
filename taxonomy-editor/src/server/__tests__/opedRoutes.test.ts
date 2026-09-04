@@ -47,9 +47,16 @@ vi.mock('../ai/opedAdapter.js', () => ({ createWebOpEdAdapter: () => ({ generate
 // fetchUrlContent (t/2807) is also mocked here so the URL-source path is controllable
 // without the real network/SSRF stack (that stack is covered by t720Security.test.ts).
 const { fetchUrlContent } = vi.hoisted(() => ({ fetchUrlContent: vi.fn() }));
+// t/2893: oped.ts now imports the run-control store fns (re-exported via fileIO) — stub them.
+const { upsertOpedRun, countRunningOpedRuns, getOpedRun } = vi.hoisted(() => ({
+  upsertOpedRun: vi.fn(async () => {}),
+  countRunningOpedRuns: vi.fn(async () => 0),   // no existing runs → create passes the concurrency gate
+  getOpedRun: vi.fn(async () => null),          // unknown run → status GET 404s
+}));
 vi.mock('../storage/fileIO.js', () => ({
   isSafeId: (v: string) => !!v && /^[a-zA-Z0-9_-]+$/.test(v),
   fetchUrlContent,
+  upsertOpedRun, countRunningOpedRuns, getOpedRun,
 }));
 
 // t/2807: controllable generator so the URL happy-path can assert the request handed to
