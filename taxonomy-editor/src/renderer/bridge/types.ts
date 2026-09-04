@@ -115,6 +115,30 @@ export interface FetchRelevantNodesPayload {
   };
 }
 
+// t/3316 (t/3297 client half): per-claim taxonomy attribution moved server/main-side — the debate
+// client stops assembling the corpus for attribution (the last synthetic-corpus fetch). Both
+// transports call the SAME pure fn (computeClaimTaxonomyAttribution) — web server-side, electron
+// main-side — so the result is parity-identical by construction.
+import type { ClaimAttributionResult as _ClaimAttributionResult } from '@lib/debate/argumentNetwork/attribution';
+import type { ClaimTaxonomyAttribution as _ClaimTaxonomyAttribution } from '@lib/debate/types';
+
+/** Payload for `fetchClaimAttribution` (t/3316). The client sends the newly-extracted AN claims (id +
+ *  embeddings); the server/main derives the same-POV candidate corpus itself. Field-for-field identical
+ *  to the attribution route's body (routes/attribution.ts). */
+export interface FetchClaimAttributionPayload {
+  /** Speaker POV file key: accelerationist | safetyist | skeptic. */
+  pov: string;
+  claims: { id: string; embedding?: number[]; attribution_embedding?: number[] }[];
+  topN?: number;
+}
+
+/** Response: per-claim attribution (applied verbatim to each AN node's `claim_taxonomy_attribution`) +
+ *  the diagnostics summary — the 4 counts AND `decisions[]` (drives ExtractionTimelinePanel, t/3316#2). */
+export interface ClaimAttributionResponse {
+  attributions: Record<string, _ClaimTaxonomyAttribution>;
+  summary: _ClaimAttributionResult;
+}
+
 import type { OpEdSet, OpEdSetSummary, PovKey } from '../../../../lib/oped/types';
 import type { BriefPreset, ExportJobState, ExportErrorCode, BriefArtifactName } from '../../../../lib/brief/types';
 
@@ -339,6 +363,11 @@ export interface AppAPI {
   // Electron → IPC → a main handler mirroring routes/relevantNodes.ts (packaged Electron has no
   // embedded server). Only per-session state crosses the wire; the corpus is assembled server/main-side.
   fetchRelevantNodes: (payload: FetchRelevantNodesPayload) => Promise<RelevantTaxonomyResult>;
+  // t/3316 (t/3297 client half): server/main-side per-claim taxonomy attribution — the debate client
+  // stops assembling the corpus for attribution. Both transports run the SAME pure fn
+  // (computeClaimTaxonomyAttribution). Web → REST POST /api/argument-network/attribution; Electron →
+  // IPC → a main handler (window.electronAPI.computeAttribution, t/3322) computing from the LOCAL corpus.
+  fetchClaimAttribution: (payload: FetchClaimAttributionPayload) => Promise<ClaimAttributionResponse>;
   nliClassify: (pairs: Array<{ text_a: string; text_b: string }>) => Promise<{
     results: Array<{
       nli_label: string;

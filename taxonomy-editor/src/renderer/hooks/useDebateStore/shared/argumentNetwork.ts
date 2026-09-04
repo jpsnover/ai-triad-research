@@ -19,7 +19,6 @@ import {
   extractClaimsPrompt,
   classifyClaimsPrompt,
   processExtractedClaims,
-  computeClaimTaxonomyAttribution,
   updateUnansweredLedger,
 } from '../../../prompts/argumentNetwork';
 import { trace, newCallId, TraceEventName } from '../../../lib/trace';
@@ -42,7 +41,6 @@ import type { GroundingCitation } from '../../../bridge/types';
 import { pushWarning, recordDiagnostic } from './diagnostics';
 import { getConfiguredModel } from './modelConfig';
 import { buildFactCheckPrompt } from './prompts';
-import { loadSyntheticVectors, mergeSyntheticVectors } from './taxonomyContext';
 import { phaseGuardedSet } from './generation';
 
 /** Maximum number of turn embeddings to retain (enough for recycling detection). */
@@ -321,63 +319,24 @@ async function computeTaxonomyAttribution(newNodes: NewAnNode[], speaker: Speake
       const speakerPov = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.pov;
       if (speakerPov) {
         try {
-          const taxState = useTaxonomyStore.getState();
-          const povFile = taxState[speakerPov as keyof typeof taxState] as { nodes: { id: string; category: string; label: string; description: string }[] } | null;
-          const povNodes = povFile?.nodes ?? [];
-          const allPovNodeIds = new Set(povNodes.map((n) => n.id));
-
-          // Ensure we have embeddings for POV nodes — load from embeddings.json via IPC
-          let embCache = taxState.embeddingCache;
-          if (embCache.size === 0 || !povNodes.some(n => embCache.has(n.id))) {
-            const { ids, texts } = taxState.buildEmbeddingTexts(new Set(), new Set());
-            if (ids.length > 0) {
-              const { vectors } = await api.computeEmbeddings(texts, ids);
-              embCache = new Map<string, number[]>();
-              for (let i = 0; i < ids.length; i++) {
-                if (vectors[i]?.length > 0) embCache.set(ids[i], vectors[i]);
-              }
-              useTaxonomyStore.setState({ embeddingCache: embCache, embeddingDirty: false });
-            }
+          // t/3316 (t/3297 client half): attribution moved server/main-side — POST the newly-extracted
+          // claims (id + embeddings) instead of assembling the corpus locally. The server/main runs the
+          // SAME pure fn (computeClaimTaxonomyAttribution) over the shared corpus → parity by construction;
+          // fixes the anon degradation (endpoint is free-tier gated) + drops the last synthetic-corpus fetch.
+          const { attributions, summary } = await api.fetchClaimAttribution({
+            pov: speakerPov,
+            claims: newNodes.map(n => ({ id: n.id, embedding: n.embedding, attribution_embedding: n.attribution_embedding })),
+          });
+          // Re-apply per-claim attribution verbatim to each AN node (mirrors the old in-place mutation).
+          for (const node of newNodes) {
+            const attr = attributions[node.id];
+            if (attr) node.claim_taxonomy_attribution = attr;
           }
-
-          // Build nodeEmbeddings from embeddingCache — add pov from node ID prefix
-          const baseNodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
-          const povMap: Record<string, string> = { acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic' };
-          for (const [nodeId, vector] of embCache) {
-            const prefix = nodeId.split('-')[0];
-            const pov = povMap[prefix];
-            if (pov && vector.length > 0) {
-              baseNodeEmbeddings[nodeId] = { pov, vector };
-            }
-          }
-
-          // Merge synthetic multi-vector embeddings when available
-          const synVecs = await loadSyntheticVectors();
-          if (!synVecs) {
-            // t/3298 (t/3297 c-floor): loadSyntheticVectors returned null — the synthetic-embeddings
-            // corpus GET is auth-gated (t/3259), so it 403s for ANON debates → the synthetic
-            // multi-vector merge is DROPPED and claim attribution runs on BASE embeddings only. Make
-            // this degradation observable HERE (Fallback-Path Logging) with a specific WARN + marker,
-            // rather than letting it be inferred from downstream attribution quality or swallowed by
-            // the generic catch below. (Structural fix = the t/3297 (a)-spike, ServerAPI.)
-            getGlobalRecorder()?.record({
-              type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn',
-              message: 'Claim attribution degraded — synthetic-vector merge dropped (synthetic corpus unavailable; likely the anon corpus-gate 403, t/3259). Attribution runs on base embeddings only.',
-              data: { fallback: 'synthetic-merge-skipped', cause: 'synthetic-vectors-null', base_node_count: Object.keys(baseNodeEmbeddings).length },
-            });
-          }
-          const nodeEmbeddings = synVecs
-            ? mergeSyntheticVectors(baseNodeEmbeddings, synVecs)
-            : baseNodeEmbeddings;
-
-          const attrResult = computeClaimTaxonomyAttribution(
-            newNodes, speakerPov, nodeEmbeddings, allPovNodeIds,
-          );
-          extractionTrace.attribution_attributed = attrResult.attributed;
-          extractionTrace.attribution_unattributed = attrResult.unattributed;
-          extractionTrace.attribution_missing_embedding = attrResult.missing_embedding;
-          extractionTrace.attribution_novel_argument = attrResult.novel_argument;
-          extractionTrace.attribution_decisions = attrResult.decisions;
+          extractionTrace.attribution_attributed = summary.attributed;
+          extractionTrace.attribution_unattributed = summary.unattributed;
+          extractionTrace.attribution_missing_embedding = summary.missing_embedding;
+          extractionTrace.attribution_novel_argument = summary.novel_argument;
+          extractionTrace.attribution_decisions = summary.decisions;
         } catch (e) {
           getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'Claim taxonomy attribution failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } });
           // Attribution failure never blocks extraction
