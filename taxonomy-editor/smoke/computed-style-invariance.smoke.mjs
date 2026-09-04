@@ -52,7 +52,12 @@ test.beforeEach(async ({ page }) => {
 test('computed-style invariance across the 4 themes (t/2940)', async ({ page }) => {
   const captured = {};
   for (const [name, cluster] of Object.entries(CLUSTERS)) {
-    // Navigate to the surface whose lazy chunk loads this cluster's co-located CSS.
+    // Skip clusters the web smoke can't reach — probing them would capture only CSS defaults (a
+    // vacuous gate). The reason + re-inclusion trigger live in the manifest's `excluded` (t/2940#9,
+    // t/3299); removing that marker re-includes the cluster here.
+    if (cluster.excluded) continue;
+    // Land on a valid surface before probing. The active clusters' CSS is eagerly bundled, so this
+    // is navigation-independent — it just needs a real [data-tab] the SPA exposes.
     await page.locator(`[data-tab="${cluster.openTab}"]`).first().click();
     await page.waitForLoadState('networkidle').catch(() => {});
     captured[name] = {};
