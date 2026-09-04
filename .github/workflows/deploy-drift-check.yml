@@ -120,6 +120,11 @@ jobs:
           AGE_HOURS: ${{ steps.inputs.outputs.age_hours }}
         run: |
           set -uo pipefail
+          # Self-ensure the label exists — a MISSING `deploy-drift` label silently broke the FIRE
+          # arm: `gh issue create --label` errored, so the gate fired (red job) but never opened the
+          # human-reaching issue (t/3278 live-fire finding). --force is idempotent; keep the gate's
+          # signal self-contained rather than depending on an out-of-band repo-config prereq.
+          gh label create "$DRIFT_LABEL" --color B60205 --description 'Prod deploy drift alert (t/3278 deploy-drift-check)' --force >/dev/null 2>&1 || true
           TITLE='⚠️ Prod deploy drift: running image is behind main'
           EXISTING=$(gh issue list --label "$DRIFT_LABEL" --state open --json number --jq '.[0].number // empty')
 
