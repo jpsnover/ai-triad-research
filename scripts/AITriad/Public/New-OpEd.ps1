@@ -43,9 +43,12 @@ function New-OpEd {
         default 'FromTopic' parameter set; optional alongside -Url to steer the
         angle of a fetched source.
     .PARAMETER Url
-        A web page to use as source material. Fetched and converted to Markdown
-        via Get-OpEdSource (with format detection and readability gate), then
-        handed to the model as factual grounding. Mandatory in 'FromUrl'.
+        A web page to use as source material. Fetched (best-effort, from the CLI)
+        and converted to Markdown via Get-OpEdSourceFromUrl → Get-OpEdSource (with
+        Content-Type dispatch and readability gate), then handed to the model as
+        factual grounding. Mandatory in 'FromUrl'. NOTE: the CLI fetch is WAF-limited
+        (some Akamai .gov/news PDFs will 403 the PowerShell client); the Electron
+        op-ed path fetches via Node instead. Migrates to a Node fetch-CLI under t/3312.
     .PARAMETER SourcePrep
         A pre-built SourcePrep object from Get-OpEdSource. Use this in the
         multi-POV orchestrated path so the fetch/convert/gate work happens once
@@ -260,14 +263,19 @@ function New-OpEd {
         $Prep = $SourcePrep
     } elseif ($PSCmdlet.ParameterSetName -eq 'FromUrl') {
         Write-Verbose "Fetching + converting source material from $Url"
-        $Prep = Get-OpEdSource -Url $Url -Verbose:($VerbosePreference -ne 'SilentlyContinue')
+        # Get-OpEdSource is convert-only (t/3307); the CLI's best-effort fetch lives in
+        # Get-OpEdSourceFromUrl (WAF-limited interim, migrates to the Node fetch-CLI under t/3312).
+        # The Electron op-ed path never uses this — it fetches via Node and calls the convert-only shim.
+        $Prep = Get-OpEdSourceFromUrl -Url $Url -Verbose:($VerbosePreference -ne 'SilentlyContinue')
     }
 
     $SourceMaterial = '(no external source supplied — argue from the topic and general knowledge)'
     if ($null -ne $Prep) {
         $SourceMaterial = [string]$Prep.SourceMarkdown
         if (-not $PSBoundParameters.ContainsKey('Topic') -or [string]::IsNullOrWhiteSpace($Topic)) {
-            $Topic = "Write an op-ed responding to the source material below (from $($Prep.Url)). Choose the sharpest angle consistent with your camp's convictions."
+            # Prep provenance is SourceUrl (convert-only rename, t/3307); guard for older prep objects.
+            $SrcRef = if ($Prep.PSObject.Properties.Name -contains 'SourceUrl') { [string]$Prep.SourceUrl } else { '' }
+            $Topic = "Write an op-ed responding to the source material below (from $SrcRef). Choose the sharpest angle consistent with your camp's convictions."
         }
     }
 

@@ -38,6 +38,11 @@ function New-ActionableError {
         [Parameter(Mandatory)]
         [string[]]$NextSteps,
 
+        # Optional machine-readable error category (e.g. 'InsufficientReadableText'). Additive and
+        # backward-compatible: when absent the rendered message is unchanged for the existing callers;
+        # when set it renders a `Type:` line so callers/shims can classify the failure (t/3307).
+        [string]$ErrorType,
+
         [System.Management.Automation.ErrorRecord]$InnerError,
 
         [switch]$Throw,
@@ -47,11 +52,17 @@ function New-ActionableError {
 
     $StepList = ($NextSteps | ForEach-Object { $i = [int]($NextSteps.IndexOf($_)) + 1; "   $i. $_" }) -join "`n"
     if ($InnerError) { $InnerDetail = "`n   Inner error: $($InnerError.Exception.Message)" } else { $InnerDetail = '' }
+    # Only rendered when -ErrorType is supplied — keeps output byte-identical for the 40+ callers that don't.
+    if ($PSBoundParameters.ContainsKey('ErrorType') -and -not [string]::IsNullOrEmpty($ErrorType)) {
+        $TypeLine = "`n  Type:     $ErrorType"
+    } else {
+        $TypeLine = ''
+    }
 
     $Message = @"
 
   Goal:     $Goal
-  Error:    $Problem$InnerDetail
+  Error:    $Problem$InnerDetail$TypeLine
   Location: $Location
   Resolve:
 $StepList
