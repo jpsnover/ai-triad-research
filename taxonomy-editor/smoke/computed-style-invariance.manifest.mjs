@@ -24,31 +24,28 @@ export const PROPS = [
 ];
 
 /**
- * Covered clusters → { openTab, selectors }. `openTab` is the tab whose lazy chunk loads the
- * cluster's co-located CSS (probe needs the rule loaded). SummariesTab/LineagePanel/LineageDetail
- * render via ToolbarPaneRenderer ← PovTab, so they load on a POV tab (same chunk reachability the
- * existing harness proved for DataSourceCard/ApiKeyErrorMessage). Representative selectors only
- * (container/badge/header/button rules that carry visual styling), not all 97, per t/2940#6.
+ * Covered clusters → { openTab, selectors, [excluded] }. Reachability was VERIFIED against a real
+ * build:container + serve.mjs at :7862 (t/2940#9) — replacing the earlier speculative assumption
+ * that all four load on a POV tab. Two clusters' co-located CSS is eagerly bundled (loaded app-wide
+ * on start, NOT lazy-per-surface), so the computed-style probe is navigation-independent; the other
+ * two are NOT reachable from the web smoke and are EXCLUDED here at point of use (see `excluded`),
+ * carried to the t/3299 follow-up. Representative selectors only (container/badge/header/button rules
+ * that carry visual styling), not all 97, per t/2940#6.
  *
- * NOTE (CI-validated): exact reachability + the captured values are determined by the CI capture
- * run (Node-22 real browser) — the @playwright/test runner hangs on local Node-24 (t/3026). If a
- * cluster's CSS is NOT reachable on `openTab` (values come back at CSS defaults / identical across
- * themes), the capture surfaces it and the openTab/surface is corrected. debate-popout is a
- * separate BrowserWindow — flagged as likely NOT reachable in the web smoke; its leg may need the
- * popout route opened, to be confirmed by the capture run.
+ * `openTab` = the stable landing surface the harness clicks before probing; for the eager clusters it
+ * is navigation-independent (the sheet is already loaded), so it just needs to be a valid `[data-tab]`
+ * the SPA exposes (POV tabs: accelerationist/safetyist/skeptic). A cluster whose CSS is NOT loaded on
+ * the probed surface would capture pure CSS defaults — a vacuous gate — so it is `excluded`, never
+ * silently captured (the trap t/2940#9 caught before it shipped).
+ *
+ * `excluded`: a string = the reason + re-inclusion trigger, kept HERE (gate-co-located, TL t/2940 GV)
+ * so removing the marker IS the decision to re-include; the invariance spec skips any cluster with it.
  */
 export const CLUSTERS = {
-  summaries: {
-    css: 'analysis/SummariesTab.css',
-    openTab: 'accelerationist',
-    selectors: [
-      'sumt-card', 'sumt-detail-panel', 'sumt-pov-badge', 'sumt-tag',
-      'sumt-stance', 'sumt-tab-bar', 'sumt-node-item', 'sumt-viewmode-btn',
-    ],
-  },
+  // ── ACTIVE (eager CSS, reachable + capturing meaningful theme-varying values, t/2940#9) ──
   lineagePanel: {
     css: 'analysis/LineagePanel.css',
-    openTab: 'accelerationist',
+    openTab: 'accelerationist', // eager CSS → navigation-independent; any valid POV tab suffices.
     selectors: [
       'lineage-panel', 'lineage-panel-header', 'lineage-category-badge',
       'lineage-panel-item', 'lineage-l2-header', 'lineage-detail-section',
@@ -56,16 +53,33 @@ export const CLUSTERS = {
   },
   lineageDetail: {
     css: 'shared/LineageDetailView.css',
-    openTab: 'accelerationist',
+    openTab: 'accelerationist', // eager CSS → navigation-independent; any valid POV tab suffices.
     selectors: [
       'lineage-detail-pov-badge-sm', 'lineage-detail-filter-btn',
       'lineage-detail-ctx-menu', 'lineage-detail-ref-id',
     ],
   },
+
+  // ── EXCLUDED from the web invariance leg (gate-co-located, TL t/2940). Carried to t/3299. ──
+  summaries: {
+    css: 'analysis/SummariesTab.css',
+    excluded:
+      "SummariesTab mounts only when activeTab==='summaries' AND useFlag('env-electron-summaries') " +
+      "is on (App.tsx); its chunk does NOT load on the POV tabs the web smoke reaches, so a probe " +
+      "captures only CSS defaults (vacuous gate, t/2940#9). RE-INCLUDE (t/3299 B) once the spec " +
+      "enables env-electron-summaries + navigates to the summaries tab before probing.",
+    selectors: [
+      'sumt-card', 'sumt-detail-panel', 'sumt-pov-badge', 'sumt-tag',
+      'sumt-stance', 'sumt-tab-bar', 'sumt-node-item', 'sumt-viewmode-btn',
+    ],
+  },
   debatePopout: {
     css: 'debate/DebatePopoutWindow.css',
-    openTab: 'accelerationist',
-    reachabilityUnconfirmed: true, // separate window — CI capture confirms whether the CSS loads in web
+    excluded:
+      "Rendered in a SEPARATE BrowserWindow (popout) — unreachable from the web smoke's single page, " +
+      "so its CSS never loads here (probe = defaults, t/2940#9). RE-INCLUDE (t/3299 C) once the " +
+      "harness opens the popout route/window, or cover via a popout-specific smoke; else it stays on " +
+      "the manual four-theme + LOC-ratchet guard.",
     selectors: [
       'debate-popout-shell', 'debate-popout-error-box',
       'debate-popout-error-title', 'debate-popout-hint',
