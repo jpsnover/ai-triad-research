@@ -36,6 +36,8 @@ export * from './calibrationStore.js';
 export * from './urlFetch.js';
 export type { OpEdSetSummary } from '../../../../lib/oped/types.js';
 export { listOpedSets, loadOpedSet, saveOpedSetInProgress, loadOpedSetInProgress, finalizeOpedSet, deleteOpedSet, getOpedSetsQuotaStatus } from './opedStore.js';
+export { upsertOpedRun, countRunningOpedRuns, getOpedRun } from './opedRunStore.js';
+export type { RunControlRecord, RunStatus, VoiceState as OpedVoiceState } from './opedRunStore.js';
 // ── Backend injection ──
 
 // Taxonomy / conflicts / calibration / summaries / sources use `backend`.
