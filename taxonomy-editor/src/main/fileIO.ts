@@ -159,6 +159,7 @@ export function validateDataRoot(): void {
     try {
       entryCount = fs.readdirSync(fullPath).length;
     } catch (fsErr) {
+      /* telemetry — silent by design: ENOENT is immediately surfaced as ActionableError below */
       if ((fsErr as NodeJS.ErrnoException).code === 'ENOENT') {
         entryCount = 0;
       } else {
