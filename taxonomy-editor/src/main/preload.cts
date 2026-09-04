@@ -197,6 +197,9 @@ try {
   fetchRelevantNodes: (payload: unknown): Promise<unknown> =>
     ipcRenderer.invoke('fetch-relevant-nodes', payload),
 
+  computeAttribution: (payload: unknown): Promise<unknown> =>
+    ipcRenderer.invoke('compute-attribution', payload),
+
   computeEmbeddings: (texts: string[], ids?: string[]): Promise<{ vectors: number[][] }> =>
     ipcRenderer.invoke('compute-embeddings', texts, ids),
 
