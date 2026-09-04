@@ -993,10 +993,10 @@ const rawApi: AppAPI = {
 
   // Embeddings & NLI
   computeEmbeddings: (texts, ids) => computeEmbeddingsChunked(post, texts, ids), // ≤EMBEDDINGS_MAX_BATCH sequential chunks so an oversized batch can't blow the 50s server timeout (t/3072)
-  // Web transport: server embedding backend (Python/Gemini) has no DirectML GPU-OOM mode, so nothing
-  // goes stale → always [] (t/2060 staleNodeIds contract; thread partial failures here if the route adds them).
+  // Web transport: server embed backend has no DirectML GPU-OOM mode → nothing goes stale → always [] (t/2060 staleNodeIds contract).
   updateNodeEmbeddings: (nodes) => post('/api/embeddings/update-nodes', { nodes }).then(() => ({ staleNodeIds: [] as string[] })),
   computeQueryEmbedding: (text) => post('/api/embeddings/query', { text }),
+  fetchRelevantNodes: (payload) => post('/api/taxonomy/relevant-nodes', payload), // t/3258 (T3): EXACT path (no trailing slash/query) — anon free-tier gate is exact-match, else anon debates 403 (TL t/3284#2)
   nliClassify: (pairs) => post('/api/nli/classify', { pairs }),
 
   // Source evidence
