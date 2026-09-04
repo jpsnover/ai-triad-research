@@ -188,39 +188,46 @@ function Import-AITriadDocument {
             $SourceType   = 'web_article'
             $RawExtension = '.html'
 
+            # Fetch via the shared Node fetch-CLI (t/3310) — Node's undici passes WAFs that block the
+            # PowerShell client (t/3306); SSRF-guarded. Convert-only PS: dispatch on Content-Type
+            # (authoritative), which unifies the HTML/PDF branches and closes the PDF-over-WAF gap.
+            $Fetch = Get-UrlViaSharedFetcher -Url $SourceUrl -TimeoutMs 60000
             try {
-                $TempHtml   = [System.IO.Path]::GetTempFileName() + '.html'
-                $WebHeaders = @{ 'User-Agent' = 'Mozilla/5.0 (AI Triad Research Bot; +https://cyber.harvard.edu)' }
-                Invoke-RestMethod -Uri $SourceUrl -OutFile $TempHtml -TimeoutSec 30 -Headers $WebHeaders -ErrorAction Stop
-                $HtmlContent = Get-Content -Path $TempHtml -Raw -Encoding UTF8
-                Remove-Item $TempHtml -Force -ErrorAction SilentlyContinue
-                Write-OK "Fetched $([int]$HtmlContent.Length) characters"
-            } catch {
-                Remove-Item $TempHtml -Force -ErrorAction SilentlyContinue
-                Write-Fail "Failed to fetch URL: $_"
-                throw
-            }
+                if ($Fetch.Status -ne 200 -or $Fetch.Error) {
+                    $code = if ($null -ne $Fetch.Status) { $Fetch.Status } else { 'transport-failure' }
+                    $detail = if ($Fetch.Error) { "; $($Fetch.Error)" } else { '' }
+                    throw (New-ActionableError -PassThru -ErrorType 'FetchFailed' `
+                        -Goal "Ingest document from $SourceUrl" `
+                        -Problem "Could not fetch '$SourceUrl' (status: $code$detail)." `
+                        -Location 'Import-AITriadDocument' `
+                        -NextSteps @(
+                            'The shared fetcher (Node) already passes most WAFs; a persistent failure usually means the URL is unreachable, access-blocked, or SSRF-guarded',
+                            'Download the document and import it as a local file with -SourceFile instead'
+                        ))
+                }
 
-            $Meta    = Get-HtmlMeta -Html $HtmlContent
-            if ($Meta.Title) { $Title = $Meta.Title } else { $Title = $SourceUrl }
-            $Authors = $Meta.Author
-
-            $MarkdownText = ConvertFrom-Html -Html $HtmlContent -SourceUrl $SourceUrl
-            $RawContent   = $HtmlContent
-
-            if ($SourceUrl -match '\.pdf(\?.*)?$') {
-                Write-Info "URL points to a PDF — attempting direct PDF download"
-                try {
-                    $TempPdf = [System.IO.Path]::GetTempFileName() + '.pdf'
-                    Invoke-RestMethod -Uri $SourceUrl -OutFile $TempPdf -TimeoutSec 60 -ErrorAction Stop
-                    $RawContent   = [System.IO.File]::ReadAllBytes($TempPdf)
-                    $MarkdownText = ConvertFrom-Pdf -PdfPath $TempPdf
-                    Remove-Item $TempPdf -Force
+                if ($Fetch.ContentType -match 'application/pdf') {
+                    Write-OK "Fetched PDF ($($Fetch.ContentType))"
+                    $RawContent   = [System.IO.File]::ReadAllBytes($Fetch.OutPath)
+                    $MarkdownText = ConvertFrom-Pdf -PdfPath $Fetch.OutPath
                     $RawExtension = '.pdf'
                     $SourceType   = 'pdf'
-                } catch {
-                    Write-Warn "PDF download failed, falling back to HTML content: $_"
-                    Remove-Item $TempPdf -Force -ErrorAction SilentlyContinue
+                    $Title        = $SourceUrl
+                }
+                else {
+                    $HtmlContent  = [System.IO.File]::ReadAllText($Fetch.OutPath, [System.Text.Encoding]::UTF8)
+                    Write-OK "Fetched $([int]$HtmlContent.Length) characters ($($Fetch.ContentType))"
+                    $Meta    = Get-HtmlMeta -Html $HtmlContent
+                    if ($Meta.Title) { $Title = $Meta.Title } else { $Title = $SourceUrl }
+                    $Authors = $Meta.Author
+                    $MarkdownText = ConvertFrom-Html -Html $HtmlContent -SourceUrl $SourceUrl
+                    $RawContent   = $HtmlContent
+                    $RawExtension = '.html'
+                    $SourceType   = 'web_article'
+                }
+            } finally {
+                if ($Fetch -and $Fetch.OutPath -and (Test-Path -LiteralPath $Fetch.OutPath)) {
+                    Remove-Item -LiteralPath $Fetch.OutPath -Force -ErrorAction SilentlyContinue
                 }
             }
         } else {
