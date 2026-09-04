@@ -134,6 +134,14 @@ function createWindow(): void {
     validateDataRoot();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'main-process', level: 'error',
+      message: 'data-root validation failed at startup',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    // console.error is load-bearing here: getGlobalRecorder() may be uninit this early
+    // (t/3110 sink trap) and app.quit() drains the ring buffer — this is the real stdout signal.
+    console.error('[main] Data root validation failed:', msg);
     dialog.showErrorBox('Data root not found', msg);
     app.quit();
     return;
