@@ -57,15 +57,17 @@ BeforeAll {
         # placeholder — populated after the seeding-mechanism ruling (t/3314#4).
     }
 
-    # Extract the host of a STATIC literal -Uri (no interpolation). Returns $null for variable /
-    # interpolated / splat URIs (host not statically resolvable → must be marked).
+    # Extract the LITERAL host of a -Uri argument, even when the path/port/query is interpolated
+    # (e.g. "http://localhost:$Port/health" → host 'localhost'). Returns $null when the host itself
+    # is a variable ("$BaseUrl/..." / "http://$Server/...") or the arg is a splat — host not
+    # statically resolvable, so the call must declare itself with a co-located marker.
+    #   Host chars = everything after the scheme up to the first '/', ':', quote, whitespace, or '$'.
+    #   A leading '$' (or empty capture) means the host is dynamic → no match → $null.
     function Get-UriHostLiteral {
         param([string]$Statement)
-        $m = [regex]::Match($Statement, "-Uri\s+(['`"])(https?://[^'`"]+)\1", 'IgnoreCase')
+        $m = [regex]::Match($Statement, "-Uri\s+['`"]https?://([^/:'`"\s\$]+)", 'IgnoreCase')
         if (-not $m.Success) { return $null }
-        $url = $m.Groups[2].Value
-        if ($url -match '\$') { return $null }   # interpolated "$Base/..." → not a static host
-        try { return ([uri]$url).Host.ToLowerInvariant() } catch { return $null }
+        return $m.Groups[1].Value.ToLowerInvariant()
     }
 
     # PURE predicate: given a file's content, return the 1-based line numbers of FLAGGED call-sites.
