@@ -175,11 +175,13 @@ Describe 'New-OpEd' -Tag 'oped' {
 
     Context 'URL input' {
         It 'Fetches and converts the URL into source material' {
-            Mock Invoke-WebRequest { [PSCustomObject]@{
-                Content    = '<html><body><p>Source body text.</p></body></html>'
-                Headers    = @{ 'Content-Type' = 'text/html; charset=utf-8' }
-                StatusCode = 200
-            } } -ModuleName AITriad
+            # t/3320: the CLI fetch now routes through the shared Node fetcher (Get-UrlViaSharedFetcher),
+            # which writes bytes to OutPath + returns the t/3324 contract metadata.
+            Mock Get-UrlViaSharedFetcher {
+                $tmp = [System.IO.Path]::GetTempFileName()
+                [System.IO.File]::WriteAllText($tmp, '<html><body><p>Source body text.</p></body></html>')
+                [PSCustomObject]@{ Status = 200; ContentType = 'text/html; charset=utf-8'; FinalUrl = 'https://example.com/article'; Error = $null; BodySnippet = 'Source body text.'; OutPath = $tmp; ExitCode = 0 }
+            } -ModuleName AITriad
             # 35 alpha words per sentence × 3 = 105 — passes the MinReadableWords=100
             # gate; "Source body text" preserved for the seenPrompt assertion.
             Mock ConvertFrom-Html {
@@ -196,7 +198,7 @@ Describe 'New-OpEd' -Tag 'oped' {
             $r = New-OpEd -Url 'https://example.com/article' -Pov accelerationist
             $r.Headline | Should -Be 'Stop Stalling on AI Safety'
             $script:seenPrompt | Should -Match 'Source body text'
-            Should -Invoke Invoke-WebRequest -ModuleName AITriad -Times 1
+            Should -Invoke Get-UrlViaSharedFetcher -ModuleName AITriad -Times 1
         }
     }
 
