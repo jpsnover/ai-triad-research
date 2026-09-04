@@ -171,8 +171,11 @@ type ShareState =
   | { status: 'shared'; url: string; copied: boolean }
   | { status: 'error'; message: string };
 
-function ShareOpEdControl({ setId }: { setId: string }) {
+function ShareOpEdControl({ setId, source = 'my' }: { setId: string; source?: 'my' | 'community' }) {
   const [state, setState] = useState<ShareState>({ status: 'idle' });
+  // t/3315: community op-eds are public → linkable via the community-share endpoint. Get-link-only
+  // (no Un-share — revoke is an admin/submitter capability, not exposed to a general viewer).
+  const isCommunity = source === 'community';
 
   const copy = useCallback(async (url: string) => {
     try {
@@ -187,7 +190,7 @@ function ShareOpEdControl({ setId }: { setId: string }) {
   const onShare = useCallback(async () => {
     setState({ status: 'working' });
     try {
-      const { shareId } = await api.shareOpEdSet(setId);
+      const { shareId } = isCommunity ? await api.shareCommunityOpEd(setId) : await api.shareOpEdSet(setId);
       const url = new URL(`/share/oped/${encodeURIComponent(shareId)}`, window.location.origin).href;
       await copy(url);
     } catch (err) {
@@ -198,7 +201,7 @@ function ShareOpEdControl({ setId }: { setId: string }) {
       });
       setState({ status: 'error', message: mapErrorToUserMessage(err) });
     }
-  }, [setId, copy]);
+  }, [setId, copy, isCommunity]);
 
   const onUnshare = useCallback(async () => {
     setState({ status: 'working' });
@@ -222,7 +225,7 @@ function ShareOpEdControl({ setId }: { setId: string }) {
         <input className="oped-share-url" type="text" readOnly value={state.url} aria-label="Public share link"
           onFocus={e => e.currentTarget.select()} />
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => void copy(state.url)}>Copy</button>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => void onUnshare()}>Un-share</button>
+        {!isCommunity && <button type="button" className="btn btn-sm btn-ghost" onClick={() => void onUnshare()}>Un-share</button>}
       </span>
     );
   }
@@ -230,8 +233,8 @@ function ShareOpEdControl({ setId }: { setId: string }) {
   return (
     <span className="oped-share">
       <button type="button" className="btn btn-sm btn-ghost" onClick={() => void onShare()}
-        disabled={state.status === 'working'} aria-label="Create a public share link">
-        {state.status === 'working' ? 'Sharing…' : '🔗 Share'}
+        disabled={state.status === 'working'} aria-label={isCommunity ? 'Get a public share link for this community op-ed' : 'Create a public share link'}>
+        {state.status === 'working' ? 'Sharing…' : (isCommunity ? '🔗 Get public link' : '🔗 Share')}
       </button>
       {state.status === 'error' && <span className="oped-share-error" role="alert">{state.message}</span>}
     </span>
@@ -241,15 +244,16 @@ function ShareOpEdControl({ setId }: { setId: string }) {
 // ── Reader view (back bar + article/loading/error) ────────────────────────────
 
 export function OpEdReaderView({
-  readerSet, readerLoading, readerError, status, onBack, canShare,
+  readerSet, readerLoading, readerError, status, onBack, shareSource,
 }: {
   readerSet: OpEdSet | null;
   readerLoading: boolean;
   readerError: string | null;
   status: string | null;
   onBack: () => void;
-  /** t/2987: only the user's OWN op-eds are shareable — community ones 404 the share endpoint. */
-  canShare: boolean;
+  /** t/2987/t/3315: which store the op-ed came from — 'my' (own share) or 'community' (public community
+   *  share); null = not shareable. Both mint a public /share/oped link via their respective endpoint. */
+  shareSource: 'my' | 'community' | null;
 }) {
   return (
     <div className="two-column oped-tab-table-mode">
@@ -257,10 +261,10 @@ export function OpEdReaderView({
         <div className="oped-reader-bar">
           <button type="button" className="oped-reader-back" onClick={onBack}>‹ Op-Ed Studies</button>
           {status && <span className="oped-status">{status}</span>}
-          {/* Share is web-only (electron-bridge rejects shareOpEdSet, t/2728) AND only for the
-              user's OWN op-eds — a community op-ed isn't in the user's oped-sets store, so its
-              share endpoint 404s (t/2987). Design: Share (My) / Copy (Community). */}
-          {readerSet && canShare && !isElectronMode() && <ShareOpEdControl setId={readerSet.set_id} />}
+          {/* Share is web-only (electron-bridge rejects, t/2728). Own op-eds use the own-share endpoint;
+              community op-eds use the community-share endpoint (t/3315 — community is public). Both mint
+              a public /share/oped link. */}
+          {readerSet && shareSource && !isElectronMode() && <ShareOpEdControl setId={readerSet.set_id} source={shareSource} />}
         </div>
         {readerLoading && <p className="oped-reader-loading">Loading op-ed…</p>}
         {readerError && <p className="oped-reader-error">{readerError}</p>}
@@ -493,7 +497,7 @@ export function OpEdTab() {
         readerError={readerError}
         status={status}
         onBack={closeReader}
-        canShare={readerSource === 'my'}
+        shareSource={readerSource}
       />
     );
   }

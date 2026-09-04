@@ -338,6 +338,7 @@ export const api: AppAPI = {
   // desktop has no public URL, so reject with the standard web-only actionable error.
   shareOpEdSet: () => rejectOpEdIpc('share an op-ed', 'shareOpEdSet'),
   unshareOpEdSet: () => rejectOpEdIpc('un-share an op-ed', 'unshareOpEdSet'),
+  shareCommunityOpEd: () => rejectOpEdIpc('share a community op-ed', 'shareCommunityOpEd'), // t/3315: web-only
 
   // News Report
   generateNewsReport: (debateId) => window.electronAPI.generateNewsReport(debateId),

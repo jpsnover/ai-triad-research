@@ -438,6 +438,9 @@ export interface AppAPI {
   shareOpEdSet: (setId: string) => Promise<{ shareId: string; url: string }>;
   /** t/2728: revoke a public share (owner-only). */
   unshareOpEdSet: (setId: string) => Promise<{ ok: boolean }>;
+  /** t/3315: publish a public share link for a COMMUNITY op-ed (any submitter — community is public).
+   *  Same public /share/oped view as own-op-ed share. Web-only; Electron rejects. */
+  shareCommunityOpEd: (id: string) => Promise<{ shareId: string; url: string }>;
 
   // --- News Report ---
   generateNewsReport: (debateId: string) => Promise<{ article: string }>;
