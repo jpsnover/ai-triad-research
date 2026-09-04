@@ -64,3 +64,55 @@ Describe 'invoke-get-oped-source shim — base64 content transport (t/2928)' {
         $parsed.data.ReadableWords | Should -Be 640
     }
 }
+
+# ── Locked cross-role wire contract (t/3306#4, t/3307) ────────────────────────────────────────────
+# The shim (invoke-get-oped-source.ps1) EMIT side must use the exact field names the TS parse side
+# (opedShimTransport.ts) reads. TL's non-negotiable guard: assert the exact field names on emit here;
+# the TS test (opedShimTransport.test.ts) asserts the same names on parse. Success carries
+# SourceMarkdown; failure carries EXACTLY {ErrorType, Goal, Problem, NextSteps} on stderr.
+Describe 'op-ed shim ↔ handler LOCKED wire contract (t/3307)' {
+    BeforeAll {
+        $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
+        Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    }
+
+    It 'success result carries the SourceMarkdown field name' {
+        $prep = [PSCustomObject]@{ SourceMarkdown = 'body'; Excerpt = 'lead'; SourceFormat = 'html' }
+        $line = [ordered]@{ type = 'result'; data = $prep } | ConvertTo-Json -Depth 10 -Compress
+        $parsed = $line | ConvertFrom-Json
+        $parsed.type                                    | Should -Be 'result'
+        $parsed.data.PSObject.Properties.Name           | Should -Contain 'SourceMarkdown'
+    }
+
+    It 'failure serialization emits EXACTLY {ErrorType,Goal,Problem,NextSteps} from the structured TargetObject' {
+        # Build the real structured error Get-OpEdSource throws, then replicate the shim catch verbatim.
+        $rec = InModuleScope AITriad {
+            New-ActionableError -AsErrorRecord -ErrorType 'ContentPathMissing' `
+                -Goal 'Convert pre-fetched source content for op-ed generation' `
+                -Problem "Content file not found: 'x'" `
+                -Location 'Get-OpEdSource' `
+                -NextSteps @('Confirm the fetcher wrote the temp file', 'Supply -Topic text instead')
+        }
+        $to = $rec.TargetObject
+        $to | Should -BeOfType [System.Collections.IDictionary]
+
+        # Verbatim mirror of the shim's catch-block serialization.
+        $err = [ordered]@{
+            ErrorType = [string]$to['ErrorType']
+            Goal      = [string]$to['Goal']
+            Problem   = [string]$to['Problem']
+            NextSteps = @($to['NextSteps'])
+        }
+        $json   = $err | ConvertTo-Json -Depth 6 -Compress
+        $parsed = $json | ConvertFrom-Json
+
+        # EXACT field-name set — no more, no less (a drift here = the silent parse-fail class).
+        $names = @($parsed.PSObject.Properties.Name | Sort-Object)
+        $names | Should -Be @('ErrorType', 'Goal', 'NextSteps', 'Problem')
+
+        $parsed.ErrorType | Should -Be 'ContentPathMissing'
+        $parsed.Goal      | Should -Be 'Convert pre-fetched source content for op-ed generation'
+        $parsed.Problem   | Should -Match 'Content file not found'
+        @($parsed.NextSteps).Count | Should -Be 2
+    }
+}

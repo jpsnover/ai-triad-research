@@ -4,18 +4,27 @@
 function Get-OpEdSource {
     <#
     .SYNOPSIS
-        Fetches, converts, and validates a source URL for op-ed generation — once for all POVs.
+        Converts and validates PRE-FETCHED source content for op-ed generation — once for all POVs.
     .DESCRIPTION
-        Fetches the URL, detects its format (PDF / DOCX / HTML) from the Content-Type header and
-        URL extension, routes to the appropriate converter (ConvertFrom-Pdf, ConvertFrom-Docx, or
-        ConvertFrom-Html), applies a fail-loud readability gate, truncates to the prompt budget,
-        and returns a prep object that New-OpEd (or the server) can pass to multiple per-POV
-        drafts without re-fetching or re-converting.
+        Convert-only (t/3307). The URL fetch moved to the shared SSRF-guarded Node fetcher
+        (lib/url-fetch) after the .NET/PowerShell HTTP client fingerprint was WAF-blocked (403) on
+        hosts Node fetches at 200 (t/3306). The caller (the op-ed Node orchestrator, or New-OpEd's
+        CLI path) fetches the bytes, writes them to a temp file, and passes the path + content-type
+        here. This cmdlet reads the file, routes to the converter keyed on -ContentType (authoritative,
+        never the filename extension — a .html-named PDF must still convert as a PDF, t/3306#4),
+        applies a fail-loud readability gate, truncates to the prompt budget, and returns a prep
+        object that New-OpEd (or the server) reuses across per-POV drafts without re-converting.
 
-        SourceBrief is populated by New-OpEd after the comprehension pass; it is null here.
-    .PARAMETER Url
-        The URL to fetch. PDF and DOCX are written to a temp file before conversion; HTML is
-        passed as a string.
+        The caller owns the temp file lifecycle (creates + deletes it); this cmdlet never fetches,
+        writes, or deletes it. SourceBrief is populated by New-OpEd after the comprehension pass.
+    .PARAMETER ContentPath
+        Path to the pre-fetched source bytes on disk (a temp file the caller owns).
+    .PARAMETER ContentType
+        The source Content-Type (authoritative dispatch): 'application/pdf' → PDF,
+        '…wordprocessingml…' → DOCX, text/* or empty → HTML.
+    .PARAMETER SourceUrl
+        Optional originating URL — used as the HTML base for relative-link resolution and recorded
+        on the returned object for provenance. Not fetched.
     .PARAMETER MaxChars
         Maximum characters of extracted Markdown to retain for the prompt budget. Default 12000.
     .PARAMETER MinReadableWords
@@ -24,11 +33,12 @@ function Get-OpEdSource {
     .PARAMETER MinAlphaDensity
         Minimum ratio of alpha-words to total whitespace-split tokens. Default 0.60.
     .EXAMPLE
-        $Prep = Get-OpEdSource -Url 'https://example.com/report.pdf'
+        $Prep = Get-OpEdSource -ContentPath $Temp -ContentType 'application/pdf' -SourceUrl $Url
         New-OpEd -SourcePrep $Prep -Pov safetyist
     .OUTPUTS
-        PSCustomObject with: Url, SourceMarkdown, SourceFormat, SourceExtractionTool,
-        ReadableWords, ReadableRatio, CharsTotal, CharsUsed, Truncated, Excerpt, SourceBrief.
+        PSCustomObject with: SourceUrl, ContentType, SourceMarkdown, SourceFormat,
+        SourceExtractionTool, ReadableWords, ReadableRatio, CharsTotal, CharsUsed, Truncated,
+        Excerpt, ContentHash, FetchedAt, SourceBrief.
     .LINK
         New-OpEd
     #>
@@ -37,7 +47,13 @@ function Get-OpEdSource {
     param(
         [Parameter(Mandatory, Position = 0)]
         [ValidateNotNullOrEmpty()]
-        [string]$Url,
+        [string]$ContentPath,
+
+        [Parameter(Mandatory, Position = 1)]
+        [ValidateNotNullOrEmpty()]
+        [string]$ContentType,
+
+        [string]$SourceUrl = '',
 
         [ValidateRange(1000, 100000)]
         [int]$MaxChars = 12000,
@@ -51,83 +67,87 @@ function Get-OpEdSource {
 
     Set-StrictMode -Version Latest
 
-    # ── Fetch ────────────────────────────────────────────────────────────────
-    try {
-        $Resp = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 60
-    } catch {
-        throw (New-ActionableError -PassThru `
-            -Goal "Fetch source URL for op-ed generation" `
-            -Problem "Could not fetch '$Url': $($_.Exception.Message)" `
+    # ── Validate the pre-fetched content file ─────────────────────────────────
+    if (-not (Test-Path -LiteralPath $ContentPath -PathType Leaf)) {
+        throw (New-ActionableError -AsErrorRecord -ErrorType 'ContentPathMissing' `
+            -Goal 'Convert pre-fetched source content for op-ed generation' `
+            -Problem "Content file not found: '$ContentPath'. Get-OpEdSource is convert-only — the caller must fetch the source and write it to this path first." `
             -Location 'Get-OpEdSource' `
             -NextSteps @(
-                'Confirm the URL is reachable and publicly accessible',
+                'Confirm the Node fetcher wrote the temp file before invoking the converter',
                 'Supply material via -Topic text in New-OpEd instead'
             ))
     }
 
-    # ── Detect format ────────────────────────────────────────────────────────
-    $ContentType = [string]($Resp.Headers['Content-Type'] ?? '')
-    $Extension   = [System.IO.Path]::GetExtension(([uri]$Url).LocalPath).ToLower()
-
-    $Format        = 'html'
+    # ── Detect format from ContentType (authoritative — NOT the file extension) ─
+    $Format         = 'html'
     $ExtractionTool = 'ConvertFrom-Html'
-    if ($ContentType -match 'application/pdf' -or $Extension -eq '.pdf') {
-        $Format        = 'pdf'
+    if ($ContentType -match 'application/pdf') {
+        $Format         = 'pdf'
         $ExtractionTool = 'ConvertFrom-Pdf'
-    } elseif ($ContentType -match 'vnd\.openxmlformats' -or $Extension -eq '.docx') {
-        $Format        = 'docx'
+    } elseif ($ContentType -match 'vnd\.openxmlformats' -or $ContentType -match 'msword') {
+        $Format         = 'docx'
         $ExtractionTool = 'ConvertFrom-Docx'
+    } elseif ($ContentType -match '^(image|audio|video)/' -or $ContentType -match 'application/octet-stream') {
+        # Clearly-binary, non-document content — fail with a precise cause rather than letting the
+        # readability gate report a misleading "not readable prose" for e.g. a PNG.
+        throw (New-ActionableError -AsErrorRecord -ErrorType 'UnsupportedContentType' `
+            -Goal 'Convert pre-fetched source content for op-ed generation' `
+            -Problem "Content-Type '$ContentType' is not a supported document format (PDF, DOCX, or HTML/text)." `
+            -Location 'Get-OpEdSource' `
+            -NextSteps @(
+                'Provide a PDF, DOCX, or HTML/text source',
+                'Supply material via -Topic text in New-OpEd instead'
+            ))
     }
 
-    Write-Verbose "Get-OpEdSource: format=$Format tool=$ExtractionTool"
+    Write-Verbose "Get-OpEdSource: contentType=$ContentType format=$Format tool=$ExtractionTool"
 
-    # ── Convert ──────────────────────────────────────────────────────────────
+    # ── Convert (reads the caller-owned temp file; never deletes it) ───────────
     $Markdown = ''
-    switch ($Format) {
-        'pdf' {
-            $TempFile = [System.IO.Path]::GetTempFileName() + '.pdf'
-            try {
-                [System.IO.File]::WriteAllBytes($TempFile, $Resp.Content)
-                $Markdown = Invoke-PdfConversion -Path $TempFile
-            } finally {
-                Remove-Item $TempFile -Force -ErrorAction SilentlyContinue
+    try {
+        switch ($Format) {
+            'pdf'  { $Markdown = Invoke-PdfConversion  -Path $ContentPath }
+            'docx' { $Markdown = Invoke-DocxConversion -Path $ContentPath }
+            default {
+                $Html     = [System.IO.File]::ReadAllText($ContentPath)
+                $HtmlArgs = @{ Html = $Html }
+                if ($SourceUrl) { $HtmlArgs['SourceUrl'] = $SourceUrl }
+                $Markdown = ConvertFrom-Html @HtmlArgs
             }
         }
-        'docx' {
-            $TempFile = [System.IO.Path]::GetTempFileName() + '.docx'
-            try {
-                [System.IO.File]::WriteAllBytes($TempFile, $Resp.Content)
-                $Markdown = Invoke-DocxConversion -Path $TempFile
-            } finally {
-                Remove-Item $TempFile -Force -ErrorAction SilentlyContinue
-            }
-        }
-        default {
-            $Markdown = ConvertFrom-Html -Html ([string]$Resp.Content) -SourceUrl $Url
-        }
+    } catch {
+        throw (New-ActionableError -AsErrorRecord -ErrorType 'ConversionFailed' `
+            -Goal "Extract text from the $Format source" `
+            -Problem "The $ExtractionTool converter failed: $($_.Exception.Message)" `
+            -Location 'Get-OpEdSource' `
+            -NextSteps @(
+                'Install a PDF extraction tool (markitdown, pdftotext, or mutool) for PDF sources',
+                'Confirm the fetched bytes are a valid document of the declared Content-Type',
+                'Supply material via -Topic text in New-OpEd instead'
+            ))
     }
     $Markdown = [string]$Markdown
 
-    # ── Readability gate ─────────────────────────────────────────────────────
-    # Splits on whitespace; counts tokens with >=3 letters as "readable words".
-    # A PDF piped through ConvertFrom-Html yields space-joined decimal byte values —
-    # zero alpha tokens, caught here before the prompt is built.
-    $Tokens      = @($Markdown -split '\s+' | Where-Object { $_ -ne '' })
-    $AlphaTokens = @($Tokens   | Where-Object { ($_ -replace '[^a-zA-Z]', '').Length -ge 3 })
+    # ── Readability gate ──────────────────────────────────────────────────────
+    # Splits on whitespace; counts tokens with >=3 letters as "readable words". A PDF whose bytes
+    # were mis-converted yields space-joined decimal byte values — zero alpha tokens, caught here.
+    $Tokens        = @($Markdown -split '\s+' | Where-Object { $_ -ne '' })
+    $AlphaTokens   = @($Tokens   | Where-Object { ($_ -replace '[^a-zA-Z]', '').Length -ge 3 })
     $ReadableWords = $AlphaTokens.Count
     $ReadableRatio = if ($Tokens.Count -gt 0) { [double]$AlphaTokens.Count / $Tokens.Count } else { 0.0 }
 
     if ($ReadableWords -lt $MinReadableWords -or $ReadableRatio -lt $MinAlphaDensity) {
-        throw (New-ActionableError -PassThru `
-            -Goal "Extract readable text from '$Url'" `
+        throw (New-ActionableError -AsErrorRecord -ErrorType 'InsufficientReadableText' `
+            -Goal 'Extract readable text from the source' `
             -Problem ("Source yielded only $ReadableWords readable word(s) " +
                 "(alpha-token ratio $([Math]::Round($ReadableRatio, 2))). " +
                 "Format detected: $Format. The content is not readable prose.") `
             -Location 'Get-OpEdSource' `
             -NextSteps @(
+                'Confirm the source is a document with readable text content',
                 'Install a PDF extraction tool (markitdown, pdftotext, or mutool) for PDF sources',
-                'Confirm the URL points to a document with readable text content',
-                'Pass -VoiceOnly to New-OpEd to skip source grounding and write from camp voice alone'
+                'Supply material via -Topic text in New-OpEd instead'
             ))
     }
 
@@ -142,18 +162,19 @@ function Get-OpEdSource {
     }
     $Excerpt = $Markdown.Substring(0, [Math]::Min(500, $Markdown.Length))
 
-    # ContentHash: sha256 of the full extracted text (before truncation).
-    # Cheap to compute now; the only key needed for any future cross-run cache.
+    # ContentHash: sha256 of the full extracted text (before truncation). The only key needed for
+    # any future cross-run cache.
     $Sha256 = [System.Security.Cryptography.SHA256]::Create()
     try {
-        $HashBytes = $Sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Markdown))
+        $HashBytes   = $Sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Markdown))
         $ContentHash = [System.BitConverter]::ToString($HashBytes).Replace('-', '').ToLowerInvariant()
     } finally {
         $Sha256.Dispose()
     }
 
     [PSCustomObject]@{
-        Url                  = $Url
+        SourceUrl            = $SourceUrl
+        ContentType          = $ContentType
         SourceMarkdown       = $SourceMarkdown
         SourceFormat         = $Format
         SourceExtractionTool = $ExtractionTool
