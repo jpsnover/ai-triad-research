@@ -91,6 +91,9 @@ export function registerAttributionRoutes(r: Router, _ctx: ServerCtx): void {
           unattributed: summary.unattributed,
           missing_embedding: summary.missing_embedding,
           novel_argument: summary.novel_argument,
+          // t/3323: per-claim decisions feed the client's ExtractionTimelinePanel
+          // (attribution_decisions). Already computed on the ClaimAttributionResult — include, don't drop.
+          decisions: summary.decisions,
         },
       });
     } catch (err) {
