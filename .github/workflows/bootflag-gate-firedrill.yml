@@ -1,0 +1,77 @@
+name: t3247 boot-flag gate fire-drill
+
+# Manual-only forced-fire drill for the t/3247 in-process offload-flag gate
+# (deploy-azure.yml step "Assert in-process offload flag"). On a healthy deploy that
+# gate only ever exercises the Pass arm, so its exit-1 BLOCKING path is otherwise
+# never run live. This drill forces the two FIRE arms (Drift + NotFound) against the
+# REAL predicate and mirrors the deploy step's exit-mapping, proving the RED/blocking
+# path end-to-end in CI runtime — the "force the fire arm even when observationally
+# pending" discipline (t/3110 / t/3278). A control job feeds the real TRUE line and
+# must stay GREEN, so a red drill can't be a false always-red harness.
+#
+# Dot-sources the SAME predicate the gate and its Pester test use
+# (operations/devops/Test-BootFlagEffective.ps1, t/3010 co-location). The fixtures are
+# the real captured #1828 boot line (rev deploy-b5f65c3-77580) and its flag-flip —
+# same shape as tests/Test-BootFlagEffective.Tests.ps1, so a #1828 emit-shape change
+# breaks this drill too. Zero ongoing cost: workflow_dispatch only.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Real #1828 boot line captured from Log Analytics — do not synthesize.
+  TRUE_LINE: '{"level":30,"time":1788377646519,"pid":7,"hostname":"taxonomy-editor--deploy-b5f65c3-77580-64f77fcbb4-n6hkl","component":"server","embeddingWorkerOffload":true,"msg":"embedding offload flag at boot"}'
+
+jobs:
+  control-effective:
+    name: control — true line must PASS (stays green)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+      - shell: pwsh
+        run: |
+          . ./operations/devops/Test-BootFlagEffective.ps1
+          $r = Test-BootFlagEffective -BootLogLines @($env:TRUE_LINE)
+          Write-Host "control: Status=$($r.Status) Pass=$($r.Pass) — $($r.Detail)"
+          if ($r.Status -ne 'Effective' -or -not $r.Pass) {
+            Write-Host "::error::DRILL ANOMALY — real true line did not PASS (harness broken)"; exit 2
+          }
+          Write-Host "::notice::control PASS — harness is not always-red"
+
+  fire-drift:
+    name: fire — false line must go RED (Drift)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+      - shell: pwsh
+        run: |
+          . ./operations/devops/Test-BootFlagEffective.ps1
+          $lines = @($env:TRUE_LINE -replace '"embeddingWorkerOffload":true', '"embeddingWorkerOffload":false')
+          $r = Test-BootFlagEffective -BootLogLines $lines
+          Write-Host "t/3247 in-process flag assert: Status=$($r.Status) Pass=$($r.Pass) — $($r.Detail)"
+          if ($r.Pass -or $r.Status -ne 'Drift') {
+            Write-Host "::error::DRILL ANOMALY — expected Drift/fail, got Status=$($r.Status) Pass=$($r.Pass)"; exit 2
+          }
+          # Mirrors the deploy-azure.yml BLOCKING exit-mapping:
+          Write-Host "::error::t/3247 CONFIG DRIFT (present in ACA config but process not effective) — $($r.Detail)"
+          exit 1
+
+  fire-notfound:
+    name: fire — absent boot line must go RED (NotFound)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+      - shell: pwsh
+        run: |
+          . ./operations/devops/Test-BootFlagEffective.ps1
+          $r = Test-BootFlagEffective -BootLogLines @()
+          Write-Host "t/3247 in-process flag assert: Status=$($r.Status) Pass=$($r.Pass) — $($r.Detail)"
+          if ($r.Pass -or $r.Status -ne 'NotFound') {
+            Write-Host "::error::DRILL ANOMALY — expected NotFound/fail, got Status=$($r.Status) Pass=$($r.Pass)"; exit 2
+          }
+          # Mirrors the deploy-azure.yml BLOCKING exit-mapping (distinct diagnostic, NOT drift):
+          Write-Host "::error::t/3247 BOOT LINE NOT FOUND (ingestion/calibration, NOT drift) — $($r.Detail)"
+          exit 1
