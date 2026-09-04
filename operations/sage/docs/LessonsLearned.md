@@ -3893,4 +3893,67 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Applies To:** All agents creating worktrees for work in npm-based subtrees. Especially relevant for test-running worktrees where the first action is `npx vitest` or `npm run build`.
 
+---
+
+## #190 [Process/CI] FIRE Arm "Observationally Pending" Is Not Safe — Force-Trigger End-to-End When Cheap
+
+**Pattern:** A gate's FIRE arm was accepted as "observationally pending" (predicate correct, fire never verified in production). The predicate fired correctly (exit 1, red CI job) but the human-reaching signal never arrived because a downstream step in the fire→signal chain silently errored — "fires but nobody's told." The chain break was entirely independent of the predicate logic.
+
+**Instances:**
+- 2026-09-03 — DevOps (p/26#97, t/3278): `deploy-drift-check` predicate correctly returned Fire=True (exit 1), but `gh issue create --label deploy-drift` then errored "label not found" (the label was never created in the repo). The gate job went red — technically fired — yet the human-visible issue never opened. Caught by forcing the fire via a threshold-override dispatch. Fix: workflow now self-ensures the label with `gh label create --force` before `gh issue create`.
+
+**Root Cause:** A gate's observable output is the job exit code (pass/fail), not whether the human-reaching artifact (issue, alert, notification) was actually created. These are separate steps in the same job, and errors in post-predicate steps are silently swallowed from the gate's perspective. Unit-green + a de-gated fire arm proves only the predicate logic — not the full fire→signal chain.
+
+**Prevention:**
+1. **Force-trigger the fire arm end-to-end at least once** — even when observationally pending — by using a threshold-override dispatch or injecting a synthetic event. Confirm the human-reaching artifact (issue, alert, notification) actually appears.
+2. **Self-ensure every dependency of the fire path** — labels, webhooks, topics, channels — with idempotent creation (`gh label create --force`, `gh api ... --method PUT`, etc.) before the step that depends on them.
+3. **Do not accept "observationally pending" as equivalent to "both arms verified."** Gate-Promotion (Pattern #184, t/3192) requires both arms deliberately exercised. A fire arm that has never triggered end-to-end in a real or forced run is unverified.
+
+**Status:** Active — 1 instance (p/26#97, t/3278). Gate verification gap; force-trigger + dependency self-ensure is the canonical prevention.
+
+**Applies To:** All agents authoring or reviewing alert/gate workflows where the FIRE arm emits an artifact (GitHub issue, webhook call, notification) after the predicate step. Especially relevant during Gate-Promotion review (Pattern #184).
+
+---
+
+## #191 [Process/Git] Check `git worktree list` Before Touching Another Role's PR Branch
+
+**Pattern:** An agent attempts to create a worktree for another role's PR branch (to apply a cross-scope fix) and hits "fatal: '<branch>' is already checked out at '<other-path>'" — the branch owner already holds a live worktree. Attempting to push directly over the owner's branch while they hold a worktree risks clobbering in-progress work (same failure class as the #1912 force-push clobber).
+
+**Instances:**
+- 2026-09-04 — Tech Lead (p/335#56): `git worktree add -b <branch>` failed "branch already exists" because the owning role held a live worktree on that branch. Resolution: routed the exact fix (as a patch description) to the owner, who applied and pushed it from their worktree. No clobber risk.
+
+**Root Cause:** When a role holds a live worktree on their feature branch, any external agent pushing to that branch — or force-deleting/recreating it — will conflict with or overwrite the owner's uncommitted work. The "branch already exists" error is a signal, not just a naming collision.
+
+**Prevention:**
+1. **Before touching another role's PR branch, run `git worktree list`** — if the owner has a live worktree on that branch, do not attempt to check it out or push to it directly.
+2. **Route the fix to the owner instead** — ping them with the exact change needed (file, line, diff) and let them apply + push from their live worktree. This avoids all clobber risk.
+3. **If the branch is truly orphaned** (owner confirms no live worktree), clean up with `git worktree prune` + `git branch -D` before creating a new worktree. Confirm with the branch owner first.
+
+**Status:** Active — 1 instance (p/335#56). Cross-role branch-safety pattern; route-to-owner is the canonical approach.
+
+**Applies To:** All agents who need to apply fixes to tickets or PRs owned by another role. Especially relevant for TL and Sage who may need to apply cross-scope fixes during incidents.
+
+---
+
+## #192 [Build/Worktree] `mklink /J` Junction Inside Worktree Blocks `git worktree remove` — Orphaned Dir + Stale Branch
+
+**Pattern:** A `mklink /J` junction (e.g., for `node_modules`) inside a worktree blocks `git worktree remove` because the junction appears as a non-empty directory. Git de-registers the worktree but leaves the physical directory behind — an orphaned dir that still has the old branch checked out. Subsequent `git worktree add` on the same path or branch then fails with "already exists" / "branch already in use."
+
+**Instances:**
+- 2026-09-04 — ServerAPI (p/504#8, t/3296): `.worktrees/t3296a/` had a `mklink /J`-created `node_modules` junction. `git worktree remove` failed silently (git de-registered but left the dir). Re-`add` saw both an existing dir and a stale branch — failed on both. Fix sequence: (1) `cmd //c rmdir .worktrees/t3296a\taxonomy-editor\node_modules` (removes the junction link only — NOT the real node_modules target), (2) `rm -rf .worktrees/t3296a`, (3) `git worktree prune`, (4) `git branch -D <stale-branch>`, (5) `git worktree add` fresh.
+
+**Root Cause:** `git worktree remove` refuses to delete a worktree directory it considers non-empty. A junction appears as a non-empty directory to git. When removal fails partway, git may still de-register the worktree metadata, leaving the physical dir orphaned — causing the next `add` to fail on the dir AND on the stale branch that was never cleaned up.
+
+**Warning:** `rm -rf` on a directory containing a `mklink /J` junction **follows the junction and deletes the real target** — in this case, the real `node_modules` on the shared tree. Always use `cmd //c rmdir <junction-path>` (removes only the link) before `rm -rf` on the parent dir.
+
+**Prevention:**
+1. **Remove `mklink /J` junctions with `cmd //c rmdir <path>` BEFORE `git worktree remove`** — this removes only the link, leaving the real target intact.
+2. **Prefer `New-Item -ItemType Junction` (PowerShell) over `mklink /J` (cmd)** — teardown is `Remove-Item <path>` (removes junction only), which is safer and doesn't require escaping to cmd. See also Pattern #189.
+3. **If a `git worktree remove` fails, check for junctions in the worktree directory** before retrying — they are the most common non-empty-dir blocker. Follow the full cleanup sequence: `rmdir <junction>` → `rm -rf <orphan-dir>` → `git worktree prune` → `git branch -D <stale>` → re-add.
+4. **Never `rm -rf` a worktree directory without first removing junctions** — it will silently delete the junction's real target.
+
+**Status:** Active — 1 instance (p/504#8, t/3296). Extension of Patterns #122 and #189; junction teardown sequence is the canonical fix.
+
+**Applies To:** All agents creating worktrees with junction-linked directories (node_modules, build outputs). Windows-specific (mklink /J / New-Item -ItemType Junction). Especially relevant for npm-worktree setups per Pattern #189.
+
 **Applies To:** All agents receiving "safe to proceed" or "all prerequisites met" messages for prod changes; all human operators reviewing agent-initiated prod-change requests.
