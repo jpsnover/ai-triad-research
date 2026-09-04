@@ -6,6 +6,7 @@ import './ArgStrengthTab.css';
 import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../../types/debate';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
+import { DEBATE_TESTED_DEFAULTS } from '@lib/debate/debateTested';
 import { INodeRow } from '../shared/INodeRow';
 import { speakerLabel } from '../helpers';
 import type { OverviewTab } from '../types';
@@ -21,7 +22,51 @@ interface ArgStrengthTabProps {
   nodeLabels: Map<string, string>;
 }
 
+// t/3301: 'all' = no filter; 'ge1' = in-degree ≥1 (default); 'ge2' = in-degree ≥2 (stricter).
+type TestedFilter = 'all' | 'ge1' | 'ge2';
+
+// t/3303: Debate-tested tier — derivable from single-debate attack edges.
+// 'well_tested' requires multi-debate data; omitted here (single-debate view).
+type DebateTier = 'untested' | 'cited' | 'contested';
+
+// t/3303: Sort axis — strength (QBAF acceptability, default) or tier (dialectical testedness).
+type SortMode = 'strength' | 'tier';
+
 const POV_ORDER = ['accelerationist', 'safetyist', 'skeptic'] as const;
+
+const TIER_RANK: Record<DebateTier, number> = { untested: 0, cited: 1, contested: 2 };
+
+const TIER_LABEL: Record<DebateTier, string> = {
+  untested: '–',
+  cited: '·',
+  contested: '✓',
+};
+
+const TIER_TOOLTIP: Record<DebateTier, string> = {
+  untested: 'Untested — no incoming edges in this debate',
+  cited: 'Cited — appeared but never severely challenged (no attack ≥ 0.5 strength)',
+  contested: 'Contested — survived ≥1 severe attack (attacker strength ≥ 0.5)',
+};
+
+// Derive single-debate tier from incoming attack edges + attacker computed strength.
+// Mirrors the predicate in debateTested.ts findStrongestAttack (SEVERE_ATTACK_THRESHOLD).
+function deriveTier(
+  nodeId: string,
+  edges: ArgumentNetworkEdge[],
+  strengthMap: Map<string, number>,
+  baseStrengths: Map<string, number>,
+): DebateTier {
+  const incoming = edges.filter(e => e.target === nodeId);
+  if (incoming.length === 0) return 'untested';
+
+  const hasSevereAttack = incoming.some(e => {
+    if (e.type !== 'attacks') return false;
+    const s = strengthMap.get(e.source) ?? baseStrengths.get(e.source) ?? 0;
+    return s >= DEBATE_TESTED_DEFAULTS.SEVERE_ATTACK_THRESHOLD;
+  });
+
+  return hasSevereAttack ? 'contested' : 'cited';
+}
 
 export function ArgStrengthTab({
   debate, an, handleUpdateSubScore, setOverviewTab, setSelectedEntry, setLocalOverride, nodeLabels,
@@ -30,6 +75,11 @@ export function ArgStrengthTab({
   // t/2686: per-POV-section collapse + per-POV Top-5 filter. Default: all sections expanded.
   const [collapsedPovs, setCollapsedPovs] = useState<Set<string>>(new Set());
   const [top5Povs, setTop5Povs] = useState<Set<string>>(new Set());
+  // t/3301: default to in-degree ≥1 so untested priors are hidden by default.
+  const [testedFilter, setTestedFilter] = useState<TestedFilter>('ge1');
+  // t/3303: secondary sort axis. Default: QBAF acceptability strength.
+  const [sortMode, setSortMode] = useState<SortMode>('strength');
+
   const togglePov = (pov: string, setter: React.Dispatch<React.SetStateAction<Set<string>>>) =>
     setter(prev => {
       const next = new Set(prev);
@@ -56,6 +106,36 @@ export function ArgStrengthTab({
     return computeQbafStrengths(qbafNodes, qbafEdges).strengths;
   }, [an.nodes, edges]);
 
+  const baseStrengths = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of an.nodes) m.set(n.id, n.base_strength ?? 0.5);
+    return m;
+  }, [an.nodes]);
+
+  // t/3301: in-degree per node (incoming edges only — those test this node's strength).
+  const inDegreeMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of an.nodes) m.set(n.id, 0);
+    for (const e of edges) m.set(e.target, (m.get(e.target) ?? 0) + 1);
+    return m;
+  }, [an.nodes, edges]);
+
+  // t/3303: derive Debate-Tested tier per node (single-debate approximation).
+  const tierMap = useMemo(() => {
+    const m = new Map<string, DebateTier>();
+    for (const n of an.nodes) {
+      m.set(n.id, deriveTier(n.id, edges, strengthMap, baseStrengths));
+    }
+    return m;
+  }, [an.nodes, edges, strengthMap, baseStrengths]);
+
+  const totalNodes = an.nodes.length;
+  const testedGe1Count = useMemo(
+    () => an.nodes.filter(n => (inDegreeMap.get(n.id) ?? 0) >= 1).length,
+    [an.nodes, inDegreeMap],
+  );
+  const untestedCount = totalNodes - testedGe1Count;
+
   const nodesByPov = useMemo(() => {
     const map = new Map<string, ArgumentNetworkNode[]>();
     for (const n of an.nodes) {
@@ -63,42 +143,124 @@ export function ArgStrengthTab({
       map.get(n.speaker)!.push(n);
     }
     for (const [, nodes] of map) {
-      nodes.sort(
-        (a, b) =>
+      nodes.sort((a, b) => {
+        if (sortMode === 'tier') {
+          const ta = TIER_RANK[tierMap.get(a.id) ?? 'untested'];
+          const tb = TIER_RANK[tierMap.get(b.id) ?? 'untested'];
+          if (tb !== ta) return tb - ta;
+        }
+        return (
           (strengthMap.get(b.id) ?? b.base_strength ?? 0.5) -
-          (strengthMap.get(a.id) ?? a.base_strength ?? 0.5),
-      );
+          (strengthMap.get(a.id) ?? a.base_strength ?? 0.5)
+        );
+      });
     }
     return map;
-  }, [an.nodes, strengthMap]);
+  }, [an.nodes, strengthMap, tierMap, sortMode]);
+
+  // t/3301: apply tested filter on top of the sorted nodesByPov.
+  const filteredNodesByPov = useMemo(() => {
+    if (testedFilter === 'all') return nodesByPov;
+    const minDegree = testedFilter === 'ge1' ? 1 : 2;
+    const result = new Map<string, ArgumentNetworkNode[]>();
+    for (const [pov, nodes] of nodesByPov) {
+      const filtered = nodes.filter(n => (inDegreeMap.get(n.id) ?? 0) >= minDegree);
+      if (filtered.length > 0) result.set(pov, filtered);
+    }
+    return result;
+  }, [nodesByPov, testedFilter, inDegreeMap]);
+
+  const shownCount = useMemo(
+    () => [...filteredNodesByPov.values()].reduce((s, ns) => s + ns.length, 0),
+    [filteredNodesByPov],
+  );
 
   if (an.nodes.length === 0) {
     return <div className="ast-empty">No argument network data for this debate.</div>;
   }
 
   const orderedPovs = [
-    ...POV_ORDER.filter(p => nodesByPov.has(p)),
-    ...[...nodesByPov.keys()].filter(p => !(POV_ORDER as readonly string[]).includes(p)),
+    ...POV_ORDER.filter(p => filteredNodesByPov.has(p)),
+    ...[...filteredNodesByPov.keys()].filter(p => !(POV_ORDER as readonly string[]).includes(p)),
   ];
   const anyCollapsed = orderedPovs.some(p => collapsedPovs.has(p));
 
   return (
     <div className="ast-root">
       <div className="ast-toolbar">
-        <button
-          type="button"
-          className="ast-expand-btn"
-          // t/2686: operates on POV SECTIONS. Expand All also expands argument-row detail.
-          onClick={() => {
-            if (anyCollapsed) { setCollapsedPovs(new Set()); setAllExpanded(true); }
-            else { setCollapsedPovs(new Set(orderedPovs)); }
-          }}
-        >
-          {anyCollapsed ? 'Expand All' : 'Collapse All'}
-        </button>
+        {/* t/3301: count line + filter controls */}
+        <div className="ast-filter-controls">
+          <span className="ast-count-line">
+            Showing {shownCount} of {totalNodes}
+            {untestedCount > 0 && (
+              <> · <span className="ast-count-untested">{untestedCount} untested</span>
+              {' '}<span className="ast-count-note">(mostly unmeasured)</span></>
+            )}
+          </span>
+          <div className="ast-filter-btns">
+            {(['all', 'ge1', 'ge2'] as TestedFilter[]).map(f => (
+              <button
+                key={f}
+                type="button"
+                className={`ast-filter-btn${testedFilter === f ? ' active' : ''}`}
+                aria-pressed={testedFilter === f}
+                onClick={() => setTestedFilter(f)}
+                title={
+                  f === 'all' ? 'Show all arguments' :
+                  f === 'ge1' ? 'Show only arguments with ≥1 incoming edge (tested)' :
+                  'Show only arguments with ≥2 incoming edges (more tested)'
+                }
+              >
+                {f === 'all' ? 'All' : f === 'ge1' ? 'In-degree ≥1' : 'In-degree ≥2'}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* t/3303: sort axis toggle + expand/collapse */}
+        <div className="ast-toolbar-row">
+          <span className="ast-sort-label">Sort:</span>
+          <div className="ast-sort-btns">
+            {(['strength', 'tier'] as SortMode[]).map(m => (
+              <button
+                key={m}
+                type="button"
+                className={`ast-sort-btn${sortMode === m ? ' active' : ''}`}
+                aria-pressed={sortMode === m}
+                onClick={() => setSortMode(m)}
+                title={
+                  m === 'strength'
+                    ? 'Sort by QBAF acceptability (computed strength)'
+                    : 'Sort by Debate-Tested tier (dialectical testedness), then strength'
+                }
+              >
+                {m === 'strength' ? 'Strength' : 'Tier'}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="ast-expand-btn"
+            onClick={() => {
+              if (anyCollapsed) { setCollapsedPovs(new Set()); setAllExpanded(true); }
+              else { setCollapsedPovs(new Set(orderedPovs)); }
+            }}
+          >
+            {anyCollapsed ? 'Expand All' : 'Collapse All'}
+          </button>
+        </div>
       </div>
+      {orderedPovs.length === 0 && (
+        <div className="ast-empty">
+          No tested arguments match the current filter.{' '}
+          <button
+            type="button"
+            className="ast-filter-btn"
+            onClick={() => setTestedFilter('all')}
+          >Show all</button>
+        </div>
+      )}
       {orderedPovs.map(pov => {
-        const nodes = nodesByPov.get(pov) ?? [];
+        const nodes = filteredNodesByPov.get(pov) ?? [];
         const avgStrength =
           nodes.length > 0
             ? nodes.reduce((s, n) => s + (strengthMap.get(n.id) ?? n.base_strength ?? 0.5), 0) /
@@ -146,18 +308,40 @@ export function ArgStrengthTab({
               const supports = edges.filter(e => e.target === n.id && e.type === 'supports');
               const isSource = edges.some(e => e.source === n.id);
               const rank = idx < 3 ? idx + 1 : null;
+              const hasAttack = attacks.length > 0;
+              const tier = tierMap.get(n.id) ?? 'untested';
               return (
                 <div key={n.id} className="ast-node-wrap">
-                  {rank != null && (
-                    <span
-                      className="ast-rank-badge"
-                      title={`#${rank} strongest ${speakerLabel(pov)} argument`}
-                      // eslint-disable-next-line local/no-inline-style -- color is per-camp, derived from POV_META.cssVar
-                      style={{ color: `var(${cssVar})`, borderColor: `var(${cssVar})` }}
-                    >
-                      #{rank}
-                    </span>
+                  {(rank != null || hasAttack) && (
+                    <div className="ast-badges-col">
+                      {rank != null && (
+                        <span
+                          className="ast-rank-badge"
+                          title={`#${rank} strongest ${speakerLabel(pov)} argument`}
+                          // eslint-disable-next-line local/no-inline-style -- color is per-camp, derived from POV_META.cssVar
+                          style={{ color: `var(${cssVar})`, borderColor: `var(${cssVar})` }}
+                        >
+                          #{rank}
+                        </span>
+                      )}
+                      {hasAttack && (
+                        <span
+                          className="ast-attack-badge"
+                          title="Adversarially tested — has ≥1 incoming attack edge"
+                        >
+                          ⚔ adversarial
+                        </span>
+                      )}
+                    </div>
                   )}
+                  {/* t/3303: tier badge — dialectical testedness second axis */}
+                  <span
+                    className={`ast-tier-badge ast-tier-${tier}`}
+                    title={TIER_TOOLTIP[tier]}
+                    aria-label={`Tier: ${tier}`}
+                  >
+                    {TIER_LABEL[tier]}
+                  </span>
                   <INodeRow
                     node={n}
                     attacks={attacks}

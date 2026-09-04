@@ -88,8 +88,107 @@
 
 .ast-toolbar {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 4px;
   margin-bottom: 8px;
+}
+
+/* t/3301: filter controls row — count line left, filter buttons right */
+.ast-filter-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ast-count-line {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.ast-count-untested {
+  color: var(--text-secondary);
+}
+
+.ast-count-note {
+  font-style: italic;
+}
+
+.ast-filter-btns {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.ast-filter-btn {
+  font-size: var(--text-2xs);
+  padding: 1px 7px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ast-filter-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ast-filter-btn.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* row that holds sort toggles + expand/collapse (t/3303: sort added left-side) */
+.ast-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* t/3303: sort axis controls */
+.ast-sort-label {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ast-sort-btns {
+  display: flex;
+  gap: 3px;
+}
+
+.ast-sort-btn {
+  font-size: var(--text-2xs);
+  padding: 1px 7px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ast-sort-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ast-sort-btn.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* pushes expand/collapse to the right */
+.ast-toolbar-spacer {
+  flex: 1;
 }
 
 .ast-expand-btn {
@@ -181,18 +280,67 @@
   position: relative;
 }
 
-.ast-rank-badge {
+/* t/3301: absolute column holds rank + attack badges stacked at top-right */
+.ast-badges-col {
   position: absolute;
   right: 0;
   top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.ast-rank-badge {
   font-size: var(--text-2xs);
   font-weight: 700;
   padding: 1px 5px;
   border: 1px solid;
   border-radius: 3px;
   opacity: 0.75;
-  z-index: 1;
-  pointer-events: none;
+}
+
+/* t/3301: adversarially-tested badge (≥1 incoming attack edge) */
+.ast-attack-badge {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+/* t/3303: Debate-Tested tier badge — second axis, inline before each argument row */
+.ast-tier-badge {
+  display: inline-block;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: 3px;
+  vertical-align: middle;
+  cursor: default;
+  user-select: none;
+  margin-right: 4px;
+  min-width: 14px;
+  text-align: center;
+}
+
+.ast-tier-untested {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+.ast-tier-cited {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.ast-tier-contested {
+  color: var(--success, #16a34a);
 }
 
 .ast-empty {
