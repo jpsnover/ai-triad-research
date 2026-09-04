@@ -25,7 +25,7 @@ import { generateOpEdSet } from '../../../../lib/oped/generate.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps } from '../../../../lib/oped/generate.js';
 import { makeElectronAIAdapter } from '../electronAIAdapter.js';
 import { validateCreateOpEdPayload } from './opedValidation.js';
-import { parseShimLine, decodeB64Fields } from './opedShimTransport.js';
+import { parseShimLine, decodeB64Fields, buildConvertStdin, parseShimError } from './opedShimTransport.js';
 
 // Shared prompts dir: op-ed-*.prompt artifacts (relocated to lib/oped/prompts by t/2609).
 const PROMPTS_DIR = path.join(PROJECT_ROOT, 'lib', 'oped', 'prompts');
@@ -117,6 +117,7 @@ function runGetOpEdConvert(
   tempPath: string,
   contentType: string,
   signal: AbortSignal,
+  sourceUrl?: string,
 ): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const child = spawn('pwsh', ['-NoProfile', '-NonInteractive', '-File', PREP_SHIM_PATH], {
@@ -146,8 +147,8 @@ function runGetOpEdConvert(
       settle(() => { child.kill('SIGTERM'); reject(new Error('Get-OpEdSource convert timed out')); });
     }, getVoiceTimeoutMs());
 
-    // Contract: { ContentPath, ContentType } (t/3306/t/3307 locked interface).
-    child.stdin.write(JSON.stringify({ ContentPath: tempPath, ContentType: contentType }), 'utf-8');
+    // Contract: { ContentPath, ContentType, SourceUrl? } (t/3306/t/3307 locked interface).
+    child.stdin.write(buildConvertStdin(tempPath, contentType, sourceUrl), 'utf-8');
     child.stdin.end();
 
     let stdoutBuf = '';
@@ -191,15 +192,7 @@ function runGetOpEdConvert(
     child.on('close', (code) => settle(() => {
       if (code !== 0) {
         // Parse structured ActionableError from stderr (t/3307 shim emits JSON on failure).
-        let parsed: { Goal?: string; Problem?: string; NextSteps?: string[] } | null = null;
-        try {
-          /* telemetry — silent by design: stderr may not be JSON (non-shim output) */
-          const lastLine = stderrBuf.trim().split('\n').pop() ?? '';
-          const candidate = JSON.parse(lastLine) as Record<string, unknown>;
-          if (typeof candidate.Problem === 'string') {
-            parsed = candidate as { Goal?: string; Problem?: string; NextSteps?: string[] };
-          }
-        } catch { /* telemetry — silent by design */ }
+        const parsed = parseShimError(stderrBuf.trim().split('\n').pop() ?? '');
         if (parsed?.Problem) {
           reject(new ActionableError({
             goal: parsed.Goal ?? 'Convert op-ed source',
@@ -293,7 +286,7 @@ export function registerOpEdHandlers(): void {
         const fetched = await fetchOpEdSourceBytes(url, getVoiceTimeoutMs());
         tempPath = fetched.tempPath;
         try {
-          const sourcePrep = await runGetOpEdConvert(fetched.tempPath, fetched.contentType, controller.signal);
+          const sourcePrep = await runGetOpEdConvert(fetched.tempPath, fetched.contentType, controller.signal, url);
           // Extract markdown text for the lib/oped sourceMaterial slot ({{SOURCE_MATERIAL}}).
           sourceBrief = sourcePrep.SourceMarkdown != null ? String(sourcePrep.SourceMarkdown) : undefined;
         } finally {

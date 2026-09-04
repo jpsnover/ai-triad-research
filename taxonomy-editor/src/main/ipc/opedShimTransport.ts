@@ -21,6 +21,45 @@ export interface ShimStageLine { type: 'stage'; stage: string }
 export interface ShimResultLine { type: 'result'; data: Record<string, unknown> }
 export type ShimLine = ShimStageLine | ShimResultLine;
 
+/** Locked stdin contract (t/3306/t/3307). Field names are asserted by OpEdShimTransport.Tests.ps1. */
+export interface ConvertStdinPayload {
+  ContentPath: string;
+  ContentType: string;
+  SourceUrl?: string;
+}
+
+/** Locked stderr failure contract emitted by the shim on exit 1 (t/3306#4). */
+export interface ShimErrorPayload {
+  ErrorType?: string;
+  Goal?: string;
+  Problem: string;
+  NextSteps?: string[];
+}
+
+/** Build the JSON stdin string for the PS convert shim. Export keeps field names unit-testable. */
+export function buildConvertStdin(contentPath: string, contentType: string, sourceUrl?: string): string {
+  const payload: ConvertStdinPayload = { ContentPath: contentPath, ContentType: contentType };
+  if (sourceUrl) payload.SourceUrl = sourceUrl;
+  return JSON.stringify(payload);
+}
+
+/**
+ * Parse the last stderr line from the PS convert shim.
+ * Returns the structured payload when present (field `Problem` is the discriminator).
+ * Returns null when stderr is absent, non-JSON, or lacks the expected shape.
+ */
+export function parseShimError(lastStderrLine: string): ShimErrorPayload | null {
+  try {
+    const candidate = JSON.parse(lastStderrLine) as Record<string, unknown>;
+    if (typeof candidate['Problem'] === 'string') {
+      return candidate as unknown as ShimErrorPayload;
+    }
+  } catch {
+    /* telemetry — silent by design: stderr may not be JSON (non-shim output) */
+  }
+  return null;
+}
+
 /** Bounded head+tail excerpt so a 13k-char malformed line doesn't flood the recorder while still
  *  showing where the parse broke (recovery-vs-silent-loss convention). */
 function boundedSnippet(s: string, edge = 160): string {
