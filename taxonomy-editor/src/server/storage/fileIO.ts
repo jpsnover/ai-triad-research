@@ -223,9 +223,9 @@ async function resolveTaxonomyFilePath(pov: string): Promise<string> {
   return path.join(taxDir, `${pov}.json`);
 }
 
-export async function readTaxonomyFile(pov: string): Promise<unknown> {
+export async function readTaxonomyFile(pov: string, opts?: { ref?: string }): Promise<unknown> {
   const filePath = await resolveTaxonomyFilePath(pov);
-  const raw = await backend.readFile(filePath);
+  const raw = await backend.readFile(filePath, opts);
   if (raw === null) throw new ActionableError({
     goal: 'Read taxonomy file',
     problem: `Taxonomy file not found: ${filePath}`,
