@@ -18,6 +18,9 @@ name: t3247 boot-flag gate fire-drill
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   # Real #1828 boot line captured from Log Analytics — do not synthesize.
   TRUE_LINE: '{"level":30,"time":1788377646519,"pid":7,"hostname":"taxonomy-editor--deploy-b5f65c3-77580-64f77fcbb4-n6hkl","component":"server","embeddingWorkerOffload":true,"msg":"embedding offload flag at boot"}'
@@ -27,7 +30,7 @@ jobs:
     name: control — true line must PASS (stays green)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
       - shell: pwsh
         run: |
           . ./operations/devops/Test-BootFlagEffective.ps1
@@ -42,7 +45,7 @@ jobs:
     name: fire — false line must go RED (Drift)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
       - shell: pwsh
         run: |
           . ./operations/devops/Test-BootFlagEffective.ps1
@@ -60,7 +63,7 @@ jobs:
     name: fire — absent boot line must go RED (NotFound)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
       - shell: pwsh
         run: |
           . ./operations/devops/Test-BootFlagEffective.ps1
