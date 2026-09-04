@@ -10,7 +10,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { mergeGuardVerdict } from './merge-guard-predicate.mjs';
+import {
+  mergeGuardVerdict,
+  jointGvAutoMergeVerdict,
+  isAutoMergeCommand,
+  parsePrRef,
+} from './merge-guard-predicate.mjs';
 
 const MODULE = fileURLToPath(new URL('./merge-guard-predicate.mjs', import.meta.url));
 // Invoke the module the SAME way the feedback rule does — proves runtime (CLI shim) == the tested
@@ -92,4 +97,64 @@ test('CLI shim: ALLOWs (no output) on a guarded merge — both flag forms', () =
 test('CLI shim: ALLOWs --auto (exempt) and non-merge commands', () => {
   assert.equal(runShim('gh pr merge 1901 --auto'), '');
   assert.equal(runShim('gh pr view 1901 --json headRefOid'), '');
+});
+
+// ── t/3318: auto-merge-on-joint-GV guard (TL gate design t/3318#1) ──
+// The pure predicate is the both-arms unit under test; the label lookup (fetch shim) is impure and
+// proven by the real fire-drill (labeled test PR + --auto → blocks). Here we prove the 4-combo truth
+// table + the command parsers, and the CLI --jointgv mode's gh-free early-exits.
+
+test('jointGv BLOCK arm: --auto + joint-gv label → block', () => {
+  const v = jointGvAutoMergeVerdict({ isAutoMerge: true, isJointGvLabeled: true });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'auto-merge-on-joint-gv');
+});
+
+test('jointGv ALLOW arm: --auto + NOT labeled → allow (solo draft may auto-merge)', () => {
+  const v = jointGvAutoMergeVerdict({ isAutoMerge: true, isJointGvLabeled: false });
+  assert.equal(v.block, false);
+  assert.equal(v.reason, 'auto-merge-unlabeled-ok');
+});
+
+test('jointGv ALLOW arm: manual (no --auto) + joint-gv label → allow (manual co-merge is the intent)', () => {
+  const v = jointGvAutoMergeVerdict({ isAutoMerge: false, isJointGvLabeled: true });
+  assert.equal(v.block, false);
+  assert.equal(v.reason, 'not-auto-merge');
+});
+
+test('jointGv ALLOW arm: manual + not labeled → allow', () => {
+  const v = jointGvAutoMergeVerdict({ isAutoMerge: false, isJointGvLabeled: false });
+  assert.equal(v.block, false);
+  assert.equal(v.reason, 'not-auto-merge');
+});
+
+test('isAutoMergeCommand: true only for a `gh pr merge` carrying --auto', () => {
+  assert.equal(isAutoMergeCommand('gh pr merge 1947 --auto --squash'), true);
+  assert.equal(isAutoMergeCommand('gh pr merge 1947 --squash --auto'), true);
+  assert.equal(isAutoMergeCommand('gh.exe pr merge --auto'), true);
+  assert.equal(isAutoMergeCommand('gh pr merge 1947 --squash'), false); // manual
+  assert.equal(isAutoMergeCommand('gh pr view 1947 --json labels'), false); // not a merge
+  assert.equal(isAutoMergeCommand('gh pr merge 1947 --squash --auto-delete'), false); // not the --auto flag
+});
+
+test('parsePrRef: numeric id, pull URL, else null (→ current branch)', () => {
+  assert.equal(parsePrRef('gh pr merge 1947 --auto'), '1947');
+  assert.equal(parsePrRef('gh pr merge https://github.com/jpsnover/ai-triad-research/pull/1947 --auto'),
+    'https://github.com/jpsnover/ai-triad-research/pull/1947');
+  assert.equal(parsePrRef('gh pr merge --auto --squash'), null); // no ref → gh uses current branch
+  // a --match-head-commit value is never mistaken for the ref (leading-position only)
+  assert.equal(parsePrRef('gh pr merge --match-head-commit deadbeef --squash 1947'), null);
+});
+
+// CLI --jointgv mode: the gh-free early-exits are deterministic (no PR lookup performed).
+function runShimJointGv(command) {
+  return execFileSync(process.execPath, [MODULE, '--jointgv', command], { encoding: 'utf8' });
+}
+
+test('CLI --jointgv: no gh call + no fire on a MANUAL merge (not --auto)', () => {
+  assert.equal(runShimJointGv('gh pr merge 1947 --squash --match-head-commit abc'), '');
+});
+
+test('CLI --jointgv: no gh call + no fire on a non-merge command', () => {
+  assert.equal(runShimJointGv('gh pr view 1947 --json labels'), '');
 });
