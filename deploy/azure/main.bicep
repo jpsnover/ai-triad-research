@@ -586,6 +586,12 @@ var stagingEnvOverrides = [
   { name: 'AI_TRIAD_STATE_ROOT', value: '/mnt/staging-state' }
   // github-api writes go to the staging branch, not main (t/2650 class-B isolation)
   { name: 'GITHUB_BRANCH',       value: 'staging' }
+  // t/3305: promote the data-root boot validation (t/3296) to HARD-FAIL on staging first —
+  // a misprovisioned data root crash-loops VISIBLY here (real backend + real creds) before we
+  // set this in prod baseEnv. Gated real-env-first (t/2683): staging proves the exit(1) path
+  // against the live github-api ref:'main' corpus, which validated CLEAN on the warn-only boot
+  // (rev staging-4826363, no "validation failed" WARN), so enforce mode boots green not looping.
+  { name: 'DATA_ROOT_VALIDATION_ENFORCE', value: '1' }
 ]
 // stagingBaseEnv = baseEnv with the isolation overrides applied.
 // filter() removes the baseEnv entries that stagingEnvOverrides supersedes.
