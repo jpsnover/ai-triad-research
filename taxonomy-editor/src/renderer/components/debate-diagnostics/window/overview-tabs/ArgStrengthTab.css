@@ -115,6 +115,23 @@
   font-style: italic;
 }
 
+/* t/3304: hidden-by-dt-filter count */
+.ast-count-dt-hidden {
+  color: var(--warning, #d97706);
+  font-weight: 500;
+}
+
+/* t/3304: "Debate-tested only" button — slightly accented to distinguish from the degree buttons */
+.ast-filter-btn-dt {
+  border-color: color-mix(in srgb, var(--warning, #d97706) 40%, var(--border-color));
+}
+
+.ast-filter-btn-dt.active {
+  background: color-mix(in srgb, var(--warning, #d97706) 10%, transparent);
+  border-color: var(--warning, #d97706);
+  color: var(--warning, #d97706);
+}
+
 .ast-filter-btns {
   display: flex;
   gap: 3px;

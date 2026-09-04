@@ -79,6 +79,9 @@ export function ArgStrengthTab({
   const [testedFilter, setTestedFilter] = useState<TestedFilter>('ge1');
   // t/3303: secondary sort axis. Default: QBAF acceptability strength.
   const [sortMode, setSortMode] = useState<SortMode>('strength');
+  // t/3304: "Debate-tested only" opt-in filter — keeps tier ∈ {contested}.
+  // Default OFF: this removes ~45-54% of nodes and must not be a silent default.
+  const [debateTestedOnly, setDebateTestedOnly] = useState(false);
 
   const togglePov = (pov: string, setter: React.Dispatch<React.SetStateAction<Set<string>>>) =>
     setter(prev => {
@@ -159,21 +162,39 @@ export function ArgStrengthTab({
   }, [an.nodes, strengthMap, tierMap, sortMode]);
 
   // t/3301: apply tested filter on top of the sorted nodesByPov.
+  // t/3304: also apply debateTestedOnly (tier === 'contested') when enabled.
   const filteredNodesByPov = useMemo(() => {
-    if (testedFilter === 'all') return nodesByPov;
-    const minDegree = testedFilter === 'ge1' ? 1 : 2;
-    const result = new Map<string, ArgumentNetworkNode[]>();
-    for (const [pov, nodes] of nodesByPov) {
-      const filtered = nodes.filter(n => (inDegreeMap.get(n.id) ?? 0) >= minDegree);
-      if (filtered.length > 0) result.set(pov, filtered);
+    let result = nodesByPov;
+
+    if (testedFilter !== 'all') {
+      const minDegree = testedFilter === 'ge1' ? 1 : 2;
+      const degreeFiltered = new Map<string, ArgumentNetworkNode[]>();
+      for (const [pov, nodes] of result) {
+        const f = nodes.filter(n => (inDegreeMap.get(n.id) ?? 0) >= minDegree);
+        if (f.length > 0) degreeFiltered.set(pov, f);
+      }
+      result = degreeFiltered;
     }
+
+    if (debateTestedOnly) {
+      const strict = new Map<string, ArgumentNetworkNode[]>();
+      for (const [pov, nodes] of result) {
+        const f = nodes.filter(n => tierMap.get(n.id) === 'contested');
+        if (f.length > 0) strict.set(pov, f);
+      }
+      result = strict;
+    }
+
     return result;
-  }, [nodesByPov, testedFilter, inDegreeMap]);
+  }, [nodesByPov, testedFilter, inDegreeMap, debateTestedOnly, tierMap]);
 
   const shownCount = useMemo(
     () => [...filteredNodesByPov.values()].reduce((s, ns) => s + ns.length, 0),
     [filteredNodesByPov],
   );
+
+  // t/3304: when debateTestedOnly is on, show how many are hidden by the strict filter.
+  const debateTestedHiddenCount = totalNodes - shownCount;
 
   if (an.nodes.length === 0) {
     return <div className="ast-empty">No argument network data for this debate.</div>;
@@ -192,10 +213,13 @@ export function ArgStrengthTab({
         <div className="ast-filter-controls">
           <span className="ast-count-line">
             Showing {shownCount} of {totalNodes}
-            {untestedCount > 0 && (
-              <> · <span className="ast-count-untested">{untestedCount} untested</span>
-              {' '}<span className="ast-count-note">(mostly unmeasured)</span></>
-            )}
+            {debateTestedOnly
+              ? <> — <span className="ast-count-dt-hidden">{debateTestedHiddenCount} not yet debate-tested</span></>
+              : untestedCount > 0 && (
+                <> · <span className="ast-count-untested">{untestedCount} untested</span>
+                {' '}<span className="ast-count-note">(mostly unmeasured)</span></>
+              )
+            }
           </span>
           <div className="ast-filter-btns">
             {(['all', 'ge1', 'ge2'] as TestedFilter[]).map(f => (
@@ -214,6 +238,16 @@ export function ArgStrengthTab({
                 {f === 'all' ? 'All' : f === 'ge1' ? 'In-degree ≥1' : 'In-degree ≥2'}
               </button>
             ))}
+            {/* t/3304: strict opt-in filter — only nodes that survived severe attack */}
+            <button
+              type="button"
+              className={`ast-filter-btn ast-filter-btn-dt${debateTestedOnly ? ' active' : ''}`}
+              aria-pressed={debateTestedOnly}
+              onClick={() => setDebateTestedOnly(v => !v)}
+              title="Debate-tested only — show arguments that survived ≥1 severe attack (attacker strength ≥ 0.5). Removes ~45-54% of nodes."
+            >
+              Debate-tested only
+            </button>
           </div>
         </div>
         {/* t/3303: sort axis toggle + expand/collapse */}

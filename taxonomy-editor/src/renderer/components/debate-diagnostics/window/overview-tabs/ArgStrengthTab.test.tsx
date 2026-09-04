@@ -259,3 +259,62 @@ describe('ArgStrengthTab — t/3303 tier badge + sort-by-tier', () => {
     expect(cited.length).toBeGreaterThan(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// t/3304: "Debate-tested only" opt-in filter
+// ---------------------------------------------------------------------------
+describe('ArgStrengthTab — t/3304 Debate-tested only filter', () => {
+  // a1 has a severe attack (a4 base=0.5 >= 0.5) → contested → passes DT filter.
+  // a0 has support-only → cited → filtered out when DT only.
+  // a3+ have no edges → untested → filtered out.
+  const DT_EDGES = [
+    edge('a4', 'a1', 'attacks'),  // a1 contested (a4 base_strength=0.5 >= threshold)
+    edge('a4', 'a0', 'supports'), // a0 cited
+  ];
+
+  it('"Debate-tested only" button is inactive by default (opt-in)', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, DT_EDGES)} />);
+    const btn = screen.getByRole('button', { name: 'Debate-tested only' });
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('activating the filter shows only contested nodes', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, DT_EDGES)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Debate-tested only' }));
+    // Only a1 is contested — ge1 testedFilter also active (default), so only a1 passes both.
+    expect(screen.getAllByTestId(/^inode-a/)).toHaveLength(1);
+    expect(screen.getByTestId('inode-a1')).toBeTruthy();
+  });
+
+  it('activating the filter shows hidden count in count line', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, DT_EDGES)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Debate-tested only' }));
+    // 1 shown of 11 total → "10 not yet debate-tested"
+    expect(screen.getByText(/not yet debate-tested/)).toBeTruthy();
+  });
+
+  it('deactivating the filter restores previous view', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, DT_EDGES)} />);
+    const dtBtn = screen.getByRole('button', { name: 'Debate-tested only' });
+    fireEvent.click(dtBtn); // on
+    fireEvent.click(dtBtn); // off
+    // Back to ge1 default: a0 and a1 are tested (in-degree >=1)
+    expect(screen.getAllByTestId(/^inode-a/)).toHaveLength(2);
+  });
+
+  it('DT filter composes with All (degree filter): shows all contested across all nodes', () => {
+    render(<ArgStrengthTab {...makeProps(NODES, DT_EDGES)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));      // drop degree filter
+    fireEvent.click(screen.getByRole('button', { name: 'Debate-tested only' })); // add DT
+    // Still only a1 is contested — other nodes untested/cited
+    expect(screen.getAllByTestId(/^inode-a/)).toHaveLength(1);
+  });
+
+  it('empty state when DT filter hides all nodes', () => {
+    // No edges → everything untested → DT filter = empty
+    render(<ArgStrengthTab {...makeProps(NODES)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Debate-tested only' }));
+    expect(screen.getByText(/No tested arguments match/)).toBeTruthy();
+  });
+});
