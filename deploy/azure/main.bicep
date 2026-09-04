@@ -1451,6 +1451,52 @@ resource paidFallbackOverflow 'Microsoft.Insights/scheduledQueryRules@2023-03-15
   }
 }
 
+// Data-root boot validation WARN (t/3308 — observability backstop for the t/3296 warn-only default).
+// server.ts validates taxonomy/ + dictionary/ are present & non-empty at boot via the ACTIVE backend.
+// When DATA_ROOT_VALIDATION_ENFORCE is unset (default) a failed validation is WARN-only and the
+// container KEEPS SERVING — empty panels with just a log line nobody watches. This alert is what makes
+// warn-only safe: it fires on that WARN so a misprovisioned data root is never silent (the t/3110 trap,
+// one layer up). Especially load-bearing until DATA_ROOT_VALIDATION_ENFORCE=1 lands in prod (t/3305) —
+// until then this is the ONLY signal a prod revision is serving empty. Still useful for staging + any
+// un-flagged env after ENFORCE lands (ENFORCE crash-loops visibly; this keeps catching the WARN).
+//
+// MATCH-TOKEN IS A CONTRACT: the substring "Data root validation failed at boot" is emitted by
+// server.ts:1314 (ENFORCE → refuse-to-start error) and :1317 (WARN-only) — matching the shared prefix
+// catches BOTH paths (a superset: any misprovisioned boot). Change that message prefix in server.ts →
+// change it here, or a misprovisioned boot goes unmonitored (the paid-fallback-overflow lesson, t/3110).
+resource dataRootBootWarn 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-data-root-boot-warn'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'Data Root Boot Validation Failed (warn-only serving empty)'
+    description: 'The server failed to validate the data root at boot (taxonomy/ or dictionary/ missing or empty) and — in warn-only mode — kept serving. Panels may be empty. Re-check data-root provisioning for the affected revision. Load-bearing until DATA_ROOT_VALIDATION_ENFORCE=1 lands in prod (t/3305).'
+    severity: 1
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT15M'
+    windowSize: 'PT1H'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s contains "Data root validation failed at boot"
+            | summarize BootValidationFailures = count()
+            | where BootValidationFailures > 0
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
 resource branchDivergence 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
   name: 'alert-branch-divergence'
   location: location
