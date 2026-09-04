@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { ActionableError } from '../../../../lib/debate/errors.js';
-import { parseShimLine, decodeB64Fields } from '../ipc/opedShimTransport.js';
+import { parseShimLine, decodeB64Fields, buildConvertStdin, parseShimError } from '../ipc/opedShimTransport.js';
 
 // The exact shape that broke it: prose with an embedded `*"..."*` quote + a base64 data-URI.
 const NASTY = '# Title\n\n*"Who is talking to your child?"*\n\nBody with a data URI ![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ) and a trailing "quote".';
@@ -68,5 +68,58 @@ describe('opedShimTransport — parseShimLine (t/2928)', () => {
 
   it('parses a valid stage line', () => {
     expect(parseShimLine(JSON.stringify({ type: 'stage', stage: 'fetching' }))?.type).toBe('stage');
+  });
+});
+
+// ── Contract-field-name guard (t/3307) ───────────────────────────────────────
+// These tests assert the EXACT field names on the Node parse side so that a rename
+// on either side (shim or handler) causes a failure — mirroring OpEdShimTransport.Tests.ps1.
+
+describe('opedShimTransport — buildConvertStdin contract (t/3307)', () => {
+  it('emits ContentPath and ContentType with exact casing', () => {
+    const payload = JSON.parse(buildConvertStdin('/tmp/file.html', 'text/html')) as Record<string, unknown>;
+    expect(payload['ContentPath']).toBe('/tmp/file.html');
+    expect(payload['ContentType']).toBe('text/html');
+    expect('SourceUrl' in payload).toBe(false);
+  });
+
+  it('includes SourceUrl when provided', () => {
+    const payload = JSON.parse(buildConvertStdin('/tmp/x.pdf', 'application/pdf', 'https://example.com')) as Record<string, unknown>;
+    expect(payload['SourceUrl']).toBe('https://example.com');
+  });
+
+  it('omits SourceUrl when empty string', () => {
+    const payload = JSON.parse(buildConvertStdin('/tmp/x.html', 'text/html', '')) as Record<string, unknown>;
+    expect('SourceUrl' in payload).toBe(false);
+  });
+});
+
+describe('opedShimTransport — parseShimError contract (t/3307)', () => {
+  it('reads ErrorType, Goal, Problem, NextSteps by exact field name', () => {
+    const line = JSON.stringify({
+      ErrorType: 'ContentPathMissing',
+      Goal: 'Convert pre-fetched source content',
+      Problem: 'Content file not found',
+      NextSteps: ['Check the temp file path'],
+    });
+    const result = parseShimError(line);
+    expect(result?.ErrorType).toBe('ContentPathMissing');
+    expect(result?.Goal).toBe('Convert pre-fetched source content');
+    expect(result?.Problem).toBe('Content file not found');
+    expect(result?.NextSteps).toEqual(['Check the temp file path']);
+  });
+
+  it('returns null for non-JSON stderr', () => {
+    expect(parseShimError('not json')).toBeNull();
+  });
+
+  it('returns null when Problem field is absent (not a shim error payload)', () => {
+    expect(parseShimError(JSON.stringify({ ErrorType: 'X', Goal: 'Y' }))).toBeNull();
+  });
+
+  it('SourceMarkdown appears on success data (field name guard)', () => {
+    const data = { SourceMarkdown: b64('# Article'), _b64Fields: ['SourceMarkdown'] };
+    const decoded = decodeB64Fields({ ...data });
+    expect(decoded['SourceMarkdown']).toBe('# Article');
   });
 });
