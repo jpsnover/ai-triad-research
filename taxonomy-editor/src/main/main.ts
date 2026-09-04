@@ -149,9 +149,12 @@ function createWindow(): void {
   });
   hardenWindow(mainWindow);
 
-  // Use production build if launched with CLI file args (viewer mode) or if packaged
+  // Use production build if launched with CLI file args (viewer mode) or if packaged.
+  // --review-mode (or ELECTRON_REVIEW_MODE=1) forces the prod renderer path without registering
+  // the get-cli-file-arg viewer-mode IPC, so cross-scope agents can attach via CDP for design review.
   const hasFileArg = process.argv.some(a => a.startsWith('--diagnostics-file=') || a.startsWith('--harvest-file='));
-  const isDev = !app.isPackaged && !hasFileArg;
+  const isReviewMode = process.argv.includes('--review-mode') || process.env['ELECTRON_REVIEW_MODE'] === '1';
+  const isDev = !app.isPackaged && !hasFileArg && !isReviewMode;
   if (isDev) {
     console.log('[main] Loading dev URL: http://localhost:5173');
     void mainWindow.loadURL('http://localhost:5173');
