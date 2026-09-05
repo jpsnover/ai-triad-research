@@ -27,9 +27,9 @@
  */
 
 import { execFile } from 'child_process';
-import { RECONCILE_SCRIPT, getProjectRoot, isGroundingSweepEnabled } from './config.js';
+import { RECONCILE_SCRIPT, getProjectRoot, isGroundingSweepEnabled, STORAGE_MODE } from './config.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
-import { errorMessage } from '../../../lib/debate/errors.js';
+import { ActionableError, errorMessage } from '../../../lib/debate/errors.js';
 import { parseStats, type ReconcilerStats } from './groundingReconcileHook.js';
 import { log } from './logger.js';
 
@@ -139,6 +139,20 @@ async function runSweep(): Promise<void> {
   }
 }
 
+/** t/3333: arm-decision for the sweep. PURE (no I/O) so both arms are unit-tested without config/env
+ *  mocking. The sweep's `--apply` writes the LOCAL filesystem; on the `github-api` read profile those
+ *  writes are invisible to the read path, so arming it there would SILENTLY no-op (t/2648 class) — a
+ *  hard architectural constraint, not the soft default-OFF. Returns:
+ *   - 'disabled'            — flag OFF (inert by design; the default).
+ *   - 'blocked-github-api'  — flag ON but STORAGE_MODE=github-api → refuse to arm + fail LOUD.
+ *   - 'arm'                 — flag ON and a filesystem-visible profile → arm normally. */
+export type SweepArmDecision = 'arm' | 'disabled' | 'blocked-github-api';
+export function decideSweepArm(storageMode: string, enabled: boolean): SweepArmDecision {
+  if (!enabled) return 'disabled';
+  if (storageMode === 'github-api') return 'blocked-github-api';
+  return 'arm';
+}
+
 /**
  * Start the recurring grounding sweep. Idempotent (a second call is a no-op while running). The
  * interval is `unref()`d so it never keeps the process alive. Returns the stop fn.
@@ -146,12 +160,39 @@ async function runSweep(): Promise<void> {
  * Gated on `isGroundingSweepEnabled()`: when the flag is OFF the timer is NEVER armed — the sweep is
  * completely inert (this is the default, pending the sequenced enable). Returns a no-op stop fn in
  * that case so the caller contract is identical either way.
+ *
+ * t/3333 hard-guard: even when the flag is ON, on the `github-api` profile the timer is REFUSED (not
+ * armed) with a loud ActionableError → Log_s, because the reconciler's local-FS writes are invisible
+ * to the github-api read path (silent no-op / t/2648 class). Loud-and-refuse, never a throw — this is
+ * called at boot and a misconfigured flag must not crash the host (the module's non-fatal contract).
  */
 export function startGroundingSweep(intervalMs: number = resolveIntervalMs()): () => void {
-  if (!isGroundingSweepEnabled()) {
+  const decision = decideSweepArm(STORAGE_MODE, isGroundingSweepEnabled());
+  if (decision === 'disabled') {
     // Log-once so an operator can see the sweep is present-but-disabled (vs. silently absent).
     log.server.info({ component: 'grounding-sweep' }, 'Grounding sweep disabled (GROUNDING_SWEEP_ENABLED off) — timer not armed');
     return () => { /* no-op: nothing was armed */ };
+  }
+  if (decision === 'blocked-github-api') {
+    const err = new ActionableError({
+      goal: 'Run the scheduled grounding sweep so batch/PS/Python taxonomy writes stay grounded',
+      problem: `GROUNDING_SWEEP_ENABLED is set but STORAGE_MODE=${STORAGE_MODE}. The sweep shells reconcile_grounding.py --apply, which writes the LOCAL filesystem — invisible to the github-api read path. Arming it here would SILENTLY no-op (t/2648 class), so the timer is refused.`,
+      location: 'server/groundingSweepScheduler.ts → startGroundingSweep',
+      nextSteps: [
+        'Do NOT set GROUNDING_SWEEP_ENABLED on the hosted github-api profile.',
+        'To keep hosted taxonomy grounded, run the sweep in the CI-commit model (a scheduled Action that commits to ai-triad-data) — see t/3333 Option A.',
+        'Unset GROUNDING_SWEEP_ENABLED, or run the sweep only on a filesystem-backed profile.',
+      ],
+    });
+    // Fail LOUD (not a silent no-op): both Log_s (Pino error) and the flight recorder name the refusal.
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'grounding-sweep', level: 'error',
+      message: 'Grounding sweep refused to arm — GROUNDING_SWEEP_ENABLED set on the github-api profile (would silently no-op)',
+      data: { storageMode: STORAGE_MODE, armed: false },
+      error: { name: err.name, message: errorMessage(err) },
+    });
+    log.server.error({ component: 'grounding-sweep', storageMode: STORAGE_MODE }, errorMessage(err));
+    return () => { /* no-op: refused to arm on the github-api profile */ };
   }
   if (timer) return stopGroundingSweep;
   log.server.info({ component: 'grounding-sweep', intervalMs }, 'Grounding sweep enabled — arming timer');
