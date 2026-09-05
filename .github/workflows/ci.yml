@@ -36,6 +36,10 @@ on:
       - 'deploy/azure/runbooks/**'
   pull_request:
     branches: [main]
+    # labeled/unlabeled/auto_merge_enabled added so joint-gv-automerge-guard
+    # fires when a PR is labeled joint-gv after auto-merge was armed, or when
+    # auto-merge is enabled on an already-labeled joint-gv PR (t/3332).
+    types: [opened, synchronize, reopened, labeled, unlabeled, auto_merge_enabled]
   workflow_dispatch:
 
 permissions:
@@ -1421,6 +1425,46 @@ jobs:
       - name: Validate ACA cpu:memory pairs in main.bicep (t/3212)
         shell: pwsh
         run: ./operations/devops/Test-BicepAcaResourcePairs.ps1
+
+  # ── joint-gv-automerge-guard: event-time auto-merge block for joint-gv PRs (t/3332) ──
+  # Closes the CLI-only gap in auto-merge-jointgv-guard (t/3318): that hook
+  # intercepts `gh pr merge --auto` at the CLI layer but cannot block an
+  # auto-merge that was pre-armed (UI/repo-level, or armed before the joint-gv
+  # label arrived) and fires at the CI-green EVENT server-side with no CLI call.
+  # Once promoted to a required status check, GitHub auto-merge waits for ALL
+  # required checks green — a red result here means auto-merge can never fire
+  # on a joint-gv PR with auto-merge armed, closing the event-time gap.
+  # Fires on labeled/unlabeled/auto_merge_enabled events (added to on.pull_request.types)
+  # so it re-evaluates whenever the label or auto-merge state changes.
+  #
+  # WARN-PHASE (continue-on-error: true): not yet a required status context.
+  # Flip pending TL Gate Verification (both-arms proof per t/3318/GV discipline).
+  # To promote: remove continue-on-error and add to ci-gate needs (t/3332).
+  joint-gv-automerge-guard:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Check joint-gv label + auto-merge state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+
+          PR_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json autoMergeRequest,labels)
+          HAS_JOINT_GV=$(echo "$PR_JSON" | jq -r '[.labels[].name] | contains(["joint-gv"]) | tostring')
+          HAS_AUTO_MERGE=$(echo "$PR_JSON" | jq -r '(.autoMergeRequest != null) | tostring')
+
+          echo "joint-gv label: $HAS_JOINT_GV"
+          echo "auto-merge armed: $HAS_AUTO_MERGE"
+
+          if [ "$HAS_JOINT_GV" = "true" ] && [ "$HAS_AUTO_MERGE" = "true" ]; then
+            echo "::error::joint-gv PR has auto-merge enabled. Disable auto-merge; a joint-gv PR must be manually merged with --match-head-commit after the GV."
+            exit 1
+          fi
+        continue-on-error: true  # WARN-PHASE — remove after TL Gate Verification (t/3332)
 
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
