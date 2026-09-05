@@ -25,6 +25,8 @@ New or changed metrics, judges, and verdict grammars run the six-check **instrum
 
 **Rule (no grade inflation):** anything without an evidence pointer is `stipulated` by definition. New metrics and parameters must declare their class at PR time and be added here in the same PR (enforced via the CL review checklist).
 
+**Rule (distribution-bounded validation, t/3342):** a classifier/judge GV-pass is bounded to its **validation distribution**. Never cite it as evidence for a *different* distribution without a fresh precision golden on that distribution. Origin: the fork-B contradiction classifier passed the same-doc/within-conflict golden (#1942) at 0.957 precision but scored **0.571** on the cross-conflict distribution (t/3339#9) — auto-merge OUT, census-merge (human dual-verify) only. The t/3339 cross-conflict golden was correctly required as a *separate* gate rather than inheriting the same-doc pass.
+
 ## Reporting-treatment (orthogonal tag)
 
 A provenance class says how an instrument's *value* was established; a **reporting-treatment** tag says how a cited *number* was drawn — `single-draw` (one run / one labeling pass, no distribution) vs `n-draw distribution` (≥3 re-runs of the fixed config, reported as **mean±SD**, per instrument-integrity checks 4–5). The two are orthogonal: a `human-validated` scalar can still be a `single-draw`. Any headline cited as a **disposition** (not an indicative sample) must carry an `n-draw distribution` treatment; a `single-draw` headline is provisional (⚠). The tag distinguishes **estimation-uncertainty** (bootstrap CI of one draw) from **run-instability** (SD across n re-runs) — only the latter answers the arXiv 2607.14399 run-drift concern.
