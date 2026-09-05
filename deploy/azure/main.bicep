@@ -553,13 +553,11 @@ var baseEnv = [
   // ops, so it must run on the undici-timeout/degrade-and-proceed code, not the untimed-fetch code.
   // baseEnv (never CLI --set-env-vars) + MUST stay in sync with deploy-azure.yml ExpectedEnvVars.
   { name: 'GROUNDING_SWEEP_ENABLED', value: '1' }
-  // t/3305: data-root boot validation is HARD-FAIL in prod (staging inherits this too). A
-  // misprovisioned data root crash-loops VISIBLY instead of serving empty panels (the t/3296
-  // fail-loud, with the t/3308 warn-alert as the warn-only backstop for any un-flagged env).
-  // Promoted to prod after the staging real-env gate (t/2683): staging rev staging-4826363 booted
-  // enforce-green against the live github-api ref:'main' corpus (0 validation-failures). baseEnv
-  // (never CLI --set-env-vars) + MUST stay in sync with deploy-azure.yml ExpectedEnvVars.
-  { name: 'DATA_ROOT_VALIDATION_ENFORCE', value: '1' }
+  // t/3309 step-3: DATA_ROOT_VALIDATION_ENFORCE (t/3305 boot hard-fail) RETIRED. The boot-time
+  // exit(1) in server.ts is superseded by the /readyz warm-gate: a misprovisioned data root now
+  // makes /readyz report failed → the deploy warm-gate blocks the traffic-shift and rolls back
+  // (Arm-A/Arm-B proven on staging, t/3309). Co-landed with the server.ts exit(1) removal (joint-gv).
+  // The t/3308 warn-alert remains as the warn-only observability backstop for any un-gated path.
 ]
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
@@ -593,9 +591,8 @@ var stagingEnvOverrides = [
   { name: 'AI_TRIAD_STATE_ROOT', value: '/mnt/staging-state' }
   // github-api writes go to the staging branch, not main (t/2650 class-B isolation)
   { name: 'GITHUB_BRANCH',       value: 'staging' }
-  // NOTE: DATA_ROOT_VALIDATION_ENFORCE=1 is NOT a staging-only override — it now lives in baseEnv
-  // so BOTH prod and staging enforce, promoted after the staging real-env validation (t/3305; rev
-  // staging-4826363 booted enforce-green). Kept out of the overrides to avoid a duplicate env key.
+  // NOTE: DATA_ROOT_VALIDATION_ENFORCE was retired in t/3309 step-3 (see baseEnv above) — the
+  // /readyz warm-gate replaces the boot hard-fail. Nothing to override here.
 ]
 // stagingBaseEnv = baseEnv with the isolation overrides applied.
 // filter() removes the baseEnv entries that stagingEnvOverrides supersedes.
