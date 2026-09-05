@@ -49,6 +49,40 @@ test.beforeEach(async ({ page }) => {
   await page.waitForSelector('[data-tab]', { timeout: 30_000 });
 });
 
+/**
+ * Bring a cluster's CSS into the document, then wait until it's actually injected.
+ *   • `switchTab` clusters (lazy chunks, e.g. summaries — t/3299 B): drive setActiveTab via the
+ *     window.__ZUSTAND_STORES__.taxonomy handle (the nav button hides behind an advanced-view
+ *     popover, so store-nav is the selector-stable path), then wait for the dynamic import's CSS.
+ *   • `openTab` clusters (eager CSS): click the POV [data-tab]; the wait resolves immediately since
+ *     the rule is already present.
+ * The wait keys off the cluster's own selectors appearing in a loaded stylesheet — so a lazy chunk
+ * that never loads (flag off / nav failed) fails loudly here instead of silently capturing defaults.
+ */
+async function reachCluster(page, cluster) {
+  if (cluster.switchTab) {
+    await page.evaluate((tab) => {
+      const stores = /** @type {any} */ (window).__ZUSTAND_STORES__;
+      if (!stores?.taxonomy) throw new Error('taxonomy store not exposed on window.__ZUSTAND_STORES__');
+      stores.taxonomy.getState().setActiveTab(tab);
+    }, cluster.switchTab);
+  } else {
+    await page.locator(`[data-tab="${cluster.openTab}"]`).first().click();
+  }
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.waitForFunction((selectors) => {
+    for (const sheet of Array.from(document.styleSheets)) {
+      let rules;
+      try { rules = sheet.cssRules; } catch { continue; } // cross-origin sheet — skip
+      for (const r of Array.from(rules)) {
+        const st = /** @type {CSSStyleRule} */ (r).selectorText;
+        if (st && selectors.some((s) => st.includes(s))) return true;
+      }
+    }
+    return false;
+  }, cluster.selectors, { timeout: 15_000 });
+}
+
 test('computed-style invariance across the 4 themes (t/2940)', async ({ page }) => {
   const captured = {};
   for (const [name, cluster] of Object.entries(CLUSTERS)) {
@@ -56,10 +90,9 @@ test('computed-style invariance across the 4 themes (t/2940)', async ({ page }) 
     // vacuous gate). The reason + re-inclusion trigger live in the manifest's `excluded` (t/2940#9,
     // t/3299); removing that marker re-includes the cluster here.
     if (cluster.excluded) continue;
-    // Land on a valid surface before probing. The active clusters' CSS is eagerly bundled, so this
-    // is navigation-independent — it just needs a real [data-tab] the SPA exposes.
-    await page.locator(`[data-tab="${cluster.openTab}"]`).first().click();
-    await page.waitForLoadState('networkidle').catch(() => {});
+    // Load the cluster's CSS (eager POV [data-tab] click, or lazy-chunk store-nav) and wait for it
+    // to inject before probing — see reachCluster.
+    await reachCluster(page, cluster);
     captured[name] = {};
     for (const theme of THEMES) {
       captured[name][theme] = await probeCluster(page, theme, cluster.selectors);
