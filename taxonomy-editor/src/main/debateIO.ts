@@ -4,7 +4,8 @@
 import fs from 'fs';
 import path from 'path';
 
-import { resolveDataPath } from './fileIO.js';
+import { resolveDataPath, PROJECT_ROOT } from './fileIO.js';
+import { harvestDebateTestedForSession, type HarvestableSession } from '../../../lib/debate/harvestOnSave.js';
 import { assertSafeId } from '../../../lib/electron-shared/safeId.js';
 import { extractCalibrationData, appendCalibrationLog } from '../../../lib/debate/calibrationLogger.js';
 import { safeSerialize, atomicWriteSync, renameSyncWithRetry } from '../../../lib/debate/persistence.js';
@@ -285,6 +286,23 @@ export function saveDebateSession(session: unknown, caller: string): void {
     type: 'state.save', component: 'debateIO', level: 'info',
     message: 'Debate saved',
     data: { debate_id: data.id, caller, save_mode: 'electron-main' },
+  });
+
+  // Harvest debate_tested tier increments after save (t/3330). Deferred so harvest never
+  // blocks save latency. Flag default-OFF until coordinated corpus reconcile (t/3330#2).
+  const _session = session;
+  const _id = data.id;
+  setImmediate(() => {
+    if (process.env.HARVEST_DEBATE_TESTED_ON_SAVE !== '1') return;
+    try {
+      harvestDebateTestedForSession(_session as HarvestableSession, PROJECT_ROOT);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'debateIO', level: 'warn',
+        message: `debate_tested auto-harvest failed for ${_id}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
   });
 }
 
