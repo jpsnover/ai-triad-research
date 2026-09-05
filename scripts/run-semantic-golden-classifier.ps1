@@ -184,7 +184,11 @@ if (-not $env:SEMGOLD_RUNNER_NOEXEC) {
                 -Location 'run-semantic-golden-classifier.ps1' `
                 -NextSteps @('Pass -GoldenPath, or run from a checkout that includes research/comp-linguist/analyses/semantic-opposition-golden/'))
     }
-    if ([string]::IsNullOrWhiteSpace($OutPath)) { $OutPath = Join-Path (Get-Location) 'semantic-golden-predictions.json' }
+    if ([string]::IsNullOrWhiteSpace($OutPath)) { $OutPath = 'semantic-golden-predictions.json' }
+    # Anchor a relative -OutPath to the caller's location explicitly. A bare relative literal path can be
+    # resolved against the .NET process cwd (which diverges from Get-Location after a `cd`), landing the
+    # file somewhere surprising — a live run wrote the results out of sight this way (t/3302).
+    if (-not [System.IO.Path]::IsPathRooted($OutPath)) { $OutPath = Join-Path (Get-Location).Path $OutPath }
 
     $golden = Get-Content -LiteralPath $GoldenPath -Raw | ConvertFrom-Json
     $pairs = @(Get-GoldenPairField $golden 'pairs' @())

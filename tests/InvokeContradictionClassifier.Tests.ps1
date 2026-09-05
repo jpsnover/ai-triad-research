@@ -99,6 +99,26 @@ Describe 'Convert-ContradictionPairs (fork-B bridge)' -Tag 'qbaf' {
     }
 }
 
+Describe 'Get-Prompt wiring — subprocess-scope regression (t/3302 live-run root cause)' -Tag 'qbaf' {
+
+    It 'the classifier dot-sources the private Get-Prompt helper' {
+        # Import-Module does NOT expose the private Get-Prompt to this standalone script's scope; the
+        # dot-source is what makes the real (unstubbed) subprocess run work. Guard against its removal.
+        $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'invoke-contradiction-classifier.ps1') -Raw
+        $src | Should -Match 'Get-Prompt\.ps1'
+    }
+
+    It 'the REAL Get-Prompt renders contradiction-classify.prompt with the pairs block' {
+        # Exercises the actual private helper + prompt file (no stub, no AI) — proves the render path
+        # the subprocess depends on actually works.
+        . (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Private' 'Get-Prompt.ps1')
+        $promptsDir = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Prompts'
+        $rendered = Get-Prompt -Name 'contradiction-classify' -PromptsDir $promptsDir -Replacements @{ pairs_block = 'PAIRZONE_SENTINEL' }
+        $rendered | Should -Match 'PAIRZONE_SENTINEL'
+        $rendered | Should -Match 'contradict'
+    }
+}
+
 Describe 'Write-CCResult — file is the clean data channel (t/3302 live-run fix)' -Tag 'qbaf' {
 
     It 'writes valid { results } JSON to -OutPath and nothing to stdout' {

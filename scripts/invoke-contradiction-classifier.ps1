@@ -58,10 +58,14 @@ function Invoke-CCModel {
         $resp     = Invoke-AIByUsage -UsageId 'enrichment.contradiction-classify' `
             -Values @{ prompt = $rendered } -Override @{ temperature = $Temperature } -ErrorAction Stop
         if (-not $resp -or -not $resp.PSObject.Properties['Text'] -or [string]::IsNullOrWhiteSpace($resp.Text)) {
+            Write-Warning "contradiction-classify: backend returned no Text for $(@($Pairs).Count) pair(s) — check the model/key for usage 'enrichment.contradiction-classify'."
             return $null
         }
         $parsed = $resp.Text | ConvertFrom-Json -ErrorAction Stop
-        if (-not $parsed.PSObject.Properties['results']) { return $null }
+        if (-not $parsed.PSObject.Properties['results']) {
+            Write-Warning "contradiction-classify: backend Text was not the expected { results: [...] } JSON."
+            return $null
+        }
         $map = @{}
         foreach ($r in @($parsed.results)) {
             # Positive guard (no `continue`): a `continue` inside a function escapes to Pester's
@@ -77,6 +81,9 @@ function Invoke-CCModel {
         return $map
     }
     catch {
+        # Log the WHY (project rule: log every fallback path + reason). The underlying exception here is
+        # usually a missing/invalid key or an unregistered model for usage 'enrichment.contradiction-classify'.
+        Write-Warning "contradiction-classify: model call failed: $($_.Exception.Message)"
         return $null
     }
 }
@@ -157,6 +164,13 @@ if (-not $env:CC_CLASSIFIER_NOEXEC) {
 
     $ModulePath = Join-Path $PSScriptRoot 'AITriad' 'AITriad.psd1'
     Import-Module $ModulePath -Force -ErrorAction Stop
+
+    # Get-Prompt is a module-PRIVATE helper — Import-Module does NOT expose it to this standalone
+    # script's scope, so a bare call fails with 'Get-Prompt is not recognized' (t/3302 live-run root
+    # cause). Dot-source it here and set $script:ModuleRoot so its default Prompts/ dir resolves.
+    # (Invoke-AIByUsage IS exported, so it needs no such handling.)
+    $script:ModuleRoot = Join-Path $PSScriptRoot 'AITriad'
+    . (Join-Path $PSScriptRoot 'AITriad' 'Private' 'Get-Prompt.ps1')
 
     $allResults = [System.Collections.Generic.List[object]]::new()
     if ($batch.PSObject.Properties['conflicts']) {
