@@ -488,6 +488,9 @@ def enrich_conflict(conflict, node_meta, extra_edges=None):
 # Opt-in (--semantic-edges); owner runs the paid classification (--write). CL scores the golden.
 
 _CC_SHIM = _SCRIPT_DIR / "invoke-contradiction-classifier.ps1"
+# Classifier provenance handle (TL GV cond 1, t/3302#24): the ai-usages.json UsageID is the stable
+# id/version for the LLM contradiction classifier (the concrete model resolves from ai-models.json).
+_CC_USAGE_ID = "enrichment.contradiction-classify"
 
 
 def _collect_semantic_candidates(conflict):
@@ -516,7 +519,7 @@ def _collect_semantic_candidates(conflict):
     return cands
 
 
-def _mk_semantic_edge(i, j, detector, edge_type="attacks", confidence=None):
+def _mk_semantic_edge(i, j, detector, edge_type="attacks", confidence=None, classifier=None, tau=None):
     edge = {
         "source": f"inst-{i}",
         "target": f"inst-{j}",
@@ -529,6 +532,12 @@ def _mk_semantic_edge(i, j, detector, edge_type="attacks", confidence=None):
         edge["attack_type"] = "rebut"
     if confidence is not None:
         edge["confidence"] = round(float(confidence), 4)
+    # Provenance (TL GV cond 1, t/3302#24): classifier id/version + operating threshold τ, so a written
+    # edge is auditable + regenerable. Numeric edges carry no classifier (deterministic detector).
+    if classifier is not None:
+        edge["classifier"] = classifier
+    if tau is not None:
+        edge["tau"] = round(float(tau), 4)
     return edge
 
 
@@ -563,7 +572,8 @@ def _run_cc_shim(batch_conflicts, mode="per-conflict", temperature=0.0):
             parsed = json.loads(fh.read())
         out = {}
         for r in parsed.get("results", []):
-            out[str(r.get("id"))] = {"label": r.get("label"), "confidence": r.get("confidence", 0.0)}
+            out[str(r.get("id"))] = {"label": r.get("label"), "confidence": r.get("confidence", 0.0),
+                                     "method": r.get("method")}
         return out
     except (subprocess.TimeoutExpired, OSError, json.JSONDecodeError) as exc:
         _log(f"  WARN: contradiction-classifier failed ({exc}) — 0 semantic LLM edges (fallback, t/3302).")
@@ -577,34 +587,55 @@ def _run_cc_shim(batch_conflicts, mode="per-conflict", temperature=0.0):
                     pass
 
 
-def detect_semantic_edges(to_process, min_confidence=0.0, mode="per-conflict", cc_runner=None):
+def detect_semantic_edges(to_process, min_confidence=0.0, mode="per-conflict", cc_runner=None,
+                          predictions_sink=None):
     """Fork-B semantic edges (t/3302). Numeric/temporal detector first (high precision), then the LLM
-    classifier for the rest. Returns {conflict_index: [edge,...]}. cc_runner is injectable for tests."""
+    classifier for the rest. Returns {conflict_index: [edge,...]}. cc_runner is injectable for tests.
+
+    predictions_sink (t/3336 benefit arm): if a list is passed, EVERY candidate pair's raw disposition
+    is appended as {conflict_id, source, target, predicted, confidence, method} — numeric-positives as
+    contradict/1.0/numeric and the rest as the classifier's raw (pre-τ) label. CL applies τ=0.90 and
+    recomputes qbaf.testedness for the node-tier Δ. The candidate set == the --write set, so the Δ is
+    the actual incremental benefit, not an overstated all-pairs figure."""
     cc_runner = cc_runner or _run_cc_shim
     edges_by_ci = {}
     batch_conflicts = []
     llm_pairs = {}  # pair-id -> (ci, i, j)
+    ci_to_cid = {}  # ci -> conflict id, for predictions_sink attribution
 
     for ci, (_path, conflict) in enumerate(to_process):
         cands = _collect_semantic_candidates(conflict)
         if not cands:
             continue
+        cid = str(conflict.get("claim_id") or ci)
+        ci_to_cid[ci] = cid
         conflict_pairs = []
         for c in cands:
             if _detect_numeric_temporal_conflict(c["a"], c["b"]):
                 edges_by_ci.setdefault(ci, []).append(
-                    _mk_semantic_edge(c["i"], c["j"], "numeric", "attacks", 1.0))
+                    _mk_semantic_edge(c["i"], c["j"], "numeric", "attacks", 1.0, tau=min_confidence))
+                if predictions_sink is not None:
+                    predictions_sink.append({
+                        "conflict_id": cid, "source": f"inst-{c['i']}", "target": f"inst-{c['j']}",
+                        "predicted": "contradict", "confidence": 1.0, "method": "numeric"})
             else:
                 pid = f"{ci}:{c['i']}:{c['j']}"
                 conflict_pairs.append({"id": pid, "a": c["a"], "b": c["b"]})
                 llm_pairs[pid] = (ci, c["i"], c["j"])
         if conflict_pairs:
-            batch_conflicts.append({"cid": str(conflict.get("claim_id") or ci), "pairs": conflict_pairs})
+            batch_conflicts.append({"cid": cid, "pairs": conflict_pairs})
 
     if batch_conflicts:
         results = cc_runner(batch_conflicts, mode, 0.0)
         for pid, (ci, i, j) in llm_pairs.items():
             r = results.get(pid)
+            if predictions_sink is not None:
+                # Raw, pre-τ — CL applies the τ=0.90 rule (contradict AND conf>=0.90 -> attack).
+                predictions_sink.append({
+                    "conflict_id": ci_to_cid.get(ci), "source": f"inst-{i}", "target": f"inst-{j}",
+                    "predicted": (r.get("label") if r else "missing"),
+                    "confidence": (float(r.get("confidence") or 0.0) if r else 0.0),
+                    "method": ((r.get("method") or "llm") if r else "missing")})
             if not r:
                 continue
             conf = float(r.get("confidence") or 0.0)
@@ -612,9 +643,11 @@ def detect_semantic_edges(to_process, min_confidence=0.0, mode="per-conflict", c
                 continue
             label = r.get("label")
             if label == "contradict":
-                edges_by_ci.setdefault(ci, []).append(_mk_semantic_edge(i, j, "llm", "attacks", conf))
+                edges_by_ci.setdefault(ci, []).append(
+                    _mk_semantic_edge(i, j, "llm", "attacks", conf, classifier=_CC_USAGE_ID, tau=min_confidence))
             elif label == "entail":
-                edges_by_ci.setdefault(ci, []).append(_mk_semantic_edge(i, j, "llm", "supports", conf))
+                edges_by_ci.setdefault(ci, []).append(
+                    _mk_semantic_edge(i, j, "llm", "supports", conf, classifier=_CC_USAGE_ID, tau=min_confidence))
             # neutral / unresolved / missing -> no edge
     return edges_by_ci
 
@@ -698,6 +731,10 @@ def main():
                         help="Min LLM confidence to accept a semantic edge (calibrate from CL's P/R curve)")
     parser.add_argument("--classify-mode", choices=["per-conflict", "per-pair"], default="per-conflict",
                         help="LLM classify batching mode (per-conflict batch with per-pair fallback)")
+    parser.add_argument("--emit-semantic-predictions", type=str, default="",
+                        help="Benefit-arm dry-run (t/3336): classify all --write candidate pairs and write "
+                             "raw per-pair predictions {conflict_id,source,target,predicted,confidence,method} "
+                             "to this path. No data write. Requires --semantic-edges; ignores --write.")
     args = parser.parse_args()
 
     _log("=" * 60)
@@ -762,12 +799,35 @@ def main():
     # paid so the owner runs it under --write.
     semantic_by_ci = {}
     if getattr(args, "semantic_edges", False):
+        _emit_path = getattr(args, "emit_semantic_predictions", "") or ""
+        _sink = [] if _emit_path else None
         _log(f"\n  Fork-B: detecting semantic-opposition edges (mode={args.classify_mode}, "
              f"min_conf={args.semantic_min_confidence})...")
         semantic_by_ci = detect_semantic_edges(
-            to_process, min_confidence=args.semantic_min_confidence, mode=args.classify_mode)
+            to_process, min_confidence=args.semantic_min_confidence, mode=args.classify_mode,
+            predictions_sink=_sink)
         _n_sem = sum(len(v) for v in semantic_by_ci.values())
         _log(f"  Fork-B: {_n_sem} semantic edge(s) across {len(semantic_by_ci)} conflict(s).")
+        if _emit_path:
+            # Benefit-arm dry-run (t/3336): dump raw per-pair predictions for CL's node-tier Δ. No data
+            # write — this path exits before the QBAF write phases regardless of --write.
+            _doc = {
+                "_meta": {
+                    "ticket": "t/3336",
+                    "purpose": "benefit-arm corpus predictions (CL scores node-tier Δ vs the ratified bar)",
+                    "candidate_set": "within-conflict pairs with no existing stance edge (== --write set)",
+                    "tau_note": "raw pre-τ predictions; CL applies τ=0.90 (contradict AND conf>=0.90 -> attack)",
+                    "classifier": _CC_USAGE_ID,
+                    "classify_mode": args.classify_mode,
+                    "n_predictions": len(_sink),
+                },
+                "predictions": _sink,
+            }
+            with open(_emit_path, "w", encoding="utf-8") as fh:
+                json.dump(_doc, fh, ensure_ascii=False, indent=2)
+            _log(f"  Fork-B benefit arm: wrote {len(_sink)} predictions -> {_emit_path} "
+                 f"(dry-run, no data write). Hand to CL to compute the node-tier Δ.")
+            return
 
     # Phase 1: build local graphs (no subprocess)
     pre_results = []  # (index, path, conflict, pre_data_or_qbaf)

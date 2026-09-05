@@ -252,6 +252,64 @@ def test_enrich_conflict_merges_extra_edges_with_provenance():
     assert eo["detector"] == "llm" and eo["edge_origin"] == "semantic" and eo["confidence"] == 0.77
 
 
+# Provenance + benefit-arm predictions sink — fork-B corpus-write conditions (t/3302#24, t/3336)
+
+def test_semantic_edge_provenance_classifier_and_tau():
+    to_process = [
+        (None, {"claim_id": "c0", "instances": [
+            _si("neutral", "d1", "compute among safety labs grew 30 percent last year"),
+            _si("neutral", "d2", "compute among safety labs grew 10 percent last year")]}),
+        (None, {"claim_id": "c1", "instances": [
+            _si("neutral", "d1", "cats are calm household pets"),
+            _si("neutral", "d2", "dogs are loud household pets")]}),
+    ]
+    runner = lambda batch, mode, temp: {"1:0:1": {"label": "contradict", "confidence": 0.9}}
+    by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.9, mode="per-conflict", cc_runner=runner)
+    # LLM edge carries classifier id + τ (TL GV cond 1)
+    llm_edge = by_ci[1][0]
+    assert llm_edge["classifier"] == eq._CC_USAGE_ID
+    assert llm_edge["tau"] == 0.9
+    # numeric edge carries τ but NO classifier (deterministic detector)
+    num_edge = by_ci[0][0]
+    assert num_edge["detector"] == "numeric"
+    assert num_edge["tau"] == 0.9
+    assert "classifier" not in num_edge
+
+
+def test_predictions_sink_captures_numeric_and_llm():
+    to_process = [
+        (None, {"claim_id": "c0", "instances": [
+            _si("neutral", "d1", "compute among safety labs grew 30 percent last year"),
+            _si("neutral", "d2", "compute among safety labs grew 10 percent last year")]}),
+        (None, {"claim_id": "c1", "instances": [
+            _si("neutral", "d1", "cats are calm household pets"),
+            _si("neutral", "d2", "dogs are loud household pets")]}),
+    ]
+    runner = lambda batch, mode, temp: {"1:0:1": {"label": "contradict", "confidence": 0.9, "method": "llm-batch"}}
+    sink = []
+    eq.detect_semantic_edges(to_process, min_confidence=0.9, mode="per-conflict",
+                             cc_runner=runner, predictions_sink=sink)
+    assert len(sink) == 2  # one numeric candidate + one llm candidate, none dropped
+    by_conf = {p["conflict_id"]: p for p in sink}
+    num = by_conf["c0"]
+    assert num["predicted"] == "contradict" and num["confidence"] == 1.0 and num["method"] == "numeric"
+    assert num["source"] == "inst-0" and num["target"] == "inst-1"
+    llm = by_conf["c1"]
+    assert llm["predicted"] == "contradict" and llm["confidence"] == 0.9 and llm["method"] == "llm-batch"
+
+
+def test_predictions_sink_records_raw_pre_tau():
+    # A below-threshold contradict produces NO edge but is still recorded raw in the sink (CL applies τ).
+    to_process = [(None, {"claim_id": "c0", "instances": [
+        _si("neutral", "d1", "alpha beta gamma"),
+        _si("neutral", "d2", "delta epsilon zeta")]})]
+    runner = lambda batch, mode, temp: {"0:0:1": {"label": "contradict", "confidence": 0.2, "method": "llm-batch"}}
+    sink = []
+    by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.9, cc_runner=runner, predictions_sink=sink)
+    assert by_ci == {}  # below τ -> no edge
+    assert len(sink) == 1 and sink[0]["predicted"] == "contradict" and sink[0]["confidence"] == 0.2
+
+
 if __name__ == "__main__":
     import pytest
 
