@@ -1,0 +1,94 @@
+# ─── Debate-Tested Scheduled Sweep (t/3331) ───
+# What:  Harvests debate_tested records (backfillDebateTested --write) and commits the
+#        updated taxonomy files to the ai-triad-data repo. Follow-up to the harvest-on-save
+#        model (t/3330); this is the scheduled backstop that catches anything on-save missed.
+# When:  Daily 03:00 UTC + on every merge to main + manual dispatch (TL-approved cadence, t/3331#4).
+# Gates (all TL conditions, t/3331#4):
+#   - commit ONLY when entriesCreated > 0 (no empty-commit noise)
+#   - post-sweep assert-visible: a dry-run re-read must report lag == 0 (the committed data repo
+#     reflects the sweep, not just a local run)
+# Credential: pushes to ai-triad-data via DATA_REPO_TOKEN (contents:write on that repo — the same
+#   secret cluster-conflicts.yml / ci.yml use). The workflow's own GITHUB_TOKEN stays read-only.
+
+name: Debate-Tested Sweep
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # daily 03:00 UTC
+  push:
+    branches: [main]      # also on-merge
+  workflow_dispatch:
+
+permissions:
+  contents: read          # code checkout only; the data-repo push uses DATA_REPO_TOKEN, not this
+
+concurrency:
+  group: debate-tested-sweep
+  cancel-in-progress: false   # never interrupt a sweep mid-commit
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (ai-triad-research)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Checkout data repo (ai-triad-data — write token for the commit)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          repository: jpsnover/ai-triad-data
+          path: ai-triad-data
+          token: ${{ secrets.DATA_REPO_TOKEN }}  # Scope: contents:write on jpsnover/ai-triad-data (checkout + git push)
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+
+      - name: Install lib/debate deps
+        working-directory: lib/debate
+        run: npm ci
+
+      - name: Run debate-tested backfill (--write)
+        id: sweep
+        env:
+          AI_TRIAD_DATA_ROOT: ${{ github.workspace }}/ai-triad-data
+        run: |
+          set -o pipefail
+          out=$(npx tsx lib/debate/backfillDebateTested.ts --write | tee /dev/stderr)
+          created=$(printf '%s\n' "$out" | grep -oE 'Entries created: [0-9]+' | grep -oE '[0-9]+$' | tail -1)
+          echo "created=${created:-0}" >> "$GITHUB_OUTPUT"
+          echo "entriesCreated=${created:-0}"
+
+      - name: Commit + push harvested records to ai-triad-data (gated on entriesCreated > 0)
+        if: steps.sweep.outputs.created != '0'
+        working-directory: ai-triad-data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "::warning::entriesCreated=${{ steps.sweep.outputs.created }} but no file diff — nothing to commit"
+          else
+            git commit -m "chore(debate-tested): scheduled harvest sweep — ${{ steps.sweep.outputs.created }} entries created (t/3331)"
+            git push
+            echo "Pushed ${{ steps.sweep.outputs.created }} harvested entries to ai-triad-data"
+          fi
+
+      - name: Post-sweep assert-visible — dry-run lag must be 0 (t/3331)
+        # Re-read the (now-committed) local ai-triad-data via a DRY-RUN backfill and assert the
+        # debate-tested lag audit reports 0 — confirms the data repo reflects the sweep, not just a
+        # transient local run. Runs unconditionally: with entriesCreated==0 there was no lag to begin
+        # with (still expect 0); with >0 the commit above must have closed it.
+        env:
+          AI_TRIAD_DATA_ROOT: ${{ github.workspace }}/ai-triad-data
+        run: |
+          set -o pipefail
+          out=$(npx tsx lib/debate/backfillDebateTested.ts | tee /dev/stderr)
+          lag=$(printf '%s\n' "$out" | grep -oE 'Lag: [0-9]+' | grep -oE '[0-9]+$' | tail -1)
+          echo "post-sweep lag=${lag:-<unparsed>}"
+          if [ "${lag:-1}" != "0" ]; then
+            echo "::error::Post-sweep debate-tested lag=${lag:-<unparsed>} (expected 0) — the ai-triad-data repo does not reflect the sweep (missed harvest or unpersisted write)."
+            exit 1
+          fi
+          echo "Post-sweep lag=0 — data repo reflects the sweep."
