@@ -55,6 +55,7 @@ import { parseCookies } from './httpCookies.js';
 import { registerAllRoutes } from './routes/all.js';
 import { invalidateConflictsCache, warmConflictsCache } from './routes/conflicts.js';
 import { anonSessionCookiesWithCreated } from './routes/session.js';
+import { setDataRootReady, setDataRootFailed } from './routes/dataRootReadiness.js'; // t/3309: data-root → /readyz readiness cache
 import { buildLoginPage, FORBIDDEN_PAGE, SW_HEAL_SCRIPT_CSP_HASH, loginPageHeaders } from './loginPage.js';
 import type { ServerCtx } from './routes/context.js';
 import { listFlags, setFlag, deleteFlag, type FlagDef } from './featureFlags.js';
@@ -1301,7 +1302,14 @@ assertStateRootIsolation(); // t/2643: refuse start if staging's state root wasn
 // instead of silently serving empty panels. Before listen, so an un-provisioned revision never serves.
 try {
   await fileIO.validateDataRoot();
+  setDataRootReady(); // t/3309: cache data-root readiness for the /readyz gate (migration target)
 } catch (err) {
+  // t/3309: record the definitive failure for /readyz (Path B — data-root becomes a readiness
+  // signal). The boot exit(1)/WARN enforce path BELOW is RETAINED unchanged as the active
+  // protection during the migration (t/3309#3 gate 2 / #5 step-1): exit(1) ENFORCE is live in
+  // prod, so we fold the readyz gate in ALONGSIDE it and only remove exit(1) after staging
+  // proves the warm-gate blocks a misprovisioned rev (step 2) — never a no-protection window.
+  setDataRootFailed(err instanceof Error ? err.message : String(err));
   // t/3296/t/3305: the hard exit(1) is ENFORCE-gated (default WARN-only). A credential-less boot —
   // the container liveness smoke test (github-api mode, NO GitHub App creds) — MUST still start, so
   // exit(1) fires ONLY when DATA_ROOT_VALIDATION_ENFORCE is set. DevOps sets it in staging→prod (real
