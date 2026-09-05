@@ -96,7 +96,6 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
   gemini: [
     { value: DEFAULT_MODEL, label: '3.1 Flash Lite Preview (default)' },
-    { value: 'gemini-3-flash-preview', label: '3 Flash Preview' },
     { value: 'gemini-3.1-pro-preview', label: '3.1 Pro Preview (best quality)' },
     { value: 'gemini-3.8-flash', label: '3.8 Flash' },
     { value: 'gemini-3.6-flash', label: '3.6 Flash' },
@@ -112,7 +111,6 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
     { value: 'claude-haiku-4-5', label: 'Haiku 4.5 (fastest)' },
   ],
   groq: [
-    { value: 'groq-llama-4-scout-17b-16e', label: 'Llama 4 Scout' },
     { value: 'groq-llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
     { value: 'groq-openai-gpt-oss-120b', label: 'GPT-OSS 120B' },
   ],
@@ -120,10 +118,10 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
     { value: 'openai-gpt-5.5', label: 'GPT-5.5' },
     { value: 'openai-gpt-5.5-pro', label: 'GPT-5.5 Pro' },
   ],
-  deepseek: [
-    { value: 'deepseek-chat', label: 'DeepSeek V3 (default)' },
-    { value: 'deepseek-reasoner', label: 'DeepSeek R1 (reasoning)' },
-  ],
+  // t/3280: deepseek has NO picker entries in ai-models.json — both prior entries (deepseek-chat,
+  // deepseek-reasoner) were phantoms (no config id → misroute on select). Empty picker; the runtime
+  // derive keeps it []. Empty-backend handling: getStoredModel falls back to DEFAULT_MODEL (below).
+  deepseek: [],
   azure: [
     { value: 'azure-gpt-4o', label: 'GPT-4o' },
     { value: 'azure-gpt-4o-mini', label: 'GPT-4o Mini' },
@@ -192,16 +190,40 @@ export function getStoredModel(): AIModel {
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
+  // t/3280: guard an empty-picker backend (deepseek) / a pre-load phantom default — never strand the
+  // UI on a non-model id; fall back to the always-present global DEFAULT_MODEL.
   const backend = getStoredBackend();
-  return DEFAULT_MODELS[backend];
+  const fallback = DEFAULT_MODELS[backend];
+  return ALL_MODEL_IDS.has(fallback) ? fallback : DEFAULT_MODEL;
 }
 
 interface AIModelsConfig {
   backends: { id: string; label: string }[];
-  models: { id: string; label: string; backend: string }[];
+  models: { id: string; label: string; backend: string; picker?: { label: string; order: number } }[];
   defaults: Record<string, string>;
   debateTiers?: Record<string, Record<string, string>>;
   fallbackChains?: Record<string, string[]>;
+}
+
+/**
+ * t/3280: DERIVE the renderer model picker from ai-models.json's per-model `picker` field — the single
+ * source of truth. A model is selectable iff it carries `picker:{label,order}`; the picker is that
+ * curated subset per backend, sorted by `picker.order`, labelled with `picker.label` verbatim (the
+ * "(default)" suffix is baked into the config label). Curated-out models (no `picker`) never appear, so
+ * phantoms (picker ids with no config entry) are impossible by construction, and a backend with zero
+ * selectable models (e.g. deepseek) derives to [] — rendered gracefully; getStoredModel guards the default.
+ */
+export function deriveModelsByBackend(config: AIModelsConfig): Record<AIBackend, AIModelEntry[]> {
+  const buckets: Record<string, { value: AIModel; label: string; order: number }[]> = {};
+  for (const m of config.models) {
+    if (!m.picker) continue;
+    (buckets[m.backend] ??= []).push({ value: m.id as AIModel, label: m.picker.label, order: m.picker.order });
+  }
+  const out = {} as Record<AIBackend, AIModelEntry[]>;
+  for (const backend of Object.keys(MODELS_BY_BACKEND) as AIBackend[]) {
+    out[backend] = (buckets[backend] ?? []).sort((a, b) => a.order - b.order).map(({ value, label }) => ({ value, label }));
+  }
+  return out;
 }
 
 export async function initAIModels(): Promise<void> {
@@ -214,13 +236,13 @@ export async function initAIModels(): Promise<void> {
       AI_BACKENDS.push({ value: b.id as AIBackend, label: b.label });
     }
 
+    // t/3280: derive the picker from the curated `picker` entries (SSOT) — not every config model.
+    // The former all-models push surfaced 100+ backend variants in the dropdown; the picker is the
+    // hand-curated subset. deriveModelsByBackend guarantees every backend key gets an array (empty if
+    // none carry `picker`), so no backend is left with a stale pre-load list.
+    const derived = deriveModelsByBackend(config);
     for (const key of Object.keys(MODELS_BY_BACKEND) as AIBackend[]) {
-      MODELS_BY_BACKEND[key] = [];
-    }
-    for (const m of config.models) {
-      const backend = m.backend as AIBackend;
-      if (!MODELS_BY_BACKEND[backend]) MODELS_BY_BACKEND[backend] = [];
-      MODELS_BY_BACKEND[backend].push({ value: m.id as AIModel, label: m.label });
+      MODELS_BY_BACKEND[key] = derived[key] ?? [];
     }
 
     for (const [k, v] of Object.entries(config.defaults)) {
