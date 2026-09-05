@@ -1,0 +1,559 @@
+{
+  "_meta": {
+    "ticket": "t/3339",
+    "purpose": "Fork-B census-merge — frozen verified set (TL cond-1, no re-derive at write)",
+    "tau": 0.9,
+    "same_doc_provenance": "classifier-validated (golden #1942); contradict@>=tau",
+    "cross_conflict_provenance": "PI-dual-verified (16, zero vetoes; t/3339#13) collapsed <=1/stance",
+    "claim_origin": "observed",
+    "register": "t/3342 (classifier scope bound)",
+    "n_same_doc": 62,
+    "n_cross_conflict": 12
+  },
+  "same_doc": [
+    {
+      "conflict_id": "conflict-51-of-students-agree-or-strongly-agree-t-student-",
+      "source": "inst-3",
+      "target": "inst-4",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-51-of-students-agree-or-strongly-agree-t-student-",
+      "source": "inst-5",
+      "target": "inst-6",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-63-of-employers-identify-skill-gaps-in-t-future-j",
+      "source": "inst-0",
+      "target": "inst-1",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-63-of-employers-identify-skill-gaps-in-t-future-j",
+      "source": "inst-0",
+      "target": "inst-5",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-63-of-employers-identify-skill-gaps-in-t-future-j",
+      "source": "inst-1",
+      "target": "inst-6",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-63-of-employers-identify-skill-gaps-in-t-future-j",
+      "source": "inst-2",
+      "target": "inst-5",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-63-of-employers-identify-skill-gaps-in-t-future-j",
+      "source": "inst-5",
+      "target": "inst-6",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-94-of-students-say-they-use-generative-a-student-",
+      "source": "inst-0",
+      "target": "inst-1",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-a-significant-majority-of-organizations-future-j",
+      "source": "inst-0",
+      "target": "inst-1",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-a-significant-majority-of-organizations-future-j",
+      "source": "inst-1",
+      "target": "inst-2",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-approximately-70-of-highly-aiexposed-wor-measurin",
+      "source": "inst-0",
+      "target": "inst-2",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-in-the-united-states-data-centers-will-e-treat-ai",
+      "source": "inst-2",
+      "target": "inst-5",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-openais-o3-model-achieved-717-accuracy-o-artifici",
+      "source": "inst-0",
+      "target": "inst-2",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-organizations-across-multiple-economies-future-j",
+      "source": "inst-0",
+      "target": "inst-2",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-organizations-across-multiple-economies-future-j",
+      "source": "inst-2",
+      "target": "inst-4",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-organizations-across-multiple-economies-future-j",
+      "source": "inst-3",
+      "target": "inst-4",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-president-donald-trump-issued-an-executi-does-ai-",
+      "source": "inst-0",
+      "target": "inst-3",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-sparra-is-a-predictive-ai-model-that-out-empoweri",
+      "source": "inst-0",
+      "target": "inst-2",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-sparra-is-a-predictive-ai-model-that-out-empoweri",
+      "source": "inst-0",
+      "target": "inst-3",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-0",
+      "target": "inst-2",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-0",
+      "target": "inst-4",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-0",
+      "target": "inst-6",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-0",
+      "target": "inst-10",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-2",
+      "target": "inst-3",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-2",
+      "target": "inst-5",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-2",
+      "target": "inst-6",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-2",
+      "target": "inst-7",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-2",
+      "target": "inst-8",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-2",
+      "target": "inst-11",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-3",
+      "target": "inst-4",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-3",
+      "target": "inst-5",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-3",
+      "target": "inst-6",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-3",
+      "target": "inst-10",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-4",
+      "target": "inst-5",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-4",
+      "target": "inst-6",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-4",
+      "target": "inst-7",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-4",
+      "target": "inst-8",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-4",
+      "target": "inst-11",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-5",
+      "target": "inst-6",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-5",
+      "target": "inst-7",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-5",
+      "target": "inst-8",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-5",
+      "target": "inst-10",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-5",
+      "target": "inst-11",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-6",
+      "target": "inst-7",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-6",
+      "target": "inst-8",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-6",
+      "target": "inst-10",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-7",
+      "target": "inst-10",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-8",
+      "target": "inst-10",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-10",
+      "target": "inst-11",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-llama-model-family-has-been-download-yann-lec",
+      "source": "inst-1",
+      "target": "inst-2",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-national-artificial-intelligence-res-artifici",
+      "source": "inst-0",
+      "target": "inst-2",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-national-artificial-intelligence-res-artifici",
+      "source": "inst-1",
+      "target": "inst-3",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-the-top-10-of-earners-account-for-more-t-2028-glo",
+      "source": "inst-0",
+      "target": "inst-1",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-yum-china-uses-ai-to-fulfill-89-of-resta-organiza",
+      "source": "inst-0",
+      "target": "inst-1",
+      "confidence": 1.0,
+      "detector": "numeric"
+    },
+    {
+      "conflict_id": "conflict-agi-timelines-001",
+      "source": "inst-4",
+      "target": "inst-12",
+      "confidence": 0.95,
+      "detector": "llm-perpair"
+    },
+    {
+      "conflict_id": "conflict-agi-timelines-001",
+      "source": "inst-7",
+      "target": "inst-15",
+      "confidence": 0.9,
+      "detector": "llm-perpair"
+    },
+    {
+      "conflict_id": "conflict-chatfinetuned-models-generally-perform-b-me-mysel",
+      "source": "inst-0",
+      "target": "inst-1",
+      "confidence": 0.95,
+      "detector": "llm-batch"
+    },
+    {
+      "conflict_id": "conflict-the-department-of-war-is-labeling-anthro-why-pent",
+      "source": "inst-0",
+      "target": "inst-2",
+      "confidence": 0.9,
+      "detector": "llm-perpair"
+    },
+    {
+      "conflict_id": "conflict-the-document-is-a-snapshot-of-a-youtube-ai-triad",
+      "source": "inst-0",
+      "target": "inst-1",
+      "confidence": 1.0,
+      "detector": "llm-batch"
+    },
+    {
+      "conflict_id": "conflict-the-introduction-of-generative-ai-led-to-displace",
+      "source": "inst-6",
+      "target": "inst-12",
+      "confidence": 0.95,
+      "detector": "llm-perpair"
+    },
+    {
+      "conflict_id": "conflict-us-private-ai-investment-grew-to-1091-bi-artifici",
+      "source": "inst-1",
+      "target": "inst-3",
+      "confidence": 0.9,
+      "detector": "llm-batch"
+    },
+    {
+      "conflict_id": "conflict-us-private-ai-investment-grew-to-1091-bi-artifici",
+      "source": "inst-1",
+      "target": "inst-7",
+      "confidence": 0.9,
+      "detector": "llm-batch"
+    }
+  ],
+  "cross_conflict": [
+    {
+      "pair_id": "xc-0083-0",
+      "stance_conflict_id": "conflict-ai-systems-are-naturally-designed-to-hav-accounta",
+      "stance_text": "AI systems are naturally designed to have relatively simple decision boundaries to improve prediction accuracy.",
+      "cand_conflict_id": "conflict-ai-systems-are-complex-and-often-inscrut-artifici",
+      "cand_inst_idx": 0,
+      "cand_text": "AI systems are complex and often inscrutable, making it difficult for developers and users to understand their decision-making processes.",
+      "confidence": 0.9
+    },
+    {
+      "pair_id": "xc-0397-0",
+      "stance_conflict_id": "conflict-the-financial-artificial-intelligence-ri-law-ai-i",
+      "stance_text": "The Financial Artificial Intelligence Risk Reduction Act proposes strict liability for security law violations unless reasonable steps were taken to prevent harm.",
+      "cand_conflict_id": "conflict-the-author-argues-that-existing-negligen-how-exis",
+      "cand_inst_idx": 0,
+      "cand_text": "The author argues that existing negligence and products liability doctrines can be adapted to address AI-related harms without requiring sweeping legal reform.",
+      "confidence": 0.85
+    },
+    {
+      "pair_id": "xc-0317-1",
+      "stance_conflict_id": "conflict-research-suggests-that-the-returns-to-so-approach",
+      "stance_text": "Research suggests that the returns to software R&D may be sufficient to support hyperbolic growth in AI capabilities.",
+      "cand_conflict_id": "conflict-ai-progress-does-not-appear-to-involve-l-approach",
+      "cand_inst_idx": 0,
+      "cand_text": "AI progress does not appear to involve large, discontinuous jumps in capability when inputs like compute and R&D effort increase gradually.",
+      "confidence": 0.9
+    },
+    {
+      "pair_id": "xc-0053-1",
+      "stance_conflict_id": "conflict-ai-could-lead-to-a-066-increase-in-tfp-o-simple-m",
+      "stance_text": "AI could lead to a 0.66% increase in TFP over 10 years.",
+      "cand_conflict_id": "conflict-generative-ai-will-lead-to-productivity-simple-m",
+      "cand_inst_idx": 1,
+      "cand_text": "AI productivity gains over the next 10 years are estimated to be modest, with TFP growth projected to be less than 0.53%.",
+      "confidence": 0.85
+    },
+    {
+      "pair_id": "xc-0060-0",
+      "stance_conflict_id": "conflict-ai-is-a-revolutionary-force-for-abundanc-ai-triad",
+      "stance_text": "AI is a revolutionary force for abundance and solving existential problems.",
+      "cand_conflict_id": "conflict-agi-timelines-001",
+      "cand_inst_idx": 12,
+      "cand_text": "AI poses catastrophic and existential risks.",
+      "confidence": 0.95
+    },
+    {
+      "pair_id": "xc-0356-1",
+      "stance_conflict_id": "conflict-technologydriven-automation-does-not-cau-why-ai-w",
+      "stance_text": "Technology-driven automation does not cause long-term net job loss but rather increases productivity and creates new industries.",
+      "cand_conflict_id": "conflict-aidriven-automation-is-causing-a-structu-2028-glo",
+      "cand_inst_idx": 0,
+      "cand_text": "AI-driven automation is causing a structural decline in labor's share of GDP.",
+      "confidence": 0.95
+    },
+    {
+      "pair_id": "xc-0164-1",
+      "stance_conflict_id": "conflict-current-ai-systems-lack-persistent-memor-yann-lec",
+      "stance_text": "Current AI systems lack persistent memory, reasoning, and planning capabilities.",
+      "cand_conflict_id": "conflict-in-2025-ai-systems-transitioned-from-sim-ai-grew-",
+      "cand_inst_idx": 0,
+      "cand_text": "In 2025, AI systems transitioned from simple chatbots to autonomous agents capable of planning, using tools, and managing memory.",
+      "confidence": 0.95
+    },
+    {
+      "pair_id": "xc-0415-2",
+      "stance_conflict_id": "conflict-the-primary-drivers-of-inequality-are-se-why-ai-w",
+      "stance_text": "The primary drivers of inequality are sectors resistant to technology, such as housing, education, and healthcare, rather than AI itself.",
+      "cand_conflict_id": "conflict-ai-advances-are-predicted-to-widen-the-g-simple-m",
+      "cand_inst_idx": 0,
+      "cand_text": "AI advances are predicted to widen the gap between capital and labor income rather than reducing inequality.",
+      "confidence": 0.95
+    },
+    {
+      "pair_id": "xc-0064-0",
+      "stance_conflict_id": "conflict-ai-is-intended-to-reduce-the-burden-of-r-ai-doesn",
+      "stance_text": "AI is intended to reduce the burden of routine work and allow workers more time for high-value tasks.",
+      "cand_conflict_id": "conflict-the-promise-of-ai-reducing-work-burdens-ai-doesn",
+      "cand_inst_idx": 0,
+      "cand_text": "The promise of AI reducing work burdens and allowing more time for high-value tasks is not being realized as expected.",
+      "confidence": 0.95
+    },
+    {
+      "pair_id": "xc-0169-0",
+      "stance_conflict_id": "conflict-current-frontier-ai-models-do-not-meanin-approach",
+      "stance_text": "Current frontier AI models do not meaningfully contribute to severe harm via misuse.",
+      "cand_conflict_id": "conflict-working-with-frontier-ai-models-is-an-es-anthropi",
+      "cand_inst_idx": 3,
+      "cand_text": "Frontier AI models can introduce new risks of severe harm.",
+      "confidence": 0.9
+    },
+    {
+      "pair_id": "xc-0266-0",
+      "stance_conflict_id": "conflict-many-instances-of-emergent-ai-abilities-approach",
+      "stance_text": "Many instances of 'emergent' AI abilities are actually artifacts of how performance is measured, rather than sudden jumps in capability.",
+      "cand_conflict_id": "conflict-capabilities-can-emerge-unexpectedly-in-unsolved",
+      "cand_inst_idx": 2,
+      "cand_text": "AI capabilities have been known to emerge unexpectedly.",
+      "confidence": 0.9
+    },
+    {
+      "pair_id": "xc-0081-2",
+      "stance_conflict_id": "conflict-ai-progress-does-not-appear-to-involve-l-approach",
+      "stance_text": "AI progress does not appear to involve large, discontinuous jumps in capability when inputs like compute and R&D effort increase gradually.",
+      "cand_conflict_id": "conflict-research-suggests-that-the-returns-to-so-approach",
+      "cand_inst_idx": 0,
+      "cand_text": "Research suggests that the returns to software R&D may be sufficient to support hyperbolic growth in AI capabilities.",
+      "confidence": 0.8
+    }
+  ]
+}
