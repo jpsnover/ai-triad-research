@@ -43,4 +43,45 @@ Describe 'Sync-StagingEnv' {
             -PassThru -Wait -NoNewWindow
         $proc.ExitCode | Should -Be 2
     }
+
+    It 'Orphan detection: exits 2 (-DryRun) when env has key not in bicep managed set' {
+        # orphaned-env.json matches bicep literals but also has READYZ_FORCE_DATA_ROOT_FAILED=1,
+        # which is absent from good-main.bicep entirely. Script must detect the orphan
+        # and exit 2 (same sentinel as drift — "would update"). (t/3345)
+        $orphanedEnv = Join-Path $fixtureDir 'orphaned-env.json'
+        $proc = Start-Process pwsh `
+            -ArgumentList '-NonInteractive', '-File', $syncScript,
+                          '-BicepPath',           $bicepFixture,
+                          '-MockCurrentEnvPath',  $orphanedEnv,
+                          '-DryRun' `
+            -PassThru -Wait -NoNewWindow
+        $proc.ExitCode | Should -Be 2
+    }
+
+    It 'Safety boundary: non-literal bicep key (ALLOWED_ORIGINS) is not flagged as orphan' {
+        # matching-env-with-nonliteral.json has ALLOWED_ORIGINS with a value.
+        # ALLOWED_ORIGINS IS in good-main.bicep (as an interpolated/non-literal value),
+        # so -NamesOnly must include it and the orphan check must NOT flag it. (t/3345)
+        $envWithNonLiteral = Join-Path $fixtureDir 'matching-env-with-nonliteral.json'
+        $proc = Start-Process pwsh `
+            -ArgumentList '-NonInteractive', '-File', $syncScript,
+                          '-BicepPath',           $bicepFixture,
+                          '-MockCurrentEnvPath',  $envWithNonLiteral,
+                          '-DryRun' `
+            -PassThru -Wait -NoNewWindow
+        $proc.ExitCode | Should -Be 0
+    }
+
+    It 'Secret ref keys are never flagged as orphans' {
+        # matching-env.json has AZURE_KEYVAULT_URL as a secretRef (no value field).
+        # The CurrentMap builder excludes secretRef entries, so they can never appear
+        # in Orphans. Confirm the script exits 0 (matching env, no orphans). (t/3345)
+        $proc = Start-Process pwsh `
+            -ArgumentList '-NonInteractive', '-File', $syncScript,
+                          '-BicepPath',           $bicepFixture,
+                          '-MockCurrentEnvPath',  $matchingEnv,
+                          '-DryRun' `
+            -PassThru -Wait -NoNewWindow
+        $proc.ExitCode | Should -Be 0
+    }
 }
