@@ -69,6 +69,20 @@ Describe 'Get-ReadyzGateAction (pure predicate: status + body)' -Tag 'unit' {
         Get-ReadyzGateAction -StatusCode 200 -Body $script:SpaBody   | Should -Not -Be 'proceed'
         Get-ReadyzGateAction -StatusCode 404 -Body $script:ReadyBody | Should -Not -Be 'proceed'
     }
+    It 'FAIL: 503 + {status:failed} (definitive data-root-failed) → fail (not wait; server has decided)' {
+        Get-ReadyzGateAction -StatusCode 503 -Body '{"status":"failed","reason":"data-root-failed: forced"}' | Should -Be 'fail'
+    }
+    It 'FAIL: {status:failed} wins for ANY status code (200 too) — definitive check precedes the 200/non-200 split' {
+        Get-ReadyzGateAction -StatusCode 200 -Body '{"status":"failed","reason":"x"}' | Should -Be 'fail'
+        Get-ReadyzGateAction -StatusCode 500 -Body '{"status":"failed"}'               | Should -Be 'fail'
+    }
+    It 'NOT fail: warming/ready/absent/SPA never map to fail (only an explicit status:failed does)' {
+        Get-ReadyzGateAction -StatusCode 503 -Body '{"status":"warming"}' | Should -Be 'wait'
+        Get-ReadyzGateAction -StatusCode 200 -Body $script:ReadyBody      | Should -Be 'proceed'
+        Get-ReadyzGateAction -StatusCode 404 -Body 'Not Found'            | Should -Be 'wait'
+        Get-ReadyzGateAction -StatusCode 200 -Body $script:SpaBody        | Should -Be 'wait'
+        Get-ReadyzGateAction -StatusCode 503 -Body ''                     | Should -Be 'wait'
+    }
 }
 
 Describe 'Invoke-ReadyzWarmGateCheck.ps1 (warm=true/false output, mechanism B)' -Tag 'unit' {
@@ -140,5 +154,25 @@ Describe 'Invoke-ReadyzWarmGateCheck.ps1 (warm=true/false output, mechanism B)' 
         $out = & $script:ScriptPath -BaseUrl 'http://rev.local' -TimeoutSec 0 -PollIntervalSec 0 *>&1 | Out-String
         $LASTEXITCODE | Should -Be 0
         Get-EmittedWarm | Should -Be 'false'
+    }
+
+    It 'FAIL-FAST: 503 {status:failed} on poll #1 → warm=false after ONE poll (not the full timeout), distinct hard-failure error, exit 0 (t/3343)' {
+        $global:readyzCalls = 0
+        Mock Invoke-WebRequest {
+            $global:readyzCalls++
+            [pscustomobject]@{ StatusCode = 503; Content = '{"status":"failed","reason":"data-root-failed: forced"}' }
+        }.GetNewClosure()
+        try {
+            # Generous TimeoutSec: a correct fail-fast breaks on poll #1 regardless; a regression that
+            # treated status:failed as 'warming' would instead spin to the (real-time) deadline.
+            $out = & $script:ScriptPath -BaseUrl 'http://rev.local' -TimeoutSec 5 -PollIntervalSec 0 *>&1 | Out-String
+            $LASTEXITCODE       | Should -Be 0
+            Get-EmittedWarm     | Should -Be 'false'
+            $global:readyzCalls | Should -Be 1     # broke immediately — did NOT burn the timeout
+            $out | Should -Match 'DEFINITIVE failure'
+            $out | Should -Not -Match 'pre-warm not ready'   # not the generic timeout message
+        } finally {
+            Remove-Variable -Name readyzCalls -Scope Global -ErrorAction SilentlyContinue
+        }
     }
 }

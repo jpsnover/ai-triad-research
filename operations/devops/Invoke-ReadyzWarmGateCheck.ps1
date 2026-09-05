@@ -79,6 +79,16 @@ try {
             break
         }
 
+        if ($action -eq 'fail') {
+            # DEFINITIVE failure — /readyz reports {status:'failed'} (a hard, non-transient failure the
+            # server has already decided, e.g. data-root-failed). Stop NOW rather than polling the whole
+            # timeout treating it as warm-up: fail-safe is identical (warm=false → no traffic shift →
+            # rollback), but we fail fast and label it a hard failure, not "warming". (t/3343)
+            Write-Host "::error::/readyz reports a DEFINITIVE failure after $poll poll(s) (status=$status, body=$body) — warm=false: NOT shifting traffic (root constraint #1). Failing fast (not warming); the deploy rolls back to the previous revision. (t/3343)"
+            $warm = $false
+            break
+        }
+
         # 'wait' — 503 warming, 404 absent, a non-'ready'/SPA-HTML 200, or a transient/connection error.
         if ([DateTime]::UtcNow -ge $deadline) {
             Write-Host "::error::embeddings pre-warm not ready (/readyz last status=$status, body=$body) within ${TimeoutSec}s — warm=false: NOT shifting traffic (root constraint #1). The deploy rolls back to the previous revision. (t/3148)"
