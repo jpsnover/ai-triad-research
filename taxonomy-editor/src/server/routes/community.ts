@@ -14,6 +14,8 @@ import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error, param } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+import { log } from '../logger.js';
+import { getUserContentBackend } from '../storage/fileIO.js';
 import { rateLimitResponseBody } from '../security/rateLimitResponse.js';
 import * as rateLimiter from '../security/rateLimiter.js';
 import { getStorageUserId } from '../security/userContext.js';
@@ -184,12 +186,28 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
       }
 
       const item = await community.getCommunityOpEd(id);
-      if (!item) { error(res, 'not_found', 404); return; }
+      if (!item) {
+        // t/3334: a 404 here is client-loud but operator-SILENT — an authed user minting a share for an
+        // item that read empty/absent is low-frequency + suspicious (possible silent-empty/corruption),
+        // so WARN→Log_s with discriminating data. Scoped to the MINT path only (NOT the public GET
+        // not-found, which is ordinary). getCommunityOpEd returns null for both absent and empty-`opeds`.
+        log.server.warn(
+          { id, backend: getUserContentBackend().constructor.name, path: 'mint' },
+          'Community op-ed share mint: getCommunityOpEd returned empty/absent — refusing to mint (possible silent-empty/corruption)',
+        );
+        error(res, 'not_found', 404);
+        return;
+      }
 
       // Condition 4: assert PRESENCE before minting — never register a shareId for an empty/partial
       // read (ADR-001 silent-empty guard on the hosted github-api path). writePublicCommunityOpEd re-checks.
       const it = item as { topic?: unknown; opeds?: unknown; community_metadata?: { submitted_by_display?: string } };
       if (!it.topic || !Array.isArray(it.opeds) || it.opeds.length === 0) {
+        // t/3334: malformed (has a file but no topic / empty opeds) = unambiguous corruption → always WARN→Log_s.
+        log.server.warn(
+          { id, backend: getUserContentBackend().constructor.name, topicPresent: !!it.topic, opedsLen: Array.isArray(it.opeds) ? it.opeds.length : null },
+          'Community op-ed share mint: item malformed (missing topic / empty opeds) — refusing to mint (corruption)',
+        );
         error(res, 'Community op-ed is empty or malformed — cannot mint a public copy', 422);
         return;
       }

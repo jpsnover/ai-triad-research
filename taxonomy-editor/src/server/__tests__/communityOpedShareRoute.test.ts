@@ -20,6 +20,7 @@ const writePublicCommunityOpEd = vi.fn(async () => {});
 const deletePublicCommunityOpEd = vi.fn(async () => {});
 const checkRate = vi.fn(() => ({ allowed: true, retryAfterMs: 0 }));
 const getStorageUserId = vi.fn(() => 'user-1');
+const logServerWarn = vi.fn(); // t/3334: capture the mint-refusal WARN→Log_s
 
 vi.mock('../community/community.js', () => ({ getCommunityOpEd: (...a: unknown[]) => getCommunityOpEd(...a), isAdmin: (...a: unknown[]) => isAdmin(...a) }));
 vi.mock('../community/communityOpedShares.js', () => ({
@@ -36,9 +37,11 @@ vi.mock('../security/userContext.js', () => ({ getStorageUserId: () => getStorag
 vi.mock('../security/rateLimitResponse.js', () => ({ rateLimitResponseBody: () => ({ error: 'rate_limited', retryAfter: 1 }) }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
 vi.mock('../logger.js', () => ({
-  log: { api: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, server: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } },
+  log: { api: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, server: { info: vi.fn(), warn: (...a: unknown[]) => logServerWarn(...a), error: vi.fn(), debug: vi.fn() } },
   getRequestId: () => 'test-req', getRequestContext: () => undefined,
 }));
+// t/3334: deterministic backend name for the mint-refusal WARN's discriminating data.
+vi.mock('../storage/fileIO.js', () => ({ getUserContentBackend: () => ({ constructor: { name: 'FilesystemBackend' } }) }));
 
 import { registerCommunityRoutes } from '../routes/community.js';
 import type { ServerCtx } from '../routes/context.js';
@@ -85,23 +88,37 @@ describe('POST/DELETE /api/community/opeds/:id/share (t/3315)', () => {
     expect(writePublicCommunityOpEd).toHaveBeenCalledWith(GOOD_ITEM, 'share-xyz');
     // no identity/metadata leaked in the response
     expect(JSON.stringify(res._body)).not.toContain('author-9');
+    // t/3334: the happy path must NOT emit the operator WARN.
+    expect(logServerWarn).not.toHaveBeenCalled();
   });
 
-  it('404 when the community item does not exist', async () => {
+  it('404 when the community item does not exist — WARNs (operator-visible) with id + backend (t/3334)', async () => {
     getCommunityOpEd.mockResolvedValue(null);
     const res = fakeRes();
     await post(req('/api/community/opeds/missing/share'), res, {});
     expect(res._status).toBe(404);
     expect(mintCommunityOpedShare).not.toHaveBeenCalled();
+    // t/3334: mint-path empty/absent → WARN→Log_s with discriminating data (NOT silent).
+    expect(logServerWarn).toHaveBeenCalledTimes(1);
+    expect(logServerWarn).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'missing', backend: 'FilesystemBackend', path: 'mint' }),
+      expect.stringContaining('empty/absent'),
+    );
   });
 
-  it('422 (assert-presence) when the item is empty/malformed — never mints a shareId for it', async () => {
+  it('422 (assert-presence) when the item is empty/malformed — never mints a shareId, and WARNs (t/3334)', async () => {
     getCommunityOpEd.mockResolvedValue({ topic: '', opeds: [] });
     const res = fakeRes();
     await post(req('/api/community/opeds/empty/share'), res, {});
     expect(res._status).toBe(422);
     expect(mintCommunityOpedShare).not.toHaveBeenCalled();
     expect(writePublicCommunityOpEd).not.toHaveBeenCalled();
+    // t/3334: malformed = unambiguous corruption → WARN→Log_s with id + backend.
+    expect(logServerWarn).toHaveBeenCalledTimes(1);
+    expect(logServerWarn).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'empty', backend: 'FilesystemBackend' }),
+      expect.stringContaining('malformed'),
+    );
   });
 
   it('429 when rate-limited (mint = any authed user, RATE-LIMITED)', async () => {
