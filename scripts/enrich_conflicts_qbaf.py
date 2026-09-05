@@ -541,20 +541,26 @@ def _run_cc_shim(batch_conflicts, mode="per-conflict", temperature=0.0):
     if not batch_conflicts:
         return {}
     tmp = None
+    out_tmp = None
     try:
         fd, tmp = tempfile.mkstemp(suffix=".json", prefix="cc-batch-")
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump({"conflicts": batch_conflicts}, fh, ensure_ascii=False)
+        # Results come back via a FILE (-OutPath), not stdout: the shim's Write-Warning fallback notices
+        # render onto stdout ahead of the JSON and break json.loads (t/3302 live-run failure).
+        out_fd, out_tmp = tempfile.mkstemp(suffix=".json", prefix="cc-out-")
+        os.close(out_fd)
         result = subprocess.run(
             ["pwsh", "-NoProfile", "-NonInteractive", "-File", str(_CC_SHIM),
-             "-InputPath", tmp, "-Mode", mode, "-Temperature", str(temperature)],
+             "-InputPath", tmp, "-Mode", mode, "-Temperature", str(temperature), "-OutPath", out_tmp],
             capture_output=True, text=True, timeout=600, cwd=str(_PROJECT_ROOT), env=_safe_env(),
         )
         if result.returncode != 0:
             _log(f"  WARN: contradiction-classifier exited {result.returncode} "
                  f"({result.stderr.strip()[:200]}) — 0 semantic LLM edges (fallback, t/3302).")
             return {}
-        parsed = json.loads(result.stdout)
+        with open(out_tmp, "r", encoding="utf-8") as fh:
+            parsed = json.loads(fh.read())
         out = {}
         for r in parsed.get("results", []):
             out[str(r.get("id"))] = {"label": r.get("label"), "confidence": r.get("confidence", 0.0)}
@@ -563,11 +569,12 @@ def _run_cc_shim(batch_conflicts, mode="per-conflict", temperature=0.0):
         _log(f"  WARN: contradiction-classifier failed ({exc}) — 0 semantic LLM edges (fallback, t/3302).")
         return {}
     finally:
-        if tmp and os.path.exists(tmp):
-            try:
-                os.remove(tmp)
-            except OSError:
-                pass
+        for _p in (tmp, out_tmp):
+            if _p and os.path.exists(_p):
+                try:
+                    os.remove(_p)
+                except OSError:
+                    pass
 
 
 def detect_semantic_edges(to_process, min_confidence=0.0, mode="per-conflict", cc_runner=None):

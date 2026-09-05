@@ -98,3 +98,30 @@ Describe 'Convert-ContradictionPairs (fork-B bridge)' -Tag 'qbaf' {
         @($r | Where-Object method -eq 'llm-perpair').Count | Should -Be 2
     }
 }
+
+Describe 'Write-CCResult — file is the clean data channel (t/3302 live-run fix)' -Tag 'qbaf' {
+
+    It 'writes valid { results } JSON to -OutPath and nothing to stdout' {
+        $tmp = [System.IO.Path]::GetTempFileName()
+        try {
+            $results = @([ordered]@{ id = 'P001'; label = 'contradict'; confidence = 0.9; method = 'llm-batch' })
+            $stdout = Write-CCResult -Results $results -OutPath $tmp
+            # Empty success stream is the whole point: warnings would otherwise interleave with stdout
+            # JSON and break the caller's parse (the live-run failure this fix prevents).
+            $stdout | Should -BeNullOrEmpty
+            $parsed = Get-Content -LiteralPath $tmp -Raw | ConvertFrom-Json
+            @($parsed.results).Count | Should -Be 1
+            $parsed.results[0].id    | Should -Be 'P001'
+            $parsed.results[0].label | Should -Be 'contradict'
+        }
+        finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'falls back to stdout when -OutPath is empty (legacy)' {
+        $results = @([ordered]@{ id = 'P001'; label = 'neutral'; confidence = 0.5; method = 'llm-batch' })
+        $stdout = Write-CCResult -Results $results -OutPath ''
+        $parsed = $stdout | ConvertFrom-Json
+        @($parsed.results).Count | Should -Be 1
+        $parsed.results[0].label | Should -Be 'neutral'
+    }
+}

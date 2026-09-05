@@ -131,22 +131,40 @@ function Invoke-CCClassifier {
                 -Location 'run-semantic-golden-classifier.ps1' `
                 -NextSteps @('Run from the fork-B branch (feat/qbaf-semantic-classifier-t3302), where the classifier lives'))
     }
-    $raw = & pwsh -NoProfile -File $classifier -InputPath $InputPath -Mode $Mode
-    $text = ($raw -join "`n").Trim()
-    if ([string]::IsNullOrWhiteSpace($text)) {
+    # Read results from a FILE, not stdout: the classifier's Write-Warning fallback notices render onto
+    # captured stdout ahead of the JSON and break ConvertFrom-Json (t/3302 live-run failure). Warnings
+    # flow to the console (operator sees progress); the data channel is the file.
+    $resultsFile = [System.IO.Path]::GetTempFileName()
+    $exit = 0
+    $text = ''
+    try {
+        # Discard the child's success-stream output ($null =): warnings/host lines would otherwise
+        # pollute this function's output. The data is read from $resultsFile below.
+        $null = & pwsh -NoProfile -NonInteractive -File $classifier -InputPath $InputPath -Mode $Mode -OutPath $resultsFile
+        $exit = $LASTEXITCODE
+        if (Test-Path -LiteralPath $resultsFile) { $text = [string](Get-Content -LiteralPath $resultsFile -Raw) }
+    }
+    finally {
+        Remove-Item -LiteralPath $resultsFile -Force -ErrorAction SilentlyContinue
+    }
+
+    if ($exit -ne 0 -or [string]::IsNullOrWhiteSpace($text)) {
         throw (New-ActionableError -PassThru -ErrorType 'ClassifierNoOutput' `
                 -Goal 'Run the semantic-opposition golden through the contradiction classifier' `
-                -Problem 'the classifier produced no stdout — likely a missing API key or backend error' `
+                -Problem "the classifier wrote no results (exit $exit) — likely a missing API key or backend error" `
                 -Location 'run-semantic-golden-classifier.ps1' `
-                -NextSteps @('Set GEMINI_API_KEY (or Register-AIBackend) and retry', 'Check the classifier stderr above for the AI error'))
+                -NextSteps @('Set GEMINI_API_KEY (or Register-AIBackend) and retry', 'Check the classifier warnings above for the AI error'))
     }
-    $parsed = $text | ConvertFrom-Json
-    if (-not $parsed.PSObject.Properties['results']) {
+
+    $parsed = $null
+    try { $parsed = $text | ConvertFrom-Json } catch { $parsed = $null }
+    if ($null -eq $parsed -or -not $parsed.PSObject.Properties['results']) {
+        $snip = $text.Substring(0, [Math]::Min(200, $text.Length))
         throw (New-ActionableError -PassThru -ErrorType 'ClassifierBadOutput' `
                 -Goal 'Run the semantic-opposition golden through the contradiction classifier' `
-                -Problem "the classifier stdout was not the expected { results: [...] } shape" `
+                -Problem "the classifier output was not the expected { results: [...] } shape. First 200 chars: $snip" `
                 -Location 'run-semantic-golden-classifier.ps1' `
-                -NextSteps @('Inspect the raw classifier output above'))
+                -NextSteps @('Inspect the results file content shown above'))
     }
     return @($parsed.results)
 }

@@ -21,7 +21,12 @@ param(
     # dot-source with a missing-parameter error). main() validates it below.
     [string]$InputPath = '',
     [ValidateSet('per-conflict', 'per-pair')][string]$Mode = 'per-conflict',
-    [ValidateRange(0.0, 2.0)][double]$Temperature = 0.0
+    [ValidateRange(0.0, 2.0)][double]$Temperature = 0.0,
+    # When set, JSON results are written to this FILE instead of stdout. Callers should prefer this:
+    # PowerShell's Write-Warning fallback notices render onto the captured stdout stream ahead of the
+    # JSON line, corrupting a caller's ConvertFrom-Json/json.loads (t/3302 live-run failure). A file is
+    # the clean data channel; warnings stay on the console for the operator. Empty => stdout (legacy).
+    [string]$OutPath = ''
 )
 
 Set-StrictMode -Version Latest
@@ -119,6 +124,25 @@ function Convert-ContradictionPairs {
     return @($out)
 }
 
+function Write-CCResult {
+    <#
+    .SYNOPSIS
+        Emit the results object. When -OutPath is given, JSON goes to that FILE (the clean data channel);
+        otherwise to stdout (legacy). Callers should prefer -OutPath: PowerShell's Write-Warning fallback
+        notices render onto captured stdout ahead of the JSON and break a caller's parse (t/3302 live-run
+        failure). Pure apart from the single Set-Content write — dot-source unit-tested.
+    #>
+    [CmdletBinding()]
+    param([object[]]$Results, [string]$OutPath = '')
+    $json = [ordered]@{ results = @($Results) } | ConvertTo-Json -Depth 6 -Compress
+    if (-not [string]::IsNullOrWhiteSpace($OutPath)) {
+        Set-Content -LiteralPath $OutPath -Value $json -Encoding utf8
+    }
+    else {
+        $json | Write-Output
+    }
+}
+
 # ── main (skipped when dot-sourced for unit tests: $env:CC_CLASSIFIER_NOEXEC) ──
 if (-not $env:CC_CLASSIFIER_NOEXEC) {
     $ErrorActionPreference = 'Stop'
@@ -144,5 +168,5 @@ if (-not $env:CC_CLASSIFIER_NOEXEC) {
         }
     }
 
-    [ordered]@{ results = @($allResults) } | ConvertTo-Json -Depth 6 -Compress | Write-Output
+    Write-CCResult -Results @($allResults) -OutPath $OutPath
 }
