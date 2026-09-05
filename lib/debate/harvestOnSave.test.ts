@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { harvestDebateTestedForSession, auditDebateTestedLag } from './harvestOnSave.js';
+import { harvestDebateTestedForSession, auditDebateTestedLag, collectSessionTaxonomyRefs } from './harvestOnSave.js';
 import type { HarvestableSession } from './harvestOnSave.js';
 import type { PovNode } from './taxonomyTypes.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
@@ -231,6 +231,66 @@ describe('harvestDebateTestedForSession', () => {
     } finally {
       cleanup();
     }
+  });
+
+  it('harvests transcript-only refs in AN sessions (t/3331 gap fix)', () => {
+    // anNode references acc-beliefs-040; transcript also references saf-beliefs-040 which is NOT in the AN.
+    // Before the fix, saf-beliefs-040 would be silently dropped. After the fix it gets a cited entry.
+    const nodes = [makePovNode('acc-beliefs-040'), makePovNode('saf-beliefs-040')];
+    const { repoRoot, cleanup } = makeTempDataRoot(nodes);
+    try {
+      const anNode: ArgumentNetworkNode = {
+        id: 'an-040',
+        type: 'position',
+        speaker: 'accelerationist',
+        text: 'AN claim',
+        taxonomy_refs: ['acc-beliefs-040'],
+        strength: 0.7,
+        confidence: 0.8,
+      };
+      const session: HarvestableSession = {
+        id: 'debate-040',
+        created_at: '2026-09-05T10:00:00Z',
+        argument_network: { nodes: [anNode], edges: [] },
+        transcript: [{ taxonomy_refs: ['acc-beliefs-040', 'saf-beliefs-040'] }],
+      };
+      const result = harvestDebateTestedForSession(session, repoRoot);
+      // Both AN ref and transcript-only ref must be harvested
+      expect(result.nodesUpdated).toContain('acc-beliefs-040');
+      expect(result.nodesUpdated).toContain('saf-beliefs-040');
+      expect(result.entriesCreated).toBe(2);
+
+      const safNode = readHarvestedNode(repoRoot, 'safetyist.json', 'saf-beliefs-040');
+      expect(safNode?.graph_attributes?.debate_tested?.tier).toBe('cited');
+      expect(safNode?.graph_attributes?.debate_tested?.record[0].debate_id).toBe('debate-040');
+    } finally {
+      cleanup();
+    }
+  });
+});
+
+describe('collectSessionTaxonomyRefs', () => {
+  it('returns union of AN and transcript refs, deduped', () => {
+    const session: HarvestableSession = {
+      id: 'test',
+      argument_network: { nodes: [{ id: 'n1', type: 'position', speaker: 'acc', text: 't',
+        taxonomy_refs: ['acc-beliefs-500', 'saf-beliefs-500'], strength: 0.5, confidence: 0.5 }] },
+      transcript: [{ taxonomy_refs: ['saf-beliefs-500', 'skp-beliefs-500'] }],
+    };
+    const refs = collectSessionTaxonomyRefs(session);
+    expect(refs).toHaveLength(3);
+    expect(refs).toContain('acc-beliefs-500');
+    expect(refs).toContain('saf-beliefs-500');
+    expect(refs).toContain('skp-beliefs-500');
+  });
+
+  it('filters non-POV refs (sit-*, cc-*, pol-*)', () => {
+    const session: HarvestableSession = {
+      id: 'test',
+      transcript: [{ taxonomy_refs: ['sit-001', 'cc-001', 'pol-001', 'acc-beliefs-501'] }],
+    };
+    const refs = collectSessionTaxonomyRefs(session);
+    expect(refs).toEqual(['acc-beliefs-501']);
   });
 });
 
