@@ -245,27 +245,58 @@ def _cc_bare_numbers(text):
     return out
 
 
-def _detect_numeric_temporal_conflict(text_a, text_b):
-    """True iff A and B share a subject AND cite directly incompatible quantities of the same kind.
+_CC_MAG_RE = re.compile(r"\b(billion|million|trillion|thousand|fold)\b", re.IGNORECASE)
+_CC_CUR_RE = re.compile(r"[$€£]")
 
-    Conservative (high precision): requires >=3 shared content words, and a same-kind numeric set that
-    is non-empty on BOTH sides and disjoint (percentages, years, or bare numbers). Bare numbers demand
-    a stronger subject overlap (>=4) since they are the most ambiguous. Returns False on any doubt.
+
+def _mask_numbers(text):
+    """Replace numeric values (%, years, currency, magnitudes, bare numbers) with a NUM placeholder so an
+    embedding of the result captures the METRIC/subject, not the values (t/3337#5 same-subject gate)."""
+    t = text or ""
+    t = _CC_PCT_RE.sub(" NUM ", t)                       # percentages / 'percent' / pp
+    t = _CC_YEAR_RE.sub(" NUM ", t)                      # years
+    t = re.sub(r"(?<![\w.])\d+(?:\.\d+)?", " NUM ", t)   # bare numbers
+    t = _CC_CUR_RE.sub(" NUM ", t)                       # currency symbols
+    t = _CC_MAG_RE.sub(" NUM ", t)                       # magnitude words
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _detect_numeric_temporal_conflict(text_a, text_b, embedder=None, subject_threshold=0.93):
+    """True iff A and B describe the SAME quantity AND cite directly incompatible values of the same kind.
+
+    Two-stage (t/3337#5, calibrated on the same-doc census — the old ≥3-shared-word subject proxy was
+    0/54 precision, firing on different-subject pairs like "17% postings" vs "24% skills"):
+      1. candidate: >=3 shared content words + a same-kind numeric set (percentages / years / bare;
+         bare needs >=4 shared) non-empty on BOTH sides and disjoint. Same unit-type is enforced by the
+         per-kind branches (a percent can't pair with a bare number).
+      2. same-subject HARD-GATE: mask the numbers, embed both (MiniLM), and fire ONLY if masked-cosine
+         >= subject_threshold (0.93) — i.e. the disjoint numbers describe the same metric, not merely
+         co-occur. embedder is injectable for tests (default = local MiniLM).
+
+    Known v1 residual (accepted, CL t/3337#5): same-metric-DIFFERENT-SCOPE ("top 10%" vs "top 20%") and
+    rounding (63% vs 65%) pass the subject gate — masked-cosine can't separate them; the LLM arbitrates.
     """
     shared = _cc_content_words(text_a) & _cc_content_words(text_b)
     if len(shared) < 3:
         return False
+    candidate = False
     pa, pb = _cc_percents(text_a), _cc_percents(text_b)
     if pa and pb and pa.isdisjoint(pb):
-        return True
-    ya, yb = _cc_years(text_a), _cc_years(text_b)
-    if ya and yb and ya.isdisjoint(yb):
-        return True
-    if len(shared) >= 4:
+        candidate = True
+    if not candidate:
+        ya, yb = _cc_years(text_a), _cc_years(text_b)
+        if ya and yb and ya.isdisjoint(yb):
+            candidate = True
+    if not candidate and len(shared) >= 4:
         na, nb = _cc_bare_numbers(text_a), _cc_bare_numbers(text_b)
         if na and nb and na.isdisjoint(nb):
-            return True
-    return False
+            candidate = True
+    if not candidate:
+        return False
+    # same-subject hard-gate: the numbers must be about the SAME quantity (not just word-overlapping).
+    embedder = embedder or _default_embedder
+    va, vb = embedder([_mask_numbers(text_a), _mask_numbers(text_b)])
+    return _cosine(va, vb) >= subject_threshold
 
 
 def _qbaf_testedness(qbaf, instances):
@@ -695,7 +726,7 @@ def detect_semantic_edges(to_process, min_confidence=0.0, mode="per-conflict", c
         ci_to_cid[ci] = cid
         conflict_pairs = []
         for c in cands:
-            if _detect_numeric_temporal_conflict(c["a"], c["b"]):
+            if _detect_numeric_temporal_conflict(c["a"], c["b"], embedder=embedder):
                 edges_by_ci.setdefault(ci, []).extend(
                     _mk_attack_edges(c["i"], c["j"], "numeric", 1.0, tau=min_confidence))
                 if predictions_sink is not None:
