@@ -1294,35 +1294,26 @@ initAnonymousSessionStore({
 
 // ── Start ──
 assertStateRootIsolation(); // t/2643: refuse start if staging's state root wasn't isolated (env drift) — no-op prod/local
-// t/3296 (t/3290 prevention): fail LOUD on an unresolved/misprovisioned data root. Backends are set
-// above; assert taxonomy/ + dictionary/ are present AND non-empty via the ACTIVE backend (validateDataRoot
-// uses listDirectoryStrict — profile-agnostic: fs for local, GitHub Contents for hosted; a transient
-// GitHub blip throws rather than false-empties). On failure: no showErrorBox (server-side) — log the
-// ActionableError to stdout (→ Log Analytics) + exit non-zero so the container crash-loops VISIBLY
-// instead of silently serving empty panels. Before listen, so an un-provisioned revision never serves.
+// t/3296 (t/3290 prevention) → t/3309 Path B (step-3): assert taxonomy/ + dictionary/ are present AND
+// non-empty via the ACTIVE backend (validateDataRoot uses listDirectoryStrict — profile-agnostic: fs
+// local, GitHub Contents hosted; a transient blip throws rather than false-empties). The outcome is
+// cached for the /readyz readiness gate: ready → /readyz 200 (falls through to the embeddings check),
+// failed → /readyz 503 'data-root-failed'. The boot NO LONGER exit(1)s — the /readyz deploy warm-gate
+// (proven to block a misprovisioned promotion by the Arm-B GV, t/3309#21) is now the SOLE data-root
+// deploy protection: a misprovisioned revision never promotes (warm-gate blocks + rolls back) while
+// the old rev keeps serving, so the process stays up (liveness) with no crash-loop (t/2683 class).
 try {
   await fileIO.validateDataRoot();
-  setDataRootReady(); // t/3309: cache data-root readiness for the /readyz gate (migration target)
+  setDataRootReady(); // t/3309: cache data-root readiness for the /readyz gate
 } catch (err) {
-  // t/3309: record the definitive failure for /readyz (Path B — data-root becomes a readiness
-  // signal). The boot exit(1)/WARN enforce path BELOW is RETAINED unchanged as the active
-  // protection during the migration (t/3309#3 gate 2 / #5 step-1): exit(1) ENFORCE is live in
-  // prod, so we fold the readyz gate in ALONGSIDE it and only remove exit(1) after staging
-  // proves the warm-gate blocks a misprovisioned rev (step 2) — never a no-protection window.
+  // t/3309 step-3: record the definitive failure for the /readyz gate, then CONTINUE (no exit(1)).
+  // The boot exit(1)/DATA_ROOT_VALIDATION_ENFORCE path is REMOVED — after the staging Arm-B GV proved
+  // the /readyz warm-gate blocks a misprovisioned rev (t/3309#21), the readiness gate supersedes the
+  // boot exit. Co-landed with DevOps retiring DATA_ROOT_VALIDATION_ENFORCE from main.bicep (joint-gv).
+  // Failure stays OBSERVABLE via the WARN below → stdout→Log_s (condition 4).
   setDataRootFailed(err instanceof Error ? err.message : String(err));
-  // t/3296/t/3305: the hard exit(1) is ENFORCE-gated (default WARN-only). A credential-less boot —
-  // the container liveness smoke test (github-api mode, NO GitHub App creds) — MUST still start, so
-  // exit(1) fires ONLY when DATA_ROOT_VALIDATION_ENFORCE is set. DevOps sets it in staging→prod (real
-  // creds + data present) as the gated promotion to prod-blocking (t/2683 real-env-first): staging
-  // proves the exit path against the real backend before prod. Default warn-only is OBSERVABLE (WARN
-  // to stdout→Log_s), never a silent-empty; only the credential-less smoke boot relies on it.
-  const enforce = /^(1|true|yes|on)$/i.test(process.env.DATA_ROOT_VALIDATION_ENFORCE ?? '');
   const errObj = err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : String(err);
-  if (enforce) {
-    log.server.error({ err: errObj, enforce }, 'Data root validation failed at boot — refusing to start (DATA_ROOT_VALIDATION_ENFORCE)');
-    process.exit(1);
-  }
-  log.server.warn({ err: errObj, enforce }, 'Data root validation failed at boot — WARN-only (DATA_ROOT_VALIDATION_ENFORCE unset); continuing');
+  log.server.warn({ err: errObj }, 'Data root validation failed at boot — /readyz will report data-root-failed (503); process continues (liveness up), the deploy warm-gate blocks the promotion');
 }
 // t/2532 (M12): loopback (127.0.0.1) in dev / 0.0.0.0 in prod; HOST opts into LAN exposure (logged loudly below).
 const BIND_HOST = resolveBindHost(process.env);
