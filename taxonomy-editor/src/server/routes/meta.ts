@@ -15,6 +15,7 @@ import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error } from '../httpKit.js';
 import { classifyDataUnavailable, type ReadinessState } from './readiness.js';
+import { getDataRootReadyState } from './dataRootReadiness.js'; // t/3309: cache-once data-root readiness
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { getProjectRoot, getDataRoot, hasApiKey, STORAGE_MODE } from '../config.js';
 import { getConfig } from '../runtimeConfig.js';
@@ -43,6 +44,24 @@ function logReadinessTransition(readiness: ReadinessState, dataRoot: string): vo
   } else {
     log.server.info({ dataRoot, reason: readiness.reason }, 'Readiness: warming (data load in progress)');
   }
+}
+
+// t/3309: /readyz data-root failure signal (cond 4), throttled to the transition INTO failed —
+// ACA polls /readyz every few seconds, so a per-probe WARN would spam. The message keeps the
+// "Data root validation failed" substring the boot-WARN alert (t/3308) keys on, so the Log_s
+// alert fires whether the failure surfaces at boot or here. Reset by the handler when the state
+// leaves 'failed' (a flap re-logs). The boot exit(1)/WARN path (server.ts) is unchanged — this is
+// the readyz-side signal that carries the migration once exit(1) is removed (step 3).
+let lastReadyzDataRootFailed = false;
+
+function logDataRootReadyzFailure(reason: string | undefined): void {
+  if (lastReadyzDataRootFailed) return;
+  lastReadyzDataRootFailed = true;
+  log.server.warn({ reason }, 'Data root validation failed — /readyz not-ready (t/3309)');
+  getGlobalRecorder()?.record({
+    type: 'system.error', component: 'readyz', level: 'error',
+    message: 'Data root validation failed — /readyz not-ready', data: { reason },
+  });
 }
 
 export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
@@ -91,6 +110,25 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
   // AND DevOps2's resolution deploy-gate (t/3091) both poll GET /readyz — status code 503 = block,
   // no auth (PUBLIC_EXACT_PATHS, anon). Distinct from /api/health/embeddings (ONNX model warmup).
   get('/readyz', (_req, res) => {
+    // t/3309: data-root validation composes into the readiness gate AHEAD of the embeddings
+    // check — a misprovisioned data root means the corpus is absent, so there's nothing for
+    // embeddings to resolve against. State is CACHE-ONCE (dataRootReadiness): validated once at
+    // startup, read here per probe — no per-probe GitHub Contents call (cond 2). A definitive
+    // 'failed' is a hard 503 (not masked as a slow warm-up, cond 3); 'validating' is warming.
+    // The 200-ready body is unchanged (data-root 'ready' falls through to the existing embeddings
+    // gate), preserving the shared warm-gate body-contract fixture (t/3114).
+    const dr = getDataRootReadyState();
+    if (dr.state === 'failed') {
+      logDataRootReadyzFailure(dr.reason); // cond 4: WARN→Log_s once per failure episode
+      json(res, { status: 'failed', reason: `data-root-failed: ${dr.reason ?? 'unknown'}` }, 503);
+      return;
+    }
+    // Reset the failure-log throttle so a later re-failure (flap: failed → ready → failed) re-logs.
+    lastReadyzDataRootFailed = false;
+    if (dr.state === 'validating') {
+      json(res, { status: 'warming', reason: 'data-root-validating' }, 503);
+      return;
+    }
     const { present, nodeCount, resolves, canaryId } = getEmbeddingsResolution();
     if (present && (nodeCount ?? 0) > 0 && resolves) {
       json(res, { status: 'ready', nodeCount, resolves: true });

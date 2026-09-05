@@ -41,9 +41,18 @@ describe('publicPaths — /readyz', () => {
 
 const CANARY = 'acc-beliefs-003';
 type Resolution = { present: boolean; nodeCount: number | null; resolves: boolean };
+type DataRoot = { state: 'validating' | 'ready' | 'failed'; reason?: string };
 type HandlerResult = { statusCode: number; body: Record<string, unknown> };
 
-function simulateReadyz(r: Resolution): HandlerResult {
+// t/3309: the data-root gate composes AHEAD of the embeddings gate. Default 'ready' so the
+// existing embeddings-branch cases below are unaffected (data-root ready → falls through).
+function simulateReadyz(r: Resolution, dataRoot: DataRoot = { state: 'ready' }): HandlerResult {
+  if (dataRoot.state === 'failed') {
+    return { statusCode: 503, body: { status: 'failed', reason: `data-root-failed: ${dataRoot.reason ?? 'unknown'}` } };
+  }
+  if (dataRoot.state === 'validating') {
+    return { statusCode: 503, body: { status: 'warming', reason: 'data-root-validating' } };
+  }
   const { present, nodeCount, resolves } = r;
   if (present && (nodeCount ?? 0) > 0 && resolves) {
     return { statusCode: 200, body: { status: 'ready', nodeCount, resolves: true } };
@@ -79,6 +88,47 @@ describe('GET /readyz — response shape (t/3112, t/3165 resolution)', () => {
     const { statusCode, body } = simulateReadyz({ present: true, nodeCount: 0, resolves: false });
     expect(statusCode).toBe(503);
     expect(body.status).toBe('warming');
+  });
+});
+
+// ── t/3309: data-root readiness gate composes ahead of embeddings ─────────────
+// The data-root state (validating/ready/failed) gates /readyz BEFORE the embeddings check.
+// 'failed' is a definitive 503 (status:'failed', not warming) so a misprovisioned corpus is
+// not masked as a slow warm-up (cond 3); 'validating' is a warming 503; 'ready' falls through.
+describe('GET /readyz — data-root gate (t/3309)', () => {
+  const RESOLVING: Resolution = { present: true, nodeCount: 4144, resolves: true };
+
+  it("503 { status: failed, data-root-failed:<reason> } when data-root validation failed — even if embeddings resolve", () => {
+    const { statusCode, body } = simulateReadyz(RESOLVING, { state: 'failed', reason: "sentinel 'taxonomy/' present but empty" });
+    expect(statusCode).toBe(503);
+    expect(body.status).toBe('failed'); // definitive, NOT 'warming' — not masked as slow warm-up
+    expect(String(body.reason)).toMatch(/^data-root-failed:/);
+    expect(String(body.reason)).toContain('taxonomy');
+  });
+
+  it("503 { status: warming, data-root-validating } while startup validation is in flight", () => {
+    const { statusCode, body } = simulateReadyz(RESOLVING, { state: 'validating' });
+    expect(statusCode).toBe(503);
+    expect(body.status).toBe('warming');
+    expect(body.reason).toBe('data-root-validating');
+  });
+
+  it('failed reason falls back to "unknown" when none is cached', () => {
+    const { body } = simulateReadyz(RESOLVING, { state: 'failed' });
+    expect(body.reason).toBe('data-root-failed: unknown');
+  });
+
+  it("data-root 'ready' falls through to the embeddings gate — 200 unchanged (fixture-contract preserved)", () => {
+    const { statusCode, body } = simulateReadyz(RESOLVING, { state: 'ready' });
+    expect(statusCode).toBe(200);
+    expect(body).toEqual({ status: 'ready', nodeCount: 4144, resolves: true });
+  });
+
+  it("data-root 'ready' but embeddings not resolving → the existing embeddings 503 (gates are independent)", () => {
+    const { statusCode, body } = simulateReadyz({ present: true, nodeCount: 4144, resolves: false }, { state: 'ready' });
+    expect(statusCode).toBe(503);
+    expect(body.status).toBe('warming');
+    expect(body.reason).toBe('canary-not-resolving');
   });
 });
 
