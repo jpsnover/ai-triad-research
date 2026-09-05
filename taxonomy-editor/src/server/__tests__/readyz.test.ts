@@ -8,6 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PUBLIC_EXACT_PATHS, computeIsPublicPath } from '../publicPaths.js';
+import { isStagingIdentity } from '../config.js'; // t/3340: the real enable-guard predicate (no drift)
 
 // t/3114 shared body-contract fixture. This SAME file is read by the deploy warm-gate's
 // Pester (tests/ReadyzWarmGate.Tests.ps1) as the "real 200 body" it feeds to the predicate.
@@ -47,9 +48,10 @@ type HandlerResult = { statusCode: number; body: Record<string, unknown> };
 // t/3309: the data-root gate composes AHEAD of the embeddings gate. Default 'ready' so the
 // existing embeddings-branch cases below are unaffected (data-root ready → falls through).
 function simulateReadyz(r: Resolution, dataRoot: DataRoot = { state: 'ready' }): HandlerResult {
-  // t/3236: test-only fault knob — force the definitive data-root-FAILED state, gated non-prod.
-  // In lockstep with routes/meta.ts. Runtime-scoped: overrides only this response, not boot.
-  const forceDataRootFailed = process.env.NODE_ENV !== 'production' && process.env.READYZ_FORCE_DATA_ROOT_FAILED === '1';
+  // t/3236: test-only fault knob — force the definitive data-root-FAILED state. Enable-guard is the
+  // REAL isStagingIdentity() predicate (fail-closed, prod-excluded). In lockstep with routes/meta.ts.
+  // Runtime-scoped: overrides only this response, not boot.
+  const forceDataRootFailed = isStagingIdentity() && process.env.READYZ_FORCE_DATA_ROOT_FAILED === '1';
   const dr: DataRoot = forceDataRootFailed
     ? { state: 'failed', reason: 'forced (READYZ_FORCE_DATA_ROOT_FAILED test knob, t/3236)' }
     : dataRoot;
@@ -163,15 +165,31 @@ describe('/readyz shared body-contract fixture (t/3114)', () => {
 // ── t/3236 / t/3340: READYZ_FORCE_DATA_ROOT_FAILED test-only fault knob ───────
 // Lets DevOps exercise the deploy warm-gate's FIRE arm (503 'failed' → block traffic-shift →
 // fail+rollback) against a REAL staging revision with real data, no 700M throwaway repo.
-// TL cond 1: forces the DEFINITIVE 'failed' state (NOT 'validating'). TL cond 2: gated
-// NODE_ENV!=='production' so it can NEVER force a false-negative /readyz in prod.
-describe('GET /readyz — READYZ_FORCE_DATA_ROOT_FAILED knob (t/3236)', () => {
+// TL cond 1: forces the DEFINITIVE 'failed' state (NOT 'validating'). Enable-guard (TL re-GV,
+// t/3340#4/#5): FAIL-CLOSED on isStagingIdentity() (ACA CONTAINER_APP_NAME=/staging/i, prod
+// cannot spoof) AND the flag — both default-absent → inert; prod-excluded by construction.
+describe('GET /readyz — READYZ_FORCE_DATA_ROOT_FAILED knob (t/3236, staging-gated)', () => {
   const RESOLVING: Resolution = { present: true, nodeCount: 4144, resolves: true };
-  const ORIG_NODE_ENV = process.env.NODE_ENV;
-  beforeEach(() => { delete process.env.READYZ_FORCE_DATA_ROOT_FAILED; process.env.NODE_ENV = 'test'; });
-  afterEach(() => { delete process.env.READYZ_FORCE_DATA_ROOT_FAILED; process.env.NODE_ENV = ORIG_NODE_ENV; });
+  const ORIG_APP = process.env.CONTAINER_APP_NAME;
+  const ORIG_ENV = process.env.AI_TRIAD_ENV;
+  beforeEach(() => {
+    delete process.env.READYZ_FORCE_DATA_ROOT_FAILED;
+    delete process.env.AI_TRIAD_ENV;
+    process.env.CONTAINER_APP_NAME = 'taxonomy-editor-staging'; // staging identity by default
+  });
+  afterEach(() => {
+    delete process.env.READYZ_FORCE_DATA_ROOT_FAILED;
+    if (ORIG_APP === undefined) delete process.env.CONTAINER_APP_NAME; else process.env.CONTAINER_APP_NAME = ORIG_APP;
+    if (ORIG_ENV === undefined) delete process.env.AI_TRIAD_ENV; else process.env.AI_TRIAD_ENV = ORIG_ENV;
+  });
 
-  it('knob ON + non-production: forces definitive 503 failed even when data-root ready AND embeddings resolve', () => {
+  it('sanity: isStagingIdentity() reflects CONTAINER_APP_NAME', () => {
+    expect(isStagingIdentity()).toBe(true); // set to *-staging in beforeEach
+    process.env.CONTAINER_APP_NAME = 'taxonomy-editor'; // prod app name
+    expect(isStagingIdentity()).toBe(false);
+  });
+
+  it('knob ON + staging identity: forces definitive 503 failed even when data-root ready AND embeddings resolve', () => {
     process.env.READYZ_FORCE_DATA_ROOT_FAILED = '1';
     const { statusCode, body } = simulateReadyz(RESOLVING, { state: 'ready' });
     expect(statusCode).toBe(503);
@@ -180,20 +198,33 @@ describe('GET /readyz — READYZ_FORCE_DATA_ROOT_FAILED knob (t/3236)', () => {
     expect(String(body.reason)).toContain('READYZ_FORCE_DATA_ROOT_FAILED');
   });
 
-  it('knob ON + NODE_ENV=production: INERT — falls through to the real ready 200 (no prod false-negative)', () => {
-    process.env.NODE_ENV = 'production';
+  it('knob ON + AI_TRIAD_ENV=staging belt (no matching app name): still active', () => {
+    process.env.CONTAINER_APP_NAME = 'taxonomy-editor'; // non-staging app name
+    process.env.AI_TRIAD_ENV = 'staging';               // belt un-gates
+    process.env.READYZ_FORCE_DATA_ROOT_FAILED = '1';
+    expect(simulateReadyz(RESOLVING, { state: 'ready' }).statusCode).toBe(503);
+  });
+
+  it('knob ON + PROD identity (no staging signal): INERT — real ready 200 (fail-closed, no prod false-negative)', () => {
+    process.env.CONTAINER_APP_NAME = 'taxonomy-editor'; // prod app name, no /staging/
     process.env.READYZ_FORCE_DATA_ROOT_FAILED = '1';
     const { statusCode, body } = simulateReadyz(RESOLVING, { state: 'ready' });
     expect(statusCode).toBe(200);
     expect(body.status).toBe('ready');
   });
 
-  it('knob value other than "1" is ignored', () => {
+  it('knob ON + CONTAINER_APP_NAME unset (no signal at all): INERT — fail-closed', () => {
+    delete process.env.CONTAINER_APP_NAME; // neither signal present
+    process.env.READYZ_FORCE_DATA_ROOT_FAILED = '1';
+    expect(simulateReadyz(RESOLVING, { state: 'ready' }).statusCode).toBe(200);
+  });
+
+  it('staging identity + knob value other than "1": ignored', () => {
     process.env.READYZ_FORCE_DATA_ROOT_FAILED = 'true'; // only exactly "1" enables
     expect(simulateReadyz(RESOLVING, { state: 'ready' }).statusCode).toBe(200);
   });
 
-  it('knob unset: real data-root state governs (unchanged behavior)', () => {
+  it('staging identity + knob unset: real data-root state governs (unchanged behavior)', () => {
     const { statusCode, body } = simulateReadyz(RESOLVING, { state: 'ready' });
     expect(statusCode).toBe(200);
     expect(body.status).toBe('ready');

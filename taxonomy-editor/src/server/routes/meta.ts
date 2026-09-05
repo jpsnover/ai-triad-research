@@ -17,7 +17,7 @@ import { json, error } from '../httpKit.js';
 import { classifyDataUnavailable, type ReadinessState } from './readiness.js';
 import { getDataRootReadyState } from './dataRootReadiness.js'; // t/3309: cache-once data-root readiness
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-import { getProjectRoot, getDataRoot, hasApiKey, STORAGE_MODE } from '../config.js';
+import { getProjectRoot, getDataRoot, hasApiKey, STORAGE_MODE, isStagingIdentity } from '../config.js';
 import { getConfig } from '../runtimeConfig.js';
 import * as proxyTiers from '../ai/proxyTiers.js';
 import { getEmbeddingsCacheStatus, getEmbeddingsResolution } from '../ai/aiBackends.js';
@@ -117,14 +117,17 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
     // 'failed' is a hard 503 (not masked as a slow warm-up, cond 3); 'validating' is warming.
     // The 200-ready body is unchanged (data-root 'ready' falls through to the existing embeddings
     // gate), preserving the shared warm-gate body-contract fixture (t/3114).
-    // t/3236 (server half tracked t/3340): test-only fault knob — force the DEFINITIVE data-root-FAILED readiness so DevOps can
-    // exercise the deploy warm-gate's FIRE arm (503 'failed' → block traffic-shift → fail+rollback)
-    // against a REAL staging revision with real data, no 700M throwaway repo. TL cond 1: forces the
-    // definitive 'failed' state (NOT 'validating'), so the warm-gate sees a definitive failure.
-    // TL cond 2: gated NODE_ENV!=='production' so it can NEVER force a false-negative /readyz in prod
-    // (mirrors READYZ_FORCE_RESOLVES_FALSE, t/3192). RUNTIME-scoped to this response only: boot
-    // validateDataRoot runs against real data, unaffected — so no ENFORCE change is required for boot.
-    const forceDataRootFailed = process.env.NODE_ENV !== 'production' && process.env.READYZ_FORCE_DATA_ROOT_FAILED === '1';
+    // t/3236 (server half tracked t/3340): test-only fault knob — force the DEFINITIVE data-root-FAILED
+    // readiness so DevOps can exercise the deploy warm-gate's FIRE arm (503 'failed' → block traffic-
+    // shift → fail+rollback) against a REAL staging revision with real data, no 700M throwaway repo.
+    // TL cond 1: forces the definitive 'failed' state (NOT 'validating'), so the warm-gate sees a
+    // definitive failure. ENABLE-GUARD (TL re-GV, t/3340#4/#5): gated on isStagingIdentity() — ACA
+    // auto-injects CONTAINER_APP_NAME=/staging/i (drift-proof; prod's app name CANNOT match) — AND the
+    // explicit flag. FAIL-CLOSED: both signals default-absent → inert; prod-excluded by construction
+    // (not a fail-open NODE_ENV/branch check). So DevOps arms it with a SINGLE var on NORMAL staging
+    // (no NODE_ENV flip → none of the HOST/STORAGE_MODE/ALLOWED_ORIGINS confounds). RUNTIME-scoped to
+    // this response only: boot validateDataRoot runs against real data, unaffected — no ENFORCE change.
+    const forceDataRootFailed = isStagingIdentity() && process.env.READYZ_FORCE_DATA_ROOT_FAILED === '1';
     const dr = forceDataRootFailed
       ? { state: 'failed' as const, reason: 'forced (READYZ_FORCE_DATA_ROOT_FAILED test knob, t/3236)' }
       : getDataRootReadyState();
