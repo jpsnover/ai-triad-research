@@ -85,7 +85,8 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
   { value: 'claude', label: 'Anthropic Claude' },
   { value: 'groq', label: 'Groq' },
   { value: 'openai', label: 'OpenAI' },
-  { value: 'deepseek', label: 'DeepSeek' },
+  // t/3280 (TL GV): deepseek has no `picker` models → not user-selectable (it would strand the model
+  // dropdown). Excluded from the pre-load list to match the runtime picker-presence filter in initAIModels.
   { value: 'azure', label: 'Azure OpenAI' },
   { value: 'ollama', label: 'Ollama (Local)' },
   { value: 'zai', label: 'Z.AI (GLM)' },
@@ -231,11 +232,6 @@ export async function initAIModels(): Promise<void> {
     const config = await api.loadAIModels() as AIModelsConfig | null;
     if (!config?.models?.length) return;
 
-    AI_BACKENDS.length = 0;
-    for (const b of config.backends) {
-      AI_BACKENDS.push({ value: b.id as AIBackend, label: b.label });
-    }
-
     // t/3280: derive the picker from the curated `picker` entries (SSOT) — not every config model.
     // The former all-models push surfaced 100+ backend variants in the dropdown; the picker is the
     // hand-curated subset. deriveModelsByBackend guarantees every backend key gets an array (empty if
@@ -243,6 +239,16 @@ export async function initAIModels(): Promise<void> {
     const derived = deriveModelsByBackend(config);
     for (const key of Object.keys(MODELS_BY_BACKEND) as AIBackend[]) {
       MODELS_BY_BACKEND[key] = derived[key] ?? [];
+    }
+
+    // t/3280 (TL GV, t/3280#7): a backend is selectable iff it has ≥1 picker model. deepseek is in
+    // config.backends but carries no `picker` entries → derives to []; offering it would strand the
+    // model dropdown into a silent DEFAULT_MODEL fallback. Filter here (SSOT — no hardcoded exclusion,
+    // so any future zero-picker backend is handled automatically).
+    AI_BACKENDS.length = 0;
+    for (const b of config.backends) {
+      if ((derived[b.id as AIBackend]?.length ?? 0) === 0) continue;
+      AI_BACKENDS.push({ value: b.id as AIBackend, label: b.label });
     }
 
     for (const [k, v] of Object.entries(config.defaults)) {

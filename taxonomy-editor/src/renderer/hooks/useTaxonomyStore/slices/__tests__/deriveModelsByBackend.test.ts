@@ -19,6 +19,7 @@ import { dirname, resolve } from 'node:path';
 import {
   deriveModelsByBackend,
   MODELS_BY_BACKEND,
+  AI_BACKENDS,
   getStoredModel,
   type AIBackend,
 } from '../settingsSlice';
@@ -76,6 +77,25 @@ describe('deriveModelsByBackend (t/3280 SSOT derive)', () => {
 
   it('an empty-picker backend (deepseek) derives to [] without crashing', () => {
     expect(derived.deepseek).toEqual([]);
+  });
+
+  it('no user-selectable backend has an empty picker (would strand the model dropdown)', () => {
+    // Pre-load AI_BACKENDS must offer only backends with ≥1 curated model; initAIModels applies the
+    // same picker-presence filter at runtime. deepseek is the empty-picker case that must be excluded.
+    for (const b of AI_BACKENDS) {
+      expect(MODELS_BY_BACKEND[b.value].length, `backend '${b.value}' is selectable but has no picker models`).toBeGreaterThan(0);
+    }
+    expect(AI_BACKENDS.some(b => b.value === 'deepseek'), 'deepseek (no picker models) must not be selectable').toBe(false);
+  });
+
+  it('the selectable-backend set derived from config == pre-load AI_BACKENDS', () => {
+    // The runtime filter (initAIModels) keeps a config backend iff it has ≥1 derived picker model;
+    // that set must equal the pre-load constant so pre-load and post-load never disagree.
+    const selectableFromConfig = new Set(
+      aiModels.backends.filter(b => (derived[b.id as AIBackend]?.length ?? 0) > 0).map(b => b.id),
+    );
+    const preLoad = new Set(AI_BACKENDS.map(b => b.value));
+    expect(preLoad).toEqual(selectableFromConfig);
   });
 
   it('getStoredModel never returns a non-model id even when its backend has an empty picker', () => {
