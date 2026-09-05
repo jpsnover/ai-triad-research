@@ -51,3 +51,28 @@ Describe 'Get-BicepBaseEnv -NamesOnly' {
         $unique.Count | Should -Be $names.Count
     }
 }
+
+Describe 'Get-BicepBaseEnv -NamesOnly against real main.bicep' {
+    BeforeAll {
+        $scriptRoot   = Split-Path $PSScriptRoot -Parent
+        $getEnvScript = Join-Path $scriptRoot 'operations/devops/Get-BicepBaseEnv.ps1'
+        $realBicep    = Join-Path $scriptRoot 'deploy/azure/main.bicep'
+    }
+
+    It 'Real main.bicep: -NamesOnly is a superset of literal-hashtable keys' {
+        $hashtable = & $getEnvScript -BicepPath $realBicep
+        $names     = & $getEnvScript -BicepPath $realBicep -NamesOnly
+        foreach ($key in $hashtable.Keys) {
+            $names | Should -Contain $key -Because "-NamesOnly must cover every literal key in real main.bicep"
+        }
+    }
+
+    It 'Real main.bicep: -NamesOnly includes known non-literal keys' {
+        $names = & $getEnvScript -BicepPath $realBicep -NamesOnly
+        $names | Should -Contain 'ALLOWED_ORIGINS'    -Because 'interpolated value in baseEnv'
+        $names | Should -Contain 'AZURE_KEYVAULT_URL' -Because 'resource property reference in baseEnv'
+        # APPLICATIONINSIGHTS_* — at least one key from the AppInsights block
+        $appInsightsKeys = @($names | Where-Object { $_ -like 'APPLICATIONINSIGHTS_*' })
+        $appInsightsKeys.Count | Should -BeGreaterThan 0 -Because 'AppInsights resource-ref keys must appear in managed set'
+    }
+}
