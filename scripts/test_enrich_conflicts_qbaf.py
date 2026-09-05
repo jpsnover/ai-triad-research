@@ -373,6 +373,35 @@ def test_cosine_basic():
     assert eq._cosine([0.0, 0.0], [1.0, 1.0]) == 0.0  # degenerate -> 0
 
 
+# _safe_env AI-key forwarding — classifier auth path (t/3336 live-run failure: keys stripped -> unresolved)
+
+def test_safe_env_default_strips_ai_keys_but_forwards_on_request():
+    import os
+    key = "GEMINI_API_KEY"
+    saved = os.environ.get(key)
+    try:
+        os.environ[key] = "test-sentinel-not-a-real-key"
+        assert key not in eq._safe_env()                       # default: bridge gets no AI keys
+        assert eq._safe_env(include_ai_keys=True).get(key) == "test-sentinel-not-a-real-key"
+    finally:
+        if saved is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = saved
+
+
+def test_safe_env_does_not_inject_absent_ai_keys():
+    import os
+    key = "GROQ_API_KEY"
+    saved = os.environ.get(key)
+    try:
+        os.environ.pop(key, None)
+        assert key not in eq._safe_env(include_ai_keys=True)   # absent key not fabricated
+    finally:
+        if saved is not None:
+            os.environ[key] = saved
+
+
 if __name__ == "__main__":
     import pytest
 
