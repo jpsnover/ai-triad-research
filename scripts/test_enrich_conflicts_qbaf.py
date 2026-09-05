@@ -160,10 +160,19 @@ def test_testedness_adversarial_when_attack_present():
 # _detect_numeric_temporal_conflict — deterministic complement (t/3302 fork-B, TL's mandatory
 # high-precision detector). Conservative: subject overlap + same-kind disjoint quantities.
 
+def _bow_embedder(texts):
+    # Deterministic bag-of-words vectors (test-only proxy for MiniLM): masked-identical text -> cosine
+    # 1.0; different-subject masked text -> < 0.93. Exercises the same-subject gate without a model.
+    # The detector masks BEFORE calling the embedder, so these receive already-masked strings.
+    toks = [set(str(t).lower().split()) for t in texts]
+    vocab = sorted(set().union(*toks)) if toks else []
+    return [[1.0 if v in tk else 0.0 for v in vocab] for tk in toks]
+
+
 def test_numeric_conflicting_percentages_same_subject():
     assert eq._detect_numeric_temporal_conflict(
         "Compute among safety labs grew 30 percent last year",
-        "Compute among safety labs grew 10 percent last year") is True
+        "Compute among safety labs grew 10 percent last year", embedder=_bow_embedder) is True
 
 
 def test_numeric_same_percentage_no_conflict():
@@ -181,20 +190,52 @@ def test_numeric_different_subject_no_conflict():
 def test_temporal_conflicting_years_same_subject():
     assert eq._detect_numeric_temporal_conflict(
         "The superintelligence ban takes effect by 2027 under this act",
-        "The superintelligence ban takes effect by 2030 under this act") is True
+        "The superintelligence ban takes effect by 2030 under this act", embedder=_bow_embedder) is True
 
 
 def test_bare_numbers_conflict_requires_strong_overlap():
     # 4+ shared content words + disjoint bare numbers -> conflict.
     assert eq._detect_numeric_temporal_conflict(
         "The frontier training run used 3 data centers in the cluster",
-        "The frontier training run used 7 data centers in the cluster") is True
+        "The frontier training run used 7 data centers in the cluster", embedder=_bow_embedder) is True
 
 
 def test_bare_numbers_weak_overlap_no_conflict():
     # Disjoint numbers but too few shared words -> no fire (subject gate not met).
     assert eq._detect_numeric_temporal_conflict(
         "labs used 3 chips", "labs used 7 servers") is False
+
+
+# same-subject masked-cosine hard-gate (t/3337#5) — the fix for the 0/54 same-doc precision failure
+
+def test_mask_numbers_replaces_values_keeps_metric():
+    m = eq._mask_numbers("17% of firms cut 5,000 jobs by 2024 worth $3 billion")
+    assert "17" not in m and "5,000" not in m and "2024" not in m and "$" not in m and "billion" not in m
+    assert "firms" in m and "jobs" in m and "worth" in m   # metric/subject words survive
+
+def test_same_subject_gate_blocks_different_subject_that_old_detector_fired():
+    # The regression the census exposed: disjoint % + >=3 shared words but DIFFERENT metric (postings vs
+    # skills). Old detector fired (0/54 precision); the masked-cosine gate must SKIP it.
+    a = "job postings dropped 17 percent this year across the market"
+    b = "required skills dropped 24 percent this year across the market"
+    assert eq._detect_numeric_temporal_conflict(a, b, embedder=_bow_embedder) is False
+
+def test_same_subject_gate_still_fires_same_metric():
+    # Same metric, different value -> masked-identical -> cosine 1.0 -> fires (recall preserved).
+    a = "unemployment rose 17 percent this year across the market"
+    b = "unemployment rose 24 percent this year across the market"
+    assert eq._detect_numeric_temporal_conflict(a, b, embedder=_bow_embedder) is True
+
+def test_same_subject_gate_no_candidate_skips_embed():
+    # Same numbers (not disjoint) -> no candidate -> returns False WITHOUT calling the embedder.
+    called = {"n": 0}
+    def spy(texts):
+        called["n"] += 1
+        return _bow_embedder(texts)
+    assert eq._detect_numeric_temporal_conflict(
+        "labs grew compute 30 percent last year", "labs grew compute 30 percent last year",
+        embedder=spy) is False
+    assert called["n"] == 0   # no embed when there's no disjoint-number candidate (cheap fast-path)
 
 
 # detect_semantic_edges + enrich_conflict extra_edges — fork-B wiring (t/3302, AI mocked)
@@ -217,7 +258,8 @@ def test_detect_semantic_edges_numeric_and_llm():
         ids = {p["id"] for c in batch for p in c["pairs"]}
         assert ids == {"1:0:1"}, f"numeric pair must not reach the LLM; got {ids}"
         return {"1:0:1": {"label": "contradict", "confidence": 0.9}}
-    by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.5, mode="per-conflict", cc_runner=runner)
+    by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.5, mode="per-conflict", cc_runner=runner,
+                                     embedder=_bow_embedder)
     # Symmetric contradictions: TWO attack edges each (i->j and j->i), t/3336#4.
     assert len(by_ci[0]) == 2 and all(e["detector"] == "numeric" and e["type"] == "attacks" for e in by_ci[0])
     assert {(e["source"], e["target"]) for e in by_ci[0]} == {("inst-0", "inst-1"), ("inst-1", "inst-0")}
@@ -269,7 +311,8 @@ def test_semantic_edge_provenance_classifier_and_tau():
             _si("neutral", "d2", "dogs are loud household pets")]}),
     ]
     runner = lambda batch, mode, temp: {"1:0:1": {"label": "contradict", "confidence": 0.9}}
-    by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.9, mode="per-conflict", cc_runner=runner)
+    by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.9, mode="per-conflict", cc_runner=runner,
+                                     embedder=_bow_embedder)
     # LLM edge carries classifier id + τ (TL GV cond 1)
     llm_edge = by_ci[1][0]
     assert llm_edge["classifier"] == eq._CC_USAGE_ID
@@ -293,7 +336,7 @@ def test_predictions_sink_captures_numeric_and_llm():
     runner = lambda batch, mode, temp: {"1:0:1": {"label": "contradict", "confidence": 0.9, "method": "llm-batch"}}
     sink = []
     eq.detect_semantic_edges(to_process, min_confidence=0.9, mode="per-conflict",
-                             cc_runner=runner, predictions_sink=sink)
+                             cc_runner=runner, predictions_sink=sink, embedder=_bow_embedder)
     assert len(sink) == 2  # one numeric candidate + one llm candidate, none dropped
     by_conf = {p["conflict_id"]: p for p in sink}
     num = by_conf["c0"]
