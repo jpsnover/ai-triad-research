@@ -39,7 +39,8 @@
 [CmdletBinding()]
 param(
     [string]$BicepPath,
-    [switch]$ForStaging
+    [switch]$ForStaging,
+    [switch]$NamesOnly
 )
 
 Set-StrictMode -Version Latest
@@ -69,6 +70,32 @@ $block = $Matches[1]
 $literalPattern = @"
 \{\s*name:\s*'([^']+)',\s*value:\s*'([^'\$\{\}]*)'\s*\}
 "@.Trim()
+
+if ($NamesOnly) {
+    # Return all key names from baseEnv (and stagingEnvOverrides if ForStaging),
+    # regardless of value type (literal, interpolated, param-ref). Used by
+    # Sync-StagingEnv.ps1 to scope its orphan-removal reconcile safely (t/3345).
+    $namePattern = "\{\s*name:\s*'([^']+)'"
+    $allNames    = [System.Collections.Generic.List[string]]::new()
+    foreach ($src in @($block)) {
+        $src | Select-String -Pattern $namePattern -AllMatches | ForEach-Object {
+            foreach ($m in $_.Matches) {
+                $n = $m.Groups[1].Value
+                if ($n -notin $allNames) { $allNames.Add($n) }
+            }
+        }
+    }
+    if ($ForStaging -and $content -match '(?s)var stagingEnvOverrides\s*=\s*\[(.*?)\]') {
+        $stagingBlock = $Matches[1]
+        $stagingBlock | Select-String -Pattern $namePattern -AllMatches | ForEach-Object {
+            foreach ($m in $_.Matches) {
+                $n = $m.Groups[1].Value
+                if ($n -notin $allNames) { $allNames.Add($n) }
+            }
+        }
+    }
+    return [string[]]$allNames
+}
 
 $result = @{}
 $block | Select-String -Pattern $literalPattern -AllMatches | ForEach-Object {
