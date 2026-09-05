@@ -127,6 +127,11 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
     // (not a fail-open NODE_ENV/branch check). So DevOps arms it with a SINGLE var on NORMAL staging
     // (no NODE_ENV flip → none of the HOST/STORAGE_MODE/ALLOWED_ORIGINS confounds). RUNTIME-scoped to
     // this response only: boot validateDataRoot runs against real data, unaffected — no ENFORCE change.
+    // GATE CO-LOCATION (TL t/3340#6): isStagingIdentity()'s own doc says "used only by the state-root
+    // isolation guard — never an auth/security decision." This call is a DELIBERATE, TL-approved
+    // exception — it's staging-only FEATURE-scoping of a fail-safe test knob (worst case = a self-DoS
+    // behind the flag on staging only), NOT an access-control decision. A future isStagingIdentity
+    // doc-usage sweep should read this as a justified exception, not drift.
     const forceDataRootFailed = isStagingIdentity() && process.env.READYZ_FORCE_DATA_ROOT_FAILED === '1';
     const dr = forceDataRootFailed
       ? { state: 'failed' as const, reason: 'forced (READYZ_FORCE_DATA_ROOT_FAILED test knob, t/3236)' }
