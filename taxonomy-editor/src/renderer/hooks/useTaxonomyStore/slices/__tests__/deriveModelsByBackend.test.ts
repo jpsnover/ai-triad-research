@@ -24,10 +24,12 @@ import { dirname, resolve } from 'node:path';
 import {
   deriveModelsByBackend,
   deriveBackends,
+  resolveStoredModel,
   MODELS_BY_BACKEND,
   AI_BACKENDS,
   getStoredModel,
   type AIBackend,
+  type AIModel,
 } from '../settingsSlice';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 
@@ -191,5 +193,31 @@ describe('t/3328: derive keyspace = config.backends ∪ constant keys', () => {
   it('deriveBackends includes the new config-only backend (membership follows config)', () => {
     const b = deriveBackends(synthConfig as never);
     expect(b).toContainEqual({ value: 'newbackend', label: 'New Backend' });
+  });
+});
+
+describe('resolveStoredModel — graceful-empty guard, both arms (t/3286, TL t/3286#11)', () => {
+  // Pure extraction of getStoredModel's resolution, so BOTH branches of the empty-backend guard are
+  // exercised directly — including the FALSE branch (backend default is not a real model → globalDefault)
+  // that the real-config integration test can't reach (it lands on a valid default).
+  const ALL = new Set<string>(['real-model', 'other-model', 'global-default']);
+  const GLOBAL = 'global-default' as AIModel;
+  const DEFAULTS = { good: 'real-model', empty: 'not-a-model' } as unknown as Record<AIBackend, AIModel>;
+
+  it('ARM (a): a valid backend default is returned as-is', () => {
+    expect(resolveStoredModel(null, 'good' as AIBackend, DEFAULTS, ALL, GLOBAL)).toBe('real-model');
+  });
+
+  it('ARM (b): a NON-model backend default falls back to the global default (no strand)', () => {
+    // The empty/misconfigured-backend leg: DEFAULT_MODELS[backend] is not a real id → globalDefault.
+    expect(resolveStoredModel(null, 'empty' as AIBackend, DEFAULTS, ALL, GLOBAL)).toBe('global-default');
+  });
+
+  it('a valid stored id wins over the backend default', () => {
+    expect(resolveStoredModel('other-model', 'good' as AIBackend, DEFAULTS, ALL, GLOBAL)).toBe('other-model');
+  });
+
+  it('a bogus stored id is rejected, then the backend default resolves', () => {
+    expect(resolveStoredModel('bogus-id', 'good' as AIBackend, DEFAULTS, ALL, GLOBAL)).toBe('real-model');
   });
 });
