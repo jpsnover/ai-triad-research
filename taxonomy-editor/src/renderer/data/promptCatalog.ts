@@ -989,6 +989,17 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     promptFiles: ['qbaf-pair-confirm'],
   },
   {
+    id: 'ps-contradiction-classify',
+    title: 'Contradiction Classifier (Fork-B Semantic Opposition)',
+    description: 'Classifies the logical relation (contradict | entail | neutral) between two within-conflict factual assertions.',
+    source: 'AITriad/Prompts/contradiction-classify.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by invoke-contradiction-classifier.ps1 (fork-B semantic-opposition edges, t/3302). Per-conflict batch classification of within-conflict assertion pairs — contradict → attack edge, entail → support edge — feeding the QBAF via enrich_conflicts_qbaf.py --semantic-edges.',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['contradiction-classify'],
+  },
+  {
     id: 'ps-entity-link-judge',
     title: 'Entity Link Judge',
     description: 'LLM judge prompt that classifies entity_refs as genuine or spurious surface/alias matches in extraction quality audits.',
