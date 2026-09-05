@@ -52,9 +52,11 @@ export type OpenAIModel =
   | 'openai-gpt-5.5'
   | 'openai-gpt-5.5-pro';
 
+// t/3286: real config model ids (the old 'deepseek-chat'/'deepseek-reasoner' were phantoms — no
+// ai-models.json entry). deepseek-v4-flash is defaults.deepseek.
 export type DeepSeekModel =
-  | 'deepseek-chat'
-  | 'deepseek-reasoner';
+  | 'deepseek-deepseek-v4-flash'
+  | 'deepseek-deepseek-v4-pro';
 
 export type AzureModel =
   | 'azure-gpt-4o'
@@ -82,13 +84,14 @@ export interface AIModelEntry { value: AIModel; label: string }
 
 // t/3329: pre-load fallback ONLY — at runtime initAIModels replaces this with deriveBackends(config).
 // A parity gate keeps it byte-identical to deriveBackends(ai-models.json): membership, order, and labels
-// all follow config.backends (SSOT). deepseek is absent because it has no picker models (zero-picker →
-// not selectable). Order matches config.backends (deepseek filtered out).
+// all follow config.backends (SSOT). Order matches config.backends. (t/3286: deepseek re-added once its
+// v4 models gained picker entries — deriveBackends now offers it automatically, this fallback mirrors it.)
 export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
   { value: 'gemini', label: 'Google Gemini' },
   { value: 'claude', label: 'Anthropic Claude' },
   { value: 'groq', label: 'Groq' },
   { value: 'openai', label: 'OpenAI' },
+  { value: 'deepseek', label: 'DeepSeek' },
   { value: 'azure', label: 'Azure OpenAI' },
   { value: 'zai', label: 'Z.AI (GLM)' },
   { value: 'moonshot', label: 'Moonshot (Kimi)' },
@@ -98,7 +101,7 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
 
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
   gemini: [
-    { value: DEFAULT_MODEL, label: '3.1 Flash Lite Preview (default)' },
+    { value: DEFAULT_MODEL, label: '3.5 Flash Lite (default)' },
     { value: 'gemini-3.1-pro-preview', label: '3.1 Pro Preview (best quality)' },
     { value: 'gemini-3.8-flash', label: '3.8 Flash' },
     { value: 'gemini-3.6-flash', label: '3.6 Flash' },
@@ -121,10 +124,13 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
     { value: 'openai-gpt-5.5', label: 'GPT-5.5' },
     { value: 'openai-gpt-5.5-pro', label: 'GPT-5.5 Pro' },
   ],
-  // t/3280: deepseek has NO picker entries in ai-models.json — both prior entries (deepseek-chat,
-  // deepseek-reasoner) were phantoms (no config id → misroute on select). Empty picker; the runtime
-  // derive keeps it []. Empty-backend handling: getStoredModel falls back to DEFAULT_MODEL (below).
-  deepseek: [],
+  // t/3286: deepseek picker restored — its real config models (v4-flash/v4-pro) gained `picker` entries
+  // in ai-models.json, replacing the old phantoms (deepseek-chat/reasoner). Kept byte-identical to the
+  // derive by the parity gate. v4-flash is defaults.deepseek → its label carries the '(default)' marker.
+  deepseek: [
+    { value: 'deepseek-deepseek-v4-flash', label: 'V4 Flash (default)' },
+    { value: 'deepseek-deepseek-v4-pro', label: 'V4 Pro (reasoning)' },
+  ],
   azure: [
     { value: 'azure-gpt-4o', label: 'GPT-4o' },
     { value: 'azure-gpt-4o-mini', label: 'GPT-4o Mini' },
@@ -157,7 +163,7 @@ const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
   claude: 'claude-sonnet-4-6',
   groq: 'groq-llama-4-scout-17b-16e',
   openai: 'openai-gpt-5.5',
-  deepseek: 'deepseek-chat',
+  deepseek: 'deepseek-deepseek-v4-flash',
   azure: 'azure-gpt-4o',
   ollama: 'ollama-gemma4-e4b-it-q4-k-m',
   zai: 'zai-glm-5-2',
@@ -186,18 +192,33 @@ function getStoredBackend(): AIBackend {
   return 'gemini';
 }
 
+/**
+ * t/3286: PURE model-resolution guard, extracted from getStoredModel for both-arms testability (TL
+ * t/3286#11 — the t/2971 extract-don't-seam discipline). Resolution order: a valid stored id wins;
+ * else the backend's default IF it is a real model; else the always-present global default. The final
+ * branch is the graceful-empty guard — an empty/misconfigured backend whose default isn't a real id
+ * must never strand the UI on a non-model string.
+ */
+export function resolveStoredModel(
+  storedId: string | null,
+  backend: AIBackend,
+  defaultModels: Record<AIBackend, AIModel>,
+  allModelIds: ReadonlySet<string>,
+  globalDefault: AIModel,
+): AIModel {
+  if (storedId && allModelIds.has(storedId)) return storedId as AIModel;
+  const fallback = defaultModels[backend];
+  return allModelIds.has(fallback) ? fallback : globalDefault;
+}
+
 export function getStoredModel(): AIModel {
+  let stored: string | null = null;
   try {
-    const stored = localStorage.getItem('taxonomy-editor-gemini-model');
-    if (stored && ALL_MODEL_IDS.has(stored)) return stored as AIModel;
+    stored = localStorage.getItem('taxonomy-editor-gemini-model');
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
-  // t/3280: guard an empty-picker backend (deepseek) / a pre-load phantom default — never strand the
-  // UI on a non-model id; fall back to the always-present global DEFAULT_MODEL.
-  const backend = getStoredBackend();
-  const fallback = DEFAULT_MODELS[backend];
-  return ALL_MODEL_IDS.has(fallback) ? fallback : DEFAULT_MODEL;
+  return resolveStoredModel(stored, getStoredBackend(), DEFAULT_MODELS, ALL_MODEL_IDS, DEFAULT_MODEL);
 }
 
 interface AIModelsConfig {

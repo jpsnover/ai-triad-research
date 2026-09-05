@@ -9,7 +9,10 @@
 //   1. PARITY — deriveModelsByBackend(ai-models.json) is byte-identical to the curated
 //      MODELS_BY_BACKEND checked into source (so the pre-load fallback == the runtime derive; no drift).
 //   2. DEFAULT_MODEL is present as a selectable picker entry (the global default must be pickable).
-//   3. Empty-picker backend (deepseek) derives to [] without crashing, and getStoredModel guards it.
+//   3. (t/3286) The graceful-empty invariant — a ZERO-picker backend derives to [], is filtered from the
+//      selector, and getStoredModel never yields a non-model id — held against a SYNTHETIC subject (since
+//      t/3286 restored deepseek's picker, no real backend is empty; the invariant is nonetheless permanent).
+//      Plus a general real-config no-strand guard: every OFFERED backend has ≥1 picker entry.
 //   4. (t/3329) AI_BACKENDS is SSOT-derived — deriveBackends(config) byte-identical to the pre-load list.
 //   5. (t/3328) derive keyspace = config.backends ∪ constant keys — a config-only backend still surfaces.
 // Wired into `npm run verify:config`.
@@ -21,10 +24,12 @@ import { dirname, resolve } from 'node:path';
 import {
   deriveModelsByBackend,
   deriveBackends,
+  resolveStoredModel,
   MODELS_BY_BACKEND,
   AI_BACKENDS,
   getStoredModel,
   type AIBackend,
+  type AIModel,
 } from '../settingsSlice';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 
@@ -36,6 +41,21 @@ const aiModels = JSON.parse(
   backends: { id: string; label: string }[];
   models: { id: string; label: string; backend: string; picker?: { label: string; order: number } }[];
   defaults: Record<string, string>;
+};
+
+// t/3286: synthetic config for the permanent graceful-empty invariant — a fabricated zero-picker
+// backend ('emptybackend': has a model, but NONE carry `picker`) alongside a normal one. Keeps the
+// empty-backend coverage decoupled from whichever real backend happens to be curated-out.
+const ZERO_PICKER_CONFIG = {
+  backends: [
+    { id: 'gemini', label: 'Google Gemini' },
+    { id: 'emptybackend', label: 'Empty Backend' },
+  ],
+  models: [
+    { id: 'gemini-3.1-pro-preview', label: 'x', backend: 'gemini', picker: { label: 'x', order: 10 } },
+    { id: 'emptybackend-hidden', label: 'Hidden', backend: 'emptybackend' },
+  ],
+  defaults: {},
 };
 
 describe('deriveModelsByBackend (t/3280 SSOT derive)', () => {
@@ -78,17 +98,20 @@ describe('deriveModelsByBackend (t/3280 SSOT derive)', () => {
     expect(allValues.has(DEFAULT_MODEL), `DEFAULT_MODEL '${DEFAULT_MODEL}' absent from the derived picker`).toBe(true);
   });
 
-  it('an empty-picker backend (deepseek) derives to [] without crashing', () => {
-    expect(derived.deepseek).toEqual([]);
+  it('a zero-picker backend derives to [] without crashing (synthetic subject, t/3286)', () => {
+    // Post-t/3286 no real backend is empty (deepseek restored); the graceful-empty invariant is
+    // permanent, so exercise it on a synthetic config with a fabricated zero-picker backend.
+    const d = deriveModelsByBackend(ZERO_PICKER_CONFIG as never);
+    expect(d['emptybackend' as AIBackend]).toEqual([]);
   });
 
-  it('no user-selectable backend has an empty picker (would strand the model dropdown)', () => {
-    // Pre-load AI_BACKENDS must offer only backends with ≥1 curated model; initAIModels applies the
-    // same picker-presence filter at runtime. deepseek is the empty-picker case that must be excluded.
+  it('GENERAL no-strand guard: every offered backend has ≥1 picker entry (t/3286)', () => {
+    // Durable real-config invariant (TL t/3286#3) — strictly stronger than a deepseek-specific ===[]:
+    // any backend surfaced in the selector must have at least one selectable model or the dropdown
+    // strands. Covers ALL current + future offered backends, not one hard-coded subject.
     for (const b of AI_BACKENDS) {
-      expect(MODELS_BY_BACKEND[b.value].length, `backend '${b.value}' is selectable but has no picker models`).toBeGreaterThan(0);
+      expect(MODELS_BY_BACKEND[b.value].length, `offered backend '${b.value}' has no picker models`).toBeGreaterThan(0);
     }
-    expect(AI_BACKENDS.some(b => b.value === 'deepseek'), 'deepseek (no picker models) must not be selectable').toBe(false);
   });
 
   it('BACKEND PARITY (t/3329): deriveBackends(config) is byte-identical to pre-load AI_BACKENDS', () => {
@@ -98,17 +121,39 @@ describe('deriveModelsByBackend (t/3280 SSOT derive)', () => {
     expect(deriveBackends(aiModels)).toEqual(AI_BACKENDS);
   });
 
-  it('deriveBackends excludes a zero-picker backend (deepseek)', () => {
-    expect(deriveBackends(aiModels).some(b => b.value === 'deepseek')).toBe(false);
+  it('deriveBackends excludes a zero-picker backend (synthetic subject, t/3286)', () => {
+    // deepseek is now offered (t/3286 restored its picker); prove the exclusion mechanism on a
+    // synthetic zero-picker backend, while a sibling WITH picker models in the same config IS offered.
+    const b = deriveBackends(ZERO_PICKER_CONFIG as never);
+    expect(b.some(x => x.value === 'emptybackend')).toBe(false);
+    expect(b.some(x => x.value === 'gemini')).toBe(true);
   });
 
-  it('getStoredModel never returns a non-model id even when its backend has an empty picker', () => {
-    // deepseek is the empty-picker case; the phantom-default guard must fall back to DEFAULT_MODEL.
-    localStorage.clear();
-    localStorage.setItem('taxonomy-editor-backend', 'deepseek');
-    const model = getStoredModel();
+  it('deepseek is now an offered backend with its restored v4 picker (t/3286)', () => {
+    // Positive assertion that the restore actually took effect (guards against a silent re-emptying).
+    expect(derived.deepseek).toEqual([
+      { value: 'deepseek-deepseek-v4-flash', label: 'V4 Flash (default)' },
+      { value: 'deepseek-deepseek-v4-pro', label: 'V4 Pro (reasoning)' },
+    ]);
+    expect(deriveBackends(aiModels).some(b => b.value === 'deepseek')).toBe(true);
+  });
+
+  it('getStoredModel never returns a non-model id (guard property)', () => {
+    // The guard rejects a stored/default id that is not a real model and falls back to DEFAULT_MODEL.
+    // getStoredModel reads module singletons (ALL_MODEL_IDS/DEFAULT_MODELS), so the empty-backend →
+    // DEFAULT_MODEL leg is covered by the pure-fn derive/exclude tests above; here we prove the
+    // "never a non-model id" property directly across clean + poisoned localStorage.
+    // NOTE (t/3286): the stored-backend key is 'taxonomy-editor-ai-backend' — the #1971 test used
+    // 'taxonomy-editor-backend' (wrong key), so getStoredBackend never saw it and the test was vacuous.
     const allValues = new Set(Object.values(MODELS_BY_BACKEND).flat().map(e => e.value));
-    expect(allValues.has(model) || model === DEFAULT_MODEL).toBe(true);
+    localStorage.clear();
+    // (a) clean storage → a real model (the global default).
+    expect(allValues.has(getStoredModel())).toBe(true);
+    // (b) a bogus stored model id is rejected → still a real model, never the bogus id.
+    localStorage.setItem('taxonomy-editor-gemini-model', 'not-a-real-model-xyz');
+    const m = getStoredModel();
+    expect(m).not.toBe('not-a-real-model-xyz');
+    expect(allValues.has(m)).toBe(true);
     localStorage.clear();
   });
 
@@ -148,5 +193,31 @@ describe('t/3328: derive keyspace = config.backends ∪ constant keys', () => {
   it('deriveBackends includes the new config-only backend (membership follows config)', () => {
     const b = deriveBackends(synthConfig as never);
     expect(b).toContainEqual({ value: 'newbackend', label: 'New Backend' });
+  });
+});
+
+describe('resolveStoredModel — graceful-empty guard, both arms (t/3286, TL t/3286#11)', () => {
+  // Pure extraction of getStoredModel's resolution, so BOTH branches of the empty-backend guard are
+  // exercised directly — including the FALSE branch (backend default is not a real model → globalDefault)
+  // that the real-config integration test can't reach (it lands on a valid default).
+  const ALL = new Set<string>(['real-model', 'other-model', 'global-default']);
+  const GLOBAL = 'global-default' as AIModel;
+  const DEFAULTS = { good: 'real-model', empty: 'not-a-model' } as unknown as Record<AIBackend, AIModel>;
+
+  it('ARM (a): a valid backend default is returned as-is', () => {
+    expect(resolveStoredModel(null, 'good' as AIBackend, DEFAULTS, ALL, GLOBAL)).toBe('real-model');
+  });
+
+  it('ARM (b): a NON-model backend default falls back to the global default (no strand)', () => {
+    // The empty/misconfigured-backend leg: DEFAULT_MODELS[backend] is not a real id → globalDefault.
+    expect(resolveStoredModel(null, 'empty' as AIBackend, DEFAULTS, ALL, GLOBAL)).toBe('global-default');
+  });
+
+  it('a valid stored id wins over the backend default', () => {
+    expect(resolveStoredModel('other-model', 'good' as AIBackend, DEFAULTS, ALL, GLOBAL)).toBe('other-model');
+  });
+
+  it('a bogus stored id is rejected, then the backend default resolves', () => {
+    expect(resolveStoredModel('bogus-id', 'good' as AIBackend, DEFAULTS, ALL, GLOBAL)).toBe('real-model');
   });
 });

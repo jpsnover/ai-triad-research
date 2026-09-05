@@ -136,7 +136,7 @@
       "label": "Gemini 3.5 Flash Lite",
       "backend": "gemini",
       "picker": {
-        "label": "3.1 Flash Lite Preview (default)",
+        "label": "3.5 Flash Lite (default)",
         "order": 10
       }
     },
@@ -872,13 +872,21 @@
       "id": "deepseek-deepseek-v4-flash",
       "apiModelId": "deepseek-v4-flash",
       "label": "Deepseek V4 Flash",
-      "backend": "deepseek"
+      "backend": "deepseek",
+      "picker": {
+        "label": "V4 Flash (default)",
+        "order": 10
+      }
     },
     {
       "id": "deepseek-deepseek-v4-pro",
       "apiModelId": "deepseek-v4-pro",
       "label": "Deepseek V4 Pro",
-      "backend": "deepseek"
+      "backend": "deepseek",
+      "picker": {
+        "label": "V4 Pro (reasoning)",
+        "order": 20
+      }
     },
     {
       "id": "ollama-gemma4-e4b-it-q4-k-m",
