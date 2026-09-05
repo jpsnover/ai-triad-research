@@ -596,6 +596,13 @@ var stagingEnvOverrides = [
   // NOTE: DATA_ROOT_VALIDATION_ENFORCE=1 is NOT a staging-only override — it now lives in baseEnv
   // so BOTH prod and staging enforce, promoted after the staging real-env validation (t/3305; rev
   // staging-4826363 booted enforce-green). Kept out of the overrides to avoid a duplicate env key.
+  // ⚠️ TEMPORARY — t/3309 Arm-B fire-arm ONLY. Forces the /readyz data-root-readiness handler to
+  // return a DEFINITIVE 503 {status:failed, reason:data-root-failed} (ServerAPI #1998, runtime-only:
+  // boot validateDataRoot still reads real data → passes, no exit(1)). Fail-closed by isStagingIdentity
+  // (prod app name can't match /staging/ → inert in prod). Exercises the /readyz warm-gate end-to-end:
+  // smoke green on real data, warm-gate polls forced-503 → warm=false → fail+rollback+RED. REVERT
+  // immediately after the Arm-B run captures the evidence (t/3309 GV). Do NOT leave this on staging.
+  { name: 'READYZ_FORCE_DATA_ROOT_FAILED', value: '1' }
 ]
 // stagingBaseEnv = baseEnv with the isolation overrides applied.
 // filter() removes the baseEnv entries that stagingEnvOverrides supersedes.
