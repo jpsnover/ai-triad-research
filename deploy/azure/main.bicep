@@ -553,6 +553,13 @@ var baseEnv = [
   // ops, so it must run on the undici-timeout/degrade-and-proceed code, not the untimed-fetch code.
   // baseEnv (never CLI --set-env-vars) + MUST stay in sync with deploy-azure.yml ExpectedEnvVars.
   { name: 'GROUNDING_SWEEP_ENABLED', value: '1' }
+  // t/3305: data-root boot validation is HARD-FAIL in prod (staging inherits this too). A
+  // misprovisioned data root crash-loops VISIBLY instead of serving empty panels (the t/3296
+  // fail-loud, with the t/3308 warn-alert as the warn-only backstop for any un-flagged env).
+  // Promoted to prod after the staging real-env gate (t/2683): staging rev staging-4826363 booted
+  // enforce-green against the live github-api ref:'main' corpus (0 validation-failures). baseEnv
+  // (never CLI --set-env-vars) + MUST stay in sync with deploy-azure.yml ExpectedEnvVars.
+  { name: 'DATA_ROOT_VALIDATION_ENFORCE', value: '1' }
 ]
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
@@ -586,12 +593,9 @@ var stagingEnvOverrides = [
   { name: 'AI_TRIAD_STATE_ROOT', value: '/mnt/staging-state' }
   // github-api writes go to the staging branch, not main (t/2650 class-B isolation)
   { name: 'GITHUB_BRANCH',       value: 'staging' }
-  // t/3305: promote the data-root boot validation (t/3296) to HARD-FAIL on staging first —
-  // a misprovisioned data root crash-loops VISIBLY here (real backend + real creds) before we
-  // set this in prod baseEnv. Gated real-env-first (t/2683): staging proves the exit(1) path
-  // against the live github-api ref:'main' corpus, which validated CLEAN on the warn-only boot
-  // (rev staging-4826363, no "validation failed" WARN), so enforce mode boots green not looping.
-  { name: 'DATA_ROOT_VALIDATION_ENFORCE', value: '1' }
+  // NOTE: DATA_ROOT_VALIDATION_ENFORCE=1 is NOT a staging-only override — it now lives in baseEnv
+  // so BOTH prod and staging enforce, promoted after the staging real-env validation (t/3305; rev
+  // staging-4826363 booted enforce-green). Kept out of the overrides to avoid a duplicate env key.
 ]
 // stagingBaseEnv = baseEnv with the isolation overrides applied.
 // filter() removes the baseEnv entries that stagingEnvOverrides supersedes.
