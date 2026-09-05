@@ -40,14 +40,31 @@ jobs:
           path: ai-triad-data
           token: ${{ secrets.DATA_REPO_TOKEN }}  # Scope: contents:write on jpsnover/ai-triad-data (checkout + git push)
 
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+      # This repo is a pnpm WORKSPACE (root pnpm-lock.yaml); lib/debate has no standalone
+      # package-lock.json, so `npm ci` there fails (EUSAGE). Install the workspace with pnpm and
+      # run via `pnpm exec tsx` — mirrors the ci.yml debate/tsx pattern.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6.0.10
+        with:
+          version: '11.20.0'
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
           node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
-      - name: Install lib/debate deps
-        working-directory: lib/debate
-        run: npm ci
+      - name: Install workspace deps (pnpm; tsx + lib/debate)
+        run: |
+          for i in 1 2 3; do
+            pnpm install --frozen-lockfile && break
+            if [ "$i" -lt 3 ]; then
+              echo "pnpm install attempt $i failed; retry in $((i * 15))s"
+              sleep $((i * 15))
+            else
+              echo "::error::pnpm install failed after $i attempts"
+              exit 1
+            fi
+          done
 
       - name: Run debate-tested backfill (--write)
         id: sweep
@@ -55,7 +72,7 @@ jobs:
           AI_TRIAD_DATA_ROOT: ${{ github.workspace }}/ai-triad-data
         run: |
           set -o pipefail
-          out=$(npx tsx lib/debate/backfillDebateTested.ts --write | tee /dev/stderr)
+          out=$(pnpm exec tsx lib/debate/backfillDebateTested.ts --write | tee /dev/stderr)
           created=$(printf '%s\n' "$out" | grep -oE 'Entries created: [0-9]+' | grep -oE '[0-9]+$' | tail -1)
           echo "created=${created:-0}" >> "$GITHUB_OUTPUT"
           echo "entriesCreated=${created:-0}"
@@ -84,7 +101,7 @@ jobs:
           AI_TRIAD_DATA_ROOT: ${{ github.workspace }}/ai-triad-data
         run: |
           set -o pipefail
-          out=$(npx tsx lib/debate/backfillDebateTested.ts | tee /dev/stderr)
+          out=$(pnpm exec tsx lib/debate/backfillDebateTested.ts | tee /dev/stderr)
           lag=$(printf '%s\n' "$out" | grep -oE 'Lag: [0-9]+' | grep -oE '[0-9]+$' | tail -1)
           echo "post-sweep lag=${lag:-<unparsed>}"
           if [ "${lag:-1}" != "0" ]; then
