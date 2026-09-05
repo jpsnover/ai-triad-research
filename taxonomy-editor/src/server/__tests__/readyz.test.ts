@@ -6,7 +6,7 @@
 // (TL-approved contract, p/542#55); 503 while warming. Anon (deploy probe polls pre-auth).
 // Covers: publicPaths inclusion + handler response shape.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PUBLIC_EXACT_PATHS, computeIsPublicPath } from '../publicPaths.js';
 
 // t/3114 shared body-contract fixture. This SAME file is read by the deploy warm-gate's
@@ -47,10 +47,16 @@ type HandlerResult = { statusCode: number; body: Record<string, unknown> };
 // t/3309: the data-root gate composes AHEAD of the embeddings gate. Default 'ready' so the
 // existing embeddings-branch cases below are unaffected (data-root ready → falls through).
 function simulateReadyz(r: Resolution, dataRoot: DataRoot = { state: 'ready' }): HandlerResult {
-  if (dataRoot.state === 'failed') {
-    return { statusCode: 503, body: { status: 'failed', reason: `data-root-failed: ${dataRoot.reason ?? 'unknown'}` } };
+  // t/3236: test-only fault knob — force the definitive data-root-FAILED state, gated non-prod.
+  // In lockstep with routes/meta.ts. Runtime-scoped: overrides only this response, not boot.
+  const forceDataRootFailed = process.env.NODE_ENV !== 'production' && process.env.READYZ_FORCE_DATA_ROOT_FAILED === '1';
+  const dr: DataRoot = forceDataRootFailed
+    ? { state: 'failed', reason: 'forced (READYZ_FORCE_DATA_ROOT_FAILED test knob, t/3236)' }
+    : dataRoot;
+  if (dr.state === 'failed') {
+    return { statusCode: 503, body: { status: 'failed', reason: `data-root-failed: ${dr.reason ?? 'unknown'}` } };
   }
-  if (dataRoot.state === 'validating') {
+  if (dr.state === 'validating') {
     return { statusCode: 503, body: { status: 'warming', reason: 'data-root-validating' } };
   }
   const { present, nodeCount, resolves } = r;
@@ -151,5 +157,45 @@ describe('/readyz shared body-contract fixture (t/3114)', () => {
     expect(readyBody.status).toBe('ready');
     expect(readyBody.nodeCount).toBeGreaterThan(0);
     expect(readyBody.resolves).toBe(true); // t/3165: resolution is now part of the 200 contract
+  });
+});
+
+// ── t/3236: READYZ_FORCE_DATA_ROOT_FAILED test-only fault knob ────────────────
+// Lets DevOps exercise the deploy warm-gate's FIRE arm (503 'failed' → block traffic-shift →
+// fail+rollback) against a REAL staging revision with real data, no 700M throwaway repo.
+// TL cond 1: forces the DEFINITIVE 'failed' state (NOT 'validating'). TL cond 2: gated
+// NODE_ENV!=='production' so it can NEVER force a false-negative /readyz in prod.
+describe('GET /readyz — READYZ_FORCE_DATA_ROOT_FAILED knob (t/3236)', () => {
+  const RESOLVING: Resolution = { present: true, nodeCount: 4144, resolves: true };
+  const ORIG_NODE_ENV = process.env.NODE_ENV;
+  beforeEach(() => { delete process.env.READYZ_FORCE_DATA_ROOT_FAILED; process.env.NODE_ENV = 'test'; });
+  afterEach(() => { delete process.env.READYZ_FORCE_DATA_ROOT_FAILED; process.env.NODE_ENV = ORIG_NODE_ENV; });
+
+  it('knob ON + non-production: forces definitive 503 failed even when data-root ready AND embeddings resolve', () => {
+    process.env.READYZ_FORCE_DATA_ROOT_FAILED = '1';
+    const { statusCode, body } = simulateReadyz(RESOLVING, { state: 'ready' });
+    expect(statusCode).toBe(503);
+    expect(body.status).toBe('failed'); // TL cond 1: definitive failed, NOT 'warming'
+    expect(String(body.reason)).toMatch(/^data-root-failed:/);
+    expect(String(body.reason)).toContain('READYZ_FORCE_DATA_ROOT_FAILED');
+  });
+
+  it('knob ON + NODE_ENV=production: INERT — falls through to the real ready 200 (no prod false-negative)', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.READYZ_FORCE_DATA_ROOT_FAILED = '1';
+    const { statusCode, body } = simulateReadyz(RESOLVING, { state: 'ready' });
+    expect(statusCode).toBe(200);
+    expect(body.status).toBe('ready');
+  });
+
+  it('knob value other than "1" is ignored', () => {
+    process.env.READYZ_FORCE_DATA_ROOT_FAILED = 'true'; // only exactly "1" enables
+    expect(simulateReadyz(RESOLVING, { state: 'ready' }).statusCode).toBe(200);
+  });
+
+  it('knob unset: real data-root state governs (unchanged behavior)', () => {
+    const { statusCode, body } = simulateReadyz(RESOLVING, { state: 'ready' });
+    expect(statusCode).toBe(200);
+    expect(body.status).toBe('ready');
   });
 });

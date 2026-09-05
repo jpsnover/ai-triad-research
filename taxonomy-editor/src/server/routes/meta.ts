@@ -117,7 +117,17 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
     // 'failed' is a hard 503 (not masked as a slow warm-up, cond 3); 'validating' is warming.
     // The 200-ready body is unchanged (data-root 'ready' falls through to the existing embeddings
     // gate), preserving the shared warm-gate body-contract fixture (t/3114).
-    const dr = getDataRootReadyState();
+    // t/3236: test-only fault knob — force the DEFINITIVE data-root-FAILED readiness so DevOps can
+    // exercise the deploy warm-gate's FIRE arm (503 'failed' → block traffic-shift → fail+rollback)
+    // against a REAL staging revision with real data, no 700M throwaway repo. TL cond 1: forces the
+    // definitive 'failed' state (NOT 'validating'), so the warm-gate sees a definitive failure.
+    // TL cond 2: gated NODE_ENV!=='production' so it can NEVER force a false-negative /readyz in prod
+    // (mirrors READYZ_FORCE_RESOLVES_FALSE, t/3192). RUNTIME-scoped to this response only: boot
+    // validateDataRoot runs against real data, unaffected — so no ENFORCE change is required for boot.
+    const forceDataRootFailed = process.env.NODE_ENV !== 'production' && process.env.READYZ_FORCE_DATA_ROOT_FAILED === '1';
+    const dr = forceDataRootFailed
+      ? { state: 'failed' as const, reason: 'forced (READYZ_FORCE_DATA_ROOT_FAILED test knob, t/3236)' }
+      : getDataRootReadyState();
     if (dr.state === 'failed') {
       logDataRootReadyzFailure(dr.reason); // cond 4: WARN→Log_s once per failure episode
       json(res, { status: 'failed', reason: `data-root-failed: ${dr.reason ?? 'unknown'}` }, 503);
