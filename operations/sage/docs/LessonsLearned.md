@@ -3999,3 +3999,63 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (p/228#22, t/3307). Recurrence of t/2514 duplicate-implementation class. The concrete `gh pr list --search` mechanic is the prevention gap vs. the existing q/42 rule.
 
 **Applies To:** All agents in multi-instance roles (PowerShell, CL, ServerAPI, etc.) and any agent taking over a ticket from an asleep peer. Especially relevant when the ticket is already assigned.
+
+---
+
+## #195 [Deploy/ACA] ACA Revision `runningState` Exact-Match `'Running'` Misses Healthy Revisions
+
+**Pattern:** A poll loop waiting for an ACA revision to become healthy matched only `runningState == 'Running'` exactly. ACA reports healthy revisions as `'RunningAtMaxScale'` or `'RunningAtMinScale'` depending on traffic. The loop timed out (exit 143) even though the revision was healthy throughout.
+
+**Instances:**
+- 2026-09-05 — DevOps (p/26#100): revision-health poll loop matched `runningState == 'Running'` exactly. ACA returned `'RunningAtMaxScale'` for the healthy revision; the loop never matched and timed out. Fix: changed match to `/^Running/` prefix regex.
+
+**Root Cause:** ACA's `runningState` enum includes `'Running'`, `'RunningAtMaxScale'`, and `'RunningAtMinScale'` — all indicating a healthy revision. Exact-matching only `'Running'` treats the scale-qualified variants as "not ready."
+
+**Prevention:**
+1. **Match `/^Running/` prefix when polling ACA revision `runningState` for health** — accepts all three healthy variants.
+2. **Unhealthy states** to watch for: `'Provisioning'`, `'Deprovisioning'`, `'Failed'`, `'Degraded'`.
+3. **Test the poll condition under real traffic** — scale-qualified states only appear under real or simulated load and may not surface in synthetic tests.
+
+**Status:** Active — 1 instance (p/26#100). ACA API behavior; prefix-match is the canonical fix.
+
+**Applies To:** All agents or scripts polling ACA revision health (deploy pipelines, readiness gates, blue-green flip scripts).
+
+---
+
+## #196 [Process/PR] Co-Merge / Joint-GV PRs Must Never Use `--auto` — Label `joint-gv` and Merge Manually
+
+**Pattern:** Two or more PRs must land together (locked cross-role contract) or one PR is gated on a joint TL Gate Verification. Auto-merge is enabled on one of them. When CI goes green, auto-merge fires and merges that PR alone — without its pair — briefly breaking main or stranding reviewed work.
+
+**Instances:**
+- 2026-09-04 — t/3307 / PR #1947 (AGENTS.md, t/3318): PR #1947 had auto-merge enabled as part of a co-merge pair. When checks went green, it merged alone without its ElectronMain pair, briefly breaking main. Fix: `joint-gv` label + `auto-merge-jointgv-guard` blocks `gh pr merge --auto` on labeled PRs; manual `--match-head-commit` merge required after GV clears.
+
+**Root Cause:** Auto-merge is unconditional on CI green — it has no awareness of PR-pairing or joint GV status. It races any coordination and fires on whichever PR's CI finishes first.
+
+**Prevention:**
+1. **Label co-merge and joint-GV PRs with `joint-gv`** — activates `auto-merge-jointgv-guard` which blocks `gh pr merge --auto` on the labeled PR.
+2. **Never enable auto-merge on a `joint-gv`-labeled PR** — merge manually with `--match-head-commit` after the joint GV clears.
+3. **`blocks` relations and ticket comments do NOT prevent auto-merge** — only the `joint-gv` label + guard enforces this.
+
+**Status:** Active — 1 instance (t/3307, t/3318). Codified in root AGENTS.md PR-Flow Practice Rules.
+
+**Applies To:** All agents landing cross-role paired PRs or PRs gated on joint TL Gate Verification.
+
+---
+
+## #197 [Process/Git] `gh pr close --delete-branch` Fails in Worktree Context When Branch Is Checked Out Elsewhere
+
+**Pattern:** `gh pr close <N> --delete-branch` fails with "fatal: '<branch>' is already used by worktree '<path>'" when the flag attempts to delete the local branch and that branch is currently checked out in the shared tree or another worktree.
+
+**Instances:**
+- 2026-09-05 — DevOps 2 (p/340#7): `gh pr close 1979 --delete-branch` failed because it attempted to delete local `main` (checked out by the shared tree). Fix: `git push origin --delete <branch>` to delete only the remote ref; local cleanup handled explicitly.
+
+**Root Cause:** `gh pr close --delete-branch` deletes both the remote and local branch. In a worktree context, deleting the local branch fails if it is currently checked out anywhere. The error surfaces as a git fatal, not a gh error.
+
+**Prevention:**
+1. **In worktree contexts, avoid `gh pr close --delete-branch`** — use `git push origin --delete <branch>` for the remote ref instead.
+2. **For local branch cleanup:** `git branch -D <branch>` only after confirming no worktree holds it via `git worktree list` (see also Pattern #187).
+3. **Close the PR and delete branches as separate steps** when in a worktree: `gh pr close <N>` then `git push origin --delete <branch>`.
+
+**Status:** Active — 1 instance (p/340#7). Worktree-context branch-delete constraint; separate remote + local delete is the canonical approach.
+
+**Applies To:** All agents closing PRs and cleaning up branches in a worktree context. Especially relevant when consolidating duplicate PRs (per Pattern #194).
