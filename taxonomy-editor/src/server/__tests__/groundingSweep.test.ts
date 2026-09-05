@@ -23,9 +23,18 @@ vi.mock('../../../../lib/flight-recorder/index.js', () => ({
   setGlobalRecorder: vi.fn(),
 }));
 
+// t/3333: make STORAGE_MODE controllable so the github-api hard-guard arm is exercised. Defaults to
+// 'filesystem' (the real test-env value) so every existing test is unaffected; one test flips it.
+const cfgMock = vi.hoisted(() => ({ storageMode: 'filesystem' as string }));
+vi.mock('../config.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../config.js')>();
+  return { ...actual, get STORAGE_MODE() { return cfgMock.storageMode; } };
+});
+
 import {
   startGroundingSweep,
   stopGroundingSweep,
+  decideSweepArm,
   __setSweepRunnerForTest,
   __runSweepOnceForTest,
   __resetSweepForTest,
@@ -47,6 +56,7 @@ describe('G8b groundingSweepScheduler (t/3172)', () => {
     __resetSweepForTest();
     __setSweepRunnerForTest(null); // restore default; individual tests inject their own
     delete process.env.GROUNDING_SWEEP_ENABLED;
+    cfgMock.storageMode = 'filesystem'; // t/3333: default profile is FS-visible; one test flips it
   });
   afterEach(() => {
     stopGroundingSweep();
@@ -144,5 +154,34 @@ describe('G8b groundingSweepScheduler (t/3172)', () => {
     expect(__stateForTest().armed).toBe(true);
     stop();
     expect(__stateForTest().armed).toBe(false);
+  });
+
+  // ── t/3333: hard-guard the silent-no-op trap on the github-api profile ────────
+  describe('decideSweepArm (t/3333 pure predicate)', () => {
+    it('flag OFF → disabled (regardless of storage mode)', () => {
+      expect(decideSweepArm('filesystem', false)).toBe('disabled');
+      expect(decideSweepArm('github-api', false)).toBe('disabled');
+    });
+    it('flag ON + filesystem → arm', () => {
+      expect(decideSweepArm('filesystem', true)).toBe('arm');
+    });
+    it('flag ON + github-api → blocked-github-api (writes invisible to the read path)', () => {
+      expect(decideSweepArm('github-api', true)).toBe('blocked-github-api');
+    });
+  });
+
+  it('t/3333 hard-guard: flag ON + STORAGE_MODE=github-api → REFUSES to arm + records a loud error (not a silent no-op)', () => {
+    process.env.GROUNDING_SWEEP_ENABLED = '1';
+    cfgMock.storageMode = 'github-api';
+    const stop = startGroundingSweep(50);
+    // Refused to arm — no timer, so the reconciler can never run + silently no-op.
+    expect(__stateForTest().armed).toBe(false);
+    expect(typeof stop).toBe('function');
+    stop(); // no-op stop must not throw
+    // Loud: a grounding-sweep error names the refusal + the discriminating storageMode.
+    const refusal = sweepEvents().find((e) => e.level === 'error' && String(e.message).includes('refused to arm'));
+    expect(refusal).toBeDefined();
+    expect(refusal?.data?.storageMode).toBe('github-api');
+    expect(refusal?.data?.armed).toBe(false);
   });
 });
