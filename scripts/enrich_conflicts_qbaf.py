@@ -493,9 +493,13 @@ _CC_SHIM = _SCRIPT_DIR / "invoke-contradiction-classifier.ps1"
 _CC_USAGE_ID = "enrichment.contradiction-classify"
 
 
-def _collect_semantic_candidates(conflict):
-    """Within-conflict pairs that have NO stance-based edge. Same-doc pairs are skipped (duplicate
-    extractions) except debate: (independent agent positions, t/3214). Returns [{i,j,a,b}]."""
+def _collect_semantic_candidates(conflict, include_same_doc=False):
+    """Within-conflict pairs that have NO stance-based edge. Returns [{i,j,a,b,same_doc}].
+
+    By default same-doc pairs are skipped (duplicate extractions) except debate: (independent agent
+    positions, t/3214). With include_same_doc=True (fork-B expansion, t/3336) same-doc non-debate pairs
+    are RETAINED and tagged same_doc=True; the caller applies the cosine dedup gate (_apply_samedoc_dedup)
+    to drop near-identical duplicate extractions before classification. Cross-doc pairs are same_doc=False."""
     instances = conflict.get("instances") or []
     if len(instances) < 2:
         return []
@@ -510,13 +514,62 @@ def _collect_semantic_candidates(conflict):
                 continue
             a, b = instances[i], instances[j]
             doc_a = str(a.get("doc_id") or "")
-            if a.get("doc_id") == b.get("doc_id") and not doc_a.startswith("debate:"):
+            is_same_doc = (a.get("doc_id") == b.get("doc_id")) and not doc_a.startswith("debate:")
+            if is_same_doc and not include_same_doc:
                 continue
             ta = str(a.get("assertion") or "").strip()
             tb = str(b.get("assertion") or "").strip()
             if ta and tb:
-                cands.append({"i": i, "j": j, "a": ta, "b": tb})
+                cands.append({"i": i, "j": j, "a": ta, "b": tb, "same_doc": is_same_doc})
     return cands
+
+
+def _cosine(u, v):
+    """Cosine similarity of two vectors; 0.0 if either is degenerate."""
+    u = np.asarray(u, dtype=float)
+    v = np.asarray(v, dtype=float)
+    nu = float(np.linalg.norm(u))
+    nv = float(np.linalg.norm(v))
+    if nu == 0.0 or nv == 0.0:
+        return 0.0
+    return float(np.dot(u, v) / (nu * nv))
+
+
+_ST_MODEL = None
+
+
+def _default_embedder(texts):
+    """Encode texts with the local all-MiniLM-L6-v2 model (matches the corpus encoder). Lazy-loaded so
+    the dependency + model load only happen when the same-doc gate is actually used."""
+    global _ST_MODEL
+    if _ST_MODEL is None:
+        from sentence_transformers import SentenceTransformer  # lazy: heavy import, opt-in path only
+        _ST_MODEL = SentenceTransformer("all-MiniLM-L6-v2", trust_remote_code=False)
+    return _ST_MODEL.encode(list(texts), normalize_embeddings=False)
+
+
+def _apply_samedoc_dedup(cands, threshold=0.93, embedder=None):
+    """Drop same-doc candidate pairs whose two assertions are near-identical (cosine >= threshold) —
+    duplicate extractions, not genuine opposition (CL gate t/3336#7; blocks the '54% vs 45%-typo' false
+    attack). Cross-doc pairs (same_doc=False) pass through untouched. embedder(list[str])->list[vec] is
+    injectable for tests (default = local MiniLM). Batch-embeds once."""
+    sd_idx = [k for k, c in enumerate(cands) if c.get("same_doc")]
+    if not sd_idx:
+        return list(cands)
+    embedder = embedder or _default_embedder
+    texts = []
+    for k in sd_idx:
+        texts.append(cands[k]["a"])
+        texts.append(cands[k]["b"])
+    vecs = embedder(texts)
+    drop = set()
+    for m, k in enumerate(sd_idx):
+        if _cosine(vecs[2 * m], vecs[2 * m + 1]) >= threshold:
+            drop.add(k)
+    if drop:
+        _log(f"  Fork-B same-doc dedup: dropped {len(drop)}/{len(sd_idx)} same-doc pair(s) at cosine>={threshold} "
+             f"(near-identical duplicate extractions, t/3336).")
+    return [c for k, c in enumerate(cands) if k not in drop]
 
 
 def _mk_semantic_edge(i, j, detector, edge_type="attacks", confidence=None, classifier=None, tau=None):
@@ -539,6 +592,16 @@ def _mk_semantic_edge(i, j, detector, edge_type="attacks", confidence=None, clas
     if tau is not None:
         edge["tau"] = round(float(tau), 4)
     return edge
+
+
+def _mk_attack_edges(i, j, detector, confidence=None, classifier=None, tau=None):
+    """A contradiction is SYMMETRIC — it tests BOTH claims (TL ruling t/3336#4): emit attack edges in
+    both directions (i->j and j->i) so each endpoint gains an incoming attack (adversarial tier).
+    Entailment stays directional (single support edge) — it is not symmetric."""
+    return [
+        _mk_semantic_edge(i, j, detector, "attacks", confidence, classifier, tau),
+        _mk_semantic_edge(j, i, detector, "attacks", confidence, classifier, tau),
+    ]
 
 
 def _run_cc_shim(batch_conflicts, mode="per-conflict", temperature=0.0):
@@ -588,15 +651,21 @@ def _run_cc_shim(batch_conflicts, mode="per-conflict", temperature=0.0):
 
 
 def detect_semantic_edges(to_process, min_confidence=0.0, mode="per-conflict", cc_runner=None,
-                          predictions_sink=None):
+                          predictions_sink=None, include_same_doc=False, dedup_threshold=0.93,
+                          embedder=None):
     """Fork-B semantic edges (t/3302). Numeric/temporal detector first (high precision), then the LLM
-    classifier for the rest. Returns {conflict_index: [edge,...]}. cc_runner is injectable for tests.
+    classifier for the rest. Contradictions emit SYMMETRIC attack edges (both endpoints tested, TL
+    ruling t/3336#4); entailment emits a single directional support edge. Returns {conflict_index:
+    [edge,...]}. cc_runner is injectable for tests.
 
-    predictions_sink (t/3336 benefit arm): if a list is passed, EVERY candidate pair's raw disposition
-    is appended as {conflict_id, source, target, predicted, confidence, method} — numeric-positives as
+    include_same_doc (t/3336): relax the same-doc skip and run CL's cosine dedup gate — retain same-doc
+    non-debate pairs EXCEPT near-identical duplicate extractions (cosine >= dedup_threshold). embedder
+    is injectable for tests (default = local MiniLM).
+
+    predictions_sink (t/3336 benefit arm): if a list is passed, EVERY (post-dedup) candidate pair's raw
+    disposition is appended as {conflict_id, source, target, predicted, confidence, method} — numeric as
     contradict/1.0/numeric and the rest as the classifier's raw (pre-τ) label. CL applies τ=0.90 and
-    recomputes qbaf.testedness for the node-tier Δ. The candidate set == the --write set, so the Δ is
-    the actual incremental benefit, not an overstated all-pairs figure."""
+    recomputes qbaf.testedness for the node-tier Δ. The candidate set == the --write set."""
     cc_runner = cc_runner or _run_cc_shim
     edges_by_ci = {}
     batch_conflicts = []
@@ -604,7 +673,9 @@ def detect_semantic_edges(to_process, min_confidence=0.0, mode="per-conflict", c
     ci_to_cid = {}  # ci -> conflict id, for predictions_sink attribution
 
     for ci, (_path, conflict) in enumerate(to_process):
-        cands = _collect_semantic_candidates(conflict)
+        cands = _collect_semantic_candidates(conflict, include_same_doc=include_same_doc)
+        if include_same_doc:
+            cands = _apply_samedoc_dedup(cands, threshold=dedup_threshold, embedder=embedder)
         if not cands:
             continue
         cid = str(conflict.get("claim_id") or ci)
@@ -612,8 +683,8 @@ def detect_semantic_edges(to_process, min_confidence=0.0, mode="per-conflict", c
         conflict_pairs = []
         for c in cands:
             if _detect_numeric_temporal_conflict(c["a"], c["b"]):
-                edges_by_ci.setdefault(ci, []).append(
-                    _mk_semantic_edge(c["i"], c["j"], "numeric", "attacks", 1.0, tau=min_confidence))
+                edges_by_ci.setdefault(ci, []).extend(
+                    _mk_attack_edges(c["i"], c["j"], "numeric", 1.0, tau=min_confidence))
                 if predictions_sink is not None:
                     predictions_sink.append({
                         "conflict_id": cid, "source": f"inst-{c['i']}", "target": f"inst-{c['j']}",
@@ -643,8 +714,8 @@ def detect_semantic_edges(to_process, min_confidence=0.0, mode="per-conflict", c
                 continue
             label = r.get("label")
             if label == "contradict":
-                edges_by_ci.setdefault(ci, []).append(
-                    _mk_semantic_edge(i, j, "llm", "attacks", conf, classifier=_CC_USAGE_ID, tau=min_confidence))
+                edges_by_ci.setdefault(ci, []).extend(
+                    _mk_attack_edges(i, j, "llm", conf, classifier=_CC_USAGE_ID, tau=min_confidence))
             elif label == "entail":
                 edges_by_ci.setdefault(ci, []).append(
                     _mk_semantic_edge(i, j, "llm", "supports", conf, classifier=_CC_USAGE_ID, tau=min_confidence))
@@ -735,6 +806,12 @@ def main():
                         help="Benefit-arm dry-run (t/3336): classify all --write candidate pairs and write "
                              "raw per-pair predictions {conflict_id,source,target,predicted,confidence,method} "
                              "to this path. No data write. Requires --semantic-edges; ignores --write.")
+    parser.add_argument("--semantic-include-samedoc", action="store_true",
+                        help="Fork-B expansion (t/3336): also consider same-doc non-debate pairs, gated by a "
+                             "cosine dedup (drops near-identical duplicate extractions). Opt-in; off by default.")
+    parser.add_argument("--semantic-dedup-threshold", type=float, default=0.93,
+                        help="Cosine >= this drops a same-doc pair as a duplicate extraction (CL gate, t/3336#7). "
+                             "Only used with --semantic-include-samedoc.")
     args = parser.parse_args()
 
     _log("=" * 60)
@@ -801,11 +878,13 @@ def main():
     if getattr(args, "semantic_edges", False):
         _emit_path = getattr(args, "emit_semantic_predictions", "") or ""
         _sink = [] if _emit_path else None
+        _inc_sd = getattr(args, "semantic_include_samedoc", False)
         _log(f"\n  Fork-B: detecting semantic-opposition edges (mode={args.classify_mode}, "
-             f"min_conf={args.semantic_min_confidence})...")
+             f"min_conf={args.semantic_min_confidence}, include_same_doc={_inc_sd})...")
         semantic_by_ci = detect_semantic_edges(
             to_process, min_confidence=args.semantic_min_confidence, mode=args.classify_mode,
-            predictions_sink=_sink)
+            predictions_sink=_sink, include_same_doc=_inc_sd,
+            dedup_threshold=getattr(args, "semantic_dedup_threshold", 0.93))
         _n_sem = sum(len(v) for v in semantic_by_ci.values())
         _log(f"  Fork-B: {_n_sem} semantic edge(s) across {len(semantic_by_ci)} conflict(s).")
         if _emit_path:
@@ -819,6 +898,8 @@ def main():
                     "tau_note": "raw pre-τ predictions; CL applies τ=0.90 (contradict AND conf>=0.90 -> attack)",
                     "classifier": _CC_USAGE_ID,
                     "classify_mode": args.classify_mode,
+                    "include_same_doc": _inc_sd,
+                    "dedup_threshold": getattr(args, "semantic_dedup_threshold", 0.93),
                     "n_predictions": len(_sink),
                 },
                 "predictions": _sink,
