@@ -131,8 +131,22 @@ function extractPovTaxonomyRefs(anNodes: ReadonlyArray<ArgumentNetworkNode>): st
   return [...refs];
 }
 
-function extractTranscriptTaxonomyRefs(session: HarvestableSession): string[] {
+// ── Public API ────────────────────────────────────────────────────────────
+
+/**
+ * Canonical "all refs" for a session — union of argument_network node refs and
+ * transcript refs, deduped. Consumed by harvest (both backfill and harvestOnSave)
+ * AND auditDebateTestedLag so the assertion and the harvest can never disagree on
+ * what "all refs" means (t/3331).
+ */
+export function collectSessionTaxonomyRefs(session: HarvestableSession): string[] {
   const refs = new Set<string>();
+  for (const anNode of session.argument_network?.nodes ?? []) {
+    for (const ref of anNode.taxonomy_refs ?? []) {
+      const nodeId = typeof ref === 'string' ? ref : (ref as { node_id: string }).node_id;
+      if (/^(acc|saf|skp)-/.test(nodeId)) refs.add(nodeId);
+    }
+  }
   for (const entry of session.transcript ?? []) {
     for (const ref of entry.taxonomy_refs ?? []) {
       if (typeof ref === 'string' && /^(acc|saf|skp)-/.test(ref)) refs.add(ref);
@@ -140,8 +154,6 @@ function extractTranscriptTaxonomyRefs(session: HarvestableSession): string[] {
   }
   return [...refs];
 }
-
-// ── Public API ────────────────────────────────────────────────────────────
 
 /**
  * Incrementally update debate_tested records for the nodes engaged in a
@@ -188,7 +200,14 @@ export function harvestDebateTestedForSession(
     const nodesUpdated: string[] = [];
     let entriesCreated = 0;
 
+    // All POV refs this session touches — union of AN + transcript, deduped.
+    // Used for both the AN strength harvest and the cited-fallback below so
+    // transcript-only refs in an AN session are never silently dropped (t/3331).
+    const allRefs = collectSessionTaxonomyRefs(session);
+    const harvestedByAN = new Set<string>();
+
     if (anNodes.length > 0) {
+      // AN harvest: nodes in the argument network get full strength/verdict data.
       const povNodeIds = extractPovTaxonomyRefs(anNodes);
       const manifest: InjectionManifest = { povNodeIds };
       const results = harvestDebateTested({
@@ -209,23 +228,23 @@ export function harvestDebateTestedForSession(
         node.graph_attributes.debate_tested = result.updatedRecord;
         nodesUpdated.push(result.nodeId);
         entriesCreated++;
+        harvestedByAN.add(result.nodeId);
       }
-    } else {
-      const transcriptRefs = extractTranscriptTaxonomyRefs(session);
-      const bdiRefs = transcriptRefs.filter(ref => {
-        const node = nodeMap.get(ref);
-        return node ? !!categoryToBdiImpact(node.category) : false;
-      });
-      for (const nodeId of bdiRefs) {
-        const node = nodeMap.get(nodeId);
-        if (!node || nodeHasDebateEntry(node, debateId)) continue;
-        const entry = createCitedEntry(debateId, date, pipelineVersion);
-        const existing = node.graph_attributes?.debate_tested;
-        if (!node.graph_attributes) node.graph_attributes = {};
-        node.graph_attributes.debate_tested = mergeCitedEntry(entry, existing, node.description);
-        nodesUpdated.push(nodeId);
-        entriesCreated++;
-      }
+    }
+
+    // Cited entries for refs not covered by AN harvest (includes transcript-only
+    // refs in AN sessions and all refs in transcript-only sessions).
+    for (const nodeId of allRefs) {
+      if (harvestedByAN.has(nodeId)) continue;
+      const node = nodeMap.get(nodeId);
+      if (!node || !categoryToBdiImpact(node.category)) continue;
+      if (nodeHasDebateEntry(node, debateId)) continue;
+      const entry = createCitedEntry(debateId, date, pipelineVersion);
+      const existing = node.graph_attributes?.debate_tested;
+      if (!node.graph_attributes) node.graph_attributes = {};
+      node.graph_attributes.debate_tested = mergeCitedEntry(entry, existing, node.description);
+      nodesUpdated.push(nodeId);
+      entriesCreated++;
     }
 
     if (entriesCreated > 0) {
@@ -262,26 +281,15 @@ export function auditDebateTestedLag(
       .filter(f => f.startsWith('debate-') && f.endsWith('.json'));
 
     for (const file of sessionFiles) {
-      let session: Record<string, unknown>;
+      let session: HarvestableSession;
       try {
-        session = JSON.parse(fs.readFileSync(path.join(debatesDir, file), 'utf-8')) as Record<string, unknown>;
+        session = JSON.parse(fs.readFileSync(path.join(debatesDir, file), 'utf-8')) as HarvestableSession;
       } catch {
         continue;
       }
-      if (!session['id']) continue;
-
-      const anNodes = (session['argument_network'] as { nodes?: ArgumentNetworkNode[] } | undefined)?.nodes ?? [];
-      for (const anNode of anNodes) {
-        for (const ref of (anNode.taxonomy_refs as (string | { node_id: string })[] | undefined) ?? []) {
-          const nodeId = typeof ref === 'string' ? ref : ref.node_id;
-          if (/^(acc|saf|skp)-/.test(nodeId)) citedNodeIds.add(nodeId);
-        }
-      }
-      const transcript = session['transcript'] as Array<{ taxonomy_refs?: string[] }> | undefined;
-      for (const entry of transcript ?? []) {
-        for (const ref of entry.taxonomy_refs ?? []) {
-          if (typeof ref === 'string' && /^(acc|saf|skp)-/.test(ref)) citedNodeIds.add(ref);
-        }
+      if (!session.id) continue;
+      for (const nodeId of collectSessionTaxonomyRefs(session)) {
+        citedNodeIds.add(nodeId);
       }
     }
   }

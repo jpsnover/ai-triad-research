@@ -18,7 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import { harvestDebateTested, computeTierAndSortKey, setDescriptionHasher, categoryToBdiImpact } from './debateTested.js';
 import { computeDescriptionHash } from './debateTestedHash.js';
-import { auditDebateTestedLag } from './harvestOnSave.js';
+import { auditDebateTestedLag, collectSessionTaxonomyRefs } from './harvestOnSave.js';
 import type { HarvestResult } from './debateTested.js';
 import type {
   PovNode,
@@ -95,17 +95,6 @@ function extractPovTaxonomyRefs(anNodes: ArgumentNetworkNode[]): string[] {
   return [...refs];
 }
 
-function extractTranscriptTaxonomyRefs(session: DebateSession): string[] {
-  const refs = new Set<string>();
-  for (const entry of session.transcript ?? []) {
-    for (const ref of entry.taxonomy_refs ?? []) {
-      if (typeof ref === 'string' && ref.match(/^(acc|saf|skp)-/)) {
-        refs.add(ref);
-      }
-    }
-  }
-  return [...refs];
-}
 
 function nodeHasDebateEntry(node: PovNode, debateId: string): boolean {
   const record = node.graph_attributes?.debate_tested?.record;
@@ -227,12 +216,15 @@ export function runBackfill(repoRoot: string, writeMode: boolean): BackfillStats
     const anEdges = session.argument_network?.edges ?? [];
     const hasAN = anNodes.length > 0;
 
+    // All POV refs this session touches — union of AN + transcript, deduped.
+    // The shared helper ensures backfill and auditDebateTestedLag agree on coverage (t/3331).
+    const allRefs = collectSessionTaxonomyRefs(session);
+
     if (hasAN) {
       stats.sessionsWithAN++;
 
-      // Synthesize injection_manifest from AN taxonomy_refs (historical sessions lack it)
+      // AN harvest: nodes in the argument network get full strength/verdict data.
       const povNodeIds = extractPovTaxonomyRefs(anNodes);
-
       const results = harvestDebateTested({
         debateId,
         date,
@@ -247,31 +239,46 @@ export function runBackfill(repoRoot: string, writeMode: boolean): BackfillStats
 
       let created = 0;
       let deduped = 0;
+      const harvestedByAN = new Set<string>();
       for (const result of results) {
         if (nodeHasDebateEntry(nodeMap.get(result.nodeId)!, debateId)) {
           deduped++;
           continue;
         }
-        // Apply the updated record to the node
         const node = nodeMap.get(result.nodeId)!;
         if (!node.graph_attributes) node.graph_attributes = {};
         node.graph_attributes.debate_tested = result.updatedRecord;
         stats.nodesUpdated.add(result.nodeId);
         stats.verdictCounts[result.entry.verdict] = (stats.verdictCounts[result.entry.verdict] ?? 0) + 1;
         created++;
+        harvestedByAN.add(result.nodeId);
       }
+
+      // Cited entries for transcript refs not covered by AN harvest (t/3331).
+      for (const nodeId of allRefs) {
+        if (harvestedByAN.has(nodeId)) continue;
+        const node = nodeMap.get(nodeId);
+        if (!node || !categoryToBdiImpact(node.category)) continue;
+        if (nodeHasDebateEntry(node, debateId)) { deduped++; continue; }
+        const entry = createCitedEntry(debateId, date, pipelineVersion);
+        const existing = node.graph_attributes?.debate_tested;
+        const updatedRecord = mergeCitedEntry(entry, existing, node.description);
+        if (!node.graph_attributes) node.graph_attributes = {};
+        node.graph_attributes.debate_tested = updatedRecord;
+        stats.nodesUpdated.add(nodeId);
+        stats.verdictCounts['cited'] = (stats.verdictCounts['cited'] ?? 0) + 1;
+        created++;
+      }
+
       stats.entriesCreated += created;
       stats.entriesDeduplicated += deduped;
-
       if (created > 0 || deduped > 0) {
-        console.log(`  ${file}: AN harvest — ${created} entries created, ${deduped} deduped, ${results.length - created - deduped} skipped (non-BDI / situation)`);
+        console.log(`  ${file}: AN harvest — ${created} entries created, ${deduped} deduped`);
       }
     } else {
-      // No argument_network — check transcript for taxonomy_refs → cited entries.
-      // All three BDI categories qualify; situation nodes (sit-*/cc-*) have no BDI
-      // category and coerce to undefined via categoryToBdiImpact, staying excluded (t/1660).
-      const transcriptRefs = extractTranscriptTaxonomyRefs(session);
-      const bdiRefs = transcriptRefs.filter(ref => {
+      // No argument_network — cited entries for all BDI refs (transcript or AN union = transcript here).
+      // Situation nodes (sit-*/cc-*) coerce to undefined via categoryToBdiImpact, excluded (t/1660).
+      const bdiRefs = allRefs.filter(ref => {
         const node = nodeMap.get(ref);
         return node ? !!categoryToBdiImpact(node.category) : false;
       });
@@ -288,10 +295,7 @@ export function runBackfill(repoRoot: string, writeMode: boolean): BackfillStats
 
       for (const nodeId of bdiRefs) {
         const node = nodeMap.get(nodeId)!;
-        if (nodeHasDebateEntry(node, debateId)) {
-          deduped++;
-          continue;
-        }
+        if (nodeHasDebateEntry(node, debateId)) { deduped++; continue; }
         const entry = createCitedEntry(debateId, date, pipelineVersion);
         const existing = node.graph_attributes?.debate_tested;
         const updatedRecord = mergeCitedEntry(entry, existing, node.description);
@@ -303,7 +307,6 @@ export function runBackfill(repoRoot: string, writeMode: boolean): BackfillStats
       }
       stats.entriesCreated += created;
       stats.entriesDeduplicated += deduped;
-
       if (created > 0 || deduped > 0) {
         console.log(`  ${file}: transcript-only — ${created} cited entries, ${deduped} deduped`);
       }
