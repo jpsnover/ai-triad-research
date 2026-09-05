@@ -218,9 +218,12 @@ def test_detect_semantic_edges_numeric_and_llm():
         assert ids == {"1:0:1"}, f"numeric pair must not reach the LLM; got {ids}"
         return {"1:0:1": {"label": "contradict", "confidence": 0.9}}
     by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.5, mode="per-conflict", cc_runner=runner)
-    assert by_ci[0][0]["detector"] == "numeric" and by_ci[0][0]["type"] == "attacks"
-    assert by_ci[1][0]["detector"] == "llm" and by_ci[1][0]["type"] == "attacks"
-    assert by_ci[1][0]["confidence"] == 0.9
+    # Symmetric contradictions: TWO attack edges each (i->j and j->i), t/3336#4.
+    assert len(by_ci[0]) == 2 and all(e["detector"] == "numeric" and e["type"] == "attacks" for e in by_ci[0])
+    assert {(e["source"], e["target"]) for e in by_ci[0]} == {("inst-0", "inst-1"), ("inst-1", "inst-0")}
+    assert len(by_ci[1]) == 2 and all(e["detector"] == "llm" and e["type"] == "attacks" for e in by_ci[1])
+    assert {(e["source"], e["target"]) for e in by_ci[1]} == {("inst-0", "inst-1"), ("inst-1", "inst-0")}
+    assert all(e["confidence"] == 0.9 for e in by_ci[1])
 
 
 def test_detect_semantic_edges_entail_is_support():
@@ -229,6 +232,8 @@ def test_detect_semantic_edges_entail_is_support():
         _si("neutral", "d2", "the model cuts latency")]})]
     runner = lambda batch, mode, temp: {"0:0:1": {"label": "entail", "confidence": 0.8}}
     by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.5, cc_runner=runner)
+    # Entailment is directional — a SINGLE support edge (not symmetric), t/3336#4.
+    assert len(by_ci[0]) == 1
     assert by_ci[0][0]["type"] == "supports"
     assert by_ci[0][0]["detector"] == "llm"
 
@@ -308,6 +313,64 @@ def test_predictions_sink_records_raw_pre_tau():
     by_ci = eq.detect_semantic_edges(to_process, min_confidence=0.9, cc_runner=runner, predictions_sink=sink)
     assert by_ci == {}  # below τ -> no edge
     assert len(sink) == 1 and sink[0]["predicted"] == "contradict" and sink[0]["confidence"] == 0.2
+
+
+# Same-doc relaxation + cosine dedup gate + symmetric edges — fork-B expansion (t/3336, embedder mocked)
+
+def _fake_embedder(texts):
+    # Deterministic tiny vectors: identical strings -> identical vector (cosine 1.0); P/Q orthogonal.
+    m = {"X": [1.0, 0.0, 0.0], "P": [1.0, 0.0, 0.0], "Q": [0.0, 1.0, 0.0]}
+    return [m.get(t, [0.0, 0.0, 1.0]) for t in texts]
+
+
+def test_collect_includes_samedoc_only_when_flagged():
+    conflict = {"instances": [_si("neutral", "d1", "aaa"), _si("neutral", "d1", "bbb")]}
+    assert eq._collect_semantic_candidates(conflict) == []  # same-doc skipped by default
+    cands = eq._collect_semantic_candidates(conflict, include_same_doc=True)
+    assert len(cands) == 1 and cands[0]["same_doc"] is True
+
+
+def test_apply_samedoc_dedup_drops_near_identical_keeps_distinct():
+    cands = [
+        {"i": 0, "j": 1, "a": "X", "b": "X", "same_doc": True},   # identical -> cosine 1.0 -> drop
+        {"i": 0, "j": 2, "a": "P", "b": "Q", "same_doc": True},   # distinct  -> cosine 0.0 -> keep
+        {"i": 1, "j": 2, "a": "R", "b": "S", "same_doc": False},  # cross-doc -> untouched
+    ]
+    kept = eq._apply_samedoc_dedup(cands, threshold=0.93, embedder=_fake_embedder)
+    pairs = {(c["i"], c["j"]) for c in kept}
+    assert pairs == {(0, 2), (1, 2)}  # the identical same-doc pair dropped; others kept
+
+
+def test_detect_samedoc_symmetric_end_to_end():
+    to_process = [(None, {"claim_id": "c0", "instances": [
+        _si("neutral", "d1", "P"), _si("neutral", "d1", "Q")]})]  # same-doc, distinct -> kept by dedup
+    runner = lambda batch, mode, temp: {"0:0:1": {"label": "contradict", "confidence": 0.95}}
+    by_ci = eq.detect_semantic_edges(
+        to_process, min_confidence=0.9, cc_runner=runner,
+        include_same_doc=True, dedup_threshold=0.93, embedder=_fake_embedder)
+    assert len(by_ci[0]) == 2  # symmetric attack edges
+    assert {(e["source"], e["target"]) for e in by_ci[0]} == {("inst-0", "inst-1"), ("inst-1", "inst-0")}
+
+
+def test_detect_samedoc_dedup_blocks_duplicate_extraction():
+    # Near-identical same-doc pair (the "54% vs 45%-typo" trap) is dropped before classification -> no edge.
+    to_process = [(None, {"claim_id": "c0", "instances": [
+        _si("neutral", "d1", "X"), _si("neutral", "d1", "X")]})]
+    called = {"n": 0}
+    def runner(batch, mode, temp):
+        called["n"] += 1
+        return {}
+    by_ci = eq.detect_semantic_edges(
+        to_process, min_confidence=0.9, cc_runner=runner,
+        include_same_doc=True, dedup_threshold=0.93, embedder=_fake_embedder)
+    assert by_ci == {}
+    assert called["n"] == 0  # dedup removed the only candidate; classifier never called
+
+
+def test_cosine_basic():
+    assert eq._cosine([1.0, 0.0], [1.0, 0.0]) == 1.0
+    assert eq._cosine([1.0, 0.0], [0.0, 1.0]) == 0.0
+    assert eq._cosine([0.0, 0.0], [1.0, 1.0]) == 0.0  # degenerate -> 0
 
 
 if __name__ == "__main__":
