@@ -588,7 +588,7 @@ jobs:
               EMBEDDING_WORKER_OFFLOAD           = '1'  # t/3165 durable close — gate verifies the offload flag is deployed
               GROUNDING_RECONCILE_INLINE         = '1'  # t/3163 G8a — gate verifies the staged inline-reconcile flag is deployed
               GROUNDING_SWEEP_ENABLED            = '1'  # t/3163 G8b — gate verifies the staged sweep-enable flag is deployed
-              DATA_ROOT_VALIDATION_ENFORCE       = '1'  # t/3305 — gate verifies data-root hard-fail is deployed (staging-validated real-env)
+              # DATA_ROOT_VALIDATION_ENFORCE retired in t/3309 step-3 — /readyz warm-gate replaces the boot hard-fail (co-landed with the server.ts exit(1) removal).
             } `
             -CheckFirewall `
             -StorageAccountName '${{ steps.deploy.outputs.storageAccountName }}' `
