@@ -10,6 +10,15 @@ import { existsSync, lstatSync, rmSync, symlinkSync, mkdirSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Run the render smoke under the ELECTRON flag env (t/3299 B). All CSS clusters the invariance leg
+// covers (lineage, summaries, debate-popout) are electron-app surfaces; the web build is only a
+// convenient render harness. Specifically, this makes the env:electron-scoped `env-electron-summaries`
+// seed resolve TRUE so the lazy SummariesTab chunk mounts + injects its CSS when the spec navigates to
+// the summaries tab. Safe: no smoke surface depends on an env:web flag (attributes + the active
+// invariance clusters probe only POV [data-tab]s, which are never flag-gated). `??=` so an explicit
+// override still wins. Must be set BEFORE importing server.js (featureFlags reads it at resolve time).
+process.env.FEATURE_FLAG_ENV ??= 'electron';
+
 const DIR = dirname(fileURLToPath(import.meta.url));
 const APP = resolve(DIR, '..');
 const target = join(APP, 'dist', 'renderer');
