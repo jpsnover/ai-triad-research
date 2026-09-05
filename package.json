@@ -10,8 +10,8 @@
     "verify:config": "pwsh -File scripts/Verify-Config.ps1"
   },
   "devDependencies": {
-    "@types/node": "^26.4.0",
-    "tsx": "^4.23.12",
+    "@types/node": "^26.4.1",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
     "unist-util-visit": "^5.1.0"
   },
@@ -19,7 +19,7 @@
     "@modelcontextprotocol/sdk": "^1.30.0",
     "jszip": "^3.10.1",
     "onnxruntime-node": "^1.29.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "overrides": {
     "adm-zip": ">=0.6.0"
