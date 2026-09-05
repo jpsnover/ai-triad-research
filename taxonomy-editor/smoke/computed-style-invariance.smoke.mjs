@@ -51,6 +51,9 @@ test.beforeEach(async ({ page }) => {
 
 /**
  * Bring a cluster's CSS into the document, then wait until it's actually injected.
+ *   • `gotoHash` clusters (full-document routes, e.g. debatePopout at #debate-window — t/3299 C):
+ *     navigate the page to BASE + hash; App.tsx early-returns the popout root, lazy-loading its CSS.
+ *     This REPLACES the document, so the caller passes a throwaway page (see the loop).
  *   • `switchTab` clusters (lazy chunks, e.g. summaries — t/3299 B): drive setActiveTab via the
  *     window.__ZUSTAND_STORES__.taxonomy handle (the nav button hides behind an advanced-view
  *     popover, so store-nav is the selector-stable path), then wait for the dynamic import's CSS.
@@ -60,7 +63,9 @@ test.beforeEach(async ({ page }) => {
  * that never loads (flag off / nav failed) fails loudly here instead of silently capturing defaults.
  */
 async function reachCluster(page, cluster) {
-  if (cluster.switchTab) {
+  if (cluster.gotoHash) {
+    await page.goto(BASE + cluster.gotoHash, { waitUntil: 'domcontentloaded' });
+  } else if (cluster.switchTab) {
     await page.evaluate((tab) => {
       const stores = /** @type {any} */ (window).__ZUSTAND_STORES__;
       if (!stores?.taxonomy) throw new Error('taxonomy store not exposed on window.__ZUSTAND_STORES__');
@@ -90,13 +95,18 @@ test('computed-style invariance across the 4 themes (t/2940)', async ({ page }) 
     // vacuous gate). The reason + re-inclusion trigger live in the manifest's `excluded` (t/2940#9,
     // t/3299); removing that marker re-includes the cluster here.
     if (cluster.excluded) continue;
-    // Load the cluster's CSS (eager POV [data-tab] click, or lazy-chunk store-nav) and wait for it
-    // to inject before probing — see reachCluster.
-    await reachCluster(page, cluster);
+    // gotoHash clusters load a full-document route (the #debate-window popout) that REPLACES the
+    // main-app document — probe them on a throwaway page so they don't clobber the shared page the
+    // other clusters use (and so cluster order doesn't matter). Others probe on the shared page.
+    const probePage = cluster.gotoHash ? await page.context().newPage() : page;
+    // Load the cluster's CSS (full-document goto, eager POV [data-tab] click, or lazy-chunk
+    // store-nav) and wait for it to inject before probing — see reachCluster.
+    await reachCluster(probePage, cluster);
     captured[name] = {};
     for (const theme of THEMES) {
-      captured[name][theme] = await probeCluster(page, theme, cluster.selectors);
+      captured[name][theme] = await probeCluster(probePage, theme, cluster.selectors);
     }
+    if (probePage !== page) await probePage.close();
   }
 
   if (CAPTURE) {

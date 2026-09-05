@@ -84,14 +84,22 @@ export const CLUSTERS = {
     ],
   },
 
-  // ── EXCLUDED from the web invariance leg (gate-co-located, TL t/2940). Carried to t/3299 C. ──
+  // ── RE-INCLUDED t/3299 C (separate popout WINDOW in Electron, but a web-reachable HASH ROUTE) ──
   debatePopout: {
     css: 'debate/DebatePopoutWindow.css',
-    excluded:
-      "Rendered in a SEPARATE BrowserWindow (popout) — unreachable from the web smoke's single page, " +
-      "so its CSS never loads here (probe = defaults, t/2940#9). RE-INCLUDE (t/3299 C) once the " +
-      "harness opens the popout route/window, or cover via a popout-specific smoke; else it stays on " +
-      "the manual four-theme + LOC-ratchet guard.",
+    // In Electron the popout is a separate BrowserWindow, but in the WEB build it's just a hash
+    // route: App.tsx early-returns <DebatePopoutWindow/> when location.hash starts with
+    // '#debate-window' (needs only bridgeReady — no electronAPI, no debate id), and the component
+    // lazy-imports DebatePopoutWindow.css at module top. So a fresh page navigated to
+    // BASE + '#debate-window' loads the CSS even with no debate loaded (it renders LoadingProgress).
+    // The old `excluded` premise ("unreachable from the web smoke's single page") only held for the
+    // Electron path — the web hash route was always reachable.
+    // `gotoHash` = a FULL-DOCUMENT route (distinct from switchTab/openTab, which stay in the main
+    // app), so the spec/harness probe it on a THROWAWAY page that doesn't clobber the shared page.
+    // All 4 selectors are single-class styled rules in DebatePopoutWindow.css (verified) carrying
+    // theme-varying vars (--bg / --text-primary / --text-muted / --danger) → meaningful 4-theme
+    // capture, not a vacuous defaults snapshot.
+    gotoHash: '#debate-window',
     selectors: [
       'debate-popout-shell', 'debate-popout-error-box',
       'debate-popout-error-title', 'debate-popout-hint',

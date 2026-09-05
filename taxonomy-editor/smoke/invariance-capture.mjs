@@ -59,7 +59,9 @@ async function probeCluster(page, theme, selectors) {
 /** Bring a cluster's CSS into the document, then wait until it's actually injected.
  *  IDENTICAL to computed-style-invariance.smoke.mjs::reachCluster. */
 async function reachCluster(page, cluster) {
-  if (cluster.switchTab) {
+  if (cluster.gotoHash) {
+    await page.goto(BASE + cluster.gotoHash, { waitUntil: 'domcontentloaded' });
+  } else if (cluster.switchTab) {
     await page.evaluate((tab) => {
       const stores = /** @type {any} */ (window).__ZUSTAND_STORES__;
       if (!stores?.taxonomy) throw new Error('taxonomy store not exposed on window.__ZUSTAND_STORES__');
@@ -96,11 +98,16 @@ async function captureAll() {
     const captured = {};
     for (const [name, cluster] of Object.entries(CLUSTERS)) {
       if (cluster.excluded) continue; // vacuous-defaults guard — never silently capture an unreachable cluster.
-      await reachCluster(page, cluster);
+      // gotoHash clusters load a full-document route (the #debate-window popout) that REPLACES the
+      // main-app document — probe on a throwaway page so they don't clobber the shared page (and so
+      // cluster order doesn't matter). IDENTICAL page handling to the spec's loop.
+      const probePage = cluster.gotoHash ? await page.context().newPage() : page;
+      await reachCluster(probePage, cluster);
       captured[name] = {};
       for (const theme of THEMES) {
-        captured[name][theme] = await probeCluster(page, theme, cluster.selectors);
+        captured[name][theme] = await probeCluster(probePage, theme, cluster.selectors);
       }
+      if (probePage !== page) await probePage.close();
     }
     return captured;
   } finally {
