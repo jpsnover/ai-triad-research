@@ -168,11 +168,10 @@ jobs:
           # t/3309 data-root readiness); the warm-gate mechanism is unchanged. Brings staging to prod
           # parity on the traffic-shift gate AND lets t/3309 Arm B (misprovisioned data-root → /readyz
           # 503) run end-to-end on staging without touching prod.
-          # TimeoutSec 480 = TEMPORARY t/3309 test window (ServerAPI p/526#122): 480 > ~360s worst-case
-          # with-retry so a transient GH blip can't masquerade as an Arm-A fail. REVERT to 300 (prod
-          # parity) after the both-arms GV — tracked.
+          # TimeoutSec 300 = prod parity (deploy-azure.yml). (Restored after the t/3309 both-arms GV;
+          # the Arm-B fire-arm used a temporary 480 window — t/3309.)
           $BaseUrl = "${{ steps.smoke.outputs.base_url }}"
-          & ./operations/devops/Invoke-ReadyzWarmGateCheck.ps1 -BaseUrl $BaseUrl -TimeoutSec 480 -PollIntervalSec 10
+          & ./operations/devops/Invoke-ReadyzWarmGateCheck.ps1 -BaseUrl $BaseUrl -TimeoutSec 300 -PollIntervalSec 10
 
       - name: Fail + roll back if not warm (t/3309)
         # Staging's rollback is failure()-gated (vs prod's warm-output-gated), so translate the
