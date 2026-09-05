@@ -20,6 +20,7 @@ Usage:
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
@@ -195,6 +196,78 @@ def _detect_edges(instances):
     return edges
 
 
+# ── Fork-B: deterministic numeric/temporal contradiction detector (t/3302) ────────────────
+# TL's mandatory high-precision complement to the LLM classifier (the naive strawman caught 0/6).
+# Fires ONLY when two within-conflict assertions share a subject AND cite directly incompatible
+# quantities of the SAME kind (percentages, years, or bare numbers). Conservative by design — a miss
+# is fine (the LLM classifier / base prior covers it); a false attack CORRUPTS strength. CL scores
+# its precision/recall separately on the golden (edges carry detector='numeric').
+
+_CC_STOPWORDS = frozenset(
+    "the a an of to in on for and or but with by from as at is are was were be been being this that "
+    "these those it its their his her our your not no than then over under about into within will "
+    "would could should may might can has have had do does did more most less least very".split()
+)
+_CC_WORD_RE = re.compile(r"[a-z]{3,}")
+_CC_PCT_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:%|percent|percentage points?|pp\b)", re.IGNORECASE)
+_CC_YEAR_RE = re.compile(r"\b(19\d{2}|20\d{2})\b")
+_CC_NUM_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)")
+
+
+def _cc_content_words(text):
+    return {w for w in _CC_WORD_RE.findall((text or "").lower()) if w not in _CC_STOPWORDS}
+
+
+def _cc_percents(text):
+    return {round(float(m.group(1)), 3) for m in _CC_PCT_RE.finditer(text or "")}
+
+
+def _cc_years(text):
+    return {int(m.group(1)) for m in _CC_YEAR_RE.finditer(text or "")}
+
+
+def _cc_bare_numbers(text):
+    """Numbers that are neither a percentage value nor a 4-digit year."""
+    t = text or ""
+    pct_spans = [m.span(1) for m in _CC_PCT_RE.finditer(t)]
+    years = _cc_years(t)
+    out = set()
+    for m in _CC_NUM_RE.finditer(t):
+        if any(s <= m.start(1) < e for (s, e) in pct_spans):
+            continue
+        try:
+            f = float(m.group(1))
+        except ValueError:
+            continue
+        if f == int(f) and int(f) in years:
+            continue
+        out.add(round(f, 3))
+    return out
+
+
+def _detect_numeric_temporal_conflict(text_a, text_b):
+    """True iff A and B share a subject AND cite directly incompatible quantities of the same kind.
+
+    Conservative (high precision): requires >=3 shared content words, and a same-kind numeric set that
+    is non-empty on BOTH sides and disjoint (percentages, years, or bare numbers). Bare numbers demand
+    a stronger subject overlap (>=4) since they are the most ambiguous. Returns False on any doubt.
+    """
+    shared = _cc_content_words(text_a) & _cc_content_words(text_b)
+    if len(shared) < 3:
+        return False
+    pa, pb = _cc_percents(text_a), _cc_percents(text_b)
+    if pa and pb and pa.isdisjoint(pb):
+        return True
+    ya, yb = _cc_years(text_a), _cc_years(text_b)
+    if ya and yb and ya.isdisjoint(yb):
+        return True
+    if len(shared) >= 4:
+        na, nb = _cc_bare_numbers(text_a), _cc_bare_numbers(text_b)
+        if na and nb and na.isdisjoint(nb):
+            return True
+    return False
+
+
 def _qbaf_testedness(qbaf, instances):
     """Observability metric for one resolved QBAF (t/3302).
 
@@ -308,10 +381,11 @@ def _run_qbaf_bridge_batch(batch):
     return [parsed]
 
 
-def enrich_conflict(conflict, node_meta):
+def enrich_conflict(conflict, node_meta, extra_edges=None):
     """Compute QBAF analysis for a single conflict and return the qbaf object.
 
-    Returns None if the conflict doesn't have enough instances for analysis.
+    extra_edges (fork-B semantic-opposition edges, t/3302) are merged after the stance-based edges,
+    deduped on (source, target). Returns None if the conflict has <2 instances.
     """
     instances = conflict.get("instances") or []
     if len(instances) < 2:
@@ -354,8 +428,19 @@ def enrich_conflict(conflict, node_meta):
             node_out["bdi_sub_scores"] = inst["bdi_sub_scores"]
         qbaf_nodes_output.append(node_out)
 
-    # Detect edges
+    # Detect edges (stance-based) + merge fork-B semantic edges (t/3302), deduped on (source,target).
     edges = _detect_edges(instances)
+    if extra_edges:
+        seen = set()
+        for e in edges:
+            seen.add((e["source"], e["target"]))
+            seen.add((e["target"], e["source"]))
+        for e in extra_edges:
+            key = (e["source"], e["target"])
+            if key not in seen:
+                edges.append(e)
+                seen.add(key)
+                seen.add((e["target"], e["source"]))
 
     if not edges:
         # No relationships detected — still useful to record base strengths
@@ -370,7 +455,8 @@ def enrich_conflict(conflict, node_meta):
             "iterations": 0,
         }
 
-    # Return pre-bridge data for batch processing
+    # Return pre-bridge data for batch processing. Provenance fields (detector/edge_origin/confidence)
+    # are persisted in edge_output for audit but stripped from the bridge input (whitelist in main).
     edge_output = []
     for e in edges:
         out = {
@@ -381,6 +467,9 @@ def enrich_conflict(conflict, node_meta):
         }
         if e.get("attack_type"):
             out["attack_type"] = e["attack_type"]
+        for prov in ("detector", "edge_origin", "confidence"):
+            if e.get(prov) is not None:
+                out[prov] = e[prov]
         edge_output.append(out)
 
     return {
@@ -390,6 +479,144 @@ def enrich_conflict(conflict, node_meta):
         "edges": edges,
         "edge_output": edge_output,
     }
+
+
+# ── Fork-B: semantic-opposition edge detection (t/3302, TL-approved seam t/3302#16) ───────
+# Within-conflict pairs with NO stance edge (the recall gap: 97% never attacked) are classified:
+# the deterministic numeric/temporal detector first (high precision), then the LLM contradiction
+# classifier for the rest via the file-based pwsh bridge. contradict->attack, entail->support.
+# Opt-in (--semantic-edges); owner runs the paid classification (--write). CL scores the golden.
+
+_CC_SHIM = _SCRIPT_DIR / "invoke-contradiction-classifier.ps1"
+
+
+def _collect_semantic_candidates(conflict):
+    """Within-conflict pairs that have NO stance-based edge. Same-doc pairs are skipped (duplicate
+    extractions) except debate: (independent agent positions, t/3214). Returns [{i,j,a,b}]."""
+    instances = conflict.get("instances") or []
+    if len(instances) < 2:
+        return []
+    existing = set()
+    for e in _detect_edges(instances):
+        existing.add((e["source"], e["target"]))
+        existing.add((e["target"], e["source"]))
+    cands = []
+    for i in range(len(instances)):
+        for j in range(i + 1, len(instances)):
+            if (f"inst-{i}", f"inst-{j}") in existing:
+                continue
+            a, b = instances[i], instances[j]
+            doc_a = str(a.get("doc_id") or "")
+            if a.get("doc_id") == b.get("doc_id") and not doc_a.startswith("debate:"):
+                continue
+            ta = str(a.get("assertion") or "").strip()
+            tb = str(b.get("assertion") or "").strip()
+            if ta and tb:
+                cands.append({"i": i, "j": j, "a": ta, "b": tb})
+    return cands
+
+
+def _mk_semantic_edge(i, j, detector, edge_type="attacks", confidence=None):
+    edge = {
+        "source": f"inst-{i}",
+        "target": f"inst-{j}",
+        "type": edge_type,
+        "weight": 0.6,
+        "detector": detector,      # 'numeric' | 'llm' — provenance for CL scoring + audit
+        "edge_origin": "semantic",
+    }
+    if edge_type == "attacks":
+        edge["attack_type"] = "rebut"
+    if confidence is not None:
+        edge["confidence"] = round(float(confidence), 4)
+    return edge
+
+
+def _run_cc_shim(batch_conflicts, mode="per-conflict", temperature=0.0):
+    """FILE-BASED bridge to invoke-contradiction-classifier.ps1 (pair texts via a temp-file PATH, NOT
+    inline — quotes/newlines shell-corruption hazard, TL t/3302#16). Returns {id: {label,confidence}}.
+    Fallback: any failure -> {} (no LLM edges) + WARN; never fabricates edges."""
+    import os
+    import tempfile
+    if not batch_conflicts:
+        return {}
+    tmp = None
+    out_tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(suffix=".json", prefix="cc-batch-")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump({"conflicts": batch_conflicts}, fh, ensure_ascii=False)
+        # Results come back via a FILE (-OutPath), not stdout: the shim's Write-Warning fallback notices
+        # render onto stdout ahead of the JSON and break json.loads (t/3302 live-run failure).
+        out_fd, out_tmp = tempfile.mkstemp(suffix=".json", prefix="cc-out-")
+        os.close(out_fd)
+        result = subprocess.run(
+            ["pwsh", "-NoProfile", "-NonInteractive", "-File", str(_CC_SHIM),
+             "-InputPath", tmp, "-Mode", mode, "-Temperature", str(temperature), "-OutPath", out_tmp],
+            capture_output=True, text=True, timeout=600, cwd=str(_PROJECT_ROOT), env=_safe_env(),
+        )
+        if result.returncode != 0:
+            _log(f"  WARN: contradiction-classifier exited {result.returncode} "
+                 f"({result.stderr.strip()[:200]}) — 0 semantic LLM edges (fallback, t/3302).")
+            return {}
+        with open(out_tmp, "r", encoding="utf-8") as fh:
+            parsed = json.loads(fh.read())
+        out = {}
+        for r in parsed.get("results", []):
+            out[str(r.get("id"))] = {"label": r.get("label"), "confidence": r.get("confidence", 0.0)}
+        return out
+    except (subprocess.TimeoutExpired, OSError, json.JSONDecodeError) as exc:
+        _log(f"  WARN: contradiction-classifier failed ({exc}) — 0 semantic LLM edges (fallback, t/3302).")
+        return {}
+    finally:
+        for _p in (tmp, out_tmp):
+            if _p and os.path.exists(_p):
+                try:
+                    os.remove(_p)
+                except OSError:
+                    pass
+
+
+def detect_semantic_edges(to_process, min_confidence=0.0, mode="per-conflict", cc_runner=None):
+    """Fork-B semantic edges (t/3302). Numeric/temporal detector first (high precision), then the LLM
+    classifier for the rest. Returns {conflict_index: [edge,...]}. cc_runner is injectable for tests."""
+    cc_runner = cc_runner or _run_cc_shim
+    edges_by_ci = {}
+    batch_conflicts = []
+    llm_pairs = {}  # pair-id -> (ci, i, j)
+
+    for ci, (_path, conflict) in enumerate(to_process):
+        cands = _collect_semantic_candidates(conflict)
+        if not cands:
+            continue
+        conflict_pairs = []
+        for c in cands:
+            if _detect_numeric_temporal_conflict(c["a"], c["b"]):
+                edges_by_ci.setdefault(ci, []).append(
+                    _mk_semantic_edge(c["i"], c["j"], "numeric", "attacks", 1.0))
+            else:
+                pid = f"{ci}:{c['i']}:{c['j']}"
+                conflict_pairs.append({"id": pid, "a": c["a"], "b": c["b"]})
+                llm_pairs[pid] = (ci, c["i"], c["j"])
+        if conflict_pairs:
+            batch_conflicts.append({"cid": str(conflict.get("claim_id") or ci), "pairs": conflict_pairs})
+
+    if batch_conflicts:
+        results = cc_runner(batch_conflicts, mode, 0.0)
+        for pid, (ci, i, j) in llm_pairs.items():
+            r = results.get(pid)
+            if not r:
+                continue
+            conf = float(r.get("confidence") or 0.0)
+            if conf < min_confidence:
+                continue
+            label = r.get("label")
+            if label == "contradict":
+                edges_by_ci.setdefault(ci, []).append(_mk_semantic_edge(i, j, "llm", "attacks", conf))
+            elif label == "entail":
+                edges_by_ci.setdefault(ci, []).append(_mk_semantic_edge(i, j, "llm", "supports", conf))
+            # neutral / unresolved / missing -> no edge
+    return edges_by_ci
 
 
 # Resolution margin floor (t/3151, CL neutrality ruling t/3151#2). computed_strength is DF-QuAD
@@ -464,6 +691,13 @@ def main():
                         help="Process a single conflict by claim_id")
     parser.add_argument("--force", action="store_true",
                         help="Recompute QBAF even if already present")
+    parser.add_argument("--semantic-edges", action="store_true",
+                        help="Fork-B (t/3302): add semantic-opposition edges for within-conflict "
+                             "pairs with no stance edge (numeric/temporal detector + LLM classifier)")
+    parser.add_argument("--semantic-min-confidence", type=float, default=0.0,
+                        help="Min LLM confidence to accept a semantic edge (calibrate from CL's P/R curve)")
+    parser.add_argument("--classify-mode", choices=["per-conflict", "per-pair"], default="per-conflict",
+                        help="LLM classify batching mode (per-conflict batch with per-pair fallback)")
     args = parser.parse_args()
 
     _log("=" * 60)
@@ -523,13 +757,25 @@ def main():
     # t/3302 observability — aggregate testedness tiers across this run (CL schema t/3302#2).
     tier_counts = {"all_prior": 0, "support_only": 0, "adversarial": 0}
 
+    # Fork-B semantic-opposition pre-pass (t/3302). Computes extra edges per conflict index BEFORE
+    # phase 1 so they merge into the same QBAF graph. Opt-in (--semantic-edges); the LLM path is
+    # paid so the owner runs it under --write.
+    semantic_by_ci = {}
+    if getattr(args, "semantic_edges", False):
+        _log(f"\n  Fork-B: detecting semantic-opposition edges (mode={args.classify_mode}, "
+             f"min_conf={args.semantic_min_confidence})...")
+        semantic_by_ci = detect_semantic_edges(
+            to_process, min_confidence=args.semantic_min_confidence, mode=args.classify_mode)
+        _n_sem = sum(len(v) for v in semantic_by_ci.values())
+        _log(f"  Fork-B: {_n_sem} semantic edge(s) across {len(semantic_by_ci)} conflict(s).")
+
     # Phase 1: build local graphs (no subprocess)
     pre_results = []  # (index, path, conflict, pre_data_or_qbaf)
     bridge_batch = []  # items needing bridge computation
     bridge_indices = []  # indices into pre_results for bridge items
 
     for i, (path, conflict) in enumerate(to_process):
-        pre = enrich_conflict(conflict, node_meta)
+        pre = enrich_conflict(conflict, node_meta, extra_edges=semantic_by_ci.get(i))
 
         if pre is None:
             pre_results.append((i, path, conflict, None))
@@ -539,8 +785,10 @@ def main():
             pre_results.append((i, path, conflict, pre))
             bridge_batch.append({
                 "nodes": pre["qbaf_nodes_input"],
+                # Whitelist ONLY the bridge's schema fields — strip attack_type + the fork-B provenance
+                # (detector/edge_origin/confidence), which the DF-QuAD bridge doesn't accept.
                 "edges": [
-                    {k: v for k, v in e.items() if k != "attack_type"}
+                    {"source": e["source"], "target": e["target"], "type": e["type"], "weight": e["weight"]}
                     for e in pre["edges"]
                 ],
             })
