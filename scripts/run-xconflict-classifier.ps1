@@ -7,8 +7,16 @@
 # stance_text (A), cand_text (B), stance_conflict_id, cand_conflict_id, cosine}), runs each A-vs-B pair
 # through the SAME contradiction classifier as the same-doc/golden runs (invoke-contradiction-classifier.ps1,
 # per-conflict batch + per-pair fallback), and writes predictions {pair_id, predicted, confidence, method}
-# (carrying the conflict ids + cosine for CL's join). CL builds a BLIND precision golden on this output
-# (Wilson LB >= 0.85, TL-GV'd) before any contradict is counted; only confirmed contradict@>=0.90 merges.
+# (carrying the conflict ids + cosine for CL's join). These predictions are INPUT to CL's blind
+# precision golden + census — NOT a merge authorization (see GUARDRAIL below).
+#
+# GUARDRAIL (t/3342 / t/3339#10): the contradiction classifier does NOT generalize to cross-conflict
+# pairs. On this 1055-pair set the automated precision gate FAILED — 0.571 precision / Wilson LB 0.391
+# at conf>=0.85 (its within-conflict/same-doc calibration, recall 0.92 / precision 0.957, does not
+# transfer; the conf>=0.90 subset was 12/14 but underpowered). So classifier-auto-merge is UNSAFE
+# cross-conflict and stays OUT. Any cross-conflict merge must go through CENSUS + PI DUAL-VERIFICATION
+# (only human-verified contradicts merge — a stronger no-false-attack guarantee than the classifier
+# proxy), NEVER the automated contradict@>=0.90 / LB>=0.85 gate. Do NOT wire this output into an auto-merge.
 #
 # Pairs are chunked into synthetic "conflicts" of -BatchSize so each classifier batch stays within the
 # usage maxTokens; grouping is arbitrary (each pair is judged independently). A pair is never dropped:
@@ -206,7 +214,7 @@ if (-not $env:XC_RUNNER_NOEXEC) {
             mode           = $Mode
             batch_size     = $BatchSize
             n_predictions  = @($preds).Count
-            note           = 'Only confirmed contradict@>=0.90 merges (<=1/stance), after CL golden precision LB>=0.85.'
+            note           = 'GUARDRAIL (t/3342 / t/3339#10): the classifier does NOT generalize cross-conflict (golden precision 0.571 / Wilson LB 0.391 @conf>=0.85 — the automated LB gate FAILED). These predictions are INPUT to CL''s census + PI dual-verification; only human-verified contradicts merge. Do NOT auto-merge cross-conflict on the contradict@>=0.90 / LB>=0.85 gate.'
         }
         predictions = @($preds)
     }
