@@ -314,12 +314,24 @@ def _qbaf_testedness(qbaf, instances):
     }
 
 
-def _safe_env():
-    """Build a minimal environment for subprocess calls — no API keys leaked."""
+_AI_KEY_VARS = ("GEMINI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY", "AI_API_KEY")
+
+
+def _safe_env(include_ai_keys=False):
+    """Build a minimal environment for subprocess calls. By default NO API keys are forwarded (the
+    Node qbaf-bridge needs none). include_ai_keys=True additionally forwards the AI backend key vars —
+    REQUIRED for the contradiction-classifier subprocess (_run_cc_shim), which authenticates the LLM
+    call; without them every pair returns 'unresolved' (t/3336 live-run failure). Keys still never reach
+    the bridge call, so this is a scoped forward, not a blanket leak."""
     import os
     allowed = {"PATH", "NODE_PATH", "HOME", "USER", "LANG", "TERM", "SHELL",
                "TMPDIR", "XDG_RUNTIME_DIR", "SYSTEMROOT", "COMSPEC"}
-    return {k: v for k, v in os.environ.items() if k in allowed}
+    env = {k: v for k, v in os.environ.items() if k in allowed}
+    if include_ai_keys:
+        for k in _AI_KEY_VARS:
+            if os.environ.get(k):
+                env[k] = os.environ[k]
+    return env
 
 
 def _run_qbaf_bridge(nodes, edges):
@@ -625,7 +637,8 @@ def _run_cc_shim(batch_conflicts, mode="per-conflict", temperature=0.0):
         result = subprocess.run(
             ["pwsh", "-NoProfile", "-NonInteractive", "-File", str(_CC_SHIM),
              "-InputPath", tmp, "-Mode", mode, "-Temperature", str(temperature), "-OutPath", out_tmp],
-            capture_output=True, text=True, timeout=600, cwd=str(_PROJECT_ROOT), env=_safe_env(),
+            capture_output=True, text=True, timeout=600, cwd=str(_PROJECT_ROOT),
+            env=_safe_env(include_ai_keys=True),  # classifier authenticates the LLM call (t/3336)
         )
         if result.returncode != 0:
             _log(f"  WARN: contradiction-classifier exited {result.returncode} "
