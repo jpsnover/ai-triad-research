@@ -156,8 +156,39 @@ jobs:
           Write-Host "Smoke test passed — all categories healthy ($($SmokeResult.EndpointsPassed)/$($SmokeResult.EndpointsTotal) endpoints)"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "passed=true"
 
-      - name: Promote traffic to new revision
+      - name: Warm-gate (/readyz) — staging parity port (t/3309)
+        id: warm_gate
         if: steps.smoke.outputs.passed == 'true'
+        shell: pwsh
+        run: |
+          # t/3309 parity port of the PROD warm-gate (deploy-azure.yml). SAME output-driven mechanism:
+          # Invoke-ReadyzWarmGateCheck polls GET /readyz until {status:ready,nodeCount>0} → warm=true,
+          # else 503 / timeout / any non-warm → warm=false (fail-closed); ALWAYS exits 0 (the gate is
+          # output-driven, not exit-code-driven). Only NEW behavior is what /readyz reports (ServerAPI's
+          # t/3309 data-root readiness); the warm-gate mechanism is unchanged. Brings staging to prod
+          # parity on the traffic-shift gate AND lets t/3309 Arm B (misprovisioned data-root → /readyz
+          # 503) run end-to-end on staging without touching prod.
+          # TimeoutSec 480 = TEMPORARY t/3309 test window (ServerAPI p/526#122): 480 > ~360s worst-case
+          # with-retry so a transient GH blip can't masquerade as an Arm-A fail. REVERT to 300 (prod
+          # parity) after the both-arms GV — tracked.
+          $BaseUrl = "${{ steps.smoke.outputs.base_url }}"
+          & ./operations/devops/Invoke-ReadyzWarmGateCheck.ps1 -BaseUrl $BaseUrl -TimeoutSec 480 -PollIntervalSec 10
+
+      - name: Fail + roll back if not warm (t/3309)
+        # Staging's rollback is failure()-gated (vs prod's warm-output-gated), so translate the
+        # warm-gate's fail-closed warm=false into a step FAILURE → the existing failure() rollback
+        # (below) restores the prior revision + the run goes RED. This IS the Arm-B outcome
+        # (misprovisioned → /readyz 503 → warm=false → fail + rollback + RED). Mechanism identical to
+        # prod; only the plumbing into staging's failure()-rollback differs. On warm=true this step is
+        # skipped (success() && warm!='true' is false) and the deploy proceeds to promote.
+        if: steps.smoke.outputs.passed == 'true' && steps.warm_gate.outputs.warm != 'true'
+        shell: pwsh
+        run: |
+          Write-Host "::error::/readyz warm-gate reported warm=false (data-root not ready or timeout) — NOT promoting; rolling back to the prior revision. (t/3309)"
+          exit 1
+
+      - name: Promote traffic to new revision
+        if: steps.smoke.outputs.passed == 'true' && steps.warm_gate.outputs.warm == 'true'
         shell: pwsh
         run: |
           Import-Module ./scripts/AITriad/AITriad.psm1 -Force
