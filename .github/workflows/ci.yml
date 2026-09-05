@@ -11,6 +11,7 @@
 #   quality-gates (t/1292; .ts/.tsx LOC moved to ESLint max-lines per ADR-007, t/1692)
 #   doc-accuracy  doc-link steps (t/2093; repo at zero dead links after t/2092)
 #   license-notices staleness (t/2920; ≥1 green warn cycle + platform-determinism fixed)
+#   joint-gv-automerge-guard (t/3332; event-time auto-merge gap; TL GV both arms proven)
 # FLIP-PENDING (remove continue-on-error to enforce):
 #   doc-accuracy  doc-claims + REPO_MAP steps (t/1324)
 # NEVER-FLIP (annotation-only by design — continue-on-error stays permanently):
@@ -1431,15 +1432,17 @@ jobs:
   # intercepts `gh pr merge --auto` at the CLI layer but cannot block an
   # auto-merge that was pre-armed (UI/repo-level, or armed before the joint-gv
   # label arrived) and fires at the CI-green EVENT server-side with no CLI call.
-  # Once promoted to a required status check, GitHub auto-merge waits for ALL
+  # As a required status check (via ci-gate), GitHub auto-merge waits for ALL
   # required checks green — a red result here means auto-merge can never fire
   # on a joint-gv PR with auto-merge armed, closing the event-time gap.
   # Fires on labeled/unlabeled/auto_merge_enabled events (added to on.pull_request.types)
   # so it re-evaluates whenever the label or auto-merge state changes.
   #
-  # WARN-PHASE (continue-on-error: true): not yet a required status context.
-  # Flip pending TL Gate Verification (both-arms proof per t/3318/GV discipline).
-  # To promote: remove continue-on-error and add to ci-gate needs (t/3332).
+  # BLOCKING (flipped from warn-phase — t/3332 GV by Main (TL), both arms proven).
+  # Same AND as merge-guard-predicate.mjs jointGvAutoMergeVerdict: joint-gv label
+  # + autoMergeRequest non-null = block. Cross-reference that predicate if updating
+  # the condition here (operations/devops/merge-guard-predicate.mjs).
+  # In ci-gate needs (below) — a red result fails ci-gate and blocks merge.
   joint-gv-automerge-guard:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -1464,7 +1467,6 @@ jobs:
             echo "::error::joint-gv PR has auto-merge enabled. Disable auto-merge; a joint-gv PR must be manually merged with --match-head-commit after the GV."
             exit 1
           fi
-        continue-on-error: true  # WARN-PHASE — remove after TL Gate Verification (t/3332)
 
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
@@ -1501,9 +1503,11 @@ jobs:
   # path-filtered to scripts/** changes, skip = OK.
   # bicep-aca-resources (t/3212) is gated here: ACA cpu:memory allowed-pair
   # validation in main.bicep; path-filtered to bicep-resources changes, skip = OK.
+  # joint-gv-automerge-guard (t/3332) is gated here: blocks event-time auto-merge
+  # on joint-gv PRs; always runs on pull_request, no path filter, skip = never OK.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, test-python, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump, render-smoke, bicep-aca-resources]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, test-python, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump, render-smoke, bicep-aca-resources, joint-gv-automerge-guard]
     if: always()
     runs-on: ubuntu-latest
     steps:
