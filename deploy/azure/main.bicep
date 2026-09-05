@@ -560,6 +560,13 @@ var baseEnv = [
   // enforce-green against the live github-api ref:'main' corpus (0 validation-failures). baseEnv
   // (never CLI --set-env-vars) + MUST stay in sync with deploy-azure.yml ExpectedEnvVars.
   { name: 'DATA_ROOT_VALIDATION_ENFORCE', value: '1' }
+  // t/3211 activation: embedding worker-offload pool size K. Self-clamps to
+  // min(2, availableParallelism()-1) in lib/embeddings/offThreadEmbedding.ts — so K=2 on this
+  // 4-vCPU prod box (~2x novel-embed throughput) and K=1 on the 0.25-vCPU staging (inert, the
+  // Math.max(1,cores-1) floor). Requires the 4 vCPU/8Gi resources above; lands inert on any
+  // <4-core env. baseEnv (never CLI --set-env-vars) + MUST stay in sync with deploy-azure.yml
+  // ExpectedEnvVars (Gate Co-Location — the config-drift gate verifies it's deployed).
+  { name: 'EMBEDDING_WORKER_POOL_SIZE', value: '2' }
 ]
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
@@ -654,21 +661,23 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'taxonomy-editor'
           image: containerImage
           resources: {
-            // 2 vCPU is the CORRECTNESS FLOOR for the embedding worker-offload
-            // (t/3182 / t/2977 C1). The off-thread ONNX worker (EMBEDDING_WORKER_OFFLOAD)
-            // needs a REAL second core: on 1 vCPU the worker time-slices the same core
-            // as the event loop, so a big embed still starves liveness (defeats the
-            // offload). 2 vCPU keeps the loop responsive while the worker computes.
-            // Stays within the ACA Consumption plan (0.25-4 vCPU) - one-line resources
-            // edit, no workload-profile/topology migration. Cost ~$0 (free grant, t/2977#4).
-            // Memory MUST be 4Gi: ACA Consumption only permits FIXED cpu:memory pairs, and
-            // 2.0 vCPU is valid ONLY with 4.0Gi. ARM rejects 2.0/2Gi with
-            // ContainerAppInvalidResourceTotal (the #1771 bug — a deploy would fail the ARM
-            // step; t/3182). Headroom is ample regardless: incident RSS ~650MB/2048 + ~250MB
-            // worker model copy ~= 900MB (embeddings.json is NOT copied to the worker — the
-            // cache resolve stays main-thread, only miss-texts marshal).
-            cpu: json('2.0')
-            memory: '4Gi'
+            // 4 vCPU / 8Gi (t/3211 activation): raises the embedding worker-offload from a single
+            // worker to a K=2 POOL for ~2x sustained novel-embed throughput (~10→~20 texts/s). 2 vCPU
+            // remains the OFFLOAD CORRECTNESS FLOOR (t/3182 / t/2977 C1 — the off-thread ONNX worker
+            // needs a REAL 2nd core or a big embed still starves liveness, defeating the offload); the
+            // 3rd/4th cores add a 2nd worker core + keep 1 core of main-thread headroom, so
+            // EMBEDDING_WORKER_POOL_SIZE=2 self-clamps to K=min(2, availableParallelism()-1)=2 here
+            // (staging at 0.25 vCPU clamps the same knob to K=1 — the Math.max(1,cores-1) floor).
+            // TL-approved shape (t/3211#4/#6/#13). Stays within ACA Consumption (0.25-4 vCPU) — one-line
+            // resources edit, no workload-profile/topology migration. Cost: ~2x per ACTIVE second only
+            // (Consumption scale-to-zero; idle billing unchanged), within the free grant at current demand.
+            // Memory MUST be 8Gi: ACA Consumption permits only FIXED cpu:memory pairs, and 4.0 vCPU is
+            // valid ONLY with 8.0Gi. ARM rejects a mismatched total with ContainerAppInvalidResourceTotal
+            // (the #1771 bug — a deploy would fail the ARM step). Headroom ample: incident RSS ~650MB +
+            // 2x ~250MB worker model copies ~= 1.15GB of 8Gi (embeddings.json stays main-thread; only
+            // miss-texts marshal to the workers).
+            cpu: json('4.0')
+            memory: '8Gi'
           }
           env: containerEnv
           probes: [

@@ -589,6 +589,7 @@ jobs:
               GROUNDING_RECONCILE_INLINE         = '1'  # t/3163 G8a — gate verifies the staged inline-reconcile flag is deployed
               GROUNDING_SWEEP_ENABLED            = '1'  # t/3163 G8b — gate verifies the staged sweep-enable flag is deployed
               DATA_ROOT_VALIDATION_ENFORCE       = '1'  # t/3305 — gate verifies data-root hard-fail is deployed (staging-validated real-env)
+              EMBEDDING_WORKER_POOL_SIZE         = '2'  # t/3211 — gate verifies the K=2 worker-pool size is deployed (self-clamps to cores-1)
             } `
             -CheckFirewall `
             -StorageAccountName '${{ steps.deploy.outputs.storageAccountName }}' `
