@@ -362,7 +362,7 @@
     },
     {
       "name": "@types/node",
-      "version": "26.4.0",
+      "version": "26.4.1",
       "license": "MIT"
     },
     {
@@ -897,7 +897,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.35.0",
+      "version": "1.39.0",
       "license": "ISC"
     },
     {
@@ -1607,7 +1607,7 @@
     },
     {
       "name": "zod",
-      "version": "4.4.3",
+      "version": "4.5.4",
       "license": "MIT"
     },
     {
@@ -2048,7 +2048,7 @@
         },
         {
           "name": "@types/node",
-          "version": "26.4.0"
+          "version": "26.4.1"
         },
         {
           "name": "@types/react",
@@ -3094,7 +3094,7 @@
       "packages": [
         {
           "name": "lucide-react",
-          "version": "1.35.0"
+          "version": "1.39.0"
         }
       ],
       "licenseType": "ISC",
@@ -3670,7 +3670,7 @@
       "packages": [
         {
           "name": "zod",
-          "version": "4.4.3"
+          "version": "4.5.4"
         }
       ],
       "licenseType": "MIT",
