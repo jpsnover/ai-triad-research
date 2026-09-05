@@ -10,6 +10,8 @@
 //      MODELS_BY_BACKEND checked into source (so the pre-load fallback == the runtime derive; no drift).
 //   2. DEFAULT_MODEL is present as a selectable picker entry (the global default must be pickable).
 //   3. Empty-picker backend (deepseek) derives to [] without crashing, and getStoredModel guards it.
+//   4. (t/3329) AI_BACKENDS is SSOT-derived — deriveBackends(config) byte-identical to the pre-load list.
+//   5. (t/3328) derive keyspace = config.backends ∪ constant keys — a config-only backend still surfaces.
 // Wired into `npm run verify:config`.
 
 import { describe, it, expect } from 'vitest';
@@ -18,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import {
   deriveModelsByBackend,
+  deriveBackends,
   MODELS_BY_BACKEND,
   AI_BACKENDS,
   getStoredModel,
@@ -88,14 +91,15 @@ describe('deriveModelsByBackend (t/3280 SSOT derive)', () => {
     expect(AI_BACKENDS.some(b => b.value === 'deepseek'), 'deepseek (no picker models) must not be selectable').toBe(false);
   });
 
-  it('the selectable-backend set derived from config == pre-load AI_BACKENDS', () => {
-    // The runtime filter (initAIModels) keeps a config backend iff it has ≥1 derived picker model;
-    // that set must equal the pre-load constant so pre-load and post-load never disagree.
-    const selectableFromConfig = new Set(
-      aiModels.backends.filter(b => (derived[b.id as AIBackend]?.length ?? 0) > 0).map(b => b.id),
-    );
-    const preLoad = new Set(AI_BACKENDS.map(b => b.value));
-    expect(preLoad).toEqual(selectableFromConfig);
+  it('BACKEND PARITY (t/3329): deriveBackends(config) is byte-identical to pre-load AI_BACKENDS', () => {
+    // AI_BACKENDS is now SSOT-derived (membership + order + label from config.backends); the in-source
+    // constant is only a pre-load fallback. Full ordered deep-equal (not just set equality) so pre-load
+    // and post-load never disagree on order or label.
+    expect(deriveBackends(aiModels)).toEqual(AI_BACKENDS);
+  });
+
+  it('deriveBackends excludes a zero-picker backend (deepseek)', () => {
+    expect(deriveBackends(aiModels).some(b => b.value === 'deepseek')).toBe(false);
   });
 
   it('getStoredModel never returns a non-model id even when its backend has an empty picker', () => {
@@ -106,5 +110,43 @@ describe('deriveModelsByBackend (t/3280 SSOT derive)', () => {
     const allValues = new Set(Object.values(MODELS_BY_BACKEND).flat().map(e => e.value));
     expect(allValues.has(model) || model === DEFAULT_MODEL).toBe(true);
     localStorage.clear();
+  });
+
+  it('every config backend with ≥1 picker model has a non-empty derived entry (keyspace coverage)', () => {
+    const withPicker = new Set(aiModels.models.filter(m => m.picker).map(m => m.backend));
+    for (const backend of withPicker) {
+      expect(derived[backend as AIBackend]?.length ?? 0, `config backend '${backend}' has picker models but derived empty`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('t/3328: derive keyspace = config.backends ∪ constant keys', () => {
+  // A backend added to ai-models.json (with picker models) but ABSENT from the in-source
+  // MODELS_BY_BACKEND keys must still surface — the former constant-only keyspace silently dropped it.
+  const synthConfig = {
+    backends: [
+      { id: 'gemini', label: 'Google Gemini' },
+      { id: 'newbackend', label: 'New Backend' },
+    ],
+    models: [
+      { id: 'newbackend-model-a', label: 'Model A', backend: 'newbackend', picker: { label: 'Model A', order: 10 } },
+      { id: 'newbackend-model-b', label: 'Model B', backend: 'newbackend', picker: { label: 'Model B', order: 20 } },
+      // A curated-out model (no picker) on the new backend must NOT appear.
+      { id: 'newbackend-hidden', label: 'Hidden', backend: 'newbackend' },
+    ],
+    defaults: {},
+  };
+
+  it('surfaces picker models for a backend not present in the constant keyspace', () => {
+    const d = deriveModelsByBackend(synthConfig as never);
+    expect(d['newbackend' as AIBackend]).toEqual([
+      { value: 'newbackend-model-a', label: 'Model A' },
+      { value: 'newbackend-model-b', label: 'Model B' },
+    ]);
+  });
+
+  it('deriveBackends includes the new config-only backend (membership follows config)', () => {
+    const b = deriveBackends(synthConfig as never);
+    expect(b).toContainEqual({ value: 'newbackend', label: 'New Backend' });
   });
 });

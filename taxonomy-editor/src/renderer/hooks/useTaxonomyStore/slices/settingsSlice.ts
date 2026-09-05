@@ -80,18 +80,20 @@ export interface AIModelEntry { value: AIModel; label: string }
 
 // -- Exported constants --
 
+// t/3329: pre-load fallback ONLY — at runtime initAIModels replaces this with deriveBackends(config).
+// A parity gate keeps it byte-identical to deriveBackends(ai-models.json): membership, order, and labels
+// all follow config.backends (SSOT). deepseek is absent because it has no picker models (zero-picker →
+// not selectable). Order matches config.backends (deepseek filtered out).
 export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
   { value: 'gemini', label: 'Google Gemini' },
   { value: 'claude', label: 'Anthropic Claude' },
   { value: 'groq', label: 'Groq' },
   { value: 'openai', label: 'OpenAI' },
-  // t/3280 (TL GV): deepseek has no `picker` models → not user-selectable (it would strand the model
-  // dropdown). Excluded from the pre-load list to match the runtime picker-presence filter in initAIModels.
   { value: 'azure', label: 'Azure OpenAI' },
-  { value: 'ollama', label: 'Ollama (Local)' },
   { value: 'zai', label: 'Z.AI (GLM)' },
-  { value: 'moonshot', label: 'Moonshot AI (Kimi)' },
+  { value: 'moonshot', label: 'Moonshot (Kimi)' },
   { value: 'xai', label: 'xAI (Grok)' },
+  { value: 'ollama', label: 'Ollama (Local)' },
 ];
 
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
@@ -220,11 +222,30 @@ export function deriveModelsByBackend(config: AIModelsConfig): Record<AIBackend,
     if (!m.picker) continue;
     (buckets[m.backend] ??= []).push({ value: m.id as AIModel, label: m.picker.label, order: m.picker.order });
   }
+  // t/3328: keyspace = config.backends ∪ constant keys. Iterating only the constant keys would silently
+  // drop a backend added to ai-models.json (with picker models) whose key the in-source constant lacks.
+  const backends = new Set<AIBackend>([
+    ...config.backends.map(b => b.id as AIBackend),
+    ...(Object.keys(MODELS_BY_BACKEND) as AIBackend[]),
+  ]);
   const out = {} as Record<AIBackend, AIModelEntry[]>;
-  for (const backend of Object.keys(MODELS_BY_BACKEND) as AIBackend[]) {
+  for (const backend of backends) {
     out[backend] = (buckets[backend] ?? []).sort((a, b) => a.order - b.order).map(({ value, label }) => ({ value, label }));
   }
   return out;
+}
+
+/**
+ * t/3329: DERIVE the selectable-backend list (AI_BACKENDS) from ai-models.json — a backend is offered
+ * iff it has ≥1 picker model. Membership, order, and label all come from config.backends (SSOT); the
+ * in-source AI_BACKENDS constant is only a pre-load fallback, kept byte-identical by a parity gate.
+ * Subsumes the t/3280 deepseek exclusion structurally — a zero-picker backend is simply not emitted.
+ */
+export function deriveBackends(config: AIModelsConfig): { value: AIBackend; label: string }[] {
+  const derived = deriveModelsByBackend(config);
+  return config.backends
+    .filter(b => (derived[b.id as AIBackend]?.length ?? 0) > 0)
+    .map(b => ({ value: b.id as AIBackend, label: b.label }));
 }
 
 export async function initAIModels(): Promise<void> {
@@ -232,24 +253,19 @@ export async function initAIModels(): Promise<void> {
     const config = await api.loadAIModels() as AIModelsConfig | null;
     if (!config?.models?.length) return;
 
-    // t/3280: derive the picker from the curated `picker` entries (SSOT) — not every config model.
-    // The former all-models push surfaced 100+ backend variants in the dropdown; the picker is the
-    // hand-curated subset. deriveModelsByBackend guarantees every backend key gets an array (empty if
-    // none carry `picker`), so no backend is left with a stale pre-load list.
+    // t/3280/t/3328: derive the picker from the curated `picker` entries (SSOT) — not every config
+    // model. Assign over the DERIVED keyspace (config.backends ∪ constant keys) so a new config
+    // backend's picker models are applied, not just the constant's keys.
     const derived = deriveModelsByBackend(config);
-    for (const key of Object.keys(MODELS_BY_BACKEND) as AIBackend[]) {
+    for (const key of Object.keys(derived) as AIBackend[]) {
       MODELS_BY_BACKEND[key] = derived[key] ?? [];
     }
 
-    // t/3280 (TL GV, t/3280#7): a backend is selectable iff it has ≥1 picker model. deepseek is in
-    // config.backends but carries no `picker` entries → derives to []; offering it would strand the
-    // model dropdown into a silent DEFAULT_MODEL fallback. Filter here (SSOT — no hardcoded exclusion,
-    // so any future zero-picker backend is handled automatically).
+    // t/3280/t/3329: a backend is selectable iff it has ≥1 picker model. deriveBackends filters the
+    // zero-picker ones (e.g. deepseek) so no dead-end backend strands the model dropdown; membership,
+    // order, and label all come from config.backends (SSOT — no hardcoded exclusion).
     AI_BACKENDS.length = 0;
-    for (const b of config.backends) {
-      if ((derived[b.id as AIBackend]?.length ?? 0) === 0) continue;
-      AI_BACKENDS.push({ value: b.id as AIBackend, label: b.label });
-    }
+    AI_BACKENDS.push(...deriveBackends(config));
 
     for (const [k, v] of Object.entries(config.defaults)) {
       DEFAULT_MODELS[k as AIBackend] = v as AIModel;
