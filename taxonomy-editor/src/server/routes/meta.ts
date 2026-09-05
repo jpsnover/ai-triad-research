@@ -117,7 +117,7 @@ export function registerMetaRoutes(r: Router, ctx: ServerCtx): void {
     // 'failed' is a hard 503 (not masked as a slow warm-up, cond 3); 'validating' is warming.
     // The 200-ready body is unchanged (data-root 'ready' falls through to the existing embeddings
     // gate), preserving the shared warm-gate body-contract fixture (t/3114).
-    // t/3236: test-only fault knob — force the DEFINITIVE data-root-FAILED readiness so DevOps can
+    // t/3236 (server half tracked t/3340): test-only fault knob — force the DEFINITIVE data-root-FAILED readiness so DevOps can
     // exercise the deploy warm-gate's FIRE arm (503 'failed' → block traffic-shift → fail+rollback)
     // against a REAL staging revision with real data, no 700M throwaway repo. TL cond 1: forces the
     // definitive 'failed' state (NOT 'validating'), so the warm-gate sees a definitive failure.

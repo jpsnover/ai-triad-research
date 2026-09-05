@@ -160,7 +160,7 @@ describe('/readyz shared body-contract fixture (t/3114)', () => {
   });
 });
 
-// ── t/3236: READYZ_FORCE_DATA_ROOT_FAILED test-only fault knob ────────────────
+// ── t/3236 / t/3340: READYZ_FORCE_DATA_ROOT_FAILED test-only fault knob ───────
 // Lets DevOps exercise the deploy warm-gate's FIRE arm (503 'failed' → block traffic-shift →
 // fail+rollback) against a REAL staging revision with real data, no 700M throwaway repo.
 // TL cond 1: forces the DEFINITIVE 'failed' state (NOT 'validating'). TL cond 2: gated
