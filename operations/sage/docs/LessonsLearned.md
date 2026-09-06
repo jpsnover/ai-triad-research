@@ -4059,3 +4059,63 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (p/340#7). Worktree-context branch-delete constraint; separate remote + local delete is the canonical approach.
 
 **Applies To:** All agents closing PRs and cleaning up branches in a worktree context. Especially relevant when consolidating duplicate PRs (per Pattern #194).
+
+---
+
+## #198 [Build/PS] Standalone `.ps1` Cannot Call Module-Private Helpers — Unit Stubs Hide This Until Real Run
+
+**Pattern:** A standalone `.ps1` script calls `Import-Module AITriad` and then invokes a private helper function (e.g. `Get-Prompt`). The import only exports public functions; private helpers are not in the caller's scope and throw "not recognized as the name of a cmdlet" at runtime. Unit tests that stub the private helper mask the error — it only surfaces when the script is actually run against the real module.
+
+**Instances:**
+- 2026-09-05 — PowerShell (p/20#40, t/3302 fork-B): standalone `.ps1` called `Get-Prompt` after `Import-Module AITriad`. `Get-Prompt` is a private helper — not exported, not in scope. Unit tests had stubbed it; first real run threw "not recognized." Fix: dot-sourced the private file and set `$script:ModuleRoot` before calling it.
+
+**Root Cause:** PowerShell module scoping is strict — `Import-Module` only surfaces `Export-ModuleMember`-listed functions. Private helpers live in `$script:` scope inside the module and are invisible to outside callers. Stub-based unit tests bypass this scoping entirely, providing false confidence.
+
+**Prevention:**
+1. **Do not call private module helpers directly from a standalone `.ps1`** — either export the helper, dot-source its file (setting any required `$script:` vars like `$script:ModuleRoot` first), or invoke it via `& (Get-Module AITriad) { Get-Prompt @args } @actualArgs`.
+2. **Add an integration test that calls the script end-to-end with the real (unstubbed) module** — this will catch "not recognized" errors that unit stubs hide.
+3. **When dot-sourcing a private file, initialize its `$script:` dependencies first** — private helpers often read `$script:ModuleRoot` or similar vars set during module load; dot-sourcing skips that initialization.
+
+**Status:** Active — 1 instance (p/20#40, t/3302). PS module scoping trap; dot-source + integration test is the canonical fix.
+
+**Applies To:** All agents writing standalone `.ps1` scripts that reuse AITriad module internals. Especially relevant for harvest/analysis scripts that call `Get-Prompt`, `Invoke-AIEnrich`, or other private helpers.
+
+---
+
+## #199 [Build/PS] Bare Relative `-OutPath` Resolves to .NET Process Cwd, Not PowerShell `Set-Location` Cwd
+
+**Pattern:** A PowerShell script passes a bare relative path to a `-OutPath` (or similar) parameter expecting output to land in the current PS working directory. The path resolves to the .NET process working directory instead — which is typically the repo root or the shell's launch directory, not the directory set by `Set-Location` or `cd`. The output file lands silently out of sight.
+
+**Instances:**
+- 2026-09-05 — PowerShell (p/20#40, t/3302): `-OutPath "results.json"` resolved to the .NET process cwd (repo root), not the subtree the script `cd`'d into. File landed in the wrong directory; subsequent steps failed to find it. Fix: `-OutPath (Join-Path (Get-Location).Path "results.json")`.
+
+**Root Cause:** PowerShell's `Set-Location` / `cd` changes the PS provider's current location but NOT the underlying .NET `System.IO.Directory.GetCurrentDirectory()`. Parameters passed to .NET APIs or cmdlets that call into .NET for path resolution use the .NET cwd, not the PS one. These can silently diverge, especially in scripts that `cd` partway through.
+
+**Prevention:**
+1. **Always anchor relative output paths to `(Get-Location).Path`:** `Join-Path (Get-Location).Path "relative/path"` — this explicitly uses the PS current location, not the .NET process cwd.
+2. **Prefer absolute paths for output files in scripts** — resolve at the top of the script (`$outDir = (Get-Location).Path`) before any `cd` calls, then use the resolved absolute path throughout.
+3. **If a file silently "disappears" after writing**, check the repo root and the shell's launch directory — bare relative paths often land there.
+
+**Status:** Active — 1 instance (p/20#40, t/3302). PS/.NET cwd split; anchor to `(Get-Location).Path` is the canonical fix.
+
+**Applies To:** All agents writing PowerShell scripts that produce output files, especially scripts that `cd` mid-execution or call cmdlets with `-OutPath`/`-Path` parameters.
+
+---
+
+## #200 [Process/Overlay] New Nested `AGENTS.md` Requires `ogit add -f` — Whitelist Alone Does Not Stage New Files
+
+**Pattern:** A new nested `AGENTS.md` (created for a new role or instance) is not tracked by either the main repo or the overlay repo until explicitly staged. `ogit add <path>` (without `-f`) fails with exit 1 because the overlay whitelist allows the file pattern but does not automatically stage new untracked files — `-f` is required to force-add files that are not already in the index.
+
+**Instances:**
+- 2026-09-05 — Orca Support (p/13#35, commit b0fdd1a): `ogit add` of a new nested devops `AGENTS.md` hit the whitelist ignore (exit 1). Resolved with `ogit add -f <path>`; audit clean. Recurrence of t/1971 pattern.
+
+**Root Cause:** Git's `.gitignore` / `.orca-gitignore` whitelist allows specific `AGENTS.md` paths but does not stage them — a new file must be explicitly force-added with `-f` to override the default ignore. Without `-f`, `git add` silently skips or errors on files that match an ignore pattern, even if a whitelist `!` exception exists.
+
+**Prevention:**
+1. **Always use `ogit add -f <new-role>/AGENTS.md`** when adding a new nested `AGENTS.md` to the overlay — never plain `ogit add` without `-f`.
+2. **Follow the three-step sequence from root AGENTS.md:** `ogit add -f <path>` → `sh .githooks/agent-file-owner.sh --audit` (expect clean) → commit. Do not skip the audit.
+3. **Never use `--no-verify` past the audit** — a new `AGENTS.md` that bypasses the audit is an unbacked orphan (Pattern #146).
+
+**Status:** Active — recurrence of t/1971. Codified in root AGENTS.md "Creating a role/instance?" section. Each new role/instance creation is a new exposure.
+
+**Applies To:** All agents creating new roles or instances. Especially relevant for TL and Orca Support who provision new agent scopes.
