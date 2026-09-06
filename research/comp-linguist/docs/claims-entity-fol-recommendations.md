@@ -2,8 +2,21 @@
 
 **Author:** Computational Linguist
 **Date:** 2026-08-31
-**Status:** Draft for human review. No tickets filed yet (see §9).
+**Status:** Implemented — Phase 1 landed on `main`; the formalization calibration gate is met (see Implementation status below).
 **Scope:** Analysis of five pipeline concerns raised 2026-08-31, with recommendations grounded in a full survey of both repos as of this date.
+
+## Implementation status (updated 2026-09-03)
+
+The five concerns and the R1–R7 recommendations below were adopted; Phase 1 is on `main`:
+
+- **R2 / R3 / R4 — entity grounding on claims (t/3124, landed).** Claims now carry `entity_refs[]` (`ref`, `surface`, `method`, `link_confidence`, `match_level`, `status`). The resolution ladder and registered thresholds are recorded in the metric-provenance register.
+- **R1 / R5 Phase 1 — the `logical_form` layer (t/3126, landed).** A neo-Davidsonian event-frame schema on claims (`docs/logical-form-schema.md`), an LLM formalization prompt (`scripts/AITriad/Prompts/logical-form-formalization.prompt`), and a golden set plus per-component scorer (`analyses/logical-form-golden/`). BDI attitudes reify first-order via `holds/3` (no belief-closure); `about[]` carries topical grounding, and `args[].sort` is pinned to the register's 5-value `DolceCategory` set (each participant inherits its entity's `dolce_category` — R1's "DOLCE typing for free").
+- **The formalization pass (t/3215, landed).** PowerShell `Invoke-LogicalFormPass` runs the schema + prompt over claims after entity resolution.
+- **Prompt hardening (t/3227) and scorer diagnostics (t/3228).** The meta-descriptive rule now also strips the attitude-attribution clause (the predicate is the content proposition, not the stance verb); the scorer adds diagnostic `predicate_syn` and `args_participant` components.
+- **Calibration gate met (t/3229).** `formalization_accuracy` is now a **derived** metric: **0.802** over an n=31, single-prompt golden set (predicate 0.68, args 0.30, polarity/modality/about ≈ 1.0). Recorded honest caveats: single-annotator reference, and `match_level` is `exact`-only in practice because the resolver hardcodes it (t/3238), so non-exact coverage is constructed-only until a hierarchical resolver exists.
+- **vocabulary-over-formalism honored.** All formal machinery stays in derived, regenerable sidecars; the source JSON stays prose plus typed references.
+
+The recommendation sections below are retained as the design of record. FOL export (TPTP, t/3127) and edge verification (t/3128) remain the downstream Phase-2/3 sidecar work.
 
 ---
 
