@@ -9,7 +9,7 @@ The AI Triad debate system has **16 tunable parameters** that govern how debates
 3. Produces bounded, safety-railed recommendations
 4. For one critical parameter (relevance threshold), automatically applies recommendations
 
-All calibration is deterministic arithmetic over logged data — zero LLM involvement, zero human input required, reproducible on identical data.
+All calibration is deterministic arithmetic over logged data. It makes no LLM calls and needs no human input, and it reproduces exactly on identical data.
 
 ---
 
@@ -57,7 +57,7 @@ Key quality signals:
 
 ### Tier 1: Phase Transition Parameters
 
-These determine *when* the debate moves between phases. The objective function is **debate quality** — measured by the neutral evaluator's assessment of crux engagement.
+These determine *when* the debate moves between phases. The objective function is **debate quality**, measured by the neutral evaluator's assessment of crux engagement.
 
 **P1. Exploration Exit Threshold** (default: 0.65)
 - **What it controls:** The saturation score at which exploration → synthesis transition fires
@@ -79,7 +79,7 @@ These determine *when* the debate moves between phases. The objective function i
 
 ### Tier 2: Context Parameters
 
-These determine *what context* agents receive. The objective function is **utilization** — whether injected context is actually used.
+These determine *what context* agents receive. The objective function is **utilization**, the share of injected context that is actually used.
 
 **P2. Embedding Relevance Threshold** (default: 0.48)
 - **What it controls:** Minimum cosine similarity for a taxonomy node to be injected into debate context
@@ -102,7 +102,7 @@ These determine *what context* agents receive. The objective function is **utili
 
 ### Tier 3: Output Quality Parameters
 
-These determine the *quality* of generated debate content. The objective function is **error rate** — structural errors and repetition.
+These determine the *quality* of generated debate content. The objective function is **error rate**, the rate of structural errors and repetition.
 
 **P3. QBAF Attack Type Weights** (default: rebut 1.0, undercut 1.05, undermine 1.1)
 - **Objective function:** `qbaf_preference_concordance` — how often QBAF computed strength ordering agrees with the synthesis phase's preference verdicts
@@ -121,7 +121,7 @@ These determine the *quality* of generated debate content. The objective functio
 
 ### Tier 4: Upstream Pipeline Parameters
 
-These govern the extraction and taxonomy pipeline. The objective function is **cross-pipeline consistency** — extraction quality measured during debates.
+These govern the extraction and taxonomy pipeline. The objective function is **cross-pipeline consistency**, the extraction quality measured during debates.
 
 **P11. Cluster MinSimilarity** (default: 0.55)
 - **Objective function:** `taxonomy_mapped_ratio` — fraction of AN nodes that map to at least one taxonomy node
@@ -156,7 +156,7 @@ The system uses **three primary objective functions**, each measuring a differen
 | **Utilization** | `referenced / injected` nodes | P2, P6, P7, P9 | Context injection manifest |
 | **Error rate** | `structural_errors + repetition` | P3, P4, P10 | Turn validation |
 
-These are complementary — a debate can have high quality (good crux engagement) but low utilization (too many irrelevant nodes injected) or high errors (schema violations). The optimizer addresses each dimension independently.
+These are complementary. A debate can have high quality (good crux engagement) but low utilization (too many irrelevant nodes injected) or high errors (schema violations). The optimizer addresses each dimension independently.
 
 **The neutral evaluator's assessment is the ultimate arbiter of debate quality.** It reads the full debate transcript with speaker identities stripped (persona-free), independently evaluates whether cruxes were identified and addressed, and produces the `crux_addressed_ratio` and `engaging_real_disagreement` signals that drive the primary objective function. This makes the calibration system self-referential in a principled way: the symbolic system (QBAF, phase transitions) generates the debate; a separate neural evaluation (persona-free neutral evaluator) measures its quality; the calibration optimizer uses that measurement to tune the symbolic parameters.
 
@@ -213,7 +213,7 @@ import { recalibrateParameters } from './calibrationOptimizer';
 const report = await recalibrateParameters(dataRoot, { apply: true });
 ```
 
-The optimizer runs in milliseconds — no LLM calls, pure arithmetic. It reads the calibration log, runs all 16 algorithms, and produces a `RecalibrationReport` with per-parameter recommendations.
+The optimizer runs in milliseconds, with no LLM calls and pure arithmetic. It reads the calibration log, runs all 16 algorithms, and produces a `RecalibrationReport` with per-parameter recommendations.
 
 ---
 
@@ -223,7 +223,7 @@ The optimizer runs in milliseconds — no LLM calls, pure arithmetic. It reads t
 
 2. **Conservative adjustment.** Parameters move in small steps (±0.03 for thresholds, ±0.05 for temperature). Large jumps are clamped. This prevents oscillation and allows the system to converge gradually.
 
-3. **Separate objective functions per concern.** The system doesn't optimize a single global objective. Instead, phase transitions optimize for debate quality, context parameters optimize for utilization, and output parameters optimize for error rate. These concerns are independent — improving one should not degrade another.
+3. **Separate objective functions per concern.** The system doesn't optimize a single global objective. Instead, phase transitions optimize for debate quality, context parameters optimize for utilization, and output parameters optimize for error rate. These concerns are independent, and improving one should not degrade another.
 
 4. **The neutral evaluator is the oracle.** The quality signals that drive the primary objective function come from an independent neural evaluation with persona stripping. This creates a clean separation: the debate system generates; the evaluator judges; the optimizer tunes.
 
