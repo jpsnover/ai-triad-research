@@ -14,9 +14,11 @@ The §3 "union clears (×2.82 / 11.6%)" figure below **was invalidated** by the 
 | adversarial nodes | 35 (3.5%) | **65 / 1034 = 6.3%** |
 | provenance | — | **100% observed, human-verified** |
 
-**The ≥2× / ≥10% bar is RETIRED** — not re-set to whatever the honest union scores (that would be a no-lose bucket the metric-provenance register forbids). It is retired because the corpus is **intrinsically low-adversarial**: even every real, human-verified contradiction reaches only ~6% of arg nodes / ×1.8 conflicts-with-attacks. This is a genuine descriptive finding (3rd low-adversarial signal), not a failure to hit a target. The 16 real edges remain valid + 100% observed; PI decides whether to write them for their own sake (they move no metric).
+> **Footnote — written corpus vs recorded measure (TL #2013).** The ×1.82 / 6.3% above is the *all-4-same-doc* measure. The **written corpus is substantive-only**: TL GV'd the write with `--drop-trivial`, excluding 1 non-adversarial edge (a youtube-snapshot date-metadata conflict — valid but not genuine opposition, so the corpus holds only real adversarial structure). The **written** Fork-B contribution = **15 edges** (12 cross-conflict + 3 substantive same-doc) → **conflicts-with-attacks 30 (×1.76), adversarial nodes 63 / 1034 = 6.1%**. The finding is unchanged (still ×1.8 / ~6%, intrinsically low-adversarial); this keeps the written corpus ↔ record consistent.
 
-Numeric detector fix (same-subject gate, masked-cosine ≥0.93) spec'd at t/3337#5 → PS implements → CL re-cert → TL GV.
+**The ≥2× / ≥10% bar is RETIRED** — not re-set to whatever the honest union scores (that would be a no-lose bucket the metric-provenance register forbids). It is retired because the corpus is **intrinsically low-adversarial**: even every real, human-verified contradiction reaches only ~6% of arg nodes / ×1.8 conflicts-with-attacks. This is a genuine descriptive finding (3rd low-adversarial signal), not a failure to hit a target. The 16 real edges are valid + 100% observed; **PI authorized the write and TL GV'd it with `--drop-trivial` (#2013) → 15 substantive edges written** (see footnote) — captured for their own sake (they move no metric).
+
+Numeric detector fix (same-subject gate, masked-cosine ≥0.93): spec'd t/3337#5 → implemented + merged (#2010, 54→1 FP on the census) → CL re-cert'd → TL GV'd. Closed.
 
 ## Pipeline recap
 Candidates (`candidates.json`, 1055 pairs) → PowerShell enrich classifier (`xconflict-predictions.json`)
