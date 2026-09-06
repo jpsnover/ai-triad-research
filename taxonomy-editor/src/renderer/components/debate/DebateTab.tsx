@@ -602,7 +602,7 @@ function ToolbarLeftPanel({
 // ── Debate list panel (My / Community switch) ──
 
 function DebateListPanel(props: DebateListProps & { fullWidth?: boolean }) {
-  const { width, listView, setListView, sessions, communityDebates, exitEditMode, fullWidth } = props;
+  const { width, listView, setListView, sessions, communityDebates, exitEditMode, fullWidth, auth } = props;
   return (
     // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width, omitted in fullWidth/table mode
     <div className="list-panel debate-session-list" style={fullWidth ? undefined : { width }}>
@@ -612,7 +612,7 @@ function DebateListPanel(props: DebateListProps & { fullWidth?: boolean }) {
         <DebateListHeaderActions {...props} />
       </div>
       <div className="list-view-tabs">
-        {!auth.isAnonymous && (
+        {!auth?.anonymous && (
           <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => { setListView('my'); exitEditMode(); }}>My ({sessions.length})</button>
         )}
         <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => { setListView('community'); exitEditMode(); }}>Community ({communityDebates.length})</button>
@@ -629,7 +629,7 @@ function DebateListPanel(props: DebateListProps & { fullWidth?: boolean }) {
 function DebateListHeaderActions(props: DebateListProps) {
   const {
     listView, editMode, sessions, selectedIds, setSelectedIds, setShowBulkDeleteConfirm,
-    customOrder, saveCustomOrder, exitEditMode, handleNewDebate, setEditMode, setListCollapsed,
+    customOrder, saveCustomOrder, exitEditMode, handleNewDebate, setEditMode, setListCollapsed, auth,
   } = props;
   return (
     <div className="list-panel-header-actions">
@@ -656,7 +656,7 @@ function DebateListHeaderActions(props: DebateListProps) {
               Edit
             </button>
           )}
-          {!auth.isAnonymous && <button className="btn btn-sm" onClick={handleNewDebate}>+ New</button>}
+          {!auth?.anonymous && <button className="btn btn-sm" onClick={handleNewDebate}>+ New</button>}
           <TheoryLink docPath="docs/theory-of-success.md" label="Help: theory of success" />
           <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
         </>
@@ -840,7 +840,7 @@ function DebateDetailPane(props: DebateRightPaneProps) {
     onMouseDown, onTouchStart, isPhone, activeDebate, selectedCommunityDebate,
     listView, nav, handleExport, exportStatus, handleNewDebate,
   } = props;
-  const { isAnonymous } = useAuthStatus();
+  const debateAuth = useAuthStatus();
   return (
     <>
       <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
@@ -877,7 +877,7 @@ function DebateDetailPane(props: DebateRightPaneProps) {
           <div className="debate-empty-state">
             <h2>Perspective Debater</h2>
             <p>Select a debate from the list or create a new one.</p>
-            {!isAnonymous && (
+            {!debateAuth?.anonymous && (
               <button className="btn" onClick={handleNewDebate}>
                 + New Debate
               </button>
