@@ -65,9 +65,17 @@ if ($MockCurrentEnvPath) {
 
 $CurrentMap = @{}
 foreach ($e in @($CurrentEnvJson)) {
+    # az returns secret-backed vars as {secretRef:'x', value:''} — skip them.
+    # Filtering only on value-property presence misses this case (empty string passes).
+    $secretRefProp = $e.PSObject.Properties['secretRef']
+    if ($null -ne $secretRefProp -and $secretRefProp.Value -ne '') { continue }
     $valProp = $e.PSObject.Properties['value']
     if ($null -ne $valProp) { $CurrentMap[$e.name] = $valProp.Value }
 }
+
+# Workflow-injected keys set per-revision at deploy time — not bicep-managed.
+# Exclude from orphan detection so they don't trigger false positives. (t/3345)
+$WorkflowManagedKeys = @('DEPLOY_TAG', 'DEPLOY_SHA')
 
 # Idempotency check — skip update if all literal keys already match
 $Drifted = [System.Collections.Generic.List[string]]::new()
@@ -79,7 +87,7 @@ foreach ($key in $BicepEnv.Keys) {
 
 # Orphan check: live app-template env keys absent from the full bicep managed set.
 # A key removed from bicep but still in the live ACA template is stale standing-state. (t/3345)
-$Orphans = @($CurrentMap.Keys | Where-Object { $_ -notin $ManagedNames })
+$Orphans = @($CurrentMap.Keys | Where-Object { $_ -notin $ManagedNames -and $_ -notin $WorkflowManagedKeys })
 
 if ($Drifted.Count -eq 0 -and $Orphans.Count -eq 0) {
     Write-Host "Staging baseEnv matches Bicep — no update needed"
