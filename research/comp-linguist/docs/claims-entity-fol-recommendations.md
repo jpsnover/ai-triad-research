@@ -2,15 +2,15 @@
 
 **Author:** Computational Linguist
 **Date:** 2026-08-31
-**Status:** Implemented — Phase 1 landed on `main`; the formalization calibration gate is met (see Implementation status below).
+**Status:** Implemented. Phase 1 landed on `main`; the formalization calibration gate is met (see Implementation status below).
 **Scope:** Analysis of five pipeline concerns raised 2026-08-31, with recommendations grounded in a full survey of both repos as of this date.
 
 ## Implementation status (updated 2026-09-03)
 
 The five concerns and the R1–R7 recommendations below were adopted; Phase 1 is on `main`:
 
-- **R2 / R3 / R4 — entity grounding on claims (t/3124, landed).** Claims now carry `entity_refs[]` (`ref`, `surface`, `method`, `link_confidence`, `match_level`, `status`). The resolution ladder and registered thresholds are recorded in the metric-provenance register.
-- **R1 / R5 Phase 1 — the `logical_form` layer (t/3126, landed).** A neo-Davidsonian event-frame schema on claims (`docs/logical-form-schema.md`), an LLM formalization prompt (`scripts/AITriad/Prompts/logical-form-formalization.prompt`), and a golden set plus per-component scorer (`analyses/logical-form-golden/`). BDI attitudes reify first-order via `holds/3` (no belief-closure); `about[]` carries topical grounding, and `args[].sort` is pinned to the register's 5-value `DolceCategory` set (each participant inherits its entity's `dolce_category` — R1's "DOLCE typing for free").
+- **R2 / R3 / R4, entity grounding on claims (t/3124, landed).** Claims now carry `entity_refs[]` (`ref`, `surface`, `method`, `link_confidence`, `match_level`, `status`). The resolution ladder and registered thresholds are recorded in the metric-provenance register.
+- **R1 / R5 Phase 1, the `logical_form` layer (t/3126, landed).** A neo-Davidsonian event-frame schema on claims (`docs/logical-form-schema.md`), an LLM formalization prompt (`scripts/AITriad/Prompts/logical-form-formalization.prompt`), and a golden set plus per-component scorer (`analyses/logical-form-golden/`). BDI attitudes reify first-order via `holds/3` (no belief-closure); `about[]` carries topical grounding, and `args[].sort` is pinned to the register's 5-value `DolceCategory` set (each participant inherits its entity's `dolce_category`, R1's "DOLCE typing for free").
 - **The formalization pass (t/3215, landed).** PowerShell `Invoke-LogicalFormPass` runs the schema + prompt over claims after entity resolution.
 - **Prompt hardening (t/3227) and scorer diagnostics (t/3228).** The meta-descriptive rule now also strips the attitude-attribution clause (the predicate is the content proposition, not the stance verb); the scorer adds diagnostic `predicate_syn` and `args_participant` components.
 - **Calibration gate met (t/3229), then re-baselined on the current prompt (t/3239).** `formalization_accuracy` is a **derived** metric. The paper-canonical figure is the **v2 census on the current production prompt** `a9c93103` (stance-strip strengthened): **strict 0.778 / lenient 0.978 (n=45)**, a stratified holistic claim-level verdict (`research/comp-linguist/analyses/lf-golden-v2/`). The earlier n=31 = 0.802 (per-component mean, superseded prompt `1103ed06`) is retained in the provenance register as the prior-prompt/prior-definition measurement. Recorded honest caveats: single-annotator reference, and `match_level` is `exact`-only in practice because the resolver hardcodes it (t/3238), so non-exact coverage is constructed-only until a hierarchical resolver exists.
@@ -232,7 +232,7 @@ Question raised 2026-08-31. Diagnosis from the live data files and the cmdlet so
 
 Also structural, beyond the pilot-never-scaled story: the extraction corpus is per-node evidence facts, which exist for only 556 of 4,144 nodes, and the 805 document summaries with their thousands of claims are not an entity source at all today. Even a fully-scaled Phase 1 reads a narrow slice of the project's text. The long-run size driver for the register is claim-side extraction, which is R2/T2–T3 of this document.
 
-**R7: unfreeze in order — curate, vectorize, then scale.**
+**R7: unfreeze in order, then curate, vectorize, and scale.**
 
 1. **Curation pass on the existing 78** (human or human-approved batch): author or LLM-draft-then-approve descriptions, approve the sound records, merge obvious variants. This is the blocking step for everything else and is a bounded effort.
 2. **Populate `entity_embeddings.json` from the approved set** (T1 as already proposed, now with an explicit trigger). Consider extending vectors to `proposed` records under a status tag so within-run and cross-run near-variant surfacing both work; the R6 rule (symbol is identity, vector is grounding) makes this safe.
@@ -240,7 +240,7 @@ Also structural, beyond the pilot-never-scaled story: the extraction corpus is p
 4. **Then widen the corpus to claims** per R2/T2–T3, which turns the register's growth from a per-node evidence trickle into the document pipeline's natural byproduct.
 5. **Add a register-liveness check to the calibration cycle**: register size, extraction coverage (nodes processed / nodes with facts), approval ratio, and days-since-last-mint. A register that sits untouched for a month while 805 documents flow past is exactly the silent-stall class this project keeps rediscovering; make it a scanned number instead of a surprise.
 
-Ticket impact: adds two tickets to §9 — T10/t/3118 (curation + approval pass on existing 78, precedes T1) and T11/t/3123 (scaled Phase 1 run over remaining corpus, follows T1); T1's description gains the approved-set trigger; the liveness check folds into T5/t/3125.
+Ticket impact: adds two tickets to §9. T10/t/3118 (curation + approval pass on existing 78, precedes T1) and T11/t/3123 (scaled Phase 1 run over remaining corpus, follows T1); T1's description gains the approved-set trigger; the liveness check folds into T5/t/3125.
 
 ## 12. Addendum: entities vs concepts, and the reuse-gate discipline (decision 2026-08-31)
 
