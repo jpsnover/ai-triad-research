@@ -40,6 +40,7 @@ Failure modes, each an active concern:
 ## How Entities are used
 
 - **Grounding.** Entities anchor claims, situations, and debates to concrete real-world referents, so an argument is about the actual law or actor rather than an abstraction.
+- **Claim grounding + logical forms (t/3124 / t/3126, landed 2026-09).** Claims now carry explicit `entity_refs[]` resolved against this register, closing the earlier gap where claims referenced entities only as free text. Each resolved reference also feeds the claim's `logical_form` layer: the entity's `dolce_category` becomes the participant's `sort` in the neo-Davidsonian frame, so grounding a claim in the register delivers its DOLCE typing for free. The faithfulness of that formalization is now a derived metric, `formalization_accuracy` (0.802, n=31) — see `claims-entity-fol-recommendations.md`. One consequence surfaced by that work (t/3238): the resolver emits `match_level: "exact"` for every reference (540/540), so the register's subclass/superclass/instance_of vocabulary is aspirational until a hierarchical resolver exists.
 - **Cross-document linkage.** The same entity recognized across multiple sources ties otherwise separate documents together.
 - **Intellectual Lineage.** Entities feed the lineage view that traces which actors, works, and events shaped a position.
 - **Search and filter.** The Entities view supports search by name, alias, and type, and filtering by the proposed / approved / deprecated status.
