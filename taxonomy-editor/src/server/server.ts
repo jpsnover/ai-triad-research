@@ -22,6 +22,7 @@ import { getGlobalRecorder, setGlobalRecorder } from '../../../lib/flight-record
 import { warmup as warmupEmbeddings } from '../../../lib/embeddings/onnxEmbedding.js';
 import { prewarmEmbeddingsCache, getEmbeddingsCacheStatus } from './ai/aiBackends.js';
 import { startEventLoopMonitor } from './eventLoopMonitor.js';
+import { startEmbedQueueDepthMonitor } from './embedQueueDepthMonitor.js';
 import { startGroundingSweep } from './groundingSweepScheduler.js';
 
 const require = createRequire(import.meta.url);
@@ -1328,6 +1329,11 @@ server.listen(PORT, BIND_HOST, () => {
   // so a starvation event (t/3165: 7–8s in-process ONNX froze the loop → ingress-fabricated
   // 500) is directly greppable instead of inferred. Unref'd interval — never holds the process.
   startEventLoopMonitor();
+  // t/3373: pre-shed early-warning for the embedding worker-offload pool (t/3211 arm-2's real
+  // trigger). Samples poolStats() and emits ONE stdout WARN (component:'api' → Log Analytics) when
+  // sustained queue depth approaches the dynamic cap — BEFORE a caller eats the 503 queue-shed.
+  // Unref'd interval; inert at K=1 idle (queueDepth 0).
+  startEmbedQueueDepthMonitor();
   // t/3172 (G8b): scheduled full-taxonomy grounding sweep — path-agnostic correctness backstop for
   // batch/PS/Python writes that bypass the inline G8a hook. Gated on GROUNDING_SWEEP_ENABLED
   // (default OFF): inert until the sequenced enable (t/3203 + TL lock-symmetry sign-off). Unref'd.
