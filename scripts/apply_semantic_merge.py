@@ -162,6 +162,8 @@ def main():
     print(f"COLLATERAL (unexpected changes to untouched conflicts): {'ZERO' if not collateral else collateral}")
     print(f"VERIFIED-CLEAN: {'YES' if clean else 'NO — DO NOT PUSH'}")
 
+    doc["conflict_count"] = len(doc["conflicts"])   # t/3368: wrapper counter tracks true length on every write
+
     if args.write:
         if not clean:
             print("Refusing --write: not verified-clean.", file=sys.stderr); return 2
