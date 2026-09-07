@@ -1,0 +1,4 @@
+# Durable telemetry sink for the done-evidence gate (t/3394). The platform execution-telemetry
+# writer died in the late-May Orca update (Orca Support t/3394#2), so the gate predicate appends its
+# own queryable execution records here for the post-flip re-audit. Runtime data — never committed.
+.gate-telemetry/

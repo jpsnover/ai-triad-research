@@ -92,6 +92,28 @@ export function countEvidenceAcrossRepos({ key, repoDirs, runGit, existsDir, war
   return { hitCount, gitOk };
 }
 
+/**
+ * PURE builder for a durable telemetry record (t/3394). The platform execution-telemetry writer died
+ * in the late-May Orca update (confirmed Orca Support t/3394#2): `recent_executions`/`fire_count` are
+ * unfed and run-gate stderr lands NOWHERE queryable. So the shim appends this record to a DevOps-owned
+ * JSONL, restoring the execution history the post-flip re-audit (t/3360 cond-3b) needs — including the
+ * fail-open WARNs that were otherwise invisible (the t/3085 silently-dead-safety-net class).
+ * Pure + exported so the record shape is unit-tested; the append itself stays in the impure shim,
+ * wrapped so a sink failure can NEVER change the verdict.
+ */
+export function buildSinkRecord({ nowIso, rawTicketId, key, verdict, hitCount, gitOk, warns } = {}) {
+  return {
+    ts: nowIso ?? null,
+    ticket_id: rawTicketId ?? null,
+    key: key ?? null,
+    decision: verdict && verdict.block ? 'block' : 'allow',
+    reason: verdict ? verdict.reason : null,
+    hitCount: hitCount ?? null,
+    gitOk: gitOk ?? null,
+    failOpen: warns ?? [],
+  };
+}
+
 // CLI shim (the ONLY impure part). Convention (worktree-path-guard / merge-guard): BLOCK == write
 // 'fire' to stdout; ALLOW == exit 0 with no stdout. The feedback rule invokes THIS module by abs
 // path so the rule runs the exact logic the both-arms test proves (test == runtime, TL GV t/3270#4).
@@ -107,6 +129,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('done-eviden
     //                mirrors the .aitriad.json resolution priority in root AGENTS.md).
     const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
     const dataRoot = process.env.AI_TRIAD_DATA_ROOT || fileURLToPath(new URL('../../../ai-triad-data', import.meta.url));
+    const warns = []; // fail-open reasons collected for both the stderr WARN and the durable sink record
     const { hitCount, gitOk } = countEvidenceAcrossRepos({
       key,
       repoDirs: [repoRoot, dataRoot],
@@ -133,15 +156,38 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('done-eviden
         });
         return out.split(/\r?\n/).filter((l) => l.trim()).length;
       },
-      // Fallback-Path Logging (SO cond 3): make every fail-open VISIBLE. stderr is captured into the
-      // feedback-rule execution log, so a gate that quietly dies (git unreachable / PATH drift) is
-      // detectable instead of masquerading as "all Done transitions evidence-checked" (t/3085 class).
+      // Fallback-Path Logging (SO cond 3): make every fail-open VISIBLE. NOTE (t/3394): the platform
+      // execution-telemetry writer is DEAD since the late-May Orca update — stderr lands nowhere
+      // queryable — so this WARN is also captured into the durable sink below (that is what the
+      // re-audit actually reads); stderr is kept as a best-effort second channel.
       warn: (info) => {
+        warns.push(info);
         const where = info.dir ? ` repo=${info.dir}` : '';
         const why = info.error ? ` error=${info.error}` : '';
         process.stderr.write(`WARN done-evidence gate FAIL-OPEN (${info.reason})${where}${why}\n`);
       },
     });
-    if (doneEvidenceVerdict({ statusTarget, hitCount, gitOk }).block) process.stdout.write('fire');
+    const verdict = doneEvidenceVerdict({ statusTarget, hitCount, gitOk });
+    // Durable telemetry sink (t/3394; Orca Support t/3394#2 confirmed no live platform sink exists).
+    // Append a queryable execution record — the source the post-flip re-audit reads for fire/fail-open
+    // rates + fail-open visibility. BEST-EFFORT and fully isolated: the verdict is already computed, and
+    // any sink failure is swallowed so telemetry can NEVER change the gate's block/allow decision.
+    try {
+      const rec = buildSinkRecord({
+        nowIso: new Date().toISOString(),
+        rawTicketId: process.argv[3] || null,
+        key,
+        verdict,
+        hitCount,
+        gitOk,
+        warns,
+      });
+      const dir = fileURLToPath(new URL('./.gate-telemetry/', import.meta.url)); // operations/devops/.gate-telemetry/
+      fs.mkdirSync(dir, { recursive: true });
+      fs.appendFileSync(`${dir}done-evidence.jsonl`, `${JSON.stringify(rec)}\n`);
+    } catch {
+      // telemetry is best-effort — never let a sink failure break the gate
+    }
+    if (verdict.block) process.stdout.write('fire');
   }
 }

@@ -8,7 +8,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { doneEvidenceVerdict, normalizeTicketKey, countEvidenceAcrossRepos } from './done-evidence-predicate.mjs';
+import { doneEvidenceVerdict, normalizeTicketKey, countEvidenceAcrossRepos, buildSinkRecord } from './done-evidence-predicate.mjs';
 
 // A tiny fake-git harness for the pure two-repo aggregation: map repo dir → hit count, or the
 // sentinel 'ERR' to make that repo's git call throw. Absent-from-map dirs are treated as present-but-0
@@ -186,4 +186,51 @@ test('both repos error → gitOk false, one warn PER failing repo', () => {
   });
   assert.equal(gitOk, false);
   assert.equal(warns.length, 2);
+});
+
+// ── buildSinkRecord: durable telemetry record shape (t/3394) ──
+// The platform execution-telemetry writer is dead (Orca Support t/3394#2); the shim appends these
+// records so the re-audit has a queryable source. Prove the record maps the verdict + carries the
+// fail-open reasons (the otherwise-invisible signal).
+
+test('sink record: BLOCK verdict → decision=block, carries reason + counts', () => {
+  const r = buildSinkRecord({
+    nowIso: '2026-09-07T20:00:00.000Z', rawTicketId: 't/8888888', key: 't/8888888',
+    verdict: { block: true, reason: 'no-committed-evidence' }, hitCount: 0, gitOk: true, warns: [],
+  });
+  assert.equal(r.decision, 'block');
+  assert.equal(r.reason, 'no-committed-evidence');
+  assert.equal(r.ts, '2026-09-07T20:00:00.000Z');
+  assert.equal(r.key, 't/8888888');
+  assert.equal(r.hitCount, 0);
+  assert.equal(r.gitOk, true);
+  assert.deepEqual(r.failOpen, []);
+});
+
+test('sink record: ALLOW verdict → decision=allow', () => {
+  const r = buildSinkRecord({
+    nowIso: 'x', rawTicketId: 't/3372', key: 't/3372',
+    verdict: { block: false, reason: 'evidence-present' }, hitCount: 3, gitOk: true, warns: [],
+  });
+  assert.equal(r.decision, 'allow');
+  assert.equal(r.reason, 'evidence-present');
+});
+
+test('sink record: fail-open reasons are carried into failOpen (the re-audit signal)', () => {
+  const warns = [{ reason: 'git-error', dir: '/repo', error: 'boom' }];
+  const r = buildSinkRecord({
+    nowIso: 'x', rawTicketId: 't/42', key: 't/42',
+    verdict: { block: false, reason: 'git-unavailable-fail-open' }, hitCount: 0, gitOk: false, warns,
+  });
+  assert.equal(r.decision, 'allow'); // fail-open is an allow
+  assert.equal(r.reason, 'git-unavailable-fail-open');
+  assert.equal(r.gitOk, false);
+  assert.deepEqual(r.failOpen, warns);
+});
+
+test('sink record: empty/undefined args never throw and default cleanly', () => {
+  const r = buildSinkRecord();
+  assert.equal(r.decision, 'allow'); // no verdict → not a block
+  assert.equal(r.reason, null);
+  assert.deepEqual(r.failOpen, []);
 });
