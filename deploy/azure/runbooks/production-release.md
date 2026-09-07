@@ -11,6 +11,10 @@
 - `ADMIN_USERS` GitHub Actions variable set
 - Access to trigger `workflow_dispatch` on the repo
 
+## Conditional Gate: Serialize-Phase Canary (staging, pre-promotion)
+
+If this release touches the synthetic-embeddings corpus path, the JSON serializer (`jsonStringifyChunked`), or embeddings load/serve, run the **[serialize-canary](./serialize-canary.md)** probe on a fresh staging revision **before** promoting to production. It exercises *and* asserts the response serialize phase under the loop-sampler — the phase the t/3165 storm-canary silently omitted (phase-blind false-green; t/3236). Not applicable to releases that don't touch those paths.
+
 ## Step 1: Pre-Build Verification (App Side)
 
 1. Run the full verify gate:
