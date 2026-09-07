@@ -56,9 +56,15 @@ vi.mock('@lib/debate/validateNodeId', () => ({
   validatePovNodeId: vi.fn().mockReturnValue({ valid: true }),
 }));
 
+const { mockRecord, mockStripInvalidLogicalForm } = vi.hoisted(() => ({
+  mockRecord: vi.fn(),
+  // t/3250: loadAll calls this per node. t/3378: tests override this per-case to simulate strips.
+  mockStripInvalidLogicalForm: vi.fn().mockReturnValue({ removed: false }),
+}));
+
 vi.mock('@lib/flight-recorder/index', () => ({
   getGlobalRecorder: vi.fn().mockReturnValue({
-    record: vi.fn(),
+    record: mockRecord,
   }),
 }));
 
@@ -68,7 +74,7 @@ vi.mock('../utils/validation', () => ({
   conflictFileSchema: { safeParse: vi.fn().mockReturnValue({ success: true }) },
   extractPovErrors: vi.fn().mockReturnValue({}),
   extractConflictErrors: vi.fn().mockReturnValue({}),
-  stripInvalidLogicalForm: vi.fn().mockReturnValue({ removed: false }), // t/3250: loadAll calls this per node
+  stripInvalidLogicalForm: mockStripInvalidLogicalForm,
 }));
 
 vi.mock('../utils/similarity', () => ({
@@ -1236,6 +1242,53 @@ describe('useTaxonomyStore', () => {
       await useTaxonomyStore.getState().loadAll();
       expect(useTaxonomyStore.getState().loading).toBe(false);
       expect(useTaxonomyStore.getState().saveError).toBeTruthy();
+    });
+  });
+
+  // t/3378: aggregate strip-count observability on top of the existing per-node WARN (t/3250) —
+  // a mass strip (the t/3375 class, 133 frames) should be visible without counting log lines.
+  describe('loadAll — logical_form strip summary (t/3378)', () => {
+    function mockOtherPovsEmpty(accFile: PovTaxonomyFile) {
+      mockApi.loadTaxonomyFile.mockImplementation((pov: string) => {
+        if (pov === 'accelerationist') return Promise.resolve(accFile);
+        return Promise.resolve({ nodes: [] });
+      });
+    }
+
+    it('emits an aggregate WARN with the strip count when frames are stripped on load', async () => {
+      const accFile = makePovFile([
+        makePovNode({ id: 'acc-beliefs-001' }),
+        makePovNode({ id: 'acc-beliefs-002' }),
+      ]);
+      mockOtherPovsEmpty(accFile);
+      mockStripInvalidLogicalForm.mockReturnValue({ removed: true, issue: 'bad frame' });
+
+      await useTaxonomyStore.getState().loadAll();
+
+      const summaryCall = mockRecord.mock.calls.find(([entry]) => entry.message?.includes('logical_form strip summary'));
+      expect(summaryCall).toBeTruthy();
+      expect(summaryCall![0]).toMatchObject({ level: 'warn', data: { pov: 'accelerationist', strippedCount: 2 } });
+    });
+
+    it('does not emit a strip summary on a clean load (no strips)', async () => {
+      mockOtherPovsEmpty(makePovFile([makePovNode()]));
+      mockStripInvalidLogicalForm.mockReturnValue({ removed: false });
+
+      await useTaxonomyStore.getState().loadAll();
+
+      const summaryCall = mockRecord.mock.calls.find(([entry]) => entry.message?.includes('logical_form strip summary'));
+      expect(summaryCall).toBeUndefined();
+    });
+
+    it('escalates to level "error" when the stripped count exceeds the systemic threshold (>5)', async () => {
+      const nodes = Array.from({ length: 6 }, (_, i) => makePovNode({ id: `acc-beliefs-${i}` }));
+      mockOtherPovsEmpty(makePovFile(nodes));
+      mockStripInvalidLogicalForm.mockReturnValue({ removed: true, issue: 'bad frame' });
+
+      await useTaxonomyStore.getState().loadAll();
+
+      const summaryCall = mockRecord.mock.calls.find(([entry]) => entry.message?.includes('logical_form strip summary'));
+      expect(summaryCall![0]).toMatchObject({ level: 'error', data: { strippedCount: 6 } });
     });
   });
 
