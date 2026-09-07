@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { execFileSync } from 'node:child_process'; // used only by the --jointgv CLI fetch shim
+import { appendGateTelemetry, gateTelemetryDir } from './gate-telemetry.mjs'; // shared durable sink (t/3395)
 
 /**
  * Pure command-string predicate for the pre-self-merge head-guard (t/3270, TL GV t/3270#2).
@@ -87,6 +88,26 @@ export function parsePrRef(command) {
   return null;
 }
 
+/**
+ * PURE builder for a durable telemetry record (t/3395) — mirrors done-evidence's buildSinkRecord but
+ * for the merge guards. The platform telemetry writer is dead (t/3394#2), so the shim appends this to
+ * the shared sink after computing its verdict. `mode` is 'head-guard' (t/3270) or 'jointgv' (t/3318);
+ * the HIGH-VALUE event is the jointgv fail-CLOSED block (couldn't verify labels → reason
+ * 'failclosed-unverifiable', failClosed:true). Command is truncated (it's a `gh pr merge …` line, no
+ * secrets, but bounded for log hygiene). Pure + exported so the shape is unit-tested.
+ */
+export function buildMergeGuardSinkRecord({ nowIso, mode, command, verdict, failClosed } = {}) {
+  return {
+    ts: nowIso ?? null,
+    gate: 'merge-guard',
+    mode: mode ?? null,
+    decision: verdict && verdict.block ? 'block' : 'allow',
+    reason: verdict ? verdict.reason : null,
+    failClosed: !!failClosed,
+    command: typeof command === 'string' ? command.slice(0, 300) : null,
+  };
+}
+
 // CLI shim (t/3270#4 / t/3318, TL GV): the feedback rules invoke THIS module directly so the rule
 // runs the exact logic the both-arms test proves — test == runtime. (A hand-copied inline node -e
 // would let a typo in the un-tested copy brick every merge or silently negate the gate; TL's
@@ -100,6 +121,14 @@ export function parsePrRef(command) {
 // The head-guard path is byte-identical to before (its 13/13 test stays green); --auto is
 // 'auto-exempt' there, so the two guards never double-fire on one command.
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('merge-guard-predicate.mjs')) {
+  // Durable telemetry (t/3395): append AFTER the verdict + any 'fire' write — writes to a file, never
+  // stdout, and is best-effort inside appendGateTelemetry, so it cannot affect the 'fire' contract.
+  const sink = (mode, command, verdict, failClosed) =>
+    appendGateTelemetry({
+      dir: gateTelemetryDir(import.meta.url),
+      fileName: 'merge-guard.jsonl',
+      record: buildMergeGuardSinkRecord({ nowIso: new Date().toISOString(), mode, command, verdict, failClosed }),
+    });
   if (process.argv[2] === '--jointgv') {
     const cmd = process.argv[3] || '';
     if (isAutoMergeCommand(cmd)) {
@@ -119,11 +148,19 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('merge-guard
         process.stdout.write('fire'); // fail-closed: couldn't verify → block --auto
         labeled = null;
       }
-      if (labeled !== null && jointGvAutoMergeVerdict({ isAutoMerge: true, isJointGvLabeled: labeled }).block) {
-        process.stdout.write('fire');
+      if (labeled === null) {
+        // fail-closed block (the 'fire' above) — record the high-value unverifiable event
+        sink('jointgv', cmd, { block: true, reason: 'failclosed-unverifiable' }, true);
+      } else {
+        const verdict = jointGvAutoMergeVerdict({ isAutoMerge: true, isJointGvLabeled: labeled });
+        if (verdict.block) process.stdout.write('fire');
+        sink('jointgv', cmd, verdict, false);
       }
     }
-  } else if (mergeGuardVerdict(process.argv[2] || '').block) {
-    process.stdout.write('fire');
+  } else {
+    const command = process.argv[2] || '';
+    const verdict = mergeGuardVerdict(command);
+    if (verdict.block) process.stdout.write('fire');
+    sink('head-guard', command, verdict, false);
   }
 }
