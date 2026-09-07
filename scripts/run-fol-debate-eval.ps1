@@ -81,6 +81,9 @@ Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psd1') -Force -ErrorAc
 $Mod = Get-Module AITriad
 if (-not $Mod) { throw 'AITriad module failed to load; cannot resolve data-root helpers.' }
 
+# Clause segmenter (design §4) — a pure, dot-sourceable library (no top-level side effects).
+. (Join-Path $PSScriptRoot 'fol-eval-segment.ps1')
+
 # ── Module-session-state wrappers for Private helpers (see .DESCRIPTION note) ──────
 function Resolve-DebatesDir { & $Mod { Get-DebatesDir } }
 function Test-OutputUnderDataRoot { param([string]$Path) & $Mod { param($p) Test-IsUnderDataRoot -Path $p } $Path }
@@ -115,13 +118,24 @@ $closed = [System.Collections.Generic.List[object]]::new()
 foreach ($f in $allFiles) {
     $d = Get-Content -Raw -LiteralPath $f.FullName | ConvertFrom-Json
     if (-not ($d.PSObject.Properties['phase'] -and $d.phase -eq 'closed')) { continue }
-    $statements = @(
-        if ($d.PSObject.Properties['transcript'] -and $null -ne $d.transcript) {
-            @($d.transcript) | Where-Object { $_.PSObject.Properties['type'] -and $_.type -eq 'statement' }
+
+    # Stable debate id for clause ids: the debate's own id if present, else the file stem.
+    $debateId = if ($d.PSObject.Properties['id'] -and $d.id) { [string]$d.id } else { [System.IO.Path]::GetFileNameWithoutExtension($f.Name) }
+
+    # Retain statement turns with their ACTUAL transcript index (span reproducibility, §11).
+    $statements = [System.Collections.Generic.List[object]]::new()
+    if ($d.PSObject.Properties['transcript'] -and $null -ne $d.transcript) {
+        $turnIndex = -1
+        foreach ($turn in @($d.transcript)) {
+            $turnIndex++
+            if ($turn.PSObject.Properties['type'] -and $turn.type -eq 'statement' -and
+                $turn.PSObject.Properties['content'] -and $turn.content) {
+                $statements.Add([PSCustomObject]@{ turn_index = $turnIndex; content = [string]$turn.content })
+            }
         }
-    )
+    }
     if ($statements.Count -eq 0) { continue }
-    $closed.Add([PSCustomObject]@{ File = $f.Name; StatementCount = $statements.Count })
+    $closed.Add([PSCustomObject]@{ File = $f.Name; DebateId = $debateId; StatementCount = $statements.Count; Statements = $statements })
 }
 
 # ── RUN-BOUNDING (design §10): deterministic sample + LOG, never silent truncation ──
@@ -155,8 +169,8 @@ $manifest = [ordered]@{
     clause_cost_ceiling    = $clauseCeiling
     est_model_calls_upper  = $clauseCeiling * 2   # classifier + FOL, upper bound
     dry_run                = [bool]$DryRun
-    stages_implemented     = @('load', 'run-bound', 'manifest')
-    stages_pending_pairing = @('segment', 'classify', 'coref', 'fol', 'contradiction', 'fn-rate', 'correlate')
+    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment')
+    stages_pending_pairing = @('classify', 'coref', 'fol', 'contradiction', 'fn-rate', 'correlate')
 }
 
 Write-Host ''
@@ -179,11 +193,38 @@ if ($DryRun) {
     return [PSCustomObject]$manifest
 }
 
-# ── PIPELINE STAGES (design §2) — segmenter/classifier are CL-paired; NOT implemented here ──
-# These land after the CL pairing pass (§3/§4 against live turns + the ~60-item blind gold
-# set). Throwing (rather than a fake no-op) keeps the foundation honest: a non-DryRun run
-# fails loudly with the exact next step instead of emitting empty results that look complete.
+# ── SEGMENT stage (design §4) — rule-based, pure (fol-eval-segment.ps1); Increment 2a ──────
+# Segment every selected debate's statement turns into finite clauses and emit them as JSONL with
+# stable ids + char spans (double-annotation-ready, §11). This is deterministic and makes NO model
+# calls — it is the honest, runnable extension of the foundation. The classifier (§3) that TYPES
+# each clause is the next increment (2b) and is what turns these clauses into the assertoric subset.
+$clausesPath = Join-Path $resolvedOut 'clauses.jsonl'
+$clauseLines = [System.Collections.Generic.List[string]]::new()
+$ruleCounts = @{}
+foreach ($deb in $selected) {
+    foreach ($st in $deb.Statements) {
+        $cls = @(Split-DebateTurnClauses -Text $st.content -DebateId $deb.DebateId -TurnIndex $st.turn_index)
+        foreach ($cl in $cls) {
+            $clauseLines.Add(($cl | ConvertTo-Json -Depth 4 -Compress))
+            $rule = [string]$cl.segmentation_rule
+            if ($ruleCounts.ContainsKey($rule)) { $ruleCounts[$rule]++ } else { $ruleCounts[$rule] = 1 }
+        }
+    }
+}
+Set-Content -LiteralPath $clausesPath -Value $clauseLines -Encoding utf8
+
+Write-Host ''
+Write-Host '=== SEGMENT stage (design §4) — rule-based clause segmentation ===' -ForegroundColor Cyan
+Write-Host "  Clauses: $($clauseLines.Count) across $($selected.Count) debate(s) -> $clausesPath" -ForegroundColor White
+foreach ($rk in @($ruleCounts.Keys | Sort-Object)) {
+    Write-Host ("    {0,-26} {1}" -f $rk, $ruleCounts[$rk]) -ForegroundColor DarkGray
+}
+
+# ── CLASSIFY + downstream stages (design §3/§6/§7/§8) — Increment 2b, NOT implemented here ──
+# The clause classifier (§3 5-type taxonomy + attributes) is a new AI instrument validated against
+# the blind gold set (§5). Throwing (rather than a fake no-op) keeps the harness honest: a non-DryRun
+# run fails loudly with the exact next step instead of emitting empty results that look complete.
 throw (New-EvalError `
     'Run the full FOL-on-debate eval pipeline' `
-    'The segment/classify/coref/FOL/contradiction stages are not yet implemented — they are gated on the CL segmenter+classifier pairing pass (design §3/§4) that enumerates the blind gold set.' `
-    'Use -DryRun for the plan+manifest now. The stage build follows the pairing pass with the Computational Linguist (t/3354); until then only load/run-bound/manifest are implemented.')
+    "The SEGMENT stage ran (clauses.jsonl emitted, $($clauseLines.Count) clauses) but the classify/coref/FOL/contradiction stages are not yet implemented — the clause classifier (design §3) is Increment 2b." `
+    'Inspect clauses.jsonl now (or use -DryRun for the plan+manifest). The classifier stage follows with the Computational Linguist blind gold set (design §5); until then load/run-bound/manifest/segment are implemented.')
