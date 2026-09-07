@@ -1,0 +1,114 @@
+{
+  "metric": "fol_cross_camp_modality_analytics",
+  "provenance": "descriptive / indicative (single-draw over one corpus snapshot)",
+  "reporting_treatment": "single-draw",
+  "gates_nothing": true,
+  "consumed_axes": [
+    "modality.holder",
+    "modality.attitude",
+    "polarity",
+    "temporal.type"
+  ],
+  "excluded_axes": [
+    "predicate",
+    "args",
+    "about",
+    "match_level",
+    "formalization_confidence"
+  ],
+  "axis_maturity": "modality (holder/attitude) & polarity ~1.00 (copied from POV/category, not judged); temporal.type ~0.94. NOT consumed: predicate ~0.50-0.68, args ~0.30, about[]/match_level/formalization_confidence (B5 not-safe list).",
+  "data_snapshot_sha": "f19d160e",
+  "per_camp": {
+    "acc": {
+      "nodes_total": 201,
+      "nodes_with_logical_form": 133,
+      "coverage_pct": 66.2,
+      "bdi_frames": 133,
+      "factual_frames": 0,
+      "attitude": {
+        "belief": 58,
+        "desire": 15,
+        "intention": 60
+      },
+      "attitude_other": {},
+      "attitude_pct": {
+        "belief": 43.6,
+        "desire": 11.3,
+        "intention": 45.1
+      },
+      "polarity": {
+        "positive": 132,
+        "negative": 1
+      },
+      "polarity_negative_pct": 0.8,
+      "temporal_type": {
+        "unspecified": 133
+      },
+      "holder_mismatch": 0
+    },
+    "saf": {
+      "nodes_total": 351,
+      "nodes_with_logical_form": 274,
+      "coverage_pct": 78.1,
+      "bdi_frames": 274,
+      "factual_frames": 0,
+      "attitude": {
+        "belief": 126,
+        "desire": 24,
+        "intention": 124
+      },
+      "attitude_other": {},
+      "attitude_pct": {
+        "belief": 46.0,
+        "desire": 8.8,
+        "intention": 45.3
+      },
+      "polarity": {
+        "positive": 260,
+        "negative": 14
+      },
+      "polarity_negative_pct": 5.1,
+      "temporal_type": {
+        "unspecified": 269,
+        "before": 2,
+        "during": 2,
+        "at": 1
+      },
+      "holder_mismatch": 0
+    },
+    "skp": {
+      "nodes_total": 357,
+      "nodes_with_logical_form": 234,
+      "coverage_pct": 65.5,
+      "bdi_frames": 234,
+      "factual_frames": 0,
+      "attitude": {
+        "belief": 156,
+        "desire": 22,
+        "intention": 56
+      },
+      "attitude_other": {},
+      "attitude_pct": {
+        "belief": 66.7,
+        "desire": 9.4,
+        "intention": 23.9
+      },
+      "polarity": {
+        "positive": 221,
+        "negative": 13
+      },
+      "polarity_negative_pct": 5.6,
+      "temporal_type": {
+        "unspecified": 232,
+        "before": 1,
+        "during": 1
+      },
+      "holder_mismatch": 0
+    }
+  },
+  "corpus_bdi_attitude_totals": {
+    "belief": 340,
+    "desire": 61,
+    "intention": 240
+  }
+}
