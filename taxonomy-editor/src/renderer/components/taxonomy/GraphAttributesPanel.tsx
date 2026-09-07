@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useLongPressContextMenu } from '../../hooks/useLongPressContextMenu';
 import type { GraphAttributes, PossibleFallacy } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { PolicyRegistryEntry } from '../../hooks/useTaxonomyStore';
@@ -138,13 +139,24 @@ function Badge({ field, value, onClick, onContextMenu }: {
   onContextMenu?: (e: React.MouseEvent, field: string, value: string) => void;
 }) {
   const color = BADGE_COLORS[value] || '#475569';
+  // t/3382: touch devices never fire `contextmenu` on a long-press — the long-press handlers below
+  // invoke the same onContextMenu callback so the affordance works on iPad/phone too.
+  const longPress = useLongPressContextMenu(useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onContextMenu?.(e as React.MouseEvent, field, value);
+  }, [onContextMenu, field, value]));
   return (
     <span
       className={`ga-badge ${onClick ? 'ga-badge-clickable' : ''}`}
       // eslint-disable-next-line local/no-inline-style -- border/text color comes from the badge's value-specific color lookup
       style={{ borderColor: color, color }}
       onClick={onClick ? (e) => { e.stopPropagation(); onClick(field, value); } : undefined}
-      onContextMenu={onContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e, field, value); } : undefined}
+      onContextMenu={onContextMenu ? longPress.onContextMenu : undefined}
+      onTouchStart={onContextMenu ? longPress.onTouchStart : undefined}
+      onTouchMove={onContextMenu ? longPress.onTouchMove : undefined}
+      onTouchEnd={onContextMenu ? longPress.onTouchEnd : undefined}
+      onTouchCancel={onContextMenu ? longPress.onTouchCancel : undefined}
       title={onClick ? `Find all nodes with ${formatValue(field)} = ${formatValue(value)}` : undefined}
     >
       {formatValue(value)}

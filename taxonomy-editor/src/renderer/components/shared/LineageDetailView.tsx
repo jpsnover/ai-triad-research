@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useLongPressContextMenu } from '../../hooks/useLongPressContextMenu';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { getLineageInfo, getAllLineages } from '../../data/lineageLookup';
 import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../../data/lineageCategories';
@@ -20,6 +21,34 @@ const SEE_ALSO_STOPWORDS = new Set([
   'not', 'no', 'but', 'if', 'then', 'than', 'so', 'also', 'such', 'other',
   'about', 'their', 'they', 'them', 'theory', 'view', 'based',
 ]);
+
+// t/3382: touch devices never fire `contextmenu` on a long-press — extracted so
+// useLongPressContextMenu can be called once per button instance (can't call a hook inside .map()).
+function SeeAlsoButton({ label, active, onSelect, onOpenMenu }: {
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+  onOpenMenu: (x: number, y: number) => void;
+}) {
+  const longPress = useLongPressContextMenu(useCallback((e) => {
+    e.preventDefault();
+    onOpenMenu(e.clientX, e.clientY);
+  }, [onOpenMenu]));
+  return (
+    <button
+      className={`btn btn-sm${active ? '' : ' btn-ghost'}`}
+      onClick={onSelect}
+      onContextMenu={longPress.onContextMenu}
+      onTouchStart={longPress.onTouchStart}
+      onTouchMove={longPress.onTouchMove}
+      onTouchEnd={longPress.onTouchEnd}
+      onTouchCancel={longPress.onTouchCancel}
+      title={`Preview: ${label} (right-click → Go To)`}
+    >
+      {label}
+    </button>
+  );
+}
 
 function tokenize(s: string): Set<string> {
   const tokens = s.toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) ?? [];
@@ -155,15 +184,13 @@ export function LineageDetailView({ value, onSelectValue, onOpenLink }: LineageD
       <div className="lineage-detail-label">See Also</div>
       <div className="lineage-detail-links lineage-detail-links-relative">
         {seeAlsoItems.map(({ key, label }) => (
-          <button
+          <SeeAlsoButton
             key={key}
-            className={`btn btn-sm${secondaryValue === key ? '' : ' btn-ghost'}`}
-            onClick={() => setSecondaryValue(secondaryValue === key ? null : key)}
-            onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, key }); }}
-            title={`Preview: ${label} (right-click → Go To)`}
-          >
-            {label}
-          </button>
+            label={label}
+            active={secondaryValue === key}
+            onSelect={() => setSecondaryValue(secondaryValue === key ? null : key)}
+            onOpenMenu={(x, y) => setCtxMenu({ x, y, key })}
+          />
         ))}
         {ctxMenu && (
           <div
