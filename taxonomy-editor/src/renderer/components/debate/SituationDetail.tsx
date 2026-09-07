@@ -1,12 +1,13 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef, useMemo, type RefObject, type ReactNode } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, type RefObject, type ReactNode } from 'react';
 import { POV_META } from '@lib/electron-shared/povMeta';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../../types/taxonomy';
 import { interpretationText } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useLongPressContextMenu } from '../../hooks/useLongPressContextMenu';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { HighlightedTextarea } from '../shared/HighlightedField';
@@ -256,6 +257,35 @@ function SitDescriptionField({ node, readOnly, descMode, setDescMode, err, updat
   );
 }
 
+// t/3382/t/3384: touch devices never fire `contextmenu` on a long-press — extracted so
+// useLongPressContextMenu can be called once per chip instance (can't call a hook inside .map()).
+function LineageChip({ label, selected, onSelect, onShowInfo }: {
+  label: string;
+  selected: boolean;
+  onSelect: () => void;
+  onShowInfo: () => void;
+}) {
+  const longPress = useLongPressContextMenu(useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onShowInfo();
+  }, [onShowInfo]));
+  return (
+    <span
+      className={`ga-promoted-chip ga-promoted-chip-interactive${selected ? ' ga-promoted-chip-selected' : ''}`}
+      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onContextMenu={longPress.onContextMenu}
+      onTouchStart={longPress.onTouchStart}
+      onTouchMove={longPress.onTouchMove}
+      onTouchEnd={longPress.onTouchEnd}
+      onTouchCancel={longPress.onTouchCancel}
+      title={`Click to view lineage info: "${label}"`}
+    >
+      {label}
+    </span>
+  );
+}
+
 interface SitOverviewTabProps {
   node: SituationNode;
   readOnly?: boolean;
@@ -346,15 +376,13 @@ function SitOverviewTab({
           <label>Intellectual Lineage</label>
           <div className="ga-promoted-list">
             {[...node.graph_attributes.intellectual_lineage].map(v => typeof v === 'string' ? v : (v as { name?: string })?.name).filter((v): v is string => typeof v === 'string' && v.length > 0).sort((a, b) => a.localeCompare(b)).map((l, i) => (
-              <span
+              <LineageChip
                 key={i}
-                className={`ga-promoted-chip ga-promoted-chip-interactive${expandedLineage === l ? ' ga-promoted-chip-selected' : ''}`}
-                onClick={(e) => { e.stopPropagation(); setExpandedLineage(expandedLineage === l ? null : l); }}
-                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
-                title={`Click to view lineage info: "${l}"`}
-              >
-                {l}
-              </span>
+                label={l}
+                selected={expandedLineage === l}
+                onSelect={() => setExpandedLineage(expandedLineage === l ? null : l)}
+                onShowInfo={() => showAttributeInfo('intellectual_lineage', l)}
+              />
             ))}
           </div>
           {expandedLineage && (
