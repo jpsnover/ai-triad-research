@@ -73,6 +73,22 @@ def test_write_refused_when_not_clean(tmp_path, monkeypatch):
     assert dm.main() == 2  # refuses --write when not verified-clean
 
 
+def test_conflict_count_invariant_maintained(tmp_path, monkeypatch, capsys):
+    # t/3368: reclassify-in-place doesn't change len, but the write still corrects a stale counter.
+    corpus = {"conflict_count": 99, "conflicts": [
+        {"claim_id": "c-fact", "status": "open", "instances": [{"a": 1}],
+         "qbaf": {"graph": {"nodes": [{"id": "inst-0"}], "edges": []}}},
+        {"claim_id": "c-keep", "status": "open", "instances": [{"a": 9}],
+         "qbaf": {"graph": {"nodes": [{"id": "inst-0"}], "edges": []}}}]}
+    cpath = tmp_path / "c.json"; lpath = tmp_path / "l.json"; opath = tmp_path / "o.json"
+    _write(cpath, corpus); _write(lpath, {"standalone_facts": [{"conflict_id": "c-fact"}]})
+    monkeypatch.setattr(sys, "argv", ["dm", "--list", str(lpath), "--conflicts", str(cpath), "--out", str(opath)])
+    assert dm.main() == 0
+    assert "VERIFIED-CLEAN: YES" in capsys.readouterr().out  # counter update coexists with the 0-collateral verifier (t/3368#2)
+    out = json.load(open(opath, encoding="utf-8"))
+    assert out["conflict_count"] == len(out["conflicts"]) == 2  # reclassify keeps len; corrected from 99
+
+
 if __name__ == "__main__":
     import pytest
     sys.exit(pytest.main([__file__, "-v"]))

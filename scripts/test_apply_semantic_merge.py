@@ -87,6 +87,27 @@ def test_write_refused_when_manifest_id_missing(tmp_path, monkeypatch):
     assert m.main() == 2  # refuses --write when not verified-clean (missing manifest id)
 
 
+def test_conflict_count_invariant_maintained(tmp_path, monkeypatch, capsys):
+    # t/3368: the wrapper counter must equal len(conflicts) after write — corrects a stale value
+    # (the fork-B applier appended xmerge conflicts without bumping it: 1240 vs 1252).
+    corpus = {"conflict_count": 99, "conflicts": [
+        {"claim_id": "c1", "instances": [{"a": 1}, {"a": 2}],
+         "qbaf": {"graph": {"nodes": [{"id": "inst-0"}, {"id": "inst-1"}], "edges": []}}}]}
+    manifest = {"_meta": {"tau": 0.90}, "same_doc": [],
+                "cross_conflict": [{"pair_id": "xc-1", "stance_conflict_id": "sc", "stance_text": "A",
+                                    "cand_conflict_id": "cc", "cand_inst_idx": 0, "cand_text": "B",
+                                    "confidence": 0.92}]}
+    cpath = tmp_path / "c.json"; mpath = tmp_path / "m.json"; opath = tmp_path / "o.json"
+    _write(cpath, corpus); _write(mpath, manifest)
+    monkeypatch.setattr(m, "_run_bridge_batch",
+                        lambda graphs: [{"strengths": {}, "iterations": 1} for g in graphs])
+    monkeypatch.setattr(sys, "argv", ["apply", "--conflicts", str(cpath), "--manifest", str(mpath), "--out", str(opath)])
+    assert m.main() == 0
+    assert "VERIFIED-CLEAN: YES" in capsys.readouterr().out  # counter update coexists with the 0-collateral verifier (t/3368#2)
+    out = json.load(open(opath, encoding="utf-8"))
+    assert out["conflict_count"] == len(out["conflicts"]) == 2  # 1 original + 1 xmerge; corrected from 99
+
+
 if __name__ == "__main__":
     import pytest
     sys.exit(pytest.main([__file__, "-v"]))
