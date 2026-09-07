@@ -1,0 +1,24 @@
+You classify debate clauses for an offline research eval (FOL-on-debate, t/3354). Each clause is one finite clause segmented from a debate turn. Assign every clause EXACTLY ONE primary type from the closed set below, plus three orthogonal attributes. Judge only the clause text (with the turn it came from as context); do not infer beyond it.
+
+PRIMARY TYPE (closed set — choose exactly one):
+- "assertoric-factual" = a truth-apt empirical claim about a particular or statistical state of the world (cited/quantitative where possible), leaning self-contained. e.g. "seven firms control 35% of the S&P 500"; "data centers consumed 415 TWh in 2024".
+- "assertoric-causal" = a truth-apt causal or dispositional generalization, typically a universally-quantified generic, often value-laden. e.g. "caps protect incumbents"; "post-disaster penalties cannot rebuild grids".
+- "normative-deontic" = a prescriptive claim with deontic force (must / should / ought / is-obligated-to). e.g. "Congress should bifurcate liability".
+- "speech-act-belief-revision-meta" = a move about the discourse itself: concession, retained commitment, or defeater-conditional. e.g. "I concede the telemetry point"; "I still hold the ban is premature"; "I would change my position if <defeater>".
+- "rhetorical-evaluative" = no truth-apt propositional core to formalize: rhetorical question, category-error charge, pure evaluative framing. e.g. "who gave regulators the authority?"; "comparing a chatbot to a 737 MAX is a category error".
+
+ATTRIBUTES (orthogonal — record all three on every clause):
+- "attribution" ∈ "own" | "attributed-opponent" | "attributed-third-party". An attributed restatement ("Accelerationist proposes that P") is typed by the EMBEDDED proposition P's kind, with attribution "attributed-opponent". The attributed + assertoric combination is the highest-value, highest-anaphora-risk cell.
+- "anaphora_dependency" ∈ "self-contained" | "demonstrative" | "topic-ellipsis" | "attributed-restatement". Whether resolving the clause needs a cross-turn referent (a demonstrative like "that approach", a bare elided topic like "the ban", or an attributed restatement).
+- "polarity" ∈ "asserted" | "negated". "negated" only when the clause's core proposition is itself negated (P vs ¬P) — load-bearing for contradiction detection.
+
+CLAUSES:
+{{clauses_block}}
+
+Return ONLY this JSON (one object per clause id, EVERY id exactly once, no prose):
+{"results": [{"id": "<clause id>", "primary_type": "assertoric-factual", "attribution": "own", "anaphora_dependency": "self-contained", "polarity": "asserted", "confidence": 0.0}]}
+
+Rules:
+- Choose the single best primary type. A fact-dense clause that ENDS on a normative or rhetorical note is typed on its own core, not the neighbor's.
+- "confidence" is your certainty in the primary type, 0.0-1.0.
+- Prefer "rhetorical-evaluative" over forcing an assertoric label when there is no truth-apt core.

@@ -578,5 +578,19 @@
       "logical-form",
       "fol"
     ]
+  },
+  "enrichment.fol-clause-classify": {
+    "description": "Classify a batch of debate clauses into the closed 5-type FOL-on-debate taxonomy (assertoric-factual/causal, normative-deontic, speech-act-belief-revision-meta, rhetorical-evaluative) + the attribution/anaphora_dependency/polarity attributes (t/3354 design §3, CL-authoritative). Offline research eval ONLY (read-only over debates; no in-loop path). run-fol-debate-eval.ps1 renders fol-clause-classify.prompt with the clause batch and passes it as {{prompt}}. jsonMode WITHOUT responseSchema (the nested attribute object risks the same Gemini structured-output HTTP 400 as enrichment.logical-form-formalization; the prompt enforces one strict-JSON {results:[...]} object and the stage parses defensively). temperature pinned 0 for determinism. INSTRUMENT-PROVISIONAL: labels anchor no conclusion until spot-validated against CL's blind gold set fol-eval-classifier-gold.jsonl (design §5, t/3342).",
+    "model": "gemini-3.5-flash-lite",
+    "temperature": 0,
+    "maxTokens": 2000,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "messageTemplate": "{{prompt}}",
+    "tags": [
+      "enrichment",
+      "fol",
+      "debate-eval"
+    ]
   }
 }

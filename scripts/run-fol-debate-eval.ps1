@@ -14,12 +14,12 @@
     COREF/attribution on the assertoric subset (§6, hard prerequisite) -> FOL extraction
     (§7, reuses Private/LogicalFormPass.ps1) -> CONTRADICTION + paraphrase FN-rate (§8).
 
-    THIS COMMIT is the foundation only: the read-only input loaders, the read-only OUTPUT
-    guardrail, the run-bounding cap + up-front manifest, and the stage-dispatch skeleton.
-    The segmenter and clause classifier (§3/§4, CL-authoritative) are NOT implemented here —
-    they land after the CL pairing pass that enumerates the blind gold set
-    (fol-eval-classifier-gold.jsonl). Those stages throw until then, so -DryRun (plan +
-    manifest, no model calls) is the runnable path in this increment.
+    IMPLEMENTED stages: load, run-bound, manifest, SEGMENT (§4, rule-based, fol-eval-segment.ps1),
+    CLASSIFY (§3, AI clause classifier, fol-eval-classify.ps1). The classifier is INSTRUMENT-PROVISIONAL
+    (§5/t/3342): its per-class distribution is checked against the §3.3 bands as a SANITY gate only —
+    labels anchor no conclusion until CL scores the blind gold set (fol-eval-classifier-gold.jsonl).
+    The coref/FOL/contradiction/FN-rate stages are NOT implemented yet and throw (honest failure).
+    Runnable paths without a model call: -DryRun (plan+manifest) and -SkipClassify (segment only).
 
     READ-ONLY (design §1, TL tightening e/141#8): the harness writes NOTHING under the data
     root — not outputs, not caches, not temp/intermediates. -OutputDir is asserted to be
@@ -42,12 +42,19 @@
 .PARAMETER MaxClausesPerDebate
     Hard cap on clauses formalized per debate (run-bound §10).
 .PARAMETER Model
-    AI model for the (not-yet-implemented) classifier/FOL stages. Default gemini-3.5-flash-lite.
+    AI model note (the classifier's model is set by the usage 'enrichment.fol-clause-classify' in
+    ai-usages.json). Recorded in the manifest. Default gemini-3.5-flash-lite.
+.PARAMETER ClassifyBatchSize
+    Clauses per classifier model call (batch-first, per-clause fallback for misses). Default 15.
+.PARAMETER SkipClassify
+    Run SEGMENT only (emit clauses.jsonl), make NO model calls. Inspect segmentation without a key.
 .PARAMETER DryRun
     Plan only: load + sample debates, emit the manifest (sampling plan + cost ceiling), make
-    NO model calls and hit NO unimplemented stage. The runnable path this increment.
+    NO model calls and hit NO stage. The cheapest runnable path.
 .EXAMPLE
     pwsh -File scripts/run-fol-debate-eval.ps1 -OutputDir ./.fol-eval-out -MaxDebates 20 -DryRun
+.EXAMPLE
+    pwsh -File scripts/run-fol-debate-eval.ps1 -OutputDir ./.fol-eval-out -MaxDebates 5 -SkipClassify
 .LINK
     run-xconflict-classifier.ps1
 #>
@@ -71,6 +78,13 @@ param(
     [string]$Model = 'gemini-3.5-flash-lite',
 
     [Parameter()]
+    [ValidateRange(1, 50)]
+    [int]$ClassifyBatchSize = 15,
+
+    [Parameter()]
+    [switch]$SkipClassify,
+
+    [Parameter()]
     [switch]$DryRun
 )
 
@@ -81,8 +95,15 @@ Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psd1') -Force -ErrorAc
 $Mod = Get-Module AITriad
 if (-not $Mod) { throw 'AITriad module failed to load; cannot resolve data-root helpers.' }
 
-# Clause segmenter (design §4) — a pure, dot-sourceable library (no top-level side effects).
+# Clause segmenter (§4) + classifier (§3) — pure, dot-sourceable libraries (no top-level side effects).
 . (Join-Path $PSScriptRoot 'fol-eval-segment.ps1')
+. (Join-Path $PSScriptRoot 'fol-eval-classify.ps1')
+
+# Get-Prompt is a module-PRIVATE helper (Import-Module does not expose it), so the classifier's
+# Get-Prompt call would fail with 'not recognized'. Dot-source it + set $script:ModuleRoot so its
+# default Prompts/ dir resolves fol-clause-classify.prompt (same handling as the CC classifier, t/3302).
+$script:ModuleRoot = Join-Path $PSScriptRoot 'AITriad'
+. (Join-Path $PSScriptRoot 'AITriad' 'Private' 'Get-Prompt.ps1')
 
 # ── Module-session-state wrappers for Private helpers (see .DESCRIPTION note) ──────
 function Resolve-DebatesDir { & $Mod { Get-DebatesDir } }
@@ -169,8 +190,9 @@ $manifest = [ordered]@{
     clause_cost_ceiling    = $clauseCeiling
     est_model_calls_upper  = $clauseCeiling * 2   # classifier + FOL, upper bound
     dry_run                = [bool]$DryRun
-    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment')
-    stages_pending_pairing = @('classify', 'coref', 'fol', 'contradiction', 'fn-rate', 'correlate')
+    classify_batch_size    = $ClassifyBatchSize
+    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment', 'classify')
+    stages_pending_pairing = @('coref', 'fol', 'contradiction', 'fn-rate', 'correlate')
 }
 
 Write-Host ''
@@ -199,32 +221,64 @@ if ($DryRun) {
 # calls — it is the honest, runnable extension of the foundation. The classifier (§3) that TYPES
 # each clause is the next increment (2b) and is what turns these clauses into the assertoric subset.
 $clausesPath = Join-Path $resolvedOut 'clauses.jsonl'
-$clauseLines = [System.Collections.Generic.List[string]]::new()
+$allClauses = [System.Collections.Generic.List[object]]::new()
 $ruleCounts = @{}
 foreach ($deb in $selected) {
     foreach ($st in $deb.Statements) {
         $cls = @(Split-DebateTurnClauses -Text $st.content -DebateId $deb.DebateId -TurnIndex $st.turn_index)
         foreach ($cl in $cls) {
-            $clauseLines.Add(($cl | ConvertTo-Json -Depth 4 -Compress))
+            $allClauses.Add($cl)
             $rule = [string]$cl.segmentation_rule
             if ($ruleCounts.ContainsKey($rule)) { $ruleCounts[$rule]++ } else { $ruleCounts[$rule] = 1 }
         }
     }
 }
-Set-Content -LiteralPath $clausesPath -Value $clauseLines -Encoding utf8
+Set-Content -LiteralPath $clausesPath -Value @($allClauses | ForEach-Object { $_ | ConvertTo-Json -Depth 4 -Compress }) -Encoding utf8
 
 Write-Host ''
 Write-Host '=== SEGMENT stage (design §4) — rule-based clause segmentation ===' -ForegroundColor Cyan
-Write-Host "  Clauses: $($clauseLines.Count) across $($selected.Count) debate(s) -> $clausesPath" -ForegroundColor White
+Write-Host "  Clauses: $($allClauses.Count) across $($selected.Count) debate(s) -> $clausesPath" -ForegroundColor White
 foreach ($rk in @($ruleCounts.Keys | Sort-Object)) {
     Write-Host ("    {0,-26} {1}" -f $rk, $ruleCounts[$rk]) -ForegroundColor DarkGray
 }
 
-# ── CLASSIFY + downstream stages (design §3/§6/§7/§8) — Increment 2b, NOT implemented here ──
-# The clause classifier (§3 5-type taxonomy + attributes) is a new AI instrument validated against
-# the blind gold set (§5). Throwing (rather than a fake no-op) keeps the harness honest: a non-DryRun
-# run fails loudly with the exact next step instead of emitting empty results that look complete.
+if ($SkipClassify) {
+    Write-Host ''
+    Write-Host 'SkipClassify: SEGMENT-only run — clauses.jsonl emitted, no model calls. (Inspect segmentation without a key.)' -ForegroundColor Green
+    Write-Host ''
+    return [PSCustomObject]@{ manifest = $manifest; clauses_path = $clausesPath; clause_count = $allClauses.Count }
+}
+
+# ── CLASSIFY stage (design §3) — AI clause classifier; Increment 2b ─────────────────────────
+# Types each clause into the closed 5-type taxonomy + attributes (fol-eval-classify.ps1). PAID: model
+# calls, bounded by the run cap. INSTRUMENT-PROVISIONAL (§5, t/3342): the per-class distribution below
+# is a SANITY check vs the §3.3 bands, NOT a threshold — labels anchor no conclusion until CL scores the
+# blind gold set. A clause is never dropped: an unresolved clause is 'unclassified' (excluded from FOL).
+Write-Host ''
+Write-Host "=== CLASSIFY stage (design §3) — AI clause classifier (PAID; batch=$ClassifyBatchSize) ===" -ForegroundColor Cyan
+$classMap = Invoke-FolClauseClassifyBatched -Clauses @($allClauses) -BatchSize $ClassifyBatchSize -Temperature 0
+$classified = @(ConvertFrom-FolClauseClassification -Clauses @($allClauses) -Results $classMap)
+
+$classifiedPath = Join-Path $resolvedOut 'classified-clauses.jsonl'
+Set-Content -LiteralPath $classifiedPath -Value @($classified | ForEach-Object { $_ | ConvertTo-Json -Depth 4 -Compress }) -Encoding utf8
+
+$dist = Measure-FolClauseDistribution -Classified $classified
+Write-Host "  Classified: $($dist.total) clauses -> $classifiedPath  (unclassified: $($dist.unclassified_count))" -ForegroundColor White
+Write-Host '  Per-class distribution (vs §3.3 sanity bands — inspect if outside, NOT a gate):' -ForegroundColor White
+foreach ($pt in $dist.per_type) {
+    $flag = if ($pt.within_band) { 'ok ' } else { 'OUT' }
+    $bandTxt = if ($null -ne $pt.band_lo) { "[$($pt.band_lo)-$($pt.band_hi)]" } else { '[--]' }
+    $color = if ($pt.within_band) { 'DarkGray' } else { 'DarkYellow' }
+    Write-Host ("    {0,-32} {1,4}  {2,6}  {3} {4}" -f $pt.primary_type, $pt.count, $pt.fraction, $flag, $bandTxt) -ForegroundColor $color
+}
+$asFlag = if ($dist.assertoric_within_band) { 'ok ' } else { 'OUT' }
+Write-Host ("    {0,-32} {1,4}  {2,6}  {3} [0.55-0.65]" -f 'ASSERTORIC TOTAL (-> FOL)', $dist.assertoric_count, $dist.assertoric_fraction, $asFlag) -ForegroundColor Cyan
+if ($dist.unclassified_count -eq $dist.total -and $dist.total -gt 0) {
+    Write-Warning 'CLASSIFY: every clause is unclassified — the backend returned nothing (missing key / model?). classified-clauses.jsonl was still emitted so the run is inspectable; no labels are trustworthy.'
+}
+
+# ── COREF / FOL / CONTRADICTION / FN-rate (design §6/§7/§8) — later increments, NOT implemented ──
 throw (New-EvalError `
     'Run the full FOL-on-debate eval pipeline' `
-    "The SEGMENT stage ran (clauses.jsonl emitted, $($clauseLines.Count) clauses) but the classify/coref/FOL/contradiction stages are not yet implemented — the clause classifier (design §3) is Increment 2b." `
-    'Inspect clauses.jsonl now (or use -DryRun for the plan+manifest). The classifier stage follows with the Computational Linguist blind gold set (design §5); until then load/run-bound/manifest/segment are implemented.')
+    "SEGMENT + CLASSIFY ran (clauses.jsonl + classified-clauses.jsonl emitted; $($dist.assertoric_count) assertoric of $($dist.total)) but the coref/FOL/contradiction/FN-rate stages are not yet implemented." `
+    'Inspect classified-clauses.jsonl now (or use -DryRun / -SkipClassify). The coref stage (design §6, the hard prerequisite on the attributed-opponent x assertoric cell) is the next increment; FOL + contradiction + paraphrase FN-rate follow.')
