@@ -15,6 +15,16 @@ import { useDebateStore } from '../../useDebateStore';
 // atomic edges `setState` (node + edges persisted together, t/1773 AC2).
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { executeTurnWithRetry, runModeratorSelection } from '@lib/debate/orchestration';
+// t/3392: computeStructuralScore is mocked wholesale in storeTestHarness.ts (fixed canned
+// output — unrelated tests don't exercise real scoring math), so the correct test boundary is
+// the CALL ARGUMENTS it receives, not its output: assert the exclusion filter changed what's
+// passed in, not what the canned mock returns.
+import { computeStructuralScore } from '@lib/debate/topicCritique';
+
+// t/3392: mocked here (not in the shared harness) — only this file's greatest-hits-exclusion
+// tests need it. vi.mock is file-scoped and hoisted regardless of placement.
+const { mockGetGreatestHits } = vi.hoisted(() => ({ mockGetGreatestHits: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('../shared/getGreatestHits', () => ({ getGreatestHits: mockGetGreatestHits }));
 
 // ── 15. loadSessions ────────────────────────────────────────
 
@@ -500,6 +510,62 @@ describe('Topic critique slice: reEvaluateSuggestedTopic', () => {
     await useDebateStore.getState().reEvaluateSuggestedTopic('   ');
 
     expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+});
+
+describe('Topic critique slice: greatest-hits exclusion reshapes framing (t/3392)', () => {
+  afterEach(() => {
+    mockTaxonomyState.accelerationist.nodes = [];
+  });
+
+  function setUpOneNode() {
+    mockTaxonomyState.accelerationist.nodes = [
+      { id: 'acc-test-001', label: 'Test Node', description: 'Excludable test node', category: 'beliefs' },
+    ] as any;
+    mockApi.computeQueryEmbedding.mockResolvedValue({ vector: [1, 0] });
+    mockApi.computeEmbeddings.mockResolvedValue({ vectors: [[1, 0]] });
+  }
+
+  // computeStructuralScore is mocked with a fixed canned return in storeTestHarness.ts, so these
+  // assert on the CALL ARGUMENTS it receives — proving the exclusion filter changed the corpus fed
+  // to structural scoring (which is what would, with the real function, change activated_nodes /
+  // the frame prompt / rewritten_topic). Both-arms per the ticket's AC.
+
+  it('excludes the greatest-hits node from the structural-score input when the toggle is on', async () => {
+    setUpOneNode();
+    mockGetGreatestHits.mockResolvedValue(['acc-test-001']);
+    useDebateStore.setState({ activeDebate: makeSession({ exclude_greatest_hits: true }) as any });
+
+    await useDebateStore.getState().runTopicCritique();
+
+    const call = vi.mocked(computeStructuralScore).mock.calls[0][0];
+    expect(Object.keys(call.embeddings)).not.toContain('acc-test-001');
+    expect(call.povNodes.map(n => n.id)).not.toContain('acc-test-001');
+  });
+
+  it('leaves the node in the structural-score input when the toggle is off (regression guard)', async () => {
+    setUpOneNode();
+    // List is present but the flag is off — must be ignored, proving the toggle (not just list
+    // availability) gates the exclusion.
+    mockGetGreatestHits.mockResolvedValue(['acc-test-001']);
+    useDebateStore.setState({ activeDebate: makeSession({ exclude_greatest_hits: false }) as any });
+
+    await useDebateStore.getState().runTopicCritique();
+
+    const call = vi.mocked(computeStructuralScore).mock.calls[0][0];
+    expect(Object.keys(call.embeddings)).toContain('acc-test-001');
+    expect(call.povNodes.map(n => n.id)).toContain('acc-test-001');
+  });
+
+  it('degrades to unfiltered when the toggle is on but the exclusion list is unavailable', async () => {
+    setUpOneNode();
+    mockGetGreatestHits.mockResolvedValue(undefined);
+    useDebateStore.setState({ activeDebate: makeSession({ exclude_greatest_hits: true }) as any });
+
+    await useDebateStore.getState().runTopicCritique();
+
+    const call = vi.mocked(computeStructuralScore).mock.calls[0][0];
+    expect(Object.keys(call.embeddings)).toContain('acc-test-001');
   });
 });
 
