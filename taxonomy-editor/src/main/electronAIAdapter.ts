@@ -9,10 +9,11 @@ import type { AIAdapter, GenerateOptions } from '../../../lib/debate/aiAdapter.j
 import { writeAICallLogEntry } from './aiCallLog.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
-// voiceTimeoutMs: caller-supplied fallback when opts.timeoutMs is absent
-// (wired from runtime-config opedVoiceTimeoutMs so the tunable timeout
-// governs Stage B LLM calls, not just Stage A source prep).
-export function makeElectronAIAdapter(voiceTimeoutMs?: number): AIAdapter {
+// scenario: the AI call log label for this adapter instance's caller (t/3370) — e.g.
+// 'Debate', 'OpEd Generation', 'Brief Export'. voiceTimeoutMs: caller-supplied fallback
+// when opts.timeoutMs is absent (wired from runtime-config opedVoiceTimeoutMs so the
+// tunable timeout governs Stage B LLM calls, not just Stage A source prep).
+export function makeElectronAIAdapter(scenario: string, voiceTimeoutMs?: number): AIAdapter {
   return {
     generateText: async (prompt: string, model: string, opts?: GenerateOptions): Promise<string> => {
       let retryCount = 0;
@@ -27,7 +28,7 @@ export function makeElectronAIAdapter(voiceTimeoutMs?: number): AIAdapter {
           opts?.signal,
           opts?.responseSchema,
         );
-        writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: '200' });
+        writeAICallLogEntry({ scenario, promptId: '', promptStart: prompt, retryCount, status: '200' });
         return text;
       } catch (err) {
         getGlobalRecorder()?.record({
@@ -35,7 +36,7 @@ export function makeElectronAIAdapter(voiceTimeoutMs?: number): AIAdapter {
           message: 'electronAIAdapter: generateText failed — rethrowing to debate engine',
           error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
-        writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: 'error' });
+        writeAICallLogEntry({ scenario, promptId: '', promptStart: prompt, retryCount, status: 'error' });
         throw err;
       }
     },
