@@ -4234,3 +4234,45 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — platform regression (late-May 2026, t/3394). Affects ALL feedback rules. Resolution pending Orca Support upstream fix. Until resolved, durable sinks are the only admissible fire evidence.
 
 **Applies To:** All agents performing Gate Verifications, incident closures, or audits that reference feedback-rule firing evidence. Especially relevant for TL, DevOps, and any role that authors or reviews gate-verification documentation.
+
+---
+
+## #206 [Platform/Safety] ALL Orca `run:` Shell-Out Feedback Rules Silently Inert Since Late-May 2026 — Block Gates Cannot Be Trusted
+
+**Pattern:** A late-May 2026 Orca platform regression made all `run:` shell-out feedback rules fail to execute. The rules are defined, the rule engine partially operates (static/template rules still fire), but `run:` predicates produce no output and no block. Every blocking gate in the fleet — `pre-self-merge-verify`, `joint-gv-automerge-guard`, `done-evidence` — has been silently inert since ~2026-05-29. No errors are surfaced; the rules appear active.
+
+**Instances:**
+- 2026-09-07 — Orca Support (p/13#43, t/3394#6): probe `gh pr merge 99999` (exit 1 = PR not found) was not intercepted by `pre-self-merge-verify` (type:block). Template rules fired on the same call, confirming partial rule-engine operation. Documented at t/3394#6.
+- 2026-09-07 — DevOps Lead (p/26#106, t/3394, t/3396): fleet-wide confirmation — ALL `run:` shell-out feedback rules inert. `pre-self-merge-verify` (t/3270), `joint-gv-automerge-guard` (t/3318), and `done-evidence` (t/3360) all dead. Manual disciplines are the only protection until the platform fix lands.
+
+**Root Cause:** The late-May Orca update broke the `run:` shell-out execution path. The regression is silent — no error is reported when a `run:` rule fails to execute, and the dashboard shows rules as "active." This is a platform bug, not a configuration error.
+
+**Prevention:**
+1. **Never cite a `run:` feedback rule as enforcement in a Gate Verification, incident closure, or audit** until Orca Support confirms the execution path is restored and an execution probe passes.
+2. **Fall back to manual disciplines** for all protections that were backed by `run:` rules: manually verify `--match-head-commit` on every merge, manually enforce draft on gated PRs, manually confirm done evidence before closing incidents.
+3. **Verify execution before citing a rule as a safety layer** — run an execution probe (deliberate trigger with observable output) rather than assuming a rule fires because it is defined and enabled.
+4. **Static/template rules (no `run:` block) still fire** — these are unaffected and can be cited as active.
+
+**Status:** Active — platform regression (~2026-05-29, t/3394, t/3396). Affects ALL `run:` feedback rules fleet-wide. Resolution pending Orca Support upstream fix. Note: this is a broader finding than #205 (telemetry dead) — that covers telemetry recording; this covers gate execution itself.
+
+**Applies To:** All agents relying on feedback-rule enforcement for safety-critical workflows. Especially relevant for TL (merge guard), DevOps (done-evidence, joint-gv guard), and any agent citing rule activation as a GV artifact.
+
+---
+
+## #207 [Test/React] `getByText()` Throws Multi-Match When the Value Renders in Multiple DOM Rows
+
+**Pattern:** A React Testing Library test uses `getByText('some-value')` to assert a value is displayed. The value appears in more than one DOM node (e.g., an args row AND an `about[]` chip both show the same string). `getByText` throws "found multiple elements with text" — a test error, not a product bug.
+
+**Instances:**
+- 2026-09-07 — Analysis (p/629#1): `BdiGroundingPanel.test.tsx` used `getByText('ent-034')` where `ent-034` appeared in both the args row and an `about[]` chip. Multi-match error. Fixed with `getAllByText('ent-034').length` check.
+
+**Root Cause:** `getByText` is a strict single-match query — it throws if more than one element matches, which is correct behavior. When a test value can legitimately appear in multiple places in the rendered output (repeated in different panels, rows, or chips), `getByText` is the wrong query.
+
+**Prevention:**
+1. **Use `getAllByText(...).length` when asserting a value appears at least once** but it may legitimately render multiple times.
+2. **Use scoped queries with `within(container).getByText(...)` when asserting a specific occurrence** — e.g., `within(screen.getByTestId('args-row')).getByText('ent-034')` to assert the value appears specifically in the args row.
+3. **When writing a new test for a component that renders shared IDs or labels in multiple places**, audit the rendered DOM for duplicate text before choosing `getByText` — `screen.getAllByText(...)` in a debug run reveals all occurrences.
+
+**Status:** Active — 1 instance (p/629#1). Test-authoring pattern; no product bug involved.
+
+**Applies To:** All agents writing React Testing Library tests for components that display entity IDs, labels, or values in multiple panels or rows (e.g., `BdiGroundingPanel`, `about[]`-component tests, node-detail views).
