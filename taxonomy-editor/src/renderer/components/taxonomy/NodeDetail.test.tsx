@@ -95,7 +95,10 @@ vi.mock('../conflict', () => ({
 }));
 vi.mock('./GraphAttributesPanel', () => ({ GraphAttributesPanel: () => null }));
 vi.mock('./NodeEditHistory', () => ({ NodeEditHistory: () => null }));
-vi.mock('./DebateTestedChip', () => ({ DebateTestedChip: () => null }));
+// t/3393: spy (not a plain () => null) so tests can assert the chip was actually reached for a
+// given node category, not just that rendering didn't throw.
+const { mockDebateTestedChip } = vi.hoisted(() => ({ mockDebateTestedChip: vi.fn(() => null) }));
+vi.mock('./DebateTestedChip', () => ({ DebateTestedChip: mockDebateTestedChip }));
 vi.mock('./DebateTestedDrilldown', () => ({ DebateTestedDrilldown: () => null }));
 vi.mock('../shared/MentionField', () => ({
   useContainerMentionKit: () => ({ renderMentionField: () => null, descriptionMention: null }),
@@ -327,5 +330,31 @@ describe('NodeDetail — Simple-view last-edited line (t/3022)', () => {
   it('omits the last-edited line when the node has no edit metadata', () => {
     render(<NodeDetail pov="acc" node={mockNode} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />);
     expect(screen.queryByText(/last edited by/i)).not.toBeInTheDocument();
+  });
+});
+
+// ── Debate Tested on all BDI categories (t/3393) ────────────────────────────
+// Previously gated to `node.category === 'Beliefs'` only; the underlying
+// debate_tested record is populated on Desires/Intentions nodes too (confirmed
+// against live taxonomy data), so the chip must render on every category.
+
+describe('NodeDetail — Debate Tested chip renders on every BDI category (t/3393)', () => {
+  beforeEach(() => {
+    mockPrefsState.viewMode = 'simple';
+    vi.clearAllMocks();
+  });
+
+  it.each(['Beliefs', 'Desires', 'Intentions'] as const)('renders the Debate Tested chip for a %s node', (category) => {
+    render(
+      <NodeDetail
+        pov="acc"
+        node={{ ...mockNode, category }}
+        readOnly={false}
+        onPin={vi.fn()}
+        onSimilarSearch={vi.fn()}
+        onRelated={vi.fn()}
+      />,
+    );
+    expect(mockDebateTestedChip).toHaveBeenCalled();
   });
 });
