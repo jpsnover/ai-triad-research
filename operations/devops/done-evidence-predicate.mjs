@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { execFileSync } from 'node:child_process'; // used only by the CLI shim's git query
+import { fileURLToPath } from 'node:url'; // resolve repo dirs from the module path, not cwd
+import fs from 'node:fs'; // existsSync guard for the (optionally absent) data repo
 
 /**
  * Pure verdict for the done-requires-EVIDENCE gate (t/3360, G1 cross-check audit).
@@ -17,9 +19,16 @@ import { execFileSync } from 'node:child_process'; // used only by the CLI shim'
  * convention). `ticket_type` is NOT in the payload, so carve-outs (chore/docs/no-code) CANNOT be
  * mechanical — that gap is sized during the warn phase before any blocking flip.
  *
+ * TWO-REPO EVIDENCE (t/3360#5, warn-phase measurement): the fleet is a two-repo split — code here,
+ * structured data in the sibling `ai-triad-data` repo. The warn-phase corpus showed the dominant
+ * real false-positive class was NOT no-code tickets (those are near-absent) but real work whose
+ * commit landed in the DATA repo — invisible to an `origin/main` grep of THIS repo alone. So evidence
+ * is now searched across BOTH repos (see countEvidenceAcrossRepos); a hit in either counts.
+ *
  * Split (merge-guard pattern, t/3270/t/3318, Guard Testability t/2971): the impure `git log` query
  * lives in the CLI shim; `doneEvidenceVerdict` is a PURE function of { statusTarget, hitCount, gitOk }
- * so both arms stay unit-testable (test == runtime). Returns { block, reason }.
+ * and `countEvidenceAcrossRepos` is a PURE aggregation over injectable runGit/existsDir — so both
+ * arms (including the data-repo leg) stay unit-testable (test == runtime). Returns { block, reason }.
  *
  * git-error mode = FAIL-OPEN (warn-phase proposal; TL confirms at the flip, t/3360#3): a git hiccup
  * must not brick EVERY Done transition — this gate is an evidence backstop, not the record of truth,
@@ -31,7 +40,7 @@ export function doneEvidenceVerdict({ statusTarget, hitCount, gitOk } = {}) {
   if (String(statusTarget).toLowerCase() !== 'done') return { block: false, reason: 'not-done-transition' };
   // FAIL-OPEN on any git failure / unparseable key (gitOk=false) — see header.
   if (!gitOk) return { block: false, reason: 'git-unavailable-fail-open' };
-  // A landed commit references the ticket key → committed evidence exists.
+  // A landed commit (in EITHER repo) references the ticket key → committed evidence exists.
   if (hitCount > 0) return { block: false, reason: 'evidence-present' };
   // Done + git OK + zero commits referencing the ticket → no committed evidence.
   return { block: true, reason: 'no-committed-evidence' };
@@ -47,6 +56,33 @@ export function normalizeTicketKey(raw) {
   return m ? `t/${m[1]}` : null;
 }
 
+/**
+ * PURE aggregation of committed evidence across the fleet's two git repos (t/3360#5).
+ * Injectable seams keep it unit-testable without real git (test == runtime):
+ *   - runGit(dir)   → number of origin/main commits in `dir` whose message references the key;
+ *                     throws on a real git error.
+ *   - existsDir(dir)→ whether the repo path is present.
+ * Semantics:
+ *   - a null/empty key → { hitCount: 0, gitOk: false } (fail-open: never block on a key we can't form);
+ *   - an ABSENT repo (existsDir false) contributes 0 hits and is NOT an error — e.g. a checkout with no
+ *     sibling data repo; only a real git failure on a PRESENT repo flips gitOk=false (→ fail-open);
+ *   - hits SUM across repos; a hit in EITHER repo is evidence.
+ */
+export function countEvidenceAcrossRepos({ key, repoDirs, runGit, existsDir } = {}) {
+  if (!key) return { hitCount: 0, gitOk: false };
+  let hitCount = 0;
+  let gitOk = true;
+  for (const dir of repoDirs ?? []) {
+    if (!existsDir(dir)) continue; // genuinely-absent repo is not a git error
+    try {
+      hitCount += runGit(dir);
+    } catch {
+      gitOk = false; // real git failure on a present repo → fail-open
+    }
+  }
+  return { hitCount, gitOk };
+}
+
 // CLI shim (the ONLY impure part). Convention (worktree-path-guard / merge-guard): BLOCK == write
 // 'fire' to stdout; ALLOW == exit 0 with no stdout. The feedback rule invokes THIS module by abs
 // path so the rule runs the exact logic the both-arms test proves (test == runtime, TL GV t/3270#4).
@@ -56,21 +92,30 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('done-eviden
   const statusTarget = process.argv[2] || '';
   if (String(statusTarget).toLowerCase() === 'done') {
     const key = normalizeTicketKey(process.argv[3] || '');
-    let hitCount = 0;
-    let gitOk = true;
-    if (!key) {
-      gitOk = false; // unparseable id → fail-open (don't block on an id we can't turn into a key)
-    } else {
-      try {
-        const out = execFileSync('git', ['log', 'origin/main', `--grep=${key}`, '--oneline'], {
+    // Resolve both repo roots from THIS module's path (not cwd, which the hook runtime doesn't fix):
+    //   repo root  = <root>/  (this file is <root>/operations/devops/done-evidence-predicate.mjs)
+    //   data repo  = $AI_TRIAD_DATA_ROOT, else the sibling <root>/../ai-triad-data (monorepo fallback,
+    //                mirrors the .aitriad.json resolution priority in root AGENTS.md).
+    const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
+    const dataRoot = process.env.AI_TRIAD_DATA_ROOT || fileURLToPath(new URL('../../../ai-triad-data', import.meta.url));
+    const { hitCount, gitOk } = countEvidenceAcrossRepos({
+      key,
+      repoDirs: [repoRoot, dataRoot],
+      existsDir: (d) => {
+        try {
+          return fs.existsSync(d);
+        } catch {
+          return false;
+        }
+      },
+      runGit: (d) => {
+        const out = execFileSync('git', ['-C', d, 'log', 'origin/main', `--grep=${key}`, '--oneline'], {
           encoding: 'utf8',
           timeout: 8000,
         });
-        hitCount = out.split(/\r?\n/).filter((l) => l.trim()).length;
-      } catch {
-        gitOk = false; // git error → fail-open (see header)
-      }
-    }
+        return out.split(/\r?\n/).filter((l) => l.trim()).length;
+      },
+    });
     if (doneEvidenceVerdict({ statusTarget, hitCount, gitOk }).block) process.stdout.write('fire');
   }
 }
