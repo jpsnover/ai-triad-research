@@ -47,6 +47,10 @@ A/B isolates the prompt effect from model/re-run variance. Topical selection = `
   A): v2 is the recommended prompt (**P = 0.85** at R = 0.61). But that is a *metric change* (F1 → precision@k)
   and a separate pre-committed decision — it does NOT reopen A under the current F1 rule.
 
+## Layer-owner decision (e/145#18–#19): KEEP v1 recall-first; do NOT regenerate with v2
+
+TL surfaced that v2's P=0.849 could upgrade the `topical_candidates` layer today under C. **Decision (CL, as layer owner): keep the v1 recall-first layer (0.54); no data change.** `topical_candidates` is a *candidate* layer — recall-oriented by name and intended role (topical retrieval/grounding candidates); a downstream filter prunes false positives, but v2's 40% recall loss drops genuine subjects (`documented_present_harm`, `capabilities_hazard`, `accountability_market`) that are unrecoverable downstream. v2 is not more *validated* (same unvalidated status, different P/R point), there are no consumers today (dark layer, t/3353), and the in-data marking already makes the 0.54 noise legible. **Revisit trigger:** a future consumer that genuinely needs a precision-first topical index — at which point the mechanism-change path (select-then-verify) could give both axes rather than forcing the trade. v2 is the recorded precision-first operating point until then.
+
 ## Do not land
 
 The v2/v3 prompts are **measured artifacts, not for production**: (a) neither clears the floor; (b) the
