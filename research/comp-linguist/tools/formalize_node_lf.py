@@ -63,6 +63,10 @@ def parse_lf(text):
 
 PARTICULAR_SORTS = frozenset({"agentive-physical-object", "non-agentive-functional-artifact",
                               "perdurant", "normative-description", "non-agentive-social-object"})
+# Canonical EntityMatchLevel enum (logical-form-schema.md; PS $script:LogicalFormMatchLevels).
+# `universal` is a valid args[].sort (t/3251) but NEVER a match_level — the t/3379 leak. about[] keeps
+# BOTH ent-* and term: refs (Option A, SO-ratified e/145) but its match_level is enum-clamped here.
+VALID_MATCH_LEVELS = frozenset({"exact", "instance_of", "subclass", "superclass", "related"})
 
 
 def _repair_bare(ref, allowed):
@@ -102,11 +106,18 @@ def validate(lf, allowed, camp, cat):
     for ab in (lf.get("about") or []):
         if not isinstance(ab, dict):
             continue
-        ab["ref"] = _repair_bare(ab.get("ref", ""), allowed)
-        if ab.get("ref") in allowed:
-            if not ab.get("match_level"):
-                ab["match_level"] = "exact"
-            kept_about.append(ab)
+        ref = _repair_bare(ab.get("ref", ""), allowed)
+        # about[] is a mixed topical index: keep BOTH ent-* and term: refs (Option A, SO e/145).
+        # Only grounded refs survive (R6 / t/2294 — a ref not in the node's own entity_refs/concept_refs
+        # is dropped, never minted); the `in allowed` gate also enforces the {ent-*|term:*} vocabulary.
+        if ref not in allowed:
+            continue
+        ab["ref"] = ref
+        # Authoritative match_level from the ref's register entry (mirrors args[]), never the model's
+        # guess; enum-clamp so a concept's sort=`universal` can never leak into match_level (t/3379).
+        ml = allowed[ref][1]
+        ab["match_level"] = ml if ml in VALID_MATCH_LEVELS else "exact"
+        kept_about.append(ab)
     lf["about"] = kept_about
     lf["modality"] = {"holder": f"camp:{POV.get(camp, camp)}", "attitude": CAT_ATT.get(cat, "belief")}
     lf.setdefault("status", "proposed")
