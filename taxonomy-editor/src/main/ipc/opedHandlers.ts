@@ -345,7 +345,7 @@ export function registerOpEdHandlers(): void {
     };
 
     const deps: OpEdGeneratorDeps = {
-      adapter: makeElectronAIAdapter(getVoiceTimeoutMs()),
+      adapter: makeElectronAIAdapter('OpEd Generation', getVoiceTimeoutMs()),
       promptsDir: PROMPTS_DIR,
       repoRoot: PROJECT_ROOT,
     };

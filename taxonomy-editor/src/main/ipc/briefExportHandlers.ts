@@ -214,7 +214,7 @@ async function runJob(job: BriefJob, body: BriefExportRequestBody): Promise<void
         toolVersions: TOOL_VERSIONS,
         timestamp: new Date().toISOString(),
       },
-      makeElectronAIAdapter(),
+      makeElectronAIAdapter('Brief Export'),
       (s) => { setState(job, s); stage = s; },
       (a: BriefArtifact) => { artifacts.push(a); },
     );
