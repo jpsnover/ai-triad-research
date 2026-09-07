@@ -1356,6 +1356,54 @@ resource fallbackActive 'Microsoft.Insights/scheduledQueryRules@2023-03-15-previ
   }
 }
 
+// ── Arm-2 Worker-Queue Saturation Alert (t/3372; trigger for the K=2/Dedicated migration, t/3211) ──
+// Fires on SUSTAINED novel-embed load-shed: the K-slot embedding pool rejected enqueues past its
+// dynamic MAX_QUEUE_DEPTH×liveSlotCount cap (16 at K=1). Sustained sheds = organic demand crossed the
+// ~20 texts/s bar the single worker can serve → the "add a worker / do the Dedicated-profile migration
+// → K=2" trigger (t/3211; ServerAPI then verifies ≈2× throughput + flat main-loop delay). Consumption-
+// compatible — a monitoring resource, no SKU/cost change.
+//
+// MATCH-TOKEN IS A CONTRACT: "embeddings.compute: load-shed 503" is the STDOUT route token (log.api,
+// component:'api'; taxonomy-editor/src/server) emitted when computeEmbeddings load-sheds (ServerAPI
+// t/3372#2). Do NOT match the pool's own "embedding request shed — queue full" WARN — it is
+// FLIGHT-RECORDER-ONLY (getGlobalRecorder), never reaches stdout/Log_s, so a KQL match on it silently
+// NEVER fires (the t/3110/t/3308 sink trap). v1 keys on the stdout route token only.
+// PENDING t/3373 (ServerAPI): a clean stdout shed token + a PRE-SHED queue-depth-near-cap gauge — fold
+// in the clean token + an early-warning (pre-503) clause when that lands (the ticket's REAL trigger:
+// fire before users feel the shed). Threshold >5 sheds / 15 min = sustained, not a one-off burst.
+resource workerQueueSaturation 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-worker-queue-saturation'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'Embedding Worker Queue Saturation (K=2 migration trigger)'
+    description: 'The K-slot embedding worker pool load-shed (503) past its queue cap repeatedly over 15 minutes — sustained novel-embed demand exceeding single-worker capacity. Trigger to evaluate the Dedicated-profile migration to K=2 (t/3211/t/3372). v1 matches the stdout route token; the pre-shed early-warning clause is pending t/3373.'
+    severity: 2
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s contains "embeddings.compute: load-shed 503"
+            | summarize Sheds = count()
+            | where Sheds > 5
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
 // ── G8b Grounding-Sweep Stall Alert (t/3279) ──
 // Detects the failed-inline-then-cold edge: a G8a inline reconcile FAILED (emitting the stdout
 // `log.server.warn 'inline grounding reconcile failed'` from groundingReconcileHook.ts → Log_s;
