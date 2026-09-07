@@ -73,8 +73,30 @@ async function reattachStrippedLogicalForms(
   pov: typeof POV_KEYS[number],
   file: PovTaxonomyFile,
 ): Promise<PovTaxonomyFile> {
-  const onDisk = await api.loadTaxonomyFile(pov) as PovTaxonomyFile | null;
-  if (!onDisk?.nodes?.length) return file;
+  let onDisk: PovTaxonomyFile | null;
+  try {
+    onDisk = await api.loadTaxonomyFile(pov) as PovTaxonomyFile | null;
+  } catch (err) {
+    // Fail-open-but-loud: a re-read failure must not abort the user's save (the whole-file
+    // write itself is unaffected — only the reattach safety net is skipped for this save).
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'taxonomy-store', level: 'warn',
+      message: `logical_form reattach-on-save: re-read of ${pov} failed — skipping reattach for this save (t/3376)`,
+      data: { pov },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return file;
+  }
+  if (!onDisk?.nodes?.length) {
+    // Fallback-path logging (docs/error-handling.md): a null/empty re-read is also silent
+    // fail-open without this — e.g. the web build's ADR-001 graceful-empty on a fetch miss.
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'taxonomy-store', level: 'warn',
+      message: `logical_form reattach-on-save: re-read of ${pov} returned null/empty — skipping reattach for this save (t/3376)`,
+      data: { pov },
+    });
+    return file;
+  }
   const onDiskById = new Map(onDisk.nodes.map((n) => [(n as unknown as Record<string, unknown>).id, n]));
   let reattachedCount = 0;
   const nodes = file.nodes.map((node) => {

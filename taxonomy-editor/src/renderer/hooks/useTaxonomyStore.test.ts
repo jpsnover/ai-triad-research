@@ -56,9 +56,11 @@ vi.mock('@lib/debate/validateNodeId', () => ({
   validatePovNodeId: vi.fn().mockReturnValue({ valid: true }),
 }));
 
+const { mockRecord } = vi.hoisted(() => ({ mockRecord: vi.fn() }));
+
 vi.mock('@lib/flight-recorder/index', () => ({
   getGlobalRecorder: vi.fn().mockReturnValue({
-    record: vi.fn(),
+    record: mockRecord,
   }),
 }));
 
@@ -1353,6 +1355,28 @@ describe('useTaxonomyStore', () => {
 
         const [, savedFile] = mockApi.saveTaxonomyFile.mock.calls.find(([pov]) => pov === 'accelerationist')!;
         expect((savedFile as PovTaxonomyFile).nodes[0].logical_form).toEqual(memoryLf);
+      });
+
+      it('fails open (but loud) when the re-read throws — the save still completes', async () => {
+        const memoryNode = makePovNode({ id: 'acc-beliefs-001' });
+        mockApi.loadTaxonomyFile.mockImplementation((pov: string) =>
+          pov === 'accelerationist' ? Promise.reject(new Error('network error')) : Promise.resolve({ nodes: [] }),
+        );
+        useTaxonomyStore.setState({
+          accelerationist: makePovFile([memoryNode]),
+          dirty: new Set(['accelerationist']),
+        });
+
+        await useTaxonomyStore.getState().save();
+
+        // Save is not aborted by the re-read failure — the original in-memory file still saves.
+        const [, savedFile] = mockApi.saveTaxonomyFile.mock.calls.find(([pov]) => pov === 'accelerationist')!;
+        expect((savedFile as PovTaxonomyFile).nodes[0]).toEqual(memoryNode);
+        expect(useTaxonomyStore.getState().saveError).toBeNull();
+        // Loud, not silent: a WARN is recorded for the skipped reattach (fallback-path logging).
+        const warnCall = mockRecord.mock.calls.find(([entry]) => entry.message?.includes('reattach-on-save') && entry.message?.includes('re-read'));
+        expect(warnCall).toBeTruthy();
+        expect(warnCall![0]).toMatchObject({ level: 'warn' });
       });
     });
 
