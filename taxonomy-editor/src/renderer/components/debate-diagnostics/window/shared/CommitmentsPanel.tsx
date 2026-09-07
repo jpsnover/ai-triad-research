@@ -1,12 +1,13 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { CommitmentStore, ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../../types/debate';
 import { POVER_INFO } from '../../../../types/debate';
 import type { SpeakerId } from '../../../../types/debate';
 import { bandColor, RISK_BANDS } from '../../../../lib/bandColor';
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
+import { useLongPressContextMenu, type ContextMenuLikeEvent } from '../../../../hooks/useLongPressContextMenu';
 import './CommitmentsPanel.css';
 
 // NOTE: speakerLabel and AifBadge stay in DiagnosticsWindow.tsx (parent).
@@ -52,6 +53,34 @@ function computeAttackTargetMean(
   return atkCount > 0 ? atkSum / atkCount : 0.5;
 }
 
+// t/3386: touch devices never fire `contextmenu` on a long-press — see t/3382. Extracted so
+// useLongPressContextMenu can be called once per row instance (can't call a hook inside .map()).
+function CommitmentItemRow({ item, nodeId, isLast, onContextMenu }: {
+  item: string;
+  nodeId: string | null;
+  isLast: boolean;
+  onContextMenu: (e: ContextMenuLikeEvent) => void;
+}) {
+  const longPress = useLongPressContextMenu(onContextMenu);
+  return (
+    // eslint-disable-next-line local/no-inline-style -- index-driven border bottom
+    <div
+      className="commit-panel-item-row"
+      style={{ borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)' }}
+      onContextMenu={longPress.onContextMenu}
+      onTouchStart={longPress.onTouchStart}
+      onTouchMove={longPress.onTouchMove}
+      onTouchEnd={longPress.onTouchEnd}
+      onTouchCancel={longPress.onTouchCancel}
+    >
+      {nodeId && (
+        <span className="commit-panel-node-badge">{nodeId}</span>
+      )}
+      {item}
+    </div>
+  );
+}
+
 export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
   commitments: Record<string, CommitmentStore>;
   nodes: ArgumentNetworkNode[];
@@ -87,10 +116,10 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
     return null;
   };
 
-  const handleContextMenu = (e: React.MouseEvent, text: string) => {
+  const handleContextMenu = useCallback((e: ContextMenuLikeEvent, text: string) => {
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY, text, nodeId: findNodeId(text) });
-  };
+  }, [findNodeId]);
 
   useEffect(() => {
     if (!ctxMenu) return;
@@ -178,23 +207,15 @@ export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
                 borderLeft: `3px solid ${cat.color}`,
                 background: `${cat.color}08`,
               }}>
-                {items.map((item, i) => {
-                  const nodeId = findNodeId(item);
-                  return (
-                    // eslint-disable-next-line local/no-inline-style -- index-driven border bottom
-                    <div
-                      key={i}
-                      onContextMenu={(e) => handleContextMenu(e, item)}
-                      className="commit-panel-item-row"
-                      style={{ borderBottom: i < items.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
-                    >
-                      {nodeId && (
-                        <span className="commit-panel-node-badge">{nodeId}</span>
-                      )}
-                      {item}
-                    </div>
-                  );
-                })}
+                {items.map((item, i) => (
+                  <CommitmentItemRow
+                    key={i}
+                    item={item}
+                    nodeId={findNodeId(item)}
+                    isLast={i === items.length - 1}
+                    onContextMenu={(e) => handleContextMenu(e, item)}
+                  />
+                ))}
               </div>
             );
           })()}
