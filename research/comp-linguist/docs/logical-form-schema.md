@@ -64,7 +64,8 @@ for both the argument bindings and the `about[]` projection. It never re-extract
 | `args[].ref` | string | **MUST be an `ent-*` id drawn from this claim's `entity_refs[].ref`** — never a re-invented id (t/2294). If the participant is not a registered entity, use a literal `lit:"…"` or an event var; record `sort` regardless. |
 | `args[].sort` | enum | The entity's DOLCE-lite sort, **pinned to the register's `DolceCategory` closed set** (`lib/entities/types.ts`): `agentive-physical-object \| non-agentive-functional-artifact \| perdurant \| normative-description \| non-agentive-social-object`. Copied verbatim from the referenced entity's `dolce_category`; for a `lit:`/event arg, CL-assigned from the same 5-value set. Copy-not-judge (rule 2). A `term:*` **concept** ref (node `logical_form`) instead takes sort **`universal`** — the 6th arg-slot sort for kinds, distinct from the 5 particular values (t/3251). |
 | `args[].match_level` | enum | Copied verbatim from the entity_ref: `exact \| instance_of \| subclass \| superclass \| related`. Load-bearing for the prover — a claim about a superclass matched to an instance is a different assertion (§6, R4). **⚠️ Exact-only in practice (t/3238):** the resolver (`ClaimEntityResolution.ps1`) hardcodes `match_level="exact"` and surface-matches only — **540/540** entity_refs corpus-wide are `exact`. The non-exact values are an **aspirational vocabulary** until a hierarchical/taxonomic resolver exists; the prover's match_level-sensitivity (§6/R4) and the t/3127/t/3128 axiom modules are therefore **untested on real data** and testable only via constructed golden cases (`analyses/logical-form-golden/` con-2..con-5). Making resolution ontology-aware is a separate resolution-strategy initiative, out of the FOL-track scope. |
-| `about[]` | array | **Topical grounding (additive, optional):** `[{ref, match_level}]` — the `ent-*` ids the claim is *about* (its topical subject). **Superset convention (pinned, D3b):** `about[]` is the **complete** topical index — every resolved entity the claim is about, **including** those that also fill an `args[]` role (a participant that is topical appears in *both*). Same ids as the claim's `entity_refs[]` (a logical-form projection, **no new resolution**). Governed by the `about[]` conditions below. |
+| `about[]` | array | **Topical grounding (additive, optional):** `[{ref, match_level}]` — the `ent-*` ids the claim is *about* (its topical subject). **Superset convention (pinned, D3b):** `about[]` is the **complete** topical index — every resolved entity the claim is about, **including** those that also fill an `args[]` role (a participant that is topical appears in *both*). Same ids as the claim's `entity_refs[]` (a logical-form projection, **no new resolution**). **`ent-*` only** (Option C, t/3389 — the mixed convention that also held `term:*` fell back). Governed by the `about[]` conditions below. |
+| `topical_candidates` | object \| absent | **Concept topical layer (Option C, t/3389).** `{validated:false, generator, golden_ref, blind_golden_precision, refs:[{ref, match_level}]}` — the `term:*` concept refs the claim is topically about, homed separately from `about[]` because the concept-anchored selection MISSED its pre-committed floor (0.636 < 0.80, t/3381). Quality-marked so a consumer sees the unvalidated status from the data. **Absent (not null)** when the claim has no concept refs. See §`topical_candidates` below. |
 | `polarity` | enum | `positive \| negative`. Negation of the core predication (`¬acquire(e1)`), not attitude negation. |
 | `modality` | object \| null | **`null` for `factual_claims`** (unattributed fact). Present for BDI/POV claims. |
 | `modality.holder` | enum | `camp:acc \| camp:saf \| camp:skp` (the attributing camp). Derived from the claim's POV/`stance`. |
@@ -128,6 +129,20 @@ holds(camp_acc, belief, p1) ∧ about(p1, ent_055) ∧ acquire(e1) ∧ agent(e1,
   projection of the claim's already-resolved `entity_refs[]`* (same `ent-` ids, no new resolution),
   so it does NOT double-ground what the mention-index layer captures. Different layer (LF topical
   grounding vs mention occurrences), same identities.
+
+### `topical_candidates` — the Option-C concept layer (t/3389; SO+TL e/145#13-#16)
+
+Option A (a mixed `about[]` holding both `ent-*` and `term:*`) was ratified **conditionally** on a
+re-measure; it **fell back to Option C** when the concept-anchored `about[]`-component scored
+**0.636 < the pre-committed 0.80 floor** (t/3381, blind golden — a *precision* failure: the generator
+over-attaches concepts). So `about[]` stays **`ent-*` only** (its validated convention, above) and the
+`term:*` concept refs move to `topical_candidates`:
+
+- **Shape:** `{validated:false, generator, golden_ref:"t/3381", blind_golden_precision:0.54, refs:[{ref, match_level}]}`. `refs[].ref` matches **`^(term:|ent-)`** (entities are hyphenated `ent-NNN`, not `ent:`); `match_level` is enum-clamped but **not** load-bearing in this layer.
+- **In-artifact quality marking (hard requirement, joint TL+SO):** the `validated:false` flag + the blind-golden precision live IN the data, so a consumer sees this is the unvalidated generator layer (~0.54 precision) without reading the register. The field name says "candidates," not "index."
+- **Fallback-in-effect, NOT endpoint:** the failure is fixable generator precision (t/3390). A repaired generator re-measured **≥0.80** on the same blind-golden methodology **reopens Option A** as a new decision — `topical_candidates` must not ossify into "the convention."
+- **Provenance lifecycle:** when a repaired generator regenerates a node, it MUST either update the provenance block (generator/golden_ref/precision) or revalidate-and-move the refs into `about[]` — **never fresh refs under stale `0.54` metadata** (the marking cuts both ways).
+- **Land order (never enforcement-before-data):** phase 1 additive-schema (all ports *accept* `topical_candidates`, `about[]` still tolerant of `term:`) → phase 2 /data-mutation migration of the corpus → phase 3 tighten `about[].ref` enforcement to `^ent-` last.
 
 ## Calibration + provenance (deliverable 3 preview)
 
