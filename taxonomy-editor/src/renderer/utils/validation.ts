@@ -179,6 +179,14 @@ export const aggregateConflictsFileSchema = z.object({
   last_modified: z.string(),
   conflict_count: z.number().int(),
   conflicts: z.array(aggregateConflictItemSchema),
+}).superRefine((doc, ctx) => {
+  if (doc.conflict_count !== doc.conflicts.length) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['conflict_count'],
+      message: `conflict_count (${doc.conflict_count}) must equal conflicts.length (${doc.conflicts.length}) — an applier updated one without the other (t/3368)`,
+    });
+  }
 });
 
 export type ValidationErrors = Record<string, string>;

@@ -36,7 +36,7 @@ import {
 } from '../../../../lib/embeddings/onnxEmbedding.js';
 // t/3183 (t/2977 Item B): off-main-thread ONNX compute via the shared worker (t/3181). Consumed
 // only when EMBEDDING_WORKER_OFFLOAD is on; flag-off never touches this path (byte-identical).
-import { computeEmbeddingsOffThread } from '../../../../lib/embeddings/offThreadEmbedding.js';
+import { computeEmbeddingsOffThread, isWorkerPoolShedError, poolStats } from '../../../../lib/embeddings/offThreadEmbedding.js';
 import {
   resolveBackend,
   callProvider,
@@ -785,6 +785,22 @@ export async function resolveEmbeddingsChunked(
 // t/1641/t/1643: `_explicitApiKey` is retained for call-site arity (server.ts passes
 // the free-tier key) but is no longer consumed — embeddings are computed by the local
 // Python encoder or the in-process ONNX fallback, both 384-dim/all-MiniLM-L6-v2, no API.
+/**
+ * t/3373: emit the clean, greppable worker-pool-shed WARN token IFF `err` is a queue-shed (i.e. its
+ * ActionableError carries WORKER_POOL_SHED_CODE). Does NOT throw or swallow — the offload wrapper
+ * re-throws so the resolve/fallback/503 path is byte-identical. Must be called at the offload
+ * boundary (before resolveEmbeddings, which discards the shed code into a generic error). Exported
+ * so the shed-vs-generic discrimination is unit-testable without the full computeEmbeddings surface.
+ * component:'api' is the proven Log-Analytics sink (t/3110/t/3308 lesson); DevOps matches the token.
+ */
+export function logWorkerPoolShedIfApplicable(err: unknown, ctx: { requester: string; inputCount: number }): void {
+  if (!isWorkerPoolShedError(err)) return;
+  log.api.warn(
+    { component: 'api', subsystem: 'ai-backends', requester: ctx.requester, inputCount: ctx.inputCount, ...poolStats() },
+    'embeddings worker-pool shed',
+  );
+}
+
 export async function computeEmbeddings(
   texts: string[], ids?: string[], _explicitApiKey?: string,
   opts?: { requester?: string },
@@ -843,7 +859,16 @@ export async function computeEmbeddings(
     // which the canary sees — no silent in-thread fallback.
     chain.push({
       name: 'onnx-batch-worker',
-      compute: (t) => computeEmbeddingsOffThread(t, { requester }).then(vecs => vecs.map(v => Array.from(v))),
+      compute: (t) => computeEmbeddingsOffThread(t, { requester })
+        .then(vecs => vecs.map(v => Array.from(v)))
+        .catch((err: unknown) => {
+          // t/3373: emit the clean shed token HERE, then re-throw UNCHANGED (byte-identical resolve
+          // path). It must be here — resolveEmbeddings swallows each fallback's error and re-throws a
+          // generic 'All embedding fallbacks failed', so the shed's ActionableError.code is gone by
+          // computeEmbeddings' catch. See logWorkerPoolShedIfApplicable.
+          logWorkerPoolShedIfApplicable(err, { requester, inputCount: t.length });
+          throw err;
+        }),
     });
   } else if (await onnxTryWarmup()) {
     // Flag OFF → today's exact in-thread call (warms + uses the main-thread session) → byte-identical.

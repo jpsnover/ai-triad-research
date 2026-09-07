@@ -118,6 +118,24 @@ async function reattachStrippedLogicalForms(
   return { ...file, nodes };
 }
 
+// t/3378: a per-load strip count above this is treated as systemic (not a one-off bad frame)
+// and escalated from warn to error — CL's threshold from the t/3375 observability follow-up.
+const LOGICAL_FORM_STRIP_SYSTEMIC_THRESHOLD = 5;
+
+// t/3378: aggregate summary on top of the existing per-node WARN (t/3250) — the per-node
+// records identify WHICH nodes were stripped; this summary makes the LOAD-WIDE blast radius
+// visible so a mass strip (the t/3375 class) doesn't require counting individual log lines to notice.
+function recordLogicalFormStripSummary(pov: string, strippedCount: number): void {
+  if (strippedCount === 0) return;
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'taxonomy-store',
+    level: strippedCount > LOGICAL_FORM_STRIP_SYSTEMIC_THRESHOLD ? 'error' : 'warn',
+    message: `logical_form strip summary: ${strippedCount} frame(s) stripped on load (t/3378)`,
+    data: { pov, strippedCount },
+  });
+}
+
 export type PinnedData =
   | { type: 'pov'; pov: Pov; node: PovNode }
   | { type: 'situations'; node: SituationNode }
@@ -326,13 +344,18 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       const acc = await track(steps[0], api.loadTaxonomyFile('accelerationist'));
       const accFile = acc as PovTaxonomyFile;
       if (accFile?.nodes) {
+        let accStrippedCount = 0;
         for (const node of accFile.nodes) {
           const rec = node as unknown as Record<string, unknown>;
           normalizeNodeProperties(rec);
           // t/3250: graceful-degrade a malformed proposed logical_form (WARN + omit, never drop the node).
           const lf = stripInvalidLogicalForm(rec);
-          if (lf.removed) getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Stripped malformed node.logical_form (t/3250)', data: { pov: 'accelerationist', node_id: rec.id, issue: lf.issue } });
+          if (lf.removed) {
+            accStrippedCount++;
+            getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Stripped malformed node.logical_form (t/3250)', data: { pov: 'accelerationist', node_id: rec.id, issue: lf.issue } });
+          }
         }
+        recordLogicalFormStripSummary('accelerationist', accStrippedCount);
       }
       set({
         accelerationist: accFile,
@@ -376,13 +399,18 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
       for (const povFile of [saf, skp] as PovTaxonomyFile[]) {
         if (povFile?.nodes) {
+          let povStrippedCount = 0;
           for (const node of povFile.nodes) {
             const rec = node as unknown as Record<string, unknown>;
             normalizeNodeProperties(rec);
             // t/3250: graceful-degrade a malformed proposed logical_form (WARN + omit, never drop the node).
             const lf = stripInvalidLogicalForm(rec);
-            if (lf.removed) getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Stripped malformed node.logical_form (t/3250)', data: { pov: povFile.pov, node_id: rec.id, issue: lf.issue } });
+            if (lf.removed) {
+              povStrippedCount++;
+              getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Stripped malformed node.logical_form (t/3250)', data: { pov: povFile.pov, node_id: rec.id, issue: lf.issue } });
+            }
           }
+          recordLogicalFormStripSummary(povFile.pov, povStrippedCount);
         }
       }
       set({
