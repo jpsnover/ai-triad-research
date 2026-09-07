@@ -10,8 +10,9 @@
  * hand-authored so the JSX itself stays byte-identical. No DOM/routing/logic changes.
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useLongPressContextMenu } from '../../../hooks/useLongPressContextMenu';
 import { speakerLabel } from './helpers';
 import { api } from '@bridge';
 import type { EntryTab } from './types';
@@ -564,14 +565,27 @@ export function EntryTabContent({ p, m }: PartProps) {
   const { setTextCopyMenu, tabContentRef } = p;
   const { activeTab } = m;
 
+  // t/3386: touch devices never fire `contextmenu` on a long-press — see t/3382.
+  const longPress = useLongPressContextMenu(useCallback((e) => {
+    const sel = window.getSelection()?.toString();
+    if (sel && sel.trim().length > 0) {
+      e.preventDefault();
+      setTextCopyMenu({ x: e.clientX, y: e.clientY, text: sel });
+    }
+  }, [setTextCopyMenu]));
+
   return (
-    <div ref={tabContentRef} tabIndex={0} onContextMenu={(e) => {
-      const sel = window.getSelection()?.toString();
-      if (sel && sel.trim().length > 0) {
-        e.preventDefault();
-        setTextCopyMenu({ x: e.clientX, y: e.clientY, text: sel });
-      }
-    }} className="edr-tab-content" style={activeTab === 'tax-refs' ? { padding: '8px 10px' } : { padding: 0 }}>
+    <div
+      ref={tabContentRef}
+      tabIndex={0}
+      onContextMenu={longPress.onContextMenu}
+      onTouchStart={longPress.onTouchStart}
+      onTouchMove={longPress.onTouchMove}
+      onTouchEnd={longPress.onTouchEnd}
+      onTouchCancel={longPress.onTouchCancel}
+      className="edr-tab-content"
+      style={activeTab === 'tax-refs' ? { padding: '8px 10px' } : { padding: 0 }}
+    >
       <EntryTabPanesPrimary p={p} m={m} />
       <EntryTabPanesSecondary p={p} m={m} />
       <EntryTabPanesTertiary p={p} m={m} />
