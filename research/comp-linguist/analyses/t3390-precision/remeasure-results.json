@@ -1,0 +1,1430 @@
+{
+ "floor": 0.8,
+ "v1_concept_anchored_f1": 0.664726788363152,
+ "v2_concept_anchored_f1": 0.6756709956709956,
+ "verdict_v2": "C stands",
+ "v1_rows": [
+  {
+   "id": "acc-beliefs-003",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:deployment_gated"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-beliefs-028",
+   "profile": "mixed",
+   "f1": 1.0,
+   "tp": 3,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-beliefs-048",
+   "profile": "concept-only",
+   "f1": 0.5,
+   "tp": 1,
+   "fp": [
+    "term:safety_existential",
+    "term:speculative_future_harm"
+   ],
+   "fn": [],
+   "prec": 0.3333333333333333,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-beliefs-074",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 2,
+   "fp": [
+    "term:liability_strict",
+    "term:regulation_precautionary"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-beliefs-088",
+   "profile": "concept-only",
+   "f1": 0.5,
+   "tp": 1,
+   "fp": [
+    "term:deployment_gated",
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "prec": 0.3333333333333333,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-beliefs-109",
+   "profile": "entity-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "ent-147",
+    "ent-148"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "acc-beliefs-111",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-desires-001",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:safety_existential"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  },
+  {
+   "id": "acc-desires-010",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:governance_oversight"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "acc-desires-026",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 2,
+   "fp": [
+    "term:capabilities_scaling",
+    "term:governance_adaptive"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-desires-033",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:safety_existential",
+    "term:speculative_future_harm"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "acc-desires-039",
+   "profile": "concept-only",
+   "f1": 0.8,
+   "tp": 2,
+   "fp": [
+    "term:capabilities_scaling"
+   ],
+   "fn": [],
+   "prec": 0.6666666666666666,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-intentions-001",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:deployment_gated"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-intentions-022",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:alignment_compliance"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-intentions-060",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-intentions-088",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-intentions-093",
+   "profile": "entity-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "ent-224"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "acc-intentions-107",
+   "profile": "concept-only",
+   "f1": 0.8,
+   "tp": 2,
+   "fp": [
+    "term:governance_oversight"
+   ],
+   "fn": [],
+   "prec": 0.6666666666666666,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-001",
+   "profile": "mixed",
+   "f1": 1.0,
+   "tp": 3,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-004",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-039",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 4,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-101",
+   "profile": "concept-only",
+   "f1": 0.8571428571428571,
+   "tp": 3,
+   "fp": [
+    "term:capabilities_hazard"
+   ],
+   "fn": [],
+   "prec": 0.75,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-141",
+   "profile": "concept-only",
+   "f1": 0.8,
+   "tp": 2,
+   "fp": [
+    "term:regulation_precautionary"
+   ],
+   "fn": [],
+   "prec": 0.6666666666666666,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-214",
+   "profile": "mixed",
+   "f1": 0.8,
+   "tp": 2,
+   "fp": [
+    "term:regulation_precautionary"
+   ],
+   "fn": [],
+   "prec": 0.6666666666666666,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-216",
+   "profile": "entity-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-225",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "saf-desires-001",
+   "profile": "concept-only",
+   "f1": 0.888888888888889,
+   "tp": 4,
+   "fp": [],
+   "fn": [
+    "term:capabilities_hazard"
+   ],
+   "prec": 1.0,
+   "rec": 0.8
+  },
+  {
+   "id": "saf-desires-005",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-desires-011",
+   "profile": "concept-only",
+   "f1": 0.4,
+   "tp": 1,
+   "fp": [
+    "term:capabilities_hazard",
+    "term:safety_existential",
+    "term:speculative_future_harm"
+   ],
+   "fn": [],
+   "prec": 0.25,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-desires-023",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:safety_existential",
+    "term:speculative_risk_critique"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "saf-desires-028",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-intentions-001",
+   "profile": "concept-only",
+   "f1": 0.8,
+   "tp": 2,
+   "fp": [
+    "term:safe_harbor_regulatory"
+   ],
+   "fn": [],
+   "prec": 0.6666666666666666,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-intentions-047",
+   "profile": "concept-only",
+   "f1": 0.3636363636363636,
+   "tp": 2,
+   "fp": [
+    "term:behavioral_guardrails",
+    "term:capabilities_hazard",
+    "term:deployment_gated",
+    "term:regulation_precautionary",
+    "term:safety_empirical",
+    "term:safety_existential",
+    "term:transparency_verification"
+   ],
+   "fn": [],
+   "prec": 0.2222222222222222,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-intentions-086",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-intentions-141",
+   "profile": "concept-only",
+   "f1": 0.6153846153846153,
+   "tp": 4,
+   "fp": [
+    "term:capabilities_hazard",
+    "term:deployment_gated",
+    "term:regulation_precautionary",
+    "term:safety_existential",
+    "term:transparency_verification"
+   ],
+   "fn": [],
+   "prec": 0.4444444444444444,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-intentions-202",
+   "profile": "mixed",
+   "f1": 0.4444444444444445,
+   "tp": 2,
+   "fp": [
+    "ent-360",
+    "term:alignment_compliance",
+    "term:behavioral_guardrails",
+    "term:deployment_gated",
+    "term:regulation_precautionary"
+   ],
+   "fn": [],
+   "prec": 0.2857142857142857,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-intentions-203",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:capabilities_hazard"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-intentions-204",
+   "profile": "mixed",
+   "f1": 0.4,
+   "tp": 2,
+   "fp": [
+    "ent-139",
+    "term:alignment_compliance",
+    "term:behavioral_guardrails",
+    "term:capabilities_hazard",
+    "term:regulation_precautionary",
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "prec": 0.25,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-001",
+   "profile": "concept-only",
+   "f1": 0.8571428571428571,
+   "tp": 3,
+   "fp": [],
+   "fn": [
+    "term:documented_present_harm"
+   ],
+   "prec": 1.0,
+   "rec": 0.75
+  },
+  {
+   "id": "skp-beliefs-047",
+   "profile": "mixed",
+   "f1": 1.0,
+   "tp": 3,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-053",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-054",
+   "profile": "mixed",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "ent-360"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-115",
+   "profile": "mixed",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "ent-124"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-136",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:risk_innovation"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "skp-beliefs-170",
+   "profile": "concept-only",
+   "f1": 0.8,
+   "tp": 2,
+   "fp": [],
+   "fn": [
+    "term:capture_institutional"
+   ],
+   "prec": 1.0,
+   "rec": 0.6666666666666666
+  },
+  {
+   "id": "skp-beliefs-175",
+   "profile": "entity-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-178",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:speculative_risk_critique"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-230",
+   "profile": "entity-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "ent-139"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "skp-beliefs-237",
+   "profile": "entity-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-244",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:documented_present_harm"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-desires-003",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-desires-014",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-desires-070",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:accountability_market",
+    "term:risk_innovation",
+    "term:safety_existential",
+    "term:speculative_risk_critique"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "skp-desires-077",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:risk_existential",
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "skp-desires-083",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:capabilities_scaling"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-intentions-007",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 2,
+   "fp": [
+    "term:alignment_compliance",
+    "term:bias_systemic"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-intentions-044",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:accountability_market"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-intentions-102",
+   "profile": "concept-only",
+   "f1": 0.8,
+   "tp": 2,
+   "fp": [],
+   "fn": [
+    "term:regulation_adaptive"
+   ],
+   "prec": 1.0,
+   "rec": 0.6666666666666666
+  },
+  {
+   "id": "skp-intentions-127",
+   "profile": "mixed",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-intentions-135",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:deployment_gated"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "skp-intentions-146",
+   "profile": "concept-only",
+   "f1": 0.8,
+   "tp": 4,
+   "fp": [
+    "term:accountability_institutional",
+    "term:regulation_precautionary"
+   ],
+   "fn": [],
+   "prec": 0.6666666666666666,
+   "rec": 1.0
+  }
+ ],
+ "v2_rows": [
+  {
+   "id": "acc-beliefs-003",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:deployment_gated"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-beliefs-028",
+   "profile": "mixed",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [
+    "ent-071",
+    "term:accountability_market",
+    "term:deployment_gated"
+   ],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "acc-beliefs-048",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:speculative_future_harm"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-beliefs-074",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:liability_strict"
+   ],
+   "fn": [
+    "term:accountability_institutional",
+    "term:documented_present_harm"
+   ],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "acc-beliefs-088",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [
+    "term:capabilities_hazard"
+   ],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "acc-beliefs-109",
+   "profile": "entity-only",
+   "f1": 1.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-beliefs-111",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:transparency_verification"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  },
+  {
+   "id": "acc-desires-001",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:safety_existential"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  },
+  {
+   "id": "acc-desires-010",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-desires-026",
+   "profile": "concept-only",
+   "f1": 0.5,
+   "tp": 1,
+   "fp": [
+    "term:governance_adaptive"
+   ],
+   "fn": [
+    "term:control_optimization"
+   ],
+   "prec": 0.5,
+   "rec": 0.5
+  },
+  {
+   "id": "acc-desires-033",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-desires-039",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-intentions-001",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-intentions-022",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [
+    "term:governance_oversight"
+   ],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "acc-intentions-060",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-intentions-088",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [
+    "term:accountability_market",
+    "term:governance_adaptive"
+   ],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "acc-intentions-093",
+   "profile": "entity-only",
+   "f1": 1.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "acc-intentions-107",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-001",
+   "profile": "mixed",
+   "f1": 1.0,
+   "tp": 3,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-004",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [
+    "term:safety_alignment"
+   ],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "saf-beliefs-039",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 2,
+   "fp": [],
+   "fn": [
+    "term:capabilities_hazard",
+    "term:speculative_future_harm"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  },
+  {
+   "id": "saf-beliefs-101",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 3,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-141",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:asymmetry_power"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  },
+  {
+   "id": "saf-beliefs-214",
+   "profile": "mixed",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-216",
+   "profile": "entity-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-beliefs-225",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "saf-desires-001",
+   "profile": "concept-only",
+   "f1": 0.5714285714285715,
+   "tp": 2,
+   "fp": [],
+   "fn": [
+    "term:autonomy_human",
+    "term:capabilities_hazard",
+    "term:safety_existential"
+   ],
+   "prec": 1.0,
+   "rec": 0.4
+  },
+  {
+   "id": "saf-desires-005",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:oversight_audit"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  },
+  {
+   "id": "saf-desires-011",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-desires-023",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "saf-desires-028",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [
+    "term:liability_strict"
+   ],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "saf-intentions-001",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-intentions-047",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:oversight_audit"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  },
+  {
+   "id": "saf-intentions-086",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-intentions-141",
+   "profile": "concept-only",
+   "f1": 0.4,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:autonomy_human",
+    "term:behavioral_guardrails",
+    "term:control_human_agency"
+   ],
+   "prec": 1.0,
+   "rec": 0.25
+  },
+  {
+   "id": "saf-intentions-202",
+   "profile": "mixed",
+   "f1": 0.5,
+   "tp": 1,
+   "fp": [
+    "term:alignment_compliance"
+   ],
+   "fn": [
+    "term:risk_innovation"
+   ],
+   "prec": 0.5,
+   "rec": 0.5
+  },
+  {
+   "id": "saf-intentions-203",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "saf-intentions-204",
+   "profile": "mixed",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "ent-416"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  },
+  {
+   "id": "skp-beliefs-001",
+   "profile": "concept-only",
+   "f1": 0.8571428571428571,
+   "tp": 3,
+   "fp": [],
+   "fn": [
+    "term:documented_present_harm"
+   ],
+   "prec": 1.0,
+   "rec": 0.75
+  },
+  {
+   "id": "skp-beliefs-047",
+   "profile": "mixed",
+   "f1": 1.0,
+   "tp": 3,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-053",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:documented_present_harm"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  },
+  {
+   "id": "skp-beliefs-054",
+   "profile": "mixed",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-115",
+   "profile": "mixed",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-136",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-170",
+   "profile": "concept-only",
+   "f1": 0.5,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:capture_institutional",
+    "term:oversight_democratic"
+   ],
+   "prec": 1.0,
+   "rec": 0.3333333333333333
+  },
+  {
+   "id": "skp-beliefs-175",
+   "profile": "entity-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-178",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-230",
+   "profile": "entity-only",
+   "f1": 1.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-237",
+   "profile": "entity-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-beliefs-244",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-desires-003",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-desires-014",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-desires-070",
+   "profile": "concept-only",
+   "f1": 0.0,
+   "tp": 0,
+   "fp": [
+    "term:risk_innovation"
+   ],
+   "fn": [],
+   "prec": 0.0,
+   "rec": 0.0
+  },
+  {
+   "id": "skp-desires-077",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-desires-083",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:capabilities_scaling"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-intentions-007",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:regulation_precautionary"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  },
+  {
+   "id": "skp-intentions-044",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 1,
+   "fp": [
+    "term:governance_oversight"
+   ],
+   "fn": [],
+   "prec": 0.5,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-intentions-102",
+   "profile": "concept-only",
+   "f1": 0.5,
+   "tp": 1,
+   "fp": [],
+   "fn": [
+    "term:fairness_individual",
+    "term:regulation_adaptive"
+   ],
+   "prec": 1.0,
+   "rec": 0.3333333333333333
+  },
+  {
+   "id": "skp-intentions-127",
+   "profile": "mixed",
+   "f1": 1.0,
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-intentions-135",
+   "profile": "concept-only",
+   "f1": 1.0,
+   "tp": 0,
+   "fp": [],
+   "fn": [],
+   "prec": 1.0,
+   "rec": 1.0
+  },
+  {
+   "id": "skp-intentions-146",
+   "profile": "concept-only",
+   "f1": 0.6666666666666666,
+   "tp": 2,
+   "fp": [],
+   "fn": [
+    "term:fairness_individual",
+    "term:transparency_accountability"
+   ],
+   "prec": 1.0,
+   "rec": 0.5
+  }
+ ]
+}
