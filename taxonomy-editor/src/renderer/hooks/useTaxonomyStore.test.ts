@@ -1369,6 +1369,68 @@ describe('useTaxonomyStore', () => {
       expect(useTaxonomyStore.getState().saveError).toBeNull();
     });
 
+    // t/3376: a whole-file save must never persist a load-time strip of `logical_form`
+    // (t/3375: 133 acc frames silently deleted this way). Both-arms per the approved design.
+    describe('logical_form reattach-on-save (t/3376)', () => {
+      it('reattaches a logical_form present on disk but missing in memory before saving', async () => {
+        const memoryNode = makePovNode({ id: 'acc-beliefs-001' }); // no logical_form — stripped at load
+        const diskNode = { ...memoryNode, logical_form: { predicate: 'cost' } };
+        mockApi.loadTaxonomyFile.mockImplementation((pov: string) =>
+          pov === 'accelerationist' ? Promise.resolve(makePovFile([diskNode])) : Promise.resolve({ nodes: [] }),
+        );
+        useTaxonomyStore.setState({
+          accelerationist: makePovFile([memoryNode]),
+          dirty: new Set(['accelerationist']),
+        });
+
+        await useTaxonomyStore.getState().save();
+
+        const [, savedFile] = mockApi.saveTaxonomyFile.mock.calls.find(([pov]) => pov === 'accelerationist')!;
+        expect((savedFile as PovTaxonomyFile).nodes[0].logical_form).toEqual({ predicate: 'cost' });
+      });
+
+      it('leaves a node with a valid in-memory logical_form untouched (no reattach)', async () => {
+        const memoryLf = { predicate: 'keep-me' };
+        const memoryNode = { ...makePovNode({ id: 'acc-beliefs-001' }), logical_form: memoryLf };
+        // Disk carries a DIFFERENT value — proves the reattach only fires when memory is undefined.
+        const diskNode = { ...memoryNode, logical_form: { predicate: 'should-not-be-used' } };
+        mockApi.loadTaxonomyFile.mockImplementation((pov: string) =>
+          pov === 'accelerationist' ? Promise.resolve(makePovFile([diskNode])) : Promise.resolve({ nodes: [] }),
+        );
+        useTaxonomyStore.setState({
+          accelerationist: makePovFile([memoryNode]),
+          dirty: new Set(['accelerationist']),
+        });
+
+        await useTaxonomyStore.getState().save();
+
+        const [, savedFile] = mockApi.saveTaxonomyFile.mock.calls.find(([pov]) => pov === 'accelerationist')!;
+        expect((savedFile as PovTaxonomyFile).nodes[0].logical_form).toEqual(memoryLf);
+      });
+
+      it('fails open (but loud) when the re-read throws — the save still completes', async () => {
+        const memoryNode = makePovNode({ id: 'acc-beliefs-001' });
+        mockApi.loadTaxonomyFile.mockImplementation((pov: string) =>
+          pov === 'accelerationist' ? Promise.reject(new Error('network error')) : Promise.resolve({ nodes: [] }),
+        );
+        useTaxonomyStore.setState({
+          accelerationist: makePovFile([memoryNode]),
+          dirty: new Set(['accelerationist']),
+        });
+
+        await useTaxonomyStore.getState().save();
+
+        // Save is not aborted by the re-read failure — the original in-memory file still saves.
+        const [, savedFile] = mockApi.saveTaxonomyFile.mock.calls.find(([pov]) => pov === 'accelerationist')!;
+        expect((savedFile as PovTaxonomyFile).nodes[0]).toEqual(memoryNode);
+        expect(useTaxonomyStore.getState().saveError).toBeNull();
+        // Loud, not silent: a WARN is recorded for the skipped reattach (fallback-path logging).
+        const warnCall = mockRecord.mock.calls.find(([entry]) => entry.message?.includes('reattach-on-save') && entry.message?.includes('re-read'));
+        expect(warnCall).toBeTruthy();
+        expect(warnCall![0]).toMatchObject({ level: 'warn' });
+      });
+    });
+
     // t/2064: the post-save embedding refresh reports { staleNodeIds }; surface degradation
     // via the embeddingsStale store flag (NOT saveError — the durable save already succeeded),
     // instead of the old fire-and-forget swallow. The refresh is non-blocking, so flush a tick.

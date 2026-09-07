@@ -50,6 +50,74 @@ import { loadLineageInfoData } from '../../../data/lineageLookup';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackNodeMutation } from '../../../lib/analyticsEmitter';
 
+/**
+ * t/3376: re-read the on-disk POV file immediately before a whole-file save and reattach any
+ * `logical_form` that's present on disk but missing in memory — the fix for the t/3375 root bug
+ * (a load-time strip via `stripInvalidLogicalForm`, t/3250, mutates the SAME object living in
+ * store state; a later whole-file save then persists that in-memory deletion back to disk).
+ *
+ * LOAD-BEARING ASSUMPTION: nothing in the renderer edits `logical_form` today (t/3378 confirmed
+ * the field is unconsumed by any UI) — reattaching an on-disk value is therefore always correct,
+ * never a silent revert of a real user edit. If an edit path is ever added, this reattach-on-save
+ * must be replaced by an explicit tombstone (e.g. a `logical_form: null` meaning "intentionally
+ * cleared") so a genuine deletion isn't reverted by this safety net.
+ *
+ * GENERALIZATION SEAM: this is the one choke point all whole-file POV saves pass through — any
+ * future strip-at-load field should reattach HERE, not by loosening the strip itself.
+ *
+ * TOCTOU RESIDUAL: protection is only as strong as this re-read. It reads on-disk state
+ * immediately before write but does not lock against a concurrent writer landing between the
+ * read and the write — whole-file save semantics (last-writer-wins) are otherwise unchanged.
+ */
+async function reattachStrippedLogicalForms(
+  pov: typeof POV_KEYS[number],
+  file: PovTaxonomyFile,
+): Promise<PovTaxonomyFile> {
+  let onDisk: PovTaxonomyFile | null;
+  try {
+    onDisk = await api.loadTaxonomyFile(pov) as PovTaxonomyFile | null;
+  } catch (err) {
+    // Fail-open-but-loud: a re-read failure must not abort the user's save (the whole-file
+    // write itself is unaffected — only the reattach safety net is skipped for this save).
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'taxonomy-store', level: 'warn',
+      message: `logical_form reattach-on-save: re-read of ${pov} failed — skipping reattach for this save (t/3376)`,
+      data: { pov },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return file;
+  }
+  if (!onDisk?.nodes?.length) {
+    // Fallback-path logging (docs/error-handling.md): a null/empty re-read is also silent
+    // fail-open without this — e.g. the web build's ADR-001 graceful-empty on a fetch miss.
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'taxonomy-store', level: 'warn',
+      message: `logical_form reattach-on-save: re-read of ${pov} returned null/empty — skipping reattach for this save (t/3376)`,
+      data: { pov },
+    });
+    return file;
+  }
+  const onDiskById = new Map(onDisk.nodes.map((n) => [(n as unknown as Record<string, unknown>).id, n]));
+  let reattachedCount = 0;
+  const nodes = file.nodes.map((node) => {
+    const rec = node as unknown as Record<string, unknown>;
+    if (rec.logical_form !== undefined) return node;
+    const diskRec = onDiskById.get(rec.id) as unknown as Record<string, unknown> | undefined;
+    if (diskRec?.logical_form === undefined) return node;
+    reattachedCount++;
+    return { ...node, logical_form: diskRec.logical_form } as PovNode;
+  });
+  if (reattachedCount === 0) return file;
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'taxonomy-store',
+    level: 'warn',
+    message: `Reattached ${reattachedCount} logical_form frame(s) stripped in memory before save (t/3376)`,
+    data: { pov, reattachedCount },
+  });
+  return { ...file, nodes };
+}
+
 // t/3378: a per-load strip count above this is treated as systemic (not a one-off bad frame)
 // and escalated from warn to error — CL's threshold from the t/3375 observability follow-up.
 const LOGICAL_FORM_STRIP_SYSTEMIC_THRESHOLD = 5;
@@ -518,7 +586,10 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         if ((POV_KEYS as readonly string[]).includes(key)) {
           const file = state[key as typeof POV_KEYS[number]];
           if (file) {
-            promises.push(api.saveTaxonomyFile(key as typeof POV_KEYS[number], file));
+            const povKey = key as typeof POV_KEYS[number];
+            promises.push(
+              reattachStrippedLogicalForms(povKey, file).then((f) => api.saveTaxonomyFile(povKey, f)),
+            );
           }
         } else if (key === 'situations') {
           const file = state.situations;
