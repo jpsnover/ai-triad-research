@@ -28,6 +28,24 @@ Three parallel peer reviewers share the routine review queue: **Quality (Technic
 - Conflict between agents requiring arbitration
 - Quality reviewer pings Main (TL) when a review exceeds their scope
 
+## Meta-Doc Accuracy Skim — LessonsLearned / AGENTS.md PRs (t/3362, audit G4)
+
+Meta-role output (Sage LessonsLearned batches, Documentation AGENTS.md edits) previously landed
+with no second reader — and a wrong "lesson" propagates into every future session's context.
+
+**Rule:** any PR that changes `LessonsLearned.md` or any `AGENTS.md` gets a **Quality-instance
+skim before merge**, scoped to **accuracy of the recorded pattern** — does the entry correctly
+describe the incident/behavior it cites, and is the prescribed rule the right generalization?
+Style, tone, and formatting are explicitly out of scope.
+
+- Route round-robin to Quality / Quality2 / Quality3, same as routine reviews.
+- The skim is a fast gate (target: same working session), sized to a read-and-confirm, not a
+  design review. A finding routes back to the author; Main (TL) arbitrates disputes.
+- **Sage batch flow:** to avoid stalling batch landings, Sage may open the batch PR and request
+  the skim in parallel with CI — the skim must land as an approving comment before merge, but
+  nothing blocks batch *preparation*. Batches with only previously-skimmed, re-worded entries
+  may note that and take an expedited confirm.
+
 ## Async Review (implement-then-review)
 
 For **low-risk tickets** — single-scope, no new public API, no data model changes, follows a known pattern — agents MAY implement first without waiting for design approval, then submit to a Quality reviewer after the verify gate passes. This lets the agent pick up their next ticket while review is in flight.
