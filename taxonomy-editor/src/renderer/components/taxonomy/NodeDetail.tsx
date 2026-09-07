@@ -8,6 +8,7 @@ import type { Pov, PovNode, Category, TabId } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { AggregatedCrux } from '../../hooks/useTaxonomyStore';
 import { useDebateStore } from '../../hooks/useDebateStore';
+import { useLongPressContextMenu } from '../../hooks/useLongPressContextMenu';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { DescriptionSection, type DescriptionMention } from './NodeDescriptionSection';
 import { TypeaheadSelect } from '../shared/TypeaheadSelect';
@@ -824,21 +825,48 @@ interface IntellectualLineageSectionProps {
   showAttributeInfo: (field: string, value: string) => void;
 }
 
+// t/3382: touch devices never fire `contextmenu` on a long-press — extracted so
+// useLongPressContextMenu can be called once per chip instance (can't call a hook inside .map()).
+function LineageChip({ label, selected, onSelect, onShowInfo }: {
+  label: string;
+  selected: boolean;
+  onSelect: () => void;
+  onShowInfo: () => void;
+}) {
+  const longPress = useLongPressContextMenu(useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onShowInfo();
+  }, [onShowInfo]));
+  return (
+    <span
+      className={`ga-promoted-chip ga-promoted-chip-interactive${selected ? ' ga-promoted-chip-selected' : ''}`}
+      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onContextMenu={longPress.onContextMenu}
+      onTouchStart={longPress.onTouchStart}
+      onTouchMove={longPress.onTouchMove}
+      onTouchEnd={longPress.onTouchEnd}
+      onTouchCancel={longPress.onTouchCancel}
+      title={`Click to view lineage info: "${label}"`}
+    >
+      {label}
+    </span>
+  );
+}
+
 function IntellectualLineageSection({ node, expandedLineage, setExpandedLineage, showAttributeInfo }: IntellectualLineageSectionProps) {
   return (
     <div className="form-group">
       <label>Intellectual Lineage</label>
       <div className="ga-promoted-list">
         {[...node.graph_attributes!.intellectual_lineage!].map(v => typeof v === 'string' ? v : (v as { name?: string })?.name).filter((v): v is string => typeof v === 'string' && v.length > 0).sort((a, b) => a.localeCompare(b)).map((l, i) => (
-          <span
+          <LineageChip
             key={i}
-            className={`ga-promoted-chip ga-promoted-chip-interactive${expandedLineage === l ? ' ga-promoted-chip-selected' : ''}`}
-            onClick={(e) => { e.stopPropagation(); setExpandedLineage(expandedLineage === l ? null : l); }}
-            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); showAttributeInfo('intellectual_lineage', l); }}
-            title={`Click to view lineage info: "${l}"`}
-          >
-            {l}
-          </span>
+            label={l}
+            selected={expandedLineage === l}
+            onSelect={() => setExpandedLineage(expandedLineage === l ? null : l)}
+            onShowInfo={() => showAttributeInfo('intellectual_lineage', l)}
+          />
         ))}
       </div>
       {expandedLineage && (() => {
