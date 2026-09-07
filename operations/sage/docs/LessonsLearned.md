@@ -4119,3 +4119,65 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — recurrence of t/1971. Codified in root AGENTS.md "Creating a role/instance?" section. Each new role/instance creation is a new exposure.
 
 **Applies To:** All agents creating new roles or instances. Especially relevant for TL and Orca Support who provision new agent scopes.
+
+---
+
+## #201 [Process/Overlay] `/land-from-worktree` Is Main-Repo-Only — Overlay-Owned Files Need `ogit` Flow; `--path` Check Unreliable for Non-AGENTS.md Files
+
+**Pattern:** An agent uses `/land-from-worktree` (or the standard `git add` / `git commit` / `gh pr create` flow) to land a file that is overlay-owned (e.g., a docs file in an overlay-scoped directory). The main repo's `.gitignore` silently rejects the file — `git add` reports it as ignored or simply refuses — and the file never lands. A secondary trap: `agent-file-owner.sh --path` reports `NEITHER` for non-`AGENTS.md` overlay-tracked files, giving a false "untracked by both" result.
+
+**Instances:**
+- 2026-09-05 — Orca Support (p/13#38): attempted to land `orca-support/docs/review-architecture-audit.md` via the main-repo `/land-from-worktree` flow. `git add` refused — `orca-support/` is main-gitignored (overlay-owned). `--path` check also reported `NEITHER` (non-AGENTS.md file). Resolved: `ogit add -f` + overlay commit f297eee; audit clean.
+
+**Root Cause:** The main repo's `.gitignore` excludes overlay-owned directories (e.g., `orca-support/`, `.orca/`). Files inside those directories are invisible to `git add`. `agent-file-owner.sh --path` was designed for `AGENTS.md` files only — it does not track arbitrary overlay files and correctly reports `NEITHER` for them, which is misleading when the file IS overlay-tracked.
+
+**Prevention:**
+1. **Before running `/land-from-worktree`, check whether the target file's directory is main-gitignored** — if so, it's overlay-owned and needs `ogit add -f <path>` + `ogit commit` + `ogit push`, not the main-repo flow.
+2. **`agent-file-owner.sh --path` is only authoritative for `AGENTS.md` files** — for other files, use `ogit status` or `ogit log -- <path>` to confirm overlay tracking. `--audit` (no `--path`) is the authoritative check for the full file set.
+3. **When in doubt about repo ownership for a non-AGENTS.md file**, run `git check-ignore -v <path>` — a hit means main-gitignored → overlay territory.
+
+**Status:** Active — 1 instance (p/13#38). Overlay/main routing gap; ogit flow is the canonical path for overlay-owned non-AGENTS.md files.
+
+**Applies To:** All agents landing docs, configs, or other files in overlay-owned scopes. Especially relevant for Orca Support, TL, and any role whose scope is partially or fully overlay-owned.
+
+---
+
+## #202 [Process/Platform] Switching a Gate-Critical Role's `agent_type` Without Canary — Keyed-but-MCP-Less Session Blocks Gate
+
+**Pattern:** An agent updates a gate-critical role's runtime via `update_instance agent_type <provider>` without a canary step. The target provider's config (e.g., `.gemini/settings.json`) was never provisioned by Orca. The new session launches with the API key but without MCP connections ("never connected"). Pings queue but are never received; any gate the role owns blocks indefinitely.
+
+**Instances:**
+- 2026-09-05 — Orca Support (p/13#40, t/3358): switched Second Opinion role from `claude` to `gemini` via `update_instance`. Orca had not generated `.gemini/settings.json`; the Gemini session launched keyed-but-MCP-less. Pings queued; t/3358 merge gate blocked ~3h. Resolved: reverted to `claude`/`fable-5`, human restarted session, connection registered, consult delivered.
+
+**Root Cause:** `update_instance agent_type` changes the runtime label but does not provision the target provider's config files. There is no warning when the target config is absent. The operator assumed the switch was complete and activated when it was not.
+
+**Prevention:**
+1. **Canary-first for any `agent_type` switch on a gate-critical role** — switch a non-critical instance first (or a test instance), verify MCP connection registers, then switch the gate-critical role. Never switch gate-critical roles cold.
+2. **After switching, verify the session is MCP-connected before considering the migration complete** — check `get_agent_status` or wait for a test ping to be received. A keyed-but-unconnected session appears "running" but is functionally absent.
+3. **Platform gap: `update_instance agent_type` should warn when the target provider's config is absent** — file as a platform improvement ticket with Orca Support if encountered.
+4. **Have a revert path ready** — know the previous `agent_type` value before switching; reverting is fast if the prior config is still intact.
+
+**Status:** Active — 1 instance (p/13#40, t/3358). Runtime-switch safety gap; canary-first + verify-connection is the canonical prevention.
+
+**Applies To:** All agents or operators switching `agent_type` on any role, especially gate-critical roles (Second Opinion, TL, DevOps). Especially relevant for Orca Support who performs runtime migrations.
+
+---
+
+## #203 [Build/Worktree] Windows Dir-Symlinks Require Elevation or Dev Mode — Use `pnpm install` Instead for `node_modules` in Worktrees
+
+**Pattern:** On Windows, creating a directory symlink for `node_modules` in a worktree via `bash ln -s` or `New-Item -ItemType SymbolicLink` fails with "File name too long" (misleading — actual cause: existing-target-dir collision or privilege) or "requires admin rights / developer mode not enabled." Neither shell had the required elevation. Attempting to work around with `mklink /J` (junction) avoids the privilege issue but introduces teardown complexity (Pattern #192).
+
+**Instances:**
+- 2026-09-07 — Rosetta Stone (p/6#56): `bash ln -s` and `New-Item -ItemType SymbolicLink` both failed repeatedly when trying to link `taxonomy-editor/node_modules` into a fresh worktree. "File name too long" from `ln` was a misleading error masking an existing-target-dir collision. Resolved: skipped symlinking entirely; ran `CI=true pnpm install --frozen-lockfile --prefer-offline` in the worktree. Completed in 42s (pnpm content-store already warm).
+
+**Root Cause:** Windows directory symlinks require either Administrator elevation or Developer Mode enabled. Most agent shell contexts have neither. `ln -s` on Windows (MSYS/Git Bash) additionally produces misleading errors when the target already exists as a directory. `mklink /J` (junction) avoids privilege requirements but creates teardown risk (Pattern #192).
+
+**Prevention:**
+1. **Prefer `CI=true pnpm install --frozen-lockfile --prefer-offline` over symlinking for `node_modules` in worktrees** — with a warm pnpm content-store, this completes in ~40s and avoids all privilege and teardown complexity.
+2. **Do not attempt `ln -s` or `New-Item -ItemType SymbolicLink` for directories on Windows** — elevation/Dev Mode are required and rarely available in agent contexts.
+3. **If a junction (`mklink /J` or `New-Item -ItemType Junction`) is used instead**, follow the teardown sequence from Pattern #192 (remove junction with `cmd //c rmdir` before `git worktree remove`).
+4. **"File name too long" from `ln -s` on Windows is often a misleading error** — check for an existing-target-dir collision first before interpreting it as a path-length issue.
+
+**Status:** Active — 1 instance (p/6#56). Extension of Patterns #189 and #192; `pnpm install --frozen-lockfile --prefer-offline` is the canonical Windows-safe alternative to node_modules symlinking.
+
+**Applies To:** All agents creating worktrees for npm/pnpm-based subtrees on Windows. Especially relevant when the worktree is short-lived (test run, single-PR fix) and a full `npm install` would be wasteful.
