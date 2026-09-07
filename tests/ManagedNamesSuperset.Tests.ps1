@@ -59,4 +59,20 @@ Describe 'Test-ManagedNamesSuperset' {
         $v.Ok | Should -BeFalse
         $v.Missing | Should -Be @('B')
     }
+
+    It 'VACUOUS-TRUTH trap (SO e/144#2 cond 1): empty LiteralKeys + empty ManagedNames → NOT Ok' {
+        # The subset-of-empty classic: "every literal key ∈ managed" holds VACUOUSLY when the bicep
+        # parse yields nothing (∅ ⊆ everything). The empty-ManagedNames guard must win so a broken
+        # parse never green-lights a reconcile (which would then orphan the whole live env). The
+        # downstream orphan-count circuit breaker in Sync-StagingEnv is the second net for a
+        # short-but-nonempty partial parse that slips past this.
+        (Test-ManagedNamesSuperset -LiteralKeys @() -ManagedNames @()).Ok | Should -BeFalse
+    }
+
+    It 'VACUOUS-TRUTH (documented): empty LiteralKeys + non-empty ManagedNames → Ok (nothing to protect)' {
+        # This IS a legitimate vacuous pass (no literal keys to be missing). Safe on its own — there is
+        # nothing to orphan-remove when bicep declares keys but none are literal-value. Kept explicit so
+        # the intentional vacuity is not mistaken for the dangerous empty-managed case above.
+        (Test-ManagedNamesSuperset -LiteralKeys @() -ManagedNames @('A', 'B')).Ok | Should -BeTrue
+    }
 }

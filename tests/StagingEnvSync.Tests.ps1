@@ -115,4 +115,33 @@ Describe 'Sync-StagingEnv' {
             -PassThru -Wait -NoNewWindow
         $proc.ExitCode | Should -Be 0
     }
+
+    It 'SO cond-1 circuit breaker: >3 orphans → abort (exit 1), even in DryRun (t/3345 Phase-2, e/144#2)' {
+        # many-orphans-env.json has 4 non-bicep plain keys (ORPH_A..D). Real drift is 1-2 keys; a set
+        # this large signals a parse failure → the mass-removal breaker must abort WITHOUT removal
+        # (exit 1), not proceed to a would-remove. Aborts in DryRun too (guards the PLAN, not just apply).
+        $envMany = Join-Path $fixtureDir 'many-orphans-env.json'
+        $proc = Start-Process pwsh `
+            -ArgumentList '-NonInteractive', '-File', $syncScript,
+                          '-BicepPath',           $bicepFixture,
+                          '-MockCurrentEnvPath',  $envMany,
+                          '-DryRun' `
+            -PassThru -Wait -NoNewWindow
+        $proc.ExitCode | Should -Be 1
+    }
+
+    It 'SO cond-3 staging-only guard: orphan removal refused on a non-staging app name → exit 1 (t/3345 Phase-2, e/144#2)' {
+        # orphaned-env.json has one true orphan (passes the breaker). With -AppName set to the PROD app,
+        # the staging-only guard must refuse the removal (exit 1) rather than reconcile prod with this
+        # incremental model. Enforced in code, not workflow convention.
+        $orphanedEnv = Join-Path $fixtureDir 'orphaned-env.json'
+        $proc = Start-Process pwsh `
+            -ArgumentList '-NonInteractive', '-File', $syncScript,
+                          '-BicepPath',           $bicepFixture,
+                          '-MockCurrentEnvPath',  $orphanedEnv,
+                          '-AppName',             'taxonomy-editor',
+                          '-DryRun' `
+            -PassThru -Wait -NoNewWindow
+        $proc.ExitCode | Should -Be 1
+    }
 }
