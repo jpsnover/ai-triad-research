@@ -84,4 +84,35 @@ Describe 'Sync-StagingEnv' {
             -PassThru -Wait -NoNewWindow
         $proc.ExitCode | Should -Be 0
     }
+
+    It 'cond-1 REAL az shape: secret-backed key {secretRef, value:""} is excluded from orphans (t/3345)' {
+        # secret-realshape-env.json matches bicep literals + ROGUE_SECRET as
+        # {secretRef:'rogue-secret', value:''} — the REAL az output shape (empty-STRING value, not a
+        # missing value field). The original bug: the value-presence filter let this into CurrentMap →
+        # flagged it a (non-bicep) orphan. The secretRef-non-empty exclusion must skip it → no orphan,
+        # no drift → exit 0. Regression guard for the t/3345#5 over-match (this shape, not the mock's).
+        $envRealSecret = Join-Path $fixtureDir 'secret-realshape-env.json'
+        $proc = Start-Process pwsh `
+            -ArgumentList '-NonInteractive', '-File', $syncScript,
+                          '-BicepPath',           $bicepFixture,
+                          '-MockCurrentEnvPath',  $envRealSecret,
+                          '-DryRun' `
+            -PassThru -Wait -NoNewWindow
+        $proc.ExitCode | Should -Be 0
+    }
+
+    It 'cond-2 allowlist: workflow-managed DEPLOY_TAG/DEPLOY_SHA are not flagged as orphans (t/3345)' {
+        # deploy-metadata-env.json matches bicep literals + DEPLOY_TAG/DEPLOY_SHA (plain values set at
+        # deploy time, never in bicep). The $WorkflowManagedKeys allowlist must exclude them from the
+        # orphan set → no orphan, no drift → exit 0. Guards against a regression that drops the allowlist
+        # and would delete live deploy metadata under Phase-2. (t/3345#5 / #6)
+        $envDeployMeta = Join-Path $fixtureDir 'deploy-metadata-env.json'
+        $proc = Start-Process pwsh `
+            -ArgumentList '-NonInteractive', '-File', $syncScript,
+                          '-BicepPath',           $bicepFixture,
+                          '-MockCurrentEnvPath',  $envDeployMeta,
+                          '-DryRun' `
+            -PassThru -Wait -NoNewWindow
+        $proc.ExitCode | Should -Be 0
+    }
 }

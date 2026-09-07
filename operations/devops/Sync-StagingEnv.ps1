@@ -42,11 +42,16 @@ $getEnvArgsNamesOnly = @{ BicepPath = $BicepPath; NamesOnly = $true }
 if ($isStaging) { $getEnvArgsNamesOnly['ForStaging'] = $true }
 $ManagedNames = & (Join-Path $PSScriptRoot 'Get-BicepBaseEnv.ps1') @getEnvArgsNamesOnly
 
-# Fail-closed: NamesOnly must be a strict superset of the literal-value set.
-# If it isn't, the bicep parse is broken — abort rather than risk mass-wiping env vars. (t/3345)
-if ($null -eq $ManagedNames -or $ManagedNames.Count -eq 0 -or $ManagedNames.Count -lt $BicepEnv.Count) {
-    Write-Error ("Get-BicepBaseEnv.ps1 -NamesOnly returned $($ManagedNames.Count) names but the " +
-        "literal-value pass returned $($BicepEnv.Count) — NamesOnly must be a superset. " +
+# Fail-closed membership-superset guard (t/3345, TL cond-3 t/3345#8): NamesOnly MUST contain EVERY
+# literal-value key — not merely a larger COUNT (a dropped literal key offset by a spurious
+# non-literal match passes a count check, then gets deleted live). The set-logic is the pure,
+# directly-tested Test-ManagedNamesSuperset (t/2971 Guard Testability, TL t/3345#14).
+. (Join-Path $PSScriptRoot 'Test-ManagedNamesSuperset.ps1')
+$supersetVerdict = Test-ManagedNamesSuperset -LiteralKeys @($BicepEnv.Keys) -ManagedNames $ManagedNames
+if (-not $supersetVerdict.Ok) {
+    Write-Error ("Get-BicepBaseEnv.ps1 -NamesOnly failed the membership-superset guard: " +
+        "$(@($ManagedNames).Count) name(s) returned; literal key(s) missing from the managed-name set: " +
+        "[$($supersetVerdict.Missing -join ', ')]. NamesOnly must contain every literal key. " +
         "Aborting reconcile to prevent mass-wipe of env vars. (t/3345)")
     exit 1
 }
@@ -65,9 +70,17 @@ if ($MockCurrentEnvPath) {
 
 $CurrentMap = @{}
 foreach ($e in @($CurrentEnvJson)) {
+    # az returns secret-backed vars as {secretRef:'x', value:''} — skip them.
+    # Filtering only on value-property presence misses this case (empty string passes).
+    $secretRefProp = $e.PSObject.Properties['secretRef']
+    if ($null -ne $secretRefProp -and $secretRefProp.Value -ne '') { continue }
     $valProp = $e.PSObject.Properties['value']
     if ($null -ne $valProp) { $CurrentMap[$e.name] = $valProp.Value }
 }
+
+# Workflow-injected keys set per-revision at deploy time — not bicep-managed.
+# Exclude from orphan detection so they don't trigger false positives. (t/3345)
+$WorkflowManagedKeys = @('DEPLOY_TAG', 'DEPLOY_SHA')
 
 # Idempotency check — skip update if all literal keys already match
 $Drifted = [System.Collections.Generic.List[string]]::new()
@@ -79,7 +92,7 @@ foreach ($key in $BicepEnv.Keys) {
 
 # Orphan check: live app-template env keys absent from the full bicep managed set.
 # A key removed from bicep but still in the live ACA template is stale standing-state. (t/3345)
-$Orphans = @($CurrentMap.Keys | Where-Object { $_ -notin $ManagedNames })
+$Orphans = @($CurrentMap.Keys | Where-Object { $_ -notin $ManagedNames -and $_ -notin $WorkflowManagedKeys })
 
 if ($Drifted.Count -eq 0 -and $Orphans.Count -eq 0) {
     Write-Host "Staging baseEnv matches Bicep — no update needed"

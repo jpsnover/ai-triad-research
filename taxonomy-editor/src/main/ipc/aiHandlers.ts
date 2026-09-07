@@ -21,6 +21,20 @@ import { DEFAULT_RELEVANCE_THRESHOLD } from '../../../../lib/debate/constants.js
 import { buildEmbeddingFailureError } from '../embeddingErrors.js';
 import { fetchUrlForPrompt } from '../../../../lib/url-fetch/fetchUrlForPrompt.js';
 import { extractHttpUrls } from '../../../../lib/url-fetch/extractHttpUrls.js';
+import { writeAICallLogEntry } from '../aiCallLog.js';
+
+// AI call-log status classifier (t/3370). Duplicated from src/server/ai/aiBackends.ts'
+// deriveCallLogStatus — that copy is unexported, and main-process code depending on
+// server code is the wrong dependency direction (separate deployment targets).
+function deriveCallLogStatus(err: unknown): string {
+  const e = err as { statusCode?: number; status?: number; name?: string; message?: string };
+  const code = e?.statusCode ?? e?.status;
+  if (typeof code === 'number' && Number.isFinite(code)) return String(code);
+  const msg = (e?.message ?? '').toLowerCase();
+  if (e?.name === 'AbortError' || msg.includes('abort')) return 'aborted';
+  if (msg.includes('timeout') || msg.includes('timed out')) return 'timeout';
+  return 'error';
+}
 
 // ── Per-request AbortController map (t/2509) ──────────────────────────────
 
@@ -161,12 +175,14 @@ export function registerAiHandlers(): void {
     const t0 = Date.now();
     const controller = requestId ? new AbortController() : undefined;
     if (requestId && controller) activeGenerations.set(requestId, controller);
+    let retryCount = 0;
     try {
-      return {
-        text: await generateText(prompt, model, (progress) => {
-          event.sender.send('generate-text-progress', progress);
-        }, timeoutMs, temperature, controller?.signal),
-      };
+      const text = await generateText(prompt, model, (progress) => {
+        retryCount = progress.attempt;
+        event.sender.send('generate-text-progress', progress);
+      }, timeoutMs, temperature, controller?.signal);
+      writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: '200' });
+      return { text };
     } catch (err) {
       if ((err as Error).name === 'AbortError' || controller?.signal.aborted) {
         getGlobalRecorder()?.record({
@@ -176,6 +192,7 @@ export function registerAiHandlers(): void {
           message: 'ai.cancelled',
           data: { requestId, elapsed_ms: Date.now() - t0 },
         });
+        writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: deriveCallLogStatus(err) });
         throw err;
       }
       const problem = err instanceof ActionableError ? err.problem : (err instanceof Error ? err.message : String(err));
@@ -187,6 +204,7 @@ export function registerAiHandlers(): void {
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.error('[IPC] generate-text failed:', problem);
+      writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: deriveCallLogStatus(err) });
       throw new ActionableError({
         goal: 'Generate text via AI backend',
         problem: `AI generation failed: ${problem}`,

@@ -1,16 +1,16 @@
-# `logical_form` Schema — Neo-Davidsonian Event Frames on Claims
+# `logical_form` Schema: Neo-Davidsonian Event Frames on Claims
 
 **Ticket:** t/3126 (T6). **Depends on:** t/3124 (entity_refs resolution, Done).
 **Design of record:** `claims-entity-fol-recommendations.md` §7.2 (Phase 1), §7.3 (reification), §7.4 (ownership).
 **Owner:** CL (schema + prompt); PowerShell implements the formalization pass. Mandatory-review surface.
-**Status:** Landed — schema + prompt + golden seed (PR #1778); prompt sort-fix (`90ce0d3e`); pass built (t/3215, PR #1792/#1814). `about[]` adopted (TL p/571 / t/3126#6) and its superset convention **pinned by the D3b measurement** (`formalization_accuracy` = 0.803, n=10).
+**Status:** Landed. Schema + prompt + golden seed (PR #1778); prompt sort-fix (`90ce0d3e`); pass built (t/3215, PR #1792/#1814). `about[]` adopted (TL p/571 / t/3126#6) and its superset convention **pinned by the D3b measurement** (`formalization_accuracy` = 0.803, n=10).
 
 ## Purpose
 
 A derived, structured proposition layer on claims (`key_points` / `factual_claims` in the summaries
 schema; lazily on node `canonical_proposition` equivalents). It is the prerequisite for the FOL track
 (§7.2 Phase 1): TPTP export (t/3127) and edge verification (t/3128) consume it. It is produced by an
-LLM formalization pass with its own golden set + calibration gate — nothing downstream trusts a
+LLM formalization pass with its own golden set + calibration gate. Nothing downstream trusts a
 `logical_form` until `formalization_accuracy` is measured.
 
 Design rule it inherits: **the prover is only as sound as the logical form** (§8.1). A wrong
@@ -31,7 +31,7 @@ live claim shape (summaries, post-t/3124):
 
 The formalization pass reads the proposition from `canonical_proposition` (register-normalized) for
 BDI claims, and from `point`/`verbatim` for `factual_claims` (whose `canonical_proposition` is empty
-for 100% of them — D3a); `category` for the attitude, the camp for the holder, and `entity_refs[]`
+for 100% of them, D3a); `category` for the attitude, the camp for the holder, and `entity_refs[]`
 for both the argument bindings and the `about[]` projection. It never re-extracts entities.
 
 ## Schema
@@ -87,7 +87,7 @@ holds(camp_acc, belief, p1) ∧ about(p1, ent_055) ∧ acquire(e1) ∧ agent(e1,
 
 - The proposition `p1` is a first-class object (DOLCE non-physical endurant / D&S description).
 - `factual_claims` (`modality: null`) assert the frame directly, without the `holds(...)` wrapper.
-- **No belief-closure axiom** — camps are deliberately not logically omniscient (that non-omniscience
+- **No belief-closure axiom.** Camps are deliberately not logically omniscient (that non-omniscience
   is half the research interest). The t/3127 axiom module must exclude closure and document the
   exclusion; this schema encodes nothing that presumes it.
 - Cross-camp queries this enables: "which propositions does acc believe and saf reject?" =
@@ -100,9 +100,9 @@ holds(camp_acc, belief, p1) ∧ about(p1, ent_055) ∧ acquire(e1) ∧ agent(e1,
    `lit:"…"` and are flagged, not invented (t/2294 / R6 symbol-is-identity).
 2. **`match_level` and `sort` are copied, not judged.** They come from the entity_ref / the entity
    register's `dolce_category`; the pass does not re-derive DOLCE typing per claim (keeps one identity
-   model across resolution, formalization, and the future re-merge — the §7.4/t/2946 one-identity rule).
-3. **`attitude` follows `category`; `holder` follows POV** — mechanical, not re-judged from prose.
-4. **`unspecified`/`null`/`proposed` are first-class**, never silent omissions — an absent field is a
+   model across resolution, formalization, and the future re-merge, the §7.4/t/2946 one-identity rule).
+3. **`attitude` follows `category`; `holder` follows POV**, mechanical, not re-judged from prose.
+4. **`unspecified`/`null`/`proposed` are first-class**, never silent omissions. An absent field is a
    formalization bug; an explicit `unspecified` is a valid reading (the same "timeout is a result"
    discipline §7.2 Phase 2 applies to the prover).
 
@@ -118,36 +118,36 @@ holds(camp_acc, belief, p1) ∧ about(p1, ent_055) ∧ acquire(e1) ∧ agent(e1,
   alone. A ref may also appear in `about[]` only (topical non-participant). It is **never a
   "couldn't-formalize" dumping bucket.** *(Pinned by the D3b measurement: leaving participants out of
   `about[]` was an unpinned-convention ambiguity that deflated scored agreement by ~0.12 with no semantic
-  content — see `analyses/logical-form-golden/D3b-findings.md`.)*
+  content; see `analyses/logical-form-golden/D3b-findings.md`.)*
 - **(c) Non-substitute.** A cleanly-formalizable claim still populates `args[]`; `about[]` is never an
   excuse to skip formalization.
 - **(d) Earns its place on the non-formalizable majority.** With 54% of claims carrying an empty
   `canonical_proposition` (100% of factual) and 71% of BDI props meta-descriptive (D3a), `about[]`
-  MUST be populated there — that is its whole value. Empty-there = not earning the field.
+  MUST be populated there. That is its whole value. Empty-there = not earning the field.
 - **(e) Reconciles with the `summary:*` entity_mention layer (t/3160).** `about[]` is the *logical-form
-  projection of the claim's already-resolved `entity_refs[]`* — same `ent-` ids, no new resolution —
+  projection of the claim's already-resolved `entity_refs[]`* (same `ent-` ids, no new resolution),
   so it does NOT double-ground what the mention-index layer captures. Different layer (LF topical
   grounding vs mention occurrences), same identities.
 
 ## Calibration + provenance (deliverable 3 preview)
 
-- **Metric:** `formalization_accuracy` — golden-set agreement between the pass's `logical_form` and the
+- **Metric:** `formalization_accuracy`, the golden-set agreement between the pass's `logical_form` and the
   CL-labelled reference, scored per component (predicate / args+roles / polarity / modality / temporal)
   so a partial-credit profile shows *which* component the pass gets wrong (predicate vs role vs
   temporal have different downstream costs).
 - **Golden set:** labelled claim→logical_form pairs, **empirically reproduced** by running the actual
-  pass on real claims (t/2294) — not authored from the doc example. Stratified across `category`
+  pass on real claims (t/2294), not authored from the doc example. Stratified across `category`
   (B/D/I + factual) and `match_level` so accuracy is readable where it matters (superclass/related
   args are where formalization error concentrates).
 - **Provenance:** register entry class **stipulated → measured (seed, D3b)**: `formalization_accuracy` =
   **0.803** (n=10, convention-pinned; 0.686 as-first-authored pre-`about[]`-pin) on the t/3215 batch
   (`ai-triad-data` `853b2938`). Mechanical fields (polarity/modality/temporal/about) = 1.00; residual weak
-  axis is `predicate` = 0.50, concentrated on multi-clause meta-descriptive BDI. Not yet `derived` — needs
+  axis is `predicate` = 0.50, concentrated on multi-clause meta-descriptive BDI. Not yet `derived`; it needs
   n≥30 with match_level diversity and the bias-free D3a rows. `formalization_confidence` is a pass self-rating
   (stipulated) until correlated with golden-set correctness. Full analysis:
   `analyses/logical-form-golden/D3b-findings.md`.
 
-## Prompt-port coupling — one shape across two runtimes (t/3250)
+## Prompt-port coupling: one shape across two runtimes (t/3250)
 
 `logical_form` is produced by **two ports of a single prompt** and validated by **one canonical Zod
 schema**. All four artifacts must agree; a change to the frame shape updates all four in lockstep or
@@ -166,7 +166,7 @@ two prompt ports (#3a/#3b) are *implementations* that must conform to them, neve
 
 **Change protocol.** Any change to the frame shape (new field, vocabulary change, added role) touches
 **#1 (spec) + #4 (Zod) first**, then BOTH ports (#3a PS + #3b Py) which share prompt #2. Never change one
-port's output without the other — node and claim frames must stay the same shape (that is the whole point
+port's output without the other. Node and claim frames must stay the same shape (that is the whole point
 of one schema). Port-specific behavior that does NOT change the shape:
 
 - The **node port (#3b)** forces `modality.holder` = camp (from the node-id prefix) and `attitude` =
@@ -181,8 +181,8 @@ Both emit the identical field set in §Schema; the Zod (#4) is the mechanical gu
 
 ## Open items (post-review)
 
-- [x] `args[].sort` enum pinned to the live register `DolceCategory` set (`lib/entities/types.ts`) — the 5 values above.
+- [x] `args[].sort` enum pinned to the live register `DolceCategory` set (`lib/entities/types.ts`), the 5 values above.
 - [x] `about[]` adopted as a first-class field with conditions (a)–(e) (TL p/571 / t/3126#6; CL review #1778 issue 2).
 - [ ] **PowerShell contract** (handed off): persistence slot (derived field on the claim objects, same pass-slot family as `Invoke-RetrievalConfidencePass`); `{{ENTITY_REFS}}` must join `dolce_category`→`sort`; the factual arm reads `point`/`verbatim`.
-- [ ] `event_ref` scope (per-claim vs per-summary) — reconcile with the t/3127 TPTP generator.
+- [ ] `event_ref` scope (per-claim vs per-summary), to be reconciled with the t/3127 TPTP generator.
 - [ ] `holds/3` cross-role interface question deferred to t/3127 (TPTP export), per CL review.

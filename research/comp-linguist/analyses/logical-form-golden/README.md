@@ -1,12 +1,12 @@
-# logical_form Golden Set (t/3126 D3a) — with input-substrate findings
+# logical_form Golden Set (t/3126 D3a): input-substrate findings
 
 **D3b measured (2026-09-02):** first `formalization_accuracy` = **0.803** (n=10, convention-pinned; 0.686 pre-pin) on the t/3215 pass batch. Observed golden grown from the real pass output (`golden_set_d3b.json` + frozen `candidates_d3b.json`); full analysis in **`D3b-findings.md`**. Reproduce: `python score_golden.py --golden golden_set_d3b.json --candidates candidates_d3b.json`.
 
-**Status (post-#1778 review):** `about[]` ADOPTED as a first-class schema field (TL p/571; conditions (a)–(e) in `logical-form-schema.md`); `args[].sort` pinned to the register `DolceCategory` set (5 values, `lib/entities/types.ts`); prompt updated (emit `about[]` + meta-descriptive guard + factual→`point`/`verbatim`). The "reshape recommendations" below are now IMPLEMENTED in the schema/prompt — retained as the rationale of record.
+**Status (post-#1778 review):** `about[]` ADOPTED as a first-class schema field (TL p/571; conditions (a)–(e) in `logical-form-schema.md`); `args[].sort` pinned to the register `DolceCategory` set (5 values, `lib/entities/types.ts`); prompt updated (emit `about[]` + meta-descriptive guard + factual→`point`/`verbatim`). The "reshape recommendations" below are now IMPLEMENTED in the schema/prompt, and retained as the rationale of record.
 
 Reference set + scorer for the `logical_form` formalization pass (schema: `docs/logical-form-schema.md`;
 prompt: `scripts/AITriad/Prompts/logical-form-formalization.prompt`). Empirically grounded in the live
-summaries corpus per t/2294 — every observed row is a real claim with its real `entity_refs`; the
+summaries corpus per t/2294. Every observed row is a real claim with its real `entity_refs`; the
 reference `logical_form` is CL-authored.
 
 ## Finding: the pass's input substrate largely does not match the schema's assumption
@@ -24,32 +24,32 @@ Inventory of all `entity_refs`-bearing claims (n=472 across 229 summaries; regen
 
 Net: only **~64/472 (13.5%)** are cleanly formalizable as-is (non-empty, non-meta). The full golden
 set + the D3b `formalization_accuracy` measurement should be built against the **resolved** input
-(factual→point/verbatim; meta-descriptive handled), not the current field as-is — otherwise the
+(factual→point/verbatim; meta-descriptive handled), not the current field as-is, since otherwise the
 reference formalizes the wrong text.
 
 ## Reshape recommendations (feed back into D1/D2 + the FOL track)
 
 1. **Schema amendment (D1):** add `about: [{ref, match_level}]` for topical entity_refs distinct from
-   participant `args[]` — mirrors §7.3's `about(p, ent)`. Without it, 88%-single-ref topical mentions
+   participant `args[]`, mirroring §7.3's `about(p, ent)`. Without it, 88%-single-ref topical mentions
    are forced into a participant role they don't fill. (Encoded in the seed rows below as `about`.)
-2. **Prompt amendment (D2):** a meta-descriptive guard — if the proposition is "The document …",
+2. **Prompt amendment (D2):** a meta-descriptive guard, applied when the proposition is "The document …",
    formalize the *embedded* assertion, and if none is recoverable, emit `status:"rejected"` with low
    `formalization_confidence` rather than `discuss(document,…)`.
 3. **Factual arm:** the pass reads `point`/`verbatim` for `factual_claims` (canonical_proposition is
    empty for 100% of them).
 4. **Upstream (Collaborator/PS extraction):** emit atomic `canonical_proposition`s, not "The
-   document…" summaries — the single highest-leverage fix; it moves the 71% meta share toward
+   document…" summaries, the single highest-leverage fix; it moves the 71% meta share toward
    formalizable.
 
 ## What this seed contains
 
-A small hand-formalized **seed** (not the full N≥30 golden set — that waits on the input resolution
+A small hand-formalized **seed** (not the full N≥30 golden set, which waits on the input resolution
 above so the reference isn't built against the wrong field):
-- **observed** rows — real clean claims (with camp), formalized per the schema + the `about[]`
+- **observed** rows, real clean claims (with camp), formalized per the schema + the `about[]`
   amendment, showing the participant-vs-topical distinction on real data.
-- **constructed** rows — the strata the live corpus lacks: a non-exact `match_level`, a negated
+- **constructed** rows, the strata the live corpus lacks: a non-exact `match_level`, a negated
   polarity, an explicit temporal, a multi-participant frame, and a factual (modality:null) case.
-  Labelled `constructed` (t/2294 — never let a constructed case masquerade as observed evidence).
+  Labelled `constructed` (t/2294; never let a constructed case masquerade as observed evidence).
 
 `score_golden.py` scores a candidate `logical_form` set against these references **per component**
 (predicate / args+roles / polarity / modality / temporal / about) → `formalization_accuracy`, so the

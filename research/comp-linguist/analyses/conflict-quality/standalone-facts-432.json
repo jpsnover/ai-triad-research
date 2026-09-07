@@ -1,0 +1,2180 @@
+{
+  "_meta": {
+    "ticket": "t/3339",
+    "purpose": "standalone_fact singletons to reclassify (demote) out of the conflict corpus",
+    "classification": "CL single-annotator heuristic (classify_singletons.py) over the 902 single-instance conflicts",
+    "n": 432,
+    "verified": {
+      "method": "CL blind 40-sample precision spot-check (verify432-worksheet)",
+      "sample": 40,
+      "genuine_fact": 39,
+      "contestable": 1,
+      "precision": 0.975,
+      "wilson95_lb": 0.871,
+      "note": "~2.5% residual are borderline-contestable technical theses (e.g. 'hallucinations statistically inevitable'); acceptable because the reclassification is REVERSIBLE (status=demoted, instance kept) — a mis-demoted claim is flipped back, not lost."
+    },
+    "demotion_semantics": "reclassify: status=demoted, claim_type=non_conflict, demotion.reason=standalone_fact, keep instance record"
+  },
+  "standalone_facts": [
+    {
+      "conflict_id": "conflict-36-out-of-38-gene-synthesis-providers-fu-adolesce",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-39-of-american-elementary-students-learn-guidance",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-41-of-employers-expect-to-downsize-their-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-41-of-employers-foresee-staff-reductions-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-41-of-total-work-tasks-in-the-insurance-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-42-of-companies-believe-their-strategy-i-state-ai",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-55-of-firms-in-the-mining-and-metals-sec-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-56-of-employers-in-the-production-of-con-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-67-of-uk-teens-now-use-ai-which-is-nearl-guidance",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-69-percent-of-people-in-china-said-the-t-where-ar",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-71-of-consumer-goods-firms-expect-higher-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-73-of-companies-identify-data-privacy-an-state-ai",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-74-of-companies-plan-to-deploy-agentic-a-state-ai",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-84-of-companies-have-not-redesigned-jobs-state-ai",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-86-of-employers-expect-ai-and-informatio-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-95-of-the-labor-force-in-the-uk-is-proje-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-96-of-deepfake-videos-online-are-pornogr-internat",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-97-of-employers-in-the-insurance-and-pen-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-a-100gw-cluster-would-require-over-20-of-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-a-medical-ai-model-was-successfully-inve-failure-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-a-shopping-bot-purchased-a-dozen-eggs-fo-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-a-significant-share-of-organizations-ide-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-a-survey-of-2357-people-regarding-940-oc-ai-2026-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-about-12-of-occupations-including-funera-ai-2026-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-accidents-are-defined-as-unintended-and-concrete",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-adopting-firms-may-see-sales-per-worker-economic",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-agency-law-provides-a-framework-for-mana-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-agents-in-the-study-operated-at-mirskys-agentsof",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-agents-were-induced-into-a-resourceconsu-agentsof",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-accelerationism-has-gained-significan-paradox-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-adoption-in-customer-experience-can-l-organiza",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-agents-are-evolving-from-isolated-too-whats-ne",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-agents-can-be-trained-to-learn-and-ad-ai-grew-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-agents-can-now-perform-tasks-like-wri-natural-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-agents-can-operate-either-autonomousl-transfor",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-agents-in-b2b-settings-can-integrate-rethinki",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-algorithms-are-being-widely-adopted-i-humanai-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-and-machine-learning-specialists-are-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-applications-in-clinical-nursing-incl-what-doe",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-auditing-tools-for-experts-include-ai-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-capex-is-2-of-gdp-650bn-2026-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-capital-expenditure-in-the-us-is-appr-2026-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-chatbots-have-been-linked-to-14-death-sycophan",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-coding-assistants-can-complete-certai-internat",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-companies-spent-170-million-on-lobbyi-andrew-y",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-companion-apps-have-grown-to-tens-of-internat",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-energy-consumption-is-projected-to-in-sam-altm",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-image-generation-models-have-shown-ra-shape-th",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-implementation-in-customer-experience-organiza",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-integration-breaches-can-take-hours-t-rush-ado",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-is-a-computer-program-that-runs-takes-why-ai-w",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-is-being-promoted-by-companies-to-red-ai-doesn",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-is-used-in-nursing-research-for-liter-what-doe",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-models-are-being-integrated-into-corp-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-models-are-now-being-used-to-design-n-whats-ne",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-models-are-trained-on-human-language-dont-cal",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-models-can-be-jailbroken-to-bypass-sa-adolesce",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-models-can-be-prompted-to-perform-mul-skin-gam",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-models-frequently-generate-verbatim-c-alignmen",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-performance-on-the-medqa-benchmark-ha-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-scribe-technology-can-reduce-physicia-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-are-beginning-to-integrate-te-whats-ne",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-are-capable-of-generating-out-beyond-p",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-are-complex-and-often-inscrut-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-are-sociotechnical-in-nature-ai-rmf-p",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-are-susceptible-to-resource-e-adversar",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-can-automate-intelligence-ana-why-pent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-can-be-deliberately-tricked-t-intellig",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-can-hallucinate-presenting-fa-esrbascr",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-in-production-often-experienc-ai-rmf-p",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-including-llms-exhibit-failur-ai-dange",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-learn-from-data-rather-than-b-transfor",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-may-be-subject-to-specific-le-ai-rmf-p",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-often-perform-poorly-when-the-concrete",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-systems-that-are-effective-at-achievi-natural-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ai-training-datasets-have-been-found-to-guidance",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-aidriven-system-intelligence-is-enabling-whats-ne",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-airelated-job-transitions-are-increasing-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-airelated-security-incidents-have-accele-rush-ado",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-algorithmic-efficiency-gains-in-language-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-alignment-training-for-llms-typically-in-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-anthropic-is-expected-to-make-twenty-bil-pentagon",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-anthropic-released-a-set-of-moral-precep-does-ai-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-anthropic-was-founded-in-2021-by-seven-o-pentagon",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-anthropic-was-valued-at-three-hundred-an-pentagon",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-anthropics-claudes-constitution-document-does-ai-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-anthropics-rsp-requires-board-approval-f-anthropi",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-approximately-2800-data-centers-are-plan-2026-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-approximately-51-of-skills-in-the-datase-displace",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-approximately-twothirds-of-the-worlds-co-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-around-15-of-students-report-using-ai-fo-student-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-around-60-of-jobs-in-advanced-economies-internat",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-at-least-700-million-people-now-use-lead-internat",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-automated-employment-decision-tools-aedt-2026-ai-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-autonomous-red-teams-art-simulate-attack-autonomo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-autoregressive-models-have-errors-that-d-aiembrac",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-base-models-are-often-found-to-be-calibr-whylangu",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-bertbase-has-110m-parameters-bertlarge-h-stereose",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-between-2007-and-2021-there-was-a-growth-state-st",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-block-announced-40-layoffs-on-february-2-shape-th",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-by-2030-the-proportion-of-work-tasks-per-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-bytedance-temporarily-restricted-the-cre-where-ar",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-california-implemented-nofault-divorce-l-accounta",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-californias-ab-2602-law-mandates-usage-r-ethical-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-canadian-hospital-mental-distress-admiss-please-d",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-changes-in-the-occupational-mix-since-20-evaluati",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-chatgpt-became-the-fastestgrowing-consum-introduc",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-chatgpt-reached-100-million-users-in-two-adversar",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-chinas-pilot-free-trade-zones-pftzs-have-designin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-claude-is-the-first-ai-certified-to-oper-pentagon",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-claude-usage-data-shows-that-computermat-evaluati",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-close-to-40-percent-of-the-us-gross-dome-theres-g",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-close-to-60-percent-of-the-us-adult-popu-theres-g",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-common-corruptions-like-brightness-contr-failure-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-computing-power-used-for-ai-training-has-internat",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-correction-effectiveness-certification-c-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-creative-thinking-and-resilience-are-pro-new-econ",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-current-ai-deception-research-lacks-reli-25112266",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-current-ai-models-particularly-large-mac-power-se",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-decisionmaking-under-uncertainty-is-meta-ai-isnt-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-deliberative-alignment-training-reduced-detectin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-distillation-allows-for-finetuning-small-internat",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ebay-spent-almost-20-million-per-year-on-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ecommerce-accounts-for-over-20-trillion-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-electronics-organizations-report-that-95-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-emil-michael-was-confirmed-as-under-secr-why-pent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-employers-expect-to-fund-86-of-their-tra-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-employers-predict-that-nearly-40-of-core-new-econ",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-epics-sepsis-prediction-tool-missed-twot-ai-as-no",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-evelyne-webb-george-published-confidenti-followin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-evolutionary-processes-biological-cultur-natural-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-federal-receipts-in-early-2028-were-runn-2028-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-fewer-than-half-48-of-students-feel-thei-student-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-financial-sextortion-is-currently-the-fa-guidance",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-finetuning-situationalllm-on-an-h100-80g-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-firmlevel-studies-on-pregenai-show-that-economic",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-generalpurpose-ai-adoption-in-the-us-is-internat",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-generative-ai-adoption-translated-to-onl-ai-as-no",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-generative-ai-investment-has-increased-n-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-generative-ai-is-expected-to-transform-8-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-github-copilot-includes-an-option-allowi-law-ai-i",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-glmtts-achieves-a-089-character-error-ra-ethical-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-global-economic-growth-is-projected-at-3-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-global-inflation-is-projected-to-reach-3-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-gpai-models-are-considered-systemic-if-t-high-lev",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-gpt2large-is-the-best-performing-languag-stereose",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-gpt4-correctly-chose-not-enough-info-on-explicit",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-gpt4-performance-on-the-math-benchmark-i-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-gpt4-scored-in-the-15th-percentile-on-th-somethin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-gpt4-was-trained-on-approximately-8e24-t-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-graphic-designers-and-legal-secretaries-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-hallucinations-are-statistically-inevita-whylangu",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-humans-are-notoriously-inaccurate-when-p-accounta",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-image-generators-depicted-men-61-of-the-we-teste",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-in-2024-59-airelated-federal-regulations-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-in-2024-607-of-notable-ai-models-were-re-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-in-2024-california-enacted-22-airelated-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-in-2025-ai-systems-transitioned-from-sim-ai-grew-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-in-egypt-48-of-onthejob-skills-are-proje-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-in-political-economy-fixed-capital-tradi-reflecti",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-in-the-202324-academic-year-60-of-us-hig-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-in-uzbekistan-71-of-firms-identify-skill-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-individuals-using-ai-in-the-pg-experimen-ai-2026-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-initial-jobless-claims-surged-to-487000-2028-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-interpretive-alignment-testing-iat-is-a-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-investment-flows-into-ai-have-increased-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-job-postings-for-software-engineers-are-2026-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-joshua-gans-published-a-paper-in-january-learning",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-junior-analysts-at-an-investment-firm-in-ai-isnt-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-labors-share-of-us-gdp-dropped-from-64-i-2028-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-less-than-15-of-us-businesses-had-signif-simple-m",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-llama-31-405b-training-emissions-were-89-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-llm-training-datasets-double-in-size-app-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-llmpowered-agents-are-increasingly-given-agentsof",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-llms-are-pretrained-on-unlabeled-text-co-auditing",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-llms-are-roughly-three-times-as-able-as-can-ai-p",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-llms-are-trained-on-large-amounts-of-tex-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-llms-often-make-incorrect-assumptions-wh-llms-get",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-llms-showed-moderate-race-and-gender-dis-auditing",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-machine-learning-models-are-increasingly-model-ca",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-machinetacit-knowledge-is-embedded-in-mo-transfor",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-mario-tronti-introduced-the-concept-of-t-reflecti",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-matplotlib-receives-130-million-download-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-meaningful-human-control-is-a-concept-or-computin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-mens-research-productivity-increased-64-explaini",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-meta-spent-148-billion-on-an-investment-ai-2026-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ml-systems-are-vulnerable-to-adversarial-failure-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ml-systems-can-be-repurposed-to-perform-failure-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-ml-systems-can-produce-formally-correct-failure-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-models-perform-significantly-better-on-t-me-mysel",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-models-that-are-trained-to-perform-speci-law-foll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-models-trained-on-different-authors-show-alignmen",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-models-with-more-parameters-tend-to-show-explicit",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-montana-senate-bill-419-imposed-a-10000-state-st",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-moravecs-paradox-describes-the-phenomeno-aiembrac",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-most-frontier-ai-models-tested-in-recent-law-foll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-most-notable-ai-models-developed-in-2024-internat",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-nearly-twothirds-65-of-students-say-asse-student-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-new-york-and-california-have-introduced-2026-ai-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-new-york-s3008c-part-x-mandates-that-per-2026-ai-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-nissenbaum-identified-four-specific-barr-computin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-norbert-wiener-founded-cybernetics-as-th-philosop",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-nvidia-datacenter-revenue-grew-from-appr-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-only-19-audits-linked-to-nyc-local-law-1-auditing",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-only-21-of-companies-report-having-a-mat-state-ai",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-only-34-of-employees-in-the-real-estate-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-openai-added-schemingrelated-research-ca-detectin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-openai-categorizes-capabilities-into-tra-our-upda",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-openai-categorizes-frontier-capabilities-our-upda",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-openai-dissolved-its-superalignment-proj-does-ai-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-openai-has-already-released-preparedness-our-upda",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-openai-launched-sonnet-45-in-late-2025-w-technolo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-openai-published-a-model-specification-d-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-openais-model-specification-outlines-pri-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-openclaw-agents-operate-from-a-single-wo-agentsof",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-openclaw-and-moltbook-platforms-were-rel-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-organization-culture-and-resistance-to-c-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-organizations-are-increasingly-hiring-ne-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-organizations-with-aienabled-intelligent-organiza",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-over-90-of-the-worlds-languages-currentl-dangers-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-papers-analyzing-bias-in-nlp-systems-oft-language",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-participants-identified-misuse-as-a-prim-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-participants-were-compensated-with-40-pe-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-participants-who-used-chatgpt-in-the-mid-when-cha",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-people-associate-stereotypes-with-relati-stereose",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-perspective-api-is-a-public-toxicity-det-model-ca",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-predictive-models-in-highstakes-domains-ai-as-no",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-private-credit-grew-from-under-1-trillio-2028-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-products-liability-imposes-strict-liabil-how-exis",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-promptbased-word-association-bias-and-em-explicit",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-real-output-per-hour-in-the-us-economy-r-2028-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-recent-recruits-at-the-fifteen-biggest-t-ai-drive",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-regulatory-sandboxes-were-first-used-by-designin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-rep-summer-lee-has-brought-over-24-billi-rep-summ",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-researchers-have-documented-systematic-b-model-ca",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-richard-sutton-wrote-the-article-the-bit-learning",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-salesforce-ceo-marc-benioff-stated-ai-do-ai-drive",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-shifts-in-the-occupational-mix-were-alre-evaluati",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-singapores-av-sandbox-utilizes-a-tiered-designin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-singapores-energy-market-authority-ema-s-designin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-singapores-national-environment-agency-n-designin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-singapores-privacy-enhancing-technologie-designin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-situationalllm-uses-4bit-quantization-to-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-software-engineer-job-postings-are-up-11-2026-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-some-ai-models-allow-users-to-post-up-to-law-ai-i",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-sp-global-analyzed-over-190000-earnings-organiza",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-spanish-entidades-sin-personalidad-juríd-law-foll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-standard-of-living-has-increased-10000x-why-ai-w",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-states-have-aggressively-adopted-statute-state-st",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-statesponsored-cyberattacks-have-occurre-adversar",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-stereoset-contains-4-target-domains-321-stereose",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-stereoset-is-a-largescale-natural-englis-stereose",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-structural-laborforce-churn-and-skill-di-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-suicide-among-children-and-adolescents-b-please-d",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-suicide-rates-among-us-adolescents-incre-please-d",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-sycophancy-rates-in-frontier-ai-models-a-sycophan",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-synchronization-protocols-maintain-align-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-technical-artifacts-are-defined-by-both-philosop",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-tens-of-billions-of-dollars-were-spent-o-technolo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-texas-senate-bill-8-prohibited-governmen-state-st",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-2025-ai-index-documents-a-pattern-wh-why-llms",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-3dssg-dataset-contains-up-to-534-dis-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-agentic-military-ai-governance-frame-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-ai-act-mentions-trust-in-only-two-ar-trust-wi",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-ai-index-report-tracks-the-distribut-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-ai-index-uses-a-standardized-calcula-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-ai-industry-is-currently-projected-t-rep-clar",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-ai-life-cycle-core-principles-ailccp-trust-wi",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-ai-risk-community-is-composed-of-wel-ai-safet",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-ai-triad-project-is-a-research-initi-ai-triad",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-algorithmic-accountability-act-of-20-algorith",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-amagf-framework-assigns-governance-r-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-amazon-mechanical-turk-population-is-stereose",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-american-association-of-colleges-of-what-doe",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-apollo-project-cost-approximately-18-introduc",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-applicant-pool-for-the-study-was-67-auditing",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-author-attended-the-stamp-safety-des-ai-safet",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-author-identifies-as-a-parent-of-tee-dont-cal",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-average-american-spends-83-a-month-o-andrew-y",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-bill-defines-a-generative-ai-model-a-copyrigh",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-bill-defines-identifying-information-algorith",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-bill-establishes-a-bureau-of-technol-algorith",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-celeba-dataset-is-a-publicly-availab-model-ca",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-compute-required-to-reach-a-set-perf-approach",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-concept-of-class-composition-was-int-reflecti",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-concept-of-progress-in-the-west-as-a-philosop",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-content-is-sourced-from-a-substack-p-practica",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-cost-of-building-a-largescale-ai-clu-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-cost-of-querying-ai-models-has-dropp-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-cqs-is-calculated-as-the-minimum-of-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-current-ai-safety-debate-is-heavily-ai-safet",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-dissimilarity-index-for-the-occupati-evaluati",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-doctrine-of-respondeat-superior-in-t-law-ai-i",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-document-estimates-that-ai-will-incr-simple-m",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-document-is-approximately-250-words-ai-triad",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-document-states-that-the-global-huma-techno-o",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-document-was-captured-on-march-3-202-practica",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-eacc-movement-uses-jeremy-englands-t-philosop",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-eacc-movement-was-founded-by-figures-philosop",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-eliminating-bias-in-algorithmic-syst-rep-summ",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-engineering-design-process-is-a-stru-philosop",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-epic-sepsis-prediction-tool-failed-i-ai-as-no",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-epistemic-divergence-index-edi-captu-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-epistemic-governance-architecture-eg-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-esign-act-of-2000-was-instrumental-i-ai-as-no",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-ethics-commonsense-morality-benchmar-skin-gam",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-eu-ai-act-aims-to-provide-a-single-s-european",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-eu-general-data-protection-regulatio-accounta",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-eu-us-and-china-have-adopted-or-are-economic",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-european-blockchain-sandbox-for-dist-designin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-european-unions-digital-regulatory-r-european",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-federal-trade-commission-is-directed-algorith",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-field-of-artificial-intelligence-dat-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-first-neural-net-machine-was-created-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-first-scientific-paper-on-neural-net-why-ai-w",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-framework-categorizes-frontier-capab-our-upda",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-framework-defines-five-specific-crit-our-upda",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-framework-tracks-five-specific-crite-our-upda",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-ftc-is-required-to-review-regulation-algorith",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-ftc-must-publish-an-annual-report-su-algorith",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-future-of-life-institute-published-a-does-ai-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-german-nuclear-weapons-project-faile-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-global-distribution-of-ai-developmen-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-global-market-for-ai-hiring-technolo-auditing",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-global-robotic-nurse-industry-is-exp-what-doe",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-global-unemployment-rate-stands-at-4-future-j",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-graduated-response-protocol-enforces-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-human-factors-and-ergonomics-society-ai-dange",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-human-line-project-has-documented-al-sycophan",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-idea-of-history-as-a-linear-goalorie-philosop",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-inference-cost-for-a-system-performi-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-information-financial-activities-and-evaluati",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-information-sector-has-seen-the-larg-evaluati",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-initial-agreement-between-the-depart-why-pent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-knowledge-homogeneity-caused-by-chat-when-cha",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-law-of-agency-addresses-thirdparty-c-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-legal-definition-of-an-agent-is-a-fi-ai-agent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-lightcast-dataset-covers-us-job-post-displace",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-logic-theorist-program-capable-of-pr-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-manhattan-project-cost-approximately-introduc",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-manifesto-for-an-accelerationist-pol-reflecti",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-median-income-of-workers-on-amt-is-4-stereose",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-metr-long-tasks-benchmark-measures-a-shape-th",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-mit-ai-risk-repository-documents-ove-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-model-training-took-approximately-48-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-montreal-ai-ethics-institute-article-unsolved",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-most-biased-model-produced-a-92-gend-we-teste",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-number-of-ai-patents-granted-worldwi-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-number-of-americans-who-see-the-oppo-natural-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-number-of-fdaauthorized-aienabled-me-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-number-of-graduates-with-masters-deg-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-number-of-medical-ai-ethics-publicat-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-number-of-proposed-us-federal-airela-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-number-of-responsible-ai-papers-acce-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-oecd-ai-policy-observatory-oecdai-an-recommen",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-oecd-informal-ai-group-of-experts-co-recommen",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-oecd-recommendation-on-artificial-in-recommen",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-oecd-working-party-on-ai-governance-recommen",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-one-divides-into-two-formula-origina-reflecti",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-onet-dataset-contains-19265-tasks-ac-displace",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-organization-has-updated-its-prepare-our-upda",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-paper-concrete-problems-in-ml-safety-unsolved",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-perspective-api-team-applied-bias-mi-model-ca",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-power-required-to-train-frontier-ai-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-practical-tech-leader-publication-wa-practica",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-proportion-of-restricted-tokens-in-t-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-proportion-of-tokens-in-top-web-doma-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-provided-document-section-consists-e-generati",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-rate-of-change-in-the-occupational-m-evaluati",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-relevant-statute-for-the-supply-chai-where-th",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-researchers-conducted-nine-codesign-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-researchers-identified-eight-themes-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-researchers-used-the-fourstage-parti-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-richest-person-in-the-world-currentl-adolesce",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-sam-model-is-an-instance-of-a-transl-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-second-law-of-thermodynamics-states-philosop",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-senate-voted-991-to-strip-a-provisio-unaccept",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-share-of-workers-in-different-ai-exp-evaluati",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-situationalllm-model-was-finetuned-u-situatio",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-software-factory-at-strongdm-operate-shape-th",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-sp-500-experienced-a-cumulative-draw-2028-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-sparra-model-outputs-scores-ranging-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-speed-of-ai-diffusion-is-limited-by-ai-as-no",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-stereoset-dataset-was-validated-by-f-stereose",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-study-analyzed-801-applicants-for-k1-auditing",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-study-audited-11-different-llms-from-auditing",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-study-found-pervasive-stereotype-bia-explicit",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-study-found-that-llms-could-correctl-auditing",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-study-identified-eleven-representati-agentsof",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-study-involved-17-participants-acros-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-study-used-over-33000-unique-prompts-explicit",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-study-uses-a-synthetic-differenceind-displace",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-swarm-coherence-score-scs-measures-t-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-te-awa-tupua-act-2017-in-new-zealand-beyond-p",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-tendency-of-the-rate-of-profit-to-fa-reflecti",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-therac25-radiation-machine-caused-ov-computin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-top-model-on-the-mvbench-leaderboard-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-topperforming-model-on-the-wildbench-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-total-compute-used-for-the-largest-a-approach",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-trump-administration-expanded-the-an-why-pent",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-uks-fintech-sandbox-provides-a-sixmo-designin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-us-food-and-drug-administration-mand-model-ca",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-us-government-accountability-office-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-us-government-awarded-approximately-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-us-investment-advisers-act-of-1940-e-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-us-residential-mortgage-market-is-ap-2028-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-weidinger-et-al-taxonomy-comprises-s-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-workshops-for-sam-were-conducted-bet-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-the-workshops-for-sparra-were-conducted-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-there-are-553-distinct-statutory-section-state-st",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-there-are-64-distinct-enactments-across-state-st",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-there-are-78-distinct-enactments-across-state-st",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-there-are-over-five-million-licensed-reg-what-doe",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-there-are-six-distinct-agentic-governanc-controll",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-there-exists-a-triad-of-perspectives-on-ai-triad",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-there-is-a-measurable-increase-in-airela-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-there-is-no-global-consensus-on-the-defi-economic",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-training-a-single-transformer-big-model-dangers-",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-training-costs-for-landmark-ml-models-ar-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-transformative-ai-tai-is-defined-as-ai-c-transfor",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-transparency-is-present-in-73-of-the-84-ai-guide",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-uc-berkeley-offers-doctoral-programs-in-dont-cal",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-unemployed-workers-regardless-of-unemplo-evaluati",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-unilevers-aipowered-internal-marketplace-organiza",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-us-job-openings-fell-below-55-million-by-2028-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-websites-are-increasingly-implementing-p-artifici",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-weidinger-et-al-proposed-a-taxonomy-of-s-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-workers-aged-55-to-64-who-experienced-jo-measurin",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-workers-in-the-most-aiexposed-occupation-anthropi",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-workplace-adoption-of-ai-among-us-worker-explaini",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-workshop-participants-demonstrated-the-a-empoweri",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    },
+    {
+      "conflict_id": "conflict-zendesk-was-taken-private-in-2022-for-10-2028-glo",
+      "reason": "standalone_fact",
+      "provenance": "CL single-annotator (t/3339)"
+    }
+  ]
+}

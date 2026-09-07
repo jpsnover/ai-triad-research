@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { povTaxonomyFileSchema, situationsFileSchema, conflictFileSchema } from './validation';
+import { povTaxonomyFileSchema, situationsFileSchema, conflictFileSchema, aggregateConflictsFileSchema } from './validation';
 
 const REPO_ROOT = resolve(__dirname, '..', '..', '..', '..');
 const configPath = join(REPO_ROOT, '.aitriad.json');
@@ -85,6 +85,37 @@ describe.skipIf(!dataRoot)('Schema safety net — validation.ts vs real producti
           (result.error.issues.length > 10 ? `\n  ...and ${result.error.issues.length - 10} more` : ''),
         );
       }
+    });
+  });
+
+  // t/3358: the aggregate conflicts.json (the data-of-record fork-B census merge + demotion mutate)
+  // had NO schema safety net — only the 5 legacy conflict-*.json files (filtered above) were covered.
+  describe('Aggregate conflicts.json (t/3358)', () => {
+    const aggregatePath = join(conflictsDir, 'conflicts.json');
+
+    it('conflicts.json parses without errors against aggregateConflictsFileSchema', () => {
+      expect(existsSync(aggregatePath), `${aggregatePath} must exist`).toBe(true);
+      const data = JSON.parse(readFileSync(aggregatePath, 'utf8'));
+      const result = aggregateConflictsFileSchema.safeParse(data);
+      if (!result.success) {
+        const summary = result.error.issues
+          .slice(0, 10)
+          .map(i => `  ${i.path.join('.')}: ${i.message}`)
+          .join('\n');
+        expect.fail(
+          `conflicts.json fails aggregateConflictsFileSchema:\n${summary}` +
+          (result.error.issues.length > 10 ? `\n  ...and ${result.error.issues.length - 10} more` : ''),
+        );
+      }
+    });
+
+    it('rejects a seeded bad status (both-arms gate discipline)', () => {
+      expect(existsSync(aggregatePath), `${aggregatePath} must exist`).toBe(true);
+      const data = JSON.parse(readFileSync(aggregatePath, 'utf8'));
+      expect(data.conflicts?.length, 'live aggregate must have at least one conflict to seed').toBeGreaterThan(0);
+      const poisoned = { ...data, conflicts: [{ ...data.conflicts[0], status: 'bogus-status' }, ...data.conflicts.slice(1)] };
+      const result = aggregateConflictsFileSchema.safeParse(poisoned);
+      expect(result.success, 'a bogus status must fail the aggregate schema').toBe(false);
     });
   });
 });
