@@ -19,8 +19,8 @@ Excludes: static pre-deployment certification, centralized trust anchors, intern
   - term:deployment_gated  (concept: deployment certification)
   - term:liability_strict  (concept: liability enforcement)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:liability_strict
+**NOTES:** deployment_gated is in Excludes (static pre-deployment cert); strict downstream liability is the core.
 
 ---
 
@@ -33,8 +33,8 @@ Excludes: the claim that all pre-deployment evaluation is inherently anti-compet
   - term:accountability_market  (concept: market discipline)
   - term:deployment_gated  (concept: pre-deployment evaluation)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** ent-071, term:accountability_market, term:deployment_gated
+**NOTES:** ex-ante pre-training gate (deployment_gated), bottom-up private-right-of-action remedy (accountability_market), and the disputed GDPR-to-Google consolidation pattern (ent-071) are all engaged.
 
 ---
 
@@ -45,8 +45,8 @@ Excludes: the claim that all pre-deployment evaluation is inherently anti-compet
   - term:safety_existential  (concept: )
   - term:speculative_future_harm  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:displacement_labor
+**NOTES:** near-term economic disruption/creator harm = labor displacement; safety_existential & speculative_future_harm not subjects (long-term framed as beneficial).
 
 ---
 
@@ -58,8 +58,8 @@ Excludes: the claim that all pre-deployment evaluation is inherently anti-compet
   - term:regulation_precautionary  (concept: precautionary principle)
   - term:documented_present_harm  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:accountability_institutional, term:documented_present_harm
+**NOTES:** liability law (institutional accountability) focusing on concrete/documented harms while ignoring diffuse benefits; precautionary principle in Excludes; liability_strict not singled out.
 
 ---
 
@@ -72,8 +72,8 @@ Excludes: regulatory disarmament, static pre-deployment certification, reliance 
   - term:capabilities_hazard  (concept: )
   - term:safety_existential  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:capabilities_hazard
+**NOTES:** cyber offense/defense capability race; deployment_gated in Excludes; safety_existential irrelevant. capabilities_hazard is the only capability anchor for offensive-cyber.
 
 ---
 
@@ -85,8 +85,8 @@ Excludes: claims that mechanistic interpretability is impossible, claims that af
   - ent-147  (entity: LIME)
   - ent-148  (entity: SHAP)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** LIME (ent-147) and SHAP (ent-148) both appear only in Excludes; claim is not about them.
 
 ---
 
@@ -98,8 +98,8 @@ Excludes: categorical claims that opacity is always a design defect, domain-agno
   - term:liability_strict  (concept: products liability)
   - term:transparency_verification  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:liability_strict, term:transparency_verification
+**NOTES:** products-liability design-defect doctrine + interpretability/explainability.
 
 ---
 
@@ -120,8 +120,8 @@ Excludes: Specific technical capability arguments, military applications of AI.
   - term:risk_innovation  (concept: )
   - term:speculative_future_harm  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:risk_existential, term:safety_existential
+**NOTES:** only concretely-named concept is existential risk (AI resolving x-risk); remaining candidates are grandiose-desire distractors.
 
 ---
 
@@ -132,8 +132,8 @@ Excludes: Decentralized open-source access methodologies and the public utility 
 **Candidate refs:**
   - term:governance_oversight  (concept: governance framework)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** governance_oversight appears only in Excludes (public-utility governance); no other candidate.
 
 ---
 
@@ -147,8 +147,8 @@ Excludes: Individual cognitive enhancement and the technical development of AI c
   - term:capabilities_scaling  (concept: )
   - term:governance_adaptive  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:control_optimization, term:autonomy_machine
+**NOTES:** AI optimizing macro resource allocation via machine autonomy over societal management; capabilities_scaling in Excludes.
 
 ---
 
@@ -160,8 +160,8 @@ Excludes: Incremental AI safety or narrow tool-based AI development.
   - term:safety_existential  (concept: )
   - term:speculative_future_harm  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** safety appears in Excludes (incremental AI safety); speculative_future_harm not a subject (utopian framing).
 
 ---
 
@@ -178,8 +178,8 @@ Excludes: State-owned public utility infrastructure designation as the sole mech
   - term:safety_existential  (concept: )
   - term:speculative_future_harm  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:model_weights, term:governance_oversight
+**NOTES:** open-weight proliferation + decentralized oversight; capabilities_scaling & civilizational-crisis in Excludes.
 
 ---
 
@@ -191,8 +191,8 @@ Excludes: centralized pre-deployment certification mandates, corporate service c
   - term:control_optimization  (concept: resource allocation)
   - term:deployment_gated  (concept: deployment certification)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:control_optimization
+**NOTES:** aggressive resource allocation (Encompasses); deployment_gated in Excludes; liability/open-source subjects not in candidate pool.
 
 ---
 
@@ -204,8 +204,8 @@ Excludes: Nationalization of AI assets and export controls on algorithmic archit
   - term:alignment_compliance  (concept: )
   - term:governance_oversight  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:governance_oversight
+**NOTES:** international regulatory harmonization / legal shields = governance-regulation subject; alignment_compliance not a subject.
 
 ---
 
@@ -216,8 +216,8 @@ Excludes: Approaches focused on AI as a tool for human or organizational enhance
 **Candidate refs:**
   - term:control_optimization  (concept: resource allocation)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:control_optimization
+**NOTES:** complex systems as resource-allocation optimizers (Encompasses).
 
 ---
 
@@ -235,8 +235,8 @@ Excludes: Approaches focused on AI as a tool for human or organizational enhance
   - term:regulation_precautionary  (concept: )
   - term:risk_innovation  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:accountability_market, term:governance_adaptive
+**NOTES:** market-based AI governance / self-regulation; state-mandated regulation in Excludes.
 
 ---
 
@@ -249,8 +249,8 @@ Excludes: Single-metric reinforcement learning, Constitutional AI with natural l
 **Candidate refs:**
   - ent-224  (entity: Constitutional AI)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** Constitutional AI (ent-224) appears only in Excludes.
 
 ---
 
@@ -263,8 +263,8 @@ Excludes: static governance, rigid regulation, unmonitored development
   - term:safety_empirical  (concept: iterative improvement)
   - term:governance_oversight  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:governance_adaptive, term:safety_empirical
+**NOTES:** adaptive/data-driven governance + iterative empirical improvement; static governance in Excludes.
 
 ---
 
@@ -277,8 +277,8 @@ Excludes: The theoretical impossibility of alignment and general software engine
   - term:capabilities_scaling  (concept: capabilities scale)
   - term:safety_alignment  (concept: goal misgeneralization)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** ent-139, term:capabilities_scaling, term:safety_alignment
+**NOTES:** RLHF/alignment breaking down as capabilities scale; all three core.
 
 ---
 
@@ -289,8 +289,8 @@ Excludes: The technical implementation of inner alignment and the general ineffi
 **Candidate refs:**
   - term:safety_alignment  (concept: inner alignment)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:safety_alignment
+**NOTES:** value-encoding = outer alignment; safety_alignment denotes the alignment problem (only inner-alignment IMPLEMENTATION is Excluded).
 
 ---
 
@@ -307,8 +307,8 @@ Excludes: Accidental harm or misinterpretations covered by Unintended AI Behavio
   - term:speculative_risk_critique  (concept: )
   - term:transparency_verification  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:oversight_human_control, term:capabilities_hazard, term:safety_existential, term:speculative_future_harm
+**NOTES:** loss-of-control / instrumental-convergence x-risk scenario; NOT speculative_risk_critique (claim asserts, does not critique).
 
 ---
 
@@ -322,8 +322,8 @@ Excludes: The theoretical impossibility of alignment or general software enginee
   - term:capabilities_hazard  (concept: )
   - term:safety_alignment  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:capabilities_scaling, term:oversight_human_control, term:safety_alignment
+**NOTES:** alignment structurally insufficient at scale re: adherence to human constraints.
 
 ---
 
@@ -334,8 +334,8 @@ Excludes: The theoretical impossibility of alignment or general software enginee
   - term:governance_adaptive  (concept: ai governance)
   - term:regulation_precautionary  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:asymmetry_power, term:governance_adaptive
+**NOTES:** information asymmetry + AI-governance enforcement gap.
 
 ---
 
@@ -346,8 +346,8 @@ Excludes: The theoretical impossibility of alignment or general software enginee
   - term:liability_strict  (concept: )
   - term:regulation_precautionary  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** ent-368, term:liability_strict
+**NOTES:** direct/strict liability for AI-generated content under Section 230.
 
 ---
 
@@ -356,8 +356,8 @@ Excludes: The theoretical impossibility of alignment or general software enginee
 **Candidate refs:**
   - ent-139  (entity: RLHF)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** ent-139
+**NOTES:** RLHF cited (Encompasses) as a functional indicium for legal mental-state imputation; in-scope topical mention.
 
 ---
 
@@ -366,8 +366,8 @@ Excludes: The theoretical impossibility of alignment or general software enginee
 **Candidate refs:**
   - term:safety_existential  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** affective-computing/interpretability claim; safety_existential is not a subject.
 
 ---
 
@@ -387,8 +387,8 @@ Excludes: Managing near-term algorithmic bias, localized economic disruptions, a
   - term:speculative_future_harm  (concept: )
   - term:speculative_risk_critique  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:risk_existential, term:safety_existential, term:autonomy_human, term:control_human_agency, term:capabilities_hazard
+**NOTES:** x-risk/human-survival + loss of human agency + biorisk; data privacy & algorithmic bias in Excludes; NOT speculative_risk_critique.
 
 ---
 
@@ -400,8 +400,8 @@ Excludes: universal interpretability mandates regardless of domain, the claim th
   - term:oversight_audit  (concept: )
   - term:transparency_verification  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:transparency_verification, term:oversight_audit
+**NOTES:** interpretability/inspectability mandate + auditing (engaged as sufficient only where ground truth exists).
 
 ---
 
@@ -415,8 +415,8 @@ Excludes: The broader aim of Psychological Stewardship, which covers the general
   - term:safety_existential  (concept: )
   - term:speculative_future_harm  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:wellbeing_mental_health
+**NOTES:** psychological harm / mental well-being is the sole subject.
 
 ---
 
@@ -432,8 +432,8 @@ Excludes: government-led suppression of critics, which falls under 'Governments 
   - term:safety_existential  (concept: )
   - term:speculative_risk_critique  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** whistleblower/dissent-protection claim; no offered concept (incl. safety_existential) is a genuine topical match.
 
 ---
 
@@ -444,8 +444,8 @@ Excludes: gatekeeper models that block recovery, strict liability without proof 
 **Candidate refs:**
   - term:liability_strict  (concept: strict liability)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:liability_strict
+**NOTES:** tort liability / damages-calibration framework; claim rejects a specific strict-liability variant but its subject is liability doctrine.
 
 ---
 
@@ -458,8 +458,8 @@ Excludes: static compute caps, voluntary self-certification, industry-administer
   - term:regulation_precautionary  (concept: )
   - term:safe_harbor_regulatory  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:deployment_gated, term:regulation_precautionary
+**NOTES:** gating deployment on publicly-funded safety verification (precautionary).
 
 ---
 
@@ -478,8 +478,8 @@ Excludes: Phased testing of individual model capabilities, as covered by Safety 
   - term:safety_existential  (concept: )
   - term:transparency_verification  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:governance_oversight, term:oversight_audit
+**NOTES:** system-wide oversight / architectural governance of AI trade-offs.
 
 ---
 
@@ -498,8 +498,8 @@ Excludes: Specific organizational change strategies covered by AI as a Change Jo
   - term:safety_existential  (concept: )
   - term:speculative_future_harm  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** cognitive-displacement/skill-decay claim; no cognition/skill concept in pool, governance concepts are in Excludes.
 
 ---
 
@@ -518,8 +518,8 @@ Excludes: general interpretability methods or external regulatory frameworks.
   - term:safety_existential  (concept: )
   - term:transparency_verification  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:autonomy_human, term:control_human_agency, term:oversight_human_control, term:behavioral_guardrails
+**NOTES:** corrigibility / defer-to-human / operator-authority + guardrail design; interpretability & external regulation in Excludes.
 
 ---
 
@@ -536,8 +536,8 @@ Excludes: Domain-specific safety rules (covered by saf-intentions-136), uniform 
   - term:deployment_gated  (concept: )
   - term:regulation_precautionary  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:risk_innovation, term:capabilities_hazard
+**NOTES:** capability-indexed safety tiers + proportional regulatory burden; ent-360 'Scale AI' is a lexical false match (Scale = verb).
 
 ---
 
@@ -549,8 +549,8 @@ Excludes: Output-level transparency methods like chain-of-thought auditing (cove
   - term:capabilities_hazard  (concept: )
   - term:transparency_verification  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:transparency_verification
+**NOTES:** mechanistic interpretability of internal reasoning; capabilities_hazard is the detection target, not the subject.
 
 ---
 
@@ -568,8 +568,8 @@ Excludes: Narrow behavioral fine-tuning, specific RLHF reward models, and post-h
   - term:regulation_precautionary  (concept: )
   - term:safety_existential  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** ent-224, ent-416
+**NOTES:** Constitutional AI + AI-constitution training; RLHF (ent-139) is in Excludes.
 
 ---
 
@@ -586,8 +586,8 @@ Excludes: The inherent technical limitations of AI models, general market econom
   - term:fairness_group  (concept: )
   - term:risk_systemic_structural  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:accountability_market, term:fairness_procedural, term:bias_systemic, term:documented_present_harm
+**NOTES:** market failure to self-correct algorithmic-fairness/systemic bias, with documented harms (mortgage/healthcare).
 
 ---
 
@@ -613,8 +613,8 @@ Excludes: The inherent technical limitations of AI models, general market econom
   - term:transparency_accountability  (concept: )
   - term:transparency_verification  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** ent-368, term:accountability_institutional, term:liability_strict
+**NOTES:** legal-accountability gaps / strict liability / Section 230; algorithmic discrimination, bias, privacy all in Excludes.
 
 ---
 
@@ -626,8 +626,8 @@ Excludes: Immediate, large-scale layoffs of experienced workers.
   - term:displacement_labor  (concept: labor displacement)
   - term:documented_present_harm  (concept: labor displacement)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:displacement_labor, term:documented_present_harm
+**NOTES:** reduced entry-level hiring as observed labor-displacement signal.
 
 ---
 
@@ -639,8 +639,8 @@ Excludes: The potential for future AI models to be optimized for energy efficien
   - ent-360  (entity: Scale AI)
   - term:energy_infrastructure  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:energy_infrastructure
+**NOTES:** electricity/water externalities of training; ent-360 'Scale AI' is a lexical false match ('large-scale AI models').
 
 ---
 
@@ -652,8 +652,8 @@ Excludes: The benefits of narrow AI, which are explored in The Bitter Lesson of 
   - ent-124  (entity: The Bitter Lesson)
   - term:capabilities_scaling  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:capabilities_scaling
+**NOTES:** AI generality spectrum; The Bitter Lesson (ent-124) is in Excludes.
 
 ---
 
@@ -664,8 +664,8 @@ Excludes: Problems related to inadequate documentation, which are covered by 'Fa
 **Candidate refs:**
   - term:risk_innovation  (concept: falling behind)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** organizational integration/infrastructure scaling-failure claim; no integration concept, and risk_innovation's 'falling behind' hint points to the Excluded documentation node.
 
 ---
 
@@ -687,8 +687,8 @@ Excludes: purely technical critiques of AI systems or proposals for broad econom
   - term:risk_innovation  (concept: )
   - term:risk_systemic_structural  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:compliance_performative, term:capture_institutional, term:oversight_democratic
+**NOTES:** corporate regulatory evasion: audit-washing (performative compliance), regulatory-arbitrage/capture, evading government oversight.
 
 ---
 
@@ -697,8 +697,8 @@ Excludes: purely technical critiques of AI systems or proposals for broad econom
 **Candidate refs:**
   - ent-294  (entity: Transformer)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** ent-294
+**NOTES:** activation-probing technique operating on Transformer layers; Transformer is the topical substrate.
 
 ---
 
@@ -710,8 +710,8 @@ Excludes: purely technical critiques of AI systems or proposals for broad econom
   - term:safe_harbor_regulatory  (concept: )
   - term:speculative_risk_critique  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:accountability_institutional
+**NOTES:** liability-motivated risk-info suppression; regulatory compliance in Excludes.
 
 ---
 
@@ -722,8 +722,8 @@ Excludes: behavioral safety filters like RLHF refusals, content-classifier-based
 **Candidate refs:**
   - ent-139  (entity: RLHF)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** RLHF (ent-139) appears only in Excludes (behavioral refusal layers).
 
 ---
 
@@ -732,8 +732,8 @@ Excludes: behavioral safety filters like RLHF refusals, content-classifier-based
 **Candidate refs:**
   - ent-368  (entity: Section 230 of the Communications Decency Act)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** ent-368
+**NOTES:** Section 230 material-contribution threshold.
 
 ---
 
@@ -743,8 +743,8 @@ Excludes: behavioral safety filters like RLHF refusals, content-classifier-based
   - term:bias_systemic  (concept: systemic bias)
   - term:documented_present_harm  (concept: algorithmic bias)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:bias_systemic
+**NOTES:** aggregate metrics masking systemic bias; documented_present_harm (specific bias docs) in Excludes.
 
 ---
 
@@ -755,8 +755,8 @@ Excludes: The creation of centralized global knowledge repositories and the fric
 **Candidate refs:**
   - term:autonomy_individual  (concept: data sovereignty)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:autonomy_individual
+**NOTES:** data sovereignty / privacy as a right.
 
 ---
 
@@ -771,8 +771,8 @@ Excludes: Broader societal inequalities or job displacement, which are covered b
   - term:bias_systemic  (concept: )
   - term:documented_present_harm  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:autonomy_human, term:autonomy_individual
+**NOTES:** personal freedoms/autonomy + data privacy; job displacement and algorithmic bias in Excludes.
 
 ---
 
@@ -786,8 +786,8 @@ Excludes: Specific technical or design strategies for risk mitigation, such as b
   - term:safety_existential  (concept: )
   - term:speculative_risk_critique  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** meta-attitude (vigilant pragmatism); no offered concept is a genuine topical match.
 
 ---
 
@@ -799,8 +799,8 @@ Excludes: Abstract existential risk modeling and one-size-fits-all precautionary
   - term:risk_existential  (concept: existential risk)
   - term:safety_existential  (concept: existential risk)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** localized/lived-experience precaution defined AGAINST abstract existential-risk modeling, which is in Excludes.
 
 ---
 
@@ -815,8 +815,8 @@ Excludes: Profit-driven market proliferation, abstract acceleration of intellige
   - term:safety_existential  (concept: )
   - term:speculative_future_harm  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:wellbeing_mental_health
+**NOTES:** human/planetary flourishing metric; capability scaling is the rejected foil; no ecology concept in pool.
 
 ---
 
@@ -830,8 +830,8 @@ Excludes: One-size-fits-all capability restrictions applied solely at the founda
   - term:governance_oversight  (concept: )
   - term:regulation_precautionary  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:regulation_precautionary, term:governance_oversight
+**NOTES:** use-case-specific restrictive regulation + sector compliance oversight.
 
 ---
 
@@ -849,8 +849,8 @@ Excludes: Independent AI Safety Checks, which focuses on external oversight of A
   - term:transparency_accountability  (concept: )
   - term:transparency_verification  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:transparency_accountability
+**NOTES:** environmental-reporting/disclosure mandate; no energy concept in this pool; source-transparency (transparency_verification) in Excludes.
 
 ---
 
@@ -878,8 +878,8 @@ Excludes: radical economic restructuring, purely theoretical critiques of AI, an
   - term:risk_innovation  (concept: )
   - term:transparency_verification  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:fairness_individual, term:governance_adaptive, term:regulation_adaptive
+**NOTES:** pragmatic/adaptable evidence-based AI governance + counterfactual fairness; technical safety mechanisms in Excludes.
 
 ---
 
@@ -891,8 +891,8 @@ Excludes: General data privacy regulations or theoretical discussions of privacy
   - ent-126  (entity: DP-SGD)
   - term:autonomy_individual  (concept: data privacy)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** ent-126, term:autonomy_individual
+**NOTES:** DP-SGD differential-privacy budget balancing; data privacy.
 
 ---
 
@@ -903,8 +903,8 @@ Excludes: customer-validation-only kill criteria, internal-only complaint routin
 **Candidate refs:**
   - term:deployment_gated  (concept: pre-market review)
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** none
+**NOTES:** pre-committed shutdown/kill-threshold claim; deployment_gated's 'pre-market review' hint is in Excludes and no kill-switch concept in pool.
 
 ---
 
@@ -922,7 +922,7 @@ Excludes: reliance solely on post-deployment adaptive oversight, deployer-contro
   - term:regulation_precautionary  (concept: )
   - term:transparency_accountability  (concept: )
 
-**REFERENCE_ABOUT:** 
-**NOTES:** 
+**REFERENCE_ABOUT:** term:oversight_audit, term:deployment_gated, term:fairness_individual, term:transparency_accountability
+**NOTES:** performance-gated independent auditing + deployment gating + demonstrable fairness/civil-rights + published-log transparency; market-based liability in Excludes.
 
 ---

@@ -1,0 +1,1315 @@
+{
+ "ticket": "t/3381",
+ "floor": 0.8,
+ "primary_floor_metric": "mean per-row about-F1, ref-level, concept-anchored rows",
+ "concept_anchored_floor": 0.6357339630066903,
+ "verdict": "FAIL",
+ "concept_anchored_micro": {
+  "tp": 87,
+  "fp": 75,
+  "fn": 5,
+  "precision": 0.5370370370370371,
+  "recall": 0.9456521739130435,
+  "f1": 0.6850393700787402
+ },
+ "concept_anchored_strict_matchlevel_meanF1": 0.6333097205824478,
+ "entity_only_meanF1": 0.5,
+ "rows": [
+  {
+   "id": "acc-beliefs-003",
+   "profile": "concept-only",
+   "gold": [
+    "term:liability_strict"
+   ],
+   "pred": [
+    "term:deployment_gated",
+    "term:liability_strict"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:deployment_gated"
+   ],
+   "fn": [],
+   "precision": 0.5,
+   "recall": 1.0,
+   "f1_ref": 0.6666666666666666,
+   "f1_strict": 0.6666666666666666
+  },
+  {
+   "id": "acc-beliefs-028",
+   "profile": "mixed",
+   "gold": [
+    "ent-071",
+    "term:accountability_market",
+    "term:deployment_gated"
+   ],
+   "pred": [
+    "ent-071",
+    "term:accountability_market",
+    "term:deployment_gated"
+   ],
+   "tp": 3,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "acc-beliefs-048",
+   "profile": "concept-only",
+   "gold": [
+    "term:displacement_labor"
+   ],
+   "pred": [
+    "term:displacement_labor",
+    "term:safety_existential",
+    "term:speculative_future_harm"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:safety_existential",
+    "term:speculative_future_harm"
+   ],
+   "fn": [],
+   "precision": 0.3333333333333333,
+   "recall": 1.0,
+   "f1_ref": 0.5,
+   "f1_strict": 0.5
+  },
+  {
+   "id": "acc-beliefs-074",
+   "profile": "concept-only",
+   "gold": [
+    "term:accountability_institutional",
+    "term:documented_present_harm"
+   ],
+   "pred": [
+    "term:accountability_institutional",
+    "term:documented_present_harm",
+    "term:liability_strict",
+    "term:regulation_precautionary"
+   ],
+   "tp": 2,
+   "fp": [
+    "term:liability_strict",
+    "term:regulation_precautionary"
+   ],
+   "fn": [],
+   "precision": 0.5,
+   "recall": 1.0,
+   "f1_ref": 0.6666666666666666,
+   "f1_strict": 0.6666666666666666
+  },
+  {
+   "id": "acc-beliefs-088",
+   "profile": "concept-only",
+   "gold": [
+    "term:capabilities_hazard"
+   ],
+   "pred": [
+    "term:capabilities_hazard",
+    "term:deployment_gated",
+    "term:safety_existential"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:deployment_gated",
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "precision": 0.3333333333333333,
+   "recall": 1.0,
+   "f1_ref": 0.5,
+   "f1_strict": 0.5
+  },
+  {
+   "id": "acc-beliefs-109",
+   "profile": "entity-only",
+   "gold": [],
+   "pred": [
+    "ent-147",
+    "ent-148"
+   ],
+   "tp": 0,
+   "fp": [
+    "ent-147",
+    "ent-148"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "acc-beliefs-111",
+   "profile": "concept-only",
+   "gold": [
+    "term:liability_strict",
+    "term:transparency_verification"
+   ],
+   "pred": [
+    "term:liability_strict",
+    "term:transparency_verification"
+   ],
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "acc-desires-001",
+   "profile": "concept-only",
+   "gold": [
+    "term:risk_existential",
+    "term:safety_existential"
+   ],
+   "pred": [
+    "term:risk_existential",
+    "term:safety_existential"
+   ],
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "acc-desires-010",
+   "profile": "concept-only",
+   "gold": [],
+   "pred": [
+    "term:governance_oversight"
+   ],
+   "tp": 0,
+   "fp": [
+    "term:governance_oversight"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "acc-desires-026",
+   "profile": "concept-only",
+   "gold": [
+    "term:autonomy_machine",
+    "term:control_optimization"
+   ],
+   "pred": [
+    "term:autonomy_machine",
+    "term:control_optimization",
+    "term:governance_adaptive"
+   ],
+   "tp": 2,
+   "fp": [
+    "term:governance_adaptive"
+   ],
+   "fn": [],
+   "precision": 0.6666666666666666,
+   "recall": 1.0,
+   "f1_ref": 0.8,
+   "f1_strict": 0.8
+  },
+  {
+   "id": "acc-desires-033",
+   "profile": "concept-only",
+   "gold": [],
+   "pred": [
+    "term:safety_existential",
+    "term:speculative_future_harm"
+   ],
+   "tp": 0,
+   "fp": [
+    "term:safety_existential",
+    "term:speculative_future_harm"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "acc-desires-039",
+   "profile": "concept-only",
+   "gold": [
+    "term:governance_oversight",
+    "term:model_weights"
+   ],
+   "pred": [
+    "term:capabilities_scaling",
+    "term:governance_oversight",
+    "term:model_weights"
+   ],
+   "tp": 2,
+   "fp": [
+    "term:capabilities_scaling"
+   ],
+   "fn": [],
+   "precision": 0.6666666666666666,
+   "recall": 1.0,
+   "f1_ref": 0.8,
+   "f1_strict": 0.8
+  },
+  {
+   "id": "acc-intentions-001",
+   "profile": "concept-only",
+   "gold": [
+    "term:control_optimization"
+   ],
+   "pred": [
+    "term:control_optimization",
+    "term:deployment_gated"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:deployment_gated"
+   ],
+   "fn": [],
+   "precision": 0.5,
+   "recall": 1.0,
+   "f1_ref": 0.6666666666666666,
+   "f1_strict": 0.6666666666666666
+  },
+  {
+   "id": "acc-intentions-022",
+   "profile": "concept-only",
+   "gold": [
+    "term:governance_oversight"
+   ],
+   "pred": [
+    "term:alignment_compliance",
+    "term:governance_oversight"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:alignment_compliance"
+   ],
+   "fn": [],
+   "precision": 0.5,
+   "recall": 1.0,
+   "f1_ref": 0.6666666666666666,
+   "f1_strict": 0.6666666666666666
+  },
+  {
+   "id": "acc-intentions-060",
+   "profile": "concept-only",
+   "gold": [
+    "term:control_optimization"
+   ],
+   "pred": [
+    "term:control_optimization"
+   ],
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "acc-intentions-088",
+   "profile": "concept-only",
+   "gold": [
+    "term:accountability_market",
+    "term:governance_adaptive"
+   ],
+   "pred": [
+    "term:accountability_market",
+    "term:governance_adaptive"
+   ],
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "acc-intentions-093",
+   "profile": "entity-only",
+   "gold": [],
+   "pred": [
+    "ent-224"
+   ],
+   "tp": 0,
+   "fp": [
+    "ent-224"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "acc-intentions-107",
+   "profile": "concept-only",
+   "gold": [
+    "term:governance_adaptive",
+    "term:safety_empirical"
+   ],
+   "pred": [
+    "term:governance_adaptive",
+    "term:governance_oversight",
+    "term:safety_empirical"
+   ],
+   "tp": 2,
+   "fp": [
+    "term:governance_oversight"
+   ],
+   "fn": [],
+   "precision": 0.6666666666666666,
+   "recall": 1.0,
+   "f1_ref": 0.8,
+   "f1_strict": 0.8
+  },
+  {
+   "id": "saf-beliefs-001",
+   "profile": "mixed",
+   "gold": [
+    "ent-139",
+    "term:capabilities_scaling",
+    "term:safety_alignment"
+   ],
+   "pred": [
+    "ent-139",
+    "term:capabilities_scaling",
+    "term:safety_alignment"
+   ],
+   "tp": 3,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "saf-beliefs-004",
+   "profile": "concept-only",
+   "gold": [
+    "term:safety_alignment"
+   ],
+   "pred": [
+    "term:safety_alignment"
+   ],
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "saf-beliefs-039",
+   "profile": "concept-only",
+   "gold": [
+    "term:capabilities_hazard",
+    "term:oversight_human_control",
+    "term:safety_existential",
+    "term:speculative_future_harm"
+   ],
+   "pred": [
+    "term:capabilities_hazard",
+    "term:oversight_human_control",
+    "term:safety_existential"
+   ],
+   "tp": 3,
+   "fp": [],
+   "fn": [
+    "term:speculative_future_harm"
+   ],
+   "precision": 1.0,
+   "recall": 0.75,
+   "f1_ref": 0.8571428571428571,
+   "f1_strict": 0.8571428571428571
+  },
+  {
+   "id": "saf-beliefs-101",
+   "profile": "concept-only",
+   "gold": [
+    "term:capabilities_scaling",
+    "term:oversight_human_control",
+    "term:safety_alignment"
+   ],
+   "pred": [
+    "term:capabilities_hazard",
+    "term:capabilities_scaling",
+    "term:oversight_human_control",
+    "term:safety_alignment"
+   ],
+   "tp": 3,
+   "fp": [
+    "term:capabilities_hazard"
+   ],
+   "fn": [],
+   "precision": 0.75,
+   "recall": 1.0,
+   "f1_ref": 0.8571428571428571,
+   "f1_strict": 0.8571428571428571
+  },
+  {
+   "id": "saf-beliefs-141",
+   "profile": "concept-only",
+   "gold": [
+    "term:asymmetry_power",
+    "term:governance_adaptive"
+   ],
+   "pred": [
+    "term:asymmetry_power",
+    "term:governance_adaptive",
+    "term:regulation_precautionary"
+   ],
+   "tp": 2,
+   "fp": [
+    "term:regulation_precautionary"
+   ],
+   "fn": [],
+   "precision": 0.6666666666666666,
+   "recall": 1.0,
+   "f1_ref": 0.8,
+   "f1_strict": 0.8
+  },
+  {
+   "id": "saf-beliefs-214",
+   "profile": "mixed",
+   "gold": [
+    "ent-368",
+    "term:liability_strict"
+   ],
+   "pred": [
+    "ent-368",
+    "term:liability_strict",
+    "term:regulation_precautionary"
+   ],
+   "tp": 2,
+   "fp": [
+    "term:regulation_precautionary"
+   ],
+   "fn": [],
+   "precision": 0.6666666666666666,
+   "recall": 1.0,
+   "f1_ref": 0.8,
+   "f1_strict": 0.8
+  },
+  {
+   "id": "saf-beliefs-216",
+   "profile": "entity-only",
+   "gold": [
+    "ent-139"
+   ],
+   "pred": [
+    "ent-139"
+   ],
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "saf-beliefs-225",
+   "profile": "concept-only",
+   "gold": [],
+   "pred": [
+    "term:safety_existential"
+   ],
+   "tp": 0,
+   "fp": [
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "saf-desires-001",
+   "profile": "concept-only",
+   "gold": [
+    "term:autonomy_human",
+    "term:capabilities_hazard",
+    "term:control_human_agency",
+    "term:risk_existential",
+    "term:safety_existential"
+   ],
+   "pred": [
+    "term:autonomy_human",
+    "term:control_human_agency",
+    "term:risk_existential",
+    "term:safety_existential"
+   ],
+   "tp": 4,
+   "fp": [],
+   "fn": [
+    "term:capabilities_hazard"
+   ],
+   "precision": 1.0,
+   "recall": 0.8,
+   "f1_ref": 0.888888888888889,
+   "f1_strict": 0.888888888888889
+  },
+  {
+   "id": "saf-desires-005",
+   "profile": "concept-only",
+   "gold": [
+    "term:oversight_audit",
+    "term:transparency_verification"
+   ],
+   "pred": [
+    "term:oversight_audit",
+    "term:transparency_verification"
+   ],
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "saf-desires-011",
+   "profile": "concept-only",
+   "gold": [
+    "term:wellbeing_mental_health"
+   ],
+   "pred": [
+    "term:capabilities_hazard",
+    "term:safety_existential",
+    "term:speculative_future_harm",
+    "term:wellbeing_mental_health"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:capabilities_hazard",
+    "term:safety_existential",
+    "term:speculative_future_harm"
+   ],
+   "fn": [],
+   "precision": 0.25,
+   "recall": 1.0,
+   "f1_ref": 0.4,
+   "f1_strict": 0.4
+  },
+  {
+   "id": "saf-desires-023",
+   "profile": "concept-only",
+   "gold": [],
+   "pred": [
+    "term:safety_existential",
+    "term:speculative_risk_critique"
+   ],
+   "tp": 0,
+   "fp": [
+    "term:safety_existential",
+    "term:speculative_risk_critique"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "saf-desires-028",
+   "profile": "concept-only",
+   "gold": [
+    "term:liability_strict"
+   ],
+   "pred": [
+    "term:liability_strict"
+   ],
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "saf-intentions-001",
+   "profile": "concept-only",
+   "gold": [
+    "term:deployment_gated",
+    "term:regulation_precautionary"
+   ],
+   "pred": [
+    "term:deployment_gated",
+    "term:regulation_precautionary",
+    "term:safe_harbor_regulatory"
+   ],
+   "tp": 2,
+   "fp": [
+    "term:safe_harbor_regulatory"
+   ],
+   "fn": [],
+   "precision": 0.6666666666666666,
+   "recall": 1.0,
+   "f1_ref": 0.8,
+   "f1_strict": 0.8
+  },
+  {
+   "id": "saf-intentions-047",
+   "profile": "concept-only",
+   "gold": [
+    "term:governance_oversight",
+    "term:oversight_audit"
+   ],
+   "pred": [
+    "term:governance_oversight",
+    "term:safety_existential"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:safety_existential"
+   ],
+   "fn": [
+    "term:oversight_audit"
+   ],
+   "precision": 0.5,
+   "recall": 0.5,
+   "f1_ref": 0.5,
+   "f1_strict": 0.5
+  },
+  {
+   "id": "saf-intentions-086",
+   "profile": "concept-only",
+   "gold": [],
+   "pred": [
+    "term:capabilities_hazard",
+    "term:safety_existential"
+   ],
+   "tp": 0,
+   "fp": [
+    "term:capabilities_hazard",
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "saf-intentions-141",
+   "profile": "concept-only",
+   "gold": [
+    "term:autonomy_human",
+    "term:behavioral_guardrails",
+    "term:control_human_agency",
+    "term:oversight_human_control"
+   ],
+   "pred": [
+    "term:autonomy_human",
+    "term:control_human_agency",
+    "term:oversight_human_control"
+   ],
+   "tp": 3,
+   "fp": [],
+   "fn": [
+    "term:behavioral_guardrails"
+   ],
+   "precision": 1.0,
+   "recall": 0.75,
+   "f1_ref": 0.8571428571428571,
+   "f1_strict": 0.8571428571428571
+  },
+  {
+   "id": "saf-intentions-202",
+   "profile": "mixed",
+   "gold": [
+    "term:capabilities_hazard",
+    "term:risk_innovation"
+   ],
+   "pred": [
+    "ent-360",
+    "term:alignment_compliance",
+    "term:behavioral_guardrails",
+    "term:capabilities_hazard",
+    "term:deployment_gated",
+    "term:regulation_precautionary",
+    "term:risk_innovation"
+   ],
+   "tp": 2,
+   "fp": [
+    "ent-360",
+    "term:alignment_compliance",
+    "term:behavioral_guardrails",
+    "term:deployment_gated",
+    "term:regulation_precautionary"
+   ],
+   "fn": [],
+   "precision": 0.2857142857142857,
+   "recall": 1.0,
+   "f1_ref": 0.4444444444444445,
+   "f1_strict": 0.4444444444444445
+  },
+  {
+   "id": "saf-intentions-203",
+   "profile": "concept-only",
+   "gold": [
+    "term:transparency_verification"
+   ],
+   "pred": [
+    "term:capabilities_hazard",
+    "term:transparency_verification"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:capabilities_hazard"
+   ],
+   "fn": [],
+   "precision": 0.5,
+   "recall": 1.0,
+   "f1_ref": 0.6666666666666666,
+   "f1_strict": 0.6666666666666666
+  },
+  {
+   "id": "saf-intentions-204",
+   "profile": "mixed",
+   "gold": [
+    "ent-224",
+    "ent-416"
+   ],
+   "pred": [
+    "ent-139",
+    "ent-224",
+    "ent-416",
+    "term:alignment_compliance",
+    "term:behavioral_guardrails",
+    "term:capabilities_hazard",
+    "term:regulation_precautionary",
+    "term:safety_existential"
+   ],
+   "tp": 2,
+   "fp": [
+    "ent-139",
+    "term:alignment_compliance",
+    "term:behavioral_guardrails",
+    "term:capabilities_hazard",
+    "term:regulation_precautionary",
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "precision": 0.25,
+   "recall": 1.0,
+   "f1_ref": 0.4,
+   "f1_strict": 0.4
+  },
+  {
+   "id": "skp-beliefs-001",
+   "profile": "concept-only",
+   "gold": [
+    "term:accountability_market",
+    "term:bias_systemic",
+    "term:documented_present_harm",
+    "term:fairness_procedural"
+   ],
+   "pred": [
+    "term:accountability_algorithmic",
+    "term:accountability_market",
+    "term:bias_systemic",
+    "term:documented_present_harm",
+    "term:fairness_group",
+    "term:fairness_procedural",
+    "term:risk_systemic_structural"
+   ],
+   "tp": 4,
+   "fp": [
+    "term:accountability_algorithmic",
+    "term:fairness_group",
+    "term:risk_systemic_structural"
+   ],
+   "fn": [],
+   "precision": 0.5714285714285714,
+   "recall": 1.0,
+   "f1_ref": 0.7272727272727273,
+   "f1_strict": 0.7272727272727273
+  },
+  {
+   "id": "skp-beliefs-047",
+   "profile": "mixed",
+   "gold": [
+    "ent-368",
+    "term:accountability_institutional",
+    "term:liability_strict"
+   ],
+   "pred": [
+    "ent-368",
+    "term:accountability_institutional",
+    "term:liability_strict"
+   ],
+   "tp": 3,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "skp-beliefs-053",
+   "profile": "concept-only",
+   "gold": [
+    "term:displacement_labor",
+    "term:documented_present_harm"
+   ],
+   "pred": [
+    "term:displacement_labor",
+    "term:documented_present_harm"
+   ],
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "skp-beliefs-054",
+   "profile": "mixed",
+   "gold": [
+    "term:energy_infrastructure"
+   ],
+   "pred": [
+    "ent-360",
+    "term:energy_infrastructure"
+   ],
+   "tp": 1,
+   "fp": [
+    "ent-360"
+   ],
+   "fn": [],
+   "precision": 0.5,
+   "recall": 1.0,
+   "f1_ref": 0.6666666666666666,
+   "f1_strict": 0.6666666666666666
+  },
+  {
+   "id": "skp-beliefs-115",
+   "profile": "mixed",
+   "gold": [
+    "term:capabilities_scaling"
+   ],
+   "pred": [
+    "ent-124",
+    "term:capabilities_scaling"
+   ],
+   "tp": 1,
+   "fp": [
+    "ent-124"
+   ],
+   "fn": [],
+   "precision": 0.5,
+   "recall": 1.0,
+   "f1_ref": 0.6666666666666666,
+   "f1_strict": 0.6666666666666666
+  },
+  {
+   "id": "skp-beliefs-136",
+   "profile": "concept-only",
+   "gold": [],
+   "pred": [
+    "term:risk_innovation"
+   ],
+   "tp": 0,
+   "fp": [
+    "term:risk_innovation"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "skp-beliefs-170",
+   "profile": "concept-only",
+   "gold": [
+    "term:capture_institutional",
+    "term:compliance_performative",
+    "term:oversight_democratic"
+   ],
+   "pred": [
+    "term:accountability_institutional",
+    "term:accountability_market",
+    "term:alignment_compliance",
+    "term:capture_institutional",
+    "term:compliance_performative",
+    "term:governance_adaptive",
+    "term:governance_oversight",
+    "term:industry_lobbying",
+    "term:oversight_democratic",
+    "term:regulation_adaptive",
+    "term:risk_innovation",
+    "term:risk_systemic_structural"
+   ],
+   "tp": 3,
+   "fp": [
+    "term:accountability_institutional",
+    "term:accountability_market",
+    "term:alignment_compliance",
+    "term:governance_adaptive",
+    "term:governance_oversight",
+    "term:industry_lobbying",
+    "term:regulation_adaptive",
+    "term:risk_innovation",
+    "term:risk_systemic_structural"
+   ],
+   "fn": [],
+   "precision": 0.25,
+   "recall": 1.0,
+   "f1_ref": 0.4,
+   "f1_strict": 0.26666666666666666
+  },
+  {
+   "id": "skp-beliefs-175",
+   "profile": "entity-only",
+   "gold": [
+    "ent-294"
+   ],
+   "pred": [
+    "ent-294"
+   ],
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "skp-beliefs-178",
+   "profile": "concept-only",
+   "gold": [
+    "term:accountability_institutional"
+   ],
+   "pred": [
+    "term:accountability_institutional",
+    "term:governance_oversight",
+    "term:safe_harbor_regulatory",
+    "term:speculative_risk_critique"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:governance_oversight",
+    "term:safe_harbor_regulatory",
+    "term:speculative_risk_critique"
+   ],
+   "fn": [],
+   "precision": 0.25,
+   "recall": 1.0,
+   "f1_ref": 0.4,
+   "f1_strict": 0.4
+  },
+  {
+   "id": "skp-beliefs-230",
+   "profile": "entity-only",
+   "gold": [],
+   "pred": [
+    "ent-139"
+   ],
+   "tp": 0,
+   "fp": [
+    "ent-139"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "skp-beliefs-237",
+   "profile": "entity-only",
+   "gold": [
+    "ent-368"
+   ],
+   "pred": [
+    "ent-368"
+   ],
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "skp-beliefs-244",
+   "profile": "concept-only",
+   "gold": [
+    "term:bias_systemic"
+   ],
+   "pred": [
+    "term:bias_systemic",
+    "term:documented_present_harm"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:documented_present_harm"
+   ],
+   "fn": [],
+   "precision": 0.5,
+   "recall": 1.0,
+   "f1_ref": 0.6666666666666666,
+   "f1_strict": 0.6666666666666666
+  },
+  {
+   "id": "skp-desires-003",
+   "profile": "concept-only",
+   "gold": [
+    "term:autonomy_individual"
+   ],
+   "pred": [
+    "term:autonomy_individual"
+   ],
+   "tp": 1,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "skp-desires-014",
+   "profile": "concept-only",
+   "gold": [
+    "term:autonomy_human",
+    "term:autonomy_individual"
+   ],
+   "pred": [
+    "term:autonomy_human",
+    "term:autonomy_individual"
+   ],
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "skp-desires-070",
+   "profile": "concept-only",
+   "gold": [],
+   "pred": [
+    "term:risk_innovation",
+    "term:safety_existential",
+    "term:speculative_risk_critique"
+   ],
+   "tp": 0,
+   "fp": [
+    "term:risk_innovation",
+    "term:safety_existential",
+    "term:speculative_risk_critique"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "skp-desires-077",
+   "profile": "concept-only",
+   "gold": [],
+   "pred": [
+    "term:risk_existential",
+    "term:safety_existential"
+   ],
+   "tp": 0,
+   "fp": [
+    "term:risk_existential",
+    "term:safety_existential"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "skp-desires-083",
+   "profile": "concept-only",
+   "gold": [
+    "term:wellbeing_mental_health"
+   ],
+   "pred": [
+    "term:capabilities_scaling",
+    "term:governance_adaptive",
+    "term:safety_existential",
+    "term:speculative_future_harm",
+    "term:wellbeing_mental_health"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:capabilities_scaling",
+    "term:governance_adaptive",
+    "term:safety_existential",
+    "term:speculative_future_harm"
+   ],
+   "fn": [],
+   "precision": 0.2,
+   "recall": 1.0,
+   "f1_ref": 0.33333333333333337,
+   "f1_strict": 0.33333333333333337
+  },
+  {
+   "id": "skp-intentions-007",
+   "profile": "concept-only",
+   "gold": [
+    "term:governance_oversight",
+    "term:regulation_precautionary"
+   ],
+   "pred": [
+    "term:alignment_compliance",
+    "term:bias_systemic",
+    "term:governance_oversight",
+    "term:regulation_precautionary"
+   ],
+   "tp": 2,
+   "fp": [
+    "term:alignment_compliance",
+    "term:bias_systemic"
+   ],
+   "fn": [],
+   "precision": 0.5,
+   "recall": 1.0,
+   "f1_ref": 0.6666666666666666,
+   "f1_strict": 0.6666666666666666
+  },
+  {
+   "id": "skp-intentions-044",
+   "profile": "concept-only",
+   "gold": [
+    "term:transparency_accountability"
+   ],
+   "pred": [
+    "term:accountability_market",
+    "term:governance_oversight",
+    "term:transparency_accountability"
+   ],
+   "tp": 1,
+   "fp": [
+    "term:accountability_market",
+    "term:governance_oversight"
+   ],
+   "fn": [],
+   "precision": 0.3333333333333333,
+   "recall": 1.0,
+   "f1_ref": 0.5,
+   "f1_strict": 0.5
+  },
+  {
+   "id": "skp-intentions-102",
+   "profile": "concept-only",
+   "gold": [
+    "term:fairness_individual",
+    "term:governance_adaptive",
+    "term:regulation_adaptive"
+   ],
+   "pred": [
+    "term:fairness_individual",
+    "term:governance_adaptive"
+   ],
+   "tp": 2,
+   "fp": [],
+   "fn": [
+    "term:regulation_adaptive"
+   ],
+   "precision": 1.0,
+   "recall": 0.6666666666666666,
+   "f1_ref": 0.8,
+   "f1_strict": 0.8
+  },
+  {
+   "id": "skp-intentions-127",
+   "profile": "mixed",
+   "gold": [
+    "ent-126",
+    "term:autonomy_individual"
+   ],
+   "pred": [
+    "ent-126",
+    "term:autonomy_individual"
+   ],
+   "tp": 2,
+   "fp": [],
+   "fn": [],
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1_ref": 1.0,
+   "f1_strict": 1.0
+  },
+  {
+   "id": "skp-intentions-135",
+   "profile": "concept-only",
+   "gold": [],
+   "pred": [
+    "term:deployment_gated"
+   ],
+   "tp": 0,
+   "fp": [
+    "term:deployment_gated"
+   ],
+   "fn": [],
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_ref": 0.0,
+   "f1_strict": 0.0
+  },
+  {
+   "id": "skp-intentions-146",
+   "profile": "concept-only",
+   "gold": [
+    "term:deployment_gated",
+    "term:fairness_individual",
+    "term:oversight_audit",
+    "term:transparency_accountability"
+   ],
+   "pred": [
+    "term:accountability_institutional",
+    "term:deployment_gated",
+    "term:fairness_individual",
+    "term:oversight_audit",
+    "term:regulation_precautionary",
+    "term:transparency_accountability"
+   ],
+   "tp": 4,
+   "fp": [
+    "term:accountability_institutional",
+    "term:regulation_precautionary"
+   ],
+   "fn": [],
+   "precision": 0.6666666666666666,
+   "recall": 1.0,
+   "f1_ref": 0.8,
+   "f1_strict": 0.8
+  }
+ ]
+}
