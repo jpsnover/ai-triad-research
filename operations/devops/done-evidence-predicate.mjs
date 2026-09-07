@@ -59,25 +59,34 @@ export function normalizeTicketKey(raw) {
 /**
  * PURE aggregation of committed evidence across the fleet's two git repos (t/3360#5).
  * Injectable seams keep it unit-testable without real git (test == runtime):
- *   - runGit(dir)   → number of origin/main commits in `dir` whose message references the key;
- *                     throws on a real git error.
+ *   - runGit(dir)   → number of origin/main commits in `dir` whose message references the key,
+ *                     AFTER refreshing the remote ref (see the shim: fetch-before-grep, SO cond 1);
+ *                     throws on a real git error (fetch OR log).
  *   - existsDir(dir)→ whether the repo path is present.
+ *   - warn(info)    → observability sink for every FAIL-OPEN pass (SO cond 3 + the project's
+ *                     Fallback-Path Logging rule): a silent fail-open lets the gate die unseen
+ *                     (git unreachable / PATH drift) while the fleet believes Done is evidence-checked
+ *                     — the t/3085 silently-dead-safety-net class. Default no-op keeps it pure.
  * Semantics:
  *   - a null/empty key → { hitCount: 0, gitOk: false } (fail-open: never block on a key we can't form);
  *   - an ABSENT repo (existsDir false) contributes 0 hits and is NOT an error — e.g. a checkout with no
  *     sibling data repo; only a real git failure on a PRESENT repo flips gitOk=false (→ fail-open);
  *   - hits SUM across repos; a hit in EITHER repo is evidence.
  */
-export function countEvidenceAcrossRepos({ key, repoDirs, runGit, existsDir } = {}) {
-  if (!key) return { hitCount: 0, gitOk: false };
+export function countEvidenceAcrossRepos({ key, repoDirs, runGit, existsDir, warn = () => {} } = {}) {
+  if (!key) {
+    warn({ reason: 'unparseable-key' }); // fail-open, but never silently (SO cond 3)
+    return { hitCount: 0, gitOk: false };
+  }
   let hitCount = 0;
   let gitOk = true;
   for (const dir of repoDirs ?? []) {
     if (!existsDir(dir)) continue; // genuinely-absent repo is not a git error
     try {
       hitCount += runGit(dir);
-    } catch {
-      gitOk = false; // real git failure on a present repo → fail-open
+    } catch (e) {
+      gitOk = false; // real git failure (fetch or log) on a present repo → fail-open
+      warn({ reason: 'git-error', dir, error: String((e && e.message) || e) });
     }
   }
   return { hitCount, gitOk };
@@ -109,11 +118,28 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('done-eviden
         }
       },
       runGit: (d) => {
+        // Ref freshness (SO cond 1, e/146#2): refresh origin/main BEFORE grepping, else the most common
+        // happy path — merge PR then transition Done immediately — false-blocks on a local origin/main
+        // ref that predates the just-merged commit. Surgical single-ref fetch (not a full `fetch origin`)
+        // with a short timeout; a fetch failure THROWS → the leg fails-open (SO: fetch → fail-open),
+        // which countEvidenceAcrossRepos records via warn().
+        execFileSync('git', ['-C', d, 'fetch', 'origin', '+refs/heads/main:refs/remotes/origin/main', '--quiet'], {
+          timeout: 8000,
+          stdio: 'ignore',
+        });
         const out = execFileSync('git', ['-C', d, 'log', 'origin/main', `--grep=${key}`, '--oneline'], {
           encoding: 'utf8',
           timeout: 8000,
         });
         return out.split(/\r?\n/).filter((l) => l.trim()).length;
+      },
+      // Fallback-Path Logging (SO cond 3): make every fail-open VISIBLE. stderr is captured into the
+      // feedback-rule execution log, so a gate that quietly dies (git unreachable / PATH drift) is
+      // detectable instead of masquerading as "all Done transitions evidence-checked" (t/3085 class).
+      warn: (info) => {
+        const where = info.dir ? ` repo=${info.dir}` : '';
+        const why = info.error ? ` error=${info.error}` : '';
+        process.stderr.write(`WARN done-evidence gate FAIL-OPEN (${info.reason})${where}${why}\n`);
       },
     });
     if (doneEvidenceVerdict({ statusTarget, hitCount, gitOk }).block) process.stdout.write('fire');

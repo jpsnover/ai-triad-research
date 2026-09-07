@@ -141,3 +141,49 @@ test('unparseable/empty key → fail-open (gitOk false), never blocks', () => {
   assert.equal(r.gitOk, false);
   assert.equal(r.hitCount, 0);
 });
+
+// ── fail-open OBSERVABILITY (SO cond 3, e/146#2): every fail-open pass must be visible ──
+// The warn seam is what makes a silently-dead gate detectable (t/3085 class). These prove it fires on
+// BOTH fail-open reasons and stays SILENT on the happy path (no spurious warn noise).
+
+test('git-error fail-open emits a warn with reason + repo + error (not silent)', () => {
+  const warns = [];
+  countEvidenceAcrossRepos({
+    key: 't/42', repoDirs: [CODE, DATA],
+    ...harness({ hits: { [CODE]: 'ERR', [DATA]: 0 } }),
+    warn: (i) => warns.push(i),
+  });
+  assert.equal(warns.length, 1);
+  assert.equal(warns[0].reason, 'git-error');
+  assert.equal(warns[0].dir, CODE);
+  assert.match(warns[0].error, /git failed/);
+});
+
+test('unparseable-key fail-open emits a warn (reason=unparseable-key)', () => {
+  const warns = [];
+  countEvidenceAcrossRepos({ key: null, repoDirs: [CODE, DATA], ...harness({}), warn: (i) => warns.push(i) });
+  assert.equal(warns.length, 1);
+  assert.equal(warns[0].reason, 'unparseable-key');
+});
+
+test('happy path (evidence present, git OK) emits NO warn', () => {
+  const warns = [];
+  const { gitOk } = countEvidenceAcrossRepos({
+    key: 't/3372', repoDirs: [CODE, DATA],
+    ...harness({ hits: { [CODE]: 2, [DATA]: 0 } }),
+    warn: (i) => warns.push(i),
+  });
+  assert.equal(gitOk, true);
+  assert.equal(warns.length, 0);
+});
+
+test('both repos error → gitOk false, one warn PER failing repo', () => {
+  const warns = [];
+  const { gitOk } = countEvidenceAcrossRepos({
+    key: 't/42', repoDirs: [CODE, DATA],
+    ...harness({ hits: { [CODE]: 'ERR', [DATA]: 'ERR' } }),
+    warn: (i) => warns.push(i),
+  });
+  assert.equal(gitOk, false);
+  assert.equal(warns.length, 2);
+});
