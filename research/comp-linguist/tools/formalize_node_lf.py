@@ -64,9 +64,23 @@ def parse_lf(text):
 PARTICULAR_SORTS = frozenset({"agentive-physical-object", "non-agentive-functional-artifact",
                               "perdurant", "normative-description", "non-agentive-social-object"})
 # Canonical EntityMatchLevel enum (logical-form-schema.md; PS $script:LogicalFormMatchLevels).
-# `universal` is a valid args[].sort (t/3251) but NEVER a match_level — the t/3379 leak. about[] keeps
-# BOTH ent-* and term: refs (Option A, SO-ratified e/145) but its match_level is enum-clamped here.
+# `universal` is a valid args[].sort (t/3251) but NEVER a match_level — the t/3379 leak. match_level
+# is enum-clamped here for both about[] and topical_candidates.
 VALID_MATCH_LEVELS = frozenset({"exact", "instance_of", "subclass", "superclass", "related"})
+
+# Option C (t/3389; SO+TL signed off e/145#13-#16). The mixed-convention about[] MISSED the
+# pre-committed concept-anchored floor (0.636 < 0.80, t/3381), so about[] reverts to ent-only and
+# the term: concept refs move to `topical_candidates` — a quality-marked layer whose provenance
+# block makes the unvalidated status legible FROM THE DATA (a consumer sees validated:false + the
+# 0.54 blind-golden precision without reading the register). Stamped by THIS generator; a repaired
+# generator (t/3390) must UPDATE this block or revalidate-and-move the refs to about[] — never
+# fresh refs under stale metadata (e/145#14(c) lifecycle rule).
+TOPICAL_CANDIDATES_PROVENANCE = {
+    "validated": False,
+    "generator": "formalize_node_lf.py",
+    "golden_ref": "t/3381",
+    "blind_golden_precision": 0.54,
+}
 
 
 def _repair_bare(ref, allowed):
@@ -102,14 +116,14 @@ def validate(lf, allowed, camp, cat):
         return a
 
     lf["args"] = [x for x in (fix(a) for a in (lf.get("args") or [])) if x]
-    kept_about = []
+    # Option C split (t/3389): about[] = ent-* only; term: concept refs -> topical_candidates.
+    # Only grounded refs survive (R6 / t/2294 — a ref not in the node's own entity_refs/concept_refs
+    # is dropped, never minted); the `in allowed` gate enforces the {ent-*|term:*} vocabulary.
+    kept_about, candidate_refs = [], []
     for ab in (lf.get("about") or []):
         if not isinstance(ab, dict):
             continue
         ref = _repair_bare(ab.get("ref", ""), allowed)
-        # about[] is a mixed topical index: keep BOTH ent-* and term: refs (Option A, SO e/145).
-        # Only grounded refs survive (R6 / t/2294 — a ref not in the node's own entity_refs/concept_refs
-        # is dropped, never minted); the `in allowed` gate also enforces the {ent-*|term:*} vocabulary.
         if ref not in allowed:
             continue
         ab["ref"] = ref
@@ -117,8 +131,14 @@ def validate(lf, allowed, camp, cat):
         # guess; enum-clamp so a concept's sort=`universal` can never leak into match_level (t/3379).
         ml = allowed[ref][1]
         ab["match_level"] = ml if ml in VALID_MATCH_LEVELS else "exact"
-        kept_about.append(ab)
+        (kept_about if ref.startswith("ent-") else candidate_refs).append(ab)
     lf["about"] = kept_about
+    # topical_candidates present only when concept refs exist (absent, not null, otherwise —
+    # absent≠null contract, t/2943). Provenance stamped fresh by this generator (lifecycle rule).
+    if candidate_refs:
+        lf["topical_candidates"] = {**TOPICAL_CANDIDATES_PROVENANCE, "refs": candidate_refs}
+    else:
+        lf.pop("topical_candidates", None)
     lf["modality"] = {"holder": f"camp:{POV.get(camp, camp)}", "attitude": CAT_ATT.get(cat, "belief")}
     lf.setdefault("status", "proposed")
     return lf
