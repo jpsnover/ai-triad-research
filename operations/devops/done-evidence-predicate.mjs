@@ -4,6 +4,7 @@
 import { execFileSync } from 'node:child_process'; // used only by the CLI shim's git query
 import { fileURLToPath } from 'node:url'; // resolve repo dirs from the module path, not cwd
 import fs from 'node:fs'; // existsSync guard for the (optionally absent) data repo
+import { appendGateTelemetry, gateTelemetryDir } from './gate-telemetry.mjs'; // shared durable sink (t/3395)
 
 /**
  * Pure verdict for the done-requires-EVIDENCE gate (t/3360, G1 cross-check audit).
@@ -172,22 +173,18 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('done-eviden
     // Append a queryable execution record — the source the post-flip re-audit reads for fire/fail-open
     // rates + fail-open visibility. BEST-EFFORT and fully isolated: the verdict is already computed, and
     // any sink failure is swallowed so telemetry can NEVER change the gate's block/allow decision.
-    try {
-      const rec = buildSinkRecord({
-        nowIso: new Date().toISOString(),
-        rawTicketId: process.argv[3] || null,
-        key,
-        verdict,
-        hitCount,
-        gitOk,
-        warns,
-      });
-      const dir = fileURLToPath(new URL('./.gate-telemetry/', import.meta.url)); // operations/devops/.gate-telemetry/
-      fs.mkdirSync(dir, { recursive: true });
-      fs.appendFileSync(`${dir}done-evidence.jsonl`, `${JSON.stringify(rec)}\n`);
-    } catch {
-      // telemetry is best-effort — never let a sink failure break the gate
-    }
+    const rec = buildSinkRecord({
+      nowIso: new Date().toISOString(),
+      rawTicketId: process.argv[3] || null,
+      key,
+      verdict,
+      hitCount,
+      gitOk,
+      warns,
+    });
+    // Shared durable sink (t/3395): appendGateTelemetry is itself best-effort + swallows all errors,
+    // so this can never affect the verdict — the isolation invariant lives in the helper now.
+    appendGateTelemetry({ dir: gateTelemetryDir(import.meta.url), fileName: 'done-evidence.jsonl', record: rec });
     if (verdict.block) process.stdout.write('fire');
   }
 }

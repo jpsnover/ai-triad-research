@@ -15,6 +15,7 @@ import {
   jointGvAutoMergeVerdict,
   isAutoMergeCommand,
   parsePrRef,
+  buildMergeGuardSinkRecord,
 } from './merge-guard-predicate.mjs';
 
 const MODULE = fileURLToPath(new URL('./merge-guard-predicate.mjs', import.meta.url));
@@ -157,4 +158,60 @@ test('CLI --jointgv: no gh call + no fire on a MANUAL merge (not --auto)', () =>
 
 test('CLI --jointgv: no gh call + no fire on a non-merge command', () => {
   assert.equal(runShimJointGv('gh pr view 1947 --json labels'), '');
+});
+
+// ── buildMergeGuardSinkRecord: durable telemetry record shape (t/3395) ──
+// The platform telemetry writer is dead (t/3394#2); the shim appends these records so merge-guard
+// fires/allows — especially the jointgv fail-CLOSED block — stay observable.
+
+test('sink record: head-guard BLOCK (missing --match-head-commit) → decision=block + command captured', () => {
+  const cmd = 'gh pr merge 2059 --squash';
+  const r = buildMergeGuardSinkRecord({
+    nowIso: '2026-09-07T20:00:00.000Z', mode: 'head-guard', command: cmd,
+    verdict: mergeGuardVerdict(cmd), failClosed: false,
+  });
+  assert.equal(r.gate, 'merge-guard');
+  assert.equal(r.mode, 'head-guard');
+  assert.equal(r.decision, 'block');
+  assert.equal(r.reason, 'missing-match-head-commit');
+  assert.equal(r.failClosed, false);
+  assert.equal(r.command, cmd);
+});
+
+test('sink record: head-guard ALLOW (guarded merge) → decision=allow', () => {
+  const cmd = 'gh pr merge 2059 --squash --match-head-commit abc123';
+  const r = buildMergeGuardSinkRecord({ nowIso: 'x', mode: 'head-guard', command: cmd, verdict: mergeGuardVerdict(cmd) });
+  assert.equal(r.decision, 'allow');
+  assert.equal(r.reason, 'guarded');
+});
+
+test('sink record: jointgv fail-CLOSED block → decision=block, failClosed=true (the high-value event)', () => {
+  const r = buildMergeGuardSinkRecord({
+    nowIso: 'x', mode: 'jointgv', command: 'gh pr merge 1947 --auto',
+    verdict: { block: true, reason: 'failclosed-unverifiable' }, failClosed: true,
+  });
+  assert.equal(r.mode, 'jointgv');
+  assert.equal(r.decision, 'block');
+  assert.equal(r.reason, 'failclosed-unverifiable');
+  assert.equal(r.failClosed, true);
+});
+
+test('sink record: jointgv verified block (labeled joint-gv) → decision=block, failClosed=false', () => {
+  const r = buildMergeGuardSinkRecord({
+    nowIso: 'x', mode: 'jointgv', command: 'gh pr merge 1947 --auto',
+    verdict: jointGvAutoMergeVerdict({ isAutoMerge: true, isJointGvLabeled: true }), failClosed: false,
+  });
+  assert.equal(r.decision, 'block');
+  assert.equal(r.reason, 'auto-merge-on-joint-gv');
+  assert.equal(r.failClosed, false);
+});
+
+test('sink record: command is truncated to 300 chars; empty args never throw', () => {
+  const long = `gh pr merge 1 ${'x'.repeat(500)}`;
+  const r = buildMergeGuardSinkRecord({ nowIso: 'x', mode: 'head-guard', command: long, verdict: { block: false, reason: 'guarded' } });
+  assert.equal(r.command.length, 300);
+  const empty = buildMergeGuardSinkRecord();
+  assert.equal(empty.decision, 'allow');
+  assert.equal(empty.command, null);
+  assert.equal(empty.gate, 'merge-guard');
 });
