@@ -711,19 +711,24 @@ function NodeDetailTabBar({ activeTab, setActiveTab, conflictCount, cruxCount, f
   );
 }
 
-// ── Content tab: Beliefs metrics row (extracted from NodeDetail for complexity) ──
+// ── Content tab: node metrics row (extracted from NodeDetail for complexity) ──
+// t/3393: Debate Tested must show on every BDI category, not only Beliefs — the underlying
+// debate_tested record is populated on Desires/Intentions nodes too (confirmed against live
+// data), so this row itself is no longer Beliefs-exclusive. Confidence stays Beliefs-gated: it's
+// a genuinely Beliefs-specific metric (empirical-claim confidence) that's only sparsely populated
+// elsewhere (legacy/cross-cutting data), and the ticket didn't ask to change its visibility.
 
-interface BeliefsMetricsRowProps {
+interface NodeMetricsRowProps {
   node: PovNode;
   showDtDrilldown: boolean;
   setShowDtDrilldown: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-function BeliefsMetricsRow({ node, showDtDrilldown, setShowDtDrilldown }: BeliefsMetricsRowProps) {
+function NodeMetricsRow({ node, showDtDrilldown, setShowDtDrilldown }: NodeMetricsRowProps) {
   return (
     <>
       <div className="nd-metrics-row">
-        {node.confidence != null && (
+        {node.category === 'Beliefs' && node.confidence != null && (
           <span className="nd-metric" title="Confidence score">
             Confidence: <strong>{node.confidence.toFixed(2)}</strong>
           </span>
@@ -940,9 +945,8 @@ interface NodeDetailContentTabProps {
 function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode, update, updatePovNode, showDtDrilldown, setShowDtDrilldown, expandedLineage, setExpandedLineage, showAttributeInfo, hasGraphAttrs, descriptionMention, plainDescriptionMention }: NodeDetailContentTabProps) {
   return (
     <>
-      {node.category === 'Beliefs' && (
-        <BeliefsMetricsRow node={node} showDtDrilldown={showDtDrilldown} setShowDtDrilldown={setShowDtDrilldown} />
-      )}
+      {/* t/3393: Debate Tested must show on every BDI category, not only Beliefs. */}
+      <NodeMetricsRow node={node} showDtDrilldown={showDtDrilldown} setShowDtDrilldown={setShowDtDrilldown} />
 
       {!readOnly && err('label') && (
         <div className="error-text">{err('label')}</div>
