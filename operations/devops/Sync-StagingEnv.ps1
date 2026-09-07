@@ -42,11 +42,16 @@ $getEnvArgsNamesOnly = @{ BicepPath = $BicepPath; NamesOnly = $true }
 if ($isStaging) { $getEnvArgsNamesOnly['ForStaging'] = $true }
 $ManagedNames = & (Join-Path $PSScriptRoot 'Get-BicepBaseEnv.ps1') @getEnvArgsNamesOnly
 
-# Fail-closed: NamesOnly must be a strict superset of the literal-value set.
-# If it isn't, the bicep parse is broken — abort rather than risk mass-wiping env vars. (t/3345)
-if ($null -eq $ManagedNames -or $ManagedNames.Count -eq 0 -or $ManagedNames.Count -lt $BicepEnv.Count) {
-    Write-Error ("Get-BicepBaseEnv.ps1 -NamesOnly returned $($ManagedNames.Count) names but the " +
-        "literal-value pass returned $($BicepEnv.Count) — NamesOnly must be a superset. " +
+# Fail-closed: NamesOnly MUST contain EVERY literal-value key (a membership superset), not merely a
+# larger COUNT. A count check passes when a dropped literal key is offset by a spurious non-literal
+# match — and then that dropped key would be treated as an orphan and deleted live. So require every
+# $BicepEnv key ∈ $ManagedNames; if any is missing (or the set is empty), the bicep parse is broken
+# → ABORT rather than risk a mass-wipe of env vars. (t/3345, TL cond-3 t/3345#8)
+$missingFromManaged = @($BicepEnv.Keys | Where-Object { $_ -notin $ManagedNames })
+if ($null -eq $ManagedNames -or $ManagedNames.Count -eq 0 -or $missingFromManaged.Count -gt 0) {
+    Write-Error ("Get-BicepBaseEnv.ps1 -NamesOnly failed the membership-superset guard: " +
+        "$($ManagedNames.Count) name(s) returned; literal key(s) missing from the managed-name set: " +
+        "[$($missingFromManaged -join ', ')]. NamesOnly must contain every literal key. " +
         "Aborting reconcile to prevent mass-wipe of env vars. (t/3345)")
     exit 1
 }
