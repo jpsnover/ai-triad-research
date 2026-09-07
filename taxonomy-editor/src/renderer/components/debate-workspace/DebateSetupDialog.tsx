@@ -291,6 +291,12 @@ export function DebateSetupDialog({
                 </dd>
               </Fragment>
             )}
+            {activeDebate.exclude_greatest_hits && (
+              <Fragment>
+                <dt className="dsd-setup-dt">Greatest hits</dt>
+                <dd className="dsd-setup-dd">excluded</dd>
+              </Fragment>
+            )}
           </dl>
           {hasDistinctStageModels && (
             <details style={{ marginTop: 10 }}>
