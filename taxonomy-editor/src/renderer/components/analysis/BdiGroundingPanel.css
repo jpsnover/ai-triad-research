@@ -175,3 +175,212 @@
   background: rgba(234, 179, 8, 0.12);
   color: #ca8a04;
 }
+
+/* ─── Formalization (FOL) section (t/3397) ───────────────
+   Experimental, collapsed-by-default layer over node.logical_form. Weak-axis marking must be
+   visible INSIDE the expanded body, not only the header badge (TL §8 binding condition). */
+
+.bdi-gr-fol-toggle {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.bdi-gr-fol-caret {
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  width: 10px;
+}
+
+.bdi-gr-fol-badge {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(234, 179, 8, 0.15);
+  color: #ca8a04;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  margin-left: auto;
+}
+
+.bdi-gr-fol-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 2px 2px;
+}
+
+.bdi-gr-fol-weak-note {
+  font-size: var(--text-2xs);
+  color: #ca8a04;
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.bdi-gr-fol-header-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: var(--text-xs);
+}
+
+.bdi-gr-fol-predicate {
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.bdi-gr-fol-polarity {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.bdi-gr-fol-polarity--positive {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.bdi-gr-fol-polarity--negative {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.bdi-gr-fol-modality,
+.bdi-gr-fol-temporal {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+}
+
+.bdi-gr-fol-participants {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px dashed rgba(234, 179, 8, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+}
+
+.bdi-gr-fol-participants-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bdi-gr-fol-participants-title {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.bdi-gr-fol-low-reliability {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: #ca8a04;
+}
+
+.bdi-gr-fol-arg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-2xs);
+  padding: 2px 0;
+}
+
+.bdi-gr-fol-arg-role {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 72px;
+}
+
+.bdi-gr-fol-arg-sort,
+.bdi-gr-fol-arg-match {
+  color: var(--text-muted);
+}
+
+.bdi-gr-fol-about {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: var(--text-2xs);
+}
+
+.bdi-gr-fol-about-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: 2px;
+}
+
+.bdi-gr-fol-footer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-2xs);
+}
+
+.bdi-gr-fol-status {
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.bdi-gr-fol-status--accepted {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.bdi-gr-fol-status--proposed {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-secondary);
+}
+
+.bdi-gr-fol-status--rejected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.bdi-gr-fol-confidence {
+  color: var(--text-muted);
+}
+
+.bdi-gr-fol-debug-toggle {
+  align-self: flex-start;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.bdi-gr-fol-debug-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--focus-ring);
+}
+
+.bdi-gr-fol-raw {
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 240px;
+  overflow-y: auto;
+}

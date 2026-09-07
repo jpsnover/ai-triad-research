@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { ConceptLinkRef, EntityLinkRef } from '@lib/entities/types';
+import type { LogicalForm } from '@lib/entities/logicalForm';
 
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => null }));
 
@@ -61,6 +62,21 @@ function makeNode(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+const LOGICAL_FORM: LogicalForm = {
+  predicate: 'acquire',
+  event_ref: 'e1',
+  args: [
+    { role: 'agent', ref: 'ent-034', sort: 'agentive-physical-object', match_level: 'exact' },
+    { role: 'patient', ref: 'ent-055', sort: 'non-agentive-functional-artifact', match_level: 'exact' },
+  ],
+  polarity: 'positive',
+  modality: { holder: 'camp:acc', attitude: 'belief' },
+  temporal: { type: 'at', value: '2025-02' },
+  about: [{ ref: 'ent-034', match_level: 'exact' }],
+  formalization_confidence: 0.85,
+  status: 'accepted',
+};
 
 describe('BdiGroundingPanel (t/3292)', () => {
   beforeEach(() => { vi.clearAllMocks(); });
@@ -181,5 +197,99 @@ describe('BdiGroundingPanel (t/3292)', () => {
     }));
     render(<BdiGroundingPanel />);
     expect(screen.getByText('alignment')).toBeInTheDocument();
+  });
+
+  describe('Formalization section (t/3397)', () => {
+    it('renders nothing when the node has no logical_form', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode()] },
+      }));
+      render(<BdiGroundingPanel />);
+      expect(screen.queryByText('Formalization')).not.toBeInTheDocument();
+    });
+
+    it('renders the collapsed header with an experimental badge when logical_form is present', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode({ logical_form: LOGICAL_FORM })] },
+      }));
+      render(<BdiGroundingPanel />);
+      expect(screen.getByText('Formalization')).toBeInTheDocument();
+      expect(screen.getByText('experimental')).toBeInTheDocument();
+      // Collapsed by default — body content not yet in the DOM.
+      expect(screen.queryByText('acquire')).not.toBeInTheDocument();
+    });
+
+    it('expands on click and shows predicate/polarity/modality/temporal', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode({ logical_form: LOGICAL_FORM })] },
+      }));
+      render(<BdiGroundingPanel />);
+      fireEvent.click(screen.getByRole('button', { name: /Formalization/ }));
+      expect(screen.getByText('acquire')).toBeInTheDocument();
+      expect(screen.getByText('positive')).toBeInTheDocument();
+      expect(screen.getByText(/Accelerationist.*belief/)).toBeInTheDocument();
+      expect(screen.getByText(/at 2025-02/)).toBeInTheDocument();
+    });
+
+    it('shows the weak-axes note INSIDE the expanded section, not only on the header', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode({ logical_form: LOGICAL_FORM })] },
+      }));
+      render(<BdiGroundingPanel />);
+      expect(screen.queryByText(/predicate \(~0.68\)/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Formalization/ }));
+      expect(screen.getByText(/predicate \(~0.68\) and args \(~0.30\)/)).toBeInTheDocument();
+      expect(screen.getByText(/low-reliability axis/)).toBeInTheDocument();
+    });
+
+    it('renders participant rows with role, ref, sort, and match_level', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode({ logical_form: LOGICAL_FORM })] },
+      }));
+      render(<BdiGroundingPanel />);
+      fireEvent.click(screen.getByRole('button', { name: /Formalization/ }));
+      expect(screen.getByText('agent')).toBeInTheDocument();
+      expect(screen.getAllByText('ent-034').length).toBeGreaterThan(0);
+      expect(screen.getByText('agentive-physical-object')).toBeInTheDocument();
+      expect(screen.getAllByText('exact').length).toBeGreaterThan(0);
+    });
+
+    it('renders about[] refs with the existing proposed-style treatment', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode({ logical_form: LOGICAL_FORM })] },
+      }));
+      render(<BdiGroundingPanel />);
+      fireEvent.click(screen.getByRole('button', { name: /Formalization/ }));
+      const aboutChip = screen.getAllByText('ent-034').find(el => el.className.includes('bdi-gr-status--proposed'));
+      expect(aboutChip).toBeTruthy();
+    });
+
+    it('renders formalization_confidence with a self-rated caveat', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode({ logical_form: LOGICAL_FORM })] },
+      }));
+      render(<BdiGroundingPanel />);
+      fireEvent.click(screen.getByRole('button', { name: /Formalization/ }));
+      expect(screen.getByText(/confidence 85% \(self-rated\)/)).toBeInTheDocument();
+    });
+
+    it('keeps raw JSON hidden until the debug toggle is clicked', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode({ logical_form: LOGICAL_FORM })] },
+      }));
+      render(<BdiGroundingPanel />);
+      fireEvent.click(screen.getByRole('button', { name: /Formalization/ }));
+      expect(screen.queryByText(/"event_ref"/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /View raw frame/ }));
+      expect(screen.getByText(/"event_ref"/)).toBeInTheDocument();
+    });
   });
 });
