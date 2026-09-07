@@ -10,6 +10,7 @@ import type { SpeakerId } from '../../types/debate';
 import { humanizeSpeakerIds } from '../../utils/humanizeSpeakers';
 import { resolveSpeaker } from '../shared/SpeakerIdentity';
 import { useFlag } from '../../hooks/useFeatureFlags';
+import { useLongPressContextMenu, type ContextMenuLikeEvent } from '../../hooks/useLongPressContextMenu';
 import './PromptDiffPane.css';
 
 const STAGE_COLORS: Record<string, string> = {
@@ -516,12 +517,13 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; text: string } | null>(null);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((e: ContextMenuLikeEvent) => {
     const sel = window.getSelection()?.toString().trim();
     if (!sel) return; // no selection — let default menu show
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY, text: sel });
   }, []);
+  const longPress = useLongPressContextMenu(handleContextMenu);
 
   // Close context menu on any click
   useEffect(() => {
@@ -594,7 +596,14 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
       </div>
       {/* Content */}
       {!collapsed && (
-        <div className="pdp-flex1-auto" onContextMenu={handleContextMenu}>
+        <div
+          className="pdp-flex1-auto"
+          onContextMenu={longPress.onContextMenu}
+          onTouchStart={longPress.onTouchStart}
+          onTouchMove={longPress.onTouchMove}
+          onTouchEnd={longPress.onTouchEnd}
+          onTouchCancel={longPress.onTouchCancel}
+        >
           <ValidationPanel
             validation={node.validation}
             qualityCheck={node.qualityCheck}
@@ -996,12 +1005,13 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
 
   // Context menu for copying selected text
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; text: string } | null>(null);
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((e: ContextMenuLikeEvent) => {
     const sel = window.getSelection()?.toString().trim();
     if (!sel) return;
     e.preventDefault();
     setCtxMenu({ x: e.clientX, y: e.clientY, text: sel });
   }, []);
+  const contentLongPress = useLongPressContextMenu(handleContextMenu);
   useEffect(() => {
     if (!ctxMenu) return;
     const close = () => setCtxMenu(null);
@@ -1080,7 +1090,11 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
       <div
         ref={contentRef}
         onScroll={handleScroll}
-        onContextMenu={handleContextMenu}
+        onContextMenu={contentLongPress.onContextMenu}
+        onTouchStart={contentLongPress.onTouchStart}
+        onTouchMove={contentLongPress.onTouchMove}
+        onTouchEnd={contentLongPress.onTouchEnd}
+        onTouchCancel={contentLongPress.onTouchCancel}
         className="pdp-content"
         // eslint-disable-next-line local/no-inline-style -- dynamic: overflow-x/white-space/word-break depend on wordWrap
         style={{
