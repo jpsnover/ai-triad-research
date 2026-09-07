@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { api } from '@bridge';
 import { useDebateStore } from '../../hooks/useDebateStore';
+import { useLongPressSelectionMenu } from '../../hooks/useLongPressSelectionMenu';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { SpeakerId } from '../../types/debate';
@@ -1205,33 +1206,11 @@ function useDebateSelectionMenu(activeDebate: DWStore['activeDebate'], defaultTi
     return { x, y, selectedText, entryId, isPoverStatement, tier, startOffset, endOffset };
   }, [activeDebate?.transcript, defaultTier]);
 
-  // Phase 7: Context menu handler (desktop right-click)
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    const menu = buildMenuState(e.currentTarget, e.clientX, e.clientY);
-    if (!menu) return; // No selection → use default browser menu
-    e.preventDefault();
-    setContextMenu(menu);
-  }, [buildMenuState]);
-
-  // Touch devices don't fire `contextmenu` on long-press-to-select (t/3382) — iOS/Android
-  // intercept the gesture with their native selection callout instead. Watch for a selection
-  // that survives touchend and show the same menu at the release point.
-  const touchMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (touchMenuTimerRef.current) clearTimeout(touchMenuTimerRef.current); }, []);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    const container = e.currentTarget;
-    const touch = e.changedTouches[0];
-    if (!touch) return;
-    const x = touch.clientX;
-    const y = touch.clientY;
-    if (touchMenuTimerRef.current) clearTimeout(touchMenuTimerRef.current);
-    // The selection finalizes slightly after touchend on mobile Safari/Chrome; wait one tick.
-    touchMenuTimerRef.current = setTimeout(() => {
-      const menu = buildMenuState(container, x, y);
-      if (menu) setContextMenu(menu);
-    }, 50);
-  }, [buildMenuState]);
+  // Phase 7 (desktop right-click) + t/3382 (touch long-press-to-select, which never
+  // fires `contextmenu` — iOS/Android intercept it with the native selection callout)
+  // share one trigger model via the shared hook: show the menu once a selection is final.
+  const { onContextMenu: handleContextMenu, onTouchEnd: handleTouchEnd } =
+    useLongPressSelectionMenu(buildMenuState, setContextMenu);
 
   return { contextMenu, setContextMenu, commentPopover, setCommentPopover, handleContextMenu, handleTouchEnd };
 }
