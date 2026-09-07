@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { DebateWorkspace } from './DebateWorkspace';
 import { usePreferencesStore } from '../../store/preferencesStore';
 
@@ -738,6 +738,66 @@ describe('find bar', () => {
     fireEvent.keyDown(document, { key: 'f', ctrlKey: true });
     const input = screen.getByPlaceholderText('Find in debate…');
     expect(input).toBeInTheDocument();
+  });
+});
+
+// ── Selection context menu (t/3382 — touch long-press support) ─
+
+describe('selection context menu', () => {
+  const realGetSelection = window.getSelection;
+
+  function mockSelection(text: string) {
+    window.getSelection = vi.fn(() => ({
+      toString: () => text,
+      anchorNode: null,
+      rangeCount: 0,
+    })) as unknown as typeof window.getSelection;
+  }
+
+  beforeEach(() => {
+    mockStore.debateLoading = false;
+    mockStore.activeDebate = makeDebate();
+  });
+
+  afterEach(() => {
+    window.getSelection = realGetSelection;
+    vi.useRealTimers();
+  });
+
+  it('shows the menu on desktop right-click when text is selected', () => {
+    mockSelection('hello world');
+    const { container } = render(<DebateWorkspace />);
+    fireEvent.contextMenu(container.querySelector('.debate-scroll-content')!);
+    expect(container.querySelector('.debate-context-menu')).toBeTruthy();
+  });
+
+  it('does not show the menu on right-click without a selection', () => {
+    mockSelection('');
+    const { container } = render(<DebateWorkspace />);
+    fireEvent.contextMenu(container.querySelector('.debate-scroll-content')!);
+    expect(container.querySelector('.debate-context-menu')).toBeNull();
+  });
+
+  it('shows the menu after touchend when a selection survives the release (t/3382)', () => {
+    vi.useFakeTimers();
+    mockSelection('selected phrase');
+    const { container } = render(<DebateWorkspace />);
+    fireEvent.touchEnd(container.querySelector('.debate-scroll-content')!, {
+      changedTouches: [{ clientX: 50, clientY: 80 }],
+    });
+    act(() => { vi.advanceTimersByTime(60); });
+    expect(container.querySelector('.debate-context-menu')).toBeTruthy();
+  });
+
+  it('does not show the menu after touchend with no selection (native scroll/tap)', () => {
+    vi.useFakeTimers();
+    mockSelection('');
+    const { container } = render(<DebateWorkspace />);
+    fireEvent.touchEnd(container.querySelector('.debate-scroll-content')!, {
+      changedTouches: [{ clientX: 50, clientY: 80 }],
+    });
+    act(() => { vi.advanceTimersByTime(60); });
+    expect(container.querySelector('.debate-context-menu')).toBeNull();
   });
 });
 

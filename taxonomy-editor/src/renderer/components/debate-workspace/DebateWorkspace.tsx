@@ -1183,15 +1183,12 @@ function useDebateSelectionMenu(activeDebate: DWStore['activeDebate'], defaultTi
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [commentPopover, setCommentPopover] = useState<CommentPopoverState | null>(null);
 
-  // Phase 7: Context menu handler
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+  const buildMenuState = useCallback((container: EventTarget | null, x: number, y: number): ContextMenuState | null => {
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim() || '';
-    if (!selectedText) return; // No selection → use default browser menu
+    if (!selectedText) return null; // No selection → use default browser menu
 
-    e.preventDefault();
-
-    const { entryId, isPoverStatement } = findSelectedEntry(selection?.anchorNode, e.currentTarget);
+    const { entryId, isPoverStatement } = findSelectedEntry(selection?.anchorNode, container);
 
     // Compute text offsets + active tier within the debate-statement-content element
     let startOffset = 0;
@@ -1205,19 +1202,38 @@ function useDebateSelectionMenu(activeDebate: DWStore['activeDebate'], defaultTi
       }
     }
 
-    setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      selectedText,
-      entryId,
-      isPoverStatement,
-      tier,
-      startOffset,
-      endOffset,
-    });
+    return { x, y, selectedText, entryId, isPoverStatement, tier, startOffset, endOffset };
   }, [activeDebate?.transcript, defaultTier]);
 
-  return { contextMenu, setContextMenu, commentPopover, setCommentPopover, handleContextMenu };
+  // Phase 7: Context menu handler (desktop right-click)
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const menu = buildMenuState(e.currentTarget, e.clientX, e.clientY);
+    if (!menu) return; // No selection → use default browser menu
+    e.preventDefault();
+    setContextMenu(menu);
+  }, [buildMenuState]);
+
+  // Touch devices don't fire `contextmenu` on long-press-to-select (t/3382) — iOS/Android
+  // intercept the gesture with their native selection callout instead. Watch for a selection
+  // that survives touchend and show the same menu at the release point.
+  const touchMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (touchMenuTimerRef.current) clearTimeout(touchMenuTimerRef.current); }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const container = e.currentTarget;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const x = touch.clientX;
+    const y = touch.clientY;
+    if (touchMenuTimerRef.current) clearTimeout(touchMenuTimerRef.current);
+    // The selection finalizes slightly after touchend on mobile Safari/Chrome; wait one tick.
+    touchMenuTimerRef.current = setTimeout(() => {
+      const menu = buildMenuState(container, x, y);
+      if (menu) setContextMenu(menu);
+    }, 50);
+  }, [buildMenuState]);
+
+  return { contextMenu, setContextMenu, commentPopover, setCommentPopover, handleContextMenu, handleTouchEnd };
 }
 
 // ── Main component ───────────────────────────────────────
@@ -1282,7 +1298,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
 
   const { findVisible, findQuery, setFindQuery, findCurrentIndex, findTotal, findOffsets, findNext, findPrev, closeFind } = useDebateFind(activeDebate);
   const { coverageMap, strengthWeighted } = useDebateCoverage(activeDebate);
-  const { contextMenu, setContextMenu, commentPopover, setCommentPopover, handleContextMenu } = useDebateSelectionMenu(activeDebate, defaultTier);
+  const { contextMenu, setContextMenu, commentPopover, setCommentPopover, handleContextMenu, handleTouchEnd } = useDebateSelectionMenu(activeDebate, defaultTier);
 
   // useFlag is a hook — hoist above the early returns below (rules-of-hooks, t/2299).
   const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
@@ -1330,7 +1346,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       {/* Scrollable content: header (title+status+DEBATERS strip), debaters, transcript.
           The header scrolls with the transcript rather than staying pinned (user request):
           on a phone the fixed header consumed ~half the viewport. */}
-      <div className="debate-scroll-content" onContextMenu={handleContextMenu}>
+      <div className="debate-scroll-content" onContextMenu={handleContextMenu} onTouchEnd={handleTouchEnd}>
         <DebateHeader
           activeDebate={activeDebate}
           coverageMap={coverageMap}
