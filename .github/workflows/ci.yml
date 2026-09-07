@@ -125,11 +125,18 @@ jobs:
             # 'embeddings' gates embedding-onnx-equivalence (t/3198): the real-ONNX bit-exact
             # worker↔in-thread check. Narrower than 'lib' — only the embeddings subtree (worker,
             # in-thread module, harness) or a ci.yml edit can change the equivalence outcome, so
-            # a broad lib change need not pay the build:server + model-download cost. Advisory job
-            # (not in ci-gate needs), so a too-narrow filter cannot false-green a required context.
+            # a broad lib change need not pay the build:server + model-download cost. PROMOTED to
+            # REQUIRED (in ci-gate needs, t/3240) — so a too-narrow filter would let an ORT-kernel
+            # change land on main UNOBSERVED; the onnxruntime-node manifest+lockfile are included below.
             embeddings:
               - 'lib/embeddings/**'
               - '.github/workflows/ci.yml'
+              # SO cond 2 (t/3240#7): an onnxruntime-node version bump changes the ONNX kernels and
+              # could break bit-exact equivalence, so an ORT-pin PR must bear the gate. A lockfile path
+              # fires the job on EVERY dep bump (not just ORT) — ACCEPTED BY DESIGN per TL (~51s,
+              # skip = OK, also catches transitive ORT bumps); do NOT narrow it.
+              - 'taxonomy-editor/package.json'
+              - 'taxonomy-editor/pnpm-lock.yaml'
             python:
               - 'scripts/**'
               - '.github/ci/**'
@@ -1505,9 +1512,13 @@ jobs:
   # validation in main.bicep; path-filtered to bicep-resources changes, skip = OK.
   # joint-gv-automerge-guard (t/3332) is gated here: blocks event-time auto-merge
   # on joint-gv PRs; always runs on pull_request, no path filter, skip = never OK.
+  # embedding-onnx-equivalence (t/3198/t/3240) is gated here: real-ONNX bit-exact
+  # worker↔in-thread equivalence; path-filtered to embeddings changes + the ORT
+  # manifest/lockfile, skip = OK. Promoted advisory→required per TL GV t/3240#5 +
+  # Second Opinion e/143#2.
   ci-gate:
     name: ci-gate
-    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, test-python, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump, render-smoke, bicep-aca-resources, joint-gv-automerge-guard]
+    needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke, test-python, dependency-coverage, lockfile-overrides-check, lib-lint, renderer-tsc, contrast-check, test-server-prod-config, workflow-lint, bicep-env-drift, schema-version-bump, render-smoke, bicep-aca-resources, joint-gv-automerge-guard, embedding-onnx-equivalence]
     if: always()
     runs-on: ubuntu-latest
     steps:
