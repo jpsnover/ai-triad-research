@@ -42,16 +42,16 @@ $getEnvArgsNamesOnly = @{ BicepPath = $BicepPath; NamesOnly = $true }
 if ($isStaging) { $getEnvArgsNamesOnly['ForStaging'] = $true }
 $ManagedNames = & (Join-Path $PSScriptRoot 'Get-BicepBaseEnv.ps1') @getEnvArgsNamesOnly
 
-# Fail-closed: NamesOnly MUST contain EVERY literal-value key (a membership superset), not merely a
-# larger COUNT. A count check passes when a dropped literal key is offset by a spurious non-literal
-# match — and then that dropped key would be treated as an orphan and deleted live. So require every
-# $BicepEnv key ∈ $ManagedNames; if any is missing (or the set is empty), the bicep parse is broken
-# → ABORT rather than risk a mass-wipe of env vars. (t/3345, TL cond-3 t/3345#8)
-$missingFromManaged = @($BicepEnv.Keys | Where-Object { $_ -notin $ManagedNames })
-if ($null -eq $ManagedNames -or $ManagedNames.Count -eq 0 -or $missingFromManaged.Count -gt 0) {
+# Fail-closed membership-superset guard (t/3345, TL cond-3 t/3345#8): NamesOnly MUST contain EVERY
+# literal-value key — not merely a larger COUNT (a dropped literal key offset by a spurious
+# non-literal match passes a count check, then gets deleted live). The set-logic is the pure,
+# directly-tested Test-ManagedNamesSuperset (t/2971 Guard Testability, TL t/3345#14).
+. (Join-Path $PSScriptRoot 'Test-ManagedNamesSuperset.ps1')
+$supersetVerdict = Test-ManagedNamesSuperset -LiteralKeys @($BicepEnv.Keys) -ManagedNames $ManagedNames
+if (-not $supersetVerdict.Ok) {
     Write-Error ("Get-BicepBaseEnv.ps1 -NamesOnly failed the membership-superset guard: " +
-        "$($ManagedNames.Count) name(s) returned; literal key(s) missing from the managed-name set: " +
-        "[$($missingFromManaged -join ', ')]. NamesOnly must contain every literal key. " +
+        "$(@($ManagedNames).Count) name(s) returned; literal key(s) missing from the managed-name set: " +
+        "[$($supersetVerdict.Missing -join ', ')]. NamesOnly must contain every literal key. " +
         "Aborting reconcile to prevent mass-wipe of env vars. (t/3345)")
     exit 1
 }
