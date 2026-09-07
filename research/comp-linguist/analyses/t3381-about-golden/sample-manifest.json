@@ -1,0 +1,1055 @@
+{
+  "ticket": "t/3381",
+  "purpose": "about[]-component blind golden (Option A re-measure)",
+  "acceptance_axis": "concept-anchored about-component >= 0.80 (register pre-committed rule)",
+  "count": 61,
+  "profile_counts": {
+    "concept-only": 46,
+    "mixed": 9,
+    "entity-only": 6
+  },
+  "ids": [
+    {
+      "id": "acc-beliefs-003",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:deployment_gated",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:liability_strict",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-beliefs-028",
+      "profile": "mixed",
+      "prod_about": [
+        {
+          "ref": "ent-071",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:accountability_market",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:deployment_gated",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-beliefs-048",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:displacement_labor",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:speculative_future_harm",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-beliefs-074",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:liability_strict",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:accountability_institutional",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:regulation_precautionary",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:documented_present_harm",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-beliefs-088",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:deployment_gated",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:capabilities_hazard",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-beliefs-109",
+      "profile": "entity-only",
+      "prod_about": [
+        {
+          "ref": "ent-147",
+          "match_level": "exact"
+        },
+        {
+          "ref": "ent-148",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-beliefs-111",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:liability_strict",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:transparency_verification",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-desires-001",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:risk_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-desires-010",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:governance_oversight",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-desires-026",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:autonomy_machine",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:control_optimization",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:governance_adaptive",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-desires-033",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:speculative_future_harm",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-desires-039",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:capabilities_scaling",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:model_weights",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:governance_oversight",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-intentions-001",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:control_optimization",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:deployment_gated",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-intentions-022",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:alignment_compliance",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:governance_oversight",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-intentions-060",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:control_optimization",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-intentions-088",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:accountability_market",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:governance_adaptive",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-intentions-093",
+      "profile": "entity-only",
+      "prod_about": [
+        {
+          "ref": "ent-224",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "acc-intentions-107",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:governance_adaptive",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_empirical",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:governance_oversight",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-beliefs-001",
+      "profile": "mixed",
+      "prod_about": [
+        {
+          "ref": "ent-139",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:capabilities_scaling",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_alignment",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-beliefs-004",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:safety_alignment",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-beliefs-039",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:capabilities_hazard",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:oversight_human_control",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-beliefs-101",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:safety_alignment",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:capabilities_scaling",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:oversight_human_control",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:capabilities_hazard",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-beliefs-141",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:governance_adaptive",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:asymmetry_power",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:regulation_precautionary",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-beliefs-214",
+      "profile": "mixed",
+      "prod_about": [
+        {
+          "ref": "ent-368",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:liability_strict",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:regulation_precautionary",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-beliefs-216",
+      "profile": "entity-only",
+      "prod_about": [
+        {
+          "ref": "ent-139",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-beliefs-225",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-desires-001",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:risk_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:control_human_agency",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:autonomy_human",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-desires-005",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:oversight_audit",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:transparency_verification",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-desires-011",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:wellbeing_mental_health",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:capabilities_hazard",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:speculative_future_harm",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-desires-023",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:speculative_risk_critique",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-desires-028",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:liability_strict",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-intentions-001",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:deployment_gated",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:regulation_precautionary",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safe_harbor_regulatory",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-intentions-047",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:governance_oversight",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-intentions-086",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:capabilities_hazard",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-intentions-141",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:autonomy_human",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:control_human_agency",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:oversight_human_control",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-intentions-202",
+      "profile": "mixed",
+      "prod_about": [
+        {
+          "ref": "ent-360",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:risk_innovation",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:alignment_compliance",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:behavioral_guardrails",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:capabilities_hazard",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:deployment_gated",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:regulation_precautionary",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-intentions-203",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:capabilities_hazard",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:transparency_verification",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "saf-intentions-204",
+      "profile": "mixed",
+      "prod_about": [
+        {
+          "ref": "ent-224",
+          "match_level": "exact"
+        },
+        {
+          "ref": "ent-416",
+          "match_level": "exact"
+        },
+        {
+          "ref": "ent-139",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:behavioral_guardrails",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:alignment_compliance",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:capabilities_hazard",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:regulation_precautionary",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-001",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:accountability_market",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:fairness_procedural",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:bias_systemic",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:accountability_algorithmic",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:documented_present_harm",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:fairness_group",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:risk_systemic_structural",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-047",
+      "profile": "mixed",
+      "prod_about": [
+        {
+          "ref": "ent-368",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:accountability_institutional",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:liability_strict",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-053",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:displacement_labor",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:documented_present_harm",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-054",
+      "profile": "mixed",
+      "prod_about": [
+        {
+          "ref": "ent-360",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:energy_infrastructure",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-115",
+      "profile": "mixed",
+      "prod_about": [
+        {
+          "ref": "ent-124",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:capabilities_scaling",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-136",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:risk_innovation",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-170",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:compliance_performative",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:oversight_democratic",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:accountability_institutional",
+          "match_level": "instance_of"
+        },
+        {
+          "ref": "term:accountability_market",
+          "match_level": "instance_of"
+        },
+        {
+          "ref": "term:alignment_compliance",
+          "match_level": "instance_of"
+        },
+        {
+          "ref": "term:capture_institutional",
+          "match_level": "instance_of"
+        },
+        {
+          "ref": "term:governance_adaptive",
+          "match_level": "instance_of"
+        },
+        {
+          "ref": "term:governance_oversight",
+          "match_level": "instance_of"
+        },
+        {
+          "ref": "term:industry_lobbying",
+          "match_level": "instance_of"
+        },
+        {
+          "ref": "term:regulation_adaptive",
+          "match_level": "instance_of"
+        },
+        {
+          "ref": "term:risk_innovation",
+          "match_level": "instance_of"
+        },
+        {
+          "ref": "term:risk_systemic_structural",
+          "match_level": "instance_of"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-175",
+      "profile": "entity-only",
+      "prod_about": [
+        {
+          "ref": "ent-294",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-178",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:accountability_institutional",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:governance_oversight",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safe_harbor_regulatory",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:speculative_risk_critique",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-230",
+      "profile": "entity-only",
+      "prod_about": [
+        {
+          "ref": "ent-139",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-237",
+      "profile": "entity-only",
+      "prod_about": [
+        {
+          "ref": "ent-368",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-244",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:bias_systemic",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:documented_present_harm",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-desires-003",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:autonomy_individual",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-desires-014",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:autonomy_human",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:autonomy_individual",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-desires-070",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:risk_innovation",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:speculative_risk_critique",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-desires-077",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:risk_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-desires-083",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:capabilities_scaling",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:wellbeing_mental_health",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:governance_adaptive",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:safety_existential",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:speculative_future_harm",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-intentions-007",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:alignment_compliance",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:bias_systemic",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:governance_oversight",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:regulation_precautionary",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-intentions-044",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:accountability_market",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:governance_oversight",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:transparency_accountability",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-intentions-102",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:governance_adaptive",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:fairness_individual",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-intentions-127",
+      "profile": "mixed",
+      "prod_about": [
+        {
+          "ref": "ent-126",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:autonomy_individual",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-intentions-135",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:deployment_gated",
+          "match_level": "exact"
+        }
+      ]
+    },
+    {
+      "id": "skp-intentions-146",
+      "profile": "concept-only",
+      "prod_about": [
+        {
+          "ref": "term:fairness_individual",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:accountability_institutional",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:deployment_gated",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:oversight_audit",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:regulation_precautionary",
+          "match_level": "exact"
+        },
+        {
+          "ref": "term:transparency_accountability",
+          "match_level": "exact"
+        }
+      ]
+    }
+  ]
+}
