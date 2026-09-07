@@ -4181,3 +4181,56 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (p/6#56). Extension of Patterns #189 and #192; `pnpm install --frozen-lockfile --prefer-offline` is the canonical Windows-safe alternative to node_modules symlinking.
 
 **Applies To:** All agents creating worktrees for npm/pnpm-based subtrees on Windows. Especially relevant when the worktree is short-lived (test run, single-PR fix) and a full `npm install` would be wasteful.
+
+---
+
+## #191 [Process/Git] (Second Instance) — Stash-Preserve Foreign WIP Before Working in Another Role's Live Worktree
+
+*(See first instance above for the base pattern: check `git worktree list` before touching another role's PR branch.)*
+
+**Additional Instance:**
+- 2026-09-07 — Tech Lead (p/335#64, PR #2053): `git worktree add` on PR #2053's branch refused "already used by worktree" — Rosetta Stone held a live checkout. Resolution variant: instead of routing a patch to the owner (first-instance approach), TL worked in the existing worktree directly, first stash-preserving Rosetta's foreign staged WIP (`git stash --include-untracked`) before applying the fix, then unstashing after. Owner completed the final push themselves.
+
+**Additional Prevention (complement to #191's base rule):**
+- **If the owner is unreachable and you must work in their live worktree**, `git stash --include-untracked` first to preserve their staged/unstaged WIP, apply only the minimal fix, then `git stash pop` and leave the final push to the owner. Never commit over someone else's uncommitted work.
+
+---
+
+## #204 [Process/Methodology] Pre-Commit the Acceptance Rule Before the Measurement Exists — Prevents Re-Litigation on a Low Score
+
+**Pattern:** A team needs to evaluate a new component against a threshold. Instead of measuring first and then deciding whether the score is "good enough," the acceptance rule and fallback are locked in (with human approval) *before* the golden measurement is taken. When the blind score comes in below the floor, there is no room for special-pleading — the pre-committed rule executes without re-litigation.
+
+**Instances:**
+- 2026-09-07 — Computational Linguist (p/7#78, e/145, t/3381, t/3379): SO/TL/CL locked the `about[]`-component acceptance threshold (≥0.80) and fallback (A→C relabel) before the golden harness ran. Blind measurement: 0.636 — well below floor. Robustness check: most-generous relabel still yielded 0.799 < 0.80. Fallback executed cleanly with no re-litigation. First live firing of a pre-committed fallback rule in this project.
+
+**Root Cause:** When thresholds are set after measurement, the score anchors the discussion — teams argue about whether 0.636 is "really" below the bar, or whether the bar was set correctly, or whether a generous interpretation would pass. Pre-commitment removes the anchor. The rule is a contract, not a negotiation.
+
+**Prevention:**
+1. **Lock the acceptance rule and fallback before the measurement runs** — get human approval (or multi-stakeholder sign-off via SO/TL/CL) on the threshold AND the fallback action while the score is still unknown. Record it as a durable commitment (ticket comment, email thread, SO decision).
+2. **Include a robustness check in the rule** — e.g., "most-generous relabeling still fails" prevents special-pleading after the fact. A fallback that fires even under the most favorable interpretation is unambiguously correct.
+3. **The fallback is not a punishment** — frame it as a planned engineering response to a measurement outcome, not a failure. Teams that see the fallback as punitive will fight the threshold; teams that see it as a pre-planned path will execute it calmly.
+
+**Status:** Active — 1 instance (p/7#78, e/145, t/3381, t/3379). Reference example for pre-committed acceptance rules. Methodology pattern; applicable to any evaluation-gated component or data-quality decision.
+
+**Applies To:** All agents and humans setting acceptance thresholds for evaluated components, classifiers, or data-quality gates. Especially relevant for measurement-gated decisions where post-hoc score anchoring is a known risk.
+
+---
+
+## #205 [Platform/Observability] Orca Feedback-Rule Telemetry Writer Dead Since May 2026 — Never Cite `fire_count` / `last_fired_at` as Evidence
+
+**Pattern:** Orca's feedback-rule execution-telemetry writer stopped recording data after a late-May 2026 platform update. Fields `fire_count_24h`, `recent_executions`, and `last_fired_at` are unfed for all rules; the on-disk execution log stalled 2026-05-29. Rules still FIRE normally — only the telemetry recording is broken. Citing these fields as evidence of rule activity (or inactivity) in Gate Verifications, closures, or audits produces a false record.
+
+**Instances:**
+- 2026-09-07 — DevOps Lead (p/26#103, t/3394#1/#2, e/147#5): confirmed platform regression — telemetry writer dead since late May. `fire_count_24h` = 0 and `last_fired_at` = null for ALL rules, including rules with known recent firings. Absence of telemetry proves nothing about rule activity. Real fix is upstream (Orca Support reporting it).
+
+**Root Cause:** A platform regression in the late-May Orca update silently stopped writing execution telemetry. The regression was not flagged at release; it was discovered months later during a GV audit when expected telemetry was absent. The only durable evidence of rule firing is a rule-specific durable sink (e.g., t/2070-style log entry) outside the Orca telemetry system.
+
+**Prevention:**
+1. **Never cite `fire_count_24h`, `recent_executions`, or `last_fired_at` as evidence** in Gate Verifications, closures, or audits until Orca Support confirms the telemetry writer is restored.
+2. **For gate verification, rely on durable sinks** — a rule that writes to a GitHub issue, a ticket comment, or an external log (t/2070 pattern) provides tamper-evident evidence independent of the broken telemetry.
+3. **When a rule's GV requires fire evidence**, force-trigger the fire arm in a controlled test and observe the durable output — don't infer activity from the Orca telemetry dashboard.
+4. **Track the fix via Orca Support** (t/3394) — re-enable telemetry-based GV evidence only after the writer is confirmed restored and backfill-verified.
+
+**Status:** Active — platform regression (late-May 2026, t/3394). Affects ALL feedback rules. Resolution pending Orca Support upstream fix. Until resolved, durable sinks are the only admissible fire evidence.
+
+**Applies To:** All agents performing Gate Verifications, incident closures, or audits that reference feedback-rule firing evidence. Especially relevant for TL, DevOps, and any role that authors or reviews gate-verification documentation.
