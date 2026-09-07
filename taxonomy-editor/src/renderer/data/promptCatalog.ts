@@ -1021,6 +1021,17 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['logical-form-formalization'],
   },
+  {
+    id: 'ps-fol-clause-classify',
+    title: 'FOL-on-Debate Clause Classifier',
+    description: 'Classifies a debate clause into the closed 5-type FOL taxonomy (assertoric-factual/causal, normative-deontic, speech-act/belief-revision-meta, rhetorical-evaluative) plus attribution / anaphora / polarity attributes.',
+    source: 'AITriad/Prompts/fol-clause-classify.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by run-fol-debate-eval.ps1 (offline FOL-on-debate eval, t/3354) — types segmented debate clauses so only the assertoric-factual/causal subset reaches FOL extraction. Read-only research eval; INSTRUMENT-PROVISIONAL until validated against CL\'s blind gold set (design §5).',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['fol-clause-classify'],
+  },
 
   // === Debate pipeline: Quality & repair prompts ===
   {
