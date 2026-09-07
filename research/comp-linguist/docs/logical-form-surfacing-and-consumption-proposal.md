@@ -90,6 +90,8 @@ A "view raw frame" expander showing the validated JSON.
 
 **A1 (structured section in the existing grounding panel) as the primary surface, collapsed + experimental-labeled, with A4 (raw JSON) behind a debug toggle and A3 (gloss) as an opt-in secondary.** A2 badge is a nice discoverability add-on that *opens* A1. The load-bearing UI rule across all of them: **the participants/args block always carries a low-reliability marker, `formalization_confidence` always renders as self-rated, and `about[]` waits for Option C.** Honesty-in-the-UI is not decoration here — it is the mitigation for the §2 weak axes.
 
+**Binding (TL review, 2026-09-07, §8): the weak axes must be visibly marked *inside* the section** — an explicit "experimental: args/predicate axes unvalidated" note and/or per-field styling on the participants block, not merely an experimental label on the collapsed header. The UI is a *consumer* that reads the artifact, and the in-artifact-marking principle (unvalidated data must be marked at the point of display, the same rule the SO applied to `topical_candidates`) applies to pixels too. A collapsed-header badge alone does not satisfy it: once expanded, a reader looking at `patient = Claude models` must see that this axis scored ~0.30.
+
 ---
 
 ## PART B — How the rest of the system could use `logical_form`
@@ -102,6 +104,7 @@ Each option: **value · maturity/risk · prerequisites · recommended sequencing
 - **Maturity/risk:** builds **only on the ~1.00 mechanical axes** (modality/polarity are copied from POV/category, not judged). **Low risk.** Does not touch predicate or args.
 - **Prerequisites:** node/claim FOL loaded (done, post-t/3352). No proposition *identity* matching required if scoped to descriptive analytics (counts, groupings) rather than "p = ¬q" equality.
 - **Sequencing:** **first.** Highest value-to-risk ratio; exercises the reification the schema was built for without leaning on a weak axis.
+- **Conditions (TL review, 2026-09-07, §8):** (i) B1's **outputs carry the same maturity marking** — it *reports patterns, never gates anything* (read-only cross-camp analytics, no write, no edge modification); (ii) B1 **must not quietly grow args/`about[]`-dependent features** — B2 stays blocked on the Option-C cluster completing, B3 stays medium-term complement-not-gate, and the B5 not-safe list is **binding**. Rationale (TL): a real consumer is what forces a dark layer's contracts to firm up — FOL rotted dark precisely because nothing read it — and read-only analytics on the mechanical axes is minimal blast radius.
 
 #### B2 — Retrieval / dedup / entity-grounding leverage via `about[]` (READY-*after Option C*)
 
@@ -153,4 +156,16 @@ State plainly, so no consumer is built on sand:
 - **`about[]` Option C** → already in flight (Main-CL, t/3389/90/91). B2 depends on it; no new work proposed here.
 - **Prover-as-CI-gate** → out of scope; would route to Main (TL) for both-arms Gate Verification per the standing rule. Nothing here proposes a gate.
 
-*Grounding basis: `logical-form-schema.md`, `claims-entity-fol-recommendations.md` §7, `metric-provenance-register.md` (rows for `formalization_accuracy`, `formalization_confidence`, the t/3379/t/3381 about[] acceptance rule + FAIL), `analyses/lf-golden-v2/`, `analyses/t3381-about-golden/`, `BdiGroundingPanel.tsx`, and tickets t/3127/t/3128/t/3352. Maturity figures are quoted from the measured artifacts, not recalled.*
+## 8. TL architecture review outcome (2026-09-07, e/149#2)
+
+**Verdict: PASSED.** Main (TL) reviewed and cleared the proposal. Recorded so the design of record and any tickets cut from it carry the review's binding conditions:
+
+1. **Part A — A1-in-`BdiGroundingPanel` CONCUR** (over a dedicated Formalization tab: a dedicated tab would grant first-class UI real estate to an experimental, unconsumed layer and imply maturity it lacks). Collapsed + experimental-badged + raw-JSON-behind-debug + gloss-opt-in-only all endorsed. **Hard addition:** the weak axes must be visibly marked **inside** the section (see the Part A recommendation binding note above), not only on the collapsed header — the in-artifact-marking principle (same rule the SO applied to `topical_candidates`) applies to the UI as a consumer.
+2. **Part B — B1 now, as a single first-consumer ticket** (see the B1 conditions above): builds on the ~1.00 mechanical axes, a real consumer forces the dark layer's contracts to firm up, and read-only cross-camp analytics is minimal blast radius. Conditions: outputs carry maturity marking + report-never-gate; no args/`about[]` scope creep; B2/B3/B5 dispositions binding.
+3. **Scoping confirmed:** Part A is renderer-only display of an already-loaded field — **no transport trio** (IPC/REST/PS) needed.
+
+**Remaining gate: PI direction.** On PI go, cut **two** tickets, Quality-routed per the playbooks: **A1** (Taxonomy Editor scope, *with* the in-section weak-axis marking) and **one B1** (CL scope, read-only analytics with maturity marking). No tickets before PI direction.
+
+---
+
+*Grounding basis: `logical-form-schema.md`, `claims-entity-fol-recommendations.md` §7, `metric-provenance-register.md` (rows for `formalization_accuracy`, `formalization_confidence`, the t/3379/t/3381 about[] acceptance rule + FAIL), `analyses/lf-golden-v2/`, `analyses/t3381-about-golden/`, `BdiGroundingPanel.tsx`, and tickets t/3127/t/3128/t/3352. Maturity figures are quoted from the measured artifacts, not recalled. TL review outcome §8 from e/149#2.*
