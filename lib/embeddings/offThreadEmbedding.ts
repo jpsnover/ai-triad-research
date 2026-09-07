@@ -168,6 +168,18 @@ function queueLen(): number {
   return _queue.length + _slots.reduce((n, s) => n + (s.inFlight ? 1 : 0), 0);
 }
 
+/**
+ * Read-only snapshot of the worker-pool queue state (t/3374, for ServerAPI's t/3373 non-silent shed
+ * alert + pre-shed queue-depth gauge). Pure getters over module state — NO behavior change.
+ * - `queueDepth`: current resident tasks (queued + in-flight) — the value compared against the cap.
+ * - `cap`: the DYNAMIC admission cap = `MAX_QUEUE_DEPTH × liveSlots` (t/3211 condition B).
+ * - `liveSlots`: slots currently able to serve (0 when every slot is respawning → hard shed).
+ */
+export function poolStats(): { queueDepth: number; cap: number; liveSlots: number } {
+  const liveSlots = liveSlotCount();
+  return { queueDepth: queueLen(), cap: MAX_QUEUE_DEPTH * liveSlots, liveSlots };
+}
+
 function warn(message: string, data: Record<string, unknown>): void {
   // Fallback-Path Logging: every shed / crash / wedge / clamp records WHAT degraded + WHY + WHO.
   getGlobalRecorder()?.record({ type: 'system.error', component: 'offThreadEmbedding', level: 'warn', message, data });
@@ -413,8 +425,31 @@ function unpack(buffer: ArrayBuffer, count: number, dim: number): Float32Array[]
 
 // ── ActionableErrors (all fail-loud → server load-shed; NONE fall back to in-thread) ──
 
-function shedError(requester: string, reason: string): ActionableError {
-  return new ActionableError({
+/**
+ * Discriminable code stamped on the LOAD-SHED ActionableErrors (queue-full / all-respawning / age-out)
+ * so consumers can branch on the shed class WITHOUT string-matching the formatted message — e.g.
+ * ServerAPI emits a clean stdout shed token for the t/3373 non-silent alert. NOT stamped on
+ * {@link workerDownError} (a fault, not a shed). The code lives on the error INSTANCE — `ActionableError`
+ * itself is DebateTool scope (lib/debate/errors.ts), so this never touches the shared class (t/3374).
+ */
+export const WORKER_POOL_SHED_CODE = 'WORKER_POOL_SHED';
+
+/** An {@link ActionableError} stamped with {@link WORKER_POOL_SHED_CODE}. */
+export type WorkerPoolShedError = ActionableError & { code: typeof WORKER_POOL_SHED_CODE };
+
+/** Stamp the shed code on a freshly-built shed error (instance property; class untouched). */
+function markShed(err: ActionableError): WorkerPoolShedError {
+  (err as WorkerPoolShedError).code = WORKER_POOL_SHED_CODE;
+  return err as WorkerPoolShedError;
+}
+
+/** True when `err` is a worker-pool load-shed error (queue-full / all-respawning / age-out). */
+export function isWorkerPoolShedError(err: unknown): err is WorkerPoolShedError {
+  return err instanceof ActionableError && (err as { code?: unknown }).code === WORKER_POOL_SHED_CODE;
+}
+
+function shedError(requester: string, reason: string): WorkerPoolShedError {
+  return markShed(new ActionableError({
     goal: 'Compute embeddings off the main thread without starving the event loop',
     problem: `Embedding request from "${requester}" was shed: ${reason}`,
     location: 'lib/embeddings/offThreadEmbedding.ts:computeEmbeddingsOffThread',
@@ -422,11 +457,11 @@ function shedError(requester: string, reason: string): ActionableError {
       'Retry after backpressure clears — this maps to the existing t/3078 block-mode 503 load-shed',
       'Intentional load-shedding, not a fault: the worker queue is bounded to protect request handling',
     ],
-  });
+  }));
 }
 
-function ageOutError(requester: string, waitedMs: number): ActionableError {
-  return new ActionableError({
+function ageOutError(requester: string, waitedMs: number): WorkerPoolShedError {
+  return markShed(new ActionableError({
     goal: 'Compute embeddings off the main thread within the request budget',
     problem: `Embedding request from "${requester}" was shed: waited ${waitedMs}ms in the queue, past `
       + `the ${QUEUE_AGE_OUT_MS}ms age-out budget, before a worker was free to serve it`,
@@ -436,7 +471,7 @@ function ageOutError(requester: string, waitedMs: number): ActionableError {
       'Intentional load-shedding, not a fault: a task queued past the budget would exceed the route '
         + 'timeout anyway, so it is rejected rather than dispatched to compute a now-abandoned result',
     ],
-  });
+  }));
 }
 
 function workerDownError(requester: string, cause: DownCause, detail: string): ActionableError {

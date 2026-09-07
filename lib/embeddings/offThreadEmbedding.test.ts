@@ -38,6 +38,9 @@ import {
   __resetEmbeddingWorkerForTests,
   __queueDepthForTests,
   __poolSizeForTests,
+  poolStats,
+  isWorkerPoolShedError,
+  WORKER_POOL_SHED_CODE,
   type EmbeddingWorkerLike,
 } from './offThreadEmbedding.js';
 import * as onnx from './onnxEmbedding.js';
@@ -324,6 +327,63 @@ describe('offThreadEmbedding — pool: aggregate shed at MAX_QUEUE_DEPTH × K', 
     expect(shedWarn!.data?.queueDepth).toBe(32);
     expect(shedWarn!.data?.max).toBe(32); // scaled ×K, not the base 16
     void pending;
+  });
+});
+
+describe('offThreadEmbedding — t/3374: poolStats() getter + WORKER_POOL_SHED_CODE marker (for t/3373)', () => {
+  it('poolStats() reports queueDepth + the dynamic cap (MAX_QUEUE_DEPTH × liveSlots)', () => {
+    // Fresh pool, no requests: depth 0, live = nominal pool size, cap = 16 × liveSlots.
+    const fresh = poolStats();
+    expect(fresh.queueDepth).toBe(0);
+    expect(fresh.liveSlots).toBe(__poolSizeForTests());
+    expect(fresh.cap).toBe(16 * fresh.liveSlots);
+  });
+
+  it('poolStats().queueDepth tracks residents as the queue fills (matches __queueDepthForTests)', () => {
+    const w = new FakeWorker(); // never replies → tasks stay resident
+    __setEmbeddingWorkerFactory(() => w);
+    const pending: Promise<unknown>[] = [];
+    for (let i = 0; i < 5; i++) pending.push(computeEmbeddingsOffThread(['x'], { requester: `fill-${i}` }).catch(() => {}));
+
+    const stats = poolStats();
+    expect(stats.queueDepth).toBe(5);
+    expect(stats.queueDepth).toBe(__queueDepthForTests());
+    expect(stats.cap).toBe(16 * stats.liveSlots); // cap stays the dynamic product
+    void pending;
+  });
+
+  it('a queue-full shed error carries the WORKER_POOL_SHED_CODE + passes isWorkerPoolShedError', async () => {
+    const w = new FakeWorker();
+    __setEmbeddingWorkerFactory(() => w);
+    const pending: Promise<unknown>[] = [];
+    for (let i = 0; i < 16; i++) pending.push(computeEmbeddingsOffThread(['x'], { requester: `filler-${i}` }).catch(() => {}));
+
+    const err = await computeEmbeddingsOffThread(['x'], { requester: 'overflow' }).catch((e: unknown) => e);
+    expect(isWorkerPoolShedError(err)).toBe(true);
+    expect((err as { code?: string }).code).toBe(WORKER_POOL_SHED_CODE);
+    expect(WORKER_POOL_SHED_CODE).toBe('WORKER_POOL_SHED'); // the wire value ServerAPI branches on
+    void pending;
+  });
+
+  it('an all-slots-respawning shed error also carries the code', async () => {
+    vi.useFakeTimers();
+    const w = new FakeWorker();
+    __setEmbeddingWorkerFactory(() => w);
+    // Dispatch one task then crash the sole worker → during the backoff gap every slot is down.
+    const p = computeEmbeddingsOffThread(['x'], { requester: 'victim' });
+    const pRejected = expect(p).rejects.toThrow(/worker crash/i); // handler before the crash
+    w.emit('error', new Error('boom'));
+    await pRejected;
+
+    const err = await computeEmbeddingsOffThread(['y'], { requester: 'gap' }).catch((e: unknown) => e);
+    expect(isWorkerPoolShedError(err)).toBe(true);
+    expect((err as { code?: string }).code).toBe(WORKER_POOL_SHED_CODE);
+  });
+
+  it('isWorkerPoolShedError is false for a non-shed error', () => {
+    expect(isWorkerPoolShedError(new Error('unrelated'))).toBe(false);
+    expect(isWorkerPoolShedError(null)).toBe(false);
+    expect(isWorkerPoolShedError({ code: 'WORKER_POOL_SHED' })).toBe(false); // not an ActionableError
   });
 });
 
