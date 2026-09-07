@@ -50,6 +50,52 @@ import { loadLineageInfoData } from '../../../data/lineageLookup';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackNodeMutation } from '../../../lib/analyticsEmitter';
 
+/**
+ * t/3376: re-read the on-disk POV file immediately before a whole-file save and reattach any
+ * `logical_form` that's present on disk but missing in memory — the fix for the t/3375 root bug
+ * (a load-time strip via `stripInvalidLogicalForm`, t/3250, mutates the SAME object living in
+ * store state; a later whole-file save then persists that in-memory deletion back to disk).
+ *
+ * LOAD-BEARING ASSUMPTION: nothing in the renderer edits `logical_form` today (t/3378 confirmed
+ * the field is unconsumed by any UI) — reattaching an on-disk value is therefore always correct,
+ * never a silent revert of a real user edit. If an edit path is ever added, this reattach-on-save
+ * must be replaced by an explicit tombstone (e.g. a `logical_form: null` meaning "intentionally
+ * cleared") so a genuine deletion isn't reverted by this safety net.
+ *
+ * GENERALIZATION SEAM: this is the one choke point all whole-file POV saves pass through — any
+ * future strip-at-load field should reattach HERE, not by loosening the strip itself.
+ *
+ * TOCTOU RESIDUAL: protection is only as strong as this re-read. It reads on-disk state
+ * immediately before write but does not lock against a concurrent writer landing between the
+ * read and the write — whole-file save semantics (last-writer-wins) are otherwise unchanged.
+ */
+async function reattachStrippedLogicalForms(
+  pov: typeof POV_KEYS[number],
+  file: PovTaxonomyFile,
+): Promise<PovTaxonomyFile> {
+  const onDisk = await api.loadTaxonomyFile(pov) as PovTaxonomyFile | null;
+  if (!onDisk?.nodes?.length) return file;
+  const onDiskById = new Map(onDisk.nodes.map((n) => [(n as unknown as Record<string, unknown>).id, n]));
+  let reattachedCount = 0;
+  const nodes = file.nodes.map((node) => {
+    const rec = node as unknown as Record<string, unknown>;
+    if (rec.logical_form !== undefined) return node;
+    const diskRec = onDiskById.get(rec.id) as unknown as Record<string, unknown> | undefined;
+    if (diskRec?.logical_form === undefined) return node;
+    reattachedCount++;
+    return { ...node, logical_form: diskRec.logical_form } as PovNode;
+  });
+  if (reattachedCount === 0) return file;
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'taxonomy-store',
+    level: 'warn',
+    message: `Reattached ${reattachedCount} logical_form frame(s) stripped in memory before save (t/3376)`,
+    data: { pov, reattachedCount },
+  });
+  return { ...file, nodes };
+}
+
 export type PinnedData =
   | { type: 'pov'; pov: Pov; node: PovNode }
   | { type: 'situations'; node: SituationNode }
@@ -490,7 +536,10 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         if ((POV_KEYS as readonly string[]).includes(key)) {
           const file = state[key as typeof POV_KEYS[number]];
           if (file) {
-            promises.push(api.saveTaxonomyFile(key as typeof POV_KEYS[number], file));
+            const povKey = key as typeof POV_KEYS[number];
+            promises.push(
+              reattachStrippedLogicalForms(povKey, file).then((f) => api.saveTaxonomyFile(povKey, f)),
+            );
           }
         } else if (key === 'situations') {
           const file = state.situations;
