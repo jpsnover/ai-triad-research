@@ -2,7 +2,7 @@
 
 **Author:** Computational Linguist (schema owner) · **For:** t/3361 mandatory Second Opinion (data-model/shape decision)
 **Refs:** t/3379 (recurrence that surfaced it), `docs/logical-form-schema.md` §109 + about[] conditions, D3b (`analyses/logical-form-golden/`)
-**Status:** DRAFT for SO. The tactical fleet-unblock (the one out-of-enum `match_level`) already landed (t/3379#5); this decides the *systemic* convention. Nothing systemic ships until the SO rules.
+**Status:** ✅ **RATIFIED (SO + TL + CL, 2026-09-07, e/145).** Ruling: **Option A** — amend §109 to `about[].ref ∈ {ent-*, term:*}` — **conditional** on a pre-committed re-measure (overall `formalization_accuracy` ≥ 0.753 AND concept-anchored `about[]`-component ≥ 0.80; miss → fallback to **C**). The acceptance rule + all four conditions are recorded in `docs/metric-provenance-register.md` (§ "Pre-committed acceptance rule"). **Correction to §4 below (SO/TL):** C is the *available* fallback, **not** "the principled middle" — it preserves a metric for a field left near-empty on 71% of the corpus. B stays last (only irreversible option). The tactical fleet-unblock already landed (t/3379#5). Sequencing: prevention (conditions 2+3) first → register the rule (done) → expand+re-measure the golden → A stands or falls to C.
 
 ## 1. The decision
 
