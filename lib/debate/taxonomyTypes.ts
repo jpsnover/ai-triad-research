@@ -42,6 +42,10 @@ export interface GraphAttributes {
   node_scope?: 'claim' | 'scheme' | 'bridging';
   attribution_text?: string;
   aphorism?: string;
+  /** First-person present-tense own-voice declarative restatement of the node claim (1-2 sentences).
+   *  Debate-grounding register (t/3367). Absent on most nodes until backfill (t/3366); loader treats
+   *  absence as normal and falls back to description, as today. */
+  debate_grounding?: string;
   _phrase_regen_pending?: boolean;
   debate_tested?: DebateTestedRecord;
   /** Data-integrity provenance signal (t/3264). Absent = 'curated'. Used by formatTaxonomyContext
