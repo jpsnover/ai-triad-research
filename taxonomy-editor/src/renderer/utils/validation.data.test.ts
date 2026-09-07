@@ -117,5 +117,16 @@ describe.skipIf(!dataRoot)('Schema safety net — validation.ts vs real producti
       const result = aggregateConflictsFileSchema.safeParse(poisoned);
       expect(result.success, 'a bogus status must fail the aggregate schema').toBe(false);
     });
+
+    // t/3368 AC (Second Opinion amendment, e/142#4/#5): conflict_count must track conflicts.length —
+    // the fork-B applier bug (1240 vs 1252) this cross-check targets is exactly why it's gated to land
+    // AFTER the counter fix, not before (would have insta-red the positive arm above on known-bad data).
+    it('rejects a seeded conflict_count/conflicts.length mismatch (both-arms gate discipline)', () => {
+      expect(existsSync(aggregatePath), `${aggregatePath} must exist`).toBe(true);
+      const data = JSON.parse(readFileSync(aggregatePath, 'utf8'));
+      const poisoned = { ...data, conflict_count: data.conflict_count + 1 };
+      const result = aggregateConflictsFileSchema.safeParse(poisoned);
+      expect(result.success, 'a conflict_count/conflicts.length mismatch must fail the aggregate schema').toBe(false);
+    });
   });
 });
