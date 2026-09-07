@@ -59,7 +59,7 @@ BeforeAll {
         'scripts/AITriad/Public/New-SyntheticCorpus.ps1'   = 'append-checkpoint + fresh corpus generation + NEW metadata (not a whole-file data rewrite)'
         'scripts/AITriad/Public/Test-DebatePersistence.ps1' = 'writes a random persist-probe .tmp (test probe, non-data)'
         'scripts/AITriad/Private/AICallLog.ps1'            = 'append-only AI call-log JSONL (Add-Content); references Get-DataRoot only to locate the log file — never read-mutate-rewrites a data-of-record file (t/3241)'
-        'scripts/run-fol-debate-eval.ps1'                  = 'read-only FOL-on-debate eval harness (t/3354); Set-Content writes only a run-manifest to -OutputDir, which is fail-closed asserted OUTSIDE the data root via Test-IsUnderDataRoot (design §1) — references data tokens (debates/summaries/conflicts) as read-only inputs, never writes ../ai-triad-data'
+        'scripts/run-fol-debate-eval.ps1'                  = 'read-only FOL-on-debate eval harness (t/3354); Set-Content writes only run-manifest.json + clauses.jsonl to -OutputDir, which is fail-closed asserted OUTSIDE the data root via Test-IsUnderDataRoot (design §1) — references data tokens (debates/summaries/conflicts) as read-only inputs, never writes ../ai-triad-data'
     }
 
     # A data-of-record path token (basename or data-dir accessor). Kept specific so
