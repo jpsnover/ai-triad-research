@@ -1363,21 +1363,19 @@ resource fallbackActive 'Microsoft.Insights/scheduledQueryRules@2023-03-15-previ
 // → K=2" trigger (t/3211; ServerAPI then verifies ≈2× throughput + flat main-loop delay). Consumption-
 // compatible — a monitoring resource, no SKU/cost change.
 //
-// MATCH-TOKEN IS A CONTRACT: "embeddings.compute: load-shed 503" is the STDOUT route token (log.api,
-// component:'api'; taxonomy-editor/src/server) emitted when computeEmbeddings load-sheds (ServerAPI
-// t/3372#2). Do NOT match the pool's own "embedding request shed — queue full" WARN — it is
-// FLIGHT-RECORDER-ONLY (getGlobalRecorder), never reaches stdout/Log_s, so a KQL match on it silently
-// NEVER fires (the t/3110/t/3308 sink trap). v1 keys on the stdout route token only.
-// PENDING t/3373 (ServerAPI): a clean stdout shed token + a PRE-SHED queue-depth-near-cap gauge — fold
-// in the clean token + an early-warning (pre-503) clause when that lands (the ticket's REAL trigger:
-// fire before users feel the shed). Threshold >5 sheds / 15 min = sustained, not a one-off burst.
+// MATCH-TOKEN IS A CONTRACT: "embeddings worker-pool shed" is the clean STDOUT token (component:'api',
+// subsystem:'ai-backends'; t/3373) emitted on a genuine worker-pool queue-shed (the 503; carries
+// queueDepth/cap/liveSlots). Do NOT match the pool's flight-recorder-only "queue full" WARN — it never
+// reaches stdout/Log_s, so a KQL match silently NEVER fires (the t/3110/t/3308 sink trap). This is the
+// "already shedding" signal; the PRE-shed early-warning (the ticket's REAL trigger — fire before users
+// feel the shed) is the sibling alert-worker-queue-nearcap below. >5 sheds / 15 min = sustained, not a burst.
 resource workerQueueSaturation 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
   name: 'alert-worker-queue-saturation'
   location: location
   tags: tags
   properties: {
     displayName: 'Embedding Worker Queue Saturation (K=2 migration trigger)'
-    description: 'The K-slot embedding worker pool load-shed (503) past its queue cap repeatedly over 15 minutes — sustained novel-embed demand exceeding single-worker capacity. Trigger to evaluate the Dedicated-profile migration to K=2 (t/3211/t/3372). v1 matches the stdout route token; the pre-shed early-warning clause is pending t/3373.'
+    description: 'The K-slot embedding worker pool load-shed (503) past its queue cap repeatedly over 15 minutes — sustained novel-embed demand exceeding single-worker capacity. Trigger to evaluate the Dedicated-profile migration to K=2 (t/3211/t/3372). Paired with alert-worker-queue-nearcap (the pre-shed early-warning).'
     severity: 2
     enabled: true
     scopes: [ logAnalytics.id ]
@@ -1388,9 +1386,50 @@ resource workerQueueSaturation 'Microsoft.Insights/scheduledQueryRules@2023-03-1
         {
           query: '''
             ContainerAppConsoleLogs_CL
-            | where Log_s contains "embeddings.compute: load-shed 503"
+            | where Log_s contains "embeddings worker-pool shed"
             | summarize Sheds = count()
             | where Sheds > 5
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
+// ── Arm-2 Worker-Queue NEAR-CAP early-warning (t/3372/t/3373; the REAL t/3211 K=2 trigger) ──
+// Fires BEFORE users feel the 503 (the ticket's real intent). ServerAPI's pool emits the stdout token
+// when queue depth is SUSTAINED ≥75% of the dynamic MAX_QUEUE_DEPTH×liveSlotCount cap (t/3373); a paired
+// "…recovered" INFO clears. Consumption-compatible (a monitoring resource, no SKU/cost change).
+//
+// MATCH-TOKEN IS A CONTRACT: "embeddings worker-pool queue depth high" (component:'api',
+// subsystem:'embed-queue'; t/3373) — the near-cap gauge. Lower/sooner than the shed alert; on fire,
+// evaluate the Dedicated-profile migration → K=2 while there's still headroom. >2 hits / 15 min.
+resource workerQueueNearCap 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-worker-queue-nearcap'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'Embedding Worker Queue Near Cap (pre-shed K=2 early-warning)'
+    description: 'The K-slot embedding worker pool queue was sustained near its dynamic cap (>=75%) repeatedly over 15 minutes — pre-shed early warning that novel-embed demand is approaching single-worker capacity. Fires BEFORE the 503 load-shed; the real trigger to evaluate the Dedicated-profile migration to K=2 (t/3211/t/3372/t/3373).'
+    severity: 2
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s contains "embeddings worker-pool queue depth high"
+            | summarize NearCap = count()
+            | where NearCap > 2
           '''
           timeAggregation: 'Count'
           operator: 'GreaterThan'
