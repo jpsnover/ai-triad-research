@@ -87,7 +87,7 @@ def test_write_refused_when_manifest_id_missing(tmp_path, monkeypatch):
     assert m.main() == 2  # refuses --write when not verified-clean (missing manifest id)
 
 
-def test_conflict_count_invariant_maintained(tmp_path, monkeypatch):
+def test_conflict_count_invariant_maintained(tmp_path, monkeypatch, capsys):
     # t/3368: the wrapper counter must equal len(conflicts) after write — corrects a stale value
     # (the fork-B applier appended xmerge conflicts without bumping it: 1240 vs 1252).
     corpus = {"conflict_count": 99, "conflicts": [
@@ -103,6 +103,7 @@ def test_conflict_count_invariant_maintained(tmp_path, monkeypatch):
                         lambda graphs: [{"strengths": {}, "iterations": 1} for g in graphs])
     monkeypatch.setattr(sys, "argv", ["apply", "--conflicts", str(cpath), "--manifest", str(mpath), "--out", str(opath)])
     assert m.main() == 0
+    assert "VERIFIED-CLEAN: YES" in capsys.readouterr().out  # counter update coexists with the 0-collateral verifier (t/3368#2)
     out = json.load(open(opath, encoding="utf-8"))
     assert out["conflict_count"] == len(out["conflicts"]) == 2  # 1 original + 1 xmerge; corrected from 99
 
