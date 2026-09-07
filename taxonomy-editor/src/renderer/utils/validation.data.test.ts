@@ -43,6 +43,26 @@ describe.skipIf(!dataRoot)('Schema safety net — validation.ts vs real producti
         );
       }
     });
+
+    // t/3378: schema-parse passes even when a whole data layer silently vanishes — `logical_form`
+    // is optional (t/3375: a strip-then-save deleted 133 acc frames and nothing here caught it).
+    // A count-based floor catches a systemic drop that schema validation structurally cannot.
+    // Floors are the exact live counts (not "slightly below") — any legitimate removal requires a
+    // deliberate edit here, which is the intended friction (TL t/3375#2).
+    const LOGICAL_FORM_FRAME_FLOOR: Record<string, number> = {
+      'accelerationist.json': 133,
+      'safetyist.json': 274,
+      'skeptic.json': 234,
+    };
+
+    it.each(povFiles)('%s carries at least the baseline logical_form frame count (t/3378)', (filename) => {
+      const filePath = join(taxonomyDir, filename);
+      expect(existsSync(filePath), `${filePath} must exist`).toBe(true);
+      const data = JSON.parse(readFileSync(filePath, 'utf8')) as { nodes: { logical_form?: unknown }[] };
+      const count = data.nodes.filter(n => n.logical_form).length;
+      const floor = LOGICAL_FORM_FRAME_FLOOR[filename];
+      expect(count, `${filename}: ${count} logical_form frames, below the t/3378 floor of ${floor} — a mass strip may have silently deleted frames`).toBeGreaterThanOrEqual(floor);
+    });
   });
 
   describe('Situations file', () => {
