@@ -438,8 +438,20 @@ a.lineage-link,
  * above doesn't reach them — cap them directly so both surfaces read as one system.
  * Flag-gated via `.debate-redesign` on the card root, so flag-off stays full-width.
  */
-.debate-statement.debate-type-fact-check.debate-redesign .debate-statement-content,
-.debate-redesign .debate-fact-check-web-evidence-body {
+.debate-statement.debate-type-fact-check.debate-redesign .debate-statement-content {
+  max-width: 95ch;
+}
+
+/*
+ * t/3407: the evidence BOX (not its inner body) carries the 95ch cap, evaluated at
+ * the same font-size as .debate-statement-content above (`--text-md`) so the two
+ * measures resolve to identical pixel widths — `ch` is font-relative, and the body's
+ * own font-size (`--text-sm`) previously made its independent 95ch cap narrower,
+ * leaving an empty gutter inside the bordered box. The body itself is uncapped and
+ * fills 100% of the box, so no internal gutter regardless of its smaller font-size.
+ */
+.debate-statement.debate-type-fact-check.debate-redesign .debate-fact-check-web-evidence {
+  font-size: var(--text-md);
   max-width: 95ch;
 }
 
