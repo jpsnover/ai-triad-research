@@ -102,6 +102,48 @@ describe('ReflectionsPanel — plain description for new (add) proposals', () =>
   });
 });
 
+// ── Revise cards: current-description box visibility (t/3402) ─
+// Regression: EditCardCurrentDesc's visibility guard used to require
+// current_description !== proposed_description, hiding the CURRENT box
+// entirely on a label-only revise (where the descriptions genuinely match) —
+// the user saw the proposed description with zero context on the original.
+
+function addReviseReflection(descriptionChanged: boolean) {
+  debateStore.reflections = [{
+    pover: 'accelerationist',
+    label: 'Accelerationist',
+    reflection_summary: '',
+    edits: [{
+      edit_type: 'revise',
+      status: 'pending',
+      category: 'Beliefs',
+      node_id: 'acc-beliefs-001',
+      proposed_label: 'Revised label',
+      current_description: 'The original current description.',
+      proposed_description: descriptionChanged ? 'A meaningfully different proposed description.' : 'The original current description.',
+      rationale: 'because the label was imprecise',
+      evidence_entries: [],
+    }],
+  }];
+}
+
+describe('ReflectionsPanel — Revise card current-description visibility (t/3402)', () => {
+  it('shows the CURRENT description box on a label-only revise (descriptions match)', () => {
+    addReviseReflection(false);
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    expect(screen.getByText('CURRENT')).toBeInTheDocument();
+    // The current description text renders even though it equals the proposed text.
+    expect(screen.getAllByText('The original current description.').length).toBeGreaterThan(0);
+  });
+
+  it('still shows the CURRENT description box when the description genuinely changed (regression guard)', () => {
+    addReviseReflection(true);
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    expect(screen.getByText('CURRENT')).toBeInTheDocument();
+    expect(screen.getByText('The original current description.')).toBeInTheDocument();
+  });
+});
+
 // ── propose_new item proposals (t/1773 AC1) ───────────────────
 
 function addProposalReflection() {
