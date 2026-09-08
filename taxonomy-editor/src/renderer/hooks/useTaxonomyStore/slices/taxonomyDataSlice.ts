@@ -136,10 +136,21 @@ function recordLogicalFormStripSummary(pov: string, strippedCount: number): void
   });
 }
 
+/** A POV node referencing a policy via its own graph_attributes.policy_actions[] entry (t/3401) —
+ *  "framing" is a per-node field (how THAT node frames the policy), not on the registry entry. */
+export interface PolicyReferencingNode {
+  id: string;
+  label: string;
+  pov: Pov;
+  action?: string;
+  framing?: string;
+}
+
 export type PinnedData =
   | { type: 'pov'; pov: Pov; node: PovNode }
   | { type: 'situations'; node: SituationNode }
-  | { type: 'conflict'; conflict: ConflictFile };
+  | { type: 'conflict'; conflict: ConflictFile }
+  | { type: 'policy'; policy: PolicyRegistryEntry; referencingNodes: PolicyReferencingNode[] };
 
 export interface PolicyRegistryEntry {
   id: string;
@@ -1267,6 +1278,23 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       const conflict = state.conflicts.find(c => c.claim_id === id);
       if (conflict) return { type: 'conflict', conflict: structuredClone(conflict) };
       return null;
+    }
+    // t/3401: pol-* ids live in policy_actions.json (policyRegistry), not the Perspective files —
+    // the popup previously fell through every branch to "Node not found." Reuses the already-loaded
+    // registry (same source getLabelForId/getDescriptionForId already dispatch on, above).
+    if (id.startsWith('pol-')) {
+      const policy = state.policyRegistry?.find(p => p.id === id);
+      if (!policy) return null;
+      const referencingNodes: PolicyReferencingNode[] = [];
+      for (const pov of POV_KEYS) {
+        const file = state[pov];
+        if (!file?.nodes) continue;
+        for (const n of file.nodes) {
+          const match = n.graph_attributes?.policy_actions?.find(p => p.policy_id === id);
+          if (match) referencingNodes.push({ id: n.id, label: n.label, pov, action: match.action, framing: match.framing });
+        }
+      }
+      return { type: 'policy', policy: structuredClone(policy), referencingNodes: structuredClone(referencingNodes) };
     }
     for (const pov of POV_KEYS) {
       const file = state[pov];

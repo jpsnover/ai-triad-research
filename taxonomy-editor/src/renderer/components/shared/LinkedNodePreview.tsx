@@ -61,6 +61,24 @@ export function LinkedNodePreview({ nodeId }: { nodeId: string }) {
     );
   }
 
+  if (data.type === 'policy') {
+    const { policy, referencingNodes } = data;
+    return (
+      <div className="linked-node-preview">
+        <div className="linked-node-preview-header">
+          <span className="linked-node-preview-pov">Policy</span>
+          <span className="linked-node-preview-id">{nodeId}</span>
+        </div>
+        <div className="linked-node-preview-label">{policy.action}</div>
+        {policy.description && <div className="linked-node-preview-description">{policy.description}</div>}
+        <div className="linked-node-preview-attrs">
+          <span className="linked-node-preview-attr-label">Referenced by:</span>
+          <span>{referencingNodes.length} node{referencingNodes.length === 1 ? '' : 's'}</span>
+        </div>
+      </div>
+    );
+  }
+
   const node = data.node;
   const povLabel = data.type === 'pov' ? POV_LABELS[data.pov] ?? data.pov : 'Situation';
   const category = data.type === 'pov' ? data.node.category : null;

@@ -1094,6 +1094,42 @@ describe('useTaxonomyStore', () => {
         expect(useTaxonomyStore.getState().lookupPinnedData('unknown-999')).toBeNull();
       });
 
+      // t/3401: pol-* ids previously fell through every branch to null — the debate ref-popup
+      // showed "Node not found" for a policy reference. Both arms per the ticket's UAT triage.
+      describe('policy refs (t/3401)', () => {
+        it('resolves a pol-* id to the policy registry entry, with referencing nodes', () => {
+          useTaxonomyStore.setState({
+            accelerationist: makePovFile([
+              makePovNode({
+                id: 'acc-beliefs-001',
+                label: 'Acc Belief',
+                graph_attributes: { policy_actions: [{ policy_id: 'pol-001', action: 'Node action', framing: 'Node framing' }] } as never,
+              }),
+            ]),
+          });
+          const result = useTaxonomyStore.getState().lookupPinnedData('pol-001');
+          expect(result).not.toBeNull();
+          expect(result!.type).toBe('policy');
+          if (result!.type === 'policy') {
+            expect(result!.policy.action).toBe('Policy Action');
+            expect(result!.referencingNodes).toEqual([
+              { id: 'acc-beliefs-001', label: 'Acc Belief', pov: 'accelerationist', action: 'Node action', framing: 'Node framing' },
+            ]);
+          }
+        });
+
+        it('returns a policy with an empty referencingNodes list when no loaded node references it', () => {
+          const result = useTaxonomyStore.getState().lookupPinnedData('pol-001');
+          expect(result).not.toBeNull();
+          expect(result!.type).toBe('policy');
+          if (result!.type === 'policy') expect(result!.referencingNodes).toEqual([]);
+        });
+
+        it('returns null for an unknown pol-* id (graceful fallback persists)', () => {
+          expect(useTaxonomyStore.getState().lookupPinnedData('pol-does-not-exist')).toBeNull();
+        });
+      });
+
       it('returns structuredClone (not a reference)', () => {
         const result = useTaxonomyStore.getState().lookupPinnedData('acc-beliefs-001')!;
         if (result.type === 'pov') {
