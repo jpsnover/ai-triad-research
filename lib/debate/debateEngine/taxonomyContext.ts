@@ -461,7 +461,8 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
       getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'useSyntheticPhraseGrounding: adapter has no computeQueryEmbedding — falling back to description for all nodes' });
     } else {
       syntheticPhraseOverrides = new Map<string, string>();
-      const allNodes = filteredCtx.povNodes;
+      const primaryIds = new Set(engine._lastInjectionManifest?.povPrimaryIds ?? []);
+      const allNodes = filteredCtx.povNodes.filter(n => primaryIds.has(n.id));
       await Promise.all(allNodes.map(async (n) => {
         const phrases = n.graph_attributes?.synthetic_phrases;
         if (!phrases || phrases.length === 0) {
