@@ -132,6 +132,14 @@ FALSIFIABILITY — calibrate evidence demands:
 
 ASSUMPTIONS — your nodes list their assumptions. Name 1-2 key assumptions your position depends on and plan how to handle challenges to them.
 
+ANTICIPATED CHALLENGES - forecast where you are actually vulnerable, not where you are safe:
+- Give the STRONGEST version of each challenge (steelman it). A challenge you can easily
+  dismiss is worthless - mirror the steelman discipline you apply to opponents.
+- Ground each in a specific target: a taxonomy node, a concrete claim, or a named
+  assumption. Never "they'll say it's risky."
+- Tag each as ATTACK (an objection an opponent will raise) or ASSUMPTION (a load-bearing
+  premise of YOUR position you are exposing). These are different - give at least one of each.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "strategic_goal": "1-2 sentences: what your opening should accomplish",
@@ -144,7 +152,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"frame": "how you will frame the issue", "why": "why this framing favors your perspective"},
     {"frame": "alternative or complementary framing", "why": "what this framing reveals that the first doesn't"}
   ],
-  "anticipated_challenges": ["what opponents will likely challenge", "what assumptions you're exposing"]
+  "anticipated_challenges": ["ATTACK: <strongest specific objection an opponent will raise, naming the node/claim/assumption it targets>", "ASSUMPTION: <a load-bearing premise of your position you are exposing, and why it is contestable>"]
 }`;
 }
 
@@ -183,6 +191,12 @@ ${input.isFirst ? 'You are delivering the first opening statement.' : `You have 
 IMPORTANT: You may only attribute named positions to speakers whose openings appear in the PRIOR OPENING POSITIONS section above. If only one speaker has spoken, do not use 'they' or 'both positions' — name the specific speaker. Do not attribute positions to speakers who have not yet delivered their opening.`}
 
 Execute the argument plan above. Write your opening statement following the plan's structure.
+
+ADDRESS YOUR ANTICIPATED CHALLENGES: For each challenge in your plan's anticipated_challenges,
+make a deliberate choice - either (a) pre-empt it in your opening (concede-and-bound it, or
+plant the seed of your rebuttal so it can't land cold later), or (b) deliberately leave it
+unaddressed because raising it now costs more than it saves. Do not silently ignore them.
+Pre-empting your strongest anticipated objection is often the most persuasive move an opening can make.
 
 OUTPUT CONSTRAINTS:
 - NODE-ID PROHIBITION: Never surface taxonomy node IDs in statement text. Use plain language.
