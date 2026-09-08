@@ -235,7 +235,10 @@ function EditCardCurrentDesc({ edit, currentNode, descMode, setDescMode }: {
   descMode: DescMode;
   setDescMode: SetDescMode;
 }) {
-  if (!(edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description)) return null;
+  // t/3402: the equality check must gate diff-highlighting (in EditCardProposedBox), not this box's
+  // visibility — a label-only revise has current_description === proposed_description, and hiding the
+  // CURRENT box entirely left the user with no context for what they're approving.
+  if (!(edit.current_description && edit.edit_type !== 'add')) return null;
   const resolved_desc = resolveDescription(
     currentNode ? { description: edit.current_description, plain_description: (currentNode as { plain_description?: string | null }).plain_description } : { description: edit.current_description },
     descMode,
