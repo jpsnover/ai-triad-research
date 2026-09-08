@@ -310,6 +310,11 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
         const weightLabel = nodeWeightLabel(n, cat);
         lines.push(`${prefix}[${n.id}]${weightLabel}`);
         lines.push(`  "${n.label}" — ${stripExcludes(cfg.syntheticPhraseOverrides?.get(n.id) ?? n.description)}`);
+        const sv = n.graph_attributes?.steelman_vulnerability;
+        if (sv) {
+          const svText = typeof sv === 'string' ? sv : Object.values(sv).filter(Boolean).join(' | ');
+          if (svText) lines.push(`  Vulnerability: ${svText}`);
+        }
         // t/3269: classifications are always AI-generated — drop by default until
         // a classification-level verified signal exists.
       } else {
