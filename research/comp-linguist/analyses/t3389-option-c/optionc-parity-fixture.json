@@ -1,0 +1,58 @@
+{
+  "_meta": {
+    "purpose": "Option C PS<->Python(<->TS) parity contract (t/3389 / t/3409 item 4, SO cond-3). Same input logical_form.about[] + ref allowlist, run through each port's split (PS ConvertTo-GroundedLogicalForm / Python formalize_node_lf.validate() / TS equivalent), MUST produce identical output.",
+    "parity_assertion": "For each case: identical about[] membership (ref + match_level, order-insensitive) AND identical topical_candidates.refs (ref + match_level) AND identical provenance parity-fields. topical_candidates ABSENT (not null) when expected_topical_candidates_refs is null.",
+    "provenance_parity_fields": ["validated", "golden_ref", "blind_golden_precision"],
+    "provenance_tolerated_fields": ["generator"],
+    "provenance_expected": { "validated": false, "golden_ref": "t/3381", "blind_golden_precision": 0.54 },
+    "generator_note": "The `generator` field is per-port identity (formalize_node_lf.py vs LogicalFormPass.ps1 vs the TS port) and is TOLERATED — parity ignores it. Every other field must match.",
+    "match_level_note": "match_level is enum-clamped on both sides so a concept's sort='universal' can never leak into match_level (t/3379). Concept (term:) refs land in topical_candidates with the register match_level ('exact'), NOT 'universal'.",
+    "modality_note": "modality/predicate/polarity are unaffected by the split; the fixture exercises only the about[]->about[]+topical_candidates routing.",
+    "camp": "acc", "category": "Beliefs"
+  },
+  "allowlist": {
+    "ent-034": { "sort": "agentive-physical-object", "match_level": "exact" },
+    "term:regulation_precautionary": { "sort": "universal", "match_level": "exact" },
+    "ent-x": { "sort": "perdurant", "match_level": "instance_of" }
+  },
+  "cases": [
+    {
+      "name": "concept_ref_routed_to_topical_candidates",
+      "note": "term: concept ref leaves about[]; match_level 'universal' clamped to authoritative 'exact'.",
+      "input_about": [{ "ref": "term:regulation_precautionary", "match_level": "universal" }],
+      "expected_about": [],
+      "expected_topical_candidates_refs": [{ "ref": "term:regulation_precautionary", "match_level": "exact" }]
+    },
+    {
+      "name": "entity_ref_stays_in_about_ent_only",
+      "note": "ent-* stays in about[] with the AUTHORITATIVE register match_level (model said 'exact', register says 'instance_of' -> register wins). No topical_candidates.",
+      "input_about": [{ "ref": "ent-x", "match_level": "exact" }],
+      "expected_about": [{ "ref": "ent-x", "match_level": "instance_of" }],
+      "expected_topical_candidates_refs": null
+    },
+    {
+      "name": "ungrounded_ref_dropped",
+      "note": "R6/t/2294 - a ref not in the node's own allowlist is never minted; dropped from about[], no topical_candidates.",
+      "input_about": [{ "ref": "ent-hallucinated", "match_level": "exact" }],
+      "expected_about": [],
+      "expected_topical_candidates_refs": null
+    },
+    {
+      "name": "split_mixed_ent_to_about_term_to_candidates",
+      "note": "The core split: ent-* -> about[], term: -> topical_candidates.refs, in one frame.",
+      "input_about": [
+        { "ref": "ent-034", "match_level": "exact" },
+        { "ref": "term:regulation_precautionary", "match_level": "universal" }
+      ],
+      "expected_about": [{ "ref": "ent-034", "match_level": "exact" }],
+      "expected_topical_candidates_refs": [{ "ref": "term:regulation_precautionary", "match_level": "exact" }]
+    },
+    {
+      "name": "empty_about_no_topical_candidates_key",
+      "note": "Empty about[] -> empty about[], topical_candidates ABSENT (not null).",
+      "input_about": [],
+      "expected_about": [],
+      "expected_topical_candidates_refs": null
+    }
+  ]
+}
