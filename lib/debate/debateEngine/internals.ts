@@ -104,6 +104,9 @@ export interface DebateConfig {
   excludeGreatestHits?: boolean;
   /** Inject comp-linguist per-POV, per-BDI situation register-statements at setup (t/1450 experiment). Off by default. */
   enableSituationStatements?: boolean;
+  /** Replace description grounding text with the node's synthetic_phrase nearest the description embedding (t/3367).
+   *  Off by default. Requires adapter.computeQueryEmbedding; WARN-falls back to description when unavailable. */
+  useSyntheticPhraseGrounding?: boolean;
   /** Enable over-generate/select/rewrite pipeline: N=3 drafts, dedup, greedy top-K, rewrite, coherence gate (t/1581). */
   experiment_overgen_select_rewrite?: boolean;
   /** Exploration summary from a prior cheap-engine run — seeds cruxes, situations, AN priming, and config overrides. */

@@ -24,6 +24,7 @@ import {
   EDGE_CONTEXT_TOP_N,
 } from '../debateConfig.js';
 import { loadProvisionalWeights } from '../phaseTransitions.js';
+import { cosineSimilarity } from '../../embeddings/similarity.js';
 
 export function getNodeLabelMap(engine: DebateEngineInternals): Map<string, string> {
   if (engine._nodeLabelMap) return engine._nodeLabelMap;
@@ -450,7 +451,48 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
     }
   }
 
-  return formatTaxonomyContext(filteredCtx, pov, undefined, situationStatements ? { situationStatements } : undefined);
+  // Select best synthetic phrase per node when useSyntheticPhraseGrounding is on (t/3367).
+  // CLAIM_VECTOR = node's description embedding (claim-fidelity, per CL spec p/49#388).
+  // Fallback-path logging rule: WARN on each skipped node with discriminating reason.
+  let syntheticPhraseOverrides: Map<string, string> | undefined;
+  if (engine.config.useSyntheticPhraseGrounding) {
+    const embedFn = (engine.adapter as ExtendedAIAdapter).computeQueryEmbedding?.bind(engine.adapter);
+    if (!embedFn) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'useSyntheticPhraseGrounding: adapter has no computeQueryEmbedding — falling back to description for all nodes' });
+    } else {
+      syntheticPhraseOverrides = new Map<string, string>();
+      const allNodes = filteredCtx.povNodes;
+      await Promise.all(allNodes.map(async (n) => {
+        const phrases = n.graph_attributes?.synthetic_phrases;
+        if (!phrases || phrases.length === 0) {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: `useSyntheticPhraseGrounding: no synthetic_phrases on ${n.id} — falling back to description` });
+          return;
+        }
+        const descVec = engine.taxonomy.embeddings[n.id]?.vector;
+        if (!descVec) {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: `useSyntheticPhraseGrounding: no description embedding for ${n.id} — falling back to description` });
+          return;
+        }
+        try {
+          const phraseVecs = await Promise.all(phrases.map((p) => embedFn(p)));
+          let bestIdx = 0;
+          let bestSim = cosineSimilarity(phraseVecs[0].vector, descVec);
+          for (let i = 1; i < phraseVecs.length; i++) {
+            const sim = cosineSimilarity(phraseVecs[i].vector, descVec);
+            if (sim > bestSim) { bestSim = sim; bestIdx = i; }
+          }
+          syntheticPhraseOverrides!.set(n.id, phrases[bestIdx]);
+        } catch (err) {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: `useSyntheticPhraseGrounding: embedding failed for ${n.id} — falling back to description`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        }
+      }));
+    }
+  }
+
+  return formatTaxonomyContext(filteredCtx, pov, undefined, {
+    ...(situationStatements ? { situationStatements } : undefined),
+    ...(syntheticPhraseOverrides ? { syntheticPhraseOverrides } : undefined),
+  });
 }
 
 export function formatDebaterEdgeContext(engine: DebateEngineInternals, debaterPov: string): { text: string; edges_used: { source: string; target: string; type: string; confidence: number }[] } {

@@ -119,6 +119,12 @@ export interface FormatContextConfig {
    * No-op today (no nodes have verification_status set); safe to land inert.
    */
   retrievedContextEnabled?: boolean;
+  /**
+   * Pre-selected synthetic phrase per node ID (t/3367, useSyntheticPhraseGrounding).
+   * When a node ID is present in this map, its value replaces description as grounding text.
+   * Computed engine-side before formatTaxonomyContext; absent = feature off.
+   */
+  syntheticPhraseOverrides?: Map<string, string>;
 }
 
 /** Generate per-node inline guidance lines from metadata.
@@ -303,7 +309,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       if (isPrimary) {
         const weightLabel = nodeWeightLabel(n, cat);
         lines.push(`${prefix}[${n.id}]${weightLabel}`);
-        lines.push(`  "${n.label}" — ${stripExcludes(n.description)}`);
+        lines.push(`  "${n.label}" — ${stripExcludes(cfg.syntheticPhraseOverrides?.get(n.id) ?? n.description)}`);
         // t/3269: classifications are always AI-generated — drop by default until
         // a classification-level verified signal exists.
       } else {
