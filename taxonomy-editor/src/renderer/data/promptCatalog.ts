@@ -1032,6 +1032,17 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['fol-clause-classify'],
   },
+  {
+    id: 'ps-fol-clause-coref',
+    title: 'FOL-on-Debate Clause Coreference Resolver',
+    description: 'Resolves cross-turn referential dependencies (demonstratives, topic ellipsis, attributed restatements) in an assertoric debate clause against the debate context, rewriting it into a self-contained proposition.',
+    source: 'AITriad/Prompts/fol-clause-coref.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by run-fol-debate-eval.ps1 (offline FOL-on-debate eval, t/3354, design §6 — the hard prerequisite) — makes the assertoric subset self-contained before FOL extraction and reports coverage loss. Read-only research eval; INSTRUMENT-PROVISIONAL (resolutions are measurement inputs, not ground truth).',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['fol-clause-coref'],
+  },
 
   // === Debate pipeline: Quality & repair prompts ===
   {
