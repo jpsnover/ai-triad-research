@@ -16,10 +16,12 @@
 
     IMPLEMENTED stages: load, run-bound, manifest, SEGMENT (§4, rule-based, fol-eval-segment.ps1),
     CLASSIFY (§3, AI clause classifier, fol-eval-classify.ps1), COREF (§6, the hard prerequisite,
-    fol-eval-coref.ps1 — resolves cross-turn deps on the assertoric subset + reports coverage loss).
+    fol-eval-coref.ps1 — resolves cross-turn deps on the assertoric subset + reports coverage loss),
+    FOL (§7, fol-eval-fol.ps1 — neo-Davidsonian formalization of the resolved usable subset, REUSING the
+    LogicalFormPass core via module session state, no fork, so it is shape-identical to the summary FOL corpus).
     Classifier + coref are INSTRUMENT-PROVISIONAL (§5/t/3342): the §3.3 distribution and §6 coverage are
     measurement reports, not gates — nothing anchors a conclusion until CL scores the blind gold set.
-    The FOL/contradiction/FN-rate stages are NOT implemented yet and throw (honest failure).
+    The contradiction/FN-rate/correlation stages are NOT implemented yet and throw (honest failure).
     Runnable paths without a model call: -DryRun (plan+manifest) and -SkipClassify (segment only).
 
     READ-ONLY (design §1, TL tightening e/141#8): the harness writes NOTHING under the data
@@ -104,10 +106,11 @@ Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psd1') -Force -ErrorAc
 $Mod = Get-Module AITriad
 if (-not $Mod) { throw 'AITriad module failed to load; cannot resolve data-root helpers.' }
 
-# Clause segmenter (§4) + classifier (§3) + coref (§6) — pure, dot-sourceable libraries (no side effects).
+# Clause segmenter (§4) + classifier (§3) + coref (§6) + FOL (§7) — pure, dot-sourceable libraries.
 . (Join-Path $PSScriptRoot 'fol-eval-segment.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-classify.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-coref.ps1')
+. (Join-Path $PSScriptRoot 'fol-eval-fol.ps1')
 
 # Get-Prompt is a module-PRIVATE helper (Import-Module does not expose it), so the classifier/coref
 # Get-Prompt calls would fail with 'not recognized'. Dot-source it + set $script:ModuleRoot so its
@@ -203,8 +206,8 @@ $manifest = [ordered]@{
     classify_batch_size    = $ClassifyBatchSize
     coref_batch_size       = $CorefBatchSize
     max_context_turns      = $MaxContextTurns
-    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment', 'classify', 'coref')
-    stages_pending_pairing = @('fol', 'contradiction', 'fn-rate', 'correlate')
+    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment', 'classify', 'coref', 'fol')
+    stages_pending_pairing = @('contradiction', 'fn-rate', 'correlate')
 }
 
 Write-Host ''
@@ -326,8 +329,32 @@ if ($cov.total -gt 0 -and $cov.usable_count -eq 0) {
     Write-Warning 'COREF: no assertoric clause is usable — either the classifier returned nothing (missing key) or every resolution failed. resolved-clauses.jsonl was still emitted so the run is inspectable; no resolution is trustworthy.'
 }
 
-# ── FOL / CONTRADICTION / FN-rate (design §7/§8) — later increments, NOT implemented ─────────
+# ── FOL stage (design §7) — Increment 4. Reuses the LogicalFormPass core (no fork) ──────────
+# Formalize the coref-USABLE assertoric clauses into neo-Davidsonian logical forms via the SAME
+# prompt/usage/grounding/validation the summary FOL corpus uses (fol-eval-fol.ps1 -> module session
+# state for the private grounders), so the §8 cross-corpus contradiction check is apples-to-apples.
+# partial/unresolved clauses are excluded (fol_status 'skipped-unresolved'); no clause is dropped.
+Write-Host ''
+Write-Host '=== FOL stage (design §7) — neo-Davidsonian formalization of the resolved assertoric subset (PAID) ===' -ForegroundColor Cyan
+$usableAssertoric = @($resolved | Where-Object { $_.coref_usable })
+$folMap = Invoke-FolClauseExtraction -Module $Mod -Clauses $usableAssertoric -Temperature 0.1
+$formalized = @(ConvertTo-FolClauseFormalized -Clauses $resolved -Results $folMap)
+
+$formalizedPath = Join-Path $resolvedOut 'formalized-clauses.jsonl'
+Set-Content -LiteralPath $formalizedPath -Value @($formalized | ForEach-Object { $_ | ConvertTo-Json -Depth 12 -Compress }) -Encoding utf8
+
+$folStats = Measure-FolExtraction -Formalized $formalized
+Write-Host "  Assertoric clauses: $($folStats.total) -> $formalizedPath  (attempted $($folStats.attempted) usable; skipped-unresolved $($folStats.total - $folStats.attempted))" -ForegroundColor White
+Write-Host "  Formalized: $($folStats.formalized_count)/$($folStats.attempted) = $($folStats.formalized_fraction)" -ForegroundColor White
+foreach ($k in @($folStats.status_counts.Keys | Sort-Object)) {
+    Write-Host ("    {0,-20} {1}" -f $k, $folStats.status_counts[$k]) -ForegroundColor DarkGray
+}
+if ($folStats.attempted -gt 0 -and $folStats.formalized_count -eq 0) {
+    Write-Warning 'FOL: no clause formalized — the backend returned nothing (missing key / model?). formalized-clauses.jsonl was still emitted so the run is inspectable; no logical_form is present.'
+}
+
+# ── CONTRADICTION + paraphrase FN-rate (design §8) — later increment, NOT implemented ────────
 throw (New-EvalError `
     'Run the full FOL-on-debate eval pipeline' `
-    "SEGMENT + CLASSIFY + COREF ran (clauses/classified/resolved JSONL emitted; $($cov.usable_count) usable assertoric of $($cov.total)) but the FOL/contradiction/FN-rate stages are not yet implemented." `
-    'Inspect resolved-clauses.jsonl now (or use -DryRun / -SkipClassify). FOL extraction (design §7, reusing Private/LogicalFormPass.ps1 on the resolved assertoric subset) is the next increment; contradiction + paraphrase FN-rate (§8) follow.')
+    "SEGMENT + CLASSIFY + COREF + FOL ran (formalized-clauses.jsonl emitted; $($folStats.formalized_count) logical forms of $($folStats.attempted) attempted) but the contradiction/FN-rate/correlation stages are not yet implemented." `
+    'Inspect formalized-clauses.jsonl now (or use -DryRun / -SkipClassify). Contradiction + paraphrase FN-rate (design §8, the make-or-break primary metric) is the next increment; correlation outputs (§9) follow.')
