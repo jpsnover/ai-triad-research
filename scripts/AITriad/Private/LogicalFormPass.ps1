@@ -28,6 +28,25 @@ $script:LogicalFormAttitudes     = @('belief', 'desire', 'intention')
 $script:LogicalFormPolarities    = @('positive', 'negative')
 $script:LogicalFormStatuses      = @('proposed', 'accepted', 'rejected')
 
+# ── Option C (t/3389; SO+TL signed e/145#13-#16) — topical_candidates ─────────────────────────────
+# The mixed-convention about[] missed the concept-anchored golden floor (0.636 < 0.80, t/3381), so
+# about[] reverts to ent-* only and term: concept refs move to `topical_candidates` — a quality-marked
+# layer whose provenance block makes the unvalidated status legible FROM THE DATA (a consumer sees
+# validated:false + the 0.54 blind-golden precision without reading the register). PHASE-1 is ADDITIVE:
+# the validator ACCEPTS the field and about[] stays term:-tolerant (the ^ent- tightening is phase-3,
+# post-migration — land-order is load-bearing, e/145#15/#16). Mirrors the Python reference (#2078).
+# Ref vocabulary is exactly ^(term:|ent-) (hyphenated ent-, the e/145#14 d2 spec-typo catch).
+$script:TopicalCandidateRefPattern = '^(term:|ent-)'
+# Provenance STAMPED BY THIS GENERATOR (e/145#14(c) lifecycle rule): a repaired generator (t/3390)
+# must UPDATE this block or revalidate-and-move the refs to about[] — never fresh refs under stale
+# 0.54 metadata. `generator` is this port's identity (distinct from the Python's formalize_node_lf.py).
+$script:TopicalCandidatesProvenance = [ordered]@{
+    validated              = $false
+    generator              = 'LogicalFormPass.ps1'
+    golden_ref             = 't/3381'
+    blind_golden_precision = 0.54
+}
+
 # Coercion map (t/3215#3, CL): full-DOLCE lit:/event sorts the model may still emit → the register's
 # 5-value DolceCategory. The prompt now enumerates the 5 (t/3126, 90ce0d3e), so this is a
 # defense-in-depth belt for RESIDUAL out-of-set lit:/event sorts — coerce to the nearest of the 5 and
@@ -164,8 +183,14 @@ function Get-LogicalFormRefTable {
         The claim's entity_refs[] (EntityLinkRef records). $null / empty tolerated.
     .PARAMETER DolceMap
         Output of Get-EntityDolceMap.
+    .PARAMETER ConceptRefs
+        The claim's concept_refs[] (term:* universals; t/3389 Option C). $null / empty tolerated. Each is
+        emitted as a grounding row with sort='universal' + match_level='exact' — the 6th arg-slot sort
+        (t/3251), mirroring the Python reference's `allowed[cid] = ("universal", "exact")` (#2078). These
+        are what the about[] split (ConvertTo-GroundedLogicalForm) routes into topical_candidates.
     .OUTPUTS
-        [pscustomobject[]] { ref; surface; match_level; sort } in the claim's entity_refs order.
+        [pscustomobject[]] { ref; surface; match_level; sort } — entity rows first (entity_refs order),
+        then concept rows (concept_refs order).
     #>
     [CmdletBinding()]
     [OutputType([System.Object[]])]
@@ -174,7 +199,10 @@ function Get-LogicalFormRefTable {
         $EntityRefs,
 
         [Parameter(Mandatory)]
-        [hashtable]$DolceMap
+        [hashtable]$DolceMap,
+
+        [AllowNull()]
+        $ConceptRefs
     )
     Set-StrictMode -Version Latest
 
@@ -187,6 +215,16 @@ function Get-LogicalFormRefTable {
         $surface = if ($r.PSObject.Properties['surface']) { [string]$r.surface } else { '' }
         $ml      = if ($r.PSObject.Properties['match_level']) { [string]$r.match_level } else { 'exact' }
         $rows.Add([pscustomobject]@{ ref = $ref; surface = $surface; match_level = $ml; sort = $DolceMap[$ref] })
+    }
+    # Concept refs (term:* universals, t/3389/t/3251): a concept is a UNIVERSAL (kind), sort='universal'
+    # (distinct from the 5 particular DolceCategory sorts), match_level='exact'. They ground the about[]
+    # split -> topical_candidates. Mirrors #2078. (Dormant on summaries today — 0 concept_refs there.)
+    foreach ($r in @($ConceptRefs)) {
+        if (-not $r -or -not $r.PSObject.Properties['ref']) { continue }
+        $ref = [string]$r.ref
+        if ([string]::IsNullOrWhiteSpace($ref)) { continue }
+        $surface = if ($r.PSObject.Properties['surface']) { [string]$r.surface } else { '' }
+        $rows.Add([pscustomobject]@{ ref = $ref; surface = $surface; match_level = 'exact'; sort = 'universal' })
     }
     return $rows.ToArray()
 }
@@ -339,17 +377,39 @@ function ConvertTo-GroundedLogicalForm {
         }
     }
 
-    # ── about[]: projection of already-resolved entity_refs (ent-* only, no lits, no new resolution) ──
+    # ── about[] / topical_candidates: Option C split (t/3389, e/145#13-#16; mirrors #2078) ────────────
+    # Grounded refs only (in the claim's entity_refs/concept_refs = $byRef) — R6/t/2294, never mint.
+    # ent-* -> about[]; term:* concept refs -> topical_candidates.refs (about[] reverts to ent-only for
+    # NEW generations; concept refs carry the topical signal under a quality-marked provenance block).
+    # match_level is copied authoritatively from the register (enum-clamped so a concept's universal sort
+    # can never leak into match_level, t/3379) — never the model's guess.
     $groundedAbout = [System.Collections.Generic.List[object]]::new()
+    $candidateRefs = [System.Collections.Generic.List[object]]::new()
     if ($Raw.PSObject.Properties['about'] -and $Raw.about) {
         foreach ($ab in @($Raw.about)) {
             if (-not $ab -or -not $ab.PSObject.Properties['ref']) { continue }
             $ref = [string]$ab.ref
-            if (-not ($ref -like 'ent-*') -or -not $byRef.ContainsKey($ref)) {
-                Write-Verbose "LogicalForm: dropped about ref '$ref' — about[] projects the claim's entity_refs only."
+            if (-not $byRef.ContainsKey($ref)) {
+                Write-Verbose "LogicalForm: dropped about ref '$ref' — not grounded in the claim's refs (R6)."
                 continue
             }
-            $groundedAbout.Add([ordered]@{ ref = $ref; match_level = [string]$byRef[$ref].match_level })
+            $ml = [string]$byRef[$ref].match_level
+            if ($ml -notin $script:LogicalFormMatchLevels) { $ml = 'exact' }
+            $entry = [ordered]@{ ref = $ref; match_level = $ml }
+            if ($ref -like 'ent-*') { $groundedAbout.Add($entry) }
+            else { $candidateRefs.Add($entry) }   # term:* concept ref -> topical_candidates
+        }
+    }
+    # topical_candidates present ONLY when concept refs exist (absent != null, t/2943). Provenance is
+    # stamped FRESH by this generator each call (e/145#14(c) lifecycle rule — never a shared/stale ref).
+    $topicalCandidates = $null
+    if ($candidateRefs.Count -gt 0) {
+        $topicalCandidates = [ordered]@{
+            validated              = $script:TopicalCandidatesProvenance.validated
+            generator              = $script:TopicalCandidatesProvenance.generator
+            golden_ref             = $script:TopicalCandidatesProvenance.golden_ref
+            blind_golden_precision = $script:TopicalCandidatesProvenance.blind_golden_precision
+            refs                   = $candidateRefs.ToArray()
         }
     }
 
@@ -391,17 +451,20 @@ function ConvertTo-GroundedLogicalForm {
         try { $conf = [double]$Raw.formalization_confidence } catch { $conf = 0.0 }
     }
 
-    return [pscustomobject][ordered]@{
-        predicate                = $predicate
-        event_ref                = $eventRef
-        args                     = $groundedArgs.ToArray()
-        polarity                 = $polarity
-        modality                 = $modality
-        temporal                 = [ordered]@{ type = $tempType; value = $tempValue }
-        about                    = $groundedAbout.ToArray()
-        formalization_confidence = $conf
-        status                   = $status
+    $result = [ordered]@{
+        predicate = $predicate
+        event_ref = $eventRef
+        args      = $groundedArgs.ToArray()
+        polarity  = $polarity
+        modality  = $modality
+        temporal  = [ordered]@{ type = $tempType; value = $tempValue }
+        about     = $groundedAbout.ToArray()
     }
+    # topical_candidates sits after about[] when concept refs exist (absent != null, t/2943 — never a null key).
+    if ($null -ne $topicalCandidates) { $result['topical_candidates'] = $topicalCandidates }
+    $result['formalization_confidence'] = $conf
+    $result['status'] = $status
+    return [pscustomobject]$result
 }
 
 function Test-LogicalFormStructure {
@@ -457,9 +520,43 @@ function Test-LogicalFormStructure {
         if ([string]$a.match_level -notin $script:LogicalFormMatchLevels) { return [pscustomobject]@{ Ok = $false; Reason = "arg match_level '$($a.match_level)' invalid" } }
     }
 
+    # about[] stays TOLERANT of term: refs in phase-1 — NO ^ent- tightening here (Option C, t/3389).
+    # Tightening about[].ref to ent-* only is PHASE-3, after the t/3391 corpus migration: enforcing
+    # ^ent- before the 1560 term: refs migrate would red the corpus (e/145#15/#16, land-order is
+    # load-bearing). Remove this note + add the ^ent- check together in phase-3.
     foreach ($ab in @($lf.about)) {
         if ([string]::IsNullOrWhiteSpace([string]$ab.ref)) { return [pscustomobject]@{ Ok = $false; Reason = 'about missing ref' } }
         if ([string]$ab.match_level -notin $script:LogicalFormMatchLevels) { return [pscustomobject]@{ Ok = $false; Reason = "about match_level '$($ab.match_level)' invalid" } }
+    }
+
+    # topical_candidates (Option C phase-1, t/3389): OPTIONAL. Absent is valid (absent != null, t/2943);
+    # present must be a well-formed quality-marked block. This is the migration front-edge — all four
+    # validator ports ACCEPT the field before any data moves (e/145#13/#16). Handles both a generator-
+    # produced ordered-dict and a JSON-parsed PSObject (dual-type accessor below).
+    if ($lf.PSObject.Properties['topical_candidates'] -and $null -ne $lf.topical_candidates) {
+        $getp = {
+            param($o, $n)
+            if ($null -eq $o) { return $null }
+            if ($o -is [System.Collections.IDictionary]) { if ($o.Contains($n)) { return $o[$n] } return $null }
+            $p = $o.PSObject.Properties[$n]; if ($p) { return $p.Value } return $null
+        }
+        $tc = $lf.topical_candidates
+        if (($tc -isnot [System.Collections.IDictionary]) -and ($tc -isnot [psobject])) {
+            return [pscustomobject]@{ Ok = $false; Reason = 'topical_candidates must be an object' }
+        }
+        if ((& $getp $tc 'validated') -isnot [bool]) { return [pscustomobject]@{ Ok = $false; Reason = 'topical_candidates.validated must be a boolean' } }
+        if ([string]::IsNullOrWhiteSpace([string](& $getp $tc 'generator')))  { return [pscustomobject]@{ Ok = $false; Reason = 'topical_candidates.generator empty' } }
+        if ([string]::IsNullOrWhiteSpace([string](& $getp $tc 'golden_ref'))) { return [pscustomobject]@{ Ok = $false; Reason = 'topical_candidates.golden_ref empty' } }
+        $prec = (& $getp $tc 'blind_golden_precision')
+        $precD = 0.0
+        $precOk = ($null -ne $prec) -and [double]::TryParse([string]$prec, [ref]$precD)
+        if (-not $precOk -or $precD -lt 0.0 -or $precD -gt 1.0) { return [pscustomobject]@{ Ok = $false; Reason = 'topical_candidates.blind_golden_precision not in [0,1]' } }
+        foreach ($r in @(& $getp $tc 'refs')) {
+            $rref = [string](& $getp $r 'ref')
+            if ($rref -notmatch $script:TopicalCandidateRefPattern) { return [pscustomobject]@{ Ok = $false; Reason = "topical_candidates ref '$rref' must match $($script:TopicalCandidateRefPattern)" } }
+            $rml = [string](& $getp $r 'match_level')
+            if ($rml -notin $script:LogicalFormMatchLevels) { return [pscustomobject]@{ Ok = $false; Reason = "topical_candidates ref '$rref' match_level '$rml' invalid" } }
+        }
     }
 
     if ($isFactual) {

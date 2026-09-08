@@ -196,6 +196,12 @@ function Invoke-LogicalFormPass {
                 $skipped++
                 continue   # not in the grounded set
             }
+            # concept_refs[] (term:* universals, t/3389 Option C): grounds the about[]->topical_candidates
+            # split. Optional/empty on summary claims today (0 present), so this is dormant-but-correct;
+            # the grounded-set gate above stays keyed on entity_refs only (a claim with only concept_refs
+            # is not part of the D3b-stratifiable grounded set).
+            $conceptRefs = @()
+            if ($claim.PSObject.Properties['concept_refs'] -and $claim.concept_refs) { $conceptRefs = @($claim.concept_refs) }
 
             $proposition = Get-ClaimProposition -Claim $claim -IsFactual:$entry.IsFactual
             if ([string]::IsNullOrWhiteSpace($proposition)) {
@@ -203,7 +209,7 @@ function Invoke-LogicalFormPass {
                 continue   # nothing to formalize
             }
 
-            $refTable = Get-LogicalFormRefTable -EntityRefs $refs -DolceMap $dolceMap
+            $refTable = Get-LogicalFormRefTable -EntityRefs $refs -DolceMap $dolceMap -ConceptRefs $conceptRefs
             $refsJson = ConvertTo-EntityRefsPromptJson -RefTable $refTable
             $claimCategory = if ($entry.IsFactual) { 'factual' } else { $entry.Category }
 
