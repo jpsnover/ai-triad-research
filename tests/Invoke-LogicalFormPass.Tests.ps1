@@ -338,3 +338,120 @@ Describe 'Invoke-LogicalFormPass — orchestrator (t/3215)' -Tag 'unit', 'fol' {
         Should -Invoke -CommandName Invoke-AIByUsage -ModuleName AITriad -Times 2 -Exactly
     }
 }
+
+Describe 'Invoke-LogicalFormPass — Option C topical_candidates (t/3389/t/3409)' -Tag 'unit', 'fol' {
+    # Phase-1 ADDITIVE port of the SO+TL-signed Option C design (e/145#13-#16; reference impl #2078):
+    # about[] splits ent-* (stays) from term: concept refs (-> topical_candidates); the validator ACCEPTS
+    # the field; about[] stays term:-tolerant (^ent- tightening is phase-3). Both-arms per gate discipline.
+    BeforeAll {
+        Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    }
+
+    It 'Get-LogicalFormRefTable emits concept_refs as term: rows (sort=universal, match_level=exact)' {
+        InModuleScope AITriad {
+            $map  = @{ 'ent-055' = 'non-agentive-functional-artifact' }
+            $ents = @([pscustomobject]@{ ref = 'ent-055'; surface = 'GPT-5'; match_level = 'exact' })
+            $cons = @([pscustomobject]@{ ref = 'term:cf-alignment'; surface = 'alignment' })
+            $table = @(Get-LogicalFormRefTable -EntityRefs $ents -DolceMap $map -ConceptRefs $cons)
+            $table.Count | Should -Be 2
+            $term = $table | Where-Object { $_.ref -eq 'term:cf-alignment' }
+            $term.sort        | Should -Be 'universal'
+            $term.match_level | Should -Be 'exact'
+        }
+    }
+
+    It 'ConvertTo-GroundedLogicalForm splits about[]: ent-* stays, term:* -> topical_candidates.refs; provenance stamped' {
+        InModuleScope AITriad {
+            $table = @(
+                [pscustomobject]@{ ref = 'ent-055'; surface = 'GPT-5'; match_level = 'exact'; sort = 'non-agentive-functional-artifact' }
+                [pscustomobject]@{ ref = 'term:cf-alignment'; surface = 'alignment'; match_level = 'exact'; sort = 'universal' }
+            )
+            $raw = [pscustomobject]@{
+                predicate = 'x'; event_ref = 'e1'; args = @()
+                polarity = 'positive'; modality = $null
+                temporal = [pscustomobject]@{ type = 'unspecified'; value = $null }
+                about = @(
+                    [pscustomobject]@{ ref = 'ent-055'; match_level = 'exact' }
+                    [pscustomobject]@{ ref = 'term:cf-alignment'; match_level = 'related' }  # ml overwritten from register -> exact
+                    [pscustomobject]@{ ref = 'ent-999'; match_level = 'exact' }              # ungrounded -> dropped (R6)
+                )
+                formalization_confidence = 0.7; status = 'proposed'
+            }
+            $lf = ConvertTo-GroundedLogicalForm -Raw $raw -RefTable $table -Category 'factual' -Camp ''
+            @($lf.about).Count | Should -Be 1
+            $lf.about[0].ref   | Should -Be 'ent-055'
+            $tc = $lf.topical_candidates
+            $tc                        | Should -Not -BeNullOrEmpty
+            $tc.validated              | Should -BeFalse
+            $tc.generator              | Should -Be 'LogicalFormPass.ps1'   # THIS generator's identity (e/145#14c)
+            $tc.golden_ref             | Should -Be 't/3381'
+            $tc.blind_golden_precision | Should -Be 0.54
+            @($tc.refs).Count          | Should -Be 1
+            $tc.refs[0].ref            | Should -Be 'term:cf-alignment'
+            $tc.refs[0].match_level    | Should -Be 'exact'                 # authoritative from register, not model's 'related'
+            (Test-LogicalFormStructure -LogicalForm $lf -Category 'factual').Ok | Should -BeTrue
+        }
+    }
+
+    It 'topical_candidates is ABSENT (not a null key) when there are no concept refs (absent != null, t/2943)' {
+        InModuleScope AITriad {
+            $table = @([pscustomobject]@{ ref = 'ent-055'; surface = 'x'; match_level = 'exact'; sort = 'non-agentive-functional-artifact' })
+            $raw = [pscustomobject]@{ predicate = 'x'; event_ref = 'e1'; args = @(); polarity = 'positive'; modality = $null
+                temporal = [pscustomobject]@{ type = 'unspecified'; value = $null }
+                about = @([pscustomobject]@{ ref = 'ent-055'; match_level = 'exact' }); formalization_confidence = 0.5; status = 'proposed' }
+            $lf = ConvertTo-GroundedLogicalForm -Raw $raw -RefTable $table -Category 'factual' -Camp ''
+            $lf.PSObject.Properties['topical_candidates'] | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'Test-LogicalFormStructure ACCEPTS a well-formed topical_candidates (JSON-parsed migrated shape; hyphenated ent-)' {
+        InModuleScope AITriad {
+            $json = '{"predicate":"x","event_ref":"e1","args":[],"polarity":"positive","modality":null,' +
+                    '"temporal":{"type":"unspecified","value":null},"about":[],' +
+                    '"topical_candidates":{"validated":false,"generator":"formalize_node_lf.py","golden_ref":"t/3381",' +
+                    '"blind_golden_precision":0.54,"refs":[{"ref":"term:cf-alignment","match_level":"exact"},{"ref":"ent-360","match_level":"exact"}]},' +
+                    '"formalization_confidence":0.5,"status":"proposed"}'
+            $lf = $json | ConvertFrom-Json
+            (Test-LogicalFormStructure -LogicalForm $lf -Category 'factual').Ok | Should -BeTrue
+        }
+    }
+
+    It 'Test-LogicalFormStructure REJECTS a topical_candidates ref outside ^(term:|ent-)' {
+        InModuleScope AITriad {
+            $json = '{"predicate":"x","event_ref":"e1","args":[],"polarity":"positive","modality":null,' +
+                    '"temporal":{"type":"unspecified","value":null},"about":[],' +
+                    '"topical_candidates":{"validated":false,"generator":"g","golden_ref":"t/3381","blind_golden_precision":0.54,' +
+                    '"refs":[{"ref":"concept:oops","match_level":"exact"}]},"formalization_confidence":0.5,"status":"proposed"}'
+            $r = Test-LogicalFormStructure -LogicalForm ($json | ConvertFrom-Json) -Category 'factual'
+            $r.Ok     | Should -BeFalse
+            $r.Reason | Should -BeLike '*term:*'
+        }
+    }
+
+    It 'Test-LogicalFormStructure REJECTS non-bool validated and out-of-range precision' {
+        InModuleScope AITriad {
+            $nonBool = '{"predicate":"x","event_ref":"e1","args":[],"polarity":"positive","modality":null,' +
+                       '"temporal":{"type":"unspecified","value":null},"about":[],' +
+                       '"topical_candidates":{"validated":"false","generator":"g","golden_ref":"t/3381","blind_golden_precision":0.54,"refs":[]},' +
+                       '"formalization_confidence":0.5,"status":"proposed"}'
+            (Test-LogicalFormStructure -LogicalForm ($nonBool | ConvertFrom-Json) -Category 'factual').Ok | Should -BeFalse
+
+            $badPrec = '{"predicate":"x","event_ref":"e1","args":[],"polarity":"positive","modality":null,' +
+                       '"temporal":{"type":"unspecified","value":null},"about":[],' +
+                       '"topical_candidates":{"validated":false,"generator":"g","golden_ref":"t/3381","blind_golden_precision":1.5,"refs":[]},' +
+                       '"formalization_confidence":0.5,"status":"proposed"}'
+            (Test-LogicalFormStructure -LogicalForm ($badPrec | ConvertFrom-Json) -Category 'factual').Ok | Should -BeFalse
+        }
+    }
+
+    It 'about[] stays TOLERANT of term: refs in phase-1 (no ^ent- tightening — that is phase-3)' {
+        InModuleScope AITriad {
+            $json = '{"predicate":"x","event_ref":"e1","args":[],"polarity":"positive","modality":null,' +
+                    '"temporal":{"type":"unspecified","value":null},' +
+                    '"about":[{"ref":"term:cf-legacy","match_level":"exact"}],' +
+                    '"formalization_confidence":0.5,"status":"proposed"}'
+            # TOLERANCE ARM — marked for phase-3 removal (when about[].ref tightens to ^ent-, this flips to Should -BeFalse).
+            (Test-LogicalFormStructure -LogicalForm ($json | ConvertFrom-Json) -Category 'factual').Ok | Should -BeTrue
+        }
+    }
+}
