@@ -79,11 +79,41 @@ export const lfArgSchema = z.object({
   match_level: lfMatchLevelSchema,
 }).passthrough();
 
-/** Topical grounding entry — an `ent-*` id the claim is *about* (schema doc §about[]).
- *  Superset convention: a topical participant appears in BOTH `args[]` and `about[]`. */
+/** Topical grounding entry — an id the claim is *about* (schema doc §about[]).
+ *  Superset convention: a topical participant appears in BOTH `args[]` and `about[]`.
+ *  PHASE-1 (Option C, t/3408 / e/145): `ref` stays a plain string — about[] remains TOLERANT of
+ *  `term:` refs. Do NOT tighten to `^ent-` here — enforcement is PHASE-3, AFTER the t/3391 corpus
+ *  migration moves the 1560 `term:` refs into `topical_candidates`. The land-order is load-bearing:
+ *  tightening before the data moves would red the fleet on the not-yet-migrated corpus (c-design.md §6). */
 export const lfAboutSchema = z.object({
   ref: z.string(),
   match_level: lfMatchLevelSchema,
+}).passthrough();
+
+/** A single candidate topical ref (Option C phase-1, t/3408). Same shape as an about[] entry, but the
+ *  ref format IS enforced here: `^(term:|ent-)` — concepts are colon-prefixed (`term:…`), entities are
+ *  HYPHENATED (`ent-360`), NOT `ent:*` (SO e/145#14 d2 — a colon-vs-hyphen typo would reject real
+ *  entity refs). `match_level` is retained for structural parity, not load-bearing (it was the t/3379
+ *  enum-leak axis). */
+export const lfTopicalCandidateRefSchema = z.object({
+  ref: z.string().regex(/^(term:|ent-)/, 'topical_candidates ref must start with "term:" or "ent-"'),
+  match_level: lfMatchLevelSchema,
+}).passthrough();
+
+/** `topical_candidates` — the Option-C sibling of `about[]` (t/3408 / e/145; c-design.md §2/§3).
+ *  Homes the concept (`term:`) topical refs the divergent generator wrote, kept SEPARATE from the
+ *  validated ent-only `about[]` so the frozen ent-only golden metric still describes about[] as-is.
+ *  The object shape is the in-DATA quality-marking GATE (§3): `validated` + `generator` + `golden_ref`
+ *  + `blind_golden_precision` let any consumer tell from the artifact alone that this is a RAW
+ *  candidate layer (P≈0.54), not a curated index — a clean-named field is explicitly forbidden.
+ *  Provenance-lifecycle (§3): a repaired generator (t/3390) MUST move refs to about[] on revalidation
+ *  ≥0.80 OR update this provenance in lockstep — never fresh refs under stale metadata. */
+export const lfTopicalCandidatesSchema = z.object({
+  validated: z.boolean(),
+  generator: z.string(),
+  golden_ref: z.string(),
+  blind_golden_precision: z.number(),
+  refs: z.array(lfTopicalCandidateRefSchema),
 }).passthrough();
 
 /** BDI attribution — present for POV/BDI claims, `null` for `factual_claims` (unattributed
@@ -124,6 +154,11 @@ export const logicalFormSchema = z.object({
   temporal: lfTemporalSchema,
   /** Topical index (additive, optional) — the complete set of `ent-*` ids the claim is about. */
   about: z.array(lfAboutSchema).optional(),
+  /** Option-C candidate topical layer (additive, optional; t/3408 / e/145). Concept (`term:`) topical
+   *  refs live here, quality-marked, SEPARATE from the validated ent-only `about[]`. See
+   *  {@link lfTopicalCandidatesSchema}. Optional → existing frames without it still parse (additive-first,
+   *  so `stripInvalidLogicalForm` never drops a node carrying it — c-design.md §6 phase-1). */
+  topical_candidates: lfTopicalCandidatesSchema.optional(),
   /** [0,1] — the pass's self-rated fidelity of the frame to the proposition; the downstream gate lever. */
   formalization_confidence: z.number().min(0).max(1),
   /** Formalization lifecycle (see NOTE above — distinct from EntityLinkStatus). */

@@ -9,7 +9,8 @@
 // documents that so a future reader knows drift is caught at build, not here.
 import { describe, it, expect } from 'vitest';
 import {
-  logicalFormSchema, particularSortSchema, universalSortSchema, type LogicalForm,
+  logicalFormSchema, particularSortSchema, universalSortSchema,
+  lfTopicalCandidatesSchema, lfTopicalCandidateRefSchema, type LogicalForm,
 } from './logicalForm.js';
 
 // The canonical example from research/comp-linguist/docs/logical-form-schema.md §Schema, verbatim.
@@ -171,5 +172,60 @@ describe('universal sort (t/3251) — concept_refs are universals, not particula
     expect(universalSortSchema.safeParse('non-agentive-social-object').success).toBe(false);
     expect(particularSortSchema.safeParse('non-agentive-social-object').success).toBe(true);
     expect(universalSortSchema.safeParse('universal').success).toBe(true);
+  });
+});
+
+describe('topical_candidates (Option C phase-1, t/3408) — additive marking object', () => {
+  const TOPICAL = {
+    validated: false,
+    generator: 'formalize_node_lf.py',
+    golden_ref: 't/3381',
+    blind_golden_precision: 0.54,
+    refs: [
+      { ref: 'term:liability_strict', match_level: 'exact' },
+      { ref: 'ent-360', match_level: 'exact' },
+    ],
+  };
+
+  it('a frame WITH topical_candidates parses (additive; strip-safe — stripInvalidLogicalForm keeps it)', () => {
+    const r = logicalFormSchema.safeParse({ ...CANONICAL, topical_candidates: TOPICAL });
+    expect(r.success).toBe(true);
+  });
+
+  it('a frame WITHOUT topical_candidates still parses (optional; existing frames unaffected)', () => {
+    expect(logicalFormSchema.safeParse(CANONICAL).success).toBe(true); // CANONICAL has no topical_candidates
+  });
+
+  it('rejects a malformed topical_candidates — missing validated', () => {
+    const { validated: _drop, ...noValidated } = TOPICAL;
+    expect(logicalFormSchema.safeParse({ ...CANONICAL, topical_candidates: noValidated }).success).toBe(false);
+  });
+
+  it('rejects a malformed topical_candidates — missing blind_golden_precision', () => {
+    const { blind_golden_precision: _drop, ...noPrecision } = TOPICAL;
+    expect(logicalFormSchema.safeParse({ ...CANONICAL, topical_candidates: noPrecision }).success).toBe(false);
+  });
+
+  it('refs ref format is enforced ^(term:|ent-): term: and ent- (HYPHEN) accepted', () => {
+    expect(lfTopicalCandidateRefSchema.safeParse({ ref: 'term:foo', match_level: 'exact' }).success).toBe(true);
+    expect(lfTopicalCandidateRefSchema.safeParse({ ref: 'ent-360', match_level: 'exact' }).success).toBe(true);
+  });
+
+  it('refs ref format REJECTS ent: (colon) and other prefixes (the SO e/145#14 typo guard)', () => {
+    expect(lfTopicalCandidateRefSchema.safeParse({ ref: 'ent:360', match_level: 'exact' }).success).toBe(false); // colon, not hyphen
+    expect(lfTopicalCandidateRefSchema.safeParse({ ref: 'pol-1', match_level: 'exact' }).success).toBe(false);
+    expect(lfTopicalCandidateRefSchema.safeParse({ ref: 'frontier-model', match_level: 'exact' }).success).toBe(false);
+  });
+
+  it('a full topical_candidates with a bad ref in refs[] fails the whole frame parse', () => {
+    const bad = { ...TOPICAL, refs: [{ ref: 'not-a-valid-prefix', match_level: 'exact' }] };
+    expect(logicalFormSchema.safeParse({ ...CANONICAL, topical_candidates: bad }).success).toBe(false);
+  });
+
+  // PHASE-3 REMOVAL: this tolerance-arm test is DELETED when about[].ref is tightened to ^ent- after
+  // the t/3391 migration (c-design.md §6). Until then about[] must accept term: refs on the live corpus.
+  it('about[] STILL tolerates a term: ref in phase-1 (removed in phase-3)', () => {
+    const r = logicalFormSchema.safeParse({ ...CANONICAL, about: [{ ref: 'term:frontier-model', match_level: 'exact' }] });
+    expect(r.success).toBe(true);
   });
 });
