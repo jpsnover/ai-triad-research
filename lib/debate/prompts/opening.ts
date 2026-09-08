@@ -139,6 +139,10 @@ ANTICIPATED CHALLENGES - forecast where you are actually vulnerable, not where y
   assumption. Never "they'll say it's risky."
 - Tag each as ATTACK (an objection an opponent will raise) or ASSUMPTION (a load-bearing
   premise of YOUR position you are exposing). These are different - give at least one of each.
+- Where a node in your context shows a `Vulnerability:` line (its pre-computed strongest
+  counterargument), GROUND your ATTACK-type challenge for that node in it — sharpen or restate
+  that objection rather than inventing a weaker one. It is the strongest known attack on the
+  node; anticipate it, don't dodge it.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
