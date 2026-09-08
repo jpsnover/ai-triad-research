@@ -592,5 +592,19 @@
       "fol",
       "debate-eval"
     ]
+  },
+  "enrichment.fol-clause-coref": {
+    "description": "Resolve cross-turn referential dependencies (demonstratives / topic ellipsis / attributed restatements) in the assertoric debate-clause subset against the debate context, rewriting each clause into a self-contained proposition for FOL extraction (t/3354 design §6, the hard prerequisite). Offline research eval ONLY (read-only over debates; no in-loop path). run-fol-debate-eval.ps1 renders fol-clause-coref.prompt with the prior-turn context + clause batch and passes it as {{prompt}}. jsonMode WITHOUT responseSchema (prompt enforces one strict-JSON {results:[...]} object; the stage parses defensively). temperature pinned 0 for determinism. INSTRUMENT-PROVISIONAL: resolutions are measurement inputs, not ground truth — coverage loss is reported, and no number anchors a conclusion until double-annotated (design §11).",
+    "model": "gemini-3.5-flash-lite",
+    "temperature": 0,
+    "maxTokens": 2000,
+    "timeoutMs": 60000,
+    "jsonMode": true,
+    "messageTemplate": "{{prompt}}",
+    "tags": [
+      "enrichment",
+      "fol",
+      "debate-eval"
+    ]
   }
 }

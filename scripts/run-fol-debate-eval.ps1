@@ -15,10 +15,11 @@
     (§7, reuses Private/LogicalFormPass.ps1) -> CONTRADICTION + paraphrase FN-rate (§8).
 
     IMPLEMENTED stages: load, run-bound, manifest, SEGMENT (§4, rule-based, fol-eval-segment.ps1),
-    CLASSIFY (§3, AI clause classifier, fol-eval-classify.ps1). The classifier is INSTRUMENT-PROVISIONAL
-    (§5/t/3342): its per-class distribution is checked against the §3.3 bands as a SANITY gate only —
-    labels anchor no conclusion until CL scores the blind gold set (fol-eval-classifier-gold.jsonl).
-    The coref/FOL/contradiction/FN-rate stages are NOT implemented yet and throw (honest failure).
+    CLASSIFY (§3, AI clause classifier, fol-eval-classify.ps1), COREF (§6, the hard prerequisite,
+    fol-eval-coref.ps1 — resolves cross-turn deps on the assertoric subset + reports coverage loss).
+    Classifier + coref are INSTRUMENT-PROVISIONAL (§5/t/3342): the §3.3 distribution and §6 coverage are
+    measurement reports, not gates — nothing anchors a conclusion until CL scores the blind gold set.
+    The FOL/contradiction/FN-rate stages are NOT implemented yet and throw (honest failure).
     Runnable paths without a model call: -DryRun (plan+manifest) and -SkipClassify (segment only).
 
     READ-ONLY (design §1, TL tightening e/141#8): the harness writes NOTHING under the data
@@ -85,6 +86,14 @@ param(
     [switch]$SkipClassify,
 
     [Parameter()]
+    [ValidateRange(1, 50)]
+    [int]$CorefBatchSize = 10,
+
+    [Parameter()]
+    [ValidateRange(1, 100)]
+    [int]$MaxContextTurns = 12,
+
+    [Parameter()]
     [switch]$DryRun
 )
 
@@ -95,13 +104,14 @@ Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psd1') -Force -ErrorAc
 $Mod = Get-Module AITriad
 if (-not $Mod) { throw 'AITriad module failed to load; cannot resolve data-root helpers.' }
 
-# Clause segmenter (§4) + classifier (§3) — pure, dot-sourceable libraries (no top-level side effects).
+# Clause segmenter (§4) + classifier (§3) + coref (§6) — pure, dot-sourceable libraries (no side effects).
 . (Join-Path $PSScriptRoot 'fol-eval-segment.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-classify.ps1')
+. (Join-Path $PSScriptRoot 'fol-eval-coref.ps1')
 
-# Get-Prompt is a module-PRIVATE helper (Import-Module does not expose it), so the classifier's
-# Get-Prompt call would fail with 'not recognized'. Dot-source it + set $script:ModuleRoot so its
-# default Prompts/ dir resolves fol-clause-classify.prompt (same handling as the CC classifier, t/3302).
+# Get-Prompt is a module-PRIVATE helper (Import-Module does not expose it), so the classifier/coref
+# Get-Prompt calls would fail with 'not recognized'. Dot-source it + set $script:ModuleRoot so its
+# default Prompts/ dir resolves the fol-clause-*.prompt files (same handling as the CC classifier, t/3302).
 $script:ModuleRoot = Join-Path $PSScriptRoot 'AITriad'
 . (Join-Path $PSScriptRoot 'AITriad' 'Private' 'Get-Prompt.ps1')
 
@@ -191,8 +201,10 @@ $manifest = [ordered]@{
     est_model_calls_upper  = $clauseCeiling * 2   # classifier + FOL, upper bound
     dry_run                = [bool]$DryRun
     classify_batch_size    = $ClassifyBatchSize
-    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment', 'classify')
-    stages_pending_pairing = @('coref', 'fol', 'contradiction', 'fn-rate', 'correlate')
+    coref_batch_size       = $CorefBatchSize
+    max_context_turns      = $MaxContextTurns
+    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment', 'classify', 'coref')
+    stages_pending_pairing = @('fol', 'contradiction', 'fn-rate', 'correlate')
 }
 
 Write-Host ''
@@ -277,8 +289,45 @@ if ($dist.unclassified_count -eq $dist.total -and $dist.total -gt 0) {
     Write-Warning 'CLASSIFY: every clause is unclassified — the backend returned nothing (missing key / model?). classified-clauses.jsonl was still emitted so the run is inspectable; no labels are trustworthy.'
 }
 
-# ── COREF / FOL / CONTRADICTION / FN-rate (design §6/§7/§8) — later increments, NOT implemented ──
+# ── COREF stage (design §6, the HARD PREREQUISITE) — Increment 3 ────────────────────────────
+# Resolve cross-turn deps in the assertoric subset so each clause is self-contained before FOL.
+# Self-contained clauses pass through with NO model call; demonstrative/topic-ellipsis/attributed-
+# restatement clauses go to the AI resolver, grouped per debate (each debate's prior turns are the
+# shared context). Coverage loss is reported keyed on anaphora_dependency (§6) — a measurement, not a gate.
+Write-Host ''
+Write-Host "=== COREF stage (design §6) — cross-turn resolution on the assertoric subset (PAID; batch=$CorefBatchSize) ===" -ForegroundColor Cyan
+$assertoric = @($classified | Where-Object { $_.is_assertoric })
+
+# Per-debate statement lookup (context source) from the already-loaded selection.
+$stmtByDebate = @{}
+foreach ($deb in $selected) { $stmtByDebate[$deb.DebateId] = @($deb.Statements) }
+
+$corefMap = @{}
+$needResolve = @($assertoric | Where-Object { $_.anaphora_dependency -ne 'self-contained' })
+foreach ($g in @($needResolve | Group-Object debate_id)) {
+    $ctx = if ($stmtByDebate.ContainsKey($g.Name)) { $stmtByDebate[$g.Name] } else { @() }
+    $m = Invoke-FolCorefResolveDebate -ContextStatements @($ctx) -Clauses @($g.Group) `
+        -BatchSize $CorefBatchSize -MaxContextTurns $MaxContextTurns -Temperature 0
+    foreach ($k in $m.Keys) { $corefMap[$k] = $m[$k] }
+}
+
+$resolved = @(ConvertTo-CorefResolved -Clauses $assertoric -Results $corefMap)
+$resolvedPath = Join-Path $resolvedOut 'resolved-clauses.jsonl'
+Set-Content -LiteralPath $resolvedPath -Value @($resolved | ForEach-Object { $_ | ConvertTo-Json -Depth 4 -Compress }) -Encoding utf8
+
+$cov = Measure-CorefCoverage -Resolved $resolved
+Write-Host "  Assertoric subset: $($cov.total) clauses -> $resolvedPath  (self-contained passthrough + AI-resolved)" -ForegroundColor White
+Write-Host "  Coverage: usable (self_contained+resolved) $($cov.usable_count)/$($cov.total) = $($cov.usable_fraction); coverage-loss (partial+unresolved) $($cov.coverage_loss_count) = $($cov.coverage_loss_fraction)" -ForegroundColor White
+Write-Host '  By anaphora_dependency (§6 — attributed-restatement is the highest-value/highest-risk cell):' -ForegroundColor White
+foreach ($d in $cov.by_anaphora_dependency) {
+    Write-Host ("    {0,-24} usable {1,4}/{2,-4} = {3}" -f $d.anaphora_dependency, $d.usable, $d.total, $d.usable_fraction) -ForegroundColor DarkGray
+}
+if ($cov.total -gt 0 -and $cov.usable_count -eq 0) {
+    Write-Warning 'COREF: no assertoric clause is usable — either the classifier returned nothing (missing key) or every resolution failed. resolved-clauses.jsonl was still emitted so the run is inspectable; no resolution is trustworthy.'
+}
+
+# ── FOL / CONTRADICTION / FN-rate (design §7/§8) — later increments, NOT implemented ─────────
 throw (New-EvalError `
     'Run the full FOL-on-debate eval pipeline' `
-    "SEGMENT + CLASSIFY ran (clauses.jsonl + classified-clauses.jsonl emitted; $($dist.assertoric_count) assertoric of $($dist.total)) but the coref/FOL/contradiction/FN-rate stages are not yet implemented." `
-    'Inspect classified-clauses.jsonl now (or use -DryRun / -SkipClassify). The coref stage (design §6, the hard prerequisite on the attributed-opponent x assertoric cell) is the next increment; FOL + contradiction + paraphrase FN-rate follow.')
+    "SEGMENT + CLASSIFY + COREF ran (clauses/classified/resolved JSONL emitted; $($cov.usable_count) usable assertoric of $($cov.total)) but the FOL/contradiction/FN-rate stages are not yet implemented." `
+    'Inspect resolved-clauses.jsonl now (or use -DryRun / -SkipClassify). FOL extraction (design §7, reusing Private/LogicalFormPass.ps1 on the resolved assertoric subset) is the next increment; contradiction + paraphrase FN-rate (§8) follow.')

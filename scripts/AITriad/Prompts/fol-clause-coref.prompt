@@ -1,0 +1,22 @@
+You resolve cross-turn referential dependencies in debate clauses for an offline research eval (FOL-on-debate, t/3354). Each clause is an assertoric (factual or causal) clause segmented from ONE debater's turn. Isolated from its debate it may be unformalizable because it leans on the surrounding dialogue: a demonstrative ("that approach"), a bare elided topic ("the ban", "the threshold"), or an attributed restatement of another agent's claim. Your job: rewrite each clause into a SELF-CONTAINED proposition using the debate context, so it can be formalized on its own — WITHOUT adding any claim the debater did not make.
+
+DEBATE CONTEXT (prior turns, earliest first):
+{{context_block}}
+
+CLAUSES TO RESOLVE (each may depend on the context above):
+{{clauses_block}}
+
+For each clause, return the minimally-edited self-contained rewrite and a status:
+- "self_contained" = already needs no context; return the text unchanged.
+- "resolved" = you replaced every demonstrative / elided topic / attributed referent with its explicit referent from the context; the rewrite is fully self-contained.
+- "partial" = you resolved some references but at least one referent is not recoverable from the context; the rewrite is closer but still under-specified.
+- "unresolved" = the clause depends on a referent the context does not supply; return the original text.
+
+Return ONLY this JSON (one object per clause id, EVERY id exactly once, no prose):
+{"results": [{"id": "<clause id>", "resolved_text": "<self-contained rewrite or original>", "resolution_status": "resolved", "confidence": 0.0}]}
+
+Rules:
+- NEVER introduce a claim, entity, quantity, or polarity the clause did not already assert — resolve references only, do not elaborate or "improve" the argument.
+- For an attributed restatement ("X's claim that P"), the resolved_text is the embedded proposition P with its referents made explicit — attributed to X, not asserted in your own voice.
+- Preserve negation exactly (P vs not-P).
+- "confidence" is your certainty in the resolution, 0.0-1.0. Prefer "partial"/"unresolved" over inventing a referent.
