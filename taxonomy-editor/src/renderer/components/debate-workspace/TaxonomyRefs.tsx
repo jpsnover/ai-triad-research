@@ -96,12 +96,22 @@ export function TaxonomyPill({ taxRef, onSelect, selected }: {
 function TaxNodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () => void }) {
   const lookupPinnedData = useTaxonomyStore(s => s.lookupPinnedData);
   const data = lookupPinnedData(nodeId);
-  const node = data && data.type !== 'conflict'
+  // t/3401: pol-* ids resolve to a 'policy' PinnedData variant, not a POV/situations node.
+  const node = data && data.type !== 'conflict' && data.type !== 'policy'
     ? (data.node as unknown as TaxRefNode)
     : undefined;
   const pov = data?.type === 'pov' ? data.pov
     : data?.type === 'situations' ? 'situations' : '';
-  return <TaxonomyRefDetail nodeId={nodeId} node={node} pov={pov} onClose={onClose} />;
+  return (
+    <TaxonomyRefDetail
+      nodeId={nodeId}
+      node={node}
+      pov={pov}
+      onClose={onClose}
+      policy={data?.type === 'policy' ? data.policy : undefined}
+      policyReferencingNodes={data?.type === 'policy' ? data.referencingNodes : undefined}
+    />
+  );
 }
 
 function CaveatsBox({ caveats }: { caveats: string[] }) {

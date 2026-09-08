@@ -51,6 +51,25 @@ export interface TaxRefEdge {
   notes?: string;
 }
 
+/** t/3401: pol-* ids live in policy_actions.json, not the Perspective files — a policy is not a
+ *  POV/situation node, so it gets a dedicated (simpler) view rather than reusing the tab machinery. */
+export interface TaxRefPolicy {
+  id: string;
+  action: string;
+  description?: string;
+  source_povs: string[];
+  member_count: number;
+}
+
+export interface TaxRefPolicyReferencingNode {
+  id: string;
+  label: string;
+  pov: string;
+  /** How THIS node's own graph_attributes.policy_actions entry frames the policy — per-node, not on the registry. */
+  action?: string;
+  framing?: string;
+}
+
 type TabId = 'content' | 'related' | 'attributes' | 'pov-acc' | 'pov-saf' | 'pov-skp';
 
 interface Props {
@@ -59,9 +78,11 @@ interface Props {
   pov: string;
   onClose: () => void;
   edges?: TaxRefEdge[];
+  policy?: TaxRefPolicy;
+  policyReferencingNodes?: TaxRefPolicyReferencingNode[];
 }
 
-export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) {
+export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges, policy, policyReferencingNodes }: Props) {
   const [tab, setTab] = useState<TabId>('content');
   const ga = node?.graph_attributes;
 
@@ -96,9 +117,11 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
       <div className="nd-header taxref-header-pad">
         <div className="nd-header-title">
           <span className="nd-header-label taxref-title">
-            {node?.label || nodeId}
+            {policy ? policy.action : (node?.label || nodeId)}
           </span>
-          {pov && (
+          {policy ? (
+            <span className="taxref-pov-pill">policy</span>
+          ) : pov && (
             <span className="taxref-pov-pill">{pov}</span>
           )}
           <span className="taxref-node-id">
@@ -115,7 +138,9 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
         >Close</button>
       </div>
 
-      {!node ? (
+      {policy ? (
+        <PolicyView policy={policy} referencingNodes={policyReferencingNodes ?? []} />
+      ) : !node ? (
         <div className="taxref-not-found">
           Node not found in loaded Perspective files. (Taxonomy may not be loaded yet, or this id belongs to a non-Perspective registry.)
         </div>
@@ -166,6 +191,50 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
             {tab === 'pov-skp' && <PovInterpretationTab interp={interps?.skeptic} povLabel="Skeptic" povColor="var(--color-skp, #a855f7)" />}
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/* ── Policy view (t/3401) ─────────────────────────────── */
+
+function PolicyView({ policy, referencingNodes }: { policy: TaxRefPolicy; referencingNodes: TaxRefPolicyReferencingNode[] }) {
+  return (
+    <div className="taxref-tab-content">
+      {policy.description && (
+        <div>
+          <div className="taxref-section-header taxref-section-header-mt0">Description</div>
+          <div className="taxref-desc-box">{policy.description}</div>
+        </div>
+      )}
+
+      <div className="taxref-section-header taxref-section-header-mt0">Action</div>
+      <div className="taxref-desc-box">{policy.action}</div>
+
+      {policy.source_povs.length > 0 && (
+        <>
+          <div className="taxref-section-header">Source Perspectives</div>
+          <div>
+            {policy.source_povs.map(p => <span key={p} className="taxref-chip">{p}</span>)}
+          </div>
+        </>
+      )}
+
+      <div className="taxref-section-header taxref-section-header-flex">
+        Referenced By
+        <span className="taxref-related-count-badge">{referencingNodes.length}</span>
+      </div>
+      {referencingNodes.length === 0 ? (
+        <div className="taxref-empty-msg">No loaded node currently references this policy.</div>
+      ) : (
+        referencingNodes.map(n => (
+          <div key={n.id} className="taxref-attr-block">
+            <span className="taxref-chip taxref-chip-strong">{n.label}</span>
+            <span className="taxref-node-id">{n.id} · {n.pov}</span>
+            {n.action && <div><strong className="taxref-attr-label">Action:</strong> {n.action}</div>}
+            {n.framing && <div><strong className="taxref-attr-label">Framing:</strong> {n.framing}</div>}
+          </div>
+        ))
       )}
     </div>
   );
