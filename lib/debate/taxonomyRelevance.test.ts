@@ -349,6 +349,30 @@ describe('selectRelevantSituationNodes — divergence penalty', () => {
   });
 });
 
+// ── selectRelevantSituationNodes — out-of-coverage guard (t/3412) ──────
+
+describe('selectRelevantSituationNodes — out-of-coverage guard', () => {
+  function makeSit(id: string): SituationNode {
+    return { id, label: `Sit ${id}`, description: `Desc ${id}`, interpretations: { accelerationist: 'i', safetyist: 'i', skeptic: 'i' }, linked_nodes: [], conflict_ids: [] };
+  }
+
+  it('injects 0 situations when top score is far below threshold (out-of-coverage)', () => {
+    // threshold=0.48, margin=0.15 → fires when top < 0.33
+    const nodes = [makeSit('sit-001'), makeSit('sit-002'), makeSit('sit-003')];
+    const scores = new Map([['sit-001', 0.20], ['sit-002', 0.18], ['sit-003', 0.15]]);
+    const result = selectRelevantSituationNodes(nodes, scores, 0.48, 3, 15);
+    expect(result).toHaveLength(0);
+  });
+
+  it('still backfills to min when scores are within margin of threshold', () => {
+    // top=0.40, threshold=0.48, margin=0.15 → 0.40 >= 0.33 → backfill applies
+    const nodes = [makeSit('sit-001'), makeSit('sit-002'), makeSit('sit-003')];
+    const scores = new Map([['sit-001', 0.40], ['sit-002', 0.38], ['sit-003', 0.35]]);
+    const result = selectRelevantSituationNodes(nodes, scores, 0.48, 3, 15);
+    expect(result).toHaveLength(3);
+  });
+});
+
 // ── filterByTopicConstraints — discipline boost ─────────────────
 
 describe('filterByTopicConstraints — discipline boost', () => {
