@@ -420,9 +420,7 @@ export class DebateEngine {
       });
     }
 
-    // Resolve URL background to article text before session init (t/3413)
     this.config.background = await resolveBackground(this.config.background);
-
     this.initSession();
 
     // Route prompt directives based on model capability (t/331)
