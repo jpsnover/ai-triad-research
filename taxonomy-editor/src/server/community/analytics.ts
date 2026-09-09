@@ -393,6 +393,42 @@ function winsorizedEngagedMs(evt: AnalyticsEvent): number {
   return Math.min(raw, ENGAGED_MS_WINSORIZE_CAP);
 }
 
+// t/3423: per-subject daily ceiling — caps total engaged_ms creditable to one subject_id per
+// (user, UTC calendar day) at SUBJECT_DAILY_CEILING_MS, the cap the PI believed already existed.
+// Composes with the per-visit winsorize above: winsorize bounds one visit, this bounds the day
+// (a visit is winsorized FIRST, then the winsorized amount is clipped against the remaining
+// daily budget — bounds compose, they don't cancel).
+//
+// Keying uses the UTC calendar day (evt.timestamp is always a UTC ISO string, sliced to
+// YYYY-MM-DD) — NOT server-local time — so the boundary is the same regardless of deployment
+// timezone. Anonymous events (empty evt.user) fall back to session_id for the user component of
+// the key: without this, every anonymous visitor would pool into ONE shared daily budget instead
+// of each anonymous session getting its own.
+//
+// Events must be processed in timestamp order for the cumulative clip to be deterministic —
+// readEvents()'s day-file-append order is not guaranteed chronological across concurrent writers.
+
+/** Precompute each event's billable engaged_ms (winsorized, then clipped to the subject's remaining daily budget). Must be called once per query over the full relevant event set; event identity (object reference) is the map key. */
+function computeBillableEngagedMs(events: AnalyticsEvent[]): Map<AnalyticsEvent, number> {
+  const ceilingMs = getConfig().analytics.SUBJECT_DAILY_CEILING_MS;
+  const sorted = [...events].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const remainingBudget = new Map<string, number>();
+  const billable = new Map<AnalyticsEvent, number>();
+  for (const evt of sorted) {
+    const winsorized = winsorizedEngagedMs(evt);
+    const subjectId = typeof evt.detail.subject_id === 'string' ? evt.detail.subject_id.slice(0, 100) : '';
+    if (!subjectId || winsorized === 0) { billable.set(evt, winsorized); continue; }
+    const userKey = evt.user || evt.session_id;
+    const day = evt.timestamp.slice(0, 10); // UTC calendar day
+    const key = `${userKey}|${subjectId}|${day}`;
+    const remaining = remainingBudget.has(key) ? remainingBudget.get(key)! : ceilingMs;
+    const billableMs = Math.min(winsorized, remaining);
+    remainingBudget.set(key, remaining - billableMs);
+    billable.set(evt, billableMs);
+  }
+  return billable;
+}
+
 /** Per-node engagement stats. `uniqueUsers` is present on aggregate rollups only. */
 export interface EngagementNodeResult {
   visits: number;
@@ -467,10 +503,10 @@ function mkAccum(): EngAccum {
   return { visits: 0, engagedVisits: 0, engagedMs: 0, cappedCount: 0, users: new Set() };
 }
 
-function addToAccum(acc: EngAccum, evt: AnalyticsEvent): void {
+function addToAccum(acc: EngAccum, evt: AnalyticsEvent, billableMs: number): void {
   acc.visits++;
   if (evt.detail.engaged === true) acc.engagedVisits++;
-  acc.engagedMs += winsorizedEngagedMs(evt);
+  acc.engagedMs += billableMs;
   if (evt.detail.capped === true) acc.cappedCount++;
   acc.users.add(evt.user);
 }
@@ -512,13 +548,13 @@ function getOrMake(m: Map<string, EngAccum>, key: string): EngAccum {
   return a;
 }
 
-/** Place one view.dwell event into all accumulators (tree + daily + userSummaries). Malformed ids go to tabs['other']. */
-function placeEvent(state: EngState, evt: AnalyticsEvent): void {
+/** Place one view.dwell event into all accumulators (tree + daily + userSummaries). Malformed ids go to tabs['other']. billableMs is the pre-winsorized, pre-ceiling-clipped engaged_ms for this event (t/3421 + t/3423). */
+function placeEvent(state: EngState, evt: AnalyticsEvent, billableMs: number): void {
   const d = evt.detail;
   const subjectType = typeof d.subject_type === 'string' ? d.subject_type : '';
   if (subjectType !== 'node' && subjectType !== 'tab' && subjectType !== 'panel') return;
 
-  addToAccum(state.tool, evt);
+  addToAccum(state.tool, evt, billableMs);
 
   // Daily roll-up
   const date = evt.timestamp.slice(0, 10);
@@ -526,14 +562,14 @@ function placeEvent(state: EngState, evt: AnalyticsEvent): void {
   if (!day) { day = { visits: 0, engagedVisits: 0, engagedMs: 0 }; state.daily.set(date, day); }
   day.visits++;
   if (d.engaged === true) day.engagedVisits++;
-  day.engagedMs += winsorizedEngagedMs(evt);
+  day.engagedMs += billableMs;
 
   // Per-user summary roll-up
   let u = state.userSummaries.get(evt.user);
   if (!u) { u = { visits: 0, engagedVisits: 0, engagedMs: 0, lastActive: evt.timestamp, campCounts: new Map() }; state.userSummaries.set(evt.user, u); }
   u.visits++;
   if (d.engaged === true) u.engagedVisits++;
-  u.engagedMs += winsorizedEngagedMs(evt);
+  u.engagedMs += billableMs;
   if (evt.timestamp > u.lastActive) u.lastActive = evt.timestamp;
 
   // Tree placement
@@ -542,18 +578,18 @@ function placeEvent(state: EngState, evt: AnalyticsEvent): void {
     const cat = typeof d.cat === 'string' ? d.cat : '';
     const subjectId = typeof d.subject_id === 'string' ? d.subject_id.slice(0, 100) : '';
     if (pov && KNOWN_CAMPS.has(pov)) {
-      addToAccum(getOrMake(state.camps, pov), evt);
+      addToAccum(getOrMake(state.camps, pov), evt, billableMs);
       if (u) u.campCounts.set(pov, (u.campCounts.get(pov) ?? 0) + 1);
       if (cat) {
-        addToAccum(getOrMake(state.categories, `${pov}-${cat}`), evt);
-        if (subjectId) addToAccum(getOrMake(state.nodes, subjectId), evt);
+        addToAccum(getOrMake(state.categories, `${pov}-${cat}`), evt, billableMs);
+        if (subjectId) addToAccum(getOrMake(state.nodes, subjectId), evt, billableMs);
       }
     } else {
-      addToAccum(getOrMake(state.tabs, 'other'), evt);
+      addToAccum(getOrMake(state.tabs, 'other'), evt, billableMs);
     }
   } else {
     const tabKey = (typeof d.subject_id === 'string' && d.subject_id) ? d.subject_id.slice(0, 100) : 'unknown';
-    addToAccum(getOrMake(state.tabs, tabKey), evt);
+    addToAccum(getOrMake(state.tabs, tabKey), evt, billableMs);
   }
 
   // Session entry tracking — gated on sessionEntries != null (only allocated when includeSessions)
@@ -562,7 +598,7 @@ function placeEvent(state: EngState, evt: AnalyticsEvent): void {
     let se = state.sessionEntries.get(sessId);
     if (!se) { se = { startTime: evt.timestamp, engagedMs: 0, nodes: new Set(), user: evt.user }; state.sessionEntries.set(sessId, se); }
     if (evt.timestamp < se.startTime) se.startTime = evt.timestamp;
-    se.engagedMs += winsorizedEngagedMs(evt);
+    se.engagedMs += billableMs;
     // nodeCount: cap subject_id at 100 chars to match the node accumulator bound above
     const subId = typeof d.subject_id === 'string' && d.subject_id ? d.subject_id.slice(0, 100) : '';
     if (subId) se.nodes.add(subId);
@@ -603,15 +639,17 @@ export async function queryEngagement(
   opts?: { user?: string; session?: string; includeSessions?: boolean },
 ): Promise<EngagementQueryResult> {
   const events = await readEvents(from, to);
+  const dwellEvents = events.filter(e => e.event_type === 'view.dwell');
+  const billable = computeBillableEngagedMs(dwellEvents);
   const aggState = mkState(!!opts?.includeSessions);
   const userState = opts?.user ? mkState(false) : null;
   const sessionState = opts?.session ? mkState(false) : null;
 
-  for (const evt of events) {
-    if (evt.event_type !== 'view.dwell') continue;
-    placeEvent(aggState, evt);
-    if (userState && evt.user === opts!.user) placeEvent(userState, evt);
-    if (sessionState && evt.session_id === opts!.session) placeEvent(sessionState, evt);
+  for (const evt of dwellEvents) {
+    const billableMs = billable.get(evt) ?? 0;
+    placeEvent(aggState, evt, billableMs);
+    if (userState && evt.user === opts!.user) placeEvent(userState, evt, billableMs);
+    if (sessionState && evt.session_id === opts!.session) placeEvent(sessionState, evt, billableMs);
   }
 
   const sourceState = sessionState ?? aggState;
@@ -662,16 +700,22 @@ export async function querySubjectBreakdown(
   user?: string,
 ): Promise<SubjectBreakdownResult> {
   const events = await readEvents(from, to);
+  const matching = events.filter(e =>
+    e.event_type === 'view.dwell' &&
+    typeof e.detail.subject_id === 'string' && e.detail.subject_id === subjectId &&
+    (user === undefined || e.user === user),
+  );
+  // Billable per-event ceiling must be computed over this subject's full matching set — a
+  // single user's daily budget for this subject depends only on their own events for it, so
+  // restricting to `matching` before computing is equivalent to computing over all events.
+  const billable = computeBillableEngagedMs(matching);
   const acc = new Map<string, { engagedMs: number; visits: number }>();
-  for (const evt of events) {
-    if (evt.event_type !== 'view.dwell') continue;
-    if (typeof evt.detail.subject_id !== 'string' || evt.detail.subject_id !== subjectId) continue;
-    if (user !== undefined && evt.user !== user) continue;
+  for (const evt of matching) {
     const key = groupBy === 'user' ? evt.user : evt.session_id;
     let entry = acc.get(key);
     if (!entry) { entry = { engagedMs: 0, visits: 0 }; acc.set(key, entry); }
     entry.visits++;
-    entry.engagedMs += winsorizedEngagedMs(evt);
+    entry.engagedMs += billable.get(evt) ?? 0;
   }
   const rows: SubjectBreakdownRow[] = Array.from(acc.entries())
     .sort(([, a], [, b]) => b.engagedMs - a.engagedMs)

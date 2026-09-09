@@ -86,6 +86,10 @@ export interface RuntimeConfig {
     IDLE_GRACE_MS: number;
     /** t/3422: each pulse grants engagement credit valid through t + CREDIT_WINDOW_MS. */
     CREDIT_WINDOW_MS: number;
+    /** t/3423: server-side aggregation only (not shipped to the client) — caps total engaged_ms
+     *  creditable to one subject_id per (user, UTC calendar day). Composes with the per-visit
+     *  ENGAGED_MS_WINSORIZE_CAP in analytics.ts: winsorize bounds one visit, this bounds the day. */
+    SUBJECT_DAILY_CEILING_MS: number;
   };
   flightRecorder: {
     minDumpIntervalMs: number;
@@ -195,6 +199,7 @@ const DEFAULTS: RuntimeConfig = {
     PULSE_THROTTLE_MS: 5_000,
     IDLE_GRACE_MS: 10_000,
     CREDIT_WINDOW_MS: 15_000,
+    SUBJECT_DAILY_CEILING_MS: 1_800_000,
   },
   flightRecorder: {
     minDumpIntervalMs: 10_000,
@@ -425,6 +430,7 @@ export function validateAndMerge(raw: unknown, defaults: RuntimeConfig): { confi
       PULSE_THROTTLE_MS: vNum(an.PULSE_THROTTLE_MS, defaults.analytics.PULSE_THROTTLE_MS, { min: 0, max: DURATION_MAX }, 'analytics.PULSE_THROTTLE_MS', errors),
       IDLE_GRACE_MS: vNum(an.IDLE_GRACE_MS, defaults.analytics.IDLE_GRACE_MS, { min: 0, max: DURATION_MAX }, 'analytics.IDLE_GRACE_MS', errors),
       CREDIT_WINDOW_MS: vNum(an.CREDIT_WINDOW_MS, defaults.analytics.CREDIT_WINDOW_MS, { min: 0, max: DURATION_MAX }, 'analytics.CREDIT_WINDOW_MS', errors),
+      SUBJECT_DAILY_CEILING_MS: vNum(an.SUBJECT_DAILY_CEILING_MS, defaults.analytics.SUBJECT_DAILY_CEILING_MS, { min: 0, max: DURATION_MAX }, 'analytics.SUBJECT_DAILY_CEILING_MS', errors),
     },
     flightRecorder: {
       minDumpIntervalMs: vNum(fr.minDumpIntervalMs, defaults.flightRecorder.minDumpIntervalMs, { min: 0, max: DURATION_MAX }, 'flightRecorder.minDumpIntervalMs', errors),

@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('../runtimeConfig.js', () => ({
-  getConfig: () => ({ analytics: { retentionDays: 90 } }),
+  getConfig: () => ({ analytics: { retentionDays: 90, SUBJECT_DAILY_CEILING_MS: 30 * 60 * 1000 } }),
 }));
 
 import * as analytics from '../community/analytics.js';
@@ -25,11 +25,12 @@ function dwell(overrides: Partial<AnalyticsEvent> & { detail: Record<string, unk
 }
 
 function nodeEvent(subjectId: string, pov: string, cat: string, opts: {
-  user?: string; engaged?: boolean; capped?: boolean; duration_ms?: number;
+  user?: string; engaged?: boolean; capped?: boolean; duration_ms?: number; timestamp?: string;
 } = {}): AnalyticsEvent {
   return dwell({
     user: opts.user ?? 'alice',
     duration_ms: opts.duration_ms ?? 5000,
+    ...(opts.timestamp !== undefined ? { timestamp: opts.timestamp } : {}),
     detail: {
       subject_type: 'node',
       subject_id: subjectId,
@@ -425,6 +426,132 @@ describe('queryEngagement — rollup math', () => {
       const result = await analytics.querySubjectBreakdown('2026-08-10', '2026-08-10', 'acc-bel-001', 'user');
       const alice = result.rows.find(r => 'user' in r && r.user === 'alice') as { engagedMs: number };
       expect(alice.engagedMs).toBe(10 * 60 * 1000);
+    });
+  });
+
+  // ── t/3423: per-subject daily engagement ceiling (30min, keyed on user × subject × UTC day) ──
+
+  it('clips cumulative engagedMs for one subject/user/day at the 30min ceiling', async () => {
+    await withEvents([
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }), // 27min so far
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }), // would be 36min — clipped to 30
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-10')).aggregate;
+      expect(agg.camps['acc'].categories['acc-des'].nodes['acc-des-010'].engagedMs).toBe(30 * 60 * 1000);
+    });
+  });
+
+  it('an event arriving after the daily budget is exhausted contributes 0', async () => {
+    await withEvents([
+      // Three 10min visits (each at, not over, the per-visit winsorize cap — unaffected by it)
+      // exactly exhaust the 30min daily budget.
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T10:00:00Z', duration_ms: 10 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T11:00:00Z', duration_ms: 10 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T12:00:00Z', duration_ms: 10 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T13:00:00Z', duration_ms: 9 * 60 * 1000 }),
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-10')).aggregate;
+      const node = agg.camps['acc'].categories['acc-des'].nodes['acc-des-010'];
+      expect(node.engagedMs).toBe(30 * 60 * 1000);
+      expect(node.visits).toBe(4); // the 4th visit still COUNTS as a visit, just contributes 0 engaged_ms
+    });
+  });
+
+  it('different UTC calendar days get independent budgets', async () => {
+    await withEvents([
+      // 3x9min per day = 27min raw each — under the 30min ceiling on its own, but would clip to
+      // 30min total if the two days shared one budget.
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T21:00:00Z', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T22:00:00Z', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T23:59:00Z', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-11T00:01:00Z', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-11T01:00:00Z', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-11T02:00:00Z', duration_ms: 9 * 60 * 1000 }),
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-11')).aggregate;
+      expect(agg.camps['acc'].categories['acc-des'].nodes['acc-des-010'].engagedMs).toBe(54 * 60 * 1000);
+    });
+  });
+
+  it('different users get independent budgets for the same subject/day', async () => {
+    await withEvents([
+      // 3x9min per user = 27min raw each — would clip to 30min total if users shared one budget.
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'bob', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'bob', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'bob', duration_ms: 9 * 60 * 1000 }),
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-10')).aggregate;
+      expect(agg.camps['acc'].categories['acc-des'].nodes['acc-des-010'].engagedMs).toBe(54 * 60 * 1000);
+    });
+  });
+
+  it('different subject_ids get independent budgets for the same user/day', async () => {
+    await withEvents([
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-011', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-011', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-011', 'acc', 'des', { user: 'alice', duration_ms: 9 * 60 * 1000 }),
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-10')).aggregate;
+      expect(agg.camps['acc'].categories['acc-des'].nodes['acc-des-010'].engagedMs).toBe(27 * 60 * 1000);
+      expect(agg.camps['acc'].categories['acc-des'].nodes['acc-des-011'].engagedMs).toBe(27 * 60 * 1000);
+    });
+  });
+
+  it('anonymous events (empty user) fall back to session_id for the budget key — two anon sessions stay independent', async () => {
+    const anonEvent = (sessionId: string, ts: string) => dwell({
+      user: '', session_id: sessionId, timestamp: ts, duration_ms: 9 * 60 * 1000,
+      detail: { subject_type: 'node', subject_id: 'acc-des-010', pov: 'acc', cat: 'des', engaged: true, capped: false },
+    });
+    await withEvents([
+      anonEvent('anon-s1', '2026-08-10T10:00:00Z'),
+      anonEvent('anon-s1', '2026-08-10T10:05:00Z'),
+      anonEvent('anon-s1', '2026-08-10T10:10:00Z'),
+      anonEvent('anon-s2', '2026-08-10T11:00:00Z'),
+      anonEvent('anon-s2', '2026-08-10T11:05:00Z'),
+      anonEvent('anon-s2', '2026-08-10T11:10:00Z'),
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-10')).aggregate;
+      // If both anon events shared ONE budget keyed on empty-string user, this would clip to 30min.
+      // Session-keyed fallback keeps them independent: 27 + 27 = 54min.
+      expect(agg.camps['acc'].categories['acc-des'].nodes['acc-des-010'].engagedMs).toBe(54 * 60 * 1000);
+    });
+  });
+
+  it('composes with winsorize: a 45min visit clips to 10min first, then the ceiling clips a later normally-unwinsorized visit', async () => {
+    await withEvents([
+      // Winsorized 45min -> 10min. Budget: 30 - 10 = 20 remaining.
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T10:00:00Z', duration_ms: 45 * 60 * 1000 }),
+      // 8min, under the winsorize cap, unaffected by it. Budget: 20 - 8 = 12 remaining.
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T11:00:00Z', duration_ms: 8 * 60 * 1000 }),
+      // 8min, under winsorize, but only 12 remaining. Budget: 12 - 8 = 4 remaining.
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T12:00:00Z', duration_ms: 8 * 60 * 1000 }),
+      // 8min, under winsorize, but only 4 remaining — the CEILING clips this one to 4.
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T13:00:00Z', duration_ms: 8 * 60 * 1000 }),
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-10')).aggregate;
+      // 10 + 8 + 8 + 4 = 30min exactly — winsorize bounded the first visit, the ceiling bounded the day.
+      expect(agg.camps['acc'].categories['acc-des'].nodes['acc-des-010'].engagedMs).toBe(30 * 60 * 1000);
+    });
+  });
+
+  it('ceiling is deterministic regardless of input array order (timestamp-sorted before the cumulative clip)', async () => {
+    await withEvents([
+      // Deliberately out-of-order relative to timestamp — readEvents' append order isn't guaranteed chronological.
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T12:00:00Z', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T10:00:00Z', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T11:00:00Z', duration_ms: 9 * 60 * 1000 }),
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', timestamp: '2026-08-10T13:00:00Z', duration_ms: 9 * 60 * 1000 }),
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-10')).aggregate;
+      expect(agg.camps['acc'].categories['acc-des'].nodes['acc-des-010'].engagedMs).toBe(30 * 60 * 1000);
     });
   });
 });
