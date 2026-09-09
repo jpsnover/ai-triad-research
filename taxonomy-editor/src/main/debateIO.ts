@@ -16,6 +16,41 @@ import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 const DEBATES_DIR = resolveDataPath('debates');
 const INDEX_PATH = path.join(DEBATES_DIR, '.debate-index.json');
 
+// ── Per-id read/write serialization (t/3415) ────────────────────────────
+// Same-process self-lock: an in-flight async read (loadDebateSession, or a
+// listDebateSessions per-file read) can still hold an open OS handle on a
+// debate's .json file — via the libuv threadpool — at the exact moment a
+// separate, later IPC call's saveDebateSession fires its rename-replace.
+// Windows denies the rename (EPERM) unless the open handle carries
+// FILE_SHARE_DELETE, which Node's fs paths don't set. Chaining a per-id
+// promise queue here closes that window at the single choke point every
+// renderer save/load call funnels through — this module. Different ids
+// never block each other; contention (an op actually waiting on a prior one
+// for the SAME id) is flight-recorded so the window's frequency stays
+// observable rather than silently absorbed.
+const idLocks = new Map<string, Promise<unknown>>();
+
+function withIdLock<T>(id: string, op: 'read' | 'write', fn: () => Promise<T>): Promise<T> {
+  const prior = idLocks.get(id);
+  const contended = prior !== undefined;
+  const run: Promise<T> = (prior ?? Promise.resolve()).catch(() => undefined).then(() => {
+    if (contended) {
+      getGlobalRecorder()?.record({
+        type: 'io.contention', component: 'debateIO', level: 'info',
+        message: `debate ${id}: ${op} waited for an in-flight operation on the same id`,
+        data: { debate_id: id, op },
+      });
+    }
+    return fn();
+  });
+  const tracked = run.catch(() => undefined);
+  idLocks.set(id, tracked);
+  tracked.finally(() => {
+    if (idLocks.get(id) === tracked) idLocks.delete(id);
+  });
+  return run;
+}
+
 export interface DebateSessionSummary {
   id: string;
   title: string;
@@ -175,9 +210,12 @@ export async function listDebateSessions(): Promise<DebateSessionSummary[]> {
     indexDirty = true;
   }
 
-  // Read changed/new files async (non-blocking)
-  const reads = readQueue.map(({ filename, filePath }) =>
-    fs.promises.readFile(filePath, 'utf-8').then(raw => {
+  // Read changed/new files async (non-blocking). Each read is serialized against a
+  // concurrent save for the SAME id via withIdLock (t/3415) — different ids read in
+  // parallel as before.
+  const reads = readQueue.map(({ filename, filePath }) => {
+    const id = filename.replace(/^debate-/, '').replace(/\.json$/, '');
+    return withIdLock(id, 'read', () => fs.promises.readFile(filePath, 'utf-8')).then(raw => {
       const data = JSON.parse(raw) as Record<string, unknown>;
       const summary = extractSummary(data);
       const stat = fs.statSync(filePath);
@@ -191,8 +229,8 @@ export async function listDebateSessions(): Promise<DebateSessionSummary[]> {
         message: `Skipping corrupt debate file: ${filename}`,
         error: { name: (err as Error).name ?? 'Error', message: String(err) },
       });
-    })
-  );
+    });
+  });
   await Promise.all(reads);
 
   if (indexDirty) saveIndex(nextIndex);
@@ -202,12 +240,14 @@ export async function listDebateSessions(): Promise<DebateSessionSummary[]> {
 }
 
 export async function loadDebateSession(id: string): Promise<unknown> {
-  const filePath = debateFilePath(id);
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Debate session not found: ${id}`);
-  }
-  const raw = await fs.promises.readFile(filePath, 'utf-8');
-  return JSON.parse(raw);
+  const filePath = debateFilePath(id); // validates id — throws before touching the lock map
+  return withIdLock(id, 'read', async () => {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Debate session not found: ${id}`);
+    }
+    const raw = await fs.promises.readFile(filePath, 'utf-8');
+    return JSON.parse(raw);
+  });
 }
 
 /** For a completed debate (has a concluding turn) that lacks a calibration_log, extract +
@@ -225,84 +265,95 @@ function embedCalibrationIfCompleted(session: unknown): void {
   } catch { /* telemetry — silent by design;  calibration logging never blocks save */ }
 }
 
-export function saveDebateSession(session: unknown, caller: string): void {
+export async function saveDebateSession(session: unknown, caller: string): Promise<void> {
   ensureDebatesDir();
   const data = session as { id: string };
   if (!data.id || typeof data.id !== 'string') {
     throw new Error('Cannot save debate session: missing or invalid ID');
   }
+  const filePath = debateFilePath(data.id); // validates id — throws before touching the lock map
 
-  // Embed calibration data for completed debates before saving (best-effort).
-  embedCalibrationIfCompleted(session);
+  return withIdLock(data.id, 'write', async () => {
+    // Embed calibration data for completed debates before saving (best-effort).
+    embedCalibrationIfCompleted(session);
 
-  const filePath = debateFilePath(data.id);
-  // Crash-safe persistence (t/1140): safe-serialize (circular/non-serializable fields fall
-  // back to a sanitizing replacer and are logged) + atomic temp+rename so a crash mid-write
-  // can't leave a truncated session file.
-  const { json, hadError, errorMessage } = safeSerialize(session, 2);
-  if (hadError) {
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'debateIO', level: 'warn',
-      message: `Debate session ${data.id} saved via sanitizing fallback (non-serializable fields stripped): ${errorMessage}`,
-      error: { name: 'SerializationFallback', message: errorMessage ?? 'unknown' },
-    });
-  }
-  try {
-    atomicWriteSync(filePath, json + '\n', recordLockHolder);
-  } catch (err) {
-    // t/1638: atomicWriteSync (t/1627) throws on a total-loss save naming only
-    // filePath/tmpPath; re-throw enriched with the debate-specific state (id, run_id,
-    // turn_count + preserved .tmp). record() + throw stay here (ADR-003 in-catch rule).
-    const { runId, turnCount, tmpPath } = computeSaveLossContext(session, filePath);
-    getGlobalRecorder()?.record({
-      type: 'system.error', component: 'debateIO', level: 'error',
-      message: `Debate save failed for ${data.id} (run ${runId}, ${turnCount} turns) — payload preserved at ${tmpPath}`,
-      data: { debateId: data.id, runId, turnCount, tmpPath },
-      error: { name: (err as Error).name ?? 'Error', message: String((err as Error).message ?? err), stack: (err as Error).stack },
-    });
-    throw new ActionableError({
-      goal: `Save debate ${data.id} (run ${runId}, ${turnCount} turns) to ${filePath}`,
-      problem: `The atomic write to ${filePath} failed after exhausting the rename-retry budget and the in-place copy fallback — the target is held by another process (Windows antivirus/indexer). Debate ${data.id}, run ${runId}: ${turnCount} turns are at risk of being lost.`,
-      location: 'taxonomy-editor/src/main/debateIO.ts saveDebateSession',
-      nextSteps: [
-        `The full session snapshot for debate ${data.id} (run ${runId}, ${turnCount} turns) is preserved at ${tmpPath} and was NOT deleted — it is the only durable copy. Do not remove it.`,
-        `Retry the save once the file lock clears; the next successful save re-persists all ${turnCount} turns and replaces ${filePath}, after which ${tmpPath} may be removed.`,
-        `If saves keep failing, exclude the debates directory from antivirus/search-indexer scanning.`,
-      ],
-      innerError: err,
-    });
-  }
-
-  // Update metadata index so next list call skips re-reading this file
-  try {
-    const index = loadIndex();
-    updateIndexEntry(index, data.id, session as Record<string, unknown>);
-    saveIndex(index);
-  } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: 'Debate index update after save failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
-  }
-
-  getGlobalRecorder()?.record({
-    type: 'state.save', component: 'debateIO', level: 'info',
-    message: 'Debate saved',
-    data: { debate_id: data.id, caller, save_mode: 'electron-main' },
-  });
-
-  // Harvest debate_tested tier increments after save (t/3330). Deferred so harvest never
-  // blocks save latency. Flag default-OFF until coordinated corpus reconcile (t/3330#2).
-  const _session = session;
-  const _id = data.id;
-  setImmediate(() => {
-    if (process.env.HARVEST_DEBATE_TESTED_ON_SAVE !== '1') return;
-    try {
-      harvestDebateTestedForSession(_session as HarvestableSession, PROJECT_ROOT);
-    } catch (err) {
+    // Crash-safe persistence (t/1140): safe-serialize (circular/non-serializable fields fall
+    // back to a sanitizing replacer and are logged) + atomic temp+rename so a crash mid-write
+    // can't leave a truncated session file.
+    const { json, hadError, errorMessage } = safeSerialize(session, 2);
+    if (hadError) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'debateIO', level: 'warn',
-        message: `debate_tested auto-harvest failed for ${_id}`,
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        message: `Debate session ${data.id} saved via sanitizing fallback (non-serializable fields stripped): ${errorMessage}`,
+        error: { name: 'SerializationFallback', message: errorMessage ?? 'unknown' },
       });
     }
+    try {
+      atomicWriteSync(filePath, json + '\n', recordLockHolder);
+    } catch (err) {
+      // t/1638: atomicWriteSync (t/1627) throws on a total-loss save naming only
+      // filePath/tmpPath; re-throw enriched with the debate-specific state (id, run_id,
+      // turn_count + preserved .tmp). record() + throw stay here (ADR-003 in-catch rule).
+      const { runId, turnCount, tmpPath } = computeSaveLossContext(session, filePath);
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'debateIO', level: 'error',
+        message: `Debate save failed for ${data.id} (run ${runId}, ${turnCount} turns) — payload preserved at ${tmpPath}`,
+        data: { debateId: data.id, runId, turnCount, tmpPath },
+        error: { name: (err as Error).name ?? 'Error', message: String((err as Error).message ?? err), stack: (err as Error).stack },
+      });
+      // t/3415: when the inner failure is persistence.ts's own ActionableError, it has
+      // already computed the ACTUAL lock holder and correctly distinguished self-lock
+      // ("the Electron process itself") from an external lock — reuse that diagnosis
+      // instead of overwriting it with a hardcoded "Windows antivirus/indexer" guess,
+      // which misdirects a same-process self-lock user straight to a useless AV exclusion.
+      const inner = err instanceof ActionableError ? err : undefined;
+      const problem = inner
+        ? `${inner.problem} Debate ${data.id}, run ${runId}: ${turnCount} turns are at risk of being lost.`
+        : `The atomic write to ${filePath} failed after exhausting the rename-retry budget and the in-place copy fallback. Debate ${data.id}, run ${runId}: ${turnCount} turns are at risk of being lost.`;
+      throw new ActionableError({
+        goal: `Save debate ${data.id} (run ${runId}, ${turnCount} turns) to ${filePath}`,
+        problem,
+        location: 'taxonomy-editor/src/main/debateIO.ts saveDebateSession',
+        nextSteps: [
+          `The full session snapshot for debate ${data.id} (run ${runId}, ${turnCount} turns) is preserved at ${tmpPath} and was NOT deleted — it is the only durable copy. Do not remove it.`,
+          `Retry the save once the file lock clears; the next successful save re-persists all ${turnCount} turns and replaces ${filePath}, after which ${tmpPath} may be removed.`,
+          inner?.nextSteps[2] ?? `If saves keep failing, exclude the debates directory from antivirus/search-indexer scanning.`,
+        ],
+        innerError: err,
+      });
+    }
+
+    // Update metadata index so next list call skips re-reading this file
+    try {
+      const index = loadIndex();
+      updateIndexEntry(index, data.id, session as Record<string, unknown>);
+      saveIndex(index);
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: 'Debate index update after save failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
+
+    getGlobalRecorder()?.record({
+      type: 'state.save', component: 'debateIO', level: 'info',
+      message: 'Debate saved',
+      data: { debate_id: data.id, caller, save_mode: 'electron-main' },
+    });
+
+    // Harvest debate_tested tier increments after save (t/3330). Deferred so harvest never
+    // blocks save latency. Flag default-OFF until coordinated corpus reconcile (t/3330#2).
+    const _session = session;
+    const _id = data.id;
+    setImmediate(() => {
+      if (process.env.HARVEST_DEBATE_TESTED_ON_SAVE !== '1') return;
+      try {
+        harvestDebateTestedForSession(_session as HarvestableSession, PROJECT_ROOT);
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'debateIO', level: 'warn',
+          message: `debate_tested auto-harvest failed for ${_id}`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+      }
+    });
   });
 }
 

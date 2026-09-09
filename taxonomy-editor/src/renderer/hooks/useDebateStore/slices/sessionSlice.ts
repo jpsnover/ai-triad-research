@@ -330,7 +330,7 @@ function computeSaveErrorState(err: unknown, activeDebate: DebateSession): { isD
   if (isAuthQuotaFailure) {
     debateError = `Save failed: the server rejected this save (HTTP ${httpStatus}). ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk of being lost. Check your API key and account status in Settings.`;
   } else if (isDiskLoss) {
-    debateError = `Save failed: this debate couldn't be written to disk — a file lock (often antivirus or a file indexer) is holding the file. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk. A recovery copy was preserved on disk; retry the save once the lock clears, and don't close the app before it succeeds.`;
+    debateError = `Save failed: this debate couldn't be written to disk — another process (the app itself, antivirus, or a file indexer) is holding the file open. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} at risk. A recovery copy was preserved on disk; retry the save once the lock clears, and don't close the app before it succeeds.`;
   } else if (isBreakerBlocked) {
     debateError = `Saving is paused while the server recovers. ${atRiskTurns} ${atRiskTurns === 1 ? 'turn is' : 'turns are'} not yet saved — this will retry automatically. Keep the app open.`;
   } else {

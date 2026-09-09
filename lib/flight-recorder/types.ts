@@ -114,6 +114,7 @@ export type EventType =
   | 'io.data-loss'    // t/1627: atomicWriteSync could not persist; new content preserved at tmpPath
   | 'io.lock-holder'  // t/2544: lock holder identified on EPERM exhaustion (handle.exe / unavailable fallback)
   | 'io.tmp-orphan'   // t/2555: stranded .tmp/.tmp2 file detected at startup sweep (recovered or preserved)
+  | 'io.contention'   // t/3415: a same-id save/load op waited for an in-flight op on the same id
   // Lock instrumentation
   | 'lock.acquire_attempt'
   | 'lock.acquired'

@@ -49,7 +49,7 @@ beforeEach(() => { h.failWith = null; });
 afterAll(() => { if (h.debatesRoot) fs.rmSync(h.debatesRoot, { recursive: true, force: true }); });
 
 describe('saveDebateSession enriches total-loss ActionableError (t/1638)', () => {
-  it('re-throws with debate id, run_id, turn_count, and the preserved .tmp path', () => {
+  it('re-throws with debate id, run_id, turn_count, and the preserved .tmp path', async () => {
     // Simulate the exact contract atomicWriteSync throws on total loss (t/1627).
     h.failWith = new ActionableError({
       goal: 'Persist bytes to debate file',
@@ -66,7 +66,7 @@ describe('saveDebateSession enriches total-loss ActionableError (t/1638)', () =>
     };
 
     let caught: unknown;
-    try { saveDebateSession(session, 'test'); } catch (e) { caught = e; }
+    try { await saveDebateSession(session, 'test'); } catch (e) { caught = e; }
 
     expect(caught).toBeInstanceOf(ActionableError);
     const ae = caught as ActionableError;
@@ -92,7 +92,7 @@ describe('saveDebateSession enriches total-loss ActionableError (t/1638)', () =>
     expect(ae.innerError).toBe(h.failWith);
   });
 
-  it('defaults run_id to "unknown" and turn_count to 0 when the session lacks them', () => {
+  it('defaults run_id to "unknown" and turn_count to 0 when the session lacks them', async () => {
     // Non-lock rename errors rethrow the RAW error (not an ActionableError);
     // the wrapper must still enrich it into an ActionableError.
     h.failWith = new Error('EXDEV: cross-device link not permitted');
@@ -100,7 +100,7 @@ describe('saveDebateSession enriches total-loss ActionableError (t/1638)', () =>
     const session = { id: 'deb-min' }; // no run_id, no transcript
 
     let caught: unknown;
-    try { saveDebateSession(session, 'test'); } catch (e) { caught = e; }
+    try { await saveDebateSession(session, 'test'); } catch (e) { caught = e; }
 
     expect(caught).toBeInstanceOf(ActionableError);
     const ae = caught as ActionableError;
