@@ -381,6 +381,18 @@ export async function queryRawEvents(from: string, to: string, user?: string, se
 
 const KNOWN_CAMPS = new Set(['acc', 'saf', 'skp', 'cc']);
 
+// t/3420/t/3421: client-side idle-inflation (renewable per-visit cap + idle tail counted as
+// engaged) let a single visit's engaged_ms grow unbounded. Winsorize at aggregation so the
+// CURRENT dashboard view is robust immediately, independent of the client-side dwellTracker
+// fixes landing separately.
+const ENGAGED_MS_WINSORIZE_CAP = 10 * 60 * 1000; // 10min per visit
+
+/** Cap a single visit's engaged_ms contribution before summing into any aggregate. */
+function winsorizedEngagedMs(evt: AnalyticsEvent): number {
+  const raw = typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+  return Math.min(raw, ENGAGED_MS_WINSORIZE_CAP);
+}
+
 /** Per-node engagement stats. `uniqueUsers` is present on aggregate rollups only. */
 export interface EngagementNodeResult {
   visits: number;
@@ -458,7 +470,7 @@ function mkAccum(): EngAccum {
 function addToAccum(acc: EngAccum, evt: AnalyticsEvent): void {
   acc.visits++;
   if (evt.detail.engaged === true) acc.engagedVisits++;
-  acc.engagedMs += typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+  acc.engagedMs += winsorizedEngagedMs(evt);
   if (evt.detail.capped === true) acc.cappedCount++;
   acc.users.add(evt.user);
 }
@@ -514,14 +526,14 @@ function placeEvent(state: EngState, evt: AnalyticsEvent): void {
   if (!day) { day = { visits: 0, engagedVisits: 0, engagedMs: 0 }; state.daily.set(date, day); }
   day.visits++;
   if (d.engaged === true) day.engagedVisits++;
-  day.engagedMs += typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+  day.engagedMs += winsorizedEngagedMs(evt);
 
   // Per-user summary roll-up
   let u = state.userSummaries.get(evt.user);
   if (!u) { u = { visits: 0, engagedVisits: 0, engagedMs: 0, lastActive: evt.timestamp, campCounts: new Map() }; state.userSummaries.set(evt.user, u); }
   u.visits++;
   if (d.engaged === true) u.engagedVisits++;
-  u.engagedMs += typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+  u.engagedMs += winsorizedEngagedMs(evt);
   if (evt.timestamp > u.lastActive) u.lastActive = evt.timestamp;
 
   // Tree placement
@@ -550,7 +562,7 @@ function placeEvent(state: EngState, evt: AnalyticsEvent): void {
     let se = state.sessionEntries.get(sessId);
     if (!se) { se = { startTime: evt.timestamp, engagedMs: 0, nodes: new Set(), user: evt.user }; state.sessionEntries.set(sessId, se); }
     if (evt.timestamp < se.startTime) se.startTime = evt.timestamp;
-    se.engagedMs += typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+    se.engagedMs += winsorizedEngagedMs(evt);
     // nodeCount: cap subject_id at 100 chars to match the node accumulator bound above
     const subId = typeof d.subject_id === 'string' && d.subject_id ? d.subject_id.slice(0, 100) : '';
     if (subId) se.nodes.add(subId);
@@ -659,7 +671,7 @@ export async function querySubjectBreakdown(
     let entry = acc.get(key);
     if (!entry) { entry = { engagedMs: 0, visits: 0 }; acc.set(key, entry); }
     entry.visits++;
-    entry.engagedMs += typeof evt.duration_ms === 'number' ? evt.duration_ms : 0;
+    entry.engagedMs += winsorizedEngagedMs(evt);
   }
   const rows: SubjectBreakdownRow[] = Array.from(acc.entries())
     .sort(([, a], [, b]) => b.engagedMs - a.engagedMs)
