@@ -36,6 +36,25 @@ function deriveCallLogStatus(err: unknown): string {
   return 'error';
 }
 
+// t/3417: AbortSignal.timeout() (the per-attempt fetch deadline, ai-client's
+// makeFetchSignal) fires with .name === 'TimeoutError', NOT 'AbortError' — it doesn't
+// match generate-text's cancel check, so without this it fell through to the generic
+// ActionableError, which tells the user to check their API key / rate limits —
+// misleading for a request that simply took too long to respond.
+function buildTimeoutError(err: unknown, elapsedMs: number): ActionableError {
+  return new ActionableError({
+    goal: 'Generate text via AI backend',
+    problem: `The AI backend did not respond within the allotted timeout for this request (${elapsedMs}ms elapsed).`,
+    location: 'ipcHandlers.generateText',
+    nextSteps: [
+      'Retry — a single slow response does not necessarily mean the backend is down',
+      'If this recurs, the prompt may be too large or complex for the current model — try a shorter prompt or a faster model',
+      'Try a different AI backend if the current one is consistently slow',
+    ],
+    innerError: err,
+  });
+}
+
 // ── Per-request AbortController map (t/2509) ──────────────────────────────
 
 const activeGenerations = new Map<string, AbortController>();
@@ -194,6 +213,16 @@ export function registerAiHandlers(): void {
         });
         writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: deriveCallLogStatus(err) });
         throw err;
+      }
+      if ((err as Error).name === 'TimeoutError') {
+        const elapsedMs = Date.now() - t0;
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'ipc-handlers', level: 'warn',
+          message: `generate-text timed out after ${elapsedMs}ms`,
+          error: { name: 'TimeoutError', message: String((err as Error).message ?? err) },
+        });
+        writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: deriveCallLogStatus(err) });
+        throw buildTimeoutError(err, elapsedMs);
       }
       const problem = err instanceof ActionableError ? err.problem : (err instanceof Error ? err.message : String(err));
       getGlobalRecorder()?.record({
