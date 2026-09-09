@@ -316,14 +316,26 @@ function ArgumentSketchBox({ wp }: { wp: Record<string, unknown> }) {
   );
 }
 
+// t/3418: anticipated_challenges/anticipated_responses migrated object → tagged-string
+// (t/3404, PR #2093), but debates persisted under the old schema still have
+// {challenge, type} objects — rendering one directly is React error #31.
+function normalizeAnticipatedItem(r: unknown): string {
+  if (typeof r === 'string') return r;
+  if (r && typeof r === 'object' && 'challenge' in r) {
+    const { challenge, type } = r as { challenge: unknown; type?: unknown };
+    return `${type ? `${String(type)}: ` : ''}${String(challenge)}`;
+  }
+  return String(r);
+}
+
 function AnticipatedBox({ wp, field, title }: { wp: Record<string, unknown>; field: string; title: string }) {
   const items = wp[field];
-  if (!Array.isArray(items) || (items as string[]).length === 0) return null;
+  if (!Array.isArray(items) || items.length === 0) return null;
   return (
     <details className="taxrefs-details"><summary className="taxrefs-summary">{title}</summary>
       <ul className="taxrefs-anticipated-list">
-        {(items as string[]).map((r, i) => (
-          <li key={i}>{r}</li>
+        {items.map((r, i) => (
+          <li key={i}>{normalizeAnticipatedItem(r)}</li>
         ))}
       </ul>
     </details>
