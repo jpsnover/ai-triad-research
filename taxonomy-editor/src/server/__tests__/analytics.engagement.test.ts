@@ -354,4 +354,77 @@ describe('queryEngagement — rollup math', () => {
       expect(sessionIds).not.toContain('sb1');
     });
   });
+
+  // ── t/3421: winsorize idle-inflated engaged_ms at aggregation ──
+
+  it('winsorizes a single visit engagedMs at the tool/camp/category/node level (10min cap)', async () => {
+    await withEvents([
+      // 4h05m idle-inflated visit — mirrors the PI-reported acc-desires-010 case
+      nodeEvent('acc-des-010', 'acc', 'des', { duration_ms: 4 * 60 * 60 * 1000 + 5 * 60 * 1000 }),
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-10')).aggregate;
+      const capped = 10 * 60 * 1000;
+      expect(agg.tool.engagedMs).toBe(capped);
+      expect(agg.camps['acc'].engagedMs).toBe(capped);
+      expect(agg.camps['acc'].categories['acc-des'].engagedMs).toBe(capped);
+      expect(agg.camps['acc'].categories['acc-des'].nodes['acc-des-010'].engagedMs).toBe(capped);
+    });
+  });
+
+  it('leaves a visit under the cap unaffected (regression guard)', async () => {
+    await withEvents([
+      nodeEvent('acc-des-010', 'acc', 'des', { duration_ms: 5 * 60 * 1000 }),
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-10')).aggregate;
+      expect(agg.tool.engagedMs).toBe(5 * 60 * 1000);
+    });
+  });
+
+  it('sums mixed capped+uncapped visits correctly at the node level', async () => {
+    await withEvents([
+      nodeEvent('acc-des-010', 'acc', 'des', { duration_ms: 30 * 60 * 1000 }), // winsorized to 10min
+      nodeEvent('acc-des-010', 'acc', 'des', { duration_ms: 2 * 60 * 1000 }),  // untouched
+    ], async () => {
+      const agg = (await analytics.queryEngagement('2026-08-10', '2026-08-10')).aggregate;
+      const expected = 10 * 60 * 1000 + 2 * 60 * 1000;
+      expect(agg.camps['acc'].categories['acc-des'].nodes['acc-des-010'].engagedMs).toBe(expected);
+    });
+  });
+
+  it('winsorizes engagedMs in the daily rollup', async () => {
+    await withEvents([
+      nodeEvent('acc-des-010', 'acc', 'des', { duration_ms: 45 * 60 * 1000 }),
+    ], async () => {
+      const result = await analytics.queryEngagement('2026-08-10', '2026-08-10');
+      expect(result.daily[0].engagedMs).toBe(10 * 60 * 1000);
+    });
+  });
+
+  it('winsorizes engagedMs in the per-user rollup', async () => {
+    await withEvents([
+      nodeEvent('acc-des-010', 'acc', 'des', { user: 'alice', duration_ms: 45 * 60 * 1000 }),
+    ], async () => {
+      const result = await analytics.queryEngagement('2026-08-10', '2026-08-10');
+      expect(result.users.find(u => u.user === 'alice')!.engagedMs).toBe(10 * 60 * 1000);
+    });
+  });
+
+  it('winsorizes engagedMs in the per-session rollup', async () => {
+    await withEvents([
+      dwell({ session_id: 's1', duration_ms: 45 * 60 * 1000, detail: { subject_type: 'node', subject_id: 'acc-bel-001', pov: 'acc', cat: 'bel', engaged: true, capped: false } }),
+    ], async () => {
+      const result = await analytics.queryEngagement('2026-08-10', '2026-08-10', { includeSessions: true });
+      expect(result.sessions!.find(s => s.session === 's1')!.engagedMs).toBe(10 * 60 * 1000);
+    });
+  });
+
+  it('winsorizes engagedMs in querySubjectBreakdown', async () => {
+    await withEvents([
+      dwell({ user: 'alice', session_id: 's1', duration_ms: 45 * 60 * 1000, detail: { subject_type: 'node', subject_id: 'acc-bel-001', pov: 'acc', cat: 'bel', engaged: true, capped: false } }),
+    ], async () => {
+      const result = await analytics.querySubjectBreakdown('2026-08-10', '2026-08-10', 'acc-bel-001', 'user');
+      const alice = result.rows.find(r => 'user' in r && r.user === 'alice') as { engagedMs: number };
+      expect(alice.engagedMs).toBe(10 * 60 * 1000);
+    });
+  });
 });
