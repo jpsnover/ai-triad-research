@@ -236,6 +236,27 @@ describe('EngagementDashboard', () => {
     // aggregate: visits=100, engagedVisits=80 → 80.0%
     await waitFor(() => expect(screen.getByText('80.0%')).toBeTruthy());
   });
+
+  it('shows the non-comparability footnote once data renders (t/3424)', async () => {
+    mockBridgeGet(FIXTURE_RESULT);
+    render(<EngagementDashboard />);
+    await waitFor(() => expect(screen.getByText(/Engaged-time measurement changed on/)).toBeTruthy());
+    expect(screen.getByText(/aren't one comparable series/)).toBeTruthy();
+  });
+
+  it('does not show the footnote in the empty state (no misleading note with no data)', async () => {
+    mockBridgeGet(EMPTY_RESULT);
+    render(<EngagementDashboard />);
+    await waitFor(() => expect(screen.getByText(/no engagement data/i)).toBeTruthy());
+    expect(screen.queryByText(/Engaged-time measurement changed on/)).toBeNull();
+  });
+
+  it('surfaces capped% next to camp engaged-time (t/3424, t/3420 item 4)', async () => {
+    mockBridgeGet(FIXTURE_RESULT);
+    render(<EngagementDashboard />);
+    await waitFor(() => expect(screen.getByText('Accelerationist')).toBeTruthy());
+    expect(screen.getAllByText(/capped/).length).toBeGreaterThan(0);
+  });
 });
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────

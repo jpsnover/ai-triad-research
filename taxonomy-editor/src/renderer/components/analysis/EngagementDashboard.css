@@ -159,6 +159,24 @@
 
 .eng-empty-sub { color: var(--text-muted); }
 
+/* ── Non-comparability footnote (t/3424) ────────────────────────────────────── */
+
+.eng-non-comparability-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  line-height: 1.5;
+}
+
+.eng-capped-rate {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
 /* ── Panels ──────────────────────────────────────────────────────────────────── */
 
 .eng-panel {

@@ -149,37 +149,104 @@ export function categoryLabel(catKey: string): string {
   return CATEGORY_LABEL_MAP[suffix] ?? catKey;
 }
 
+/** Formats a [0,1] capped-rate fraction as a percentage string, e.g. 0.123 → "12.3%". */
+export function fmtCappedRate(rate: number): string {
+  return `${(rate * 100).toFixed(1)}%`;
+}
+
+// ── Non-comparability boundaries (t/3424) ───────────────────────────────────
+//
+// The engaged-time measurement pipeline has changed more than once (client idle-tail
+// fix, server winsorize cap, …) — each change is a discontinuity in the same visible
+// series (t/3342 spirit). This list is the SOURCE OF TRUTH both dashboards render as
+// a footnote; append a new entry here when a boundary lands (nothing else changes).
+
+export interface NonComparabilityBoundary {
+  /** ISO date/datetime the fix merged. Only the date portion (first 10 chars) is shown. */
+  date: string;
+  /** Short human label for what changed, e.g. "client idle-tail fix". */
+  label: string;
+}
+
+export const ENGAGEMENT_NON_COMPARABILITY_BOUNDARIES: NonComparabilityBoundary[] = [
+  { date: '2026-09-09T15:15:45Z', label: 'client idle-tail fix' },
+  { date: '2026-09-09T15:23:26Z', label: 'server winsorize cap' },
+];
+
+/**
+ * Renders the boundary list as one sentence, grouping same-day boundaries into a
+ * single clause (avoids "on 2026-09-09 and 2026-09-09"). Returns '' for an empty list
+ * so callers can render nothing rather than an empty footnote.
+ */
+export function formatNonComparabilityFootnote(boundaries: NonComparabilityBoundary[]): string {
+  if (boundaries.length === 0) return '';
+  const byDate = new Map<string, string[]>();
+  for (const b of boundaries) {
+    const d = b.date.slice(0, 10);
+    if (!byDate.has(d)) byDate.set(d, []);
+    byDate.get(d)!.push(b.label);
+  }
+  const clauses = [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, labels]) => `${date} (${labels.join(', ')})`);
+  return `Engaged-time measurement changed on ${clauses.join(' and ')} — trends spanning these dates aren't one comparable series.`;
+}
+
 // ── Tree traversal ────────────────────────────────────────────────────────────
 
-/** Accumulate engagedMs + visits per camp across all tools in the tree. */
-export function sumByCamp(root: TreeNode): Array<{ key: string; engagedMs: number; visits: number }> {
-  const acc: Record<string, { engagedMs: number; visits: number }> = {};
+export interface KeyedSummary { key: string; engagedMs: number; visits: number; cappedRate?: number }
+
+/**
+ * Accumulate engagedMs + visits per camp across all tools in the tree, plus an
+ * engagedVisits-weighted average of cappedRate (a rate isn't additive — weighting by
+ * each contributing node's engagedVisits is the standard way to combine it; today
+ * there is exactly one contributing tool node per camp, so the "average" is exact).
+ * cappedRate is omitted when no contributor has engagedVisits > 0.
+ */
+export function sumByCamp(root: TreeNode): KeyedSummary[] {
+  const acc: Record<string, { engagedMs: number; visits: number; capWeightedSum: number; capWeight: number }> = {};
   for (const tool of Object.values(root.children ?? {})) {
-    for (const [campKey, camp] of Object.entries(tool.children ?? {})) {
-      if (!acc[campKey]) acc[campKey] = { engagedMs: 0, visits: 0 };
-      acc[campKey].engagedMs += (camp as TreeNode).engagedMs;
-      acc[campKey].visits += (camp as TreeNode).visits;
+    for (const [campKey, campNode] of Object.entries(tool.children ?? {})) {
+      const camp = campNode as TreeNode;
+      if (!acc[campKey]) acc[campKey] = { engagedMs: 0, visits: 0, capWeightedSum: 0, capWeight: 0 };
+      acc[campKey].engagedMs += camp.engagedMs;
+      acc[campKey].visits += camp.visits;
+      if (camp.cappedRate != null && camp.engagedVisits > 0) {
+        acc[campKey].capWeightedSum += camp.cappedRate * camp.engagedVisits;
+        acc[campKey].capWeight += camp.engagedVisits;
+      }
     }
   }
   return Object.entries(acc)
-    .map(([key, v]) => ({ key, ...v }))
+    .map(([key, v]) => ({
+      key, engagedMs: v.engagedMs, visits: v.visits,
+      ...(v.capWeight > 0 ? { cappedRate: v.capWeightedSum / v.capWeight } : {}),
+    }))
     .sort((a, b) => b.engagedMs - a.engagedMs);
 }
 
-/** Accumulate engagedMs + visits per category for a given camp across all tools. */
-export function sumByCategoryForCamp(root: TreeNode, camp: string): Array<{ key: string; engagedMs: number; visits: number }> {
-  const acc: Record<string, { engagedMs: number; visits: number }> = {};
+/** Same accumulation as sumByCamp, one level down: per category for a given camp. */
+export function sumByCategoryForCamp(root: TreeNode, camp: string): KeyedSummary[] {
+  const acc: Record<string, { engagedMs: number; visits: number; capWeightedSum: number; capWeight: number }> = {};
   for (const tool of Object.values(root.children ?? {})) {
     const campNode = (tool as TreeNode).children?.[camp] as TreeNode | undefined;
     if (!campNode) continue;
-    for (const [catKey, cat] of Object.entries(campNode.children ?? {})) {
-      if (!acc[catKey]) acc[catKey] = { engagedMs: 0, visits: 0 };
-      acc[catKey].engagedMs += (cat as TreeNode).engagedMs;
-      acc[catKey].visits += (cat as TreeNode).visits;
+    for (const [catKey, catNode] of Object.entries(campNode.children ?? {})) {
+      const cat = catNode as TreeNode;
+      if (!acc[catKey]) acc[catKey] = { engagedMs: 0, visits: 0, capWeightedSum: 0, capWeight: 0 };
+      acc[catKey].engagedMs += cat.engagedMs;
+      acc[catKey].visits += cat.visits;
+      if (cat.cappedRate != null && cat.engagedVisits > 0) {
+        acc[catKey].capWeightedSum += cat.cappedRate * cat.engagedVisits;
+        acc[catKey].capWeight += cat.engagedVisits;
+      }
     }
   }
   return Object.entries(acc)
-    .map(([key, v]) => ({ key, ...v }))
+    .map(([key, v]) => ({
+      key, engagedMs: v.engagedMs, visits: v.visits,
+      ...(v.capWeight > 0 ? { cappedRate: v.capWeightedSum / v.capWeight } : {}),
+    }))
     .sort((a, b) => b.engagedMs - a.engagedMs);
 }
 
@@ -187,11 +254,16 @@ export function sumByCategoryForCamp(root: TreeNode, camp: string): Array<{ key:
 export function collectLeafNodes(
   node: TreeNode,
   depth: number,
-  results: Array<{ id: string; engagedMs: number; visits: number }>,
+  results: Array<{ id: string; engagedMs: number; visits: number; cappedRate?: number }>,
 ): void {
   const kids = node.children;
   if (!kids || Object.keys(kids).length === 0) {
-    if (depth >= 3) results.push({ id: node.id, engagedMs: node.engagedMs, visits: node.visits });
+    if (depth >= 3) {
+      results.push({
+        id: node.id, engagedMs: node.engagedMs, visits: node.visits,
+        ...(node.cappedRate != null ? { cappedRate: node.cappedRate } : {}),
+      });
+    }
     return;
   }
   for (const child of Object.values(kids)) {
