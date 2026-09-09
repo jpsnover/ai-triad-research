@@ -21,6 +21,7 @@ const THRESHOLDS: EngagementThresholds = {
   ENGAGED_MIN_MS: 8_000,
   MIN_VISIT_MS: 1_000,
   PULSE_THROTTLE_MS: 5_000,
+  IDLE_GRACE_MS: 10_000,
 };
 
 function makeTracker(thresholds: EngagementThresholds = THRESHOLDS): DwellTracker {
@@ -167,8 +168,58 @@ describe('DwellTracker — emitted engaged_ms excludes hidden + idle spans (AC a
     tracker.onIdleTimeout(70_000);             // no pulse since 10s; idle fires at 70s (>60s after last pulse)
     expect(emitted).toHaveLength(1);
     expect(emitted[0].close_reason).toBe('idle');
-    expect(emitted[0].engaged_ms).toBe(70_000); // engaged span 0→70s (last-pulse-within-idle window), not truncated silently
+    // t/3420: the engaged span stops at lastPulseTime (10s) + IDLE_GRACE_MS (10s) = 20s,
+    // NOT at the full 70s idle-timer-fire moment — the idle tail no longer bleeds into engaged_ms.
+    expect(emitted[0].engaged_ms).toBe(20_000);
     expect(emitted[0].engaged).toBe(true);
+  });
+
+  it('t/3420: idle-closed visit books engaged time only through last-pulse + IDLE_GRACE_MS', () => {
+    const emitted: DwellDetail[] = [];
+    const tracker = new DwellTracker(() => THRESHOLDS, (_c, detail) => emitted.push(detail));
+    const nodeA: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
+    tracker.onSubjectChange(nodeA, 0);
+    tracker.onPulse(0);
+    tracker.onPulse(5_000); // lastPulseTime = 5_000
+    // No more pulses; idle timer fires well past IDLE_TIMEOUT_MS after the last pulse.
+    tracker.onIdleTimeout(65_000);
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].close_reason).toBe('idle');
+    // Grace window: 5_000 + IDLE_GRACE_MS (10_000) = 15_000, far short of the 65_000 wall gap.
+    expect(emitted[0].engaged_ms).toBe(15_000);
+    expect(emitted[0].wall_ms).toBe(65_000);
+  });
+
+  it('t/3420: a visit with continuous pulses through close is unaffected by the idle-grace change', () => {
+    const emitted: DwellDetail[] = [];
+    const tracker = new DwellTracker(() => THRESHOLDS, (_c, detail) => emitted.push(detail));
+    const nodeA: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
+    tracker.onSubjectChange(nodeA, 0);
+    tracker.onPulse(0);
+    tracker.onPulse(20_000);
+    tracker.onPulse(40_000);
+    // Closed via subject_change (never idle), so onIdleTimeout's pause logic never runs.
+    tracker.onSubjectChange({ ...nodeA, subject_id: 'skp-bel-003' }, 60_000);
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].close_reason).toBe('subject_change');
+    expect(emitted[0].engaged_ms).toBe(60_000);
+    expect(emitted[0].wall_ms).toBe(60_000);
+  });
+
+  it('t/3420: initiallyEngaged visit with zero pulses books ~0 engaged_ms on idle-close (deltaMs<=0 guard)', () => {
+    const emitted: DwellDetail[] = [];
+    const tracker = new DwellTracker(() => THRESHOLDS, (_c, detail) => emitted.push(detail));
+    const nodeA: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
+    // Subject change opens the visit as initiallyEngaged=true (see DwellVisit ctor), but no
+    // onPulse ever fires — lastPulseTime stays at its initial 0, same as the visit start.
+    tracker.onSubjectChange(nodeA, 0);
+    tracker.onIdleTimeout(70_000);
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].close_reason).toBe('idle');
+    // pause() clamps to lastPulseTime (0) + IDLE_GRACE_MS, i.e. effectively no engaged span opened
+    // beyond the grace window from t=0 — EngagementAccumulator.accrue's deltaMs<=0 guard means this
+    // books at most IDLE_GRACE_MS, and never the full 70s wall gap.
+    expect(emitted[0].engaged_ms).toBeLessThanOrEqual(THRESHOLDS.IDLE_GRACE_MS);
   });
 });
 
