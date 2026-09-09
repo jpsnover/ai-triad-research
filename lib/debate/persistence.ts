@@ -41,8 +41,10 @@ export function safeSerialize(value: unknown, indent: number = 2): { json: strin
 
 /**
  * Rename with exponential-backoff retry for transient Windows file locks.
- * EPERM / EACCES on rename are almost always caused by antivirus, search
- * indexer, or another process briefly holding the target file open.
+ * EPERM / EACCES on rename can be caused by antivirus, a search indexer,
+ * another process briefly holding the target file open — or, on Windows, a
+ * same-process read handle this app itself still has open on the target
+ * (t/3415; see the lock-holder-driven self-lock vs external-lock split below).
  *
  * When maxWallClockMs is provided (large payloads >200KB), retries continue
  * until the wall-clock cap is hit rather than a fixed attempt count — AV scan
@@ -160,8 +162,9 @@ export function atomicWriteSync(
       try { fs.unlinkSync(tmpPath); } catch { /* best-effort cleanup */ }
       throw renameErr;
     }
-    // Sustained rename EPERM/EACCES: a Windows AV/indexer held an exclusive
-    // handle on the target longer than the bounded retry budget. The atomic
+    // Sustained rename EPERM/EACCES: some process held an exclusive handle on
+    // the target longer than the bounded retry budget — an external process
+    // (AV/indexer/other), or this app's own process (t/3415 self-lock). The atomic
     // directory-entry swap is unavailable, but tmpPath still holds the COMPLETE
     // new content. Fallback: write to .tmp2, then rename atomically.
     // This avoids writing directly to the (possibly locked) target — the old

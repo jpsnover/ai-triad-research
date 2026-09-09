@@ -227,7 +227,14 @@ describe('renameSyncWithRetry — onLockExhausted callback (t/2544)', () => {
 
     afterEach(() => { vi.restoreAllMocks(); });
 
-    it('names the lock holder process in problem when callback returns a description', () => {
+    // Both-arms coverage (t/3415): the branch is self-lock vs external-lock, decided by
+    // whether the detected process name matches /^electron/i — NOT "is it named after AV".
+    // This arm uses MsMpEng.exe (Windows Defender), a genuinely-external, genuinely-AV
+    // process, so asserting 'antivirus' in nextSteps here is accurate for THIS process —
+    // it is not a blanket "external == antivirus" assumption. The self-lock arm below is
+    // the actual regression coverage that the AV-only framing doesn't leak onto our own
+    // process's lock.
+    it('external-lock arm: names the lock holder process in problem when callback returns a description', () => {
       setupEpermRenames();
       const target = tmpPath('lock-holder-named.json');
       const onLockExhausted = vi.fn().mockReturnValue('MsMpEng.exe (pid 1234)');
@@ -241,7 +248,7 @@ describe('renameSyncWithRetry — onLockExhausted callback (t/2544)', () => {
       cleanup(target);
     });
 
-    it('emits self-lock guidance when lock holder is electron.exe', () => {
+    it('self-lock arm: emits self-lock guidance when lock holder is electron.exe', () => {
       setupEpermRenames();
       const target = tmpPath('self-lock.json');
       const onLockExhausted = vi.fn().mockReturnValue('electron.exe (pid 52308)');

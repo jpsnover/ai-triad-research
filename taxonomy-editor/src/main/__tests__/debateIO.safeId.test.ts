@@ -71,12 +71,12 @@ describe('debateIO — assertSafeId traversal guards', () => {
     await expect(loadDebateSession('abc-123')).resolves.toBeDefined();
   });
 
-  it.each(TRAVERSAL_IDS)('saveDebateSession rejects traversal in session.id "%s"', (id) => {
-    expect(() => saveDebateSession({ id, transcript: [] }, 'test')).toThrow();
+  it.each(TRAVERSAL_IDS)('saveDebateSession rejects traversal in session.id "%s"', async (id) => {
+    await expect(saveDebateSession({ id, transcript: [] }, 'test')).rejects.toThrow();
   });
 
-  it('saveDebateSession accepts valid id', () => {
-    expect(() => saveDebateSession({ id: 'abc-123', transcript: [] }, 'test')).not.toThrow();
+  it('saveDebateSession accepts valid id', async () => {
+    await expect(saveDebateSession({ id: 'abc-123', transcript: [] }, 'test')).resolves.not.toThrow();
   });
 
   it.each(TRAVERSAL_IDS)('deleteDebateSession rejects "%s"', (id) => {
