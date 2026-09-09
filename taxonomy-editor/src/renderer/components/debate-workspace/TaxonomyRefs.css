@@ -1,3 +1,15 @@
+/* t/3419: inline fallback for a section-level render throw — replaces the
+   crashed section without unmounting the surrounding PLAN body. */
+.taxrefs-section-error {
+  padding: 4px 8px;
+  margin: 4px 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-size: var(--text-xs);
+  font-style: italic;
+}
+
 /* ─── Debate Taxonomy Pills ───────────────────────────── */
 
 .debate-taxonomy-refs {
