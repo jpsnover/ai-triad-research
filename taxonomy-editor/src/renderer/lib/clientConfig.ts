@@ -39,6 +39,8 @@ export interface ClientConfig {
     PULSE_THROTTLE_MS: number;
     /** t/3420: grace window after the last pulse that still counts as engaged on an idle-close. */
     IDLE_GRACE_MS: number;
+    /** t/3422: each pulse grants engagement credit valid through t + CREDIT_WINDOW_MS. */
+    CREDIT_WINDOW_MS: number;
   };
   healthProbe: {
     intervalMs: number;
@@ -99,6 +101,7 @@ const DEFAULTS: ClientConfig = {
     MIN_VISIT_MS: 1_000,
     PULSE_THROTTLE_MS: 5_000,
     IDLE_GRACE_MS: 10_000,
+    CREDIT_WINDOW_MS: 15_000,
   },
   healthProbe: {
     intervalMs: 30_000,

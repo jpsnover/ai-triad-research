@@ -22,6 +22,7 @@ const THRESHOLDS: EngagementThresholds = {
   MIN_VISIT_MS: 1_000,
   PULSE_THROTTLE_MS: 5_000,
   IDLE_GRACE_MS: 10_000,
+  CREDIT_WINDOW_MS: 15_000,
 };
 
 function makeTracker(thresholds: EngagementThresholds = THRESHOLDS): DwellTracker {
@@ -58,29 +59,62 @@ describe('parseNodeId / deriveSubject / categoryForSubject (t/2466)', () => {
   });
 });
 
-describe('EngagementAccumulator (t/2466 §3.1-3.2)', () => {
-  it('accrues time only across explicit engaged spans', () => {
-    const acc = new EngagementAccumulator(1_800_000);
-    acc.startEngaged(0);
-    acc.stopEngaged(5_000);
+describe('EngagementAccumulator (t/2466 §3.1-3.2, rewritten t/3422 heartbeat-credit)', () => {
+  const WINDOW = 15_000;
+
+  it('accrues time across a pulse-then-pause within the credit window', () => {
+    const acc = new EngagementAccumulator(1_800_000, WINDOW);
+    acc.pulse(0);
+    acc.pause(5_000);
     expect(acc.currentEngagedMs).toBe(5_000);
     expect(acc.isCapped).toBe(false);
   });
 
-  it('clamps to MAX_ENGAGED_MS and sets capped', () => {
-    const acc = new EngagementAccumulator(10_000);
-    acc.startEngaged(0);
-    acc.stopEngaged(50_000); // way over cap
+  it('clamps to MAX_ENGAGED_MS and sets capped across many pulses', () => {
+    const acc = new EngagementAccumulator(10_000, WINDOW);
+    for (let t = 0; t <= 20_000; t += 5_000) acc.pulse(t);
+    acc.pause(20_000);
     expect(acc.currentEngagedMs).toBe(10_000);
     expect(acc.isCapped).toBe(true);
   });
 
-  it('does not double count a span already stopped', () => {
-    const acc = new EngagementAccumulator(1_800_000);
-    acc.startEngaged(0);
-    acc.stopEngaged(1_000);
-    acc.stopEngaged(2_000); // no-op, already stopped
+  it('does not double count an interval already paused', () => {
+    const acc = new EngagementAccumulator(1_800_000, WINDOW);
+    acc.pulse(0);
+    acc.pause(1_000);
+    acc.pause(2_000); // no-op, already paused
     expect(acc.currentEngagedMs).toBe(1_000);
+  });
+
+  // t/3422: correctness properties specific to the credit model.
+  it('a gap wider than the credit window splits into separate intervals (no idle-tail credit)', () => {
+    const acc = new EngagementAccumulator(1_800_000, WINDOW);
+    acc.pulse(0);
+    acc.pulse(100_000); // gap >> WINDOW — old interval closes at its expiry, a new one starts here
+    acc.pause(100_000); // immediately paused — the new interval books 0
+    expect(acc.currentEngagedMs).toBe(WINDOW);
+  });
+
+  it('pause() truncates a live credit at the true stop time, not its full window', () => {
+    const acc = new EngagementAccumulator(1_800_000, WINDOW);
+    acc.pulse(0);
+    acc.pause(2_000); // pulse-then-hide at +2s
+    expect(acc.currentEngagedMs).toBe(2_000); // NOT the full 15s window
+  });
+
+  it('pause() after a credit has already lapsed clamps to the credit expiry (bounded to one window)', () => {
+    const acc = new EngagementAccumulator(1_800_000, WINDOW);
+    acc.pulse(0);
+    acc.pause(70_000); // way past expiry (0 + WINDOW)
+    expect(acc.currentEngagedMs).toBe(WINDOW);
+  });
+
+  it('hasActiveCredit reflects whether a live interval covers time t', () => {
+    const acc = new EngagementAccumulator(1_800_000, WINDOW);
+    expect(acc.hasActiveCredit(0)).toBe(false);
+    acc.pulse(0);
+    expect(acc.hasActiveCredit(WINDOW)).toBe(true);
+    expect(acc.hasActiveCredit(WINDOW + 1)).toBe(false);
   });
 });
 
@@ -158,46 +192,45 @@ describe('DwellTracker — emitted engaged_ms excludes hidden + idle spans (AC a
     expect(detail.capped).toBe(false);
   });
 
-  it('idle-close emits engaged_ms bounded by the trailing idle window, not the full wall gap', () => {
+  it('idle-close emits engaged_ms bounded by the credit window, not the full wall gap', () => {
     const emitted: DwellDetail[] = [];
     const tracker = new DwellTracker(() => THRESHOLDS, (_c, detail) => emitted.push(detail));
     const nodeA: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
     tracker.onSubjectChange(nodeA, 0);
     tracker.onPulse(0);
-    tracker.onPulse(10_000);                   // active reading through t=10s (single engaged span from 0)
+    tracker.onPulse(10_000);                   // merges into one interval (10s <= 15s window): expires at 25s
     tracker.onIdleTimeout(70_000);             // no pulse since 10s; idle fires at 70s (>60s after last pulse)
     expect(emitted).toHaveLength(1);
     expect(emitted[0].close_reason).toBe('idle');
-    // t/3420: the engaged span stops at lastPulseTime (10s) + IDLE_GRACE_MS (10s) = 20s,
-    // NOT at the full 70s idle-timer-fire moment — the idle tail no longer bleeds into engaged_ms.
-    expect(emitted[0].engaged_ms).toBe(20_000);
+    // t/3422: the interval's credit expires at lastPulse(10s) + CREDIT_WINDOW_MS(15s) = 25s —
+    // pause()'s internal clamp to that expiry is what bounds this, not the 70s idle-fire moment.
+    expect(emitted[0].engaged_ms).toBe(25_000);
     expect(emitted[0].engaged).toBe(true);
   });
 
-  it('t/3420: idle-closed visit books engaged time only through last-pulse + IDLE_GRACE_MS', () => {
+  it('t/3422: idle-closed visit books engaged time only through last-pulse + CREDIT_WINDOW_MS', () => {
     const emitted: DwellDetail[] = [];
     const tracker = new DwellTracker(() => THRESHOLDS, (_c, detail) => emitted.push(detail));
     const nodeA: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
     tracker.onSubjectChange(nodeA, 0);
     tracker.onPulse(0);
-    tracker.onPulse(5_000); // lastPulseTime = 5_000
+    tracker.onPulse(5_000); // merges (5s <= 15s window); credit now expires at 5_000 + 15_000 = 20_000
     // No more pulses; idle timer fires well past IDLE_TIMEOUT_MS after the last pulse.
     tracker.onIdleTimeout(65_000);
     expect(emitted).toHaveLength(1);
     expect(emitted[0].close_reason).toBe('idle');
-    // Grace window: 5_000 + IDLE_GRACE_MS (10_000) = 15_000, far short of the 65_000 wall gap.
-    expect(emitted[0].engaged_ms).toBe(15_000);
+    expect(emitted[0].engaged_ms).toBe(20_000);
     expect(emitted[0].wall_ms).toBe(65_000);
   });
 
-  it('t/3420: a visit with continuous pulses through close is unaffected by the idle-grace change', () => {
+  it('t/3422: a visit with pulses inside the credit window merges into one continuous interval', () => {
     const emitted: DwellDetail[] = [];
     const tracker = new DwellTracker(() => THRESHOLDS, (_c, detail) => emitted.push(detail));
     const nodeA: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
     tracker.onSubjectChange(nodeA, 0);
-    tracker.onPulse(0);
-    tracker.onPulse(20_000);
-    tracker.onPulse(40_000);
+    // Pulses every 10s — each within the 15s credit window of the last, so they merge into
+    // one continuous interval rather than splitting (regression guard for sustained reading).
+    for (let t = 0; t <= 50_000; t += 10_000) tracker.onPulse(t);
     // Closed via subject_change (never idle), so onIdleTimeout's pause logic never runs.
     tracker.onSubjectChange({ ...nodeA, subject_id: 'skp-bel-003' }, 60_000);
     expect(emitted).toHaveLength(1);
@@ -206,20 +239,33 @@ describe('DwellTracker — emitted engaged_ms excludes hidden + idle spans (AC a
     expect(emitted[0].wall_ms).toBe(60_000);
   });
 
-  it('t/3420: initiallyEngaged visit with zero pulses books ~0 engaged_ms on idle-close (deltaMs<=0 guard)', () => {
+  it('t/3422: a visit with pulses wider than the credit window apart does NOT get full credit for the gaps', () => {
+    const emitted: DwellDetail[] = [];
+    const tracker = new DwellTracker(() => THRESHOLDS, (_c, detail) => emitted.push(detail));
+    const nodeA: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
+    tracker.onSubjectChange(nodeA, 0);
+    tracker.onPulse(0);       // interval [0, 15_000)
+    tracker.onPulse(20_000);  // gap (20s) > 15s window — splits: first interval books 15_000, second starts at 20_000
+    tracker.onSubjectChange({ ...nodeA, subject_id: 'skp-bel-003' }, 20_000); // closes immediately, second interval books 0
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].engaged_ms).toBe(15_000); // NOT the full 20_000 wall gap — sparse pulses don't purchase it
+    expect(emitted[0].wall_ms).toBe(20_000);
+  });
+
+  it('t/3420/t/3422: initiallyEngaged visit with zero pulses is bounded to one credit window on idle-close', () => {
     const emitted: DwellDetail[] = [];
     const tracker = new DwellTracker(() => THRESHOLDS, (_c, detail) => emitted.push(detail));
     const nodeA: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
     // Subject change opens the visit as initiallyEngaged=true (see DwellVisit ctor), but no
-    // onPulse ever fires — lastPulseTime stays at its initial 0, same as the visit start.
+    // onPulse ever fires — the initial construction-time credit is the only one granted.
     tracker.onSubjectChange(nodeA, 0);
     tracker.onIdleTimeout(70_000);
     expect(emitted).toHaveLength(1);
     expect(emitted[0].close_reason).toBe('idle');
-    // pause() clamps to lastPulseTime (0) + IDLE_GRACE_MS, i.e. effectively no engaged span opened
-    // beyond the grace window from t=0 — EngagementAccumulator.accrue's deltaMs<=0 guard means this
-    // books at most IDLE_GRACE_MS, and never the full 70s wall gap.
-    expect(emitted[0].engaged_ms).toBeLessThanOrEqual(THRESHOLDS.IDLE_GRACE_MS);
+    // pause() clamps to the credit's expiry (0 + CREDIT_WINDOW_MS), bounding this to at most one
+    // window regardless of how long the idle wait was — never the full 70s wall gap.
+    expect(emitted[0].engaged_ms).toBeLessThanOrEqual(THRESHOLDS.CREDIT_WINDOW_MS);
+    expect(emitted[0].engaged_ms).toBe(THRESHOLDS.CREDIT_WINDOW_MS);
   });
 });
 
@@ -265,6 +311,11 @@ describe('DwellVisit.close — visit count independent of engaged duration (AC c
     const { DwellVisit } = await import('./dwellTracker');
     const subject: Subject = { subject_type: 'node', subject_id: 'skp-bel-002', pov: 'skp', cat: 'bel', tab: 'skeptic' };
     const visit = new DwellVisit(subject, 0, THRESHOLDS, true);
+    // t/3422: sustained engagement now requires periodic pulses (credit model) — simulate
+    // reading with a pulse every half-window through the full 420s.
+    for (let t = THRESHOLDS.CREDIT_WINDOW_MS / 2; t < 420_000; t += THRESHOLDS.CREDIT_WINDOW_MS / 2) {
+      visit.pulse(t);
+    }
     const detail = visit.close(420_000, 'subject_change', THRESHOLDS);
     expect(detail?.engaged).toBe(true);
     expect(detail?.engaged_ms).toBe(420_000);
@@ -285,9 +336,11 @@ describe('Thresholds read from config, not hardcoded (AC d)', () => {
   });
 
   it('a larger MAX_ENGAGED_MS raises the cap accordingly', () => {
-    const acc = new EngagementAccumulator(3_600_000); // configured 1hr cap
-    acc.startEngaged(0);
-    acc.stopEngaged(3_600_500);
+    // Window sized larger than the tested delta so this isolates the cap from credit-expiry
+    // mechanics (covered separately above) — this test is purely about MAX_ENGAGED_MS.
+    const acc = new EngagementAccumulator(3_600_000, 3_700_000); // configured 1hr cap
+    acc.pulse(0);
+    acc.pause(3_600_500);
     expect(acc.currentEngagedMs).toBe(3_600_000);
     expect(acc.isCapped).toBe(true);
   });

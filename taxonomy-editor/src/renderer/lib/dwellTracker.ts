@@ -32,8 +32,18 @@ export interface EngagementThresholds {
   ENGAGED_MIN_MS: number;
   MIN_VISIT_MS: number;
   PULSE_THROTTLE_MS: number;
-  /** t/3420: grace window after the last pulse that still counts as engaged on an idle/hidden close. */
+  /**
+   * t/3420: grace window after the last pulse that still counts as engaged on an idle/hidden
+   * close. Superseded as of t/3422 — `onIdleTimeout`/`onHiddenTimeout` no longer consume this
+   * (the credit-window model below provides a more principled bound). Kept for
+   * ClientConfig/RuntimeConfig wire-compatibility with existing deployments.
+   */
   IDLE_GRACE_MS: number;
+  /**
+   * t/3422: each pulse grants engagement credit valid through `t + CREDIT_WINDOW_MS`. See
+   * `EngagementAccumulator`'s docblock for the full accrual model.
+   */
+  CREDIT_WINDOW_MS: number;
 }
 
 export interface Subject {
@@ -101,19 +111,48 @@ export function categoryForSubject(subject: Subject): string {
 }
 
 /**
- * Pure engaged-time accumulator (§3.1-3.2). Tracks spans where the subject was
- * both visible and recently interacted with, clamped to `maxEngagedMs`. No
- * busy polling — accrual happens only on explicit state-transition calls.
+ * Pure engaged-time accumulator (§3.1-3.2, rewritten t/3422). Tracks time via
+ * per-pulse bounded CREDITS instead of an open-ended span: each `pulse(t)`
+ * grants engagement validity through `t + creditWindowMs`. A later pulse
+ * arriving within a still-live credit MERGES into the same interval
+ * (extending its expiry, `intervalStart` unchanged); a gap wider than the
+ * window means the old interval already silently ended at its expiry —
+ * that gets accrued, then a fresh interval starts at the new pulse. This
+ * replaces the old idempotent open-span model (`startEngaged`/`stopEngaged`)
+ * that was the root cause of t/3420's idle-tail inflation: a span could sit
+ * open indefinitely because nothing ever re-checked whether real time had
+ * elapsed since the last actual signal.
+ *
+ * `pause(t)` always truncates any live interval AT `t` (clamped to its
+ * credit expiry, whichever is earlier) — a pulse immediately followed by a
+ * hide/subject-change/idle-close must book only the real elapsed time, not
+ * the full credit window. This is why `pause` never skips accrual just
+ * because a credit is still "active": t/3422 review flagged that the
+ * truncate-at-true-stop behavior is what makes hidden and mid-credit
+ * subject-change closes correct, not incidental.
+ *
+ * Over-credit, by design: when `pause(t)` is called well after a credit has
+ * already lapsed (the idle-close path — the idle timer fires
+ * `IDLE_TIMEOUT_MS` after the last pulse, far past `creditWindowMs`), the
+ * clamp binds at the credit's expiry instead of `t`. A visit can therefore
+ * accrue at most one `creditWindowMs` of engaged time past its last real
+ * pulse — bounded, intentional, and far tighter than the pre-t/3420 bug
+ * (which had no bound at all).
  */
 export class EngagementAccumulator {
-  private engagedSince: number | null = null;
+  private intervalStart: number | null = null;
+  private creditExpiresAt: number | null = null;
   private engagedMs = 0;
   private capped = false;
 
-  constructor(private readonly maxEngagedMs: number) {}
+  constructor(
+    private readonly maxEngagedMs: number,
+    private readonly creditWindowMs: number,
+  ) {}
 
-  get isEngaged(): boolean {
-    return this.engagedSince !== null;
+  /** Is there a live credit (an interval that hasn't yet expired) at time t? */
+  hasActiveCredit(t: number): boolean {
+    return this.creditExpiresAt !== null && t <= this.creditExpiresAt;
   }
 
   get currentEngagedMs(): number {
@@ -124,16 +163,32 @@ export class EngagementAccumulator {
     return this.capped;
   }
 
-  /** Start (or continue, idempotently) an engaged span at time t. */
-  startEngaged(t: number): void {
-    if (this.engagedSince === null) this.engagedSince = t;
+  /** Grant a pulse credit at time t, valid through t + creditWindowMs. */
+  pulse(t: number): void {
+    if (this.intervalStart === null) {
+      this.intervalStart = t;
+      this.creditExpiresAt = t + this.creditWindowMs;
+      return;
+    }
+    if (t > (this.creditExpiresAt as number)) {
+      // Gap exceeded the credit window: the old interval silently ended at its
+      // expiry — accrue only up to there, then start a fresh interval at t.
+      this.accrue((this.creditExpiresAt as number) - this.intervalStart);
+      this.intervalStart = t;
+      this.creditExpiresAt = t + this.creditWindowMs;
+      return;
+    }
+    // Still within the credit window — merge: keep intervalStart, extend expiry.
+    this.creditExpiresAt = t + this.creditWindowMs;
   }
 
-  /** Stop the current engaged span at time t, accruing its duration (clamped). */
-  stopEngaged(t: number): void {
-    if (this.engagedSince === null) return;
-    this.accrue(t - this.engagedSince);
-    this.engagedSince = null;
+  /** Truncate any live interval at time t (clamped to its credit expiry) and accrue it. */
+  pause(t: number): void {
+    if (this.intervalStart === null) return;
+    const stopAt = Math.min(t, this.creditExpiresAt as number);
+    this.accrue(stopAt - this.intervalStart);
+    this.intervalStart = null;
+    this.creditExpiresAt = null;
   }
 
   private accrue(deltaMs: number): void {
@@ -151,9 +206,9 @@ export class EngagementAccumulator {
     }
   }
 
-  /** Close any open span at time t and return the final accumulated result. */
+  /** Close any open interval at time t and return the final accumulated result. */
   finish(t: number): { engagedMs: number; capped: boolean } {
-    this.stopEngaged(t);
+    this.pause(t);
     return { engagedMs: this.engagedMs, capped: this.capped };
   }
 }
@@ -170,20 +225,16 @@ export class DwellVisit {
     initiallyEngaged: boolean,
   ) {
     this.startWall = startWall;
-    this.accumulator = new EngagementAccumulator(thresholds.MAX_ENGAGED_MS);
-    if (initiallyEngaged) this.accumulator.startEngaged(startWall);
+    this.accumulator = new EngagementAccumulator(thresholds.MAX_ENGAGED_MS, thresholds.CREDIT_WINDOW_MS);
+    if (initiallyEngaged) this.accumulator.pulse(startWall);
   }
 
   pulse(t: number): void {
-    this.accumulator.startEngaged(t);
+    this.accumulator.pulse(t);
   }
 
   pause(t: number): void {
-    this.accumulator.stopEngaged(t);
-  }
-
-  get isEngaged(): boolean {
-    return this.accumulator.isEngaged;
+    this.accumulator.pause(t);
   }
 
   /**
@@ -271,13 +322,12 @@ export class DwellTracker {
   /** Called when the idle timer fires (no pulse for IDLE_TIMEOUT_MS). */
   onIdleTimeout(t: number): void {
     if (this.recentlyActive(t)) return;
-    // t/3420: the idle timer fires IDLE_TIMEOUT_MS after the last pulse, but the visit stayed
-    // "engaged" (per EngagementAccumulator.startEngaged's idempotent open-span model) the whole
-    // time — closing at `t` directly would bleed that full idle tail into engaged_ms. Stop the
-    // engaged span early, at lastPulseTime + a short grace, mirroring how onVisibilityChange
-    // already stops accrual at the true hide moment; wall_ms (computed from `t` in close()) is
-    // unaffected. The subsequent close()/finish() then no-ops on accrual (already stopped).
-    this.currentVisit?.pause(Math.min(t, this.lastPulseTime + this.getThresholds().IDLE_GRACE_MS));
+    // t/3420/t/3422: the idle timer fires IDLE_TIMEOUT_MS after the last pulse, far past any
+    // live credit's expiry (CREDIT_WINDOW_MS) — EngagementAccumulator.pause()'s own clamp to
+    // its credit expiry already bounds accrual to at most one CREDIT_WINDOW_MS past the last
+    // pulse, so this call is a no-op by the time it runs (the credit expired long before `t`).
+    // Kept explicit for readability/symmetry with onHiddenTimeout, not because it does anything.
+    this.currentVisit?.pause(t);
     this.emitClose(t, 'idle');
   }
 
@@ -297,7 +347,7 @@ export class DwellTracker {
     // t/3420: onVisibilityChange already pauses accrual at the true hide moment, so this is
     // normally a no-op by the time it runs — kept as defense-in-depth for the same idle-tail
     // flaw class (in case pause() was ever skipped), not because it currently does anything.
-    this.currentVisit?.pause(Math.min(t, this.lastPulseTime + this.getThresholds().IDLE_GRACE_MS));
+    this.currentVisit?.pause(t);
     this.emitClose(t, 'hidden');
   }
 
