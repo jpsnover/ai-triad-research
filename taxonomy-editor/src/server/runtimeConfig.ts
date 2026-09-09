@@ -84,6 +84,8 @@ export interface RuntimeConfig {
     /** t/3420: grace window after the last pulse that still counts as engaged on an idle-close —
      *  caps the idle-tail bleed into engaged_ms (the idle timer itself fires IDLE_TIMEOUT_MS later). */
     IDLE_GRACE_MS: number;
+    /** t/3422: each pulse grants engagement credit valid through t + CREDIT_WINDOW_MS. */
+    CREDIT_WINDOW_MS: number;
   };
   flightRecorder: {
     minDumpIntervalMs: number;
@@ -192,6 +194,7 @@ const DEFAULTS: RuntimeConfig = {
     MIN_VISIT_MS: 1_000,
     PULSE_THROTTLE_MS: 5_000,
     IDLE_GRACE_MS: 10_000,
+    CREDIT_WINDOW_MS: 15_000,
   },
   flightRecorder: {
     minDumpIntervalMs: 10_000,
@@ -421,6 +424,7 @@ export function validateAndMerge(raw: unknown, defaults: RuntimeConfig): { confi
       MIN_VISIT_MS: vNum(an.MIN_VISIT_MS, defaults.analytics.MIN_VISIT_MS, { min: 0, max: DURATION_MAX }, 'analytics.MIN_VISIT_MS', errors),
       PULSE_THROTTLE_MS: vNum(an.PULSE_THROTTLE_MS, defaults.analytics.PULSE_THROTTLE_MS, { min: 0, max: DURATION_MAX }, 'analytics.PULSE_THROTTLE_MS', errors),
       IDLE_GRACE_MS: vNum(an.IDLE_GRACE_MS, defaults.analytics.IDLE_GRACE_MS, { min: 0, max: DURATION_MAX }, 'analytics.IDLE_GRACE_MS', errors),
+      CREDIT_WINDOW_MS: vNum(an.CREDIT_WINDOW_MS, defaults.analytics.CREDIT_WINDOW_MS, { min: 0, max: DURATION_MAX }, 'analytics.CREDIT_WINDOW_MS', errors),
     },
     flightRecorder: {
       minDumpIntervalMs: vNum(fr.minDumpIntervalMs, defaults.flightRecorder.minDumpIntervalMs, { min: 0, max: DURATION_MAX }, 'flightRecorder.minDumpIntervalMs', errors),
@@ -663,7 +667,7 @@ export function diffFromDefaults(): ConfigDiffEntry[] {
 export interface ClientConfig {
   resilience: RuntimeConfig['resilience'];
   flightRecorder: Pick<RuntimeConfig['flightRecorder'], 'minDumpIntervalMs' | 'maxDumpsPerWindow' | 'dumpWindowMs'>;
-  analytics: Pick<RuntimeConfig['analytics'], 'bufferRequeueLimit' | 'IDLE_TIMEOUT_MS' | 'MAX_ENGAGED_MS' | 'ENGAGED_MIN_MS' | 'MIN_VISIT_MS' | 'PULSE_THROTTLE_MS' | 'IDLE_GRACE_MS'>;
+  analytics: Pick<RuntimeConfig['analytics'], 'bufferRequeueLimit' | 'IDLE_TIMEOUT_MS' | 'MAX_ENGAGED_MS' | 'ENGAGED_MIN_MS' | 'MIN_VISIT_MS' | 'PULSE_THROTTLE_MS' | 'IDLE_GRACE_MS' | 'CREDIT_WINDOW_MS'>;
   debate: RuntimeConfig['debate'];
 }
 
@@ -689,6 +693,7 @@ export function getClientConfig(): ClientConfig {
       MIN_VISIT_MS: c.analytics.MIN_VISIT_MS,
       PULSE_THROTTLE_MS: c.analytics.PULSE_THROTTLE_MS,
       IDLE_GRACE_MS: c.analytics.IDLE_GRACE_MS,
+      CREDIT_WINDOW_MS: c.analytics.CREDIT_WINDOW_MS,
     },
     debate: c.debate,
   };
