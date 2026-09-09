@@ -1,0 +1,24 @@
+{
+  "_doc": "Canonical paraphrase false-negative fixture for the FOL-on-debate eval (t/3354 design §8, the make-or-break primary metric). ONE underlying predicate surfaces in five forms; without predicate+entity normalization, structural FOL matching misses them (each has a different raw predicate) = false negatives. Measure-ParaphraseFnRate scores this WITHOUT vs WITH the normalization_map so the normalization's value is isolated. Single-annotator, ILLUSTRATIVE — the surface forms are the co-signed design's example set; CL replaces raw_predicate labels + the map with the authoritative double-annotated set (design §11). No number here anchors a threshold.",
+  "_provenance": "surface forms: design §8 (fol-eval-design.md); raw_predicate labels: single-annotator first-pass by PowerShell 2, pending CL.",
+  "cases": [
+    {
+      "canonical_predicate": "protect-incumbents",
+      "note": "The accelerationist/skeptic 'caps entrench incumbents' claim, five surface forms across the sample turns.",
+      "surface_forms": [
+        { "text": "the caps protect them", "raw_predicate": "protect" },
+        { "text": "they pull up the drawbridge", "raw_predicate": "pull-up-drawbridge" },
+        { "text": "it builds corporate moats", "raw_predicate": "build-moat" },
+        { "text": "an exclusive federal licensing club", "raw_predicate": "license-exclude" },
+        { "text": "an incumbent compliance cartel", "raw_predicate": "cartelize" }
+      ],
+      "normalization_map": {
+        "protect": "protect-incumbents",
+        "pull-up-drawbridge": "protect-incumbents",
+        "build-moat": "protect-incumbents",
+        "license-exclude": "protect-incumbents",
+        "cartelize": "protect-incumbents"
+      }
+    }
+  ]
+}

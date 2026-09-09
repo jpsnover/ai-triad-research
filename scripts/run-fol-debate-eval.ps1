@@ -18,10 +18,12 @@
     CLASSIFY (§3, AI clause classifier, fol-eval-classify.ps1), COREF (§6, the hard prerequisite,
     fol-eval-coref.ps1 — resolves cross-turn deps on the assertoric subset + reports coverage loss),
     FOL (§7, fol-eval-fol.ps1 — neo-Davidsonian formalization of the resolved usable subset, REUSING the
-    LogicalFormPass core via module session state, no fork, so it is shape-identical to the summary FOL corpus).
-    Classifier + coref are INSTRUMENT-PROVISIONAL (§5/t/3342): the §3.3 distribution and §6 coverage are
-    measurement reports, not gates — nothing anchors a conclusion until CL scores the blind gold set.
-    The contradiction/FN-rate/correlation stages are NOT implemented yet and throw (honest failure).
+    LogicalFormPass core via module session state, no fork, so it is shape-identical to the summary FOL corpus),
+    CONTRADICTION + FN-rate (§8, fol-eval-contradict.ps1 — structural intra-debate cross-agent contradiction
+    detection + the make-or-break paraphrase false-negative rate, scored WITH vs WITHOUT normalization).
+    Classifier + coref are INSTRUMENT-PROVISIONAL (§5/t/3342); the §8 numbers are measurement reports, not
+    gates — no number anchors a conclusion until CL double-annotates (§11/§12).
+    The summary-corpus direction (§8 i) + §9 correlation outputs are NOT implemented yet and throw (honest failure).
     Runnable paths without a model call: -DryRun (plan+manifest) and -SkipClassify (segment only).
 
     READ-ONLY (design §1, TL tightening e/141#8): the harness writes NOTHING under the data
@@ -96,6 +98,9 @@ param(
     [int]$MaxContextTurns = 12,
 
     [Parameter()]
+    [string]$FnFixturePath,
+
+    [Parameter()]
     [switch]$DryRun
 )
 
@@ -111,6 +116,7 @@ if (-not $Mod) { throw 'AITriad module failed to load; cannot resolve data-root 
 . (Join-Path $PSScriptRoot 'fol-eval-classify.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-coref.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-fol.ps1')
+. (Join-Path $PSScriptRoot 'fol-eval-contradict.ps1')
 
 # Get-Prompt is a module-PRIVATE helper (Import-Module does not expose it), so the classifier/coref
 # Get-Prompt calls would fail with 'not recognized'. Dot-source it + set $script:ModuleRoot so its
@@ -164,7 +170,8 @@ foreach ($f in $allFiles) {
             $turnIndex++
             if ($turn.PSObject.Properties['type'] -and $turn.type -eq 'statement' -and
                 $turn.PSObject.Properties['content'] -and $turn.content) {
-                $statements.Add([PSCustomObject]@{ turn_index = $turnIndex; content = [string]$turn.content })
+                $speaker = if ($turn.PSObject.Properties['speaker'] -and $turn.speaker) { [string]$turn.speaker } else { '' }
+                $statements.Add([PSCustomObject]@{ turn_index = $turnIndex; content = [string]$turn.content; speaker = $speaker })
             }
         }
     }
@@ -206,8 +213,9 @@ $manifest = [ordered]@{
     classify_batch_size    = $ClassifyBatchSize
     coref_batch_size       = $CorefBatchSize
     max_context_turns      = $MaxContextTurns
-    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment', 'classify', 'coref', 'fol')
-    stages_pending_pairing = @('contradiction', 'fn-rate', 'correlate')
+    fn_fixture             = $FnFixturePath
+    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment', 'classify', 'coref', 'fol', 'contradiction', 'fn-rate')
+    stages_pending_pairing = @('summary-corpus-direction', 'correlate')
 }
 
 Write-Host ''
@@ -353,8 +361,62 @@ if ($folStats.attempted -gt 0 -and $folStats.formalized_count -eq 0) {
     Write-Warning 'FOL: no clause formalized — the backend returned nothing (missing key / model?). formalized-clauses.jsonl was still emitted so the run is inspectable; no logical_form is present.'
 }
 
-# ── CONTRADICTION + paraphrase FN-rate (design §8) — later increment, NOT implemented ────────
+# ── CONTRADICTION + paraphrase FN-rate stage (design §8) — Increment 5, the MAKE-OR-BREAK metric ──
+# (a) Intra-debate cross-AGENT contradiction/agreement over the formalized clauses (direction ii), run
+#     BOTH raw (no normalization) and normalized so the normalization delta is visible on real data.
+# (b) The paraphrase FALSE-NEGATIVE RATE against the canonical fixture (one predicate / five surface forms),
+#     scored WITH and WITHOUT the predicate normalization pass so its value is isolated (the design's
+#     make-or-break metric). All pure/structural — no model call. Direction (i) vs the summary corpus and
+#     the §9 correlation outputs are the next increment.
+Write-Host ''
+Write-Host '=== CONTRADICTION + FN-rate stage (design §8) — structural, no model call ===' -ForegroundColor Cyan
+
+# Speaker map (debate_id|turn_index -> speaker) for the cross-agent constraint.
+$speakerMap = @{}
+foreach ($deb in $selected) {
+    foreach ($st in $deb.Statements) {
+        $sp = if ($st.PSObject.Properties['speaker']) { [string]$st.speaker } else { '' }
+        $speakerMap["$($deb.DebateId)|$($st.turn_index)"] = $sp
+    }
+}
+
+# Load the FN fixture (read-only; code-repo file, not the data root) + derive the run-level normalization map.
+if (-not $FnFixturePath) { $FnFixturePath = Join-Path $PSScriptRoot 'fol-eval-fn-fixture.json' }
+$normMap = @{}
+$fnFixture = $null
+if (Test-Path -LiteralPath $FnFixturePath) {
+    $fnFixture = Get-Content -Raw -LiteralPath $FnFixturePath | ConvertFrom-Json
+    foreach ($case in @($fnFixture.cases)) {
+        if ($case.PSObject.Properties['normalization_map'] -and $case.normalization_map) {
+            foreach ($p in $case.normalization_map.PSObject.Properties) { $normMap[$p.Name.ToLowerInvariant()] = [string]$p.Value }
+        }
+    }
+}
+else {
+    Write-Warning "CONTRADICTION: FN fixture not found ($FnFixturePath) — FN-rate report skipped; contradiction detection still runs with an empty normalization map."
+}
+
+# (a) Intra-debate cross-agent contradictions — raw vs normalized.
+$contraRaw = @(Find-IntraDebateContradictions -Formalized $formalized -SpeakerMap $speakerMap -NormalizationMap @{})
+$contraNorm = @(Find-IntraDebateContradictions -Formalized $formalized -SpeakerMap $speakerMap -NormalizationMap $normMap)
+$contraPath = Join-Path $resolvedOut 'contradictions.jsonl'
+Set-Content -LiteralPath $contraPath -Value @($contraNorm | ForEach-Object { $_ | ConvertTo-Json -Depth 4 -Compress }) -Encoding utf8
+$rawContraN = @($contraRaw | Where-Object { $_.relation -eq 'contradict' }).Count
+$normContraN = @($contraNorm | Where-Object { $_.relation -eq 'contradict' }).Count
+$normAgreeN = @($contraNorm | Where-Object { $_.relation -eq 'agree' }).Count
+Write-Host "  Intra-debate cross-agent pairs (formalized): contradict raw=$rawContraN normalized=$normContraN; agree normalized=$normAgreeN -> $contraPath" -ForegroundColor White
+
+# (b) Paraphrase FN-rate — the make-or-break metric.
+if ($null -ne $fnFixture) {
+    $fn = Measure-ParaphraseFnRate -Fixture $fnFixture
+    $fnPath = Join-Path $resolvedOut 'fn-rate-report.json'
+    $fn | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $fnPath -Encoding utf8
+    Write-Host "  Paraphrase FN-rate (fixture, $($fn.gold_pairs) gold pairs): WITHOUT normalization $($fn.raw_fn_rate)  ->  WITH normalization $($fn.normalized_fn_rate)  (gap $($fn.normalization_gap)) -> $fnPath" -ForegroundColor White
+    Write-Host '  (INSTRUMENT-PROVISIONAL — illustrative single-annotator fixture; no number anchors a threshold until CL double-annotates, design §11/§12.)' -ForegroundColor DarkGray
+}
+
+# ── DIRECTION (i) vs summary corpus + CORRELATION outputs (design §8 i / §9) — next increment ──
 throw (New-EvalError `
     'Run the full FOL-on-debate eval pipeline' `
-    "SEGMENT + CLASSIFY + COREF + FOL ran (formalized-clauses.jsonl emitted; $($folStats.formalized_count) logical forms of $($folStats.attempted) attempted) but the contradiction/FN-rate/correlation stages are not yet implemented." `
-    'Inspect formalized-clauses.jsonl now (or use -DryRun / -SkipClassify). Contradiction + paraphrase FN-rate (design §8, the make-or-break primary metric) is the next increment; correlation outputs (§9) follow.')
+    "SEGMENT + CLASSIFY + COREF + FOL + CONTRADICTION/FN-rate ran (contradictions.jsonl + fn-rate-report.json emitted; intra-debate contradict normalized=$normContraN) but the summary-corpus direction (i) and the §9 correlation outputs are not yet implemented." `
+    'Inspect contradictions.jsonl + fn-rate-report.json now. Direction (i) — contradiction vs the formalized POV summary corpus — plus the §9 correlation join (CL convergence metrics; optional conflict corpus) is the final increment.')
