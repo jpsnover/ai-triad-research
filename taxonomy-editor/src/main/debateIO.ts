@@ -45,7 +45,7 @@ function withIdLock<T>(id: string, op: 'read' | 'write', fn: () => Promise<T>): 
   });
   const tracked = run.catch(() => undefined);
   idLocks.set(id, tracked);
-  tracked.finally(() => {
+  void tracked.finally(() => {
     if (idLocks.get(id) === tracked) idLocks.delete(id);
   });
   return run;
