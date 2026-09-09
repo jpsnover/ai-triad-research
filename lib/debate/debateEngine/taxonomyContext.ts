@@ -347,6 +347,12 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
   }
 
   let filteredSit = selectRelevantSituationNodes(ctx.situationNodes, sitScores, { ...relevanceOpts, maxTotal: undefined }, 3, 8);
+  // Fallback-Path Logging (t/3412): when min-floor backfill is skipped (out-of-coverage topic),
+  // log the top score so out-of-coverage debates are diagnosable.
+  if (filteredSit.length === 0 && ctx.situationNodes.length > 0) {
+    const topSitScore = sitScores.size > 0 ? Math.max(...sitScores.values()) : 0;
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: `situation injection: top score ${topSitScore.toFixed(3)} far below threshold — skipping min-floor backfill, 0 situations injected (out-of-coverage topic)` });
+  }
 
   // Situation exclusion filter (t/490): skip situations whose exclusion zone matches the round focus
   let situationExclusionSkipped: { node_id: string; similarity_exclusion: number }[] = [];

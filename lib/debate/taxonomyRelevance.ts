@@ -435,6 +435,11 @@ export function buildSituationRootLookup(
   return rootCache;
 }
 
+/** Gap below threshold that signals out-of-coverage topics (t/3412).
+ *  When top situation score < threshold − NO_SIT_COVERAGE_MARGIN, the min-floor
+ *  backfill is skipped and 0 situations are injected to avoid misleading grounding. */
+export const NO_SIT_COVERAGE_MARGIN = 0.15;
+
 /**
  * Select relevant situation nodes based on similarity threshold.
  * When situationBranchBoost is configured and nodes have parent_id, scores
@@ -541,7 +546,11 @@ export function selectRelevantSituationNodes(
     .sort((a, b) => b.score - a.score || a.node.id.localeCompare(b.node.id));
 
   const aboveThreshold = scored.filter(s => s.score >= threshold);
-  const selected = aboveThreshold.length >= min
+  const topScore = scored[0]?.score ?? 0;
+  // t/3412: when top score is far below threshold the topic has no taxonomy coverage —
+  // skip min-floor backfill to avoid injecting misleading situations.
+  const outOfCoverage = topScore < threshold - NO_SIT_COVERAGE_MARGIN;
+  const selected = outOfCoverage || aboveThreshold.length >= min
     ? aboveThreshold
     : scored.slice(0, Math.max(min, aboveThreshold.length));
 
