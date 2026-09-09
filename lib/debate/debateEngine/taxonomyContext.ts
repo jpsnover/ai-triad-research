@@ -25,6 +25,8 @@ import {
 } from '../debateConfig.js';
 import { loadProvisionalWeights } from '../phaseTransitions.js';
 import { cosineSimilarity } from '../../embeddings/similarity.js';
+import { computePreDebateFreshness, computeBdiEntropy, weightedSituationScore, PRE_DEBATE_WEIGHTS } from '../situationScoring.js';
+import { type Category } from '../taxonomyTypes.js';
 
 export function getNodeLabelMap(engine: DebateEngineInternals): Map<string, string> {
   if (engine._nodeLabelMap) return engine._nodeLabelMap;
@@ -343,6 +345,26 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
       if (sitScores.has(sitId)) {
         sitScores.set(sitId, (sitScores.get(sitId) ?? 0) + adjustment);
       }
+    }
+  }
+
+  if (engine.config.breadthAwareSituationSelection) {
+    const nodeCategoryLookup = new Map<string, Category>();
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const node of engine.taxonomy[pov].nodes) {
+        nodeCategoryLookup.set(node.id, node.category);
+      }
+    }
+    const maxDebateCount = Math.max(0, ...ctx.situationNodes.map(s => s.debate_refs?.length ?? 0));
+    for (const sit of ctx.situationNodes) {
+      const components = {
+        relevance: sitScores.get(sit.id) ?? 0,
+        diversity: 0,
+        freshness: computePreDebateFreshness(sit, maxDebateCount),
+        bdi_entropy: computeBdiEntropy(sit.linked_nodes ?? [], nodeCategoryLookup),
+        conflict_openness: 0,
+      };
+      sitScores.set(sit.id, weightedSituationScore(components, PRE_DEBATE_WEIGHTS));
     }
   }
 

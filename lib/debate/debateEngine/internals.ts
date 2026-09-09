@@ -107,6 +107,8 @@ export interface DebateConfig {
   /** Replace description grounding text with the node's synthetic_phrase nearest the description embedding (t/3367).
    *  Off by default. Requires adapter.computeQueryEmbedding; WARN-falls back to description when unavailable. */
   useSyntheticPhraseGrounding?: boolean;
+  /** Rank situation selection by weighted breadth score (relevance + freshness + bdi_entropy via PRE_DEBATE_WEIGHTS) instead of pure relevance (t/3411 experiment). Off by default. */
+  breadthAwareSituationSelection?: boolean;
   /** Enable over-generate/select/rewrite pipeline: N=3 drafts, dedup, greedy top-K, rewrite, coherence gate (t/1581). */
   experiment_overgen_select_rewrite?: boolean;
   /** Exploration summary from a prior cheap-engine run — seeds cruxes, situations, AN priming, and config overrides. */
