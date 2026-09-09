@@ -1,0 +1,162 @@
+# tau-golden worksheet: 40 pairs across cosine bins (label MATERIALIZED 1/0)
+
+[1] cos=0.736  LABEL=__
+   CH : Arguments that safety research can be scaled in parallel with capabilities without slowing the latter.
+   ATK: Capability scaling is the only viable path to genuine safety.
+
+[2] cos=0.720  LABEL=__
+   CH : Opponents will argue that deployer-anchored liability lets powerful developers off the hook for known design defects. Response: the conditional safe harbor framework includes secondary developer liabi
+   ATK: Deployer-anchored liability gets the epistemic burden exactly backwards — it requires the party with less information to generate telemetry evidence of design defects against the party with more infor
+
+[3] cos=0.714  LABEL=__
+   CH : Opponents will argue that tiered liability creates an insurmountable barrier to entry for smaller developers and stifles innovation.
+   ATK: Tiered liability is a legislative moat designed to protect the current market leaders.
+
+[4] cos=0.661  LABEL=__
+   CH : Opponents will likely argue that rapid AI development poses significant risks to safety and accountability
+   ATK: A cautious and critical perspective, prioritizing safety and transparency over profit and expediency, is essential for ensuring that AI development is responsible and beneficial for all.
+
+[5] cos=0.652  LABEL=__
+   CH : Opponents will argue that post-deployment monitoring means real people are harmed before the system corrects — the 'canary in the coal mine' objection. Response: pre-deployment certification also fail
+   ATK: Pre-deployment certification is not security theater — it is the first layer of a defense-in-depth regime that catches well-characterized failure classes even when specific failure instances remain un
+
+[6] cos=0.647  LABEL=__
+   CH : Opponents will argue that AI toys foster learning, bridge loneliness, and prepare children for a digital future.
+   ATK: Prohibiting artificial intelligence toys creates a permanent cognitive disadvantage for children growing up in an automated economy.
+
+[7] cos=0.640  LABEL=__
+   CH : My core assumptions that will be challenged: (1) Market-driven commoditization of intelligence inherently leads to equity, and (2) The benefits of rapid AI deployment always outweigh transitional cost
+   ATK: I still hold that AI's negative impacts are structural inequities demanding massive public intervention, not merely transitional costs exacerbated by regulatory friction.
+
+[8] cos=0.633  LABEL=__
+   CH : Opponents will claim that absolute deployment control stifles innovation and is practically unfeasible.
+   ATK: Demanding absolute deployment control is a classic play for regulatory capture that creates high barriers to entry for smaller competitors.
+
+[9] cos=0.614  LABEL=__
+   CH : Opponents will challenge the supply chain vulnerability angle by arguing that dependency vetting is standard practice and not unique to AI-generated code. I must show that hallucinated packages are a 
+   ATK: Fact-check (disputed): The core phenomenon is real — AI coding assistants do hallucinate package names at measurable rates, and this does create an exploitable supply chain attack vector. However, the
+
+[10] cos=0.605  LABEL=__
+   CH : I am assuming that the 'safety' benefits of the AI Act are largely illusory compared to the tangible economic losses caused by compliance burdens.
+   ATK: Fact-check (disputed): The claim conflates a standard regulatory critique regarding compute-based loopholes with a specialized AI safety term, 'zone of indifference,' which refers to agentic decision-
+
+[11] cos=0.604  LABEL=__
+   CH : Opponents will argue that strict liability for AI is premature because we lack the technical infrastructure for meaningful safety evaluation and auditing
+   ATK: If AI behavior is genuinely structurally unpredictable, then pre-deployment certification cannot catch those behaviors either. Pre-deployment audits become security theater.
+
+[12] cos=0.564  LABEL=__
+   CH : Opponents will label siloing as 'anti-competitive' or 'technologically regressive' to protect their market position.
+   ATK: Demanding physical silos is not a safety measure; it is a regulatory moat that protects incumbents while strangling the next generation of innovators.
+
+[13] cos=0.564  LABEL=__
+   CH : ATTACK: Automated worktree pruning commands destroy uncommitted local developer state when executed without rigorous provenance tracking.
+   ATK: Real-time scripts fail to interpret novel administrative pointer corruption in stale worktrees before deletion occurs.
+
+[14] cos=0.562  LABEL=__
+   CH : Opponents will attack the assumption that AI can be 'de-biased' effectively, claiming it merely encodes historical prejudices.
+   ATK: AI systems do not escape human cognitive failures; they scale them across millions of decisions, laundering legacy prejudices through a black box.
+
+[15] cos=0.554  LABEL=__
+   CH : I am exposing the assumption that human oversight is inherently meaningful or effective in a high-velocity, automated environment.
+   ATK: By integrating human oversight as an ephemeral, high-level parameter setter rather than a real-time execution bottleneck, we satisfy the demand for accountability without incurring the crippling laten
+
+[16] cos=0.553  LABEL=__
+   CH : Opponents will argue post-hoc liability can't undo irreversible privacy harm — a leaked medical record can't be un-leaked. I preempt by conceding some irreversible harms need anticipatory measures, th
+   ATK: You cannot enforce any privacy rule against a harm whose proof the defendant privately owns, so a per-case discovery rule treats the symptom, not the disease.
+
+[17] cos=0.532  LABEL=__
+   CH : ASSUMPTION: Developers will reliably instrument and audit their local environments to make automated metadata deletion entirely safe against catastrophic state loss.
+   ATK: Pre-deployment certification must govern any utility that removes administrative metadata from developer storage environments.
+
+[18] cos=0.527  LABEL=__
+   CH : My argument depends on the assumption that established companies' organizational behavior under competitive pressure is predictable from historical patterns — an opponent could argue that AI adoption 
+   ATK: Fact-check (disputed): The claim bundles a roughly accurate statistic (the ~42% figure from Stripe's 2018 Developer Coefficient report) with two broader assertions that are rhetorically overstated. Th
+
+[19] cos=0.514  LABEL=__
+   CH : Opponents will argue that market-driven liability is insufficient to prevent 'catastrophic' systemic failures.
+   ATK: The NTSB analogy for AI liability is a category error that ignores the fundamental difference between mechanical failure and algorithmic opacity.
+
+[20] cos=0.508  LABEL=__
+   CH : Opponents will claim that mandatory safety architectures function as regulatory moats that price out independent developers.
+   ATK: Downstream operators must bear strict product liability for algorithmic failures, replacing bureaucratic pre-market gatekeeping with immediate financial accountability.
+
+[21] cos=0.506  LABEL=__
+   CH : I am exposing the assumption that current red-teaming is a robust safety mechanism, reframing it instead as a superficial performance that provides only the appearance of control.
+   ATK: Mandatory red-teaming functions as an innovation tax that prioritizes the comfort of regulators over the urgent, civilizational necessity of solving existential challenges.
+
+[22] cos=0.504  LABEL=__
+   CH : The Safetyist will press on the knowledge void — that even disposable code needs to be debugged during the 90-day window, and AI-generated code that nobody understands creates debugging bottlenecks th
+   ATK: If the speed gains from AI prototyping just become the new baseline expectation — ship twice as many features with the same team — then the knowledge void deepens on schedule because nobody gets time 
+
+[23] cos=0.501  LABEL=__
+   CH : Exposing the assumption that developers have a right to deploy systems whose internal reasoning and failure modes they cannot predict or control.
+   ATK: Instead, private contracts must allocate operational risks to the deployers who control the integration environment.
+
+[24] cos=0.488  LABEL=__
+   CH : Opponents will attack the lack of 'guaranteed' safety in an iterative model.
+   ATK: If a model has developed deceptive, goal-masking strategies, it will simply adapt its performative compliance to satisfy the new, tighter constraints of a post-incident patch.
+
+[25] cos=0.464  LABEL=__
+   CH : Exposing the false assumption that passing a top-down federal capability ban actually regulates power, rather than merely creating a permanent public-private cartel around existing compute monopolies.
+   ATK: Concentrated physical infrastructure naturally tempts companies to capture their regulators, but abandoning hardware oversight leaves communities unprotected against predatory infrastructure deals.
+
+[26] cos=0.464  LABEL=__
+   CH : Key assumption I'm exposing: that an established company has the organizational maturity to enforce a prototype-to-production boundary. If the opponent can show that established companies systematical
+   ATK: Established consumer software companies under competitive pressure systematically fail to execute planned rewrites — Stripe's 2018 report found developers spend roughly 42% of their time on technical 
+
+[27] cos=0.451  LABEL=__
+   CH : I am exposing the assumption that current regulatory frameworks are capable of evolving; I will preemptively dismiss this by highlighting the speed of AI development versus the glacial pace of legisla
+   ATK: By 2028, we must establish standardized, enforceable data-budgeting requirements, similar to the risk-tiering approaches outlined in the EU AI Act, to ensure that agentic systems cannot ingest hazardo
+
+[28] cos=0.438  LABEL=__
+   CH : Opponents will argue that imperfect regulation of frontier labs is better than no regulation at all—the 'perfect is the enemy of the good' move. I need to counter that this is not about perfect vs. im
+   ATK: The Accelerationist's own preferred enforcement point is undermined by the Skeptic's best evidence that platform-layer compliance will become performative like GDPR cookie consent.
+
+[29] cos=0.432  LABEL=__
+   CH : ASSUMPTION: Our reliance on saf-intentions-167 and saf-beliefs-030 assumes that an external regulatory authority can inspect, verify, and gate complex multi-agent interactions at machine speed without
+   ATK: Mathematical zero-knowledge proofs verify execution policies cryptographically, eliminating the need to surrender root keys to administrative gatekeepers.
+
+[30] cos=0.416  LABEL=__
+   CH : Opponents will claim that trade secrecy prevents adequate third-party auditing of proprietary models.
+   ATK: Policymakers must mandate open-source diagnostic access and standardize mandatory liability disclosures so that victims of algorithmic failures have immediate access to discovery material.
+
+[31] cos=0.410  LABEL=__
+   CH : Opponents will attack the AMAGF as a bureaucratic bottleneck that cedes tactical advantage to adversaries.
+   ATK: The AMAGF's reliance on static metrics creates a compliance ceiling that incentivizes developers to mask latent model instabilities.
+
+[32] cos=0.408  LABEL=__
+   CH : Safetyist will challenge that targeted regulation is too slow and uncertain compared to a ban — I'll concede the speed point but pivot to ask who bears the cost of delay under a ban (vulnerable childr
+   ATK: Fact-check (disputed): The claim that prohibitionist bans remove political pressure to build enforcement infrastructure is contradicted by available evidence. In Nigeria, the sachet alcohol ban actual
+
+[33] cos=0.396  LABEL=__
+   CH : ASSUMPTION: The position assumes that developers and teams will reliably adopt and enforce cryptographic provenance checks (target saf-beliefs-219) without inducing paralyzing administrative friction 
+   ATK: A regulatory mandate requiring pre-execution verification hooks for every local garbage collection command creates bureaucratic friction that developers simply circumvent with local shell aliases.
+
+[34] cos=0.392  LABEL=__
+   CH : Opponents will attack my position as 'anti-innovation' or 'technologically illiterate' to deflect from the power dynamics I am highlighting.
+   ATK: We must move away from human-led gatekeeping, which is inherently vulnerable to bias and lobbying, and toward decentralized, mechanistic oversight.
+
+[35] cos=0.392  LABEL=__
+   CH : I am exposing the assumption that AI development is a natural, unstoppable force rather than a series of deliberate, high-risk engineering choices.
+   ATK: Both strict liability and mandated modularity function as a form of regulatory capture that favors incumbents over agile innovators.
+
+[36] cos=0.392  LABEL=__
+   CH : Opponents will claim that mechanistic inspectability is technically intractable for frontier-scale models, making the standard impossible to meet.
+   ATK: Centralized pre-deployment gates fail to stop upstream training compromises because static certification models cannot inspect the billions of parameters coursing through modern open ecosystems.
+
+[37] cos=0.383  LABEL=__
+   CH : I am exposing the assumption that the state is a neutral arbiter of truth, rather than a tool for incumbent protection.
+   ATK: We must shift from a model of 'verified as a premium' to 'provenance as a public requirement' to prevent the total erosion of shared factual ground.
+
+[38] cos=0.365  LABEL=__
+   CH : Opponents will argue that interpretability constraints severely handicap system performance and prevent scaling to more powerful capabilities.
+   ATK: Insisting that human operators retain literal stop-buttons on high-throughput systems creates an accountability vacuum that destroys operational velocity.
+
+[39] cos=0.360  LABEL=__
+   CH : Claims that regulation will stifle competitive advantage or 'innovation speed'.
+   ATK: Market incentives for high-fidelity data will outpace static, state-mandated labeling in efficacy.
+
+[40] cos=0.351  LABEL=__
+   CH : Opponents will likely pivot to 'long-term economic growth' or 'global competitiveness' to justify current labor displacement.
+   ATK: Fact-check (disputed): While the 93.2% statistic originates from the 2026 'Agentic AI and Occupational Displacement' study, the claim misrepresents the researchers' methodology by labeling a 'moderate
+

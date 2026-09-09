@@ -50,6 +50,8 @@ A provenance class says how an instrument's *value* was established; a **reporti
 | `convergence_score_at_termination` | `single-draw` ⚠ | Headline un-pooled convergence metric; same replication gap. |
 | `crux_resolution_divergence_rate` | `single-draw` ⚠ | Headline un-pooled convergence metric; same gap, and permanently objective-excluded diagnostic (redefined symmetric, t/1846). |
 | `situation_crux_alignment` | `single-draw` ⚠ | Headline un-pooled convergence metric; same replication gap. |
+| `anticipated_challenge_hit_rate` (t/3406) | `single-draw` ⚠ | **derived**, single-annotator. v2 valence-aware match (anticipated_challenge → atomic opponent `attacks`-edge claim, all-MiniLM-L6-v2 cosine ≥ τ). τ=**0.60** calibrated precision-first on a 40-pair single-annotator golden (precision 0.82 / recall 0.50). Baseline **0.063** (51 debates, 145 sides; precision-adj ≈0.05). Evidence: `analyses/t3406-forecast/`. Re-validate τ with a 2nd annotator before it gates. NOT yet a committed CalibrationDataPoint field (research metric). |
+| `blindside_rate` (t/3406) | `single-draw` ⚠ | **derived**, single-annotator (same golden/τ as `anticipated_challenge_hit_rate`). Baseline **0.972** @ τ0.60 — of attacks that land, frac not foreseen. Denominator = all landing attacks (some un-anticipatable) → a ceiling, not a failing grade. Evidence: `analyses/t3406-forecast/`. |
 
 The four convergence headlines are tagged `single-draw` as their honest current treatment, not a target — promoting any to `n-draw distribution` requires the R-1 replication set (n≥10 clean-tree draws of a fixed config), tracked by the replication-gate discipline, not this PR.
 
