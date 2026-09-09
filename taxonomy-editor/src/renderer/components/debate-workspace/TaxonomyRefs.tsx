@@ -16,6 +16,7 @@ import type { PolicyRefEntry } from './utils';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { TaxonomyRefDetail, type TaxRefNode } from '../taxonomy/TaxonomyRefDetail';
 import { TheoryLink } from '../shared/TheoryLink';
+import { SectionErrorBoundary } from './SectionErrorBoundary';
 import './TaxonomyRefs.css';
 
 // Prevents a TheoryLink click inside a <summary> from toggling its parent <details>
@@ -353,15 +354,24 @@ function PlanBody({ planStage, selectedPlanNodeId, setSelectedPlanNodeId }: {
   }
   return (
     <>
-      <DirectiveBox wp={wp} />
-      <StrategicGoalBox wp={wp} />
-      <CoreThesisBox wp={wp} />
-      <FramingBox wp={wp} />
-      <PlannedMovesBox wp={wp} />
-      <ArgumentStructureBox wp={wp} selectedPlanNodeId={selectedPlanNodeId} setSelectedPlanNodeId={setSelectedPlanNodeId} />
-      <ArgumentSketchBox wp={wp} />
-      <AnticipatedBox wp={wp} field="anticipated_responses" title="Anticipated Responses" />
-      <AnticipatedBox wp={wp} field="anticipated_challenges" title="Anticipated Challenges" />
+      {/* t/3419: each Box wrapped independently — a render throw in one field
+          (e.g. a legacy-shaped work_product value) degrades to an inline
+          fallback for that section instead of unmounting the whole PLAN body. */}
+      <SectionErrorBoundary section="Directive"><DirectiveBox wp={wp} /></SectionErrorBoundary>
+      <SectionErrorBoundary section="Strategic Goal"><StrategicGoalBox wp={wp} /></SectionErrorBoundary>
+      <SectionErrorBoundary section="Core Thesis"><CoreThesisBox wp={wp} /></SectionErrorBoundary>
+      <SectionErrorBoundary section="Framing"><FramingBox wp={wp} /></SectionErrorBoundary>
+      <SectionErrorBoundary section="Planned Moves"><PlannedMovesBox wp={wp} /></SectionErrorBoundary>
+      <SectionErrorBoundary section="Argument Structure">
+        <ArgumentStructureBox wp={wp} selectedPlanNodeId={selectedPlanNodeId} setSelectedPlanNodeId={setSelectedPlanNodeId} />
+      </SectionErrorBoundary>
+      <SectionErrorBoundary section="Argument Sketch"><ArgumentSketchBox wp={wp} /></SectionErrorBoundary>
+      <SectionErrorBoundary section="Anticipated Responses">
+        <AnticipatedBox wp={wp} field="anticipated_responses" title="Anticipated Responses" />
+      </SectionErrorBoundary>
+      <SectionErrorBoundary section="Anticipated Challenges">
+        <AnticipatedBox wp={wp} field="anticipated_challenges" title="Anticipated Challenges" />
+      </SectionErrorBoundary>
       {/* Inline POV detail for the clicked argument-structure anchor (t/1724). */}
       {selectedPlanNodeId && <TaxNodeDetail nodeId={selectedPlanNodeId} onClose={() => setSelectedPlanNodeId(null)} />}
     </>
