@@ -108,6 +108,44 @@ describe('TaxonomyRefsSection — PLAN anchor → inline POV detail (t/1724)', (
   });
 });
 
+describe('AnticipatedBox — legacy object-shape items (t/3418, React #31 regression)', () => {
+  beforeEach(() => { vi.clearAllMocks(); usePreferencesStore.setState({ viewMode: 'advanced' }); });
+
+  it('renders without throwing when anticipated_challenges/responses are legacy {challenge, type} objects', () => {
+    const stageDiagnostics = [
+      {
+        stage: 'plan',
+        raw_response: '',
+        work_product: {
+          strategic_goal: 'Win the point',
+          anticipated_challenges: [{ challenge: 'They will cite cost.', type: 'economic' }],
+          anticipated_responses: [{ challenge: 'Point to long-run savings.' }],
+        },
+      },
+    ];
+    expect(() =>
+      render(<TaxonomyRefsSection refs={[]} stageDiagnostics={stageDiagnostics} forceExpanded />)
+    ).not.toThrow();
+    expect(screen.getByText('economic: They will cite cost.')).toBeInTheDocument();
+    expect(screen.getByText('Point to long-run savings.')).toBeInTheDocument();
+  });
+
+  it('still renders plain tagged-string items (new schema) unchanged', () => {
+    const stageDiagnostics = [
+      {
+        stage: 'plan',
+        raw_response: '',
+        work_product: {
+          strategic_goal: 'Win the point',
+          anticipated_challenges: ['economic: They will cite cost.'],
+        },
+      },
+    ];
+    render(<TaxonomyRefsSection refs={[]} stageDiagnostics={stageDiagnostics} forceExpanded />);
+    expect(screen.getByText('economic: They will cite cost.')).toBeInTheDocument();
+  });
+});
+
 describe('TheoryLink help icons — mounts f + g (t/2347)', () => {
   it('renders the artifact-guide icon on BRIEF + PLAN and the citation-diagnostics icon in the statement footer, with distinct aria-labels', () => {
     const stageDiagnostics = [
