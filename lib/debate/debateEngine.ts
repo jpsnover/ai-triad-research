@@ -157,6 +157,7 @@ import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js'
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration.js';
 import { pruneSessionData, pruneModeratorState } from './sessionPruning.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { resolveBackground } from './debateEngine/backgroundIngestion.js';
 import { callByUsage } from '../ai-client/usageRegistry.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, type TurnPipelineInput, type OpeningPipelineInput } from './turnPipeline.js';
@@ -419,6 +420,7 @@ export class DebateEngine {
       });
     }
 
+    this.config.background = await resolveBackground(this.config.background);
     this.initSession();
 
     // Route prompt directives based on model capability (t/331)
