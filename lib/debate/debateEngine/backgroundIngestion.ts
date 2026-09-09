@@ -52,8 +52,8 @@ export async function resolveBackground(raw: string | undefined): Promise<string
 
 function extractText(html: string): string {
   return html
-    .replace(/<script\b[\s\S]*?<\/script\s*>/gi, ' ')
-    .replace(/<style\b[\s\S]*?<\/style\s*>/gi, ' ')
+    .replace(/<script\b[\s\S]*?<\/script[^>]*>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style[^>]*>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
