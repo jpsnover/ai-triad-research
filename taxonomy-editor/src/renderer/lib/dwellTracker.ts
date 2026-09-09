@@ -32,6 +32,8 @@ export interface EngagementThresholds {
   ENGAGED_MIN_MS: number;
   MIN_VISIT_MS: number;
   PULSE_THROTTLE_MS: number;
+  /** t/3420: grace window after the last pulse that still counts as engaged on an idle/hidden close. */
+  IDLE_GRACE_MS: number;
 }
 
 export interface Subject {
@@ -268,7 +270,15 @@ export class DwellTracker {
 
   /** Called when the idle timer fires (no pulse for IDLE_TIMEOUT_MS). */
   onIdleTimeout(t: number): void {
-    if (!this.recentlyActive(t)) this.emitClose(t, 'idle');
+    if (this.recentlyActive(t)) return;
+    // t/3420: the idle timer fires IDLE_TIMEOUT_MS after the last pulse, but the visit stayed
+    // "engaged" (per EngagementAccumulator.startEngaged's idempotent open-span model) the whole
+    // time — closing at `t` directly would bleed that full idle tail into engaged_ms. Stop the
+    // engaged span early, at lastPulseTime + a short grace, mirroring how onVisibilityChange
+    // already stops accrual at the true hide moment; wall_ms (computed from `t` in close()) is
+    // unaffected. The subsequent close()/finish() then no-ops on accrual (already stopped).
+    this.currentVisit?.pause(Math.min(t, this.lastPulseTime + this.getThresholds().IDLE_GRACE_MS));
+    this.emitClose(t, 'idle');
   }
 
   /** Called on `visibilitychange`. */
@@ -283,7 +293,12 @@ export class DwellTracker {
 
   /** Called when the tab has been hidden for IDLE_TIMEOUT_MS+ (from a scheduled timer). */
   onHiddenTimeout(t: number): void {
-    if (!this.visible) this.emitClose(t, 'hidden');
+    if (this.visible) return;
+    // t/3420: onVisibilityChange already pauses accrual at the true hide moment, so this is
+    // normally a no-op by the time it runs — kept as defense-in-depth for the same idle-tail
+    // flaw class (in case pause() was ever skipped), not because it currently does anything.
+    this.currentVisit?.pause(Math.min(t, this.lastPulseTime + this.getThresholds().IDLE_GRACE_MS));
+    this.emitClose(t, 'hidden');
   }
 
   /** Called on `beforeunload`. */
