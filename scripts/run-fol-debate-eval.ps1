@@ -20,10 +20,13 @@
     FOL (§7, fol-eval-fol.ps1 — neo-Davidsonian formalization of the resolved usable subset, REUSING the
     LogicalFormPass core via module session state, no fork, so it is shape-identical to the summary FOL corpus),
     CONTRADICTION + FN-rate (§8, fol-eval-contradict.ps1 — structural intra-debate cross-agent contradiction
-    detection + the make-or-break paraphrase false-negative rate, scored WITH vs WITHOUT normalization).
-    Classifier + coref are INSTRUMENT-PROVISIONAL (§5/t/3342); the §8 numbers are measurement reports, not
-    gates — no number anchors a conclusion until CL double-annotates (§11/§12).
-    The summary-corpus direction (§8 i) + §9 correlation outputs are NOT implemented yet and throw (honest failure).
+    detection + the make-or-break paraphrase false-negative rate, scored WITH vs WITHOUT normalization),
+    SUMMARY-LINK (§8 i, fol-eval-correlate.ps1 — debate clauses vs the read-only formalized POV summary
+    corpus) and CORRELATE (§9 — the per-debate claim-level-provenance index CL joins to the convergence
+    metrics). The pipeline now runs END-TO-END and returns a final summary object.
+    Classifier + coref + §8/§9 numbers are INSTRUMENT-PROVISIONAL (§5/t/3342) — measurement reports, not
+    gates; no number anchors a conclusion until CL double-annotates (§11/§12). Target (iii) conflict-corpus
+    correlation is a follow-up (loop Main-PS).
     Runnable paths without a model call: -DryRun (plan+manifest) and -SkipClassify (segment only).
 
     READ-ONLY (design §1, TL tightening e/141#8): the harness writes NOTHING under the data
@@ -101,6 +104,10 @@ param(
     [string]$FnFixturePath,
 
     [Parameter()]
+    [ValidateRange(0, 100000)]
+    [int]$MaxSummaryClaims = 3000,
+
+    [Parameter()]
     [switch]$DryRun
 )
 
@@ -111,12 +118,13 @@ Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psd1') -Force -ErrorAc
 $Mod = Get-Module AITriad
 if (-not $Mod) { throw 'AITriad module failed to load; cannot resolve data-root helpers.' }
 
-# Clause segmenter (§4) + classifier (§3) + coref (§6) + FOL (§7) — pure, dot-sourceable libraries.
+# Clause segmenter (§4) + classifier (§3) + coref (§6) + FOL (§7) + contradiction (§8) + correlate (§8i/§9).
 . (Join-Path $PSScriptRoot 'fol-eval-segment.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-classify.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-coref.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-fol.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-contradict.ps1')
+. (Join-Path $PSScriptRoot 'fol-eval-correlate.ps1')
 
 # Get-Prompt is a module-PRIVATE helper (Import-Module does not expose it), so the classifier/coref
 # Get-Prompt calls would fail with 'not recognized'. Dot-source it + set $script:ModuleRoot so its
@@ -126,6 +134,7 @@ $script:ModuleRoot = Join-Path $PSScriptRoot 'AITriad'
 
 # ── Module-session-state wrappers for Private helpers (see .DESCRIPTION note) ──────
 function Resolve-DebatesDir { & $Mod { Get-DebatesDir } }
+function Resolve-SummariesDir { & $Mod { Get-SummariesDir } }
 function Test-OutputUnderDataRoot { param([string]$Path) & $Mod { param($p) Test-IsUnderDataRoot -Path $p } $Path }
 function New-EvalError {
     param([string]$Goal, [string]$Problem, [string]$NextSteps)
@@ -214,8 +223,9 @@ $manifest = [ordered]@{
     coref_batch_size       = $CorefBatchSize
     max_context_turns      = $MaxContextTurns
     fn_fixture             = $FnFixturePath
-    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment', 'classify', 'coref', 'fol', 'contradiction', 'fn-rate')
-    stages_pending_pairing = @('summary-corpus-direction', 'correlate')
+    max_summary_claims     = $MaxSummaryClaims
+    stages_implemented     = @('load', 'run-bound', 'manifest', 'segment', 'classify', 'coref', 'fol', 'contradiction', 'fn-rate', 'summary-link', 'correlate')
+    stages_pending_pairing = @()
 }
 
 Write-Host ''
@@ -415,8 +425,58 @@ if ($null -ne $fnFixture) {
     Write-Host '  (INSTRUMENT-PROVISIONAL — illustrative single-annotator fixture; no number anchors a threshold until CL double-annotates, design §11/§12.)' -ForegroundColor DarkGray
 }
 
-# ── DIRECTION (i) vs summary corpus + CORRELATION outputs (design §8 i / §9) — next increment ──
-throw (New-EvalError `
-    'Run the full FOL-on-debate eval pipeline' `
-    "SEGMENT + CLASSIFY + COREF + FOL + CONTRADICTION/FN-rate ran (contradictions.jsonl + fn-rate-report.json emitted; intra-debate contradict normalized=$normContraN) but the summary-corpus direction (i) and the §9 correlation outputs are not yet implemented." `
-    'Inspect contradictions.jsonl + fn-rate-report.json now. Direction (i) — contradiction vs the formalized POV summary corpus — plus the §9 correlation join (CL convergence metrics; optional conflict corpus) is the final increment.')
+# ── SUMMARY-LINK stage (design §8 i) — Increment 6. Read-only over the summary corpus ───────
+# Compare each formalized debate-clause logical form against the EXISTING formalized POV summary corpus
+# logical forms (read-only), using the identical structural detector. The summary FOL is the contradiction
+# target (CL's design), never re-formalized dialogue. Bounded by -MaxSummaryClaims (over-cap logged).
+Write-Host ''
+Write-Host '=== SUMMARY-LINK stage (design §8 i) — debate clauses vs the formalized summary corpus (read-only, structural) ===' -ForegroundColor Cyan
+$summaryLfs = [System.Collections.Generic.List[object]]::new()
+$summariesDir = Resolve-SummariesDir
+$summaryFilesScanned = 0
+if (Test-Path -LiteralPath $summariesDir) {
+    foreach ($sf in @(Get-ChildItem -LiteralPath $summariesDir -Filter '*.json' -File | Sort-Object Name)) {
+        if ($summaryLfs.Count -ge $MaxSummaryClaims) { break }
+        $summaryFilesScanned++
+        try { $sdoc = Get-Content -Raw -LiteralPath $sf.FullName | ConvertFrom-Json } catch { continue }
+        foreach ($e in @(Get-SummaryClaimLogicalForms -Summary $sdoc -SourceId ([System.IO.Path]::GetFileNameWithoutExtension($sf.Name)))) {
+            if ($summaryLfs.Count -ge $MaxSummaryClaims) { break }
+            $summaryLfs.Add($e)
+        }
+    }
+}
+else {
+    Write-Warning "SUMMARY-LINK: summaries dir not found ($summariesDir) — direction (i) skipped (0 summary logical forms)."
+}
+$summaryCapped = ($summaryLfs.Count -ge $MaxSummaryClaims)
+$summaryContra = @(Find-SummaryCorpusContradictions -Formalized $formalized -SummaryLfs @($summaryLfs) -NormalizationMap $normMap)
+$summaryContraPath = Join-Path $resolvedOut 'summary-contradictions.jsonl'
+Set-Content -LiteralPath $summaryContraPath -Value @($summaryContra | ForEach-Object { $_ | ConvertTo-Json -Depth 4 -Compress }) -Encoding utf8
+$summContraN = @($summaryContra | Where-Object { $_.relation -eq 'contradict' }).Count
+Write-Host "  Summary corpus: $($summaryLfs.Count) formalized claims from $summaryFilesScanned file(s)$(if ($summaryCapped) { " (capped at -MaxSummaryClaims $MaxSummaryClaims — over-cap NOT scanned)" })" -ForegroundColor White
+Write-Host "  Debate-clause vs summary-corpus: contradict=$summContraN, agree=$(@($summaryContra | Where-Object { $_.relation -eq 'agree' }).Count) -> $summaryContraPath" -ForegroundColor White
+
+# ── CORRELATE stage (design §9) — emit the claim-level-provenance index CL joins to the metrics ──
+Write-Host ''
+Write-Host '=== CORRELATE stage (design §9) — per-debate correlation index (harness emits; CL joins) ===' -ForegroundColor Cyan
+$fnReport = if ($null -ne $fnFixture) { $fn } else { $null }
+$corrIndex = New-CorrelationIndex -Formalized $formalized -IntraContradictions $contraNorm `
+    -SummaryContradictions $summaryContra -FnReport $fnReport
+$corrPath = Join-Path $resolvedOut 'correlation-index.json'
+$corrIndex | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $corrPath -Encoding utf8
+Write-Host "  Correlation index: $($corrIndex.debates) debate(s) -> $corrPath  (join debate_id -> crux_addressed_rate/convergence_score; target iii conflict-corpus is a follow-up)" -ForegroundColor White
+
+# ── PIPELINE COMPLETE — all steps-1–2 stages ran. Return the final summary. ──────────────────
+Write-Host ''
+Write-Host 'FOL-on-debate eval COMPLETE — all §2 stages ran. Artifacts in the output dir; numbers are INSTRUMENT-PROVISIONAL until CL double-annotates (§11/§12).' -ForegroundColor Green
+Write-Host ''
+return [PSCustomObject]@{
+    manifest                      = [PSCustomObject]$manifest
+    output_dir                    = $resolvedOut
+    clauses                       = $allClauses.Count
+    assertoric_formalized         = $folStats.formalized_count
+    intra_debate_contradictions   = $normContraN
+    summary_corpus_contradictions = $summContraN
+    paraphrase_fn_rate            = $fnReport
+    artifacts                     = @('run-manifest.json', 'clauses.jsonl', 'classified-clauses.jsonl', 'resolved-clauses.jsonl', 'formalized-clauses.jsonl', 'contradictions.jsonl', 'fn-rate-report.json', 'summary-contradictions.jsonl', 'correlation-index.json')
+}
