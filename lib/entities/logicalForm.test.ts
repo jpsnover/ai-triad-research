@@ -222,10 +222,21 @@ describe('topical_candidates (Option C phase-1, t/3408) — additive marking obj
     expect(logicalFormSchema.safeParse({ ...CANONICAL, topical_candidates: bad }).success).toBe(false);
   });
 
-  // PHASE-3 REMOVAL: this tolerance-arm test is DELETED when about[].ref is tightened to ^ent- after
-  // the t/3391 migration (c-design.md §6). Until then about[] must accept term: refs on the live corpus.
-  it('about[] STILL tolerates a term: ref in phase-1 (removed in phase-3)', () => {
+  // PHASE-3 ENFORCEMENT (t/3425, replaces the phase-1 tolerance arm): after the t/3391 migration moved
+  // every term: ref out of about[] (TL second-agent re-count t/3391#8: 0 remain across 618 nodes), about[]
+  // is tightened to ^ent-. about[] now REJECTS a term: ref; term: topical refs live in topical_candidates.
+  it('about[] REJECTS a term: ref (phase-3 enforcement — term: refs belong in topical_candidates)', () => {
     const r = logicalFormSchema.safeParse({ ...CANONICAL, about: [{ ref: 'term:frontier-model', match_level: 'exact' }] });
+    expect(r.success).toBe(false);
+  });
+
+  it('about[] still accepts an ent- ref (the validated ent-only topical layer)', () => {
+    const r = logicalFormSchema.safeParse({ ...CANONICAL, about: [{ ref: 'ent-055', match_level: 'exact' }] });
     expect(r.success).toBe(true);
+  });
+
+  it('about[] REJECTS ent: (colon) — HYPHEN only, SO e/145#14 d2 typo guard', () => {
+    const r = logicalFormSchema.safeParse({ ...CANONICAL, about: [{ ref: 'ent:055', match_level: 'exact' }] });
+    expect(r.success).toBe(false);
   });
 });

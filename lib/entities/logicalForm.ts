@@ -81,12 +81,15 @@ export const lfArgSchema = z.object({
 
 /** Topical grounding entry — an id the claim is *about* (schema doc §about[]).
  *  Superset convention: a topical participant appears in BOTH `args[]` and `about[]`.
- *  PHASE-1 (Option C, t/3408 / e/145): `ref` stays a plain string — about[] remains TOLERANT of
- *  `term:` refs. Do NOT tighten to `^ent-` here — enforcement is PHASE-3, AFTER the t/3391 corpus
- *  migration moves the 1560 `term:` refs into `topical_candidates`. The land-order is load-bearing:
- *  tightening before the data moves would red the fleet on the not-yet-migrated corpus (c-design.md §6). */
+ *  PHASE-3 (Option C, t/3425 / e/145): `ref` is now ENFORCED to `^ent-` — about[] is the validated
+ *  ent-only topical layer. The t/3391 corpus migration (verified green, TL second-agent re-count
+ *  t/3391#8: 0 `term:` refs remain across 618 nodes) moved the 1560 `term:` refs into
+ *  `topical_candidates`, so this tightening reds nothing on the live corpus. Concept (`term:`) topical
+ *  refs now live ONLY in `topical_candidates.refs` ({@link lfTopicalCandidateRefSchema}, `^(term:|ent-)`).
+ *  The land-order was load-bearing: this enforcement had to follow the migration, not precede it
+ *  (c-design.md §6). `ent-` is HYPHENATED (`ent-360`), never `ent:` (SO e/145#14 d2 typo guard). */
 export const lfAboutSchema = z.object({
-  ref: z.string(),
+  ref: z.string().regex(/^ent-/, 'about[] ref must be an entity ref starting with "ent-" (term: refs live in topical_candidates)'),
   match_level: lfMatchLevelSchema,
 }).passthrough();
 
