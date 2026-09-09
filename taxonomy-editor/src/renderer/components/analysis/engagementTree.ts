@@ -171,6 +171,7 @@ export interface NonComparabilityBoundary {
 export const ENGAGEMENT_NON_COMPARABILITY_BOUNDARIES: NonComparabilityBoundary[] = [
   { date: '2026-09-09T15:15:45Z', label: 'client idle-tail fix' },
   { date: '2026-09-09T15:23:26Z', label: 'server winsorize cap' },
+  { date: '2026-09-09T16:01:47Z', label: 'client accumulator rewrite' },
 ];
 
 /**
