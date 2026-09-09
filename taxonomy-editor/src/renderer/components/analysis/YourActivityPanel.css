@@ -214,3 +214,22 @@
   color: var(--text-muted);
   font-size: 0.85rem;
 }
+
+/* ── Non-comparability footnote (t/3424) ────────────────────────────────── */
+
+.yap-non-comparability-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.yap-capped-rate {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}

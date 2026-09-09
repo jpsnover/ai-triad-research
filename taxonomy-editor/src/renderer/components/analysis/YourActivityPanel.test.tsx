@@ -213,4 +213,30 @@ describe('YourActivityPanel', () => {
     const periodLabel = screen.getByText(/\d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2}/);
     expect(periodLabel).toBeTruthy();
   });
+
+  it('shows the non-comparability footnote when activity data renders (t/3424)', async () => {
+    mockProfile(SIGNED_IN_PROFILE);
+    mockBridgeGet(FIXTURE_TREE);
+    render(<YourActivityPanel />);
+    await waitFor(() => expect(screen.getByText(/Engaged-time measurement changed on/)).toBeTruthy());
+    expect(screen.getByText(/aren't one comparable series/)).toBeTruthy();
+  });
+
+  it('does not show the footnote in the empty-activity state', async () => {
+    mockProfile(SIGNED_IN_PROFILE);
+    vi.mocked(bridgeGet).mockResolvedValue({
+      user: { tool: { visits: 0, engagedVisits: 0, engagedMs: 0, cappedRate: 0 }, camps: {}, tabs: {} },
+    });
+    render(<YourActivityPanel />);
+    await waitFor(() => expect(screen.getByText(/no activity recorded/i)).toBeTruthy());
+    expect(screen.queryByText(/Engaged-time measurement changed on/)).toBeNull();
+  });
+
+  it('surfaces capped% next to camp engaged-time', async () => {
+    mockProfile(SIGNED_IN_PROFILE);
+    mockBridgeGet(FIXTURE_TREE);
+    render(<YourActivityPanel />);
+    await waitFor(() => expect(screen.getByText('Accelerationist')).toBeTruthy());
+    expect(screen.getAllByText(/capped/).length).toBeGreaterThan(0);
+  });
 });

@@ -19,8 +19,9 @@ import {
   type WireEngagementTree,
   engagementTreeToTreeNode,
   CAMP_COLORS, CAMP_LABELS,
-  fmtDuration, fmtNumber, categoryLabel,
+  fmtDuration, fmtNumber, fmtCappedRate, categoryLabel,
   sumByCamp, sumByCategoryForCamp, collectLeafNodes,
+  ENGAGEMENT_NON_COMPARABILITY_BOUNDARIES, formatNonComparabilityFootnote,
 } from './engagementTree';
 import './YourActivityPanel.css';
 
@@ -39,6 +40,16 @@ function last30DayRange(): { from: string; to: string } {
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - 29);
   return { from: fromDate.toISOString().slice(0, 10), to };
+}
+
+// ── Non-comparability footnote (t/3421 renderer follow-up, t/3424) ───────────
+// Boundary list lives in engagementTree.ts (single source of truth shared with
+// EngagementDashboard); this just renders it.
+
+function NonComparabilityFootnote() {
+  const text = formatNonComparabilityFootnote(ENGAGEMENT_NON_COMPARABILITY_BOUNDARIES);
+  if (!text) return null;
+  return <div className="yap-non-comparability-note">ⓘ {text}</div>;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -75,7 +86,14 @@ function CampBars({
           >
             <div className="yap-camp-row-head">
               <span className="yap-camp-label">{label}</span>
-              <span className="yap-camp-value">{fmtDuration(c.engagedMs)}</span>
+              <span className="yap-camp-value">
+                {fmtDuration(c.engagedMs)}
+                {c.cappedRate != null && (
+                  <span className="yap-capped-rate" title="Fraction of engaged visits that hit the duration cap">
+                    {' '}· {fmtCappedRate(c.cappedRate)} capped
+                  </span>
+                )}
+              </span>
             </div>
             <div className="yap-camp-track">
               <div
@@ -106,7 +124,14 @@ function CategoryBreakdown({ root, camp }: { root: TreeNode; camp: string }) {
         <div key={c.key} className="yap-cat-row">
           <div className="yap-cat-row-head">
             <span className="yap-cat-label">{categoryLabel(c.key)}</span>
-            <span className="yap-cat-value">{fmtDuration(c.engagedMs)}</span>
+            <span className="yap-cat-value">
+              {fmtDuration(c.engagedMs)}
+              {c.cappedRate != null && (
+                <span className="yap-capped-rate" title="Fraction of engaged visits that hit the duration cap">
+                  {' '}· {fmtCappedRate(c.cappedRate)} capped
+                </span>
+              )}
+            </span>
           </div>
           <div className="yap-camp-track">
             <div
@@ -123,7 +148,7 @@ function CategoryBreakdown({ root, camp }: { root: TreeNode; camp: string }) {
 
 function ActivityLeaderboards({ root }: { root: TreeNode }) {
   const nodes = useMemo(() => {
-    const results: Array<{ id: string; engagedMs: number; visits: number }> = [];
+    const results: Array<{ id: string; engagedMs: number; visits: number; cappedRate?: number }> = [];
     collectLeafNodes(root, 0, results);
     return results;
   }, [root]);
@@ -132,7 +157,7 @@ function ActivityLeaderboards({ root }: { root: TreeNode }) {
   const byVisits = useMemo(() => [...nodes].sort((a, b) => b.visits - a.visits).slice(0, 10), [nodes]);
 
   const List = ({ items, valueKey, title }: {
-    items: Array<{ id: string; engagedMs: number; visits: number }>;
+    items: Array<{ id: string; engagedMs: number; visits: number; cappedRate?: number }>;
     valueKey: 'engagedMs' | 'visits';
     title: string;
   }) => (
@@ -144,6 +169,11 @@ function ActivityLeaderboards({ root }: { root: TreeNode }) {
           <span className="yap-leader-id" title={n.id}>{n.id}</span>
           <span className="yap-leader-val">
             {valueKey === 'engagedMs' ? fmtDuration(n.engagedMs) : fmtNumber(n.visits)}
+            {valueKey === 'engagedMs' && n.cappedRate != null && (
+              <span className="yap-capped-rate" title="Fraction of engaged visits that hit the duration cap">
+                {' '}· {fmtCappedRate(n.cappedRate)} capped
+              </span>
+            )}
           </span>
         </div>
       ))}
@@ -211,6 +241,7 @@ function PanelBody({ loading, error, isAnonymous, userTree, selectedCamp, onSele
   }
   return (
     <>
+      <NonComparabilityFootnote />
       <CampBars root={userTree} selectedCamp={selectedCamp} onSelectCamp={onSelectCamp} />
       {selectedCamp && <CategoryBreakdown root={userTree} camp={selectedCamp} />}
       <ActivityLeaderboards root={userTree} />

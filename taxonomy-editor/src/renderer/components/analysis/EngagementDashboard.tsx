@@ -20,8 +20,9 @@ import {
   type WireEngagementTree,
   engagementTreeToTreeNode,
   CAMP_COLORS, CAMP_LABELS,
-  fmtDuration, fmtNumber, relativeTime, categoryLabel,
+  fmtDuration, fmtNumber, fmtCappedRate, relativeTime, categoryLabel,
   sumByCamp, sumByCategoryForCamp, collectLeafNodes,
+  ENGAGEMENT_NON_COMPARABILITY_BOUNDARIES, formatNonComparabilityFootnote,
 } from './engagementTree';
 import './EngagementDashboard.css';
 
@@ -68,6 +69,18 @@ function dateRange(preset: DatePreset): { from: string; to: string } {
   const from = new Date();
   from.setDate(from.getDate() - (PRESET_DAYS[preset] - 1));
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+}
+
+// ── Non-comparability footnote (t/3421 renderer follow-up, t/3424) ───────────
+// The engaged-time measurement pipeline has changed more than once (client idle-tail
+// fix, server winsorize cap, …) — each is a discontinuity in the same visible series.
+// The boundary list lives in engagementTree.ts (single source of truth for both
+// dashboards); this component just renders it.
+
+function NonComparabilityFootnote() {
+  const text = formatNonComparabilityFootnote(ENGAGEMENT_NON_COMPARABILITY_BOUNDARIES);
+  if (!text) return null;
+  return <div className="eng-non-comparability-note">ⓘ {text}</div>;
 }
 
 // ── Section 1: Time-with-tool chart ──────────────────────────────────────────
@@ -140,7 +153,14 @@ function CampDistribution({
           >
             <div className="eng-camp-row-head">
               <span className="eng-camp-label">{label}</span>
-              <span className="eng-camp-value">{fmtDuration(c.engagedMs)}</span>
+              <span className="eng-camp-value">
+                {fmtDuration(c.engagedMs)}
+                {c.cappedRate != null && (
+                  <span className="eng-capped-rate" title="Fraction of engaged visits that hit the duration cap">
+                    {' '}· {fmtCappedRate(c.cappedRate)} capped
+                  </span>
+                )}
+              </span>
             </div>
             <div className="eng-camp-track">
               <div
@@ -171,7 +191,14 @@ function CategoryDrillDown({ aggregate, camp }: { aggregate: TreeNode; camp: str
         <div key={c.key} className="eng-cat-row">
           <div className="eng-cat-row-head">
             <span className="eng-cat-label">{categoryLabel(c.key)}</span>
-            <span className="eng-cat-value">{fmtDuration(c.engagedMs)}</span>
+            <span className="eng-cat-value">
+              {fmtDuration(c.engagedMs)}
+              {c.cappedRate != null && (
+                <span className="eng-capped-rate" title="Fraction of engaged visits that hit the duration cap">
+                  {' '}· {fmtCappedRate(c.cappedRate)} capped
+                </span>
+              )}
+            </span>
           </div>
           <div className="eng-camp-track">
             <div
@@ -190,7 +217,7 @@ function CategoryDrillDown({ aggregate, camp }: { aggregate: TreeNode; camp: str
 
 function Leaderboards({ aggregate }: { aggregate: TreeNode }) {
   const nodes = useMemo(() => {
-    const results: Array<{ id: string; engagedMs: number; visits: number }> = [];
+    const results: Array<{ id: string; engagedMs: number; visits: number; cappedRate?: number }> = [];
     collectLeafNodes(aggregate, 0, results);
     return results;
   }, [aggregate]);
@@ -199,7 +226,7 @@ function Leaderboards({ aggregate }: { aggregate: TreeNode }) {
   const byBreadth = useMemo(() => [...nodes].sort((a, b) => b.visits - a.visits).slice(0, 10), [nodes]);
 
   const LeaderList = ({ items, valueKey, label }: {
-    items: Array<{ id: string; engagedMs: number; visits: number }>;
+    items: Array<{ id: string; engagedMs: number; visits: number; cappedRate?: number }>;
     valueKey: 'engagedMs' | 'visits';
     label: string;
   }) => (
@@ -211,6 +238,11 @@ function Leaderboards({ aggregate }: { aggregate: TreeNode }) {
           <span className="eng-leader-id" title={n.id}>{n.id}</span>
           <span className="eng-leader-val">
             {valueKey === 'engagedMs' ? fmtDuration(n.engagedMs) : fmtNumber(n.visits)}
+            {valueKey === 'engagedMs' && n.cappedRate != null && (
+              <span className="eng-capped-rate" title="Fraction of engaged visits that hit the duration cap">
+                {' '}· {fmtCappedRate(n.cappedRate)} capped
+              </span>
+            )}
           </span>
         </div>
       ))}
@@ -443,6 +475,8 @@ export function EngagementDashboard() {
             </div>
           ) : (
             <>
+              <NonComparabilityFootnote />
+
               {/* Section 1: time over time */}
               <EngagedOverTime daily={data.daily} />
 
