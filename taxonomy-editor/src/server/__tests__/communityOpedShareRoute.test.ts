@@ -79,7 +79,7 @@ describe('POST/DELETE /api/community/opeds/:id/share (t/3315)', () => {
   });
 
   it('mints: returns {shareId,url}, writes the public projection, response carries NO item/identity data', async () => {
-    getCommunityOpEd.mockResolvedValue(GOOD_ITEM);
+    getCommunityOpEd.mockResolvedValue({ found: true, item: GOOD_ITEM });
     const res = fakeRes();
     await post(req('/api/community/opeds/oped-1/share'), res, {});
     expect(res._status).toBe(200);
@@ -92,31 +92,45 @@ describe('POST/DELETE /api/community/opeds/:id/share (t/3315)', () => {
     expect(logServerWarn).not.toHaveBeenCalled();
   });
 
-  it('404 when the community item does not exist — WARNs (operator-visible) with id + backend (t/3334)', async () => {
-    getCommunityOpEd.mockResolvedValue(null);
+  it('404 when the community item is ABSENT (wrong/missing id) — routine, NO operator WARN (t/3430)', async () => {
+    getCommunityOpEd.mockResolvedValue({ found: false, reason: 'absent' });
     const res = fakeRes();
     await post(req('/api/community/opeds/missing/share'), res, {});
     expect(res._status).toBe(404);
     expect(mintCommunityOpedShare).not.toHaveBeenCalled();
-    // t/3334: mint-path empty/absent → WARN→Log_s with discriminating data (NOT silent).
+    // t/3430: 'absent' is ordinary not-found — must NOT emit the operator corruption WARN
+    // (pre-t/3430 this arm was conflated with silent-empty and warned on every wrong id).
+    expect(logServerWarn).not.toHaveBeenCalled();
+  });
+
+  it('404 + operator WARN when getCommunityOpEd is SILENT-EMPTY (reason=empty = possible corruption) (t/3430)', async () => {
+    getCommunityOpEd.mockResolvedValue({ found: false, reason: 'empty' });
+    const res = fakeRes();
+    await post(req('/api/community/opeds/silent-empty/share'), res, {});
+    expect(res._status).toBe(404);
+    expect(mintCommunityOpedShare).not.toHaveBeenCalled();
+    // t/3430: 'empty' = ADR-001 silent-empty guard = possible GitHub-API silent-empty / corruption →
+    // WARN→Log_s, DISCRIMINATED from ordinary 'absent' (the whole point of the discriminated union).
     expect(logServerWarn).toHaveBeenCalledTimes(1);
     expect(logServerWarn).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'missing', backend: 'FilesystemBackend', path: 'mint' }),
-      expect.stringContaining('empty/absent'),
+      expect.objectContaining({ id: 'silent-empty', backend: 'FilesystemBackend', path: 'mint', reason: 'empty' }),
+      expect.stringContaining('SILENT-EMPTY'),
     );
   });
 
-  it('422 (assert-presence) when the item is empty/malformed — never mints a shareId, and WARNs (t/3334)', async () => {
-    getCommunityOpEd.mockResolvedValue({ topic: '', opeds: [] });
+  it('422 (assert-presence) when a FOUND item is malformed (missing topic) — never mints, and WARNs (t/3334)', async () => {
+    // Post-t/3430: empty-opeds is a found:false reason:'empty' (404, covered above), so the reachable
+    // malformed case on found:true is a present-but-topicless item (non-empty opeds, no topic).
+    getCommunityOpEd.mockResolvedValue({ found: true, item: { topic: '', opeds: [{ pov: 'accelerationist', body: 'x' }] } });
     const res = fakeRes();
-    await post(req('/api/community/opeds/empty/share'), res, {});
+    await post(req('/api/community/opeds/malformed/share'), res, {});
     expect(res._status).toBe(422);
     expect(mintCommunityOpedShare).not.toHaveBeenCalled();
     expect(writePublicCommunityOpEd).not.toHaveBeenCalled();
-    // t/3334: malformed = unambiguous corruption → WARN→Log_s with id + backend.
+    // t/3334: malformed found item = unambiguous corruption → WARN→Log_s with id + backend.
     expect(logServerWarn).toHaveBeenCalledTimes(1);
     expect(logServerWarn).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'empty', backend: 'FilesystemBackend' }),
+      expect.objectContaining({ id: 'malformed', backend: 'FilesystemBackend' }),
       expect.stringContaining('malformed'),
     );
   });

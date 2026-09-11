@@ -185,23 +185,27 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
         return;
       }
 
-      const item = await community.getCommunityOpEd(id);
-      if (!item) {
-        // t/3334: a 404 here is client-loud but operator-SILENT — an authed user minting a share for an
-        // item that read empty/absent is low-frequency + suspicious (possible silent-empty/corruption),
-        // so WARN→Log_s with discriminating data. Scoped to the MINT path only (NOT the public GET
-        // not-found, which is ordinary). getCommunityOpEd returns null for both absent and empty-`opeds`.
-        log.server.warn(
-          { id, backend: getUserContentBackend().constructor.name, path: 'mint' },
-          'Community op-ed share mint: getCommunityOpEd returned empty/absent — refusing to mint (possible silent-empty/corruption)',
-        );
+      const lookup = await community.getCommunityOpEd(id);
+      if (!lookup.found) {
+        // t/3430: getCommunityOpEd now discriminates WHY the lookup failed, so the mint-guard WARN
+        // no longer conflates the ordinary case with the corruption case (was a single WARN on both).
+        if (lookup.reason === 'empty') {
+          // 'empty' = the ADR-001 guard tripped (blob present, zero voices) — a GitHub-API silent-empty
+          // response or real corruption. Operator-visible: WARN→Log_s, scoped to the MINT path only.
+          log.server.warn(
+            { id, backend: getUserContentBackend().constructor.name, path: 'mint', reason: 'empty' },
+            'Community op-ed share mint: getCommunityOpEd SILENT-EMPTY (blob present, zero voices) — possible corruption; refusing to mint',
+          );
+        }
+        // 'absent' = wrong/missing id — ordinary, expected, never corruption → routine 404, NO operator WARN.
         error(res, 'not_found', 404);
         return;
       }
 
-      // Condition 4: assert PRESENCE before minting — never register a shareId for an empty/partial
-      // read (ADR-001 silent-empty guard on the hosted github-api path). writePublicCommunityOpEd re-checks.
-      const it = item as { topic?: unknown; opeds?: unknown; community_metadata?: { submitted_by_display?: string } };
+      // Condition 4: assert PRESENCE before minting — never register a shareId for a malformed item
+      // (found:true guarantees non-empty opeds per ADR-001, so this now catches a missing topic;
+      // kept as defense-in-depth — writePublicCommunityOpEd re-checks).
+      const it = lookup.item as { topic?: unknown; opeds?: unknown; community_metadata?: { submitted_by_display?: string } };
       if (!it.topic || !Array.isArray(it.opeds) || it.opeds.length === 0) {
         // t/3334: malformed (has a file but no topic / empty opeds) = unambiguous corruption → always WARN→Log_s.
         log.server.warn(
@@ -216,7 +220,7 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
       // (projectPublicOpEd strips all community_metadata — condition 1).
       const submittedBy = it.community_metadata?.submitted_by_display ?? '';
       const shareId = await mintCommunityOpedShare(id, submittedBy);
-      await writePublicCommunityOpEd(item as unknown as CommunityOpEdItem, shareId);
+      await writePublicCommunityOpEd(lookup.item as unknown as CommunityOpEdItem, shareId);
 
       json(res, { shareId, url: `/share/oped/${shareId}` });
     } catch (err) {
