@@ -243,21 +243,33 @@ export async function loadCommunityItem(type: 'chats' | 'debates' | 'opeds', id:
 }
 
 /**
+ * t/3430: discriminates why a lookup failed. `'absent'` = the blob doesn't exist (wrong id,
+ * or a genuinely missing record) — ordinary, expected, never corruption. `'empty'` = the blob
+ * exists but has no voices (the ADR-001 guard) — a GitHub API silent-empty response or real
+ * data corruption; callers should treat this as a signal worth logging.
+ */
+export type CommunityOpEdLookup =
+  | { found: true; item: Record<string, unknown> }
+  | { found: false; reason: 'absent' | 'empty' };
+
+/**
  * Internal accessor for a community op-ed — returns the raw parsed item including
  * full community_metadata (not stripped for public exposure). Intended for
  * share-projection callers that need submittedBy and the full voice list.
- * ADR-001 non-empty guard: returns null if the item has no voices, which indicates
+ * ADR-001 non-empty guard: reason 'empty' means the item has no voices, which indicates
  * a GitHub API silent-empty response rather than a legitimate zero-voice item.
  */
-export async function getCommunityOpEd(id: string): Promise<Record<string, unknown> | null> {
+export async function getCommunityOpEd(id: string): Promise<CommunityOpEdLookup> {
   assertSafeId(id, 'community oped id');
   const backend = getUserContentBackend();
   const raw = await backend.readFile(path.join(communityOpedsDir(), `oped-${id}.json`));
-  if (raw === null) return null;
+  if (raw === null) return { found: false, reason: 'absent' };
   const parsed = JSON.parse(raw) as Record<string, unknown>;
   // ADR-001: GitHub API can return empty content on network hiccups; a real oped always has voices.
-  if (!Array.isArray(parsed.opeds) || (parsed.opeds as unknown[]).length === 0) return null;
-  return parsed;
+  if (!Array.isArray(parsed.opeds) || (parsed.opeds as unknown[]).length === 0) {
+    return { found: false, reason: 'empty' };
+  }
+  return { found: true, item: parsed };
 }
 
 // ── Submissions ──
