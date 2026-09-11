@@ -75,6 +75,7 @@ interface CLIConfig {
   exploreFirst?: boolean;
   exploreModel?: string;
   excludeGreatestHits?: boolean;
+  breadthAwareSituationSelection?: boolean;
 }
 
 interface GoldenFixtureConfig extends CLIConfig {
@@ -447,6 +448,7 @@ async function main(): Promise<void> {
     stageModels: config.stageModels,
     utilityModels: config.utilityModels,
     excludeGreatestHits: config.excludeGreatestHits,
+    breadthAwareSituationSelection: config.breadthAwareSituationSelection,
   };
 
   // Prepare output paths early so the snapshot callback can write partial files
