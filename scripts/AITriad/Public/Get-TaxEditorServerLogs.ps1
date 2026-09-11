@@ -111,7 +111,9 @@ function Get-TaxEditorServerLogs {
         # ── Resolve + cache the Log Analytics workspace customerId ─────────
         $workspaceId = if ($env:TAXEDITOR_LOG_WORKSPACE_ID) {
             $env:TAXEDITOR_LOG_WORKSPACE_ID
-        } elseif ($script:TaxEditorLogWorkspaceId) {
+        } elseif ((Test-Path variable:script:TaxEditorLogWorkspaceId) -and $script:TaxEditorLogWorkspaceId) {
+            # StrictMode-safe: the cache var is unset until the az-resolve path below runs once, so
+            # existence-guard before reading it — a bare reference throws on fresh import (t/3427).
             $script:TaxEditorLogWorkspaceId
         } else {
             $wsRaw = Invoke-Az -CallerName 'Get-TaxEditorServerLogs' -Arguments @(

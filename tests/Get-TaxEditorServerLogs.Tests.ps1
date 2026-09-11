@@ -21,6 +21,27 @@ Describe 'Get-TaxEditorServerLogs' -Tag 'diagnostics' {
         Get-Command -Module AITriad -Name 'Get-TaxEditorServerLogs' | Should -Not -BeNullOrEmpty
     }
 
+    It 'auto-resolves the workspace on a fresh import (cache var NEVER set) without a StrictMode throw (t/3427)' {
+        InModuleScope AITriad {
+            # Reproduce the fresh-import state: the cache var was never assigned AND no env override.
+            # Under the bug, the bare `elseif ($script:TaxEditorLogWorkspaceId)` reference throws under
+            # StrictMode before the az-resolve path can run. The Test-Path guard must reach that path.
+            Remove-Variable -Scope Script -Name TaxEditorLogWorkspaceId -ErrorAction Ignore
+            $prevEnv = $env:TAXEDITOR_LOG_WORKSPACE_ID
+            Remove-Item env:TAXEDITOR_LOG_WORKSPACE_ID -ErrorAction Ignore
+            try {
+                Mock Assert-AzCli { }
+                Mock Invoke-Az -ParameterFilter { $Arguments -contains 'list' }  -MockWith { 'ws-guid-fresh' }
+                Mock Invoke-Az -ParameterFilter { $Arguments -contains 'query' } -MockWith { '[]' }
+                { Get-TaxEditorServerLogs -WarningAction SilentlyContinue } | Should -Not -Throw
+                # Reached the auto-resolve path (would have thrown before it under the bug).
+                Should -Invoke Invoke-Az -Times 1 -Exactly -ParameterFilter { $Arguments -contains 'list' }
+            } finally {
+                if ($null -ne $prevEnv) { $env:TAXEDITOR_LOG_WORKSPACE_ID = $prevEnv }
+            }
+        }
+    }
+
     It 'parses Pino console rows and surfaces unparseable lines as Level=unparsed' {
         InModuleScope AITriad {
             $script:TaxEditorLogWorkspaceId = $null
