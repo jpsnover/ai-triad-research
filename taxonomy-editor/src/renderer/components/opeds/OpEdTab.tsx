@@ -244,7 +244,7 @@ function ShareOpEdControl({ setId, source = 'my' }: { setId: string; source?: 'm
 // ── Reader view (back bar + article/loading/error) ────────────────────────────
 
 export function OpEdReaderView({
-  readerSet, readerLoading, readerError, status, onBack, shareSource,
+  readerSet, readerLoading, readerError, status, onBack, shareSource, communityId,
 }: {
   readerSet: OpEdSet | null;
   readerLoading: boolean;
@@ -254,7 +254,16 @@ export function OpEdReaderView({
   /** t/2987/t/3315: which store the op-ed came from — 'my' (own share) or 'community' (public community
    *  share); null = not shareable. Both mint a public /share/oped link via their respective endpoint. */
   shareSource: 'my' | 'community' | null;
+  /**
+   * t/3426: the community op-ed's own addressing id (the community list entry's `.id`, what the
+   * community-share endpoint keys on — `oped-{id}.json`). Required when shareSource is 'community':
+   * the loaded document's OWN `.set_id` is the submitter's ORIGINAL op-ed-set id, which differs from
+   * the community id once a community submission is addressed distinctly from its source (t/856) —
+   * passing set_id there 404s (getCommunityOpEd finds no record under the wrong id). Unused for 'my'.
+   */
+  communityId: string | null;
 }) {
+  const shareId = shareSource === 'community' ? communityId : (readerSet?.set_id ?? null);
   return (
     <div className="two-column oped-tab-table-mode">
       <div className="oped-reader-shell">
@@ -263,8 +272,9 @@ export function OpEdReaderView({
           {status && <span className="oped-status">{status}</span>}
           {/* Share is web-only (electron-bridge rejects, t/2728). Own op-eds use the own-share endpoint;
               community op-eds use the community-share endpoint (t/3315 — community is public). Both mint
-              a public /share/oped link. */}
-          {readerSet && shareSource && !isElectronMode() && <ShareOpEdControl setId={readerSet.set_id} source={shareSource} />}
+              a public /share/oped link. shareId (not readerSet.set_id) is what's sent — see communityId
+              doc above for why those two ids can differ for community op-eds (t/3426). */}
+          {readerSet && shareSource && shareId && !isElectronMode() && <ShareOpEdControl setId={shareId} source={shareSource} />}
         </div>
         {readerLoading && <p className="oped-reader-loading">Loading op-ed…</p>}
         {readerError && <p className="oped-reader-error">{readerError}</p>}
@@ -305,10 +315,14 @@ export function OpEdTab() {
   // The set currently open in the reader — may come from the personal store (My)
   // or a community load (Community). null = table view.
   const [readerSet, setReaderSet] = useState<OpEdSet | null>(null);
-  // t/2987: which store the open op-ed came from. 'my' sets are shareable (they live in the
-  // user's oped-sets store); 'community' ones are NOT — the share endpoint reads the user's own
-  // store, so sharing a community-loaded op-ed 404s. Design: Share (My) / Copy (Community).
+  // t/2987/t/3315: which store the open op-ed came from — 'my' shares via the own-set endpoint,
+  // 'community' shares via the community endpoint (both mint a public /share/oped link).
   const [readerSource, setReaderSource] = useState<'my' | 'community' | null>(null);
+  // t/3426: the community entry's own addressing id, captured at open time — the loaded
+  // document's `.set_id` is the submitter's ORIGINAL id, which the community-share endpoint does
+  // NOT key on once it differs from the community id (t/856). null unless readerSource is
+  // 'community'. See OpEdReaderView's communityId prop doc for the full explanation.
+  const [readerCommunityId, setReaderCommunityId] = useState<string | null>(null);
   const [readerLoading, setReaderLoading] = useState(false);
   const [readerError, setReaderError] = useState<string | null>(null);
 
@@ -376,6 +390,7 @@ export function OpEdTab() {
     // The My list holds index summaries (no body) — load the full doc for the reader.
     selectSet(id);
     setReaderSource('my'); // t/2987: My sets are shareable.
+    setReaderCommunityId(null); // t/3426: only set for the community branch.
     setReaderError(null);
     setReaderSet(null);
     setReaderLoading(true);
@@ -389,7 +404,8 @@ export function OpEdTab() {
 
   const openCommunity = useCallback((id: string) => {
     selectSet(id);
-    setReaderSource('community'); // t/2987: community op-eds are NOT shareable (Copy, not Share).
+    setReaderSource('community');
+    setReaderCommunityId(id); // t/3426: capture the community addressing id at open time.
     setReaderError(null);
     setReaderSet(null);
     setReaderLoading(true);
@@ -405,6 +421,7 @@ export function OpEdTab() {
     selectSet(null);
     setReaderSet(null);
     setReaderSource(null);
+    setReaderCommunityId(null);
     setReaderError(null);
   }, [selectSet]);
 
@@ -415,6 +432,7 @@ export function OpEdTab() {
     // loadSets returns index summaries (no body) — load the full doc for the reader.
     selectSet(setId);
     setReaderSource('my'); // t/2987: a freshly-created set is the user's own → shareable.
+    setReaderCommunityId(null); // t/3426: only set for the community branch.
     setReaderError(null);
     setReaderSet(null);
     setReaderLoading(true);
@@ -498,6 +516,7 @@ export function OpEdTab() {
         status={status}
         onBack={closeReader}
         shareSource={readerSource}
+        communityId={readerCommunityId}
       />
     );
   }
