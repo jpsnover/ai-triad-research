@@ -13,7 +13,7 @@
 
 ## Conditional Gate: Serialize-Phase Canary (staging, pre-promotion)
 
-If this release touches the synthetic-embeddings corpus path, the JSON serializer (`jsonStringifyChunked`), or embeddings load/serve, run the **[serialize-canary](./serialize-canary.md)** probe on a fresh staging revision **before** promoting to production. It exercises *and* asserts the response serialize phase under the loop-sampler — the phase the t/3165 storm-canary silently omitted (phase-blind false-green; t/3236). Not applicable to releases that don't touch those paths.
+If this release touches the **serialize path specifically** — the synthetic-embeddings endpoint (`routes/taxonomy.ts`, `getSyntheticEmbeddingsBuffer`), the chunk-yield JSON serializer (`httpKit.ts` `jsonStringifyChunked`), or the corpus loader (`fileIO.loadSyntheticEmbeddings`) — run the **[serialize-canary](./serialize-canary.md)** probe on a fresh staging revision **before** promoting to production. It exercises *and* asserts the response serialize phase under the loop-sampler — the phase the t/3165 storm-canary silently omitted (phase-blind false-green; t/3236). **Compute-path-only deltas** (worker-pool internals, queue-depth gauges, shed-token observability) leave the serialize tail byte-identical and are **N/A** (t/3236#11) — do not confuse "embeddings load/serve" broadly with the serialize phase this gate guards.
 
 ## Step 1: Pre-Build Verification (App Side)
 
