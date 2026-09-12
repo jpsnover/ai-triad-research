@@ -89,9 +89,13 @@ function Update-PolicyRegistry {
                 if (-not $ReferencedIds.ContainsKey($Pid)) {
                     $ReferencedIds[$Pid] = [System.Collections.Generic.List[object]]::new()
                 }
+                # Capture action/framing too (t/3435): needed to RE-ADD a referenced-but-unregistered
+                # id back into the registry (Missing set) — the node is the only place its action lives.
                 $ReferencedIds[$Pid].Add([PSCustomObject]@{
-                    NodeId = $Node.id
-                    POV    = $PovKey
+                    NodeId  = $Node.id
+                    POV     = $PovKey
+                    Action  = if ($PA.PSObject.Properties['action']) { $PA.action } else { $null }
+                    Framing = if ($PA.PSObject.Properties['framing']) { $PA.framing } else { $null }
                 })
             }
         }
@@ -202,6 +206,39 @@ function Update-PolicyRegistry {
                 }
                 $FileData | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $FilePath
             }
+        }
+
+        # Re-add "missing from registry" ids — referenced-but-unregistered (t/3435). A prior partial run
+        # wrote pol-NNNN onto nodes without persisting the registry (e.g. pol-3368/3369); the id then
+        # lives ONLY on the node. Recreate the registry entry from the referencing node's action —
+        # registry-only change (nodes already carry the id → no POV-file write). member_count/source_povs
+        # are corrected by the re-scan below. Idempotent: once added, a re-run reports Missing 0.
+        if ($Missing.Count -gt 0 -and $PSCmdlet.ShouldProcess("$($Missing.Count) missing-from-registry ids", 'Re-add to registry')) {
+            $ReAdded = 0
+            foreach ($Mid in $Missing) {
+                $refs = @($ReferencedIds[$Mid])
+                $withAction = @($refs | Where-Object { $_.PSObject.Properties['Action'] -and -not [string]::IsNullOrWhiteSpace([string]$_.Action) })
+                if ($withAction.Count -eq 0) {
+                    # Fallback-path logging (docs/error-handling.md): referenced id with no recoverable
+                    # action text — cannot faithfully reconstruct the registry entry, so skip + surface.
+                    Write-Warning "  $Mid referenced but no action text on any node — skipping re-add (t/3435)."
+                    continue
+                }
+                $first = $withAction[0]
+                $povs  = @($refs | ForEach-Object { $_.POV } | Sort-Object -Unique)
+                $ExistingPolicies[$Mid] = [PSCustomObject]@{
+                    id           = $Mid
+                    action       = [string]$first.Action
+                    source_povs  = $povs
+                    member_count = $refs.Count
+                    status       = 'active'
+                }
+                $ReAdded++
+                $prev = [string]$first.Action
+                $prev = $prev.Substring(0, [Math]::Min(50, $prev.Length))
+                Write-Info "  Re-added $Mid from $($first.NodeId)`: $prev"
+            }
+            Write-OK "Re-added $ReAdded missing policies to registry"
         }
 
         # Rebuild member_count and source_povs

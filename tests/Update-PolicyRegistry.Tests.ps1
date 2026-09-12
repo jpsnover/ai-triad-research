@@ -142,4 +142,44 @@ Describe 'Update-PolicyRegistry -Fix (t/3431 batched write + idempotent MaxId)' 
             }
         }
     }
+
+    It 're-adds a "missing from registry" id from the node action; registry-only; idempotent (t/3435)' {
+        InModuleScope AITriad {
+            $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "polreg-missing-$(Get-Random)"
+            New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+            try {
+                # sit-A references pol-005, which a prior partial run wrote onto the node but NEVER persisted
+                # to the registry (the pol-3368/9 class). sit-keep references pol-001 so it survives orphan removal.
+                @{ _schema_version = '1.0.0'; nodes = @(
+                        @{ id = 'sit-keep'; graph_attributes = @{ policy_actions = @(
+                                    @{ action = 'kept'; framing = 'f'; policy_id = 'pol-001' }
+                                ) } }
+                        @{ id = 'sit-A'; graph_attributes = @{ policy_actions = @(
+                                    @{ action = 'Orphaned reference action'; framing = 'fx'; policy_id = 'pol-005' }
+                                ) } }
+                    ) } | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $TempDir 'situations.json')
+                @{ _schema_version = '1.0.0'; _doc = 'x'; policy_count = 1; policies = @(
+                        @{ id = 'pol-001'; action = 'kept'; source_povs = @('situations'); member_count = 1; status = 'active' }
+                    ) } | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $TempDir 'policy_actions.json')
+
+                Mock Get-TaxonomyDir { $TempDir }
+                Mock Write-Utf8NoBom { Set-Content -Path $Path -Value $Value -Encoding utf8 }
+
+                { Update-PolicyRegistry -Fix } | Should -Not -Throw
+                $reg = Get-Content -Raw (Join-Path $TempDir 'policy_actions.json') | ConvertFrom-Json
+                $readded = $reg.policies | Where-Object { $_.id -eq 'pol-005' }
+                $readded | Should -Not -BeNullOrEmpty                             # re-added to the registry
+                $readded.action | Should -Be 'Orphaned reference action'         # action sourced from the node
+                @($readded.source_povs) | Should -Contain 'situations'
+                # Registry-only: the node already carries pol-005, so no POV-file rewrite.
+                Should -Invoke Write-Utf8NoBom -Times 0 -Exactly -ParameterFilter { $Path -like '*situations.json' }
+
+                # Idempotent: a second -Fix now reports Missing 0.
+                $r2 = Update-PolicyRegistry -Fix -PassThru
+                $r2.Missing | Should -Be 0
+            } finally {
+                Remove-Item $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
 }
