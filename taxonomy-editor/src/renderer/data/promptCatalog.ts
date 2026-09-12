@@ -605,7 +605,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['debate-grounding'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-3.5-flash', description: 'AI model for generation' },
+      { name: '-Model', type: 'string', default: 'gemini-3.5-flash-lite', description: 'AI model for generation (NOT a thinking model — those truncate; t/3438#6)' },
       { name: '-Concurrency', type: 'number', default: '10', description: 'Parallel AI calls' },
       { name: '-Force', type: 'switch', default: 'false', description: 'Regenerate even nodes that already have debate_grounding' },
       { name: '-Id', type: 'string[]', default: '(all POV nodes)', description: 'Process only the specified node ID(s)' },
