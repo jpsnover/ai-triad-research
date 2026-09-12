@@ -7,6 +7,19 @@ PRIMARY TYPE (closed set — choose exactly one):
 - "speech-act-belief-revision-meta" = a move about the discourse itself: concession, retained commitment, or defeater-conditional. e.g. "I concede the telemetry point"; "I still hold the ban is premature"; "I would change my position if <defeater>".
 - "rhetorical-evaluative" = no truth-apt propositional core to formalize: rhetorical question, category-error charge, pure evaluative framing. e.g. "who gave regulators the authority?"; "comparing a chatbot to a 737 MAX is a category error".
 
+DISTINGUISH assertoric-causal FROM normative-deontic (the most common error):
+- assertoric-causal = a DESCRIPTIVE claim about what actually causes/produces what, truth-apt and checkable
+  independent of anyone's goals. E.g. "Static compute thresholds fail to restrict intrusion tools";
+  "Auditors competing for the same labs are incentivized to give clean audits."
+- normative-deontic = a PRESCRIPTION or PROPOSAL — what should/must be done, or what an advocated policy
+  WOULD achieve. Tells: "we should/must/need to…", "X is necessary/essential", "a Y approach would involve…",
+  and especially "by doing X, we can achieve/ensure/create Y" when the speaker is ARGUING FOR X.
+- RULE: if the clause advocates or proposes a course of action — even phrased as "by X we can achieve Y" —
+  classify it normative-deontic, NOT assertoric-causal. Reserve assertoric-causal for how the world works,
+  not for what should be done.
+- Normative (NOT causal): "By prioritizing safety, we can ensure AI is developed responsibly." "A precautionary
+  approach is necessary to mitigate this risk." "By addressing these challenges we can create a robust process."
+
 ATTRIBUTES (orthogonal — record all three on every clause):
 - "attribution" ∈ "own" | "attributed-opponent" | "attributed-third-party". An attributed restatement ("Accelerationist proposes that P") is typed by the EMBEDDED proposition P's kind, with attribution "attributed-opponent". The attributed + assertoric combination is the highest-value, highest-anaphora-risk cell.
 - "anaphora_dependency" ∈ "self-contained" | "demonstrative" | "topic-ellipsis" | "attributed-restatement". Whether resolving the clause needs a cross-turn referent (a demonstrative like "that approach", a bare elided topic like "the ban", or an attributed restatement).
