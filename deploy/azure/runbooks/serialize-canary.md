@@ -1,6 +1,8 @@
 # Runbook: Serialize-Phase Canary Probe
 
-**Trigger:** Any staging canary of a change that touches the synthetic-embeddings corpus path, the JSON serializer (`jsonStringifyChunked`), or embeddings load/serve — run this probe **before** promoting the revision to production.
+**Trigger:** Any staging canary of a change that touches the **serialize path specifically** — the synthetic-embeddings endpoint (`routes/taxonomy.ts`, `getSyntheticEmbeddingsBuffer`), the chunk-yield JSON serializer (`httpKit.ts` `jsonStringifyChunked`), or the corpus loader (`fileIO.loadSyntheticEmbeddings`). Run this probe **before** promoting the revision to production.
+
+> **Scope note (t/3236#11):** the trigger is deliberately the serialize path, **not** the broader "embeddings load/serve." Compute-path-only deltas (worker-pool internals, queue-depth gauges, shed-token observability) do **not** touch the ~400MB serialize tail this probe guards and are **N/A** — the earlier broad phrasing spuriously matched a compute-only delta (main `39445130`). If the diff over the deploy range leaves `getSyntheticEmbeddingsBuffer` / `jsonStringifyChunked` / `loadSyntheticEmbeddings` byte-identical, the canary is N/A.
 
 **Owner:** DevOps. Endpoint + loop-sampler owned by ServerAPI (`taxonomy-editor/src/server/`).
 
