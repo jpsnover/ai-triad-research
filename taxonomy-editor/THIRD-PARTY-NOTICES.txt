@@ -510,22 +510,22 @@ The following npm packages may be included in this product:
 
  - @huggingface/tokenizers@0.1.3
  - @huggingface/transformers@4.2.0
- - @img/sharp-darwin-arm64@0.35.3
- - @img/sharp-darwin-x64@0.35.3
- - @img/sharp-freebsd-wasm32@0.35.3
- - @img/sharp-linux-arm@0.35.3
- - @img/sharp-linux-arm64@0.35.3
- - @img/sharp-linux-ppc64@0.35.3
- - @img/sharp-linux-riscv64@0.35.3
- - @img/sharp-linux-s390x@0.35.3
- - @img/sharp-linux-x64@0.35.3
- - @img/sharp-linuxmusl-arm64@0.35.3
- - @img/sharp-linuxmusl-x64@0.35.3
- - @img/sharp-wasm32@0.35.3
- - @img/sharp-webcontainers-wasm32@0.35.3
- - @img/sharp-win32-arm64@0.35.3
- - @img/sharp-win32-ia32@0.35.3
- - @img/sharp-win32-x64@0.35.3
+ - @img/sharp-darwin-arm64@0.35.4
+ - @img/sharp-darwin-x64@0.35.4
+ - @img/sharp-freebsd-wasm32@0.35.4
+ - @img/sharp-linux-arm@0.35.4
+ - @img/sharp-linux-arm64@0.35.4
+ - @img/sharp-linux-ppc64@0.35.4
+ - @img/sharp-linux-riscv64@0.35.4
+ - @img/sharp-linux-s390x@0.35.4
+ - @img/sharp-linux-x64@0.35.4
+ - @img/sharp-linuxmusl-arm64@0.35.4
+ - @img/sharp-linuxmusl-x64@0.35.4
+ - @img/sharp-wasm32@0.35.4
+ - @img/sharp-webcontainers-wasm32@0.35.4
+ - @img/sharp-win32-arm64@0.35.4
+ - @img/sharp-win32-ia32@0.35.4
+ - @img/sharp-win32-x64@0.35.4
  - flatbuffers@25.9.23
  - long@5.3.2
 
@@ -828,16 +828,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 The following npm packages may be included in this product:
 
- - @img/sharp-libvips-darwin-arm64@1.3.2
- - @img/sharp-libvips-darwin-x64@1.3.2
- - @img/sharp-libvips-linux-arm@1.3.2
- - @img/sharp-libvips-linux-arm64@1.3.2
- - @img/sharp-libvips-linux-ppc64@1.3.2
- - @img/sharp-libvips-linux-riscv64@1.3.2
- - @img/sharp-libvips-linux-s390x@1.3.2
- - @img/sharp-libvips-linux-x64@1.3.2
- - @img/sharp-libvips-linuxmusl-arm64@1.3.2
- - @img/sharp-libvips-linuxmusl-x64@1.3.2
+ - @img/sharp-libvips-darwin-arm64@1.3.3
+ - @img/sharp-libvips-darwin-x64@1.3.3
+ - @img/sharp-libvips-linux-arm@1.3.3
+ - @img/sharp-libvips-linux-arm64@1.3.3
+ - @img/sharp-libvips-linux-ppc64@1.3.3
+ - @img/sharp-libvips-linux-riscv64@1.3.3
+ - @img/sharp-libvips-linux-s390x@1.3.3
+ - @img/sharp-libvips-linux-x64@1.3.3
+ - @img/sharp-libvips-linuxmusl-arm64@1.3.3
+ - @img/sharp-libvips-linuxmusl-x64@1.3.3
 
 These packages each contain the following license:
 
@@ -945,8 +945,8 @@ The following npm packages may be included in this product:
  - @types/mdast@4.0.4
  - @types/ms@2.1.0
  - @types/node@22.20.1
- - @types/node@26.4.1
- - @types/react@19.2.18
+ - @types/node@26.5.1
+ - @types/react@19.3.0
  - @types/unist@2.0.11
  - @types/unist@3.0.3
  - @types/ws@8.18.1
@@ -2869,7 +2869,7 @@ SOFTWARE.
 
 The following npm package may be included in this product:
 
- - jszip@3.10.1
+ - jszip@3.10.2
 
 This package contains the following license:
 
@@ -3697,7 +3697,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 The following npm package may be included in this product:
 
- - lucide-react@1.39.0
+ - lucide-react@1.43.0
 
 This package contains the following license:
 
@@ -4410,9 +4410,9 @@ SOFTWARE.
 
 The following npm packages may be included in this product:
 
- - react-dom@19.2.8
- - react@19.2.8
- - scheduler@0.27.0
+ - react-dom@19.3.0
+ - react@19.3.0
+ - scheduler@0.28.0
 
 These packages each contain the following license:
 
@@ -4794,7 +4794,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 The following npm package may be included in this product:
 
- - sharp@0.35.3
+ - sharp@0.35.4
 
 This package contains the following license:
 
@@ -5242,8 +5242,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 The following npm packages may be included in this product:
 
  - undici-types@6.21.0
- - undici-types@8.3.0
- - undici@6.28.0
+ - undici-types@8.9.0
+ - undici@6.28.1
 
 These packages each contain the following license:
 

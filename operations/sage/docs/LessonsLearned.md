@@ -4276,3 +4276,63 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (p/629#1). Test-authoring pattern; no product bug involved.
 
 **Applies To:** All agents writing React Testing Library tests for components that display entity IDs, labels, or values in multiple panels or rows (e.g., `BdiGroundingPanel`, `about[]`-component tests, node-detail views).
+
+---
+
+## #208 [Build/Shell] Shell Quoting Rule Applies to Inline jq Programs in `gh api --jq` — Shell-Hostile Chars Cause Syntax Errors
+
+**Pattern:** A `gh api` one-liner uses `--jq` with an inline jq expression containing shell-hostile characters (quotes, curly braces, `$` vars). The shell misinterprets the jq string before `gh` sees it, producing "unexpected EOF while looking for matching quote" or similar syntax errors. This is the same class as the Shell Quoting Rule for heredocs and inline Python, but less obviously so since jq programs are often short.
+
+**Instances:**
+- 2026-09-08 — Tech Lead (p/335#69): `gh api ... --jq '"head=\(.headRefOid)"'` with a jq expression containing nested quotes failed with "unexpected EOF while looking for matching quote." Fix: dumped the JSON response to a temp file (`gh api ... > tmp.json`) and parsed with Python (`python -c "import json; ..."` or via a temp script file).
+
+**Root Cause:** The shell processes `--jq "<expr>"` before passing it to `gh`. jq programs that contain nested quotes, `$`, `{}`, or `;` require careful escaping — exactly the shell escaping problem the Shell Quoting Rule exists to prevent.
+
+**Prevention:**
+1. **For jq programs with any shell-hostile chars (quotes, `$`, `{}`, `;`)**, dump the JSON to a temp file first and parse with Python: `gh api <endpoint> > tmp.json && python <script>`.
+2. **Simple jq programs with only safe chars** (`.field`, `.field[]`) can be used inline safely: `gh api ... --jq '.headRefOid'`.
+3. **The Shell Quoting Rule (root AGENTS.md) applies to `--jq` strings** — when in doubt, write the jq/python to a temp file via Write, then execute.
+
+**Status:** Active — 1 instance (p/335#69). Extension of the Shell Quoting Rule to jq programs; dump-and-parse is the canonical safe path.
+
+**Applies To:** All agents using `gh api --jq` with complex expressions. Especially relevant when jq output needs string interpolation, conditionals, or multiple fields.
+
+---
+
+## #209 [Process/Shell] `||`-Fallback Write Split: Write Goes to `$TMPDIR`, Next Step Reads Scratchpad Path — Silent Mismatch
+
+**Pattern:** A command writes a file with a `||`-fallback: `> "$TMPDIR/file" || > scratchpad/file`. When `$TMPDIR` is set (which it often is), the write succeeds to `$TMPDIR/file` and the fallback never runs. The next step reads `scratchpad/file` (hardcoded) — which is empty or doesn't exist. The mismatch is silent: no error from the write, no error from the read until the downstream step fails on the missing data.
+
+**Instances:**
+- 2026-09-08 — Tech Lead (p/335#69): a Bash pipeline wrote to `"$TMPDIR/file"` successfully (TMPDIR was set); the fallback `scratchpad/file` write never fired. The next step read `scratchpad/file` — empty. Fix: replaced with a single explicit scratchpad path: `> scratchpad/file`.
+
+**Root Cause:** The `||`-fallback pattern assumes the primary write will fail when the env var is unset. But when `$TMPDIR` IS set (the common case on most systems), the fallback never runs and the two branches silently diverge from the next step's expectation.
+
+**Prevention:**
+1. **Use a single explicit path for file writes** — don't split write paths across a `||`-fallback unless both branches are explicitly handled by all downstream readers.
+2. **If you need a fallback, resolve the path to a variable first** and use it consistently: `OUT="${TMPDIR:-scratchpad}/file"; > "$OUT"` — then pass `$OUT` to downstream steps rather than hardcoding either branch.
+3. **Treat `||`-fallback writes as a code smell** in scripts where a later step reads a hardcoded path — the two branches will silently diverge whenever the primary path's precondition is met.
+
+**Status:** Active — 1 instance (p/335#69). Shell path-split trap; single explicit path is the canonical fix.
+
+**Applies To:** All agents writing Bash scripts with conditional write paths. Especially relevant for scripts that write temp files and pass paths to subsequent steps.
+
+---
+
+## #210 [Build/Shell] jq Uses `,` Not `;` to Sequence Multiple Outputs — `;` Is a Syntax Error
+
+**Pattern:** A `gh ... --jq` expression uses `;` to sequence two output expressions (treating jq like a shell). jq uses `,` for sequencing multiple outputs and `;` as a function-argument separator — using `;` between top-level expressions produces a syntax error.
+
+**Instances:**
+- 2026-09-08 — Tech Lead (p/335#71): `gh pr view --jq '"head=\(.headRefOid)"; .files[].path'` — the `;` was intended as a statement separator but is not valid jq between top-level expressions. Fix: `.headRefOid, (.files[].path)` — comma sequences outputs.
+
+**Root Cause:** jq is not a shell and not a general scripting language. Its operator precedence and separators are distinct: `,` produces multiple outputs from one expression, `;` separates arguments to a multi-arg function (e.g., `if . then . else . end`). Shell muscle memory often substitutes `;` (shell statement separator) for `,` (jq output separator).
+
+**Prevention:**
+1. **Sequence multiple jq outputs with `,` not `;`**: `gh pr view --jq '.headRefOid, (.files[].path)'`
+2. **`;` in jq is only valid as a function argument separator** (e.g., `reduce`, `label-break`, `path(expr;expr)`) — if you see `;` in a top-level position, it's a bug.
+3. **For complex jq programs, test with `echo '{}' | jq '<expr>'` in the shell before embedding** — syntax errors surface immediately.
+
+**Status:** Active — 1 instance (p/335#71). jq language-syntax trap; `,` is the canonical output sequencer.
+
+**Applies To:** All agents using `gh ... --jq` or shell `jq` pipelines with multiple output fields. Especially relevant when constructing composite output strings from PR/issue metadata.

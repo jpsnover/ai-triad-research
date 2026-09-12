@@ -16,17 +16,17 @@
     "dist:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
-    "electron": "^44.1.1",
+    "electron": "^44.3.0",
     "electron-builder": "^26.15.3",
     "typescript": "^6.0.3",
     "vite": "^8.2.0",
