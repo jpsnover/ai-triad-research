@@ -56,6 +56,12 @@
     Clauses per classifier model call (batch-first, per-clause fallback for misses). Default 15.
 .PARAMETER SkipClassify
     Run SEGMENT only (emit clauses.jsonl), make NO model calls. Inspect segmentation without a key.
+.PARAMETER DebateIds
+    Optional debate_id allowlist — restrict the run to these debates (matched on debate_id, the
+    correlation-index join key). For the §9 correlation-intersection (debates present in CL's calibration
+    log). Composes with -MaxDebates. Requested-but-absent ids are reported, never silently dropped.
+.PARAMETER DebateIdsPath
+    File of debate_ids for the allowlist (one id per line, or a JSON array). Unioned with -DebateIds.
 .PARAMETER DryRun
     Plan only: load + sample debates, emit the manifest (sampling plan + cost ceiling), make
     NO model calls and hit NO stage. The cheapest runnable path.
@@ -102,6 +108,12 @@ param(
 
     [Parameter()]
     [string]$FnFixturePath,
+
+    [Parameter()]
+    [string[]]$DebateIds,
+
+    [Parameter()]
+    [string]$DebateIdsPath,
 
     [Parameter()]
     [ValidateRange(0, 100000)]
@@ -190,8 +202,40 @@ foreach ($f in $allFiles) {
     $closed.Add([PSCustomObject]@{ File = $f.Name; DebateId = $debateId; StatementCount = $statements.Count; Statements = $statements })
 }
 
+# ── DEBATE-ID ALLOWLIST (design §9 correlation-intersection) ────────────────────────
+# Restrict the run to an explicit debate_id allowlist — the debates/ ∩ CL-calibration-log
+# intersection — so the §9 correlation has convergence metrics to join to (the blind head-sample
+# misses them, t/3354#36). Union of -DebateIds + -DebateIdsPath (one id/line or a JSON array).
+$allowlist = [System.Collections.Generic.List[string]]::new()
+foreach ($id in @($DebateIds)) { if (-not [string]::IsNullOrWhiteSpace($id)) { $allowlist.Add($id.Trim()) } }
+if ($DebateIdsPath) {
+    if (-not (Test-Path -LiteralPath $DebateIdsPath -PathType Leaf)) {
+        throw (New-EvalError 'Run the FOL-on-debate offline eval' "debate-ids file not found: $DebateIdsPath" 'Pass -DebateIdsPath to a readable file (one debate_id per line, or a JSON array of ids).')
+    }
+    $raw = Get-Content -Raw -LiteralPath $DebateIdsPath
+    $fromFile = $null
+    try { $parsedIds = $raw | ConvertFrom-Json -ErrorAction Stop; if ($parsedIds -is [System.Array]) { $fromFile = @($parsedIds) } } catch { $fromFile = $null }
+    if ($null -eq $fromFile) { $fromFile = @($raw -split '\r?\n') }
+    foreach ($id in $fromFile) { if (-not [string]::IsNullOrWhiteSpace([string]$id)) { $allowlist.Add(([string]$id).Trim()) } }
+}
+$allowlistCount = $allowlist.Count
+$allowlistMissing = @()
+if ($allowlistCount -gt 0) {
+    $sel = Select-FolDebatesByAllowlist -Closed @($closed) -Allowlist @($allowlist)
+    $allowlistMissing = @($sel.MissingIds)
+    Write-Host "  Debate-id allowlist: $allowlistCount requested -> $(@($sel.Selected).Count) matched among closed debates$(if ($allowlistMissing.Count) { " ($($allowlistMissing.Count) requested id(s) not found/closed — NOT silently dropped)" })" -ForegroundColor DarkYellow
+    $closed = [System.Collections.Generic.List[object]]::new()
+    foreach ($c in @($sel.Selected)) { $closed.Add($c) }
+}
+
 # ── RUN-BOUNDING (design §10): deterministic sample + LOG, never silent truncation ──
 $totalClosed = $closed.Count
+if ($totalClosed -eq 0) {
+    throw (New-EvalError `
+            'Run the FOL-on-debate offline eval' `
+            $(if ($allowlistCount -gt 0) { "the -DebateIds/-DebateIdsPath allowlist ($allowlistCount id(s)) matched 0 closed debates" } else { "no closed (phase=closed) debates with statement turns were found in $DebatesDir" }) `
+            $(if ($allowlistCount -gt 0) { 'Check the allowlist ids match debate_id (the correlation-index join key); the missing-id count was logged above.' } else { 'Verify the debates dir + that debates have phase=closed transcripts.' }))
+}
 $selected = @($closed)
 $dropped = 0
 if ($totalClosed -gt $MaxDebates) {
@@ -213,6 +257,8 @@ $manifest = [ordered]@{
     debates_dir            = $DebatesDir
     model                  = $Model
     total_closed_debates   = $totalClosed
+    debate_ids_allowlist   = $allowlistCount
+    debate_ids_missing     = $allowlistMissing.Count
     selected_debates       = $selected.Count
     dropped_over_cap       = $dropped
     max_debates            = $MaxDebates
