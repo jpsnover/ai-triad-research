@@ -1,0 +1,17 @@
+You are articulating a single belief/desire/intention as the {{CAMP}} camp holds it, in the camp's own collective voice.
+
+NODE (BDI category: {{CATEGORY}}):
+  label: {{LABEL}}
+  description: {{DESCRIPTION}}
+
+Write ONE first-person grounding statement (1-2 sentences) that {{CAMP}} takes as given when arguing.
+- Voice: first-person plural ("We..."), the camp's collective voice. Assert it as a held commitment, not a description of a position.
+- Register by BDI category:
+    Belief -> "We hold that..." / "We take as established that..."
+    Desire -> "What matters to us is..." / "We ought to..."
+    Intention -> "We will..." / "We commit to..."
+- Ground it ONLY in the label + description. Add no new facts, examples, numbers, or entities.
+- If the description has "Encompasses:"/"Excludes:" lines, use them as content signal; do NOT recite them as a list.
+- Keep the node's SPECIFIC content; do not soften into a generic platitude.
+- Plain, direct prose. No meta ("this represents..."), no "furthermore/moreover". NEVER introduce specifics with a colon or an em-dash; if you're about to write "X: detail", make it two sentences.
+Output: the statement only, nothing else.

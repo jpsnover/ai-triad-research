@@ -111,6 +111,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Invoke-BDIWeightAssignment` | Assign BDI weights to nodes |
 | `Invoke-EdgeWeightEvaluation` | Score edge weights via AI |
 | `Invoke-VernacularBatch` | Generate vernacular descriptions |
+| `Invoke-DebateGroundingBatch` | Generate first-person camp-voice `graph_attributes.debate_grounding` for POV nodes (t/3366); skip-if-present, `-Force`/`-Id`/`-WhatIf`/`-Concurrency`, surgical upsert write |
 | `Invoke-AphorismBatch` | Backfill camp-voiced sober aphorisms (~3-8 words) on POV nodes — presentational only, never a scoring input; skips pillars/deprecated (t/1550) |
 | `New-SyntheticCorpus` | Generate synthetic training data |
 | `Get-SyntheticStatement` | Get the synthetic statements generated for a BDI element (node id); reads synthetic/corpus_<pov>.json, excludes pruned by default (-IncludePruned to include) |

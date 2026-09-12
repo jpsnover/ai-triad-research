@@ -176,6 +176,7 @@
         'Set-TriadConfig'
         'Invoke-TriadConfigReload'
         'Invoke-VernacularBatch'
+        'Invoke-DebateGroundingBatch'
         # t/1224 — Organization data model
         'Get-Organization'
         'Find-OrganizationByPOV'

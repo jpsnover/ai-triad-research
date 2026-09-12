@@ -102,3 +102,44 @@ Describe 'Save-JsonNodeFieldEdits — durable batch writer (t/2916)' -Tag 'summa
         { Save-JsonNodeFieldEdits -Path $script:path -Edits @(@{ NodeId='sit-001' }) } | Should -Throw
     }
 }
+
+Describe 'Save-JsonNodeFieldEdits — nested Path/Upsert dispatch (t/3438)' -Tag 'summary' {
+
+    BeforeEach {
+        $script:pfx = @'
+{
+  "nodes": [
+    { "id": "acc-001", "graph_attributes": { "type": "belief" }, "label": "keep" },
+    { "id": "acc-002", "label": "no ga" }
+  ]
+}
+'@ -replace "`r`n", "`n"
+        $script:ppath = Join-Path $TestDrive 'pov-fixture.json'
+        [System.IO.File]::WriteAllText($script:ppath, $script:pfx, (New-Object System.Text.UTF8Encoding $false))
+    }
+
+    It 'dispatches Path/Upsert edits (nested insert + container-create) alongside a flat Field edit' {
+        $edits = @(
+            @{ NodeId = 'acc-001'; Path = @('graph_attributes', 'debate_grounding'); Value = 'We hold A.'; Upsert = $true }  # insert into existing ga
+            @{ NodeId = 'acc-002'; Path = @('graph_attributes', 'debate_grounding'); Value = 'We hold B.'; Upsert = $true }  # create ga + leaf
+            @{ NodeId = 'acc-001'; Field = 'label'; Value = 'changed' }                                                       # flat Field still works
+        )
+        $result = Save-JsonNodeFieldEdits -Path $script:ppath -Edits $edits
+        $result.Applied | Should -Be 3
+        $o = @((Get-Content -Raw $script:ppath | ConvertFrom-Json).nodes)
+        $n1 = @($o | Where-Object { $_.id -eq 'acc-001' })[0]
+        $n2 = @($o | Where-Object { $_.id -eq 'acc-002' })[0]
+        $n1.graph_attributes.debate_grounding | Should -Be 'We hold A.'
+        $n1.graph_attributes.type             | Should -Be 'belief'    # sibling preserved
+        $n1.label                             | Should -Be 'changed'   # flat Field edit applied in the same batch
+        $n2.graph_attributes.debate_grounding | Should -Be 'We hold B.'  # container created
+    }
+
+    It 'throws when an edit has BOTH Field and Path' {
+        { Save-JsonNodeFieldEdits -Path $script:ppath -Edits @(@{ NodeId = 'acc-001'; Field = 'label'; Path = @('graph_attributes', 'x'); Value = 'y' }) } | Should -Throw
+    }
+
+    It 'throws when an edit has NEITHER Field nor Path' {
+        { Save-JsonNodeFieldEdits -Path $script:ppath -Edits @(@{ NodeId = 'acc-001'; Value = 'y' }) } | Should -Throw
+    }
+}

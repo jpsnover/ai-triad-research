@@ -29,9 +29,14 @@ function Save-JsonNodeFieldEdits {
     .PARAMETER Path
         The target JSON file (a nodes[] document) to edit in place.
     .PARAMETER Edits
-        One or more edit hashtables, each @{ NodeId=<id>; Field=<name>; Value=<scalar> }.
-        Applied in order; each is a single scalar field on a single node. Object/array
-        values are unsupported and safe-abort via Update-JsonNodeField's verify.
+        One or more edit hashtables. Each edit sets a single scalar value on a single node and is
+        EITHER a depth-1 field or a nested path (exactly one of Field / Path):
+          - @{ NodeId=<id>; Field=<name>; Value=<scalar> } → depth-1 (Update-JsonNodeField).
+          - @{ NodeId=<id>; Path=@('graph_attributes','debate_grounding'); Value=<scalar>; Upsert=$true }
+            → nested (Update-JsonNodePath). Path is a segment array (string keys / int indices). With
+            Upsert, a missing scalar leaf and any missing OBJECT container along the path are created
+            (t/3438; container-key create only — a missing array index fails closed). Default replace-only.
+        Applied in order. Object/array values are unsupported and safe-abort via the primitives' verify.
     .OUTPUTS
         [pscustomobject] result summary: Applied (int), NotFound (string[] — NodeIds not
         present in the file, surfaced not silently dropped), Path. Throws New-ActionableError
@@ -79,10 +84,18 @@ function Save-JsonNodeFieldEdits {
     $notFound = [System.Collections.Generic.List[string]]::new()
 
     foreach ($edit in @($Edits)) {
-        foreach ($key in @('NodeId', 'Field', 'Value')) {
+        foreach ($key in @('NodeId', 'Value')) {
             if (-not $edit.ContainsKey($key)) {
-                & $fail "An edit hashtable is missing required key '$key'" @('Each edit must be @{ NodeId=..; Field=..; Value=.. }')
+                & $fail "An edit hashtable is missing required key '$key'" @('Each edit needs NodeId + Value, plus exactly one of Field (depth-1) or Path (nested)')
             }
+        }
+        # Dispatch-only: exactly one of Field (depth-1) / Path (nested) selects the primitive. One
+        # path-walker per mode; this writer never walks paths itself (t/3438, TL steer).
+        $hasField = $edit.ContainsKey('Field')
+        $hasPath  = $edit.ContainsKey('Path')
+        if ($hasField -eq $hasPath) {
+            & $fail 'Each edit must specify EXACTLY ONE of Field (depth-1) or Path (nested-path segment array)' `
+                @('Use @{NodeId;Field;Value} OR @{NodeId;Path=@(...);Value[;Upsert]}')
         }
         $nodeId = [string]$edit['NodeId']
         if (-not $existingIds.Contains($nodeId)) {
@@ -93,7 +106,13 @@ function Save-JsonNodeFieldEdits {
         }
         # Chain: each surgical splice consumes the prior result. A verify failure THROWS
         # (writes nothing yet) → the whole batch aborts atomically, leaving the file untouched.
-        $raw = Update-JsonNodeField -RawText $raw -NodeId $nodeId -Field $edit['Field'] -Value $edit['Value']
+        if ($hasField) {
+            $raw = Update-JsonNodeField -RawText $raw -NodeId $nodeId -Field $edit['Field'] -Value $edit['Value']
+        }
+        else {
+            $upsert = [bool]$edit['Upsert']   # absent key → $null → $false
+            $raw = Update-JsonNodePath -RawText $raw -NodeId $nodeId -Path @($edit['Path']) -Value $edit['Value'] -Upsert:$upsert
+        }
         $applied++
     }
 

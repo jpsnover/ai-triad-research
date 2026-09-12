@@ -595,6 +595,23 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     ],
   },
   {
+    id: 'ps-debate-grounding',
+    title: 'Debate Grounding',
+    description: 'Generates one first-person, camp-voice grounding statement (1-2 sentences) for a POV node from its label + description.',
+    source: 'AITriad/Prompts/debate-grounding.prompt',
+    template: '(Loading from disk...)',
+    group: 'powershell',
+    purpose: 'Used by Invoke-DebateGroundingBatch (t/3366) to backfill graph_attributes.debate_grounding — the first-person own-voice restatement the debate engine injects as a grounding text (falls back to description when absent). Register matched to the BDI category (Belief/Desire/Intention).',
+    applicableDataSources: ['taxonomyNodes'],
+    promptFiles: ['debate-grounding'],
+    psParameters: [
+      { name: '-Model', type: 'string', default: 'gemini-3.5-flash', description: 'AI model for generation' },
+      { name: '-Concurrency', type: 'number', default: '10', description: 'Parallel AI calls' },
+      { name: '-Force', type: 'switch', default: 'false', description: 'Regenerate even nodes that already have debate_grounding' },
+      { name: '-Id', type: 'string[]', default: '(all POV nodes)', description: 'Process only the specified node ID(s)' },
+    ],
+  },
+  {
     id: 'ps-pov-summary-chunk',
     title: 'POV Summary (Chunked)',
     description: 'Analyzes one section of a larger document that has been split for processing.',

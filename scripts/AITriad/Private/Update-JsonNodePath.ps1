@@ -75,7 +75,12 @@ function Update-JsonNodePath {
         [Parameter(Mandatory)][string]$RawText,
         [Parameter(Mandatory)][string]$NodeId,
         [Parameter(Mandatory)][object[]]$Path,
-        [Parameter(Mandatory)][AllowNull()]$Value
+        [Parameter(Mandatory)][AllowNull()]$Value,
+        # t/3438: create the scalar leaf (and any missing OBJECT container along the path) instead of
+        # failing path-not-found. Explicit opt-in (TL cond 1): container-key create ONLY — a missing or
+        # out-of-range array-index segment still fails closed. Default OFF keeps the proven replace-only
+        # behavior byte-identical (regression arm).
+        [switch]$Upsert
     )
     Set-StrictMode -Version Latest
 
@@ -87,6 +92,14 @@ function Update-JsonNodePath {
     }
 
     if (@($Path).Count -eq 0) { & $fail 'Path is empty' @('Provide at least one path segment') }
+    # Under -Upsert the (possibly-inserted) leaf must be a SCALAR — created intermediates are objects,
+    # but the value itself is scalar-only, matching the in-place replacement invariant.
+    if ($Upsert -and $null -ne $Value -and (
+            $Value -is [System.Collections.IDictionary] -or
+            ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) -or
+            $Value -is [System.Management.Automation.PSCustomObject])) {
+        & $fail 'Upsert leaf value must be a scalar (string/number/bool/null)' @('Object/array leaf values are out of scope')
+    }
 
     # --- Parse (locate + verification baseline) ---
     try { $original = $RawText | ConvertFrom-Json } catch { & $fail "Input is not valid JSON: $($_.Exception.Message)" @('Pass well-formed JSON text') }
@@ -113,7 +126,41 @@ function Update-JsonNodePath {
         else {
             if ($curChar -ne '{') { & $fail "segment '$seg' expects an object but the container at that level is not an object" @('Check the path matches the document shape') }
             $vStart = Find-JsonMemberValueStart -Text $RawText -ObjStart $curStart -ObjEnd $curEnd -Key ([string]$seg)
-            if ($vStart -lt 0) { & $fail "key '$seg' not found at this level (path-not-found)" @('Verify the key exists; no insert-at-depth in this phase (t/2921 Q2)') }
+            if ($vStart -lt 0) {
+                if (-not $Upsert) { & $fail "key '$seg' not found at this level (path-not-found)" @('Verify the key exists, or pass -Upsert to create it') }
+                # ── INSERT (t/3438, -Upsert): create Path[k..last] as nested OBJECT containers wrapping the
+                #    scalar leaf, spliced into THIS object. Remaining segments MUST be string keys — a
+                #    remaining array index fails closed (container-key create is object-only, TL cond 1).
+                for ($m = $k; $m -lt $Path.Count; $m++) {
+                    if ($Path[$m] -is [int]) { & $fail "cannot -Upsert: remaining segment [$($Path[$m])] is an array index; container-key create is object-only" @('Insert only creates missing OBJECT containers + the scalar leaf') }
+                }
+                # Member value = remaining segments after k nested around the leaf.
+                $insVal = $Value
+                for ($m = $Path.Count - 1; $m -gt $k; $m--) { $insVal = [ordered]@{ ([string]$Path[$m]) = $insVal } }
+                $memberJson = ([ordered]@{ ([string]$seg) = $insVal } | ConvertTo-Json -Depth 100 -Compress)
+                $memberText = $memberJson.Substring(1, $memberJson.Length - 2)   # strip the outer { }
+                # Splice into the current object: empty {} → no comma; non-empty → prepend member + comma.
+                $inner = $RawText.Substring($curStart + 1, $curEnd - $curStart - 1)
+                if ([string]::IsNullOrWhiteSpace($inner)) {
+                    $patched = $RawText.Substring(0, $curStart + 1) + $memberText + $RawText.Substring($curEnd)
+                }
+                else {
+                    $patched = $RawText.Substring(0, $curStart + 1) + $memberText + ',' + $RawText.Substring($curStart + 1)
+                }
+                # Re-parse-VERIFY with an expected baseline that creates the SAME structure (safety net).
+                try { $actual = $patched | ConvertFrom-Json } catch { & $fail "patched text is not valid JSON — writing nothing: $($_.Exception.Message)" @('Splice produced invalid JSON; -Upsert insert bug') }
+                $expected = $RawText | ConvertFrom-Json
+                $expNode = @($expected.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $NodeId })[0]
+                $curBase = $expNode
+                for ($m = 0; $m -lt $k; $m++) { if ($Path[$m] -is [int]) { $curBase = $curBase[$Path[$m]] } else { $curBase = $curBase.($Path[$m]) } }
+                $bv = $Value
+                for ($m = $Path.Count - 1; $m -gt $k; $m--) { $bv = [pscustomobject]@{ ([string]$Path[$m]) = $bv } }
+                $curBase | Add-Member -NotePropertyName ([string]$seg) -NotePropertyValue $bv -Force
+                if (-not (Test-JsonSemanticEqual -A $expected -B $actual)) {
+                    & $fail "re-parse-verify FAILED: the -Upsert splice changed more than the intended path '$pathDisplay' on '$NodeId' — writing nothing" @('Splice bug; the guard refused a corrupting write')
+                }
+                return $patched
+            }
         }
         $vSpan = Get-JsonValueSpan -Text $RawText -Start $vStart
         if ($null -eq $vSpan) { & $fail "could not span-scan the value at segment '$seg'" @('Report with the input file + path') }
