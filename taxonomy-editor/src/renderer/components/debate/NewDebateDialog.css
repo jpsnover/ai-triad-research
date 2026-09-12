@@ -602,6 +602,25 @@
   text-decoration: underline;
 }
 
+/* Disabled-Start-button reason, below footer actions (t/3437) — the title
+   tooltip alone is unreliable in Electron, so mirror it inline. */
+.ndd-start-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: var(--sp-2) 0 0;
+  text-align: right;
+}
+
+.ndd-start-hint-link {
+  background: none;
+  border: none;
+  color: var(--focus-ring, #3b82f6);
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
 /* Screen reader only — no global sr-only in this app yet */
 .sr-only {
   clip: rect(0, 0, 0, 0);
