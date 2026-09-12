@@ -13,6 +13,15 @@ interface LatestValueBuffer<T> {
   onUnsubscribe(): void;
 }
 
+// t/3439 (vitest 5 migration): extracted so the performance.now-missing fallback is
+// unit-testable via a plain function call, not a live dynamic import with a corrupted
+// global — vitest 5's Module Runner needs a working performance.now() DURING the import
+// itself (its own invoke/getModuleInformation RPC path), so nulling the real global for
+// the duration of `await import(...)` throws before preload.cjs's own guard ever runs.
+export function resolvePreloadTimestamp(perf: { now?: unknown } | undefined = typeof performance !== 'undefined' ? performance : undefined): number {
+  return (perf && typeof perf.now === 'function') ? (perf.now as () => number)() : Date.now();
+}
+
 export function createLatestValueBuffer<T>(): LatestValueBuffer<T> {
   let buffered: T | null = null;
   let active = true;
@@ -57,7 +66,7 @@ try {
   osArch: process.arch,
   // t/2766: stamp when contextBridge.exposeInMainWorld ran — lets renderer compute
   // the preload→bridge-available delta for the bridge-available FR lifecycle event.
-  preloadTimestamp: (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now(),
+  preloadTimestamp: resolvePreloadTimestamp(),
   getEmbeddingInfo: (): Promise<{ backend: string; execution_provider?: string; calibration_version?: number }> =>
     ipcRenderer.invoke('get-embedding-info'),
 
