@@ -14,7 +14,11 @@
 // t/2905 concurrency cap builds on. Per-process by design (maxReplicas: 1).
 
 import v8 from 'v8';
-import { monitorEventLoopDelay, type IntervalHistogram } from 'perf_hooks';
+import { monitorEventLoopDelay } from 'perf_hooks';
+
+// @types/node dropped the named IntervalHistogram export; derive it from the API so the
+// type survives future typings bumps (Dependabot group, PR #2137).
+type IntervalHistogram = ReturnType<typeof monitorEventLoopDelay>;
 
 const BYTES_PER_MB = 1024 * 1024;
 const NS_PER_MS = 1e6;

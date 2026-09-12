@@ -17,7 +17,11 @@
  * unless the CANARY_LOOP_SAMPLER flag is on, so it's never exposed in normal prod.
  */
 
-import { monitorEventLoopDelay, type IntervalHistogram } from 'perf_hooks';
+import { monitorEventLoopDelay } from 'perf_hooks';
+
+// @types/node dropped the named IntervalHistogram export; derive it from the API so the
+// type survives future typings bumps (Dependabot group, PR #2137).
+type IntervalHistogram = ReturnType<typeof monitorEventLoopDelay>;
 
 const NS_PER_MS = 1e6;
 
