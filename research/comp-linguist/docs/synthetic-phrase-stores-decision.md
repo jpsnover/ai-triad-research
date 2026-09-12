@@ -44,6 +44,16 @@ The question the ticket poses — would the sidecar serve the debate engine as w
 
 The node layer is **strictly dominated** on quality and provenance. It has no metadata a consumer could trust or filter on, and no coverage. Its sole advantage is node co-location.
 
+## 3b. Disposition of every node-field touchpoint (TL review completion)
+
+§1 named three node-field touchpoints; §3 dispositioned only `taxonomyContext`. Tracing the other two shows they are the **write path, not independent readers** — which shrinks the retirement surface rather than expanding it:
+
+- **`taxonomyContext.ts` (debate engine) — READER.** The only genuine reader of the *stored* `node.graph_attributes.synthetic_phrases`, via the default-off `useSyntheticPhraseGrounding` flag (§3). Disposition: **migrate** its grounding-phrase lookup to `debate_grounding` (World A) or the sidecar (World B).
+- **`analysis.ts:157` (node-analysis generator prompt) — WRITER.** This is the prompt schema that *produces* the node lists (`synthetic_phrases: array of 6-8 strings`) — i.e. how the 83 got written. Disposition: on retire, **remove** `synthetic_phrases` from the node-analysis output schema (stop writing the field); if phrase generation is still wanted, target the sidecar, not the node.
+- **`debateReflectionSlice.ts` (`embedSyntheticPhrases`) — WRITE-PATH, not a stored-field reader.** It embeds the freshly-`enriched` phrases (the just-generated object) via on-the-fly `computeQueryEmbedding` and persists the vectors; it never reads the stored node field. Disposition: **decommissions with the writer** — once the generator stops emitting node `synthetic_phrases`, this step has nothing to embed; per-phrase embeddings, if still wanted, belong to the sidecar's `.npy` pipeline. Already resilient (per-phrase failures tolerated), so no breakage risk.
+
+**Net:** the stored node field has exactly **one reader** (the debate engine) to migrate; the other two touchpoints are the generation/embed write path that simply decommissions. There are **no undispositioned readers** — the t/3375-class surprise is closed out.
+
 ## 5. Options (scored under both worlds, per TL p/349#260)
 
 The pivot is **t/3366** (`debate_grounding`, first-person). t/3366 is being built to give the debate engine a purpose-built, first-person "what you take as true" grounding line — which is exactly the job the node `synthetic_phrases` currently do (badly, third-person, 9% coverage) via the t/3367 flag.
@@ -52,7 +62,7 @@ The pivot is **t/3366** (`debate_grounding`, first-person). t/3366 is being buil
 The node store loses its only debate-engine consumer (the grounding line moves to `debate_grounding`). Nothing else reads the node lists. **Recommendation: CONVERGE — retire `graph_attributes.synthetic_phrases`.** The sidecar remains for the Phrases tab + retrieval; the debate engine uses `debate_grounding`; the node field is deleted (a data-file shape change → Second Opinion). Migration cost is low: the field is additive and 9%-populated, no consumer breaks once `debate_grounding` is wired and the t/3367 flag is retired.
 
 ### World B — `debate_grounding` does not land / stalls
-The node store keeps its debate-engine role (the t/3367 grounding experiment). The recommendation then rests on the quality/coverage comparison alone: even here, the **sidecar is the better debate-engine source** (full coverage + archetype tags vs 9% plain strings), so the recommendation is **CONVERGE via a different path — migrate the debate engine's grounding-phrase lookup to the sidecar and retire the node field**, rather than backfill 829 more node lists that duplicate what the sidecar already holds. The backfill (the original t/3366 framing) is the option this analysis most clearly argues against: it would invest in growing the dominated layer.
+The node store keeps its debate-engine role (the t/3367 grounding experiment). The recommendation then rests on the quality/coverage comparison alone: even here, the **sidecar is the better debate-engine source** (full coverage + archetype tags vs 9% plain strings), so the recommendation is **CONVERGE via a different path — migrate the debate engine's grounding-phrase lookup to the sidecar and retire the node field**, rather than backfill 829 more node lists that duplicate what the sidecar already holds. The backfill (the original t/3366 framing) is the option this analysis most clearly argues against: it would invest in growing the dominated layer. **Strengthener (TL):** the sidecar lookup rides its **precomputed `.npy` embeddings**, whereas the current node path embeds phrases **on the fly** (`computeQueryEmbedding` per phrase, confirmed in `taxonomyContext` + `debateReflectionSlice`). So the sidecar route is likely **faster** as well as broader — World B is an improvement on latency, not just coverage.
 
 **Both worlds point to retiring the node field.** They differ only in what replaces its debate-engine role: `debate_grounding` (World A) or a sidecar lookup (World B). Neither world recommends keeping or backfilling the node lists.
 
