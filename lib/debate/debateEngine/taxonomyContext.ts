@@ -518,9 +518,22 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
     }
   }
 
+  let debateGroundingOverrides: Map<string, string> | undefined;
+  if (engine.config.useDebateGrounding) {
+    debateGroundingOverrides = new Map<string, string>();
+    for (const n of filteredCtx.povNodes) {
+      const grounding = n.graph_attributes?.debate_grounding;
+      if (grounding) debateGroundingOverrides.set(n.id, grounding);
+    }
+    if (debateGroundingOverrides.size === 0) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'useDebateGrounding: no injected nodes have debate_grounding populated — falling back to description for all nodes' });
+    }
+  }
+
   return formatTaxonomyContext(filteredCtx, pov, undefined, {
     ...(situationStatements ? { situationStatements } : undefined),
     ...(syntheticPhraseOverrides ? { syntheticPhraseOverrides } : undefined),
+    ...(debateGroundingOverrides ? { debateGroundingOverrides } : undefined),
   });
 }
 
