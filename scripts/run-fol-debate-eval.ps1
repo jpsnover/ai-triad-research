@@ -119,6 +119,8 @@ $Mod = Get-Module AITriad
 if (-not $Mod) { throw 'AITriad module failed to load; cannot resolve data-root helpers.' }
 
 # Clause segmenter (§4) + classifier (§3) + coref (§6) + FOL (§7) + contradiction (§8) + correlate (§8i/§9).
+# fol-eval-common.ps1 (robust {results:[...]} extraction) is dot-sourced FIRST — classify + coref use it.
+. (Join-Path $PSScriptRoot 'fol-eval-common.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-segment.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-classify.ps1')
 . (Join-Path $PSScriptRoot 'fol-eval-coref.ps1')

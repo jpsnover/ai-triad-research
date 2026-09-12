@@ -226,13 +226,16 @@ function Resolve-FolClauseCorefBatch {
             Write-Warning "fol-clause-coref: backend returned no Text for $(@($Clauses).Count) clause(s) — check the model/key for usage 'enrichment.fol-clause-coref'."
             return $null
         }
-        $parsed = $resp.Text | ConvertFrom-Json -ErrorAction Stop
-        if (-not $parsed.PSObject.Properties['results']) {
-            Write-Warning 'fol-clause-coref: backend Text was not the expected { results: [...] } JSON.'
+        # Tolerant extraction (t/3354#29) — same contract-drift hardening as the classifier: accept a bare
+        # array / alt-keyed object / fenced body; on genuine failure log a raw snippet for diagnosability.
+        $results = ConvertFrom-FolResultsJson -Text $resp.Text
+        if ($null -eq $results) {
+            $snip = [string]$resp.Text; if ($snip.Length -gt 200) { $snip = $snip.Substring(0, 200) }
+            Write-Warning "fol-clause-coref: could not extract a results[] array from backend Text (first 200 chars): $snip"
             return $null
         }
         $map = @{}
-        foreach ($r in @($parsed.results)) {
+        foreach ($r in @($results)) {
             # Positive guard only (no `continue` inside a function — Pester #2669 escapes to the caller's loop).
             if ($r.PSObject.Properties['id'] -and $r.PSObject.Properties['resolution_status'] -and $r.PSObject.Properties['resolved_text']) {
                 $st = [string]$r.resolution_status
