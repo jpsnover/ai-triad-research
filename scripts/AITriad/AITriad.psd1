@@ -133,6 +133,7 @@
         'New-SyntheticCorpus'
         'Update-SyntheticCorpus'
         'Sync-SyntheticCorpus'
+        'Get-SyntheticStatement'
         'Export-SyntheticEmbeddings'
         'Test-SynthesisCompleteness'
         'Get-ImportReport'

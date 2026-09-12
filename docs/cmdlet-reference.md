@@ -113,6 +113,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Invoke-VernacularBatch` | Generate vernacular descriptions |
 | `Invoke-AphorismBatch` | Backfill camp-voiced sober aphorisms (~3-8 words) on POV nodes — presentational only, never a scoring input; skips pillars/deprecated (t/1550) |
 | `New-SyntheticCorpus` | Generate synthetic training data |
+| `Get-SyntheticStatement` | Get the synthetic statements generated for a BDI element (node id); reads synthetic/corpus_<pov>.json, excludes pruned by default (-IncludePruned to include) |
 
 ### AI Call Log (t/3235)
 | Cmdlet | Use when |
