@@ -362,12 +362,12 @@
     },
     {
       "name": "@types/node",
-      "version": "26.4.1",
+      "version": "26.5.1",
       "license": "MIT"
     },
     {
       "name": "@types/react",
-      "version": "19.2.18",
+      "version": "19.3.0",
       "license": "MIT"
     },
     {
@@ -827,7 +827,7 @@
     },
     {
       "name": "jszip",
-      "version": "3.10.1",
+      "version": "3.10.2",
       "license": "MIT"
     },
     {
@@ -897,7 +897,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.39.0",
+      "version": "1.43.0",
       "license": "ISC"
     },
     {
@@ -1287,12 +1287,12 @@
     },
     {
       "name": "react",
-      "version": "19.2.8",
+      "version": "19.3.0",
       "license": "MIT"
     },
     {
       "name": "react-dom",
-      "version": "19.2.8",
+      "version": "19.3.0",
       "license": "MIT"
     },
     {
@@ -1377,7 +1377,7 @@
     },
     {
       "name": "scheduler",
-      "version": "0.27.0",
+      "version": "0.28.0",
       "license": "MIT"
     },
     {
@@ -1507,7 +1507,7 @@
     },
     {
       "name": "undici",
-      "version": "6.28.0",
+      "version": "6.28.1",
       "license": "MIT"
     },
     {
@@ -1517,7 +1517,7 @@
     },
     {
       "name": "undici-types",
-      "version": "8.3.0",
+      "version": "8.9.0",
       "license": "MIT"
     },
     {
@@ -2048,11 +2048,11 @@
         },
         {
           "name": "@types/node",
-          "version": "26.4.1"
+          "version": "26.5.1"
         },
         {
           "name": "@types/react",
-          "version": "19.2.18"
+          "version": "19.3.0"
         },
         {
           "name": "@types/unist",
@@ -3002,7 +3002,7 @@
       "packages": [
         {
           "name": "jszip",
-          "version": "3.10.1"
+          "version": "3.10.2"
         }
       ],
       "licenseType": "MIT",
@@ -3094,7 +3094,7 @@
       "packages": [
         {
           "name": "lucide-react",
-          "version": "1.39.0"
+          "version": "1.43.0"
         }
       ],
       "licenseType": "ISC",
@@ -3322,15 +3322,15 @@
       "packages": [
         {
           "name": "react-dom",
-          "version": "19.2.8"
+          "version": "19.3.0"
         },
         {
           "name": "react",
-          "version": "19.2.8"
+          "version": "19.3.0"
         },
         {
           "name": "scheduler",
-          "version": "0.27.0"
+          "version": "0.28.0"
         }
       ],
       "licenseType": "MIT",
@@ -3582,11 +3582,11 @@
         },
         {
           "name": "undici-types",
-          "version": "8.3.0"
+          "version": "8.9.0"
         },
         {
           "name": "undici",
-          "version": "6.28.0"
+          "version": "6.28.1"
         }
       ],
       "licenseType": "MIT",

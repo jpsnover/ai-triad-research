@@ -945,8 +945,8 @@ The following npm packages may be included in this product:
  - @types/mdast@4.0.4
  - @types/ms@2.1.0
  - @types/node@22.20.1
- - @types/node@26.4.1
- - @types/react@19.2.18
+ - @types/node@26.5.1
+ - @types/react@19.3.0
  - @types/unist@2.0.11
  - @types/unist@3.0.3
  - @types/ws@8.18.1
@@ -2869,7 +2869,7 @@ SOFTWARE.
 
 The following npm package may be included in this product:
 
- - jszip@3.10.1
+ - jszip@3.10.2
 
 This package contains the following license:
 
@@ -3697,7 +3697,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 The following npm package may be included in this product:
 
- - lucide-react@1.39.0
+ - lucide-react@1.43.0
 
 This package contains the following license:
 
@@ -4410,9 +4410,9 @@ SOFTWARE.
 
 The following npm packages may be included in this product:
 
- - react-dom@19.2.8
- - react@19.2.8
- - scheduler@0.27.0
+ - react-dom@19.3.0
+ - react@19.3.0
+ - scheduler@0.28.0
 
 These packages each contain the following license:
 
@@ -5242,8 +5242,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 The following npm packages may be included in this product:
 
  - undici-types@6.21.0
- - undici-types@8.3.0
- - undici@6.28.0
+ - undici-types@8.9.0
+ - undici@6.28.1
 
 These packages each contain the following license:
 
