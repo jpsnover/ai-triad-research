@@ -720,13 +720,18 @@ function Finalize-Summary {
             } else {
                 $KP = Get-Field $CampData 'key_points'
                 if ($null -eq $KP) {
-                    $SchemaErrors.Add("pov_summaries.$Camp.key_points missing or not an array")
-                } else {
-                    # Force-array: ConvertFrom-Json unwraps single-element arrays to scalars
-                    $KP = @($KP)
-                    if ($CampData -is [System.Collections.IDictionary]) { $CampData['key_points'] = $KP }
-                    else { $CampData.key_points = $KP }
+                    # A camp with null/absent key_points is NOT a fatal schema error — L763 only fails
+                    # when pov_summaries itself is missing, so the old red "✗ Schema:" mislabeled it.
+                    # Normalize to @() like the sibling fields (factual_claims / unmapped_concepts) and
+                    # WARN instead (t/3434). Genuine empty-camp is already handled by the yield check.
+                    Write-Warning "pov_summaries.$Camp.key_points missing/null — defaulting to empty array (model=$Model)"
+                    $KP = @()
                 }
+                # Force-array: ConvertFrom-Json unwraps single-element arrays to scalars.
+                $KP = @($KP)
+                if ($CampData -is [System.Collections.IDictionary]) { $CampData['key_points'] = $KP }
+                elseif ($CampData.PSObject.Properties['key_points']) { $CampData.key_points = $KP }
+                else { $CampData | Add-Member -NotePropertyName 'key_points' -NotePropertyValue $KP -Force }
             }
         }
     }
