@@ -20,7 +20,9 @@
 .PARAMETER TaxonomyPath
     Path to the taxonomy directory containing POV JSON files. Defaults to Get-TaxonomyDir.
 .PARAMETER Model
-    AI model. Default: gemini-3.5-flash (first-person prose quality; CL recommendation).
+    AI model. Default: gemini-3.5-flash-lite. NOTE: do NOT use a thinking model (e.g. gemini-3.5-flash)
+    here — it spends the token budget on internal reasoning and truncates the statement mid-word, leaking
+    reasoning-trace fragments (t/3438#6). flash-lite emits the full statement.
 .PARAMETER Concurrency
     Parallel AI calls. Default: 10.
 .PARAMETER Force
@@ -45,7 +47,7 @@ function Invoke-DebateGroundingBatch {
     [OutputType([PSCustomObject])]
     param(
         [Parameter()][string]$TaxonomyPath,
-        [Parameter()][string]$Model = 'gemini-3.5-flash',
+        [Parameter()][string]$Model = 'gemini-3.5-flash-lite',
         [Parameter()][ValidateRange(1, 50)][int]$Concurrency = 10,
         [switch]$Force,
         [Parameter()]
@@ -149,7 +151,9 @@ function Invoke-DebateGroundingBatch {
         $CompRef = $using:Completed; $TotalCount = $using:Total; $ProgId = $using:ProgressId
 
         try {
-            $AIResult = Invoke-AIApi -Prompt $Item.Prompt -Model $using:Model -Temperature 0.3 -MaxTokens 256
+            # MaxTokens 512: flash-lite's longest 9-node sample output was ~401 chars (~100 tokens); 512 is
+            # safe headroom. The old 256 truncated even clean output (t/3438#6).
+            $AIResult = Invoke-AIApi -Prompt $Item.Prompt -Model $using:Model -Temperature 0.3 -MaxTokens 512
             if ($null -ne $AIResult -and -not [string]::IsNullOrWhiteSpace($AIResult.Text)) {
                 $Text = $AIResult.Text.Trim()
                 $FileDict = $ResultsDict.GetOrAdd($Item.FilePath, [System.Collections.Concurrent.ConcurrentDictionary[string, string]]::new())
