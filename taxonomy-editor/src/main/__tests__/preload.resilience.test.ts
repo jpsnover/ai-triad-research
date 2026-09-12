@@ -13,6 +13,15 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Hoisted static mock (matches preloadBuffer.test.ts's pattern) so the static import below
+// can safely trigger preload.cts's top-level contextBridge.exposeInMainWorld side effect.
+vi.mock('electron', () => ({
+  contextBridge: { exposeInMainWorld: vi.fn() },
+  ipcRenderer: { invoke: vi.fn(), send: vi.fn(), on: vi.fn(), removeListener: vi.fn() },
+}));
+
+import { resolvePreloadTimestamp } from '../preload.cjs';
+
 function makeIpcRenderer(overrides: Partial<{ on: () => void }> = {}) {
   return {
     invoke: vi.fn(),
@@ -28,26 +37,28 @@ describe('preload.cts structural resilience (t/2774)', () => {
     vi.resetModules();
   });
 
-  it('(a) exposeInMainWorld called when performance.now is not a function (typeof guard → Date.now fallback)', async () => {
-    const exposeInMainWorld = vi.fn();
-    vi.doMock('electron', () => ({
-      contextBridge: { exposeInMainWorld },
-      ipcRenderer: makeIpcRenderer(),
-    }));
+  // t/3439 (vitest 5 migration): this used to corrupt the REAL global performance.now
+  // for the duration of a live `await import('../preload.cjs')`, to exercise the whole
+  // module's typeof-guard fallback end-to-end. Under vitest 5's new Module Runner, the
+  // import itself needs a working performance.now() (its own invoke/getModuleInformation
+  // RPC path calls it internally) — nulling the global throws before preload.cjs's own
+  // guard ever runs, unconditionally, regardless of mock/transform caching (confirmed via
+  // isolated repro). resolvePreloadTimestamp() was extracted (matching this file's existing
+  // createLatestValueBuffer precedent, t/2698) so the fallback is testable as a plain call
+  // against a fake performance-like object, without touching the process-wide global.
+  it('resolvePreloadTimestamp falls back to Date.now() when performance.now is not a function (typeof guard)', () => {
+    const result = resolvePreloadTimestamp({ now: undefined });
+    expect(result).toEqual(expect.any(Number));
+  });
 
-    const origNow = performance.now;
-    // @ts-expect-error intentionally removing .now to trigger the typeof guard
-    performance.now = undefined;
-    try {
-      await import('../preload.cjs');
-    } finally {
-      performance.now = origNow;
-    }
+  it('resolvePreloadTimestamp falls back to Date.now() when performance itself is undefined', () => {
+    const result = resolvePreloadTimestamp(undefined);
+    expect(result).toEqual(expect.any(Number));
+  });
 
-    expect(exposeInMainWorld).toHaveBeenCalledOnce();
-    expect(exposeInMainWorld).toHaveBeenCalledWith('electronAPI', expect.objectContaining({
-      preloadTimestamp: expect.any(Number),
-    }));
+  it('resolvePreloadTimestamp uses performance.now() when it is a real function', () => {
+    const result = resolvePreloadTimestamp({ now: () => 42 });
+    expect(result).toBe(42);
   });
 
   it('(b) exposeInMainWorld called even when first ipcRenderer.on (listener wire) throws', async () => {
