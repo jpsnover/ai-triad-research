@@ -69,3 +69,42 @@ function ConvertFrom-FolResultsJson {
     if ($parsed.PSObject.Properties['id']) { return @($parsed) }               # a single result row object
     return $null
 }
+
+function Select-FolDebatesByAllowlist {
+    <#
+    .SYNOPSIS
+        Filter loaded closed-debate entries to a debate_id allowlist (§9 correlation-intersection). Pure.
+    .DESCRIPTION
+        The §9 correlation join needs debates present in CL's calibration log (crux_addressed_rate /
+        convergence_score); the blind head-sample misses them. This restricts the run to an explicit
+        allowlist (the debates/ ∩ cal-log intersection) matched on DebateId — the same value the harness
+        emits as correlation-index.json's debate_id join key. Returns { Selected; MatchedIds; MissingIds }
+        so the runner can report requested-but-absent ids (no silent drop).
+    .PARAMETER Closed
+        The loaded closed-debate entries (each with a DebateId property).
+    .PARAMETER Allowlist
+        The debate ids to keep. Empty/null => Selected is all of Closed (no filtering).
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Closed,
+        [AllowNull()][AllowEmptyCollection()][string[]]$Allowlist
+    )
+    Set-StrictMode -Version Latest
+
+    $wanted = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($a in @($Allowlist)) { if (-not [string]::IsNullOrWhiteSpace($a)) { [void]$wanted.Add($a.Trim()) } }
+    if ($wanted.Count -eq 0) {
+        return @{ Selected = @($Closed); MatchedIds = @(); MissingIds = @() }
+    }
+
+    $selected = [System.Collections.Generic.List[object]]::new()
+    $present = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($c in $Closed) {
+        $id = if ($c.PSObject.Properties['DebateId']) { [string]$c.DebateId } else { '' }
+        if ($wanted.Contains($id)) { $selected.Add($c); [void]$present.Add($id) }
+    }
+    $missing = @($wanted | Where-Object { -not $present.Contains($_) } | Sort-Object)
+    return @{ Selected = @($selected); MatchedIds = @($present | Sort-Object); MissingIds = @($missing) }
+}

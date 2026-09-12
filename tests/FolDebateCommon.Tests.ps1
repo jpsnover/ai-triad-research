@@ -57,3 +57,28 @@ Describe 'ConvertFrom-FolResultsJson — tolerant extraction' -Tag 'qbaf' {
         $null -eq (ConvertFrom-FolResultsJson -Text 'I could not classify these clauses.') | Should -BeTrue
     }
 }
+
+Describe 'Select-FolDebatesByAllowlist — §9 correlation-intersection filter' -Tag 'qbaf' {
+    BeforeAll {
+        $script:closed = @(
+            [pscustomobject]@{ DebateId = 'deb-a'; File = 'a.json' }
+            [pscustomobject]@{ DebateId = 'deb-b'; File = 'b.json' }
+            [pscustomobject]@{ DebateId = 'deb-c'; File = 'c.json' }
+        )
+    }
+    It 'keeps only allowlisted debate_ids and reports matched' {
+        $r = Select-FolDebatesByAllowlist -Closed $closed -Allowlist @('deb-a', 'deb-c')
+        @($r.Selected).Count | Should -Be 2
+        ($r.Selected.DebateId | Sort-Object) -join ',' | Should -Be 'deb-a,deb-c'
+        ($r.MatchedIds | Sort-Object) -join ',' | Should -Be 'deb-a,deb-c'
+        @($r.MissingIds).Count | Should -Be 0
+    }
+    It 'reports requested-but-absent ids (no silent drop)' {
+        $r = Select-FolDebatesByAllowlist -Closed $closed -Allowlist @('deb-a', 'deb-z')
+        @($r.Selected).Count | Should -Be 1
+        $r.MissingIds -join ',' | Should -Be 'deb-z'
+    }
+    It 'empty allowlist = no filtering (all selected)' {
+        (Select-FolDebatesByAllowlist -Closed $closed -Allowlist @()).Selected.Count | Should -Be 3
+    }
+}
