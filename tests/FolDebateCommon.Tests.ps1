@@ -27,7 +27,12 @@ Describe 'ConvertFrom-FolResultsJson — tolerant extraction' -Tag 'qbaf' {
         $r[2].id | Should -Be 'c'
     }
     It 'strips markdown fences before parsing' {
-        $txt = "```json`n{`"results`":[{`"id`":`"x`"}]}`n```"
+        # Single-quoted here-string: triple backticks are literal (no PowerShell escape parsing).
+        $txt = @'
+```json
+{"results":[{"id":"x"}]}
+```
+'@
         $r = @(ConvertFrom-FolResultsJson -Text $txt)
         $r.Count | Should -Be 1
         $r[0].id | Should -Be 'x'
