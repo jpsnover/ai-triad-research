@@ -20,6 +20,7 @@ import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
 import { useTierInfo, isFreeTier, type TierInfo } from '../../hooks/useTierInfo';
 import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
+import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { buildDebateOptions } from './newDebateOptions';
 
@@ -1455,6 +1456,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
               </div>
             </div>
           </div>
+          {!canStart && !creating && hasSource && selected.size >= 1 && (multiProvider ? <p className="ndd-start-hint" role="status">Select at least 2 active backends with an API key for multi-provider mode.</p> : <p className="ndd-start-hint" role="status">No API key for this model — <button type="button" className="ndd-start-hint-link" onClick={() => useSettingsDialog.getState().open('apiKeys')}>add one in Settings</button></p>)}
         </div>
       </div>
 
