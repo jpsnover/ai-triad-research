@@ -132,3 +132,54 @@ Describe 'Update-JsonNodePath — nested surgical replacement (t/2921)' -Tag 'su
         }
     }
 }
+
+Describe 'Update-JsonNodePath -Upsert — insert + container-create (t/3438)' -Tag 'summary' {
+
+    It 'inserts a missing scalar leaf into an EXISTING container; siblings preserved' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            # acc-001.graph_attributes exists (assumes/policy_actions/type) but has no debate_grounding.
+            $out = Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','debate_grounding') -Value 'We hold X.' -Upsert
+            $ga = (@($out | ConvertFrom-Json).nodes | Where-Object { $_.id -eq 'acc-001' })[0].graph_attributes
+            $ga.debate_grounding | Should -Be 'We hold X.'
+            $ga.type             | Should -Be 'belief'      # sibling preserved
+            @($ga.assumes).Count | Should -Be 2             # sibling array preserved
+        }
+    }
+
+    It 'creates the graph_attributes container + leaf when the container is absent; node siblings preserved' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            # acc-003 has NO graph_attributes.
+            $out = Update-JsonNodePath -RawText $Raw -NodeId 'acc-003' -Path @('graph_attributes','debate_grounding') -Value 'We commit to Y.' -Upsert
+            $n = (@($out | ConvertFrom-Json).nodes | Where-Object { $_.id -eq 'acc-003' })[0]
+            $n.graph_attributes.debate_grounding | Should -Be 'We commit to Y.'
+            $n.interpretations.skeptic.summary   | Should -Be 'sumS'   # node sibling preserved
+        }
+    }
+
+    It 'FAILS CLOSED (path-not-found) when the leaf is absent and -Upsert is NOT passed' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            { Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','debate_grounding') -Value 'x' } | Should -Throw
+        }
+    }
+
+    It 'FAILS CLOSED under -Upsert when a remaining segment is an array index (object-container create only)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            { Update-JsonNodePath -RawText $Raw -NodeId 'acc-003' -Path @('graph_attributes', 0) -Value 'x' -Upsert } | Should -Throw
+        }
+    }
+
+    It 'replace-mode is byte-identical with -Upsert passed (upsert never alters the found-key path)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            # Seed a debate_grounding, then replace it both with and without -Upsert → identical output.
+            $seeded = Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','debate_grounding') -Value 'first' -Upsert
+            $replPlain  = Update-JsonNodePath -RawText $seeded -NodeId 'acc-001' -Path @('graph_attributes','debate_grounding') -Value 'second'
+            $replUpsert = Update-JsonNodePath -RawText $seeded -NodeId 'acc-001' -Path @('graph_attributes','debate_grounding') -Value 'second' -Upsert
+            $replUpsert | Should -Be $replPlain     # -Upsert is inert when the key already exists
+        }
+    }
+}
