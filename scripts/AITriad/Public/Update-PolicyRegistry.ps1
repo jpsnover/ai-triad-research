@@ -146,14 +146,26 @@ function Update-PolicyRegistry {
 
         # Assign IDs to unregistered actions
         if ($Unregistered.Count -gt 0 -and $PSCmdlet.ShouldProcess("$($Unregistered.Count) unregistered actions", 'Assign IDs')) {
+            # MaxId over registry ids UNION all referenced-on-disk ids (t/3431 #3): a prior partial run
+            # may have written a pol-NNNN reference to a node WITHOUT persisting the registry (the very
+            # bug this fixes). Counting referenced-but-unregistered ids here prevents a re-run from
+            # re-minting the same number onto the next unregistered action (id collision).
             $MaxId = 0
-            foreach ($Key in $ExistingPolicies.Keys) {
+            $idPool = [System.Collections.Generic.List[string]]::new()
+            foreach ($Key in $ExistingPolicies.Keys)   { $idPool.Add([string]$Key) }
+            foreach ($Key in $AllReferencedIds)         { $idPool.Add([string]$Key) }
+            foreach ($Key in $idPool) {
                 if ($Key -match 'pol-(\d+)') {
                     $Num = [int]$Matches[1]
                     if ($Num -gt $MaxId) { $MaxId = $Num }
                 }
             }
 
+            # Pass 1: assign IDs + register in memory, and record each node edit grouped BY FILE.
+            # No file writes in this loop — a per-iteration whole-file rewrite self-dirties the file and
+            # the BLOCK-tier dirty-tree guard then false-blocks the 2nd write, aborting mid-run and
+            # leaving the file referencing an unpersisted id (t/3431). Batch → one write per file below.
+            $fileAssignments = @{}   # POV key -> List of @{ NodeId; Action; NewId }
             foreach ($U in $Unregistered) {
                 $MaxId++
                 $NewId = 'pol-{0:D3}' -f $MaxId
@@ -164,21 +176,31 @@ function Update-PolicyRegistry {
                     member_count = 1
                     status       = 'active'
                 }
+                if (-not $fileAssignments.ContainsKey($U.POV)) {
+                    $fileAssignments[$U.POV] = [System.Collections.Generic.List[object]]::new()
+                }
+                $fileAssignments[$U.POV].Add([PSCustomObject]@{ NodeId = $U.NodeId; Action = $U.Action; NewId = $NewId })
+                Write-Info "  Assigned $NewId to $($U.NodeId)`: $($U.Action.Substring(0, [Math]::Min(50, $U.Action.Length)))"
+            }
 
-                # Update the node in the taxonomy file
-                $FilePath = Join-Path $TaxDir "$($U.POV).json"
+            # Pass 2: ONE whole-file rewrite per touched POV file (no self-dirtying → guard never
+            # false-fires). Node-match logic (action text + no existing policy_id, first-match break)
+            # is preserved, so duplicate action text within a node still maps to distinct ids in order.
+            foreach ($PovKey in $fileAssignments.Keys) {
+                $FilePath = Join-Path $TaxDir "$PovKey.json"
                 $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
-                foreach ($Node in $FileData.nodes) {
-                    if ($Node.id -ne $U.NodeId) { continue }
-                    foreach ($PA in $Node.graph_attributes.policy_actions) {
-                        if ($PA.action -eq $U.Action -and (-not $PA.PSObject.Properties['policy_id'] -or $null -eq $PA.policy_id)) {
-                            $PA | Add-Member -NotePropertyName 'policy_id' -NotePropertyValue $NewId -Force
-                            break
+                foreach ($Asg in $fileAssignments[$PovKey]) {
+                    foreach ($Node in $FileData.nodes) {
+                        if ($Node.id -ne $Asg.NodeId) { continue }
+                        foreach ($PA in $Node.graph_attributes.policy_actions) {
+                            if ($PA.action -eq $Asg.Action -and (-not $PA.PSObject.Properties['policy_id'] -or $null -eq $PA.policy_id)) {
+                                $PA | Add-Member -NotePropertyName 'policy_id' -NotePropertyValue $Asg.NewId -Force
+                                break
+                            }
                         }
                     }
                 }
-                $FileData | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $FilePath 
-                Write-Info "  Assigned $NewId to $($U.NodeId)`: $($U.Action.Substring(0, [Math]::Min(50, $U.Action.Length)))"
+                $FileData | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $FilePath
             }
         }
 
