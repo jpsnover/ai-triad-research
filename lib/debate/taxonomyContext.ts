@@ -125,6 +125,12 @@ export interface FormatContextConfig {
    * Computed engine-side before formatTaxonomyContext; absent = feature off.
    */
   syntheticPhraseOverrides?: Map<string, string>;
+  /**
+   * debate_grounding register text per node ID (t/3366, useDebateGrounding).
+   * When present for a node, replaces description as grounding text (priority below syntheticPhraseOverrides).
+   * Computed engine-side; absent = feature off.
+   */
+  debateGroundingOverrides?: Map<string, string>;
 }
 
 /** Generate per-node inline guidance lines from metadata.
@@ -309,7 +315,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       if (isPrimary) {
         const weightLabel = nodeWeightLabel(n, cat);
         lines.push(`${prefix}[${n.id}]${weightLabel}`);
-        lines.push(`  "${n.label}" — ${stripExcludes(cfg.syntheticPhraseOverrides?.get(n.id) ?? n.description)}`);
+        lines.push(`  "${n.label}" — ${stripExcludes(cfg.syntheticPhraseOverrides?.get(n.id) ?? cfg.debateGroundingOverrides?.get(n.id) ?? n.description)}`);
         const sv = n.graph_attributes?.steelman_vulnerability;
         if (sv) {
           const svText = typeof sv === 'string' ? sv : Object.values(sv).filter(Boolean).join(' | ');
