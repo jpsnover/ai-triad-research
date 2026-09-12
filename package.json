@@ -20,8 +20,5 @@
     "jszip": "^3.10.2",
     "onnxruntime-node": "^1.29.0",
     "zod": "^4.5.4"
-  },
-  "overrides": {
-    "adm-zip": ">=0.6.0"
   }
 }
