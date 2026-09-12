@@ -108,6 +108,15 @@ jobs:
               - 'ai-models.json'
               - '.github/workflows/ci.yml'
               - 'scripts/AITriad/Prompts/**'  # promptCatalog.lint validates this dir; must re-run when prompts change here (t/2915)
+              # root pnpm-lock.yaml — the license-notices staleness gate (t/2918) lives INSIDE
+              # this job and reads the @img/sharp-* set directly from the ROOT lockfile
+              # (generate-notices.cjs:224 → path.resolve('..','pnpm-lock.yaml')). A root-lock-only
+              # dep bump (e.g. sharp 0.35.3→0.35.4, #2145) shifts the notices content but matched
+              # NO electron path → test-electron skipped on the PR → the REQUIRED license gate
+              # false-greened (ci-gate treats a skipped gated job as satisfied; t/2094/t/2025
+              # soundness rule) → reds post-merge on main's unconditional run. Include the root
+              # lockfile so the gate fires pre-merge on any dep bump that can shift notices (t/3443).
+              - 'pnpm-lock.yaml'
             debate:
               - 'lib/debate/**'
               - 'evals/**'
