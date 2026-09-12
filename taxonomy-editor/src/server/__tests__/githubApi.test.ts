@@ -18,8 +18,16 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Agent } from 'undici';
-import { assertUndiciMajorInvariant } from '../storage/undiciInvariant.js';
+import { assertUndiciMajorInvariant, isUndiciMajorAlignedWithRuntime } from '../storage/undiciInvariant.js';
 import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/index';
+
+// t/3444: every describe below that constructs a GitHubAPIBackend/SessionBranchManager
+// is gated on this — on a local Node whose bundled undici major skews from the userland
+// pin, GitHubRestClient's constructor throws deterministically (assertUndiciMajorInvariant),
+// masking real local failures behind 75 always-red tests. CI's Dockerfile pins node:22.23.2
+// so these always run there. `sanitizeBranchName` and `assertUndiciMajorInvariant` below
+// test pure functions with no backend construction — they stay ungated.
+const UNDICI_ALIGNED = isUndiciMajorAlignedWithRuntime();
 
 // ── Mock setup ──────────────────────────────────────────────────────────
 
@@ -293,7 +301,7 @@ async function createSessionManager(backend?: Awaited<ReturnType<typeof createBa
 // INTEGRATION TESTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GitHubAPIBackend — integration', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — integration', () => {
   it('initializes and fetches the repo tree', async () => {
     const recorder = createTestRecorder();
     const backend = await createBackend(recorder);
@@ -562,7 +570,7 @@ describe('GitHubAPIBackend — integration', () => {
 // SESSION BRANCH MANAGER — INTEGRATION
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('SessionBranchManager — integration', () => {
+describe.skipIf(!UNDICI_ALIGNED)('SessionBranchManager — integration', () => {
   it('creates a session branch lazily on ensureBranch', async () => {
     // Mock branch not found initially, then found after creation
     const createdBranches = new Set<string>();
@@ -757,7 +765,7 @@ describe('SessionBranchManager — integration', () => {
 // MULTI-USER ISOLATION
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('SessionBranchManager — multi-user isolation', () => {
+describe.skipIf(!UNDICI_ALIGNED)('SessionBranchManager — multi-user isolation', () => {
   it('maintains separate branches for different users', async () => {
     const createdBranches = new Set<string>();
     apiHandlers.push((url, init) => {
@@ -870,7 +878,7 @@ describe('sanitizeBranchName', () => {
 // CHAOS TESTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GitHubAPIBackend — chaos: rate limit exhaustion', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — chaos: rate limit exhaustion', () => {
   it('retries on 429 with Retry-After header', async () => {
     let callCount = 0;
     apiHandlers.push((url, init) => {
@@ -911,7 +919,7 @@ describe('GitHubAPIBackend — chaos: rate limit exhaustion', () => {
   });
 });
 
-describe('GitHubAPIBackend — chaos: circuit breaker', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — chaos: circuit breaker', () => {
   it('opens after 5 consecutive failures and blocks requests', async () => {
     let failCount = 0;
     apiHandlers.push((url, init) => {
@@ -975,7 +983,7 @@ describe('GitHubAPIBackend — chaos: circuit breaker', () => {
   });
 });
 
-describe('GitHubAPIBackend — chaos: GitHub outage (5xx)', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — chaos: GitHub outage (5xx)', () => {
   it('retries on 500 with exponential backoff', async () => {
     let callCount = 0;
     apiHandlers.push((url, init) => {
@@ -1019,7 +1027,7 @@ describe('GitHubAPIBackend — chaos: GitHub outage (5xx)', () => {
   });
 });
 
-describe('GitHubAPIBackend — chaos: token expiry mid-batch', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — chaos: token expiry mid-batch', () => {
   it('refreshes credentials on 401 and retries', async () => {
     let attempt = 0;
     apiHandlers.push((url, init) => {
@@ -1083,7 +1091,7 @@ describe('GitHubAPIBackend — chaos: token expiry mid-batch', () => {
 // listDirectory's circuit guard is only reachable when repoTree is empty (normally
 // populated by initialize()), so it is a mechanical-only substitution not independently
 // characterized here — flagged, not forced (t/1698 escape hatch).
-describe('GitHubAPIBackend — circuit-open short-circuit per method (t/1698)', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — circuit-open short-circuit per method (t/1698)', () => {
   const openCircuit = async (backend: Awaited<ReturnType<typeof createBackend>>) => {
     apiHandlers.push((url, init) => {
       if (url.includes('/contents/') && init.method === 'GET') {
@@ -1133,7 +1141,7 @@ describe('GitHubAPIBackend — circuit-open short-circuit per method (t/1698)', 
   });
 });
 
-describe('GitHubAPIBackend — chaos: force push on main', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — chaos: force push on main', () => {
   it('triggers full cache invalidation on 404 compare', async () => {
     apiHandlers.push((url) => {
       // Compare returns 404 when cached SHA no longer in history
@@ -1176,7 +1184,7 @@ describe('GitHubAPIBackend — chaos: force push on main', () => {
   });
 });
 
-describe('GitHubAPIBackend — chaos: network errors', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — chaos: network errors', () => {
   it('retries and recovers from transient network errors', async () => {
     let callCount = 0;
     apiHandlers.push((url, init) => {
@@ -1203,7 +1211,7 @@ describe('GitHubAPIBackend — chaos: network errors', () => {
   });
 });
 
-describe('SessionBranchManager — chaos: multi-tab race', () => {
+describe.skipIf(!UNDICI_ALIGNED)('SessionBranchManager — chaos: multi-tab race', () => {
   it('serializes concurrent commits from same user via mutex', async () => {
     const { manager, backend } = await createSessionManager();
     backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
@@ -1257,7 +1265,7 @@ describe('SessionBranchManager — chaos: multi-tab race', () => {
   });
 });
 
-describe('GitHubAPIBackend — chaos: missing credentials', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — chaos: missing credentials', () => {
   it('initializes in fallback mode with no credentials', async () => {
     const { getCredentials } = await import('../security/githubAppAuth');
     (getCredentials as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
@@ -1304,7 +1312,7 @@ describe('GitHubAPIBackend — chaos: missing credentials', () => {
 // CACHE BEHAVIOR
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GitHubAPIBackend — cache behavior', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — cache behavior', () => {
   it('serves from session overlay on cache hit', async () => {
     const recorder = createTestRecorder();
     const backend = await createBackend(recorder);
@@ -1354,7 +1362,7 @@ describe('GitHubAPIBackend — cache behavior', () => {
 // listDirectory OVERLAY MERGE (t/681 — admin review queue fix)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GitHubAPIBackend — listDirectory overlay merge (t/681)', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — listDirectory overlay merge (t/681)', () => {
   it('includes files written to the session overlay but not yet committed', async () => {
     // Repro of the admin-review bug: submissions written to the overlay were
     // invisible to listDirectory() until the overlay was flushed on commit.
@@ -1451,7 +1459,7 @@ describe('GitHubAPIBackend — listDirectory overlay merge (t/681)', () => {
 // DIAGNOSTIC ACCESSORS
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GitHubAPIBackend — diagnostic accessors', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — diagnostic accessors', () => {
   it('exposes rate limit info', async () => {
     const backend = await createBackend();
 
@@ -1520,7 +1528,7 @@ describe('GitHubAPIBackend — diagnostic accessors', () => {
 // MANIFEST MUTEX (t/479 — RMW race fix)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GitHubAPIBackend — manifest mutex', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — manifest mutex', () => {
   it('concurrent readFile cache misses preserve all manifest entries', async () => {
     // Simulate the Phase 2 loadAll() pattern: 3 concurrent readFile() calls
     // that all miss cache, each fetching from GitHub and writing to manifest.
@@ -1627,7 +1635,7 @@ describe('GitHubAPIBackend — manifest mutex', () => {
 // SESSION OVERLAY MEMORY CAP (t/727)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GitHubAPIBackend — session overlay memory cap (t/727)', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — session overlay memory cap (t/727)', () => {
   async function cappedBackend(capBytes: number) {
     const { GitHubAPIBackend } = await import('../storage/githubAPIBackend');
     const b = new GitHubAPIBackend({
@@ -1681,7 +1689,7 @@ describe('GitHubAPIBackend — session overlay memory cap (t/727)', () => {
 // OPTIONAL 404 LOG LEVEL (t/1339)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GitHubAPIBackend — optional 404 log level', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — optional 404 log level', () => {
   it('logs non-optional 404 at error level with github.api.error type', async () => {
     apiHandlers.push((url, init) => {
       if ((init?.method ?? 'GET') === 'GET' && url.includes('/contents/')) {
@@ -1738,7 +1746,7 @@ describe('GitHubAPIBackend — optional 404 log level', () => {
 // t/2053 regression: undici dispatcher ownership + data-load status
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GitHubAPIBackend — undici dispatcher (t/2053)', () => {
+describe.skipIf(!UNDICI_ALIGNED)('GitHubAPIBackend — undici dispatcher (t/2053)', () => {
   it('passes explicit dispatcher on every fetch call', async () => {
     await createBackend();
 
@@ -1790,7 +1798,7 @@ describe('GitHubAPIBackend — undici dispatcher (t/2053)', () => {
 // mount must not 404 all github-api reads.
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('toRepoPath strips getDataRoot() not cacheDir (t/2670)', () => {
+describe.skipIf(!UNDICI_ALIGNED)('toRepoPath strips getDataRoot() not cacheDir (t/2670)', () => {
   // Simulate a staging deployment where TAXONOMY_CACHE_DIR != AI_TRIAD_DATA_ROOT.
   // cacheDir comes from createBackend() = '/var/cache/taxonomy-test'.
   // getDataRoot() reads AI_TRIAD_DATA_ROOT; stub it to a distinct value.

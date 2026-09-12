@@ -155,8 +155,12 @@ vi.mock('../security/githubAppAuth.js', () => ({
 
 import fsp from 'fs/promises';
 import { GitHubAPIBackend } from '../storage/githubAPIBackend.js';
+import { isUndiciMajorAlignedWithRuntime } from '../storage/undiciInvariant.js';
 
-describe('GitHubAPIBackend temp file names (t/2020: js/insecure-temporary-file)', () => {
+// t/3444: constructing GitHubAPIBackend throws via assertUndiciMajorInvariant when the
+// local Node's bundled undici major skews from the userland pin — gate so this doesn't
+// mask real local failures on non-Node-22 dev machines. CI (node:22.23.2) always runs it.
+describe.skipIf(!isUndiciMajorAlignedWithRuntime())('GitHubAPIBackend temp file names (t/2020: js/insecure-temporary-file)', () => {
   let backend: GitHubAPIBackend;
 
   beforeEach(() => {
