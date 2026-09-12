@@ -202,13 +202,17 @@ function Invoke-FolClauseClassifier {
             Write-Warning "fol-clause-classify: backend returned no Text for $(@($Clauses).Count) clause(s) — check the model/key for usage 'enrichment.fol-clause-classify'."
             return $null
         }
-        $parsed = $resp.Text | ConvertFrom-Json -ErrorAction Stop
-        if (-not $parsed.PSObject.Properties['results']) {
-            Write-Warning 'fol-clause-classify: backend Text was not the expected { results: [...] } JSON.'
+        # Tolerant extraction (t/3354#29): gemini-flash-lite returned valid-but-unwrapped JSON (bare array /
+        # alt key / fenced) that the old strict `.results` parse rejected, starving the eval. Accept any of
+        # those shapes; on genuine failure log a raw snippet so the next contract drift is diagnosable.
+        $results = ConvertFrom-FolResultsJson -Text $resp.Text
+        if ($null -eq $results) {
+            $snip = [string]$resp.Text; if ($snip.Length -gt 200) { $snip = $snip.Substring(0, 200) }
+            Write-Warning "fol-clause-classify: could not extract a results[] array from backend Text (first 200 chars): $snip"
             return $null
         }
         $map = @{}
-        foreach ($r in @($parsed.results)) {
+        foreach ($r in @($results)) {
             # Positive guard only (no `continue` inside a function — Pester #2669 escapes to the caller's loop).
             if ($r.PSObject.Properties['id'] -and $r.PSObject.Properties['primary_type']) {
                 $pt = [string]$r.primary_type
