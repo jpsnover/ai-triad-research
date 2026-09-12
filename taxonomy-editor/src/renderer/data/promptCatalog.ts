@@ -607,8 +607,8 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     psParameters: [
       { name: '-Model', type: 'string', default: 'gemini-3.5-flash', description: 'AI model for generation' },
       { name: '-Concurrency', type: 'number', default: '10', description: 'Parallel AI calls' },
-      { name: '-Force', type: 'switch', description: 'Regenerate even nodes that already have debate_grounding' },
-      { name: '-Id', type: 'string[]', description: 'Process only the specified node ID(s)' },
+      { name: '-Force', type: 'switch', default: 'false', description: 'Regenerate even nodes that already have debate_grounding' },
+      { name: '-Id', type: 'string[]', default: '(all POV nodes)', description: 'Process only the specified node ID(s)' },
     ],
   },
   {
