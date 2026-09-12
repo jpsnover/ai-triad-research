@@ -142,132 +142,132 @@
     },
     {
       "name": "@img/sharp-darwin-arm64",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-darwin-x64",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-freebsd-wasm32",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-libvips-darwin-arm64",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "LGPL-3.0-or-later"
     },
     {
       "name": "@img/sharp-libvips-darwin-x64",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "LGPL-3.0-or-later"
     },
     {
       "name": "@img/sharp-libvips-linux-arm",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "LGPL-3.0-or-later"
     },
     {
       "name": "@img/sharp-libvips-linux-arm64",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "LGPL-3.0-or-later"
     },
     {
       "name": "@img/sharp-libvips-linux-ppc64",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "LGPL-3.0-or-later"
     },
     {
       "name": "@img/sharp-libvips-linux-riscv64",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "LGPL-3.0-or-later"
     },
     {
       "name": "@img/sharp-libvips-linux-s390x",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "LGPL-3.0-or-later"
     },
     {
       "name": "@img/sharp-libvips-linux-x64",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "LGPL-3.0-or-later"
     },
     {
       "name": "@img/sharp-libvips-linuxmusl-arm64",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "LGPL-3.0-or-later"
     },
     {
       "name": "@img/sharp-libvips-linuxmusl-x64",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "license": "LGPL-3.0-or-later"
     },
     {
       "name": "@img/sharp-linux-arm",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-linux-arm64",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-linux-ppc64",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-linux-riscv64",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-linux-s390x",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-linux-x64",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-linuxmusl-arm64",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-linuxmusl-x64",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-wasm32",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-webcontainers-wasm32",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-win32-arm64",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-win32-ia32",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
       "name": "@img/sharp-win32-x64",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
@@ -1412,7 +1412,7 @@
     },
     {
       "name": "sharp",
-      "version": "0.35.3",
+      "version": "0.35.4",
       "license": "Apache-2.0"
     },
     {
@@ -1792,67 +1792,67 @@
         },
         {
           "name": "@img/sharp-darwin-arm64",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-darwin-x64",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-freebsd-wasm32",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-linux-arm",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-linux-arm64",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-linux-ppc64",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-linux-riscv64",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-linux-s390x",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-linux-x64",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-linuxmusl-arm64",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-linuxmusl-x64",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-wasm32",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-webcontainers-wasm32",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-win32-arm64",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-win32-ia32",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "@img/sharp-win32-x64",
-          "version": "0.35.3"
+          "version": "0.35.4"
         },
         {
           "name": "flatbuffers",
@@ -1880,43 +1880,43 @@
       "packages": [
         {
           "name": "@img/sharp-libvips-darwin-arm64",
-          "version": "1.3.2"
+          "version": "1.3.3"
         },
         {
           "name": "@img/sharp-libvips-darwin-x64",
-          "version": "1.3.2"
+          "version": "1.3.3"
         },
         {
           "name": "@img/sharp-libvips-linux-arm",
-          "version": "1.3.2"
+          "version": "1.3.3"
         },
         {
           "name": "@img/sharp-libvips-linux-arm64",
-          "version": "1.3.2"
+          "version": "1.3.3"
         },
         {
           "name": "@img/sharp-libvips-linux-ppc64",
-          "version": "1.3.2"
+          "version": "1.3.3"
         },
         {
           "name": "@img/sharp-libvips-linux-riscv64",
-          "version": "1.3.2"
+          "version": "1.3.3"
         },
         {
           "name": "@img/sharp-libvips-linux-s390x",
-          "version": "1.3.2"
+          "version": "1.3.3"
         },
         {
           "name": "@img/sharp-libvips-linux-x64",
-          "version": "1.3.2"
+          "version": "1.3.3"
         },
         {
           "name": "@img/sharp-libvips-linuxmusl-arm64",
-          "version": "1.3.2"
+          "version": "1.3.3"
         },
         {
           "name": "@img/sharp-libvips-linuxmusl-x64",
-          "version": "1.3.2"
+          "version": "1.3.3"
         }
       ],
       "licenseType": "LGPL-3.0-or-later",
@@ -3474,7 +3474,7 @@
       "packages": [
         {
           "name": "sharp",
-          "version": "0.35.3"
+          "version": "0.35.4"
         }
       ],
       "licenseType": "Apache-2.0",
