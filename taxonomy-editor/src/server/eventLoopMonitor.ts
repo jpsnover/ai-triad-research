@@ -13,7 +13,11 @@
 // per-request cycle would corrupt both readings. Same cheap libuv primitive, distinct
 // lifecycle → distinct histogram.
 
-import { monitorEventLoopDelay, performance, type IntervalHistogram, type EventLoopUtilization } from 'perf_hooks';
+import { monitorEventLoopDelay, performance, type EventLoopUtilization } from 'perf_hooks';
+
+// @types/node dropped the named IntervalHistogram export; derive it from the API so the
+// type survives future typings bumps (Dependabot group, PR #2137).
+type IntervalHistogram = ReturnType<typeof monitorEventLoopDelay>;
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { log } from './logger.js';
 
