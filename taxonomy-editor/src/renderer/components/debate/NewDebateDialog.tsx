@@ -24,7 +24,7 @@ import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { buildDebateOptions } from './newDebateOptions';
 
-const DEBATE_EXCLUDED_BACKENDS = new Set(['ollama']);
+const DEBATE_EXCLUDED_BACKENDS = new Set(['ollama']); // can't reliably produce structured JSON for debates — capability gap, not an oversight
 
 export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative';
 
@@ -1426,7 +1426,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
                   className="btn btn-primary ndd-start-btn"
                   onClick={handleStart}
                   disabled={!canStart || creating}
-                  title={!hasSource ? 'Enter a topic to start' : !activeModelHasKey ? 'No API key configured' : undefined}
+                  title={!hasSource ? 'Enter a topic to start' : activeModelExcluded ? 'This model is not supported for debates' : !activeModelHasKey ? 'No API key configured' : undefined}
                 >
                   {creating ? 'Starting…' : 'Start debate'}
                 </button>
@@ -1456,7 +1456,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
               </div>
             </div>
           </div>
-          {!canStart && !creating && hasSource && selected.size >= 1 && (multiProvider ? <p className="ndd-start-hint" role="status">Select at least 2 active backends with an API key for multi-provider mode.</p> : <p className="ndd-start-hint" role="status">No API key for this model — <button type="button" className="ndd-start-hint-link" onClick={() => useSettingsDialog.getState().open('apiKeys')}>add one in Settings</button></p>)}
+          {!canStart && !creating && hasSource && selected.size >= 1 && (multiProvider ? <p className="ndd-start-hint" role="status">Select at least 2 active backends with an API key for multi-provider mode.</p> : activeModelExcluded ? <p className="ndd-start-hint" role="status">This model is not supported for debates — pick a different model.</p> : <p className="ndd-start-hint" role="status">No API key for this model — <button type="button" className="ndd-start-hint-link" onClick={() => useSettingsDialog.getState().open('apiKeys')}>add one in Settings</button></p>)}
         </div>
       </div>
 
