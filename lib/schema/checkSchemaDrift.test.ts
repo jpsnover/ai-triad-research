@@ -69,6 +69,21 @@ describe('checkSchemaDrift — FIRE arm (each Finding type triggers)', () => {
     const f = checkSchemaDrift(recWithDeprecatedEdge, { source: 'corpus', kind: 'corpus', edgeTypes: ['SUPPORTS', 'llm_proposed_old'] });
     expect(f.some((x) => x.type === 'deprecated_in_use' && x.field === 'edges' && x.value === 'llm_proposed_old')).toBe(true);
   });
+
+  it('deprecated_in_use: a status:removed TOMBSTONE field re-appearing in the corpus fires (t/3463)', () => {
+    // synthetic_phrases is a status:'removed' tombstone (t/3433) — retired from the corpus. If it
+    // re-appears, that is the drift the tombstone exists to catch.
+    const f = checkSchemaDrift(RECORD, { source: 'corpus', kind: 'corpus', attributes: { synthetic_phrases: { type: 'array' } } });
+    const hit = f.find((x) => x.type === 'deprecated_in_use' && x.field === 'graph_attributes.synthetic_phrases');
+    expect(hit).toBeDefined();
+    expect(hit!.detail).toContain('status:removed');
+  });
+
+  it('a status:removed tombstone ABSENT from the corpus does NOT fire (no false positive)', () => {
+    // The normal post-retirement state: synthetic_phrases not present in the corpus extraction.
+    const f = checkSchemaDrift(RECORD, { source: 'corpus', kind: 'corpus', attributes: { epistemic_type: { values: ['empirical_claim'] } } });
+    expect(f.some((x) => x.field === 'graph_attributes.synthetic_phrases')).toBe(false);
+  });
 });
 
 describe('checkSchemaDrift — CLEAN arm (record ⇄ matching extraction = zero findings)', () => {
