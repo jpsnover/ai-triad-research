@@ -412,11 +412,6 @@
     },
     {
       "name": "adm-zip",
-      "version": "0.5.18",
-      "license": "MIT"
-    },
-    {
-      "name": "adm-zip",
       "version": "0.6.0",
       "license": "MIT"
     },
@@ -2121,10 +2116,6 @@
     },
     {
       "packages": [
-        {
-          "name": "adm-zip",
-          "version": "0.5.18"
-        },
         {
           "name": "adm-zip",
           "version": "0.6.0"
