@@ -72,6 +72,27 @@ Response time starts when the vulnerability is reported (Dependabot alert, `npm 
 3. **Critical/High**: Tech Lead creates a ticket immediately, assigns to owning agent, sets due date per SLA
 4. **Medium/Low**: Batch into maintenance tickets, address in the next cycle
 
+### Executing a Dependency Security Bump (mechanics)
+
+Hard-won from t/3440, t/3442, and t/3443. For a **transitive** npm dependency (the common case for Dependabot alerts):
+
+**Overrides live in `pnpm-workspace.yaml` `overrides:`.** That block is the single source of truth for BOTH the root `pnpm-lock.yaml` and the standalone `taxonomy-editor/pnpm-lock.yaml` (which `scripts/sync-standalone-lockfile.mjs` regenerates from it). A member `package.json`'s own `overrides` block is **INERT**; pnpm ignores it here, so removing it does nothing (this misled the adm-zip triage twice). `pnpm update <pkg>` bumps only the direct edge and leaves transitive consumers on the vulnerable copy, so **force every instance with an override**.
+
+**Do it in ONE atomic PR.** The pieces are coupled by CI gates and cannot be split across PRs:
+1. Edit `pnpm-workspace.yaml` `overrides:`. Add or raise the floor, **capped to the patched line** (`">=X <next-minor-or-major"`) so root and standalone resolve the SAME version. (A bare `>=` once let the standalone and prod resolve a different version than CI verified; t/3283.)
+2. `pnpm install --lockfile-only` regenerates the root lockfile.
+3. `node scripts/sync-standalone-lockfile.mjs` regenerates the standalone lockfile. `lockfile-overrides-check` reds if it drifts from `pnpm-workspace.yaml`.
+4. `cd taxonomy-editor && npm run licenses` regenerates the SBOM. Any version change shifts `THIRD-PARTY-NOTICES.txt` and `oss-licenses.json`, and the t/2918 staleness gate reds `main` otherwise (t/3443).
+5. Verify that the vulnerable-version grep is **empty on BOTH lockfiles** and `node .github/scripts/check-lockfile-overrides.mjs` is green.
+
+**Before REMOVING an override, audit what it suppresses.** A `>=X` pin is frequently the active fix for a `<X` advisory, so removing it reopens the alert. Check `gh api .../dependabot/alerts` for what closes and reopens first. Keep security-relevant overrides, each with a **co-located comment** stating exactly what it closes and does not. As an example, adm-zip `>=0.6.0` closes the `<0.6.0` HIGH 4GB-alloc DoS, while the `<=0.6.0` symlink-follow MEDIUM has no patch and is accepted non-reachable (t/3442). Removing the pin reopened the HIGH.
+
+**Overrides-block comments must be colon-space-free.** `check-lockfile-overrides.mjs` is a line parser, so any indented comment line containing a `word: word` (colon-then-space) is mis-read as an override entry and reds CI (t/3440; parser hardening tracked in t/3445). Use a semicolon or the word "then" instead of a `: ` in those comments.
+
+**No patched version exists?** Then accept-with-rationale. Trace `pnpm why <pkg>`; if the vulnerable code path is unreachable (build-time-only, extracts our own artifacts, zero first-party/runtime use), route the dismissal to **Main TL** (security-surface gate, see Dismissal Rules above), then dismiss as `not_used` with explicit **re-open triggers** (a patched version ships, so bump instead; or the package gains a first-party or runtime consumer, so re-triage). Mind the 280-char `dismissed_comment` cap; the full chain, grep, and threat-model go on the ticket (t/2547 / t/2866 / t/3442).
+
+**Acceptance is "verified on origin/main," not "PR merged".** Confirm the lockfile grep is clean AND the alerts actually close or dismiss.
+
 ## Code Scanning Alert Triage
 
 GitHub's Security → Code scanning tab holds two unrelated queues under one number. Triage them separately; the combined total is not a meaningful metric.
