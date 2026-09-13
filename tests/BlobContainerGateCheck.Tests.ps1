@@ -5,32 +5,40 @@
 
 <#
 .SYNOPSIS
-    Covers Invoke-BlobContainerGateCheck — t/2718 error-class discrimination.
+    Covers Invoke-BlobContainerGateCheck — t/2718 error-class discrimination
+    + t/3461 flakiness hardening (bounded retry / fail-fast on definitive RBAC).
 .DESCRIPTION
     az storage container show exits non-zero for both ContainerNotFound (404)
     and RBAC failures (AuthorizationPermissionMismatch / AuthenticationFailed, 403).
-    The gate must emit distinct ::error:: messages so on-call can distinguish a
-    missing container from an auth regression. Critically, EVERY non-zero az exit
-    must still throw and block the deploy — categorization is diagnostic-only.
 
-    Tests shadow `az` as a PowerShell function to inject captured stderr fixtures.
-    The final test proves the unknown/unmatched case still throws (TL requirement,
-    e/105#9, t/2718).
+    t/2718 must-hold: EVERY unresolved non-zero az exit must throw and block —
+    categorization is diagnostic-only.
+
+    t/3461: `--auth-mode login` MASKS a transient 403/throttle as ContainerNotFound,
+    so ambiguous/transient-class errors are RETRIED (a blip self-heals; a real
+    missing container stays missing and still blocks), while a definitive
+    AuthorizationPermissionMismatch fails FAST (no retry).
+
+    Tests shadow `az` as a PowerShell function to inject captured stderr fixtures
+    and, for retry cases, to vary the result across attempts via a call counter.
+    All 8 containers are always passed (the count guard requires exactly 8);
+    -RetryDelaySeconds 0 so Pester never actually sleeps. az-call counting keys
+    off the total: with 8 containers, no-retry = 8 calls, full-retry = 8*MaxAttempts.
 #>
 
-Describe 'Invoke-BlobContainerGateCheck — error-class discrimination (t/2718)' {
+Describe 'Invoke-BlobContainerGateCheck — discrimination + retry (t/2718, t/3461)' {
 
     BeforeAll {
         $script:GateScript = "$PSScriptRoot/../operations/devops/Invoke-BlobContainerGateCheck.ps1"
         $script:AllContainers = @('analytics', 'staging-analytics', 'user-content', 'staging-user-content', 'community', 'staging-community', 'brief-exports', 'staging-brief-exports')
 
-        function script:Invoke-Gate ([string]$StorageAccount, [string[]]$Containers = $script:AllContainers) {
-            & $script:GateScript -StorageAccount $StorageAccount -Containers $Containers
+        function script:Invoke-Gate ([string]$StorageAccount, [string[]]$Containers = $script:AllContainers, [int]$MaxAttempts = 3) {
+            & $script:GateScript -StorageAccount $StorageAccount -Containers $Containers -MaxAttempts $MaxAttempts -RetryDelaySeconds 0
         }
 
         # Captures Write-Host (stream 6) output even when gate throws
-        function script:Capture-GateOutput ([string]$StorageAccount, [string[]]$Containers = $script:AllContainers) {
-            & { try { & $script:GateScript -StorageAccount $StorageAccount -Containers $Containers } catch {} } 6>&1 | Out-String
+        function script:Capture-GateOutput ([string]$StorageAccount, [string[]]$Containers = $script:AllContainers, [int]$MaxAttempts = 3) {
+            & { try { & $script:GateScript -StorageAccount $StorageAccount -Containers $Containers -MaxAttempts $MaxAttempts -RetryDelaySeconds 0 } catch {} } 6>&1 | Out-String
         }
     }
 
@@ -53,7 +61,7 @@ Describe 'Invoke-BlobContainerGateCheck — error-class discrimination (t/2718)'
         }
     }
 
-    Context 'ContainerNotFound (404 — container absent)' {
+    Context 'ContainerNotFound — persistent (real missing OR unresolved masked-403) still blocks' {
         BeforeEach {
             function global:az {
                 param([Parameter(ValueFromRemainingArguments)][object[]]$azArgs)
@@ -63,20 +71,52 @@ Describe 'Invoke-BlobContainerGateCheck — error-class discrimination (t/2718)'
         }
         AfterEach { Remove-Item Function:global:az -ErrorAction SilentlyContinue }
 
-        It 'throws and blocks the deploy' {
+        It 'throws and blocks the deploy after retries are exhausted' {
             { script:Invoke-Gate -StorageAccount 'sa' } | Should -Throw -ExpectedMessage '*check FAILED*'
         }
 
-        It 'emits ::error:: message mentioning "does not exist"' {
+        It 'final error names the MASKED 403 possibility (does not assert deletion)' {
             $output = script:Capture-GateOutput -StorageAccount 'sa'
-            $output | Should -Match '::error::.*does not exist'
+            $output | Should -Match '::error::.*MASKED 403'
         }
     }
 
-    Context 'AuthorizationPermissionMismatch (403 — RBAC missing)' {
+    Context 'ContainerNotFound — transient (clears on retry) → gate passes (t/3461 core)' {
         BeforeEach {
+            # Fail the first two az calls (globally) with ContainerNotFound, then
+            # succeed for every subsequent call. The first container therefore
+            # takes 3 attempts (fail,fail,ok); the remaining 7 succeed first try.
+            $global:azCalls = 0
             function global:az {
                 param([Parameter(ValueFromRemainingArguments)][object[]]$azArgs)
+                $global:azCalls++
+                if ($global:azCalls -lt 3) {
+                    Write-Error 'ERROR: (ContainerNotFound) The specified container does not exist.' -ErrorAction Continue
+                    $global:LASTEXITCODE = 1
+                } else {
+                    $global:LASTEXITCODE = 0
+                }
+            }
+        }
+        AfterEach { Remove-Item Function:global:az -ErrorAction SilentlyContinue }
+
+        It 'does NOT throw — a masked/transient blip self-heals within MaxAttempts' {
+            { script:Invoke-Gate -StorageAccount 'sa' } | Should -Not -Throw
+        }
+
+        It 'retried the failing container (total az calls exceed the 8 containers)' {
+            $global:azCalls = 0
+            script:Invoke-Gate -StorageAccount 'sa' 6>$null
+            $global:azCalls | Should -BeGreaterThan 8   # 8 would mean zero retries
+        }
+    }
+
+    Context 'AuthorizationPermissionMismatch (403 — definitive RBAC) fails FAST, no retry (t/3461)' {
+        BeforeEach {
+            $global:azCalls = 0
+            function global:az {
+                param([Parameter(ValueFromRemainingArguments)][object[]]$azArgs)
+                $global:azCalls++
                 Write-Error 'ERROR: (AuthorizationPermissionMismatch) This request is not authorized to perform this operation using this permission.' -ErrorAction Continue
                 $global:LASTEXITCODE = 1
             }
@@ -87,13 +127,19 @@ Describe 'Invoke-BlobContainerGateCheck — error-class discrimination (t/2718)'
             { script:Invoke-Gate -StorageAccount 'sa' } | Should -Throw
         }
 
-        It 'emits ::error:: message mentioning RBAC' {
+        It 'emits ::error:: identifying an RBAC denial' {
             $output = script:Capture-GateOutput -StorageAccount 'sa'
-            $output | Should -Match '::error::.*RBAC'
+            $output | Should -Match '::error::.*RBAC DENIED'
+        }
+
+        It 'fail-fast: exactly one az call per container, no retries (8 total, not 24)' {
+            $global:azCalls = 0
+            $null = script:Capture-GateOutput -StorageAccount 'sa'
+            $global:azCalls | Should -Be 8
         }
     }
 
-    Context 'AuthenticationFailed (403 — auth failure)' {
+    Context 'AuthenticationFailed (transient-class) — retried then blocks if unresolved' {
         BeforeEach {
             function global:az {
                 param([Parameter(ValueFromRemainingArguments)][object[]]$azArgs)
@@ -103,13 +149,13 @@ Describe 'Invoke-BlobContainerGateCheck — error-class discrimination (t/2718)'
         }
         AfterEach { Remove-Item Function:global:az -ErrorAction SilentlyContinue }
 
-        It 'throws and blocks the deploy' {
+        It 'throws and blocks the deploy after retries' {
             { script:Invoke-Gate -StorageAccount 'sa' } | Should -Throw
         }
 
-        It 'emits ::error:: message mentioning RBAC (AuthenticationFailed maps to rbac class)' {
+        It 'final error is classed transient (not asserted as deletion)' {
             $output = script:Capture-GateOutput -StorageAccount 'sa'
-            $output | Should -Match '::error::.*RBAC'
+            $output | Should -Match '::error::.*transient-class'
         }
     }
 
