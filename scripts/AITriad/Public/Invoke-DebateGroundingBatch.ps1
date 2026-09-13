@@ -15,6 +15,15 @@
     (Save-JsonNodeFieldEdits with an Upsert Path edit — one write per file, sweep-proof, creates the
     graph_attributes container if absent). Mirrors Invoke-VernacularBatch.
 
+    CHECKPOINTING (t/3457): generation + write proceed in batches of -CheckpointEvery nodes. After each
+    batch the completed nodes are flushed to disk immediately (one surgical write per file the batch
+    touched), so a mid-run kill loses at most one in-flight batch instead of the entire run. Because
+    Save-JsonNodeFieldEdits re-reads each file FRESH before splicing, repeated per-batch writes to the same
+    file accumulate correctly. A re-run resumes cheaply: already-flushed nodes are skip-if-present (the
+    -Force gate reads existing debate_grounding), so only the unfinished tail is regenerated. Each checkpoint
+    emits a Write-Host line (surviving stdout capture) reporting cumulative written-count — the earlier
+    end-of-run-only write left a killed run with no summary and no partial progress (t/3366 incident).
+
     This populates the field; the ~900-node corpus write is OWNER-executed under /data-mutation after a
     CL output spot-check (CL owns the prompt + quality bar).
 .PARAMETER TaxonomyPath
@@ -25,6 +34,9 @@
     reasoning-trace fragments (t/3438#6). flash-lite emits the full statement.
 .PARAMETER Concurrency
     Parallel AI calls. Default: 10.
+.PARAMETER CheckpointEvery
+    Flush generated statements to disk after every N nodes (default: 50). Bounds the work lost to a mid-run
+    kill to at most one batch. Smaller = more durable but more writes; larger = fewer writes but more at risk.
 .PARAMETER Force
     Regenerate even nodes that already have a debate_grounding.
 .PARAMETER Id
@@ -49,6 +61,7 @@ function Invoke-DebateGroundingBatch {
         [Parameter()][string]$TaxonomyPath,
         [Parameter()][string]$Model = 'gemini-3.5-flash-lite',
         [Parameter()][ValidateRange(1, 50)][int]$Concurrency = 10,
+        [Parameter()][ValidateRange(1, [int]::MaxValue)][int]$CheckpointEvery = 50,
         [switch]$Force,
         [Parameter()]
         [Alias('NodeId')]
@@ -133,8 +146,6 @@ function Invoke-DebateGroundingBatch {
 
     $Generated = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
     $Failed    = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
-    # FilePath -> (NodeId -> grounding text)
-    $Results   = [System.Collections.Concurrent.ConcurrentDictionary[string, System.Collections.Concurrent.ConcurrentDictionary[string, string]]]::new()
 
     $ModulePath = Join-Path $script:ModuleRoot 'AITriad.psm1'
     $EnrichPath = Join-Path $script:ModuleRoot '..' 'AIEnrich.psm1'
@@ -143,62 +154,80 @@ function Invoke-DebateGroundingBatch {
     $Completed  = [ref]0
     Write-Progress -Id $ProgressId -Activity 'Generating debate_grounding' -Status "0 / $Total" -PercentComplete 0
 
-    $NodesToProcess | ForEach-Object -Parallel {
-        Import-Module $using:ModulePath -Force -WarningAction SilentlyContinue
-        Import-Module $using:EnrichPath -Force -WarningAction SilentlyContinue
-        $Item = $_
-        $GenBag = $using:Generated; $FailBag = $using:Failed; $ResultsDict = $using:Results
-        $CompRef = $using:Completed; $TotalCount = $using:Total; $ProgId = $using:ProgressId
+    # Generate + flush in checkpoint-sized batches so a mid-run kill loses at most one batch, not the whole
+    # run (t/3366 incident / t/3457). Each batch generates in parallel then writes its completed nodes to
+    # disk immediately; Save-JsonNodeFieldEdits re-reads each file FRESH, so per-batch writes to the same file
+    # across batches accumulate. Generated/Failed bags and the progress counter stay cumulative across batches.
+    $WrittenTotal = 0
+    for ($BatchStart = 0; $BatchStart -lt $Total; $BatchStart += $CheckpointEvery) {
+        $BatchEnd = [math]::Min($BatchStart + $CheckpointEvery, $Total) - 1
+        $Batch = @($NodesToProcess[$BatchStart..$BatchEnd])
 
-        try {
-            # MaxTokens 512: flash-lite's longest 9-node sample output was ~401 chars (~100 tokens); 512 is
-            # safe headroom. The old 256 truncated even clean output (t/3438#6).
-            $AIResult = Invoke-AIApi -Prompt $Item.Prompt -Model $using:Model -Temperature 0.3 -MaxTokens 512
-            if ($null -ne $AIResult -and -not [string]::IsNullOrWhiteSpace($AIResult.Text)) {
-                $Text = $AIResult.Text.Trim()
-                $FileDict = $ResultsDict.GetOrAdd($Item.FilePath, [System.Collections.Concurrent.ConcurrentDictionary[string, string]]::new())
-                [void]$FileDict.TryAdd($Item.NodeId, $Text)
-                [void]$GenBag.Add($Item.NodeId)
+        # Per-batch results: FilePath -> (NodeId -> grounding text). Fresh each batch; $using binds this dict.
+        $Results = [System.Collections.Concurrent.ConcurrentDictionary[string, System.Collections.Concurrent.ConcurrentDictionary[string, string]]]::new()
+
+        $Batch | ForEach-Object -Parallel {
+            Import-Module $using:ModulePath -Force -WarningAction SilentlyContinue
+            Import-Module $using:EnrichPath -Force -WarningAction SilentlyContinue
+            $Item = $_
+            $GenBag = $using:Generated; $FailBag = $using:Failed; $ResultsDict = $using:Results
+            $CompRef = $using:Completed; $TotalCount = $using:Total; $ProgId = $using:ProgressId
+
+            try {
+                # MaxTokens 512: flash-lite's longest 9-node sample output was ~401 chars (~100 tokens); 512 is
+                # safe headroom. The old 256 truncated even clean output (t/3438#6).
+                $AIResult = Invoke-AIApi -Prompt $Item.Prompt -Model $using:Model -Temperature 0.3 -MaxTokens 512
+                if ($null -ne $AIResult -and -not [string]::IsNullOrWhiteSpace($AIResult.Text)) {
+                    $Text = $AIResult.Text.Trim()
+                    $FileDict = $ResultsDict.GetOrAdd($Item.FilePath, [System.Collections.Concurrent.ConcurrentDictionary[string, string]]::new())
+                    [void]$FileDict.TryAdd($Item.NodeId, $Text)
+                    [void]$GenBag.Add($Item.NodeId)
+                }
+                else {
+                    Write-Warning "$($Item.NodeId): AI returned empty response"
+                    [void]$FailBag.Add($Item.NodeId)
+                }
             }
-            else {
-                Write-Warning "$($Item.NodeId): AI returned empty response"
+            catch {
+                Write-Warning "$($Item.NodeId): $($_.Exception.Message)"
                 [void]$FailBag.Add($Item.NodeId)
             }
-        }
-        catch {
-            Write-Warning "$($Item.NodeId): $($_.Exception.Message)"
-            [void]$FailBag.Add($Item.NodeId)
+
+            $Done = [System.Threading.Interlocked]::Increment($CompRef)
+            $Pct = [math]::Min(100, [math]::Round(($Done / $TotalCount) * 100))
+            Write-Progress -Id $ProgId -Activity 'Generating debate_grounding' -Status "$Done / $TotalCount" -PercentComplete $Pct
+        } -ThrottleLimit $Concurrency
+
+        # ── Flush this batch: ONE Save-JsonNodeFieldEdits per file touched, upsert
+        # graph_attributes.debate_grounding. Nested + create-if-absent via the Path/Upsert edit (t/3438);
+        # sweep-proof, re-parse-verified. Save re-reads FRESH so writes across batches accumulate.
+        foreach ($FilePath in $Results.Keys) {
+            $FileResults = $Results[$FilePath]
+            if ($FileResults.Count -eq 0) { continue }
+            $Edits = [System.Collections.Generic.List[hashtable]]::new()
+            foreach ($NodeId in $FileResults.Keys) {
+                $Edits.Add(@{ NodeId = $NodeId; Path = @('graph_attributes', 'debate_grounding'); Value = $FileResults[$NodeId]; Upsert = $true })
+            }
+            # Batch already confirmed above; write directly (Save-JsonNodeFieldEdits is the sole allowlisted
+            # surgical writer and applies the upsert Path edits, one write per file).
+            $SurgResult = Save-JsonNodeFieldEdits -Path $FilePath -Edits $Edits.ToArray()
+            $WrittenTotal += $SurgResult.Applied
+            Write-Verbose "Updated $($SurgResult.Applied) nodes in $(Split-Path $FilePath -Leaf)"
+            if (@($SurgResult.NotFound).Count -gt 0) {
+                Write-Warning "Invoke-DebateGroundingBatch: nodes not found in $(Split-Path $FilePath -Leaf): $($SurgResult.NotFound -join ', ')"
+            }
         }
 
-        $Done = [System.Threading.Interlocked]::Increment($CompRef)
-        $Pct = [math]::Min(100, [math]::Round(($Done / $TotalCount) * 100))
-        Write-Progress -Id $ProgId -Activity 'Generating debate_grounding' -Status "$Done / $TotalCount" -PercentComplete $Pct
-    } -ThrottleLimit $Concurrency
+        # Checkpoint line survives stdout capture — shows how far a killed run got (t/3457 observability).
+        Write-Host "Checkpoint: flushed $WrittenTotal / $Total node(s) to disk."
+    }
 
     Write-Progress -Id $ProgressId -Activity 'Generating debate_grounding' -Completed
-
-    # ── Surgical write: ONE Save-JsonNodeFieldEdits per file, upsert graph_attributes.debate_grounding.
-    # Nested + create-if-absent via the Path/Upsert edit (t/3438); sweep-proof, re-parse-verified.
-    foreach ($FilePath in $Results.Keys) {
-        $FileResults = $Results[$FilePath]
-        if ($FileResults.Count -eq 0) { continue }
-        $Edits = [System.Collections.Generic.List[hashtable]]::new()
-        foreach ($NodeId in $FileResults.Keys) {
-            $Edits.Add(@{ NodeId = $NodeId; Path = @('graph_attributes', 'debate_grounding'); Value = $FileResults[$NodeId]; Upsert = $true })
-        }
-        # Batch already confirmed above; write directly (Save-JsonNodeFieldEdits is the sole allowlisted
-        # surgical writer and applies the upsert Path edits, one write per file).
-        $SurgResult = Save-JsonNodeFieldEdits -Path $FilePath -Edits $Edits.ToArray()
-        Write-Verbose "Updated $($SurgResult.Applied) nodes in $(Split-Path $FilePath -Leaf)"
-        if (@($SurgResult.NotFound).Count -gt 0) {
-            Write-Warning "Invoke-DebateGroundingBatch: nodes not found in $(Split-Path $FilePath -Leaf): $($SurgResult.NotFound -join ', ')"
-        }
-    }
 
     $GenCount = @($Generated).Count
     $FailCount = @($Failed).Count
     $SkipCount = $SkippedExisting + $SkippedDeprecated + $SkippedEmpty + $SkippedByIdFilter
     Write-Host ""
-    Write-Host "Done. Generated: $GenCount | Skipped: $SkipCount | Failed: $FailCount"
-    [PSCustomObject]@{ Generated = $GenCount; Skipped = $SkipCount; Failed = $FailCount }
+    Write-Host "Done. Generated: $GenCount | Skipped: $SkipCount | Failed: $FailCount | Written: $WrittenTotal"
+    [PSCustomObject]@{ Generated = $GenCount; Skipped = $SkipCount; Failed = $FailCount; Written = $WrittenTotal }
 }

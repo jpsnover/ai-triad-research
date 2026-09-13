@@ -142,4 +142,26 @@ Describe 'Save-JsonNodeFieldEdits — nested Path/Upsert dispatch (t/3438)' -Tag
     It 'throws when an edit has NEITHER Field nor Path' {
         { Save-JsonNodeFieldEdits -Path $script:ppath -Edits @(@{ NodeId = 'acc-001'; Value = 'y' }) } | Should -Throw
     }
+
+    It 'accumulates across SEQUENTIAL same-file writes (read-fresh) — the checkpoint-flush durability guarantee (t/3457)' {
+        # Incremental checkpoint writers (Invoke-DebateGroundingBatch t/3457) call Save-JsonNodeFieldEdits
+        # once per batch on the SAME file with DISJOINT node subsets. Because each call re-reads the file
+        # fresh, a later call must preserve the earlier call's landed edit rather than overwrite it — so a
+        # mid-run kill after batch 1 leaves batch 1 durably on disk.
+        $r1 = Save-JsonNodeFieldEdits -Path $script:ppath -Edits @(
+            @{ NodeId = 'acc-001'; Path = @('graph_attributes', 'debate_grounding'); Value = 'batch-1 statement.'; Upsert = $true }
+        )
+        $r1.Applied | Should -Be 1
+        # Second batch touches a DIFFERENT node in the same file — simulates the next checkpoint flush.
+        $r2 = Save-JsonNodeFieldEdits -Path $script:ppath -Edits @(
+            @{ NodeId = 'acc-002'; Path = @('graph_attributes', 'debate_grounding'); Value = 'batch-2 statement.'; Upsert = $true }
+        )
+        $r2.Applied | Should -Be 1
+
+        $o  = @((Get-Content -Raw $script:ppath | ConvertFrom-Json).nodes)
+        $n1 = @($o | Where-Object { $_.id -eq 'acc-001' })[0]
+        $n2 = @($o | Where-Object { $_.id -eq 'acc-002' })[0]
+        $n1.graph_attributes.debate_grounding | Should -Be 'batch-1 statement.'   # batch-1 survived batch-2's write
+        $n2.graph_attributes.debate_grounding | Should -Be 'batch-2 statement.'
+    }
 }
