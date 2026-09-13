@@ -201,7 +201,7 @@ Generate missing graph_attributes for these taxonomy nodes. For each node, provi
 
 FIELD DEFINITIONS:
 - epistemic_type: one of: empirical_claim, normative_prescription, causal_mechanism, definitional, predictive, methodological
-- rhetorical_strategy: comma-separated list from: techno_optimism, inevitability_framing, fear_appeal, evidence_based, rights_based, precautionary, pragmatic, systemic_critique, cost_benefit
+- rhetorical_strategy: comma-separated list from: techno_optimism, inevitability_framing, appeal_to_fear, appeal_to_evidence, rights_based, precautionary_framing, pragmatic_framing, systemic_critique, cost_benefit_analysis
 - node_scope: one of: narrow_technical, domain_specific, cross_domain, systemic
 - intellectual_lineage: array of 2-5 intellectual traditions (e.g., ["Effective Altruism", "Longtermism"])
 - steelman_vulnerability: object with per-opponent-POV vulnerabilities:
