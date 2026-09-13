@@ -183,3 +183,113 @@ Describe 'Update-JsonNodePath -Upsert — insert + container-create (t/3438)' -T
         }
     }
 }
+
+Describe 'Update-JsonNodePath -Remove — key deletion (t/3460)' -Tag 'summary' {
+
+    # ── Removes EXACTLY the target key (positive) ───────────────────────────────────────────────────
+    It 'removes a CONTAINER-valued member (graph_attributes.assumes = array); siblings preserved' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            $out = Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','assumes') -Remove
+            $ga = (@($out | ConvertFrom-Json).nodes | Where-Object { $_.id -eq 'acc-001' })[0].graph_attributes
+            $ga.PSObject.Properties['assumes']            | Should -BeNullOrEmpty    # gone
+            $ga.type                                       | Should -Be 'belief'      # sibling scalar preserved
+            @($ga.policy_actions).Count                    | Should -Be 2             # sibling array preserved
+            $ga.disagreement_type                          | Should -Be 'empirical'
+        }
+    }
+
+    It 'removes a MIDDLE scalar member (graph_attributes.type); substring-collider disagreement_type untouched' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            $out = Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','type') -Remove
+            $ga = (@($out | ConvertFrom-Json).nodes | Where-Object { $_.id -eq 'acc-001' })[0].graph_attributes
+            $ga.PSObject.Properties['type'] | Should -BeNullOrEmpty
+            $ga.disagreement_type           | Should -Be 'empirical'   # collider survives
+            @($ga.assumes).Count            | Should -Be 2
+        }
+    }
+
+    It 'removes the LAST member (graph_attributes.disagreement_type); preceding sibling preserved' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            $out = Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','disagreement_type') -Remove
+            $ga = (@($out | ConvertFrom-Json).nodes | Where-Object { $_.id -eq 'acc-001' })[0].graph_attributes
+            $ga.PSObject.Properties['disagreement_type'] | Should -BeNullOrEmpty
+            $ga.type                                      | Should -Be 'belief'
+        }
+    }
+
+    It 'removes the ONLY member → container collapses to a valid empty object {} (t/3460#2 Q2)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            # acc-003.interpretations = { "skeptic": {...} } — single member.
+            $out = Update-JsonNodePath -RawText $Raw -NodeId 'acc-003' -Path @('interpretations','skeptic') -Remove
+            $n = (@($out | ConvertFrom-Json).nodes | Where-Object { $_.id -eq 'acc-003' })[0]
+            $n.PSObject.Properties['interpretations']            | Should -Not -BeNullOrEmpty  # container stays
+            @($n.interpretations.PSObject.Properties).Count      | Should -Be 0                # …now empty {}
+        }
+    }
+
+    It 'anti-sweep: a -Remove leaves foreign WIP on another node byte-identical (only the edited line changes)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            $out = Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','type') -Remove
+            $out | Should -BeLike '*"resolved_node_id": "sit-477"*'
+            $out | Should -BeLike '*"ratio": 3.0*'                  # NOT churned to 3
+            $origLines = @($Raw -split "`n"); $newLines = @($out -split "`n")
+            $newLines.Count | Should -Be $origLines.Count
+            $diff = for ($i = 0; $i -lt $origLines.Count; $i++) { if ($origLines[$i] -ne $newLines[$i]) { $i } }
+            @($diff).Count | Should -Be 1                            # only the acc-001 line changed
+        }
+    }
+
+    # ── Refuses fail-closed (negative); primitive throws → no output propagates ─────────────────────
+    It 'REFUSES an absent key (path-not-found) — throws, nothing removed' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            { Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','nonexistent') -Remove } | Should -Throw
+        }
+    }
+
+    It 'REFUSES an array-index final segment (element removal reflows indices → would orphan)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            { Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','assumes',0) -Remove } | Should -Throw
+        }
+    }
+
+    It 'REFUSES a missing intermediate segment (no structure creation under -Remove)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            { Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('nonexistent','x') -Remove } | Should -Throw
+        }
+    }
+
+    It 'REFUSES -Remove + -Upsert together (mutually exclusive)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            { Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','type') -Remove -Upsert } | Should -Throw
+        }
+    }
+
+    It 'REFUSES -Remove carrying a Value (ambiguous intent)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            { Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','type') -Value 'x' -Remove } | Should -Throw
+        }
+    }
+
+    # ── Fault-injection: the re-parse-verify NET (not an upstream input refusal) catches a bad splice ──
+    It 'FAULT-INJECTION: a doctored (wrong) member span is caught by re-parse-verify — throws, no corrupt output' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
+            param($Raw)
+            # Force the member locator to report a WRONG span so the splice deletes the wrong bytes. This
+            # bypasses every input guard (the key IS present) — only the re-parse-verify net can catch it.
+            # It must throw, never return a corrupted string.
+            Mock Find-JsonMemberSpan { @{ KeyStart = 5; ValueEnd = 60 } }
+            { Update-JsonNodePath -RawText $Raw -NodeId 'acc-001' -Path @('graph_attributes','type') -Remove } | Should -Throw
+            Should -Invoke Find-JsonMemberSpan -Times 1 -Exactly   # the fault path was actually exercised
+        }
+    }
+}

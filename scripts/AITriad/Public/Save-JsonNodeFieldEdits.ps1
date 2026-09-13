@@ -29,14 +29,20 @@ function Save-JsonNodeFieldEdits {
     .PARAMETER Path
         The target JSON file (a nodes[] document) to edit in place.
     .PARAMETER Edits
-        One or more edit hashtables. Each edit sets a single scalar value on a single node and is
-        EITHER a depth-1 field or a nested path (exactly one of Field / Path):
+        One or more edit hashtables. Each edit targets a single node and is EITHER a depth-1 field or a
+        nested path (exactly one of Field / Path):
           - @{ NodeId=<id>; Field=<name>; Value=<scalar> } → depth-1 (Update-JsonNodeField).
           - @{ NodeId=<id>; Path=@('graph_attributes','debate_grounding'); Value=<scalar>; Upsert=$true }
-            → nested (Update-JsonNodePath). Path is a segment array (string keys / int indices). With
-            Upsert, a missing scalar leaf and any missing OBJECT container along the path are created
+            → nested set/insert (Update-JsonNodePath). Path is a segment array (string keys / int indices).
+            With Upsert, a missing scalar leaf and any missing OBJECT container along the path are created
             (t/3438; container-key create only — a missing array index fails closed). Default replace-only.
-        Applied in order. Object/array values are unsupported and safe-abort via the primitives' verify.
+          - @{ NodeId=<id>; Path=@('graph_attributes','synthetic_phrases'); Remove=$true } → delete the
+            whole member (t/3460). Path-only: a Remove edit must NOT carry Value (ambiguous → refuse) and
+            must not set Field or Upsert. The final segment must be an object key (array-index removal
+            refuses fail-closed); the value may be scalar OR object/array. -Remove is STRICT — an absent
+            key refuses fail-closed, so a retrying runner must re-derive its worklist to current carriers.
+        Applied in order. REPLACE/Upsert object/array VALUES are unsupported and safe-abort via the
+        primitives' verify; -Remove deletes members of any value type.
     .OUTPUTS
         [pscustomobject] result summary: Applied (int), NotFound (string[] — NodeIds not
         present in the file, surfaced not silently dropped), Path. Throws New-ActionableError
@@ -84,18 +90,27 @@ function Save-JsonNodeFieldEdits {
     $notFound = [System.Collections.Generic.List[string]]::new()
 
     foreach ($edit in @($Edits)) {
-        foreach ($key in @('NodeId', 'Value')) {
-            if (-not $edit.ContainsKey($key)) {
-                & $fail "An edit hashtable is missing required key '$key'" @('Each edit needs NodeId + Value, plus exactly one of Field (depth-1) or Path (nested)')
-            }
+        if (-not $edit.ContainsKey('NodeId')) {
+            & $fail "An edit hashtable is missing required key 'NodeId'" @('Each edit needs NodeId, plus exactly one of Field (depth-1) or Path (nested)')
         }
         # Dispatch-only: exactly one of Field (depth-1) / Path (nested) selects the primitive. One
         # path-walker per mode; this writer never walks paths itself (t/3438, TL steer).
         $hasField = $edit.ContainsKey('Field')
         $hasPath  = $edit.ContainsKey('Path')
+        $isRemove = [bool]$edit['Remove']   # absent key → $null → $false
         if ($hasField -eq $hasPath) {
             & $fail 'Each edit must specify EXACTLY ONE of Field (depth-1) or Path (nested-path segment array)' `
-                @('Use @{NodeId;Field;Value} OR @{NodeId;Path=@(...);Value[;Upsert]}')
+                @('Use @{NodeId;Field;Value} OR @{NodeId;Path=@(...);Value[;Upsert]} OR @{NodeId;Path=@(...);Remove=$true}')
+        }
+        if ($isRemove) {
+            # t/3460: -Remove deletes the member — Path-only, no Value (ambiguous intent → refuse, cond 2),
+            # no Field, not with Upsert.
+            if ($hasField)                { & $fail 'A Remove edit must use Path, not Field' @('Key removal is nested-path only: @{NodeId;Path=@(...);Remove=$true}') }
+            if ($edit.ContainsKey('Value')) { & $fail 'A Remove edit must not carry a Value (ambiguous intent)' @('Use @{NodeId;Path=@(...);Remove=$true} with no Value') }
+            if ([bool]$edit['Upsert'])     { & $fail 'Remove and Upsert are mutually exclusive' @('Pick exactly one: Upsert-insert or Remove') }
+        }
+        elseif (-not $edit.ContainsKey('Value')) {
+            & $fail "An edit hashtable is missing required key 'Value'" @('Each non-Remove edit needs NodeId + Value, plus exactly one of Field (depth-1) or Path (nested)')
         }
         $nodeId = [string]$edit['NodeId']
         if (-not $existingIds.Contains($nodeId)) {
@@ -108,6 +123,9 @@ function Save-JsonNodeFieldEdits {
         # (writes nothing yet) → the whole batch aborts atomically, leaving the file untouched.
         if ($hasField) {
             $raw = Update-JsonNodeField -RawText $raw -NodeId $nodeId -Field $edit['Field'] -Value $edit['Value']
+        }
+        elseif ($isRemove) {
+            $raw = Update-JsonNodePath -RawText $raw -NodeId $nodeId -Path @($edit['Path']) -Remove
         }
         else {
             $upsert = [bool]$edit['Upsert']   # absent key → $null → $false
