@@ -54,4 +54,30 @@ Describe 'Invoke-DebateGroundingBatch (t/3438)' -Tag 'taxonomy' {
         Mock Get-TaxonomyDir { $script:TaxDir } -ModuleName AITriad
         (Invoke-DebateGroundingBatch -Id 'acc-beliefs-002' -Force -WhatIf).WouldProcess | Should -Be 1
     }
+
+    # ── Checkpoint/incremental-write parameter (t/3457) ─────────────────────────────────────────────
+    # The AI→flush loop itself makes live calls (ForEach-Object -Parallel can't see mocks — see header),
+    # so the checkpoint FLUSH mechanics are proved in Save-JsonNodeFieldEdits.Tests.ps1 (sequential
+    # same-file writes accumulate — the durability guarantee per-batch flushing relies on). Here we cover
+    # the surface: the parameter exists, validates, and does not perturb the AI-free -WhatIf path.
+    It 'exposes a -CheckpointEvery parameter defaulting to 50' {
+        $p = (Get-Command -Module AITriad -Name 'Invoke-DebateGroundingBatch').Parameters['CheckpointEvery']
+        $p | Should -Not -BeNullOrEmpty
+        $p.ParameterType | Should -Be ([int])
+        $p.Attributes.Where({ $_ -is [System.Management.Automation.ValidateRangeAttribute] }).MinRange | Should -Be 1
+    }
+
+    It '-CheckpointEvery rejects a non-positive value (ValidateRange)' {
+        Mock Get-TaxonomyDir { $script:TaxDir } -ModuleName AITriad
+        { Invoke-DebateGroundingBatch -CheckpointEvery 0 -WhatIf } | Should -Throw
+    }
+
+    It '-CheckpointEvery does not perturb the AI-free -WhatIf path' {
+        Mock Get-TaxonomyDir { $script:TaxDir } -ModuleName AITriad
+        $before = Get-Content -Raw -Path (Join-Path $script:TaxDir 'accelerationist.json')
+        $r = Invoke-DebateGroundingBatch -CheckpointEvery 1 -WhatIf
+        $r.WhatIf       | Should -BeTrue
+        $r.WouldProcess | Should -Be 1
+        (Get-Content -Raw -Path (Join-Path $script:TaxDir 'accelerationist.json')) | Should -Be $before   # no mutation
+    }
 }
