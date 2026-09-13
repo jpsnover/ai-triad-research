@@ -176,6 +176,44 @@
   color: #ca8a04;
 }
 
+/* ─── Debate Grounding section (t/3466) ──────────────────
+   Copy reviewed and approved by CL (e/155#2) — do not restyle the badge/quote/caption/absent
+   states in a way that changes their meaning without another CL pass. */
+
+.bdi-gr-fp-badge {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  background: rgba(20, 184, 166, 0.12);
+  color: #0d9488;
+  border: 1px solid rgba(20, 184, 166, 0.25);
+  margin-left: auto;
+}
+
+.bdi-gr-fp-quote {
+  margin: 4px 0 2px;
+  padding: 4px 0 4px 10px;
+  border-left: 2px solid rgba(20, 184, 166, 0.4);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.bdi-gr-fp-caption {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.bdi-gr-fp-absent {
+  font-style: italic;
+}
+
 /* ─── Formalization (FOL) section (t/3397) ───────────────
    Experimental, collapsed-by-default layer over node.logical_form. Weak-axis marking must be
    visible INSIDE the expanded body, not only the header badge (TL §8 binding condition). */

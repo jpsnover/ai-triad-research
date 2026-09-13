@@ -292,4 +292,48 @@ describe('BdiGroundingPanel (t/3292)', () => {
       expect(screen.getByText(/"event_ref"/)).toBeInTheDocument();
     });
   });
+
+  describe('Debate Grounding section (t/3466)', () => {
+    it('shows the header, first-person badge, quoted text, and caption when debate_grounding is present', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode({
+          graph_attributes: { debate_grounding: 'I believe AI progress should accelerate.' },
+        })] },
+      }));
+      render(<BdiGroundingPanel />);
+      expect(screen.getByText('Debate Grounding')).toBeInTheDocument();
+      expect(screen.getByText('first-person')).toBeInTheDocument();
+      expect(screen.getByText(/I believe AI progress should accelerate\./)).toBeInTheDocument();
+      expect(screen.getByText(/used by the debate engine as this node's grounding text/)).toBeInTheDocument();
+    });
+
+    it('shows the plain-language absent state when debate_grounding is missing, with no description fallback', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode({ description: 'Editorial description text.' })] },
+      }));
+      render(<BdiGroundingPanel />);
+      expect(screen.getByText("Not yet grounded — this node doesn't have a first-person restatement yet.")).toBeInTheDocument();
+      expect(screen.queryByText('Editorial description text.')).not.toBeInTheDocument();
+    });
+
+    it('shows the absent state when graph_attributes itself is missing (no crash)', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode()] },
+      }));
+      render(<BdiGroundingPanel />);
+      expect(screen.getByText("Not yet grounded — this node doesn't have a first-person restatement yet.")).toBeInTheDocument();
+    });
+
+    it('never renders "backfilled" or other internal pipeline jargon in the absent copy', () => {
+      mockStore.mockReturnValue(makeStore({
+        selectedNodeId: 'acc-beliefs-001',
+        accelerationist: { nodes: [makeNode()] },
+      }));
+      render(<BdiGroundingPanel />);
+      expect(screen.queryByText(/backfill/i)).not.toBeInTheDocument();
+    });
+  });
 });
