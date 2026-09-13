@@ -43,6 +43,33 @@ function getTopicalCandidates(lf: LogicalForm): TopicalCandidates | undefined {
   return { refs: refs as { ref: string; match_level: string }[] };
 }
 
+// Copy reviewed and approved by CL (field-semantics owner) — e/155#2. Do not edit without
+// looping CL in again; this is prompt/ontology-adjacent labeling text (t/3466).
+const DEBATE_GROUNDING_CAPTION =
+  "First-person restatement — used by the debate engine as this node's grounding text, " +
+  "distinct from the node's editorial description.";
+const DEBATE_GROUNDING_ABSENT_TEXT =
+  "Not yet grounded — this node doesn't have a first-person restatement yet.";
+
+function DebateGroundingSection({ text }: { text: string | undefined }) {
+  return (
+    <section className="bdi-gr-section bdi-gr-debate-grounding">
+      <div className="bdi-gr-section-header">
+        <span className="bdi-gr-section-title">Debate Grounding</span>
+        <span className="bdi-gr-fp-badge" title="First-person, own-voice restatement of the node">first-person</span>
+      </div>
+      {text ? (
+        <>
+          <blockquote className="bdi-gr-fp-quote">&ldquo;{text}&rdquo;</blockquote>
+          <p className="bdi-gr-fp-caption">{DEBATE_GROUNDING_CAPTION}</p>
+        </>
+      ) : (
+        <p className="bdi-gr-section-empty bdi-gr-fp-absent">{DEBATE_GROUNDING_ABSENT_TEXT}</p>
+      )}
+    </section>
+  );
+}
+
 function findNodeInFiles(
   id: string,
   files: (({ nodes: PovNode[] } | null) | undefined)[],
@@ -223,9 +250,12 @@ export function BdiGroundingPanel() {
   const conceptRefs = node.concept_refs ?? [];
   const entityRefs = node.entity_refs ?? [];
   const logicalForm = getLogicalForm(node);
+  const debateGrounding = node.graph_attributes?.debate_grounding;
 
   return (
     <div className="bdi-gr-root">
+      <DebateGroundingSection text={debateGrounding} />
+
       <section className="bdi-gr-section">
         <div className="bdi-gr-section-header">
           <span className="bdi-gr-section-title">Concepts</span>
