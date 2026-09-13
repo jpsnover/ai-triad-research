@@ -171,7 +171,7 @@ Description: {node['description'][:500]}
 
 Return a JSON object with:
 - epistemic_type: one of "empirical_claim", "normative_prescription", "interpretive_lens", "definitional", "strategic_recommendation"
-- rhetorical_strategy: one of "techno_optimism", "precautionary", "evidence_based", "structural_critique", "pragmatic_compromise"
+- rhetorical_strategy: one of "techno_optimism", "precautionary_framing", "appeal_to_evidence", "structural_critique", "pragmatic_framing"
 - falsifiability: "high" | "medium" | "low"
 
 No markdown fences."""
