@@ -19,7 +19,7 @@ export interface RecordAttribute {
   type: string;                 // 'enum' | 'controlled_vocab_csv' | 'array' | 'string' | 'object' | 'number' | 'boolean'
   values?: string[];            // closed set for `enum`
   atomic_values?: string[];     // closed set for `controlled_vocab_csv`
-  status?: 'active' | 'deprecated' | 'transient';
+  status?: 'active' | 'deprecated' | 'transient' | 'removed';
 }
 export interface SchemaRecord {
   graph_attributes: Record<string, RecordAttribute>;
@@ -97,9 +97,12 @@ export function checkSchemaDrift(record: SchemaRecord, extracted: Extracted): Fi
       findings.push({ type: 'type_mismatch', field: path, source: src, detail: `type ${JSON.stringify(ex.type)} in consumer vs ${JSON.stringify(rec.type)} in record` });
     }
 
-    // A DEPRECATED record attribute observed in use by the corpus.
-    if (extracted.kind === 'corpus' && rec.status === 'deprecated') {
-      findings.push({ type: 'deprecated_in_use', field: path, source: src, detail: `record marks "${field}" status:deprecated but it is present in the corpus` });
+    // A DEPRECATED or REMOVED record attribute observed in use by the corpus. `removed` is the
+    // tombstone status (t/3433): the field was retired from the corpus, kept in the record only so a
+    // re-add is a visible diff — so a `removed` field re-appearing in the corpus is exactly the drift
+    // the tombstone exists to catch, and fires the same finding (t/3463).
+    if (extracted.kind === 'corpus' && (rec.status === 'deprecated' || rec.status === 'removed')) {
+      findings.push({ type: 'deprecated_in_use', field: path, source: src, detail: `record marks "${field}" status:${rec.status} but it is present in the corpus` });
     }
 
     // Value-set divergence.
