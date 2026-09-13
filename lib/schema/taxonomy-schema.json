@@ -1,6 +1,6 @@
 {
   "meta": {
-    "schema_version": "1.0.0",
+    "schema_version": "2.0.0",
     "corpus_snapshot": "2026-09-13",
     "provenance": "CL empirical inventory (t/3447#1) over 916 POV nodes + 33744 edges; CL+TL co-signed (t/3447#3/#4); SO-approved (e/151#2, t/3447#5).",
     "motivation": "One declarative source-of-truth for the taxonomy schema, replacing the implicit spread across Zod validators, TS types, PS validators, prompts, and JSON conventions. Existence justified by 4 defects the drafting inventory surfaced that scattering had hidden: t/3448 (rhetorical_strategy vocab drift), t/3449 (steelman_vulnerability type-drift), t/3450 (cross-field contamination), t/3451 (transient residue). That is the answer to the dual-maintenance objection.",
@@ -37,8 +37,8 @@
     "debate_tested":         { "type": "object", "required": false, "cov_at_snapshot": 0.74, "status": "active", "writer": "debate pipeline", "notes": "Process/provenance metadata (test record), not ontological content." },
     "policy_actions":        { "type": "array", "elem": "string", "required": false, "cov_at_snapshot": 0.68, "status": "active", "relational_content": true, "writer": "policy linker (unverified)", "notes": "Refs to pol-* ids. RELATIONAL (POV→policy) stored node-locally; flagged for the routing call." },
     "attribution_text":      { "type": "string", "required": false, "cov_at_snapshot": 0.25, "status": "deprecated", "writer": "unknown", "notes": "Render of description framing ('A {BDI} within {camp} discourse that…'). DERIVED-DUPLICATION — derived-or-retire; not an independent source." },
-    "synthetic_phrases":     { "type": "array", "elem": "string", "required": false, "cov_at_snapshot": 0.09, "status": "deprecated", "writer": "batch_enrich_nodes.py", "resolution": "t/3432 -> t/3433 retire node field", "notes": "3rd-person paraphrases for matching/embedding/UI. CONTESTED HOME vs sidecar corpus_{acc,saf,skp}.json; node field being retired." },
-    "debate_grounding":      { "type": "string", "required": false, "cov_at_snapshot": 0.00, "status": "active", "writer": "Invoke-DebateGroundingBatch (t/3438)", "resolution": "t/3366 backfill pending", "notes": "1st-person own-voice grounding for the debate block. CONTESTED-HOME resolution: this=debate own-voice; sidecar=matching/retrieval/UI; retires synthetic_phrases' debate role." },
+    "synthetic_phrases":     { "type": "array", "elem": "string", "required": false, "cov_at_snapshot": 0.00, "status": "removed", "writer": "batch_enrich_nodes.py (retired)", "resolution": "REMOVED from corpus t/3433 Phase 3 (commit 45958418; 83 carriers / 660 phrases; archived). Sidecar corpus_{acc,saf,skp}.json is the single canonical store.", "notes": "Retired node field (was 3rd-person paraphrases for matching/embedding/UI). Tombstone retained so re-add is a visible diff; sidecar remains canonical." },
+    "debate_grounding":      { "type": "string", "required": false, "cov_at_snapshot": 1.00, "status": "active", "writer": "Invoke-DebateGroundingBatch (t/3438)", "resolution": "LANDED t/3366 (commit abe999fe; 916/916 POV nodes; TL-verified). Canonical debate-grounding home.", "notes": "1st-person own-voice grounding for the debate block; replaced synthetic_phrases' debate role. Sidecar = matching/retrieval/UI." },
     "_phrase_regen_pending": { "type": "boolean", "required": false, "cov_at_snapshot": 0.02, "status": "transient", "writer": "phrase regen job", "notes": "Legal-but-ephemeral processing flag. t/3451 cleans the 27 residual instances; gate treats status:transient as non-drift." }
   },
   "edges": {
@@ -56,8 +56,6 @@
     "note": "0 non-canonical in live edges[] at snapshot. deprecated_types present so any sprawl re-entry (the ~70 dead llm_proposed class) is a diff, not a silent addition."
   },
   "contested": {
-    "synthetic_phrases": { "homes": ["node.graph_attributes.synthetic_phrases (retiring)", "sidecar synthetic/corpus_*.json (canonical)"], "resolution_ref": "t/3432, t/3433" },
-    "debate_grounding": { "homes": ["node.graph_attributes.debate_grounding"], "resolution_ref": "t/3366" },
     "attribution_text": { "status": "derived-or-retire", "derived_from": "description" }
   }
 }
