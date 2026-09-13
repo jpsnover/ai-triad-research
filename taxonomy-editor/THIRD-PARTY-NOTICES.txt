@@ -1060,12 +1060,11 @@ THE SOFTWARE.
 
 -----------
 
-The following npm packages may be included in this product:
+The following npm package may be included in this product:
 
- - adm-zip@0.5.18
  - adm-zip@0.6.0
 
-These packages each contain the following license:
+This package contains the following license:
 
 MIT License
 
