@@ -85,6 +85,10 @@ Four POV camps with BDI categories. Node IDs: `{pov}-{category}-{NNN}` (pov ∈ 
 
 Configured in `ai-models.json` (single source of truth for PS + Electron): Gemini, Claude, Groq. Keys via `Register-AIBackend` or env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `AI_API_KEY` fallback). **Before landing any edit, run `npm run verify:config`** (runs all six registry-completeness gates; t/1933). Adding a backend? Follow `/add-ai-backend`.
 
+### Dependency Security Bumps
+
+Resolving a Dependabot/security alert on an npm dep? Follow the mechanics in **`docs/security/dependency-policy.md`**, section "Executing a Dependency Security Bump." The load-bearing gotcha is that overrides live in **`pnpm-workspace.yaml`** (the SSOT for both lockfiles), while `package.json` `overrides` are **inert** and `pnpm update` bumps only the direct edge, so transitive copies stay vulnerable. One atomic PR does all of: the `pnpm-workspace.yaml` override (capped), regen the root lockfile, `sync-standalone-lockfile.mjs`, `npm run licenses`, then verify grep-clean on both lockfiles. **Never remove an override without checking which advisory it closes** (a `>=X` pin is often the fix for a `<X` alert; t/3442).
+
 ## Shell Quoting Rule
 
 For code with special shell chars (template literals, nested quotes, apostrophes, backticks, `$` vars, f-strings), **use Edit/Write, not Bash `sed`/`awk`/heredocs**. Run Python/PowerShell scripts from a temp file (Write then execute), never inline heredocs. Shell escaping is the #1 silent-corruption source.
