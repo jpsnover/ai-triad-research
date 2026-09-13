@@ -46,10 +46,9 @@ export interface GraphAttributes {
    *  Debate-grounding register (t/3367). Absent on most nodes until backfill (t/3366); loader treats
    *  absence as normal and falls back to description, as today. */
   debate_grounding?: string;
-  /** Synthetic paraphrase variants for this node's claim (t/3367). When useSyntheticPhraseGrounding
-   *  is on, the engine selects the phrase cosine-nearest to the description embedding and injects it
-   *  as the grounding text instead of description. Absent on most nodes until CL backfill. */
+  /** Synthetic paraphrase variants — field persists for corpus data and sidecar writer (New-/Update-SyntheticCorpus); reader decommissioned (t/3458). Cleanup tracked by t/3451. */
   synthetic_phrases?: string[];
+  /** Transient regen flag for synthetic phrases sidecar writer. Cleanup tracked by t/3451. */
   _phrase_regen_pending?: boolean;
   debate_tested?: DebateTestedRecord;
   /** Data-integrity provenance signal (t/3264). Absent = 'curated'. Used by formatTaxonomyContext
