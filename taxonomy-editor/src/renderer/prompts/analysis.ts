@@ -132,23 +132,33 @@ Node:
 
 Generate a JSON object with these fields:
 
-  epistemic_type (string, pick ONE): "normative_prescription", "empirical_claim", "definitional", "strategic_recommendation", "predictive", "interpretive_lens"
+### CONTROLLED VOCABULARY (source of truth: lib/schema/taxonomy-schema.json) ###
+# For fields tagged (CV) below, emit ONLY these exact values. Comma-separate where multi-valued.
+epistemic_type = empirical_claim | strategic_recommendation | normative_prescription | interpretive_lens | predictive | definitional | causal_mechanism
+node_scope = claim | scheme | bridging | narrow_technical | domain_specific | cross_domain | systemic
+falsifiability = high | medium | low
+emotional_register = cautionary | pragmatic | measured | urgent | alarmed | aspirational | optimistic | defiant | dismissive | assertive | resolute | analytical
+audience = policymakers | technical_researchers | industry_leaders | academic_community | civil_society | general_public | labor_organizations
+rhetorical_strategy = structural_critique | appeal_to_evidence | precautionary_framing | moral_imperative | cost_benefit_analysis | techno_optimism | credibility_framing | analogical_reasoning | appeal_to_fear | inevitability_framing | appeal_to_authority | appeal_to_justice | appeal_to_sovereignty | rights_based | pragmatic_framing | systemic_critique
+### END CONTROLLED VOCABULARY ###
 
-  rhetorical_strategy (string, pick ONE): "precautionary_framing", "inevitability_framing", "cost_benefit_analysis", "moral_imperative", "appeal_to_evidence", "appeal_to_authority", "analogical_reasoning", "techno_optimism", "structural_critique"
+  epistemic_type (string, pick ONE) (CV): the claim's epistemic modality.
+
+  rhetorical_strategy (string, pick 1-3 comma-separated) (CV): the persuasion move(s).
 
   assumes (array of 1-3 strings): Key premises that must be true for this node to hold. Be specific and concrete.
 
-  falsifiability (string): "high", "medium", or "low". Beliefs → more likely high/medium. Desires → more likely low. Intentions → usually medium.
+  falsifiability (string) (CV): Beliefs tend high/medium; Desires tend low; Intentions usually medium.
 
-  audience (string, pick 1-2 comma-separated): "policymakers", "technical_researchers", "industry_leaders", "general_public", "civil_society", "academic_community"
+  audience (string, pick 1-2 comma-separated) (CV): the intended addressee(s).
 
-  emotional_register (string): "urgent", "measured", "optimistic", "cautionary", "defiant", "pragmatic", "alarmed", "dismissive", "aspirational"
+  emotional_register (string, pick 1-2 comma-separated) (CV): the affective tone.
 
   intellectual_lineage (array of 1-3 strings): Major intellectual traditions, thinkers, or frameworks this node draws from. Be specific — use names, movements, or landmark works.
 
   steelman_vulnerability (string): The strongest counterargument against the STRONGEST version of this claim. 1-2 sentences.
 
-  node_scope (string): "claim" (specific assertion), "scheme" (argumentative strategy), or "bridging" (connects claims to schemes).
+  node_scope (string, pick ONE) (CV): claim = specific assertion; scheme = argumentative strategy; bridging = connects claims to schemes; narrow_technical / domain_specific / cross_domain / systemic = breadth of applicability.
 
   attribution_text (string): Rewrite this node's description in genus-differentia format:
     "A [BDI category] within [POV] discourse that [core proposition]. Encompasses: [key facets]."
