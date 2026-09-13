@@ -1,0 +1,65 @@
+{
+  "meta": {
+    "schema_version": "1.0.0",
+    "corpus_snapshot": "2026-09-13",
+    "provenance": "CL empirical inventory (t/3447#1) over 916 POV nodes + 33744 edges; structure TL (t/3447#2/#4); SO-approved HLD (e/151#2, conditions t/3447#5).",
+    "note": "Defines the SHAPE of the taxonomy — attribute names/types/value-sets, the canonical edge vocabulary, and the node-ID grammar. NOT per-node content; per-node data, embeddings metadata, and policy_actions internals are out of scope.",
+    "snapshot_fields_note": "Fields suffixed _at_snapshot and the `contested` resolution pointers are INFORMATIONAL only — never gate inputs. The drift gate compares value-sets and types, never coverage/snapshot fields (t/3447#4 tweak 1).",
+    "change_control": {
+      "rule": "Normative-field edits — enums, types, value-sets, edge vocabulary, node-ID grammar, deprecated_types — require CL+TL co-sign and re-trigger the t/3361 mandatory Second Opinion when they meet its bar. Non-normative edits (notes, *_at_snapshot values, contested resolution pointers) are free.",
+      "semver": "major = normative removal or retype; minor = additive normative (new enum value / attribute / edge type); patch = non-normative (notes, snapshot values, pointers).",
+      "this_block_is_normative": "This change_control block is itself co-signed content — do not alter it without CL+TL sign-off (SO condition 1, t/3447#5)."
+    },
+    "record_first_workflow": "A legitimate new value is NOT a gate failure to suppress — add it to THIS record first (CL+TL co-sign per change_control), then the consumer. The drift gate's failure message restates this (SO condition 4, t/3447#5).",
+    "net_not_gate": "A green drift gate means NO DIVERGENCE between consumers and this record — NOT that the schema is correct. The record can be wrong yet consistently consumed; green attests consistency, not correctness (SO risk 1, t/3447#5).",
+    "motivation": "The taxonomy schema was implicit and scattered across Zod validators, TS types, prompt templates, PS validators, and JSON conventions — the root of a recurring bug class (edge-vocabulary sprawl, non-canonical node-ID emission, field drift, the t/3432 synthetic_phrases dual-store). The drafting inventory itself surfaced 4 live defects — t/3448 (rhetorical_strategy vocab drift), t/3449 (steelman_vulnerability str/dict type-drift), t/3450 (moral_imperative cross-field contamination), t/3451 (_phrase_regen_pending residue) — which answer the future dual-maintenance objection (SO framing note, t/3447#5 amendment 6)."
+  },
+  "node_id": {
+    "grammar": "^(acc|saf|skp|cc)-(beliefs|desires|intentions)-(\\d{3})$",
+    "pov": ["acc", "saf", "skp", "cc"],
+    "category": ["beliefs", "desires", "intentions"],
+    "nnn": "zero-padded width-3",
+    "sidegrammars": {
+      "policy_action": "pol-*",
+      "note": "cc-node + situation id grammar is a follow-up (v1.1) section per the TL scope ruling (t/3447#2/#4) — extends the record without changing its shape."
+    }
+  },
+  "graph_attributes": {
+    "epistemic_type":        { "type": "enum", "required": true,  "cov_at_snapshot": 1.00, "values": ["empirical_claim","strategic_recommendation","normative_prescription","interpretive_lens","predictive","definitional","causal_mechanism"], "status": "active", "writer": "enrichment (batch_enrich_nodes.py, unverified)", "notes": "Epistemic modality of the claim (AIF I-node quality). empirical_claim/predictive=assertoric+falsifiable; normative_prescription=deontic; strategic_recommendation=practical/means-end; interpretive_lens=framing; definitional=analytic; causal_mechanism=causal." },
+    "node_scope":            { "type": "enum", "required": true,  "cov_at_snapshot": 1.00, "values": ["claim","scheme","bridging","narrow_technical","domain_specific","cross_domain","systemic"], "status": "active", "writer": "enrichment (unverified)", "notes": "Argumentative granularity. claim=atomic I-node; scheme=AIF argumentation-scheme (S-node/RA pattern); bridging=cross-POV connector; others=abstraction breadth." },
+    "falsifiability":        { "type": "enum", "required": false, "cov_at_snapshot": 0.97, "values": ["high","medium","low"], "status": "active", "writer": "enrichment (unverified)", "notes": "Popperian testability qualifier; epistemic quality of the I-node." },
+    "rhetorical_strategy":   { "type": "controlled_vocab_csv", "required": false, "cov_at_snapshot": 1.00, "atomic_values": ["structural_critique","appeal_to_evidence","precautionary_framing","moral_imperative","cost_benefit_analysis","techno_optimism","credibility_framing","analogical_reasoning","appeal_to_fear","inevitability_framing","appeal_to_authority","aspirational","appeal_to_justice","appeal_to_sovereignty","rights_based"], "status": "active", "writer": "enrichment (unverified)", "notes": "Rhetorical/pragmatic persuasion move (presentation layer, not propositional content). VOCAB PENDING CANONICALIZATION — t/3448 merges drift variants (pragmatic*, precautionary*, cost_benefit*, system(ic)_critique, fear_appeal, evidence_based) into this canonical set." },
+    "emotional_register":    { "type": "controlled_vocab_csv", "required": false, "cov_at_snapshot": 0.97, "atomic_values": ["cautionary","pragmatic","measured","urgent","alarmed","aspirational","optimistic","defiant","dismissive","assertive","resolute","analytical"], "status": "active", "writer": "enrichment (unverified)", "notes": "Affective tone (pathos); presentational quality. t/3450 removes moral_imperative leakage (a rhetorical_strategy value contaminating this field)." },
+    "audience":              { "type": "controlled_vocab_csv", "required": false, "cov_at_snapshot": 0.96, "atomic_values": ["policymakers","technical_researchers","industry_leaders","academic_community","civil_society","general_public","labor_organizations"], "status": "active", "writer": "enrichment (unverified)", "notes": "Intended addressee(s); AIF dialogical context (target participants)." },
+    "intellectual_lineage":  { "type": "array", "elem": "string", "required": false, "cov_at_snapshot": 0.98, "status": "active", "writer": "enrichment (unverified)", "notes": "Genealogy/provenance of the idea (open set, ~63 distinct). Descriptive, not argumentative." },
+    "assumes":               { "type": "array", "elem": "string", "required": false, "cov_at_snapshot": 0.95, "status": "active", "relational_content": true, "writer": "enrichment (unverified)", "notes": "Presuppositions. RELATIONAL content (semantically the ASSUMES edge / AIF RA-presupposition) stored node-locally as free-text — flagged for the intrinsic-vs-relational routing call (routing stays human, t/1242)." },
+    "steelman_vulnerability":{ "type": "string", "required": false, "cov_at_snapshot": 0.98, "status": "active", "relational_content": true, "writer": "enrichment (unverified)", "notes": "Strongest counterargument (dialectical). RELATIONAL (semantically CONTRADICTS/WEAKENS / AIF CA) stored as node text. TYPE-DRIFT: dict on 27 nodes — t/3449 normalizes to string." },
+    "aphorism":              { "type": "string", "required": false, "cov_at_snapshot": 0.97, "status": "active", "writer": "aphorism enrichment (t/1550)", "notes": "Camp-voice compressed slogan. Presentational-ONLY (t/1550: never scoring/embedding input)." },
+    "possible_fallacies":    { "type": "array", "required": false, "cov_at_snapshot": 0.74, "status": "active", "writer": "enrichment (unverified)", "notes": "Fallacy tags on the node's reasoning; dialectical quality (AIF CA-type flags)." },
+    "debate_tested":         { "type": "object", "required": false, "cov_at_snapshot": 0.74, "status": "active", "writer": "debate pipeline", "notes": "Process/provenance metadata (test record), not ontological content." },
+    "policy_actions":        { "type": "array", "elem": "string", "required": false, "cov_at_snapshot": 0.68, "status": "active", "relational_content": true, "writer": "policy linker (unverified)", "notes": "Refs to pol-* ids. RELATIONAL (POV->policy) stored node-locally — flagged for routing call." },
+    "attribution_text":      { "type": "string", "required": false, "cov_at_snapshot": 0.25, "status": "deprecated", "writer": "unknown", "notes": "Render of description framing ('A {BDI} within {camp} discourse that...'). DERIVED-DUPLICATION — record classifies derived-or-retire; not an independent source." },
+    "synthetic_phrases":     { "type": "array", "elem": "string", "required": false, "cov_at_snapshot": 0.09, "status": "deprecated", "writer": "batch_enrich_nodes.py", "resolution": "t/3432 -> t/3433 retire node field", "notes": "3rd-person paraphrases for matching/embedding/UI. CONTESTED HOME vs sidecar corpus_{acc,saf,skp}.json; node field being retired." },
+    "debate_grounding":      { "type": "string", "required": false, "cov_at_snapshot": 0.00, "status": "active", "writer": "Invoke-DebateGroundingBatch (t/3438)", "resolution": "t/3366 backfill pending", "notes": "1st-person own-voice grounding for the debate block. CONTESTED-HOME resolution: this=debate own-voice; sidecar=matching/retrieval/UI; retires synthetic_phrases' debate role." },
+    "_phrase_regen_pending": { "type": "boolean", "required": false, "cov_at_snapshot": 0.02, "status": "transient", "writer": "phrase regen job", "notes": "Legal-but-ephemeral processing flag (per TL). t/3451 cleans the 27 residual instances; gate treats status:transient as non-drift." }
+  },
+  "edges": {
+    "canonical": [
+      { "type": "SUPPORTS", "aif_equiv": "RA (inference)", "direction": "directed", "domain": "Any->Any" },
+      { "type": "CONTRADICTS", "aif_equiv": "CA (rebut)", "direction": "bidirectional", "domain": "Same scope" },
+      { "type": "ASSUMES", "aif_equiv": "RA (presupposition)", "direction": "directed", "domain": "Any->Any" },
+      { "type": "WEAKENS", "aif_equiv": "CA (undermine)", "direction": "directed", "domain": "Any->Any" },
+      { "type": "RESPONDS_TO", "aif_equiv": "Dialogue", "direction": "directed", "domain": "Any->Any" },
+      { "type": "TENSION_WITH", "aif_equiv": "CA (tension)", "direction": "bidirectional", "domain": "Cross-POV or POV<->Situation" },
+      { "type": "INTERPRETS", "aif_equiv": "Interpretation", "direction": "directed", "domain": "POV->Situation" },
+      { "type": "CONVERGES_WITH", "aif_equiv": "convergence", "direction": "bidirectional", "domain": "Cross-POV", "review_by": "keep/retire ontology call — near-vestigial (9/33744 uses); CL follow-up ticket (t/3447#4 tweak 2)" }
+    ],
+    "deprecated_types": [],
+    "note": "0 non-canonical types in live edges[] today; deprecated_types is present-but-empty so any sprawl re-entry (the ~70 dead llm_proposed class) surfaces as a diff, not a silent addition."
+  },
+  "contested": {
+    "synthetic_phrases": { "homes": ["node.graph_attributes.synthetic_phrases (retiring)", "sidecar synthetic/corpus_*.json (canonical)"], "resolution_ref": "t/3432,t/3433" },
+    "debate_grounding": { "homes": ["node.graph_attributes.debate_grounding"], "resolution_ref": "t/3366" },
+    "attribution_text": { "status": "derived-or-retire", "derived_from": "description" }
+  }
+}
