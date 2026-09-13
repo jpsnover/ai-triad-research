@@ -123,8 +123,9 @@ describe('checkSchemaDrift — CLEAN-modulo-known-defects arm (t/3448-t/3451)', 
     const extracted: Extracted = {
       source: 'corpus', kind: 'corpus',
       attributes: {
-        // t/3448: rhetorical_strategy vocab drift — a drift variant not in the canonical atomic_values.
-        rhetorical_strategy: { values: ['appeal_to_evidence', 'pragmatic_framing'] },
+        // t/3448: rhetorical_strategy vocab drift — evidence_based is a variant canonical-16 merged
+        // into appeal_to_evidence, so it is no longer a declared value (fires extra_in_consumer).
+        rhetorical_strategy: { values: ['appeal_to_evidence', 'evidence_based'] },
         // t/3450: cross-field contamination — moral_imperative leaked into emotional_register.
         emotional_register: { values: ['cautionary', 'moral_imperative'] },
         // t/3449: steelman_vulnerability type-drift — dict shape observed where record says string.
@@ -135,7 +136,7 @@ describe('checkSchemaDrift — CLEAN-modulo-known-defects arm (t/3448-t/3451)', 
     // Exactly the 3 divergence-producing defects surface (t/3451 is status:transient in the record →
     // NOT a finding by design; documented in the record's motivation as a residue, not drift).
     expect(types(f)).toEqual(['extra_in_consumer', 'extra_in_consumer', 'type_mismatch']);
-    expect(f.some((x) => x.value === 'pragmatic_framing')).toBe(true);
+    expect(f.some((x) => x.value === 'evidence_based')).toBe(true);
     expect(f.some((x) => x.value === 'moral_imperative')).toBe(true);
     expect(f.some((x) => x.type === 'type_mismatch' && x.field === 'graph_attributes.steelman_vulnerability')).toBe(true);
   });
