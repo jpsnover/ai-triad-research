@@ -139,11 +139,12 @@ node_scope = claim | scheme | bridging | narrow_technical | domain_specific | cr
 falsifiability = high | medium | low
 emotional_register = cautionary | pragmatic | measured | urgent | alarmed | aspirational | optimistic | defiant | dismissive | assertive | resolute | analytical
 audience = policymakers | technical_researchers | industry_leaders | academic_community | civil_society | general_public | labor_organizations
+rhetorical_strategy = structural_critique | appeal_to_evidence | precautionary_framing | moral_imperative | cost_benefit_analysis | techno_optimism | credibility_framing | analogical_reasoning | appeal_to_fear | inevitability_framing | appeal_to_authority | appeal_to_justice | appeal_to_sovereignty | rights_based | pragmatic_framing | systemic_critique
 ### END CONTROLLED VOCABULARY ###
 
   epistemic_type (string, pick ONE) (CV): the claim's epistemic modality.
 
-  rhetorical_strategy (string, pick ONE): "precautionary_framing", "inevitability_framing", "cost_benefit_analysis", "moral_imperative", "appeal_to_evidence", "appeal_to_authority", "analogical_reasoning", "techno_optimism", "structural_critique"
+  rhetorical_strategy (string, pick 1-3 comma-separated) (CV): the persuasion move(s).
 
   assumes (array of 1-3 strings): Key premises that must be true for this node to hold. Be specific and concrete.
 
