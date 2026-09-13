@@ -18,6 +18,7 @@ import { PolicyDashboard } from '../analysis/PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
 import { EntityBrowserPanel } from './EntityBrowserPanel';
 import { CalibrationDashboard } from '../analysis/CalibrationDashboard';
+import { BdiGroundingPanel } from '../analysis/BdiGroundingPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import './ToolbarPaneRenderer.css';
 
@@ -71,6 +72,7 @@ export function ToolbarPaneRenderer({
     case 'vocabulary': return <VocabularyPanel />;
     case 'entities': return <EntityBrowserPanel />;
     case 'calibration': return <CalibrationDashboard />;
+    case 'bdiGrounding': return <BdiGroundingPanel />;
     default: return null;
   }
 }
@@ -81,6 +83,7 @@ const TOOL_LABELS: Record<string, string> = {
   fallacy: 'Possible Fallacies', edges: 'Edge Browser', console: 'Console',
   policyAlignment: 'Policy Alignment', policyDashboard: 'Policy Dashboard',
   vocabulary: 'Vocabulary', calibration: 'Calibration', entities: 'Entities',
+  bdiGrounding: 'BDI Grounding',
 };
 
 export function PhoneToolClose() {
