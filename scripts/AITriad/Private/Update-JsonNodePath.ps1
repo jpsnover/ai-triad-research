@@ -59,15 +59,38 @@ function Set-JsonValueAtPath {
 function Update-JsonNodePath {
     <#
     .SYNOPSIS
-        In-place surgical replacement of ONE scalar value at a NESTED path on ONE nodes[]
-        entry (t/2921). Byte-preserving everywhere except the target value; re-parse-verified.
+        Surgical edit of ONE value at a NESTED path on ONE nodes[] entry (t/2921). Three modes:
+        in-place scalar REPLACE (default), -Upsert (create scalar leaf + missing object containers,
+        t/3438), and -Remove (delete the whole member, t/3460). Byte-preserving everywhere except the
+        target; re-parse-verified — a splice that changes anything else aborts, writing nothing.
     .PARAMETER Path
         Segment array addressing the value relative to the node: object keys (string) and
         array indices (int), e.g. @('graph_attributes','policy_actions',2,'framing').
+    .PARAMETER Value
+        The scalar to write (REPLACE/-Upsert). Omit under -Remove (passing a Value with -Remove is
+        ambiguous and REFUSES fail-closed).
+    .PARAMETER Upsert
+        Create the scalar leaf (and any missing OBJECT container along the path) instead of failing
+        path-not-found. Container-key create ONLY; a missing/out-of-range array index still fails closed.
+    .PARAMETER Remove
+        Delete the member at the final path segment (t/3460). The final segment MUST be an object key —
+        removing an array element would reflow sibling indices, so an array-index final segment REFUSES
+        fail-closed (indices stay navigation-only). Unlike REPLACE/-Upsert (scalar-only), -Remove deletes
+        the whole member regardless of value type (scalar OR object/array). Removing an object's last
+        member leaves a valid empty object `{}`. Mutually exclusive with -Upsert.
+
+        IDEMPOTENCY: -Remove is STRICT — an absent final key REFUSES fail-closed (it does not no-op). A
+        batch/runner that may retry MUST re-derive its worklist from current state (only nodes still
+        carrying the key) before each attempt; an absent-key refusal then genuinely signals a worklist
+        bug, not a benign retry (t/3460#3, TL ruling).
+
+        LIMITATION: duplicate sibling keys are OUTSIDE the verify contract — JSON objects are assumed to
+        have unique keys (ConvertFrom-Json keeps one; the splice removes the first textual occurrence).
     .OUTPUTS
         [string] the patched raw JSON. Throws New-ActionableError (writes nothing) on:
-        invalid JSON, node/path not found, an object/array-valued target (scalar-only), or a
-        re-parse-verify mismatch (any change beyond the intended value).
+        invalid JSON, node/path not found, an object/array-valued target (REPLACE/-Upsert scalar-only),
+        an array-index final segment under -Remove, -Remove+-Upsert together, -Remove carrying a Value,
+        or a re-parse-verify mismatch (any change beyond the intended edit).
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -75,12 +98,15 @@ function Update-JsonNodePath {
         [Parameter(Mandatory)][string]$RawText,
         [Parameter(Mandatory)][string]$NodeId,
         [Parameter(Mandatory)][object[]]$Path,
-        [Parameter(Mandatory)][AllowNull()]$Value,
+        # Non-mandatory so -Remove can omit it; REPLACE/-Upsert still require it (guarded below).
+        [AllowNull()]$Value = $null,
         # t/3438: create the scalar leaf (and any missing OBJECT container along the path) instead of
         # failing path-not-found. Explicit opt-in (TL cond 1): container-key create ONLY — a missing or
         # out-of-range array-index segment still fails closed. Default OFF keeps the proven replace-only
         # behavior byte-identical (regression arm).
-        [switch]$Upsert
+        [switch]$Upsert,
+        # t/3460: delete the whole member at the final (object-key) segment. See .PARAMETER Remove.
+        [switch]$Remove
     )
     Set-StrictMode -Version Latest
 
@@ -92,6 +118,18 @@ function Update-JsonNodePath {
     }
 
     if (@($Path).Count -eq 0) { & $fail 'Path is empty' @('Provide at least one path segment') }
+
+    # --- Mode guards (t/3460) -------------------------------------------------
+    if ($Remove -and $Upsert) {
+        & $fail '-Remove and -Upsert are mutually exclusive' @('Pick exactly one mode: replace (default), -Upsert, or -Remove')
+    }
+    if ($Remove -and $PSBoundParameters.ContainsKey('Value')) {
+        & $fail '-Remove must not carry a Value (ambiguous intent)' @('Call -Remove with NodeId + Path only')
+    }
+    if (-not $Remove -and -not $PSBoundParameters.ContainsKey('Value')) {
+        & $fail 'Value is required for replace/-Upsert' @('Pass -Value, or use -Remove to delete the member')
+    }
+
     # Under -Upsert the (possibly-inserted) leaf must be a SCALAR — created intermediates are objects,
     # but the value itself is scalar-only, matching the in-place replacement invariant.
     if ($Upsert -and $null -ne $Value -and (
@@ -115,6 +153,77 @@ function Update-JsonNodePath {
 
     $curStart = $nodeSpan.Start   # index of the current container's opening '{' or '['
     $curEnd   = $nodeSpan.End
+
+    # ── REMOVE mode (t/3460): delete the whole member at the final object-key segment ──────────────
+    if ($Remove) {
+        # Descend Path[0..last-1] to the PARENT container (navigation only — no create; a missing
+        # intermediate fails closed, same as replace).
+        for ($k = 0; $k -lt $Path.Count - 1; $k++) {
+            $seg = $Path[$k]
+            $curChar = $RawText[$curStart]
+            if ($seg -is [int]) {
+                if ($curChar -ne '[') { & $fail "segment [$seg] expects an array but the container at that level is not an array" @('Check the path matches the document shape') }
+                $vStart = Find-JsonArrayElementStart -Text $RawText -ArrStart $curStart -ArrEnd $curEnd -Index $seg
+                if ($vStart -lt 0) { & $fail "array index [$seg] is out of range (path-not-found)" @('Verify the intermediate index exists') }
+            }
+            else {
+                if ($curChar -ne '{') { & $fail "segment '$seg' expects an object but the container at that level is not an object" @('Check the path matches the document shape') }
+                $vStart = Find-JsonMemberValueStart -Text $RawText -ObjStart $curStart -ObjEnd $curEnd -Key ([string]$seg)
+                if ($vStart -lt 0) { & $fail "key '$seg' not found at this level (path-not-found)" @('Verify the intermediate path exists; -Remove does not create structure') }
+            }
+            $vSpan = Get-JsonValueSpan -Text $RawText -Start $vStart
+            if ($null -eq $vSpan) { & $fail "could not span-scan the value at segment '$seg'" @('Report with the input file + path') }
+            $curStart = $vSpan.Start; $curEnd = $vSpan.End
+        }
+
+        # Final segment: MUST be an object key. An array-index final segment reflows sibling indices
+        # (orphans addressing) → refuse fail-closed (t/3460#2 Q1).
+        $finalSeg = $Path[$Path.Count - 1]
+        if ($finalSeg -is [int]) {
+            & $fail "cannot -Remove an array element [$finalSeg]: element removal reflows sibling indices (would orphan addressing)" `
+                @('Removal targets object keys only; array indices are navigation-only segments')
+        }
+        if ($RawText[$curStart] -ne '{') {
+            & $fail "segment '$finalSeg' expects an object but the container at that level is not an object" @('Check the path matches the document shape')
+        }
+        $member = Find-JsonMemberSpan -Text $RawText -ObjStart $curStart -ObjEnd $curEnd -Key ([string]$finalSeg)
+        if ($null -eq $member) {
+            & $fail "key '$finalSeg' not found at this level (path-not-found) — nothing removed" `
+                @('Verify the key exists; -Remove refuses fail-closed on an absent key (re-derive the worklist to carriers before retry)')
+        }
+
+        # Removal span = [KeyStart .. ValueEnd] + EXACTLY ONE adjacent comma. Prefer the trailing comma
+        # (member not last); else absorb the leading comma (member is last, has predecessors); else no
+        # comma (only member → object collapses to a valid `{}`, allowed per t/3460#2 Q2).
+        $delStart = $member.KeyStart
+        $delEnd   = $member.ValueEnd
+        $t = $member.ValueEnd + 1
+        while ($t -lt $curEnd -and [char]::IsWhiteSpace($RawText[$t])) { $t++ }
+        if ($t -lt $curEnd -and $RawText[$t] -eq ',') {
+            $delEnd = $t   # include the trailing comma
+        }
+        else {
+            $p = $member.KeyStart - 1
+            while ($p -gt $curStart -and [char]::IsWhiteSpace($RawText[$p])) { $p-- }
+            if ($p -gt $curStart -and $RawText[$p] -eq ',') { $delStart = $p }   # include the leading comma
+        }
+        $patched = $RawText.Substring(0, $delStart) + $RawText.Substring($delEnd + 1)
+
+        # Re-parse-VERIFY: baseline = parsed clone with THIS key deleted at the located parent. Any
+        # deviation beyond the intended member → abort, writing nothing (the safety net).
+        try { $actual = $patched | ConvertFrom-Json } catch { & $fail "patched text is not valid JSON — writing nothing: $($_.Exception.Message)" @('Splice produced invalid JSON; -Remove splice bug') }
+        $expected = $RawText | ConvertFrom-Json
+        $expNode = @($expected.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $NodeId })[0]
+        $curBase = $expNode
+        for ($m = 0; $m -lt $Path.Count - 1; $m++) { if ($Path[$m] -is [int]) { $curBase = $curBase[$Path[$m]] } else { $curBase = $curBase.($Path[$m]) } }
+        $curBase.PSObject.Properties.Remove([string]$finalSeg)
+        if (-not (Test-JsonSemanticEqual -A $expected -B $actual)) {
+            & $fail "re-parse-verify FAILED: the -Remove splice changed more than the intended key '$pathDisplay' on '$NodeId' — writing nothing" `
+                @('Splice bug; the guard refused a corrupting write', 'Report with the input file + node id + path')
+        }
+        return $patched
+    }
+
     for ($k = 0; $k -lt $Path.Count; $k++) {
         $seg = $Path[$k]
         $curChar = $RawText[$curStart]

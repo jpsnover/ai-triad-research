@@ -152,6 +152,39 @@ function Find-JsonMemberValueStart {
     return -1
 }
 
+function Find-JsonMemberSpan {
+    # Within the object at [ObjStart='{' .. ObjEnd='}'], find the depth-1 member whose key
+    # equals $Key and return @{ KeyStart; ValueEnd } — KeyStart = index of the key's opening
+    # '"', ValueEnd = index of the value's LAST char (inclusive). Returns $null if absent. Same
+    # key-decode + Get-JsonValueSpan skipping as Find-JsonMemberValueStart, so it stays at depth 1
+    # and can't substring-collide. Used by Update-JsonNodePath -Remove to splice out the whole
+    # member (key..value) + one adjacent comma. Returns the FIRST match; duplicate sibling keys
+    # are outside the surgical contract (documented on Update-JsonNodePath).
+    param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][int]$ObjStart,
+          [Parameter(Mandatory)][int]$ObjEnd, [Parameter(Mandatory)][string]$Key)
+    $i = $ObjStart + 1
+    while ($i -lt $ObjEnd) {
+        while ($i -lt $ObjEnd -and ([char]::IsWhiteSpace($Text[$i]) -or $Text[$i] -eq ',')) { $i++ }
+        if ($i -ge $ObjEnd) { break }
+        if ($Text[$i] -ne '"') { return $null }   # expected a key string
+        $keyStart = $i
+        $keySpan = Get-JsonValueSpan -Text $Text -Start $i
+        if ($null -eq $keySpan) { return $null }
+        $keyToken = $Text.Substring($keySpan.Start, $keySpan.End - $keySpan.Start + 1)
+        try { $decodedKey = $keyToken | ConvertFrom-Json } catch { return $null }
+        $i = $keySpan.End + 1
+        while ($i -lt $ObjEnd -and [char]::IsWhiteSpace($Text[$i])) { $i++ }
+        if ($i -ge $ObjEnd -or $Text[$i] -ne ':') { return $null }
+        $i++
+        while ($i -lt $ObjEnd -and [char]::IsWhiteSpace($Text[$i])) { $i++ }
+        $valSpan = Get-JsonValueSpan -Text $Text -Start $i
+        if ($null -eq $valSpan) { return $null }
+        if ([string]$decodedKey -eq $Key) { return @{ KeyStart = $keyStart; ValueEnd = $valSpan.End } }
+        $i = $valSpan.End + 1
+    }
+    return $null
+}
+
 function Find-JsonArrayElementStart {
     # Within the array at [ArrStart='[' .. ArrEnd=']'], return the start index of the
     # element at $Index (depth-1), or -1 if out of range. Elements are skipped via

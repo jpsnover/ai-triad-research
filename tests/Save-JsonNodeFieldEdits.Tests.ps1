@@ -165,3 +165,57 @@ Describe 'Save-JsonNodeFieldEdits — nested Path/Upsert dispatch (t/3438)' -Tag
         $n2.graph_attributes.debate_grounding | Should -Be 'batch-2 statement.'
     }
 }
+
+Describe 'Save-JsonNodeFieldEdits — Remove dispatch (t/3460)' -Tag 'summary' {
+
+    BeforeEach {
+        $script:rfx = @'
+{
+  "nodes": [
+    { "id": "acc-001", "graph_attributes": { "type": "belief", "synthetic_phrases": ["p0", "p1"] }, "label": "keep" },
+    { "id": "acc-002", "note": "keep", "resolved_node_id": "sit-477" }
+  ]
+}
+'@ -replace "`r`n", "`n"
+        $script:rpath = Join-Path $TestDrive 'remove-fixture.json'
+        [System.IO.File]::WriteAllText($script:rpath, $script:rfx, (New-Object System.Text.UTF8Encoding $false))
+    }
+
+    It 'dispatches a Remove edit — deletes graph_attributes.synthetic_phrases; siblings + other nodes preserved' {
+        $result = Save-JsonNodeFieldEdits -Path $script:rpath -Edits @(
+            @{ NodeId = 'acc-001'; Path = @('graph_attributes', 'synthetic_phrases'); Remove = $true }
+        )
+        $result.Applied | Should -Be 1
+        $after = Get-Content -Raw $script:rpath
+        $n1 = @(($after | ConvertFrom-Json).nodes | Where-Object { $_.id -eq 'acc-001' })[0]
+        $n1.graph_attributes.PSObject.Properties['synthetic_phrases'] | Should -BeNullOrEmpty  # removed
+        $n1.graph_attributes.type | Should -Be 'belief'                                        # sibling preserved
+        $after | Should -BeLike '*"resolved_node_id": "sit-477"*'                              # other node byte-identical
+    }
+
+    It 'REFUSES a Remove edit carrying a Value (ambiguous intent) — throws, file untouched' {
+        $before = Get-Content -Raw $script:rpath
+        { Save-JsonNodeFieldEdits -Path $script:rpath -Edits @(@{ NodeId = 'acc-001'; Path = @('graph_attributes', 'synthetic_phrases'); Remove = $true; Value = 'x' }) } | Should -Throw
+        (Get-Content -Raw $script:rpath) | Should -Be $before
+    }
+
+    It 'REFUSES a Remove edit combined with Field, and combined with Upsert' {
+        { Save-JsonNodeFieldEdits -Path $script:rpath -Edits @(@{ NodeId = 'acc-001'; Field = 'label'; Remove = $true }) } | Should -Throw
+        { Save-JsonNodeFieldEdits -Path $script:rpath -Edits @(@{ NodeId = 'acc-001'; Path = @('graph_attributes', 'synthetic_phrases'); Remove = $true; Upsert = $true }) } | Should -Throw
+    }
+
+    It 'REFUSES (strict) an absent-key Remove — throws, batch atomic, file untouched' {
+        $before = Get-Content -Raw $script:rpath
+        { Save-JsonNodeFieldEdits -Path $script:rpath -Edits @(@{ NodeId = 'acc-001'; Path = @('graph_attributes', 'not_there'); Remove = $true }) } | Should -Throw
+        (Get-Content -Raw $script:rpath) | Should -Be $before
+    }
+
+    It 'FAULT-INJECTION: a corrupt splice never reaches disk — file byte-identical after the throw (the verify net at the sink)' {
+        $before = Get-Content -Raw $script:rpath
+        # Doctor the member locator so the splice deletes the wrong bytes; the re-parse-verify inside the
+        # primitive must abort BEFORE Save's guarded write, leaving the file byte-identical.
+        Mock Find-JsonMemberSpan { @{ KeyStart = 5; ValueEnd = 80 } } -ModuleName AITriad
+        { Save-JsonNodeFieldEdits -Path $script:rpath -Edits @(@{ NodeId = 'acc-001'; Path = @('graph_attributes', 'synthetic_phrases'); Remove = $true }) } | Should -Throw
+        (Get-Content -Raw $script:rpath) | Should -Be $before
+    }
+}
