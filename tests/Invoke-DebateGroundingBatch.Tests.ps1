@@ -80,4 +80,29 @@ Describe 'Invoke-DebateGroundingBatch (t/3438)' -Tag 'taxonomy' {
         $r.WouldProcess | Should -Be 1
         (Get-Content -Raw -Path (Join-Path $script:TaxDir 'accelerationist.json')) | Should -Be $before   # no mutation
     }
+
+    # ── Per-call timeout / bounded per-node time (t/3457#4) ──────────────────────────────────────────
+    # The bounded call (tight -TimeoutSec + 2 retries + no cascade) lives in the ForEach-Object -Parallel
+    # worker, which can't see mocks — so as with checkpointing we cover the parameter surface here and rely
+    # on Invoke-AIApi's own suite for the timeout/retry mechanics. The aggregate-time bound is what stops one
+    # rate-limited tail node from hanging the whole run 30+ min (the 916 re-run incident).
+    It 'exposes a -TimeoutSec parameter defaulting to 60, range 1..600' {
+        $p = (Get-Command -Module AITriad -Name 'Invoke-DebateGroundingBatch').Parameters['TimeoutSec']
+        $p | Should -Not -BeNullOrEmpty
+        $p.ParameterType | Should -Be ([int])
+        $vr = $p.Attributes.Where({ $_ -is [System.Management.Automation.ValidateRangeAttribute] })
+        $vr.MinRange | Should -Be 1
+        $vr.MaxRange | Should -Be 600
+    }
+
+    It '-TimeoutSec rejects out-of-range values (0 and >600)' {
+        Mock Get-TaxonomyDir { $script:TaxDir } -ModuleName AITriad
+        { Invoke-DebateGroundingBatch -TimeoutSec 0   -WhatIf } | Should -Throw
+        { Invoke-DebateGroundingBatch -TimeoutSec 601 -WhatIf } | Should -Throw
+    }
+
+    It '-TimeoutSec does not perturb the AI-free -WhatIf path' {
+        Mock Get-TaxonomyDir { $script:TaxDir } -ModuleName AITriad
+        (Invoke-DebateGroundingBatch -TimeoutSec 30 -WhatIf).WouldProcess | Should -Be 1
+    }
 }

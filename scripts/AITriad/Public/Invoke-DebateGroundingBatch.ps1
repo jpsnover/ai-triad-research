@@ -37,6 +37,13 @@
 .PARAMETER CheckpointEvery
     Flush generated statements to disk after every N nodes (default: 50). Bounds the work lost to a mid-run
     kill to at most one batch. Smaller = more durable but more writes; larger = fewer writes but more at risk.
+.PARAMETER TimeoutSec
+    Per-AI-call HTTP timeout in seconds (default: 60). Bounds how long one node's request can take. Combined
+    with the batch's tight retry policy (2 attempts, short delays, no model cascade), this caps aggregate
+    per-node time to ~135s so a single stuck / rate-limited node fails fast (counted Failed, retryable via
+    skip-if-present) instead of stalling the whole run. The 916-node re-run hung 30+ min on the final node
+    because the default Invoke-AIApi retry (5×) + 429 backoff (120s each) + model cascade stack ABOVE the
+    per-attempt timeout — checkpointing bounded the data loss but not the hang (t/3457#4).
 .PARAMETER Force
     Regenerate even nodes that already have a debate_grounding.
 .PARAMETER Id
@@ -62,6 +69,7 @@ function Invoke-DebateGroundingBatch {
         [Parameter()][string]$Model = 'gemini-3.5-flash-lite',
         [Parameter()][ValidateRange(1, 50)][int]$Concurrency = 10,
         [Parameter()][ValidateRange(1, [int]::MaxValue)][int]$CheckpointEvery = 50,
+        [Parameter()][ValidateRange(1, 600)][int]$TimeoutSec = 60,
         [switch]$Force,
         [Parameter()]
         [Alias('NodeId')]
@@ -176,7 +184,12 @@ function Invoke-DebateGroundingBatch {
             try {
                 # MaxTokens 512: flash-lite's longest 9-node sample output was ~401 chars (~100 tokens); 512 is
                 # safe headroom. The old 256 truncated even clean output (t/3438#6).
-                $AIResult = Invoke-AIApi -Prompt $Item.Prompt -Model $using:Model -Temperature 0.3 -MaxTokens 512
+                # Bounded per-node time (t/3457#4): tight timeout + 2 attempts / short delays + NO model
+                # cascade so a stuck or rate-limited node fails fast (~<=135s, counted Failed, retryable via
+                # skip-if-present) instead of stalling the whole batch. The prior default (5 retries, 120s
+                # 429-backoffs, cascade) let one tail node hang the 916-run 30+ min.
+                $AIResult = Invoke-AIApi -Prompt $Item.Prompt -Model $using:Model -Temperature 0.3 -MaxTokens 512 `
+                    -TimeoutSec $using:TimeoutSec -MaxRetries 2 -RetryDelays @(5, 15) -FallbackModels @()
                 if ($null -ne $AIResult -and -not [string]::IsNullOrWhiteSpace($AIResult.Text)) {
                     $Text = $AIResult.Text.Trim()
                     $FileDict = $ResultsDict.GetOrAdd($Item.FilePath, [System.Collections.Concurrent.ConcurrentDictionary[string, string]]::new())
