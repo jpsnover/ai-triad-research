@@ -149,11 +149,6 @@ function assignProvisionalWeight(povKey: Pov, nodeId: string, category: Category
   }
 }
 
-/** Map a full POV key to its 3-letter short form used by the embeddings API. */
-function povShort(povKey: Pov): 'acc' | 'saf' | 'skp' {
-  return povKey === 'accelerationist' ? 'acc' : povKey === 'safetyist' ? 'saf' : 'skp';
-}
-
 /**
  * Merge an AI enrichment response into a node's existing graph attributes — each field
  * copied only when present. Shared by the reflection-apply enrichment path and the
@@ -173,33 +168,6 @@ function buildEnrichedGraphAttributes(currentAttrs: GraphAttributes | undefined,
     ...(enriched.node_scope && { node_scope: enriched.node_scope }),
     ...(enriched.attribution_text && { attribution_text: enriched.attribution_text }),
   };
-}
-
-/**
- * Compute synthetic embeddings for a node's attribution + synthetic phrases and persist
- * them. Per-phrase failures are tolerated (resilience); the caller's outer catch records a
- * whole-enrichment failure. Shared by the reflection-apply and retry enrichment paths.
- */
-async function embedSyntheticPhrases(nodeId: string, povKey: Pov, enriched: any): Promise<void> {
-  const phrasesToEmbed: string[] = [];
-  if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
-  if (Array.isArray(enriched.synthetic_phrases)) {
-    for (const p of enriched.synthetic_phrases) {
-      if (typeof p === 'string' && p.length > 0) phrasesToEmbed.push(p);
-    }
-  }
-  if (phrasesToEmbed.length === 0) return;
-  const vectors: number[][] = [];
-  for (const phrase of phrasesToEmbed) {
-    try {
-      const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
-      if (vector?.length > 0) vectors.push(vector);
-    // eslint-disable-next-line local/require-flight-recorder-in-catch -- per-phrase resilience: individual embedding failures are expected; outer catch records if entire enrichment fails
-    } catch { /* per-phrase resilience */ }
-  }
-  if (vectors.length > 0) {
-    await api.updateSyntheticEmbeddings(nodeId, povShort(povKey), vectors);
-  }
 }
 
 /**
@@ -401,10 +369,6 @@ async function startReflectionNodeEnrichment(
       // Keep dirty flag until embeddings are also done
       currentTaxStore.updatePovNode(povKey, nodeId, { graph_attributes: buildEnrichedGraphAttributes(currentNode.graph_attributes, enriched) });
       await currentTaxStore.save();
-
-      if (regeneratePhrases) {
-        await embedSyntheticPhrases(nodeId, povKey, enriched);
-      }
 
       // Clear dirty flag only after attributes + embeddings are fully done
       await clearPhraseRegenPending(povKey, nodeId);
@@ -979,8 +943,6 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
       // Keep dirty flag until embeddings are also done
       useTaxonomyStore.getState().updatePovNode(pov, nodeId, { graph_attributes: buildEnrichedGraphAttributes(currentNode.graph_attributes, enriched) });
       await useTaxonomyStore.getState().save();
-
-      await embedSyntheticPhrases(nodeId, pov, enriched);
 
       // Clear dirty flag only after attributes + embeddings are fully done
       await clearPhraseRegenPending(pov, nodeId);
