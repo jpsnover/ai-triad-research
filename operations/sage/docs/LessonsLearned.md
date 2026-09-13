@@ -4336,3 +4336,65 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (p/335#71). jq language-syntax trap; `,` is the canonical output sequencer.
 
 **Applies To:** All agents using `gh ... --jq` or shell `jq` pipelines with multiple output fields. Especially relevant when constructing composite output strings from PR/issue metadata.
+
+---
+
+## #211 [Process/Data] AI Batch Work Fully Generated but Persisted Zero — End-Batched Write + Session Killed Before Write
+
+**Pattern:** A long AI-batch pipeline (e.g., 916 AI calls to enrich nodes) generates all results in memory, then writes them all at the very end. The task session is killed (timeout, OOM, manual stop) before the write executes. Net result: full AI spend, zero data saved, results unrecoverable.
+
+**Instances:**
+- 2026-09-08 — Computational Linguist (p/7#81, t/3366): 916-node `debate_grounding` backfill authorized and run inside a task session. All 916 statements generated (~916 AI calls). The cmdlet batches all writes at the end; the session was killed after generation, before the write. 0 entries persisted. Full AI spend wasted. Fix tracked as t/3457 (incremental/checkpoint writes).
+
+**Root Cause:** Batch writes at the end of a long pipeline create an all-or-nothing commit boundary. Any session interruption (timeout, kill, OOM, network drop) after generation but before the write loses everything. Task-session runs are especially vulnerable — they have a finite lifetime and die at their boundary regardless of progress.
+
+**Prevention:**
+1. **Checkpoint-write incrementally** — for AI-batch pipelines over ~50 nodes, write each result (or small batches of N) immediately after generation. This limits the blast radius of any session interruption to at most N nodes.
+2. **Run long AI batches in environments that survive to completion** — prefer terminal/PS runs or background jobs over task-session runs for operations that take >5 minutes. Task sessions die at their boundary; terminal runs survive until the command exits.
+3. **Track progress with a durable counter** — write a progress marker to disk after each checkpoint batch. A re-run can resume from the last checkpoint rather than restarting from zero.
+4. **Design for idempotent re-run** — a batch that can be safely re-run from any checkpoint (skipping already-written nodes) is resilient to session interruption. Backfills that re-check before writing satisfy this.
+
+**Status:** Active — 1 instance (p/7#81, t/3366). High-cost failure class; checkpoint writes + terminal-mode execution are the canonical prevention. t/3457 tracks the PS resilience fix.
+
+**Applies To:** All agents authoring or running long AI-batch enrichment pipelines (debate_grounding, reflections, embeddings, logical_form). Especially relevant for backfill operations on large node sets (>50 entries).
+
+---
+
+## #212 [Deploy/Azure] `az role assignment list --scope <sub-resource>` Fails with `MissingSubscription` (exit 3) Even with `--subscription`
+
+**Pattern:** `az role assignment list --scope <resource-id>` fails with `(MissingSubscription) The request did not have a subscription or a valid tenant level resource provider` (exit 3), even after `az account set --subscription <id>` and/or passing `--subscription` inline. This is a known az CLI quirk when reading RBAC role assignments at a sub-resource scope (below the subscription level).
+
+**Instances:**
+- 2026-09-08 — DevOps Lead (p/26#109): repeated `az role assignment list --scope <ACA-resource-id>` failures with exit 3 / MissingSubscription despite correct subscription context. Bypassed with a direct ARM REST call: `az rest --method get --url "https://management.azure.com/<scope>/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=atScope()"`.
+
+**Root Cause:** The az CLI `role assignment list` command has a known issue resolving subscription context when scoped below the subscription level (resource group, resource, sub-resource). The standard `--subscription` and `az account set` flags do not reliably fix this. The ARM REST API resolves the subscription from the resource ID in the URL and does not have this issue.
+
+**Prevention:**
+1. **For RBAC role assignment queries at sub-resource scopes, use `az rest` with the ARM REST API** instead of `az role assignment list`: `az rest --method get --url "https://management.azure.com/<scope>/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=atScope()"`.
+2. **exit 3 + `MissingSubscription` from `az role assignment list`** is a CLI bug signal, not a permissions issue — don't retry with `--subscription`, switch to `az rest`.
+3. **Subscription-level RBAC queries** (`--scope /subscriptions/<id>`) are unaffected; the workaround is only needed for resource/sub-resource scopes.
+
+**Status:** Active — 1 instance (p/26#109). Known az CLI quirk; `az rest` ARM call is the canonical workaround.
+
+**Applies To:** All agents querying RBAC role assignments on Azure resources (ACA, storage accounts, key vaults, etc.) below the subscription scope. Especially relevant for DevOps agents performing RBAC audits.
+
+---
+
+## #213 [Test/Integration] Component Ships Green Across Multiple Merges But Is Never Wired Into the Registry — Feature Unreachable in UI
+
+**Pattern:** A UI component (panel, tab, view) is built, tested with passing unit tests, and merged across multiple tickets. However, it is never registered in the application's panel/tab registry (the routing layer that determines which components are mountable from the toolbar or navigation). The component is present in the codebase but unreachable in the running UI. Unit tests pass because they mount the component directly; no test exercises the registry wiring. The gap goes undetected across multiple merges.
+
+**Instances:**
+- 2026-09-08 — Computational Linguist (p/7#83, t/3470, p/640#2): `BdiGroundingPanel` was built and shipped across 3 tickets (t/3292 concepts/entities, t/3397 logical_form, t/3466 debate_grounding) with green unit tests and green CI. It was never added to the toolbar-panel registry. The panel was completely unreachable in the running UI across all 3 merges. Surfaced during a CL trace of a PI question; confirmed by Analysis (p/640#2). Fix tracked t/3470.
+
+**Root Cause:** Unit tests mount components directly (e.g., `render(<BdiGroundingPanel ... />)`) — they bypass the registry entirely. The registry is the integration point between the component and the application shell; it is not covered by component unit tests. No gate checked for "exported panel component with no registry entry."
+
+**Prevention:**
+1. **When shipping a new panel/tab/view component, verify it is wired into the registry in the same PR** — include a registry import/entry as part of the component's definition of "done."
+2. **Add a smoke test that mounts the panel via the registry path** (i.e., select the panel from the toolbar and assert it renders), not just via direct `render()`. See also the `/smoke-ui` skill.
+3. **Consider a lint/import check for exported panel components with no consumer** — a panel exported from its file but not imported by the registry is a dead export. A no-importer lint rule or a registry-completeness test can catch this at CI time.
+4. **For multi-ticket component builds**, include a "registry wiring" acceptance criterion on the first ticket, not the last — it is easy to defer across tickets and never complete.
+
+**Status:** Active — 1 instance (p/7#83, t/3470). Test-coverage failure class: unit-green masked feature-unreachable across 3 merges. Fix tracked t/3470; prevention candidate for a registry-completeness gate.
+
+**Applies To:** All agents building new panel, tab, or view components for the taxonomy-editor or other Electron apps. Especially relevant when a component is built incrementally across multiple tickets (e.g., adding data sources one ticket at a time).
