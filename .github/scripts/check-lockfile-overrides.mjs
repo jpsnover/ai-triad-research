@@ -8,11 +8,9 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const root = process.cwd()
+export function stripQuotes(s) { return s.replace(/^['"]|['"]$/g, '') }
 
-function stripQuotes(s) { return s.replace(/^['"]|['"]$/g, '') }
-
-function parseOverrides(content, label) {
+export function parseOverrides(content, label) {
   const lines = content.split('\n')
   const overrides = {}
   let inOverrides = false
@@ -21,6 +19,11 @@ function parseOverrides(content, label) {
     if (inOverrides) {
       if (line.length > 0 && !/^\s/.test(line)) break
       if (!line.trim()) continue
+      // Skip YAML comment lines: the entry regex below matches ANY indented
+      // "key: value", including a comment like "# Transitive: sharp <- …" whose
+      // colon-space would be mis-parsed as a phantom override key (false CI red;
+      // t/3440 / t/3445). A comment's first non-whitespace char is '#'.
+      if (line.trim().startsWith('#')) continue
       const m = line.match(/^\s+(.+?)\s*:\s+(.+?)\s*$/)
       if (m) overrides[stripQuotes(m[1].trim())] = stripQuotes(m[2].trim())
     }
@@ -29,30 +32,41 @@ function parseOverrides(content, label) {
   return overrides
 }
 
-const wsOverrides = parseOverrides(
-  readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'),
-  'pnpm-workspace.yaml',
-)
-const lfOverrides = parseOverrides(
-  readFileSync(join(root, 'taxonomy-editor', 'pnpm-lock.yaml'), 'utf8'),
-  'taxonomy-editor/pnpm-lock.yaml',
-)
-
-const allKeys = new Set([...Object.keys(wsOverrides), ...Object.keys(lfOverrides)])
-const mismatches = []
-for (const key of allKeys) {
-  const ws = wsOverrides[key]
-  const lf = lfOverrides[key]
-  if (ws !== lf) mismatches.push({ key, workspace: ws ?? '(missing)', lockfile: lf ?? '(missing)' })
+// Compare the two override maps; returns an array of mismatch descriptors.
+export function diffOverrides(wsOverrides, lfOverrides) {
+  const allKeys = new Set([...Object.keys(wsOverrides), ...Object.keys(lfOverrides)])
+  const mismatches = []
+  for (const key of allKeys) {
+    const ws = wsOverrides[key]
+    const lf = lfOverrides[key]
+    if (ws !== lf) mismatches.push({ key, workspace: ws ?? '(missing)', lockfile: lf ?? '(missing)' })
+  }
+  return { mismatches, keyCount: allKeys.size }
 }
 
-if (mismatches.length > 0) {
-  console.error('FAIL: pnpm-workspace.yaml overrides != taxonomy-editor/pnpm-lock.yaml overrides')
-  console.error('Fix:  node scripts/sync-standalone-lockfile.mjs')
-  console.error('')
-  for (const { key, workspace, lockfile } of mismatches)
-    console.error(`  ${key}:  workspace=${workspace}  lockfile=${lockfile}`)
-  process.exit(1)
-}
+// Main-guard: only run the CLI check when invoked directly, so importing this
+// module for tests does not read files / call process.exit.
+if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('.github/scripts/check-lockfile-overrides.mjs')) {
+  const root = process.cwd()
+  const wsOverrides = parseOverrides(
+    readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'),
+    'pnpm-workspace.yaml',
+  )
+  const lfOverrides = parseOverrides(
+    readFileSync(join(root, 'taxonomy-editor', 'pnpm-lock.yaml'), 'utf8'),
+    'taxonomy-editor/pnpm-lock.yaml',
+  )
 
-console.log(`OK: overrides in sync (${allKeys.size} entries)`)
+  const { mismatches, keyCount } = diffOverrides(wsOverrides, lfOverrides)
+
+  if (mismatches.length > 0) {
+    console.error('FAIL: pnpm-workspace.yaml overrides != taxonomy-editor/pnpm-lock.yaml overrides')
+    console.error('Fix:  node scripts/sync-standalone-lockfile.mjs')
+    console.error('')
+    for (const { key, workspace, lockfile } of mismatches)
+      console.error(`  ${key}:  workspace=${workspace}  lockfile=${lockfile}`)
+    process.exit(1)
+  }
+
+  console.log(`OK: overrides in sync (${keyCount} entries)`)
+}
