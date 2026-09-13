@@ -63,6 +63,52 @@ function Get-AzContainerErrorClass ([string] $AzStderr) {
     return 'unknown'
 }
 
+# Best-effort: is the CURRENT identity holding a Storage Blob Data role on the SA?
+# Returns 'present' | 'absent' | 'unknown (<reason>)'. NEVER throws — this is
+# diagnostic enrichment for the error line (t/3462), not control flow: it tells
+# on-call whether a persistent ContainerNotFound is a MASKED 403 (role present →
+# transient/throttle) or a real RBAC regression (role absent). A failure of the
+# lookup itself degrades to 'unknown (...)' and is logged; it never blocks or
+# unblocks the gate.
+function Get-SpBlobRoleState ([string] $StorageAccount) {
+    try {
+        # Storage Blob Data {Owner, Contributor, Reader} — any grants read.
+        $blobRoleDefs = @(
+            'b7e6dc6d-f1e8-4753-8033-0f276bb0955b',  # Storage Blob Data Owner
+            'ba92f5b4-2d11-453d-a403-e96b0029c9fe',  # Storage Blob Data Contributor
+            '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'   # Storage Blob Data Reader
+        )
+        # Current identity: an SP login exposes its appId in user.name; a user login the UPN.
+        $acct = (az account show --query user.name --output tsv 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or -not $acct) { return 'unknown (identity lookup failed)' }
+
+        # Resolve to a principal objectId — try SP first (CI), then signed-in user.
+        $principalId = (az ad sp show --id $acct --query id --output tsv 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or -not $principalId) {
+            $principalId = (az ad signed-in-user show --query id --output tsv 2>$null | Out-String).Trim()
+        }
+        if (-not $principalId) { return 'unknown (principal resolve failed)' }
+
+        # SA resource id (name-only resolve works on modern az).
+        $saId = (az storage account show --name $StorageAccount --query id --output tsv 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or -not $saId) { return 'unknown (storage-account resolve failed)' }
+
+        # roleAssignments for THIS principal at the SA scope. Use `az rest` — the
+        # `az role assignment list --scope <resource-id>` path fails with a spurious
+        # MissingSubscription at sub-resource scope (Sage pattern #212).
+        $url = "https://management.azure.com$saId/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&`$filter=atScope()"
+        $roleDefs = (az rest --method get --url $url --query "value[?properties.principalId=='$principalId'].properties.roleDefinitionId" --output tsv 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { return 'unknown (roleAssignments query failed)' }
+
+        foreach ($def in $blobRoleDefs) {
+            if ($roleDefs -match $def) { return 'present' }
+        }
+        return 'absent'
+    } catch {
+        return "unknown (lookup error: $($_.Exception.Message))"
+    }
+}
+
 if ($Containers.Count -ne 8) {
     throw "Container list sync error: expected 8, got $($Containers.Count). Update deploy-azure.yml and main.bicep together."
 }
@@ -104,7 +150,15 @@ foreach ($c in $Containers) {
         switch ($lastClass) {
             'rbac-denied' { }  # already emitted above (fail-fast branch)
             'notfound' {
-                Write-Host "::error::Blob container '$c' unreadable after $MaxAttempts attempt(s) (storageAccount=$StorageAccount). az returned ContainerNotFound — under --auth-mode login this may be a MASKED 403/throttle that did NOT self-heal, NOT necessarily deletion. Verify SP role state (Storage Blob Data role on the SA) and container existence before assuming the container was deleted."
+                # Best-effort role-state read so the log line alone distinguishes a
+                # masked 403 (role present) from a real RBAC regression (role absent).
+                $roleState = Get-SpBlobRoleState -StorageAccount $StorageAccount
+                $hint = switch -Regex ($roleState) {
+                    '^present' { 'role PRESENT --> likely a transient MASKED 403/throttle that did not self-heal (or a genuinely missing container); investigate throttle/propagation + container existence, NOT RBAC.' }
+                    '^absent'  { 'role ABSENT --> likely an RBAC regression MASKED as ContainerNotFound; grant the SP a Storage Blob Data role on the SA.' }
+                    default    { 'role state UNKNOWN (best-effort lookup unavailable); check BOTH container existence AND SP RBAC.' }
+                }
+                Write-Host "::error::Blob container '$c' unreadable after $MaxAttempts attempt(s) (storageAccount=$StorageAccount). az returned ContainerNotFound — under --auth-mode login this may be a MASKED 403/throttle, NOT necessarily deletion. SP Blob-Data role on ${StorageAccount}: $roleState — $hint"
             }
             'transient' {
                 Write-Host "::error::Blob container '$c' unreadable after $MaxAttempts attempt(s) — transient-class az error that did not clear (storageAccount=$StorageAccount): $lastStderr"

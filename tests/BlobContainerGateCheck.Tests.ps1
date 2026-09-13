@@ -79,6 +79,62 @@ Describe 'Invoke-BlobContainerGateCheck — discrimination + retry (t/2718, t/34
             $output = script:Capture-GateOutput -StorageAccount 'sa'
             $output | Should -Match '::error::.*MASKED 403'
         }
+
+        It 'final error carries an SP Blob-Data role-state read (t/3462)' {
+            $output = script:Capture-GateOutput -StorageAccount 'sa'
+            $output | Should -Match 'SP Blob-Data role on sa:'
+        }
+    }
+
+    Context 'ContainerNotFound with role-state enrichment (t/3462 — best-effort, never blocks)' {
+        # Each test installs an az mock that branches by subcommand: container show
+        # always NotFound (to reach the notfound branch); identity/SA/roleAssignments
+        # calls return fixtures. $global:RoleDefsFixture varies present vs absent.
+        # (Mock defined inside It so it registers at run time, not Pester discovery.)
+        AfterEach {
+            Remove-Item Function:global:az -ErrorAction SilentlyContinue
+            Remove-Item Variable:global:RoleDefsFixture -ErrorAction SilentlyContinue
+        }
+
+        It 'reports role PRESENT when a Storage Blob Data role is assigned' {
+            $global:RoleDefsFixture = '/subscriptions/s/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+            function global:az {
+                param([Parameter(ValueFromRemainingArguments)][object[]]$azArgs)
+                if ($azArgs[0] -eq 'storage' -and $azArgs[1] -eq 'container') { Write-Error 'ERROR: (ContainerNotFound) The specified container does not exist.' -ErrorAction Continue; $global:LASTEXITCODE = 1; return }
+                if ($azArgs[0] -eq 'account') { Write-Output 'sp-app-id'; $global:LASTEXITCODE = 0; return }
+                if ($azArgs[0] -eq 'ad') { Write-Output 'principal-oid'; $global:LASTEXITCODE = 0; return }
+                if ($azArgs[0] -eq 'storage' -and $azArgs[1] -eq 'account') { Write-Output '/subscriptions/s/resourceGroups/ai-triad/providers/Microsoft.Storage/storageAccounts/sa'; $global:LASTEXITCODE = 0; return }
+                if ($azArgs[0] -eq 'rest') { Write-Output $global:RoleDefsFixture; $global:LASTEXITCODE = 0; return }
+                $global:LASTEXITCODE = 0
+            }
+            $output = script:Capture-GateOutput -StorageAccount 'sa'
+            $output | Should -Match 'role PRESENT'
+        }
+
+        It 'reports role ABSENT when no blob-data role is assigned' {
+            # Reader (acdd72a7…) is a control-plane role, NOT a Storage Blob Data role.
+            $global:RoleDefsFixture = '/subscriptions/s/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7'
+            function global:az {
+                param([Parameter(ValueFromRemainingArguments)][object[]]$azArgs)
+                if ($azArgs[0] -eq 'storage' -and $azArgs[1] -eq 'container') { Write-Error 'ERROR: (ContainerNotFound) The specified container does not exist.' -ErrorAction Continue; $global:LASTEXITCODE = 1; return }
+                if ($azArgs[0] -eq 'account') { Write-Output 'sp-app-id'; $global:LASTEXITCODE = 0; return }
+                if ($azArgs[0] -eq 'ad') { Write-Output 'principal-oid'; $global:LASTEXITCODE = 0; return }
+                if ($azArgs[0] -eq 'storage' -and $azArgs[1] -eq 'account') { Write-Output '/subscriptions/s/resourceGroups/ai-triad/providers/Microsoft.Storage/storageAccounts/sa'; $global:LASTEXITCODE = 0; return }
+                if ($azArgs[0] -eq 'rest') { Write-Output $global:RoleDefsFixture; $global:LASTEXITCODE = 0; return }
+                $global:LASTEXITCODE = 0
+            }
+            $output = script:Capture-GateOutput -StorageAccount 'sa'
+            $output | Should -Match 'role ABSENT'
+        }
+
+        It 'still throws/blocks regardless of role-state (t/2718 must-hold)' {
+            function global:az {
+                param([Parameter(ValueFromRemainingArguments)][object[]]$azArgs)
+                if ($azArgs[0] -eq 'storage' -and $azArgs[1] -eq 'container') { Write-Error 'ERROR: (ContainerNotFound) The specified container does not exist.' -ErrorAction Continue; $global:LASTEXITCODE = 1; return }
+                Write-Output ''; $global:LASTEXITCODE = 0
+            }
+            { script:Invoke-Gate -StorageAccount 'sa' } | Should -Throw -ExpectedMessage '*check FAILED*'
+        }
     }
 
     Context 'ContainerNotFound — transient (clears on retry) → gate passes (t/3461 core)' {
