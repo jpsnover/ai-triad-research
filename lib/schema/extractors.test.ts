@@ -53,7 +53,7 @@ describe('extractCorpusValues', () => {
     writeFileSync(join(dir, 'safetyist.json'), JSON.stringify({ nodes: [
       { id: 'saf-beliefs-001', graph_attributes: {
         epistemic_type: 'predictive',
-        rhetorical_strategy: 'pragmatic_framing', // drift variant (t/3448 class)
+        rhetorical_strategy: 'evidence_based', // drift variant merged away by t/3448 (→ appeal_to_evidence)
         steelman_vulnerability: { rebuttal: 'a dict one' }, // type-drift (t/3449 class)
       } },
     ] }));
@@ -63,7 +63,7 @@ describe('extractCorpusValues', () => {
     const ex = extractCorpusValues(dir);
     expect(ex.kind).toBe('corpus');
     expect(ex.attributes?.epistemic_type?.values).toEqual(['empirical_claim', 'predictive']);
-    expect(ex.attributes?.rhetorical_strategy?.values).toEqual(['appeal_to_evidence', 'pragmatic_framing', 'techno_optimism']);
+    expect(ex.attributes?.rhetorical_strategy?.values).toEqual(['appeal_to_evidence', 'evidence_based', 'techno_optimism']);
     // steelman_vulnerability observed as BOTH string and object → mixed type marker.
     expect(ex.attributes?.steelman_vulnerability?.type).toBe('object|string');
     expect(ex.edgeTypes).toEqual(['CONVERGES_WITH', 'SUPPORTS']);
@@ -72,10 +72,10 @@ describe('extractCorpusValues', () => {
   it('end-to-end: corpus drift surfaces through the comparator (extra value + type_mismatch)', () => {
     dir = mkdtempSync(join(tmpdir(), 'origin-'));
     writeFileSync(join(dir, 'accelerationist.json'), JSON.stringify({ nodes: [
-      { id: 'acc-beliefs-001', graph_attributes: { rhetorical_strategy: 'pragmatic_framing', steelman_vulnerability: { x: 1 } } },
+      { id: 'acc-beliefs-001', graph_attributes: { rhetorical_strategy: 'evidence_based', steelman_vulnerability: { x: 1 } } },
     ] }));
     const findings = checkSchemaDrift(RECORD, extractCorpusValues(dir));
-    expect(findings.some((f) => f.type === 'extra_in_consumer' && f.value === 'pragmatic_framing')).toBe(true);
+    expect(findings.some((f) => f.type === 'extra_in_consumer' && f.value === 'evidence_based')).toBe(true);
     expect(findings.some((f) => f.type === 'type_mismatch' && f.field === 'graph_attributes.steelman_vulnerability')).toBe(true);
   });
 });
