@@ -1,6 +1,6 @@
 {
   "meta": {
-    "schema_version": "2.0.0",
+    "schema_version": "2.0.1",
     "corpus_snapshot": "2026-09-13",
     "provenance": "CL empirical inventory (t/3447#1) over 916 POV nodes + 33744 edges; CL+TL co-signed (t/3447#3/#4); SO-approved (e/151#2, t/3447#5).",
     "motivation": "One declarative source-of-truth for the taxonomy schema, replacing the implicit spread across Zod validators, TS types, PS validators, prompts, and JSON conventions. Existence justified by 4 defects the drafting inventory surfaced that scattering had hidden: t/3448 (rhetorical_strategy vocab drift), t/3449 (steelman_vulnerability type-drift), t/3450 (cross-field contamination), t/3451 (transient residue). That is the answer to the dual-maintenance objection.",
@@ -50,7 +50,7 @@
       { "type": "RESPONDS_TO", "aif_equiv": "Dialogue", "direction": "directed", "domain": "Any->Any" },
       { "type": "TENSION_WITH", "aif_equiv": "CA (tension)", "direction": "bidirectional", "domain": "Cross-POV or POV<->Situation" },
       { "type": "INTERPRETS", "aif_equiv": "Interpretation", "direction": "directed", "domain": "POV->Situation" },
-      { "type": "CONVERGES_WITH", "aif_equiv": "convergence", "direction": "bidirectional", "domain": "Cross-POV", "review_by": "t/3454" }
+      { "type": "CONVERGES_WITH", "aif_equiv": "convergence", "direction": "bidirectional", "domain": "Cross-POV" }
     ],
     "deprecated_types": [],
     "note": "0 non-canonical in live edges[] at snapshot. deprecated_types present so any sprawl re-entry (the ~70 dead llm_proposed class) is a diff, not a silent addition."
