@@ -18,16 +18,23 @@ ATTRIBUTE VOCABULARY:
     "interpretive_lens" — a framework for understanding other claims
 
   rhetorical_strategy (required, string — pick ONE or TWO, comma-separated):
-    "precautionary_framing" — emphasizes risk of action
-    "inevitability_framing" — presents outcome as unavoidable
-    "cost_benefit_analysis" — weighs tradeoffs explicitly
-    "moral_imperative" — frames as ethical obligation
+    Canonical-16 controlled vocab (lib/schema/taxonomy-schema.json, t/3448):
+    "structural_critique" — argues the system or structure itself is flawed
     "appeal_to_evidence" — grounds argument in data
-    "appeal_to_authority" — cites expert/institutional endorsement
-    "analogical_reasoning" — argues by comparison to other domains
-    "reductio_ad_absurdum" — shows opposing view leads to contradiction
+    "precautionary_framing" — emphasizes risk of action
+    "moral_imperative" — frames as ethical obligation
+    "cost_benefit_analysis" — weighs tradeoffs explicitly
     "techno_optimism" — assumes technology will solve the problem
-    "structural_critique" — argues the system itself is flawed
+    "credibility_framing" — establishes the source's expertise or trustworthiness
+    "analogical_reasoning" — argues by comparison to other domains
+    "appeal_to_fear" — emphasizes danger or threat to motivate action
+    "inevitability_framing" — presents outcome as unavoidable
+    "appeal_to_authority" — cites expert/institutional endorsement
+    "appeal_to_justice" — frames in terms of fairness, equity, or just outcomes
+    "appeal_to_sovereignty" — invokes national or institutional self-determination
+    "rights_based" — grounds the argument in fundamental rights or entitlements
+    "pragmatic_framing" — emphasizes what is practical, workable, or feasible
+    "systemic_critique" — attributes the outcome to system-wide incentives or dynamics
 
   assumes (required, array of 1-4 strings):
     Key premises that must be true for this node to hold. Be specific and concrete.
@@ -145,8 +152,8 @@ ATTRIBUTE VOCABULARY:
       Intentions → usually "scheme"
       Desires → could be any; use the tests above
 
-CROSS-CUTTING NODES:
-For situation nodes (id starts with "cc-"), also consider the three POV
+SITUATION NODES:
+For situation nodes (id starts with "sit-", or legacy "cc-"), also consider the three POV
 interpretations when generating attributes. The epistemic_type and rhetorical_strategy
 should reflect the situation concept itself, not any single POV's interpretation.
 

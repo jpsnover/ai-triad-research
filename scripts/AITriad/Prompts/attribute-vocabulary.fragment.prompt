@@ -9,10 +9,12 @@ ATTRIBUTE VOCABULARY:
     "interpretive_lens" -- a framework for understanding other claims
 
   rhetorical_strategy (required, string -- pick ONE or TWO, comma-separated):
-    "precautionary_framing", "inevitability_framing", "cost_benefit_analysis",
-    "moral_imperative", "appeal_to_evidence", "appeal_to_authority",
-    "analogical_reasoning", "reductio_ad_absurdum", "techno_optimism",
-    "structural_critique"
+    "structural_critique", "appeal_to_evidence", "precautionary_framing",
+    "moral_imperative", "cost_benefit_analysis", "techno_optimism",
+    "credibility_framing", "analogical_reasoning", "appeal_to_fear",
+    "inevitability_framing", "appeal_to_authority", "appeal_to_justice",
+    "appeal_to_sovereignty", "rights_based", "pragmatic_framing",
+    "systemic_critique"
 
   assumes (required, array of 1-4 strings):
     Key premises that must be true for this node to hold. Be specific and concrete.
