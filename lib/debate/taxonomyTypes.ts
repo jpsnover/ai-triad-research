@@ -46,6 +46,11 @@ export interface GraphAttributes {
    *  Debate-grounding register (t/3367). Absent on most nodes until backfill (t/3366); loader treats
    *  absence as normal and falls back to description, as today. */
   debate_grounding?: string;
+  /** LIVE transient dirty-flag: the renderer enrichment flow sets it mid-regen and clears it on
+   *  completion (debateReflectionSlice), and AdminPanel surfaces stuck-pending nodes. Schema-of-record
+   *  status: transient — legal-but-ephemeral, never long-lived in data (residue cleaned t/3451).
+   *  Do NOT remove while that flow exists. */
+  _phrase_regen_pending?: boolean;
   debate_tested?: DebateTestedRecord;
   /** Data-integrity provenance signal (t/3264). Absent = 'curated'. Used by formatTaxonomyContext
    *  to route ai-retrieved/unverified nodes to the RETRIEVED CONTEXT block instead of the
