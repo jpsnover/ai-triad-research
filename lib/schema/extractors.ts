@@ -2,17 +2,21 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 // Consumer-surface extractors for the schema-drift gate (t/3453). Each produces the normalized
-// `Extracted` shape that checkSchemaDrift() diffs against the record. NO prompt scraping (SO
-// condition 3, t/3447#5) — prompts are deferred to the structured-vocab-block follow-up.
+// `Extracted` shape that checkSchemaDrift() diffs against the record.
 //
-// SURFACE COVERAGE (see t/3453 note): two runtime-viable surfaces are implemented here —
+// SO condition 3 (t/3447#5) forbids scraping PROSE from prompts — it does NOT forbid parsing a
+// MACHINE-READABLE vocab block a prompt deliberately carries. extractPromptVocab (t/3464) parses
+// exactly that sanctioned fence and never reads the surrounding prose.
+//
+// SURFACE COVERAGE (see t/3453 note): three runtime-viable surfaces are implemented here —
 //  - Zod: introspected via each schema's `.options` (robust; no source parsing).
 //  - Live corpus: distinct values read from the POV node JSON + edges.json.
-// The third named surface, TS type unions, is COMPILE-ERASED at runtime and its only enumerated
+//  - Prompt vocab block: the `### CONTROLLED VOCABULARY … ###` fence a prompt carries (t/3455/t/3464).
+// The fourth named surface, TS type unions, is COMPILE-ERASED at runtime and its only enumerated
 // vocab lists live in the renderer (React-coupled, cross-package) / a Python validator — neither
-// lib-reachable at runtime. TS-union extraction is therefore deferred alongside prompts; the Zod
-// extractor already covers the subset (node_scope, edge types) that is mirrored in Zod. Flagged on
-// t/3453 for TL/Quality.
+// lib-reachable at runtime. Per TL's t/3455#1 ruling that surface is SUBSUMED by the prompt-vocab
+// block (the same controlled-vocab values, now machine-readable by design) rather than needing a
+// separate brittle TS-union AST scrape.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { NodeScopeSchema, CanonicalEdgeTypeSchema } from '../debate/schemas.js';
@@ -32,6 +36,52 @@ export function extractZodVocab(): Extracted {
     },
     edgeTypes: [...CanonicalEdgeTypeSchema.options],
   };
+}
+
+const VOCAB_FENCE_START = /^###\s*CONTROLLED VOCABULARY\b/;
+const VOCAB_FENCE_END = /^###\s*END CONTROLLED VOCABULARY\b/;
+
+/**
+ * Extract the controlled-vocab value-sets a prompt carries in its machine-readable block (t/3455,
+ * SO cond 3, t/3447#5). `source` is the raw prompt text (the template string, or the file read as
+ * text); `sourceLabel` is echoed into every Finding (e.g. 'prompt:analysis.ts'). This parses ONLY the
+ * fenced block — never the surrounding prose — so it is not "prompt scraping" in the SO-forbidden sense.
+ *
+ * Block grammar (CL-authored, contract confirmed p/3#215):
+ *   ### CONTROLLED VOCABULARY [ … ] ###
+ *   # optional comment lines (ignored)
+ *   field = v1 | v2 | …          ← one controlled field per line
+ *   ### END CONTROLLED VOCABULARY ###
+ * Parse rule per body line: split on the FIRST `=` → field (trim); RHS split on `|` → trim → the
+ * closed value set. Blank lines, `#`-comments, and lines whose left side is not a bare field token
+ * are ignored (prose robustness). Emits `kind:'validator'` with VALUES ONLY — the block declares the
+ * allowed value-set, not the storage type, so no `type` is set (audience/emotional_register are
+ * controlled_vocab_csv in the record, not enum; emitting a type here would fire spurious type_mismatch).
+ *
+ * A prompt with no fence yields empty attributes (not an error — the caller aggregates surfaces). If
+ * more than one fence is present, only the FIRST is parsed (a prompt should carry one canonical block).
+ */
+const FIELD_TOKEN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export function extractPromptVocab(source: string, sourceLabel: string): Extracted {
+  const attributes: NonNullable<Extracted['attributes']> = {};
+  const lines = source.split(/\r?\n/);
+  let inFence = false;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!inFence) {
+      if (VOCAB_FENCE_START.test(line)) inFence = true;
+      continue;
+    }
+    if (VOCAB_FENCE_END.test(line)) break; // first fence only
+    if (line === '' || line.startsWith('#')) continue; // blank / comment
+    const eq = line.indexOf('=');
+    if (eq === -1) continue; // prose line inside the fence — ignore
+    const field = line.slice(0, eq).trim();
+    if (!FIELD_TOKEN.test(field)) continue; // left side isn't a bare field token — ignore
+    const values = line.slice(eq + 1).split('|').map((s) => s.trim()).filter(Boolean);
+    if (values.length > 0) attributes[field] = { values };
+  }
+  return { source: sourceLabel, kind: 'validator', attributes };
 }
 
 // Graph-attributes stored as a comma-joined controlled vocab (schema type controlled_vocab_csv).
