@@ -10,7 +10,7 @@ overrides:
   axios: ">=1.8.4"
   adm-zip: ">=0.6.0"
   brace-expansion: ">=2.0.2"
-  sharp: ">=0.35.0"
+  sharp: ">=0.35.4 <0.36"
   fast-xml-parser: ">=5.10.1"
   ip-address: ">=10.3.1"
   uuid: ">=11.1.1"
@@ -26,6 +26,16 @@ overrides:
   fast-uri: ">=3.1.6 <4"
   "@xmldom/xmldom": ">=0.8.15 <0.9"
   browserslist: ">=4.28.7"
+  # Security bumps (t/3440 root + t/3441 taxonomy-editor, Dependabot #350/#346-348 + #351/#349/#343/#342).
+  # Transitive: sharp <- @huggingface/transformers; hono <- @hono/node-server/@modelcontextprotocol/sdk.
+  # A direct `pnpm update` bumped only the direct edge and left transitive copies vulnerable (t/3440
+  # reopen) — overrides force EVERY instance. Capped to the patched line per the convergence rule above.
+  # sharp raised in place (was ">=0.35.0", which 0.35.3 satisfied). morgan/joi are no-ops on the root
+  # lockfile (already patched via #2137) but are the floor the standalone sync (sync-standalone-lockfile.mjs
+  # copies THIS block) needs for taxonomy-editor/pnpm-lock.yaml (t/3441).
+  hono: ">=4.13.5 <5"
+  morgan: ">=1.12.0 <2"
+  joi: ">=18.2.5 <19"
 
 allowBuilds:
   '@google/genai': true
