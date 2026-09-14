@@ -172,15 +172,24 @@ export function PublicOpEdView() {
   return (
     <div className="pov-oped-root">
       <div className="pov-oped-card" aria-label="Shared op-ed">
-        <header className="pov-oped-head">
-          <h1 className="pov-oped-topic">{doc.topic}</h1>
-          {doc.outlet ? <p className="pov-oped-outlet">For {doc.outlet}</p> : null}
-        </header>
+        {doc.outlet ? (
+          <header className="pov-oped-head">
+            <p className="pov-oped-outlet">For {doc.outlet}</p>
+          </header>
+        ) : null}
         {doc.opeds.length === 0 ? (
           <p className="pov-oped-empty">This shared op-ed has no voices.</p>
         ) : (
           doc.opeds.map((m, i) => <OpEdArticle key={`${m.pov}-${i}`} member={m} outlet={doc.outlet} />)
         )}
+        {/* Situation topic is source context, not the lead content — the op-eds above
+            are (t/3477). Clamped to a scrollable box so a long situation narrative
+            can't push below-the-fold content further down; no expand control, so the
+            public view stays fully read-only (no button/textbox roles). */}
+        <section className="pov-oped-context" aria-label="Situation context">
+          <h2 className="pov-oped-context-label">Situation</h2>
+          <div className="pov-oped-context-body">{doc.topic}</div>
+        </section>
         <footer className="pov-oped-footer">
           <span className="pov-oped-brand">AI Triad Research</span>
         </footer>

@@ -103,6 +103,18 @@ describe('PublicOpEdView (t/2728)', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  it('leads with the op-eds — the situation topic renders after them, not as the lead heading (t/3477)', async () => {
+    mockFetch.mockResolvedValue(fakeResponse({ body: SAMPLE }));
+    render(<PublicOpEdView />);
+
+    const headline = await screen.findByText('Ship the future');
+    const topic = screen.getByText(SAMPLE.topic);
+
+    // DOCUMENT_POSITION_FOLLOWING (4): topic comes after the op-ed headline in source order.
+    expect(headline.compareDocumentPosition(topic) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+  });
+
   it('shows a not-found state on 404 without erroring', async () => {
     mockFetch.mockResolvedValue(fakeResponse({ status: 404 }));
     render(<PublicOpEdView />);
