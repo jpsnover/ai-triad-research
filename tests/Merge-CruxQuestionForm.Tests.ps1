@@ -326,4 +326,39 @@ Describe 'Merge-CruxQuestionForm preserve+generate (t/1509)' -Tag 'enrichment' {
             Should -Invoke Invoke-AIByUsage -ModuleName AITriad -Times 0
         }
     }
+
+    It 'Passes a run-scoped -Model through as -Override @{model=...} (t/3478)' {
+        ([ordered]@{ cruxes = @() }) | ConvertTo-Json | Set-Content -Path $script:PrevPath -Encoding utf8NoBOM
+        $fresh = @([ordered]@{ id = 'crux-201'; statement = 'Bulk refresh statement.'; type = 'empirical' })
+
+        InModuleScope AITriad -Parameters @{ Fresh = $fresh; PrevPath = $script:PrevPath } {
+            param($Fresh, $PrevPath)
+            Mock Invoke-AIByUsage { [PSCustomObject]@{ Text = '{"question":"Is the bulk refresh statement true?"}' } } -ModuleName AITriad
+
+            $stats = Merge-CruxQuestionForm -Cruxes $Fresh -PreviousPath $PrevPath -Model 'gemini-3.5-flash-lite'
+
+            $stats.Generated | Should -Be 1
+            Should -Invoke Invoke-AIByUsage -ModuleName AITriad -Times 1 -ParameterFilter {
+                $Override -and $Override.ContainsKey('model') -and $Override['model'] -eq 'gemini-3.5-flash-lite'
+            }
+        }
+    }
+
+    It 'Sends NO model override when -Model is omitted (usage default preserved, t/3478)' {
+        ([ordered]@{ cruxes = @() }) | ConvertTo-Json | Set-Content -Path $script:PrevPath -Encoding utf8NoBOM
+        $fresh = @([ordered]@{ id = 'crux-202'; statement = 'Default-model statement.'; type = 'empirical' })
+
+        InModuleScope AITriad -Parameters @{ Fresh = $fresh; PrevPath = $script:PrevPath } {
+            param($Fresh, $PrevPath)
+            Mock Invoke-AIByUsage { [PSCustomObject]@{ Text = '{"question":"Is the default-model statement true?"}' } } -ModuleName AITriad
+
+            $stats = Merge-CruxQuestionForm -Cruxes $Fresh -PreviousPath $PrevPath
+
+            $stats.Generated | Should -Be 1
+            # No -Override key at all when -Model is unset.
+            Should -Invoke Invoke-AIByUsage -ModuleName AITriad -Times 1 -ParameterFilter {
+                -not $PSBoundParameters.ContainsKey('Override')
+            }
+        }
+    }
 }
