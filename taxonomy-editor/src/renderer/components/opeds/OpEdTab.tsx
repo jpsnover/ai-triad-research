@@ -171,6 +171,28 @@ type ShareState =
   | { status: 'shared'; url: string; copied: boolean }
   | { status: 'error'; message: string };
 
+// t/3482: web-bridge's generic HTTP-error path leaks the raw request/response text into
+// `err.problem` (fine for logs, not for a user-facing alert) — give the share control its own
+// short, actionable copy for the failure modes that actually happen here instead of surfacing
+// that raw string. Falls back to the shared mapper for anything else (network, unexpected).
+function classifyShareError(err: unknown): string {
+  const httpStatus = (err as { httpStatus?: number } | null)?.httpStatus;
+  if (httpStatus === 401 || httpStatus === 403) {
+    return 'Sign in to get a public link for this op-ed.';
+  }
+  if (httpStatus === 429) {
+    const retryAfterS = (err as { retryAfterS?: number } | null)?.retryAfterS;
+    return retryAfterS
+      ? `Rate limited — try again in ${retryAfterS}s.`
+      : 'Rate limited — try again shortly.';
+  }
+  if (!httpStatus && err instanceof TypeError) {
+    // fetch() rejects with a bare TypeError on network failure (no response, no httpStatus).
+    return 'Network error — check your connection and try again.';
+  }
+  return mapErrorToUserMessage(err);
+}
+
 function ShareOpEdControl({ setId, source = 'my' }: { setId: string; source?: 'my' | 'community' }) {
   const [state, setState] = useState<ShareState>({ status: 'idle' });
   // t/3315: community op-eds are public → linkable via the community-share endpoint. Get-link-only
@@ -199,7 +221,7 @@ function ShareOpEdControl({ setId, source = 'my' }: { setId: string; source?: 'm
         message: 'Failed to publish an op-ed share link',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      setState({ status: 'error', message: mapErrorToUserMessage(err) });
+      setState({ status: 'error', message: classifyShareError(err) });
     }
   }, [setId, copy, isCommunity]);
 
@@ -214,7 +236,7 @@ function ShareOpEdControl({ setId, source = 'my' }: { setId: string; source?: 'm
         message: 'Failed to revoke an op-ed share link',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      setState({ status: 'error', message: mapErrorToUserMessage(err) });
+      setState({ status: 'error', message: classifyShareError(err) });
     }
   }, [setId]);
 

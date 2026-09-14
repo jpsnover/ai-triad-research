@@ -83,3 +83,55 @@ describe('OpEdReaderView Share guard (t/2987 + t/3315)', () => {
     expect(shareCommunityOpEd).not.toHaveBeenCalledWith(set.set_id);
   });
 });
+
+// t/3482: the share button previously appeared to "do nothing" on failure — an error WAS
+// caught and stored, but rendered as raw `POST ... failed with HTTP 403: {json}` text in a
+// nowrap span that could overflow/clip out of view. Locks distinct, short, visible copy per
+// failure mode instead of the raw HTTP error string.
+describe('ShareOpEdControl error surfacing (t/3482)', () => {
+  function httpError(status: number, extra?: Record<string, unknown>) {
+    const err = new Error(`POST /api/community/opeds/community-1/share failed with HTTP ${status}: {"error":"anon_route_blocked"}`);
+    return Object.assign(err, { httpStatus: status, ...extra });
+  }
+
+  it('shows a sign-in message on 403 (auth-blocked), not the raw HTTP error text', async () => {
+    shareCommunityOpEd.mockRejectedValueOnce(httpError(403));
+    const user = userEvent.setup();
+    renderReader('community', 'community-1');
+    await user.click(screen.getByLabelText(SHARE_LABEL_COMMUNITY));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('Sign in to get a public link for this op-ed.');
+    expect(alert.textContent).not.toMatch(/HTTP 403/);
+  });
+
+  it('shows a sign-in message on 401 too', async () => {
+    shareCommunityOpEd.mockRejectedValueOnce(httpError(401));
+    const user = userEvent.setup();
+    renderReader('community', 'community-1');
+    await user.click(screen.getByLabelText(SHARE_LABEL_COMMUNITY));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('Sign in to get a public link for this op-ed.');
+  });
+
+  it('shows the retry-after seconds on 429', async () => {
+    shareCommunityOpEd.mockRejectedValueOnce(httpError(429, { retryAfterS: 42 }));
+    const user = userEvent.setup();
+    renderReader('community', 'community-1');
+    await user.click(screen.getByLabelText(SHARE_LABEL_COMMUNITY));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('Rate limited — try again in 42s.');
+  });
+
+  it('shows a network-error message for a bare fetch failure (no httpStatus)', async () => {
+    shareCommunityOpEd.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const user = userEvent.setup();
+    renderReader('community', 'community-1');
+    await user.click(screen.getByLabelText(SHARE_LABEL_COMMUNITY));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('Network error — check your connection and try again.');
+  });
+});
