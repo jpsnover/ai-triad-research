@@ -85,10 +85,14 @@ export function computeCorpusCoverage(
 
   let retreadCount = 0;
   let faultLineCount = 0;
+  const cruxOnlyIds: string[] = [];
+  const debateOnlyIds: string[] = [];
 
   for (const nodeId of allNodeIds) {
     const debateCount = nodeDebates.get(nodeId)?.size ?? 0;
     const cruxLinkCount = nodeCruxLinks.get(nodeId) ?? 0;
+    if (debateCount === 0) cruxOnlyIds.push(nodeId);
+    if (cruxLinkCount === 0) debateOnlyIds.push(nodeId);
     const isFaultLine = cruxLinkCount >= FAULT_LINE_CRUX_MIN;
     const retread = debateCount >= debateCountThreshold && cruxLinkCount <= 1 && !isFaultLine;
 
@@ -96,6 +100,23 @@ export function computeCorpusCoverage(
 
     if (retread) retreadCount++;
     if (isFaultLine) faultLineCount++;
+  }
+
+  // Fallback-path logging: cross-miss between nodeDebates and nodeCruxLinks may indicate
+  // stale ID format in a derived artifact (e.g. cc-NNN keys after id-space migration).
+  if (cruxOnlyIds.length > 0) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'debate-engine', level: 'warn',
+      message: `corpusCoverage: ${cruxOnlyIds.length} node IDs from aggregated-cruxes have no matching debate history — possible stale ID format in derived artifact`,
+      data: { sample_ids: cruxOnlyIds.slice(0, 10), total: cruxOnlyIds.length },
+    });
+  }
+  if (debateOnlyIds.length > 0) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'debate-engine', level: 'warn',
+      message: `corpusCoverage: ${debateOnlyIds.length} node IDs from debate files have no crux linkage — may indicate corpus growth since last crux aggregation`,
+      data: { sample_ids: debateOnlyIds.slice(0, 10), total: debateOnlyIds.length },
+    });
   }
 
   const coverageMap: CorpusCoverageMap = {
