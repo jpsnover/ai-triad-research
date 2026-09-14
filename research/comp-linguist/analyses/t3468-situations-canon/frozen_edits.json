@@ -1,0 +1,3660 @@
+{
+  "ticket": "t/3468",
+  "op": "canonicalize-situations-graph_attributes",
+  "count": 284,
+  "rulings_ref": "t/3468#10",
+  "edits": [
+    {
+      "node_id": "sit-001",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, general_public",
+      "before": "Policymakers, Technical_Researchers, General_Public",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-001",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "urgent",
+      "before": "Urgent",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-001",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "cost_benefit_analysis, precautionary_framing",
+      "before": "Cost_Benefit_Analysis, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-002",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, policymakers, civil_society",
+      "before": "Technical_Researchers, Policymakers, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-002",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-002",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "interpretive_lens",
+      "before": "Definitional, interpretive_lens",
+      "class": "epi-rederive"
+    },
+    {
+      "node_id": "sit-002",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning, precautionary_framing",
+      "before": "Analogical_Reasoning, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-003",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders, civil_society, academic_community",
+      "before": "Policymakers, Industry_Leaders, Civil_Society, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-003",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic",
+      "before": "Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-003",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "normative_prescription",
+      "before": "Strategic_Recommendation, normative_prescription",
+      "class": "epi-rederive"
+    },
+    {
+      "node_id": "sit-003",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "structural_critique, cost_benefit_analysis",
+      "before": "Structural_Critique, Cost_Benefit_Analysis",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-004",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, general_public, civil_society, academic_community",
+      "before": "Policymakers, General_Public, Civil_Society, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-004",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-004",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "interpretive_lens",
+      "before": "Definitional, interpretive_lens",
+      "class": "epi-rederive"
+    },
+    {
+      "node_id": "sit-004",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning, precautionary_framing",
+      "before": "Analogical_Reasoning, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-005",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, industry_leaders, civil_society",
+      "before": "Policymakers, Technical_Researchers, Industry_Leaders, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-005",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "urgent",
+      "before": "Urgent",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-005",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "normative_prescription",
+      "before": "normative_prescription, interpretive_lens",
+      "class": "epi-rederive"
+    },
+    {
+      "node_id": "sit-005",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "cost_benefit_analysis, precautionary_framing",
+      "before": "Cost_Benefit_Analysis, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-006",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, civil_society, academic_community",
+      "before": "Policymakers, Technical_Researchers, Civil_Society, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-006",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-006",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "normative_prescription",
+      "before": "empirical_claim, normative_prescription",
+      "class": "epi-rederive"
+    },
+    {
+      "node_id": "sit-006",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "structural_critique, moral_imperative",
+      "before": "Structural_Critique, Moral_Imperative",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-007",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders, technical_researchers",
+      "before": "Policymakers, Industry_Leaders, Technical_Researchers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-007",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "aspirational",
+      "before": "Aspirational",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-007",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "strategic_recommendation",
+      "before": "Strategic_Recommendation",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-007",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning, moral_imperative",
+      "before": "Analogical_Reasoning, Moral_Imperative",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-008",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, academic_community, policymakers",
+      "before": "Technical_Researchers, Academic_Community, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-008",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "alarmed",
+      "before": "Alarmed",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-008",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "predictive",
+      "before": "predictive, Definitional",
+      "class": "epi-rederive"
+    },
+    {
+      "node_id": "sit-008",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "inevitability_framing, precautionary_framing",
+      "before": "Inevitability_Framing, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-009",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, general_public",
+      "before": "Policymakers, General_Public",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-009",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "urgent",
+      "before": "Urgent",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-009",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning, precautionary_framing",
+      "before": "Analogical_Reasoning, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-010",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders, technical_researchers",
+      "before": "Policymakers, Industry_Leaders, Technical_Researchers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-010",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-010",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "cost_benefit_analysis, precautionary_framing",
+      "before": "Cost_Benefit_Analysis, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-011",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, industry_leaders, policymakers, civil_society",
+      "before": "Technical_Researchers, Industry_Leaders, Policymakers, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-011",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic",
+      "before": "Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-011",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "strategic_recommendation",
+      "before": "Strategic_Recommendation",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-011",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "cost_benefit_analysis, precautionary_framing",
+      "before": "Cost_Benefit_Analysis, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-012",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, policymakers, industry_leaders",
+      "before": "Technical_Researchers, Policymakers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-012",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "urgent",
+      "before": "Urgent",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-012",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, techno_optimism",
+      "before": "Precautionary_Framing, Techno_Optimism",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-013",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, academic_community, policymakers",
+      "before": "Technical_Researchers, Academic_Community, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-013",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "aspirational",
+      "before": "Aspirational",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-013",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "techno_optimism, precautionary_framing",
+      "before": "Techno_Optimism, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-014",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, industry_leaders, civil_society, policymakers",
+      "before": "Technical_Researchers, Industry_Leaders, Civil_Society, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-014",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-014",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "appeal_to_evidence, structural_critique",
+      "before": "Appeal_To_Evidence, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-015",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, policymakers, industry_leaders",
+      "before": "Technical_Researchers, Policymakers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-015",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "urgent",
+      "before": "Urgent",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-015",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning, precautionary_framing",
+      "before": "Analogical_Reasoning, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-016",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "general_public, policymakers, industry_leaders, civil_society",
+      "before": "General_Public, Policymakers, Industry_Leaders, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-016",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "urgent",
+      "before": "Urgent",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-016",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning, techno_optimism",
+      "before": "Analogical_Reasoning, Techno_Optimism",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-017",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, civil_society",
+      "before": "Policymakers, Technical_Researchers, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-017",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary, measured",
+      "before": "Cautionary, Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-017",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, structural_critique",
+      "before": "Precautionary_Framing, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-018",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, policymakers, industry_leaders",
+      "before": "Technical_Researchers, Policymakers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-018",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic, measured",
+      "before": "Pragmatic, Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-018",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "appeal_to_evidence",
+      "before": "Appeal_To_Evidence",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-019",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, civil_society, industry_leaders",
+      "before": "Policymakers, Civil_Society, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-019",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-019",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, cost_benefit_analysis",
+      "before": "Precautionary_Framing, Cost_Benefit_Analysis",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-020",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, civil_society, academic_community",
+      "before": "Policymakers, Civil_Society, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-020",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic, aspirational",
+      "before": "Pragmatic, Aspirational",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-020",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "strategic_recommendation",
+      "before": "Strategic_Recommendation",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-020",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "cost_benefit_analysis",
+      "before": "Cost_Benefit_Analysis",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-021",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, policymakers, industry_leaders",
+      "before": "Technical_Researchers, Policymakers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-021",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary, measured",
+      "before": "Cautionary, Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-021",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, structural_critique",
+      "before": "Precautionary_Framing, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-022",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "general_public, policymakers, civil_society",
+      "before": "General_Public, Policymakers, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-022",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured, pragmatic",
+      "before": "Measured, Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-022",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning",
+      "before": "Analogical_Reasoning",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-023",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "industry_leaders, policymakers, general_public",
+      "before": "Industry_Leaders, Policymakers, General_Public",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-023",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "optimistic, pragmatic",
+      "before": "Optimistic, Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-023",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "strategic_recommendation",
+      "before": "Strategic_Recommendation",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-023",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "techno_optimism, analogical_reasoning",
+      "before": "Techno_Optimism, Analogical_Reasoning",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-024",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, industry_leaders, policymakers",
+      "before": "Technical_Researchers, Industry_Leaders, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-024",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "alarmed, cautionary",
+      "before": "Alarmed, Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-024",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, appeal_to_evidence",
+      "before": "Precautionary_Framing, Appeal_To_Evidence",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-025",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, industry_leaders, civil_society",
+      "before": "Policymakers, Technical_Researchers, Industry_Leaders, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-025",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary, urgent",
+      "before": "Cautionary, Urgent",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-025",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, structural_critique",
+      "before": "Precautionary_Framing, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-026",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, industry_leaders, civil_society",
+      "before": "Policymakers, Technical_Researchers, Industry_Leaders, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-026",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic, cautionary",
+      "before": "Pragmatic, Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-026",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "cost_benefit_analysis, precautionary_framing",
+      "before": "Cost_Benefit_Analysis, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-027",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders, civil_society, academic_community",
+      "before": "Policymakers, Industry_Leaders, Civil_Society, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-027",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic, cautionary",
+      "before": "Pragmatic, Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-027",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "cost_benefit_analysis, structural_critique",
+      "before": "Cost_Benefit_Analysis, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-028",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, industry_leaders, civil_society, academic_community",
+      "before": "Policymakers, Technical_Researchers, Industry_Leaders, Civil_Society, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-028",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "urgent, pragmatic",
+      "before": "Urgent, Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-028",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, structural_critique",
+      "before": "Precautionary_Framing, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-029",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, industry_leaders, academic_community, civil_society",
+      "before": "Policymakers, Technical_Researchers, Industry_Leaders, Academic_Community, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-029",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "optimistic, measured, cautionary",
+      "before": "Optimistic, Measured, Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-029",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "normative_prescription",
+      "before": "empirical_claim, interpretive_lens",
+      "class": "epi-rederive"
+    },
+    {
+      "node_id": "sit-029",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "techno_optimism, precautionary_framing",
+      "before": "Techno_Optimism, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-030",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "academic_community, policymakers",
+      "before": "Academic_Community, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-030",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-030",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "structural_critique",
+      "before": "Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-031",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, academic_community, civil_society",
+      "before": "Policymakers, Academic_Community, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-031",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-031",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "structural_critique",
+      "before": "Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-032",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders, academic_community",
+      "before": "Policymakers, Industry_Leaders, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-032",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "urgent, aspirational",
+      "before": "Urgent, Aspirational",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-032",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "interpretive_lens",
+      "before": "Definitional, interpretive_lens",
+      "class": "epi-rederive"
+    },
+    {
+      "node_id": "sit-032",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "moral_imperative, precautionary_framing",
+      "before": "Moral_Imperative, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-034",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, policymakers",
+      "before": "Technical_Researchers, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-034",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-034",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-034",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing",
+      "before": "Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-036",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, academic_community",
+      "before": "Policymakers, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-036",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-036",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-036",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning, structural_critique",
+      "before": "Analogical_Reasoning, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-037",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders",
+      "before": "Policymakers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-037",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-037",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning, appeal_to_evidence",
+      "before": "Analogical_Reasoning, Appeal_To_Evidence",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-038",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, civil_society",
+      "before": "Policymakers, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-038",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "alarmed",
+      "before": "Alarmed",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-038",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, structural_critique",
+      "before": "Precautionary_Framing, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-039",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "academic_community, policymakers",
+      "before": "Academic_Community, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-039",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-039",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-039",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning",
+      "before": "Analogical_Reasoning",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-040",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders",
+      "before": "Policymakers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-040",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-040",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-040",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning",
+      "before": "Analogical_Reasoning",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-041",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, policymakers, academic_community",
+      "before": "Technical_Researchers, Policymakers, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-041",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-041",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-041",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning",
+      "before": "Analogical_Reasoning",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-042",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, general_public, academic_community",
+      "before": "Policymakers, General_Public, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-042",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-042",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "appeal_to_evidence",
+      "before": "Appeal_To_Evidence",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-043",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, industry_leaders, policymakers",
+      "before": "Technical_Researchers, Industry_Leaders, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-043",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "aspirational",
+      "before": "Aspirational",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-043",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "strategic_recommendation",
+      "before": "Strategic_Recommendation",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-043",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "techno_optimism",
+      "before": "Techno_Optimism",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-044",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, general_public, civil_society",
+      "before": "Policymakers, General_Public, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-044",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "alarmed",
+      "before": "Alarmed",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-044",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing",
+      "before": "Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-045",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "industry_leaders, policymakers, general_public",
+      "before": "Industry_Leaders, Policymakers, General_Public",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-045",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-045",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing",
+      "before": "Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-046",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, industry_leaders",
+      "before": "Policymakers, Technical_Researchers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-046",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic",
+      "before": "Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-046",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "strategic_recommendation",
+      "before": "Strategic_Recommendation",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-046",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing",
+      "before": "Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-047",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, academic_community",
+      "before": "Technical_Researchers, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-047",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-047",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "appeal_to_evidence",
+      "before": "Appeal_To_Evidence",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-048",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, industry_leaders, academic_community",
+      "before": "Policymakers, Technical_Researchers, Industry_Leaders, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-048",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic",
+      "before": "Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-048",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-048",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "cost_benefit_analysis",
+      "before": "Cost_Benefit_Analysis",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-049",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, industry_leaders",
+      "before": "Policymakers, Technical_Researchers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-049",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-049",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, structural_critique",
+      "before": "Precautionary_Framing, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-050",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "industry_leaders, policymakers",
+      "before": "Industry_Leaders, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-050",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic",
+      "before": "Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-050",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "strategic_recommendation",
+      "before": "Strategic_Recommendation",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-050",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "cost_benefit_analysis",
+      "before": "Cost_Benefit_Analysis",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-051",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, civil_society, academic_community",
+      "before": "Policymakers, Civil_Society, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-051",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-051",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, structural_critique",
+      "before": "Precautionary_Framing, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-052",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "industry_leaders, technical_researchers, academic_community",
+      "before": "Industry_Leaders, Technical_Researchers, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-052",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "optimistic",
+      "before": "Optimistic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-052",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "techno_optimism",
+      "before": "Techno_Optimism",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-053",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "academic_community, policymakers, civil_society",
+      "before": "Academic_Community, Policymakers, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-053",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-053",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-053",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "appeal_to_evidence",
+      "before": "Appeal_To_Evidence",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-054",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, academic_community, civil_society",
+      "before": "Policymakers, Academic_Community, Civil_Society",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-054",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "urgent",
+      "before": "Urgent",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-054",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing, cost_benefit_analysis",
+      "before": "Precautionary_Framing, Cost_Benefit_Analysis",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-055",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "industry_leaders, technical_researchers, policymakers",
+      "before": "Industry_Leaders, Technical_Researchers, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-055",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "aspirational",
+      "before": "Aspirational",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-055",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-055",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "techno_optimism",
+      "before": "Techno_Optimism",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-056",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "industry_leaders, academic_community, technical_researchers",
+      "before": "Industry_Leaders, Academic_Community, Technical_Researchers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-056",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic",
+      "before": "Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-056",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-056",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "techno_optimism",
+      "before": "Techno_Optimism",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-057",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders",
+      "before": "Policymakers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-057",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-057",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-057",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing",
+      "before": "Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-058",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders",
+      "before": "Policymakers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-058",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic",
+      "before": "Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-058",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-058",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "appeal_to_evidence, moral_imperative",
+      "before": "Appeal_To_Evidence, Moral_Imperative",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-059",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, academic_community",
+      "before": "Policymakers, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-059",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-059",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "structural_critique, moral_imperative",
+      "before": "Structural_Critique, Moral_Imperative",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-060",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "academic_community, policymakers",
+      "before": "Academic_Community, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-060",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-060",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-060",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "Definitional",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-061",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, academic_community",
+      "before": "Policymakers, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-061",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic",
+      "before": "Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-061",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional, Strategic_Recommendation",
+      "class": "epi-rederive"
+    },
+    {
+      "node_id": "sit-061",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "Strategic_Recommendation",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-062",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "academic_community, policymakers",
+      "before": "Academic_Community, Policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-062",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-062",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "Definitional",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-063",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders",
+      "before": "Policymakers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-063",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "urgent",
+      "before": "Urgent",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-063",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "cost_benefit_analysis, structural_critique",
+      "before": "Cost_Benefit_Analysis, Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-064",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, academic_community",
+      "before": "Policymakers, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-064",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "pragmatic",
+      "before": "Pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-064",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "normative_prescription",
+      "before": "interpretive_lens, Strategic_Recommendation",
+      "class": "epi-rederive"
+    },
+    {
+      "node_id": "sit-064",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "Definitional, Strategic_Recommendation",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-065",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, academic_community",
+      "before": "Policymakers, Academic_Community",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-065",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-065",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "value": "definitional",
+      "before": "Definitional",
+      "class": "casefold"
+    },
+    {
+      "node_id": "sit-065",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "structural_critique",
+      "before": "Structural_Critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-066",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, industry_leaders",
+      "before": "Technical_Researchers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-066",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "measured",
+      "before": "Measured",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-066",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "inevitability_framing",
+      "before": "Inevitability_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-067",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders",
+      "before": "Policymakers, Industry_Leaders",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-067",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary",
+      "before": "Cautionary",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-067",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "inevitability_framing, precautionary_framing",
+      "before": "Inevitability_Framing, Precautionary_Framing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-081",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "strategic_recommendation",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-084",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "strategic_recommendation",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-086",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "techno_optimism",
+      "before": "techno_optimism, strategic_recommendation",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-087",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing",
+      "before": "precautionary_framing, strategic_recommendation",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-094",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "predictive",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-101",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "precautionary_framing",
+      "before": "precautionary_framing, predictive",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-117",
+      "file": "situations.json",
+      "field": "node_scope",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "node_scope"
+      ],
+      "value": "scheme",
+      "before": "interpretive_lens",
+      "class": "ns-rederive"
+    },
+    {
+      "node_id": "sit-117",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "structural_critique",
+      "before": "structural_critique, interpretive_lens",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-118",
+      "file": "situations.json",
+      "field": "node_scope",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "node_scope"
+      ],
+      "value": "scheme",
+      "before": "interpretive_lens",
+      "class": "ns-rederive"
+    },
+    {
+      "node_id": "sit-121",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "interpretive_lens",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-134",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary, analytical",
+      "before": "cautionary, critical",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-139",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "value": "cautionary, analytical, alarmed",
+      "before": "cautionary, critical, alarmed",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-152",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "predictive",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-170",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "before": "All stakeholders",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-170",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "before": "neutral",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-170",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "before": "analytical",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-170",
+      "file": "situations.json",
+      "field": "falsifiability",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "falsifiability"
+      ],
+      "before": "Category node \u2014 organizational, not directly falsifiable.",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-170",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "Categorization",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-171",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "before": "All stakeholders",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-171",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "before": "neutral",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-171",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "before": "analytical",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-171",
+      "file": "situations.json",
+      "field": "falsifiability",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "falsifiability"
+      ],
+      "before": "Category node \u2014 organizational, not directly falsifiable.",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-171",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "Categorization",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-172",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "before": "All stakeholders",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-172",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "before": "neutral",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-172",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "before": "analytical",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-172",
+      "file": "situations.json",
+      "field": "falsifiability",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "falsifiability"
+      ],
+      "before": "Category node \u2014 organizational, not directly falsifiable.",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-172",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "Categorization",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-173",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "before": "All stakeholders",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-173",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "before": "neutral",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-173",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "before": "analytical",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-173",
+      "file": "situations.json",
+      "field": "falsifiability",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "falsifiability"
+      ],
+      "before": "Category node.",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-173",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "Categorization",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-174",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "before": "All stakeholders",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-174",
+      "file": "situations.json",
+      "field": "emotional_register",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "emotional_register"
+      ],
+      "before": "neutral",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-174",
+      "file": "situations.json",
+      "field": "epistemic_type",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "epistemic_type"
+      ],
+      "before": "analytical",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-174",
+      "file": "situations.json",
+      "field": "falsifiability",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "falsifiability"
+      ],
+      "before": "Category node.",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-174",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "Categorization",
+      "class": "5-category-blank"
+    },
+    {
+      "node_id": "sit-201",
+      "file": "situations.json",
+      "field": "node_scope",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "node_scope"
+      ],
+      "value": "scheme",
+      "before": "interpretive_lens",
+      "class": "ns-rederive"
+    },
+    {
+      "node_id": "sit-214",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "predictive",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-235",
+      "file": "situations.json",
+      "field": "node_scope",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "node_scope"
+      ],
+      "value": "scheme",
+      "before": "definitional",
+      "class": "ns-rederive"
+    },
+    {
+      "node_id": "sit-235",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "reductio_ad_absurdum",
+      "before": "reductio_ad_absurdum, dismissive",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-236",
+      "file": "situations.json",
+      "field": "node_scope",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "node_scope"
+      ],
+      "value": "scheme",
+      "before": "definitional",
+      "class": "ns-rederive"
+    },
+    {
+      "node_id": "sit-236",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "aspirational",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-237",
+      "file": "situations.json",
+      "field": "node_scope",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "node_scope"
+      ],
+      "value": "scheme",
+      "before": "interpretive_lens",
+      "class": "ns-rederive"
+    },
+    {
+      "node_id": "sit-248",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "techno_optimism, pragmatic_framing",
+      "before": "techno_optimism, pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-254",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "pragmatic_framing, structural_critique",
+      "before": "pragmatic, structural_critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-268",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "interpretive_lens",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-269",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "interpretive_lens",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-270",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "interpretive_lens",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-276",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "structural_critique",
+      "before": "interpretive_lens, structural_critique",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-281",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "remove",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "before": "aspirational",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-282",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "pragmatic_framing",
+      "before": "pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-301",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "pragmatic_framing, cost_benefit_analysis",
+      "before": "pragmatic, cost_benefit_analysis",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-447",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, technical_researchers, academic_community",
+      "before": "policymakers, technical_researchers, academic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-447",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "analogical_reasoning",
+      "before": "conceptual_reframing",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-468",
+      "file": "situations.json",
+      "field": "rhetorical_strategy",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "rhetorical_strategy"
+      ],
+      "value": "appeal_to_evidence, pragmatic_framing",
+      "before": "appeal_to_evidence, pragmatic",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-473",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "technical_researchers, academic_community, policymakers",
+      "before": "technical_researchers,academic_community,policymakers",
+      "class": "csv"
+    },
+    {
+      "node_id": "sit-476",
+      "file": "situations.json",
+      "field": "audience",
+      "mode": "replace",
+      "path": [
+        "graph_attributes",
+        "audience"
+      ],
+      "value": "policymakers, industry_leaders",
+      "before": "policymakers,industry_leaders",
+      "class": "csv"
+    }
+  ]
+}
