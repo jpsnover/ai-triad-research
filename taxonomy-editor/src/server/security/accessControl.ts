@@ -340,6 +340,28 @@ const ANON_SAFE_POST_PATHS = [
   '/debug/events',
 ];
 
+// t/3480: anon POST for the community op-ed public-link mint. Parameterized path
+// (per-id), so it can't live in the exact-match ANON_SAFE_POST_PATHS above — a
+// dedicated regex list instead. Mint only — DELETE (revoke) stays authed via the
+// existing `method === 'DELETE' → false` branch below; no regex check runs for
+// DELETE, so revoke on the same path is unaffected by this list. TL auth ruling
+// (t/3479): mint is idempotent (one stable shareId per item, repeat calls are
+// cheap), rate-limited, and the public copy strips community_metadata.
+//
+// Rate-bucket note (t/3480, TL-confirmed p/602#6): `community-oped-share:<userId>`
+// collapses to ONE shared 20/min bucket across all anon callers (getStorageUserId()
+// returns '_local' for every anonymous request — see userContext.ts). Accepted as
+// documented rather than IP-keyed: mint is idempotent so the failure mode of the
+// shared cap is "anon minting pauses briefly," not data exposure or per-caller
+// unfairness with lasting effect. Revisit (switch to IP-keying in community.ts,
+// Server Community's scope) if telemetry shows the shared bucket actually
+// exhausting under real anon traffic — i.e. anon callers observing 429s on
+// /api/community/opeds/*/share in production, not merely a theoretical shared-cap
+// concern.
+const ANON_SAFE_POST_REGEXES = [
+  /^\/api\/community\/opeds\/[^/]+\/share$/,
+];
+
 /** t/3259: the debate-only ~400MB synthetic-embeddings corpus GET — anon access is gated on the
  *  anon-debates flag rather than the blanket GET-allow below. */
 const SYNTHETIC_EMBEDDINGS_PATH = '/api/taxonomy/synthetic-embeddings';
@@ -379,5 +401,6 @@ export function isAnonAllowedRoute(method: string, urlPath: string): boolean {
   if (method === 'PUT' || method === 'DELETE') return false;
 
   // POST: allowlist read-like operations, block everything else
-  return ANON_SAFE_POST_PATHS.some(p => urlPath === p);
+  return ANON_SAFE_POST_PATHS.some(p => urlPath === p)
+    || ANON_SAFE_POST_REGEXES.some(r => r.test(urlPath));
 }
