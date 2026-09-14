@@ -1,34 +1,35 @@
 {
   "meta": {
-    "schema_version": "3.0.0",
+    "schema_version": "4.0.0",
     "corpus_snapshot": "2026-09-13",
     "provenance": "CL empirical inventory (t/3447#1) over 916 POV nodes + 33744 edges; CL+TL co-signed (t/3447#3/#4); SO-approved (e/151#2, t/3447#5).",
     "motivation": "One declarative source-of-truth for the taxonomy schema, replacing the implicit spread across Zod validators, TS types, PS validators, prompts, and JSON conventions. Existence justified by 4 defects the drafting inventory surfaced that scattering had hidden: t/3448 (rhetorical_strategy vocab drift), t/3449 (steelman_vulnerability type-drift), t/3450 (cross-field contamination), t/3451 (transient residue). That is the answer to the dual-maintenance objection.",
-    "scope_note": "Covers SHAPE, not content: value sets, types, edge vocab, ID grammar. Per-node data, embeddings metadata, and policy_actions internals are out of scope.",
+    "scope_note": "Covers SHAPE, not content: value sets, types, edge vocab, ID grammar. Per-node data, embeddings metadata, and policy_actions internals are out of scope. graph_attributes[] govern both pov nodes and situation (sit-*) nodes.",
     "snapshot_note": "Fields named cov_at_snapshot (and corpus_snapshot) are INFORMATIONAL only and are NEVER gate inputs. The drift gate compares value sets and types, not coverage.",
     "net_not_gate": "A green drift gate means NO DIVERGENCE between this record and its consumers. It does NOT mean the schema is correct — correctness is a human ontology judgment (CL+TL).",
     "record_first": "A legitimate new value/type/edge is added to THIS record FIRST (CL+TL co-sign), then to consumers. The gate's failure message repeats this.",
     "change_control": {
-      "normative_fields": ["graph_attributes[].type", "graph_attributes[].required", "graph_attributes[].elem", "graph_attributes[].values", "graph_attributes[].atomic_values", "graph_attributes[].status", "edges.canonical", "edges.deprecated_types", "node_id.grammar", "node_id.pov", "node_id.category"],
+      "normative_fields": ["graph_attributes[].type", "graph_attributes[].required", "graph_attributes[].elem", "graph_attributes[].values", "graph_attributes[].atomic_values", "graph_attributes[].status", "edges.canonical", "edges.deprecated_types", "node_id.grammar", "node_id.pov", "node_id.category", "situation_relations.parent.values", "situation_relations.disagreement_type.values", "situation_relations.*.from/to"],
       "normative_edit_rule": "Edits to normative fields require CL+TL co-sign, and re-trigger the t/3361 Second Opinion when they meet its schema/data-model bar (normative removal/retype, or new blocking-gate coupling).",
       "free_fields": ["notes", "cov_at_snapshot", "corpus_snapshot", "contested[].resolution_ref", "review_by"],
       "semver": "major = normative removal or retype; minor = additive normative (new enum value, new field, new edge type); patch = non-normative (notes, snapshot, pointers)."
     }
   },
   "node_id": {
-    "grammar": "^(acc|saf|skp|cc)-(beliefs|desires|intentions)-(\\d{3})$",
-    "pov": ["acc", "saf", "skp", "cc"],
+    "grammar": "^(acc|saf|skp)-(beliefs|desires|intentions)-(\\d{3})$",
+    "pov": ["acc", "saf", "skp"],
     "category": ["beliefs", "desires", "intentions"],
     "nnn": "zero-padded width-3",
-    "sidegrammars": { "policy_action": "pol-*", "note": "cc-node + situation id grammar = v1.1 follow-up section (TL scope ruling)" }
+    "sidegrammars": { "policy_action": "pol-*", "situation": "^sit-(\\d{3})$" },
+    "retired_id_spaces": [{ "space": "cc-NNN and cc-<category>-NNN", "migrated_to": "sit-*", "ref": "t/1308 (2026-07-04); resolver = cc-to-sit-mapping.json", "note": "common-ground camp retired; 0 live cc-* nodes remain. ~6.3k stale bare-cc-NNN refs persist in DERIVED artifacts (edge_discovery_log, similarity-cache, interpretation_embeddings, aggregated-cruxes, _archived_edges) — pre-migration, resolvable via the map; no live taxonomy node or situation linked_nodes uses cc-*." }]
   },
   "graph_attributes": {
     "epistemic_type":        { "type": "enum", "required": true,  "cov_at_snapshot": 1.00, "values": ["empirical_claim","strategic_recommendation","normative_prescription","interpretive_lens","predictive","definitional","causal_mechanism"], "status": "active", "writer": "enrichment (batch_enrich_nodes.py, unverified)", "notes": "Epistemic modality of the claim (AIF I-node quality). empirical_claim/predictive=assertoric+falsifiable; normative_prescription=deontic; strategic_recommendation=practical/means-end; interpretive_lens=framing; definitional=analytic; causal_mechanism=causal." },
     "node_scope":            { "type": "enum", "required": true,  "cov_at_snapshot": 1.00, "values": ["claim","scheme","bridging","narrow_technical","domain_specific","cross_domain","systemic"], "status": "active", "writer": "enrichment (unverified)", "notes": "Argumentative granularity. claim=atomic I-node; scheme=AIF argumentation-scheme (S-node/RA pattern); bridging=cross-POV connector; others=abstraction breadth." },
     "falsifiability":        { "type": "enum", "required": false, "cov_at_snapshot": 0.97, "values": ["high","medium","low"], "status": "active", "writer": "enrichment (unverified)", "notes": "Popperian testability qualifier; epistemic quality of the I-node." },
-    "rhetorical_strategy":   { "type": "controlled_vocab_csv", "required": false, "cov_at_snapshot": 1.00, "atomic_values": ["structural_critique","appeal_to_evidence","precautionary_framing","moral_imperative","cost_benefit_analysis","techno_optimism","credibility_framing","analogical_reasoning","appeal_to_fear","inevitability_framing","appeal_to_authority","appeal_to_justice","appeal_to_sovereignty","rights_based","pragmatic_framing","systemic_critique"], "status": "active", "writer": "enrichment (unverified)", "notes": "Rhetorical/pragmatic persuasion move (presentation layer, not propositional content). Canonical 16-value set (t/3448, CL+TL co-signed): drift variants merged (evidence_based→appeal_to_evidence, precautionary→precautionary_framing, pragmatic*→pragmatic_framing, cost_benefit→cost_benefit_analysis, fear_appeal→appeal_to_fear, system_critique→systemic_critique, technical_framing→credibility_framing); cross-field contaminants dropped (aspirational/defiant=emotional_register, definitional=epistemic_type). skp-beliefs-251 intentionally uncovered (t/3448)." },
+    "rhetorical_strategy":   { "type": "controlled_vocab_csv", "required": false, "cov_at_snapshot": 1.00, "atomic_values": ["structural_critique","appeal_to_evidence","precautionary_framing","moral_imperative","cost_benefit_analysis","techno_optimism","credibility_framing","analogical_reasoning","appeal_to_fear","inevitability_framing","appeal_to_authority","appeal_to_justice","appeal_to_sovereignty","rights_based","pragmatic_framing","systemic_critique","reductio_ad_absurdum"], "status": "active", "writer": "enrichment (unverified)", "notes": "Rhetorical/pragmatic persuasion move (presentation layer, not propositional content). Canonical 16-value set (t/3448, CL+TL co-signed): drift variants merged (evidence_based→appeal_to_evidence, precautionary→precautionary_framing, pragmatic*→pragmatic_framing, cost_benefit→cost_benefit_analysis, fear_appeal→appeal_to_fear, system_critique→systemic_critique, technical_framing→credibility_framing); cross-field contaminants dropped (aspirational/defiant=emotional_register, definitional=epistemic_type). skp-beliefs-251 intentionally uncovered (t/3448). t/3468 adds reductio_ad_absurdum (17th; classical argumentation form, TL-ruled canonical-add)." },
     "emotional_register":    { "type": "controlled_vocab_csv", "required": false, "cov_at_snapshot": 0.97, "atomic_values": ["cautionary","pragmatic","measured","urgent","alarmed","aspirational","optimistic","defiant","dismissive","assertive","resolute","analytical"], "status": "active", "writer": "enrichment (unverified)", "notes": "Affective tone (pathos); presentational quality. t/3450 removes moral_imperative leakage (a rhetorical_strategy value contaminating this field)." },
-    "audience":              { "type": "controlled_vocab_csv", "required": false, "cov_at_snapshot": 0.96, "atomic_values": ["policymakers","technical_researchers","industry_leaders","academic_community","civil_society","general_public","labor_organizations"], "status": "active", "writer": "enrichment (unverified)", "notes": "Intended addressee(s); AIF dialogical context (target participants)." },
+    "audience":              { "type": "controlled_vocab_csv", "required": false, "cov_at_snapshot": 0.96, "atomic_values": ["policymakers","technical_researchers","industry_leaders","academic_community","civil_society","general_public","labor_organizations","military_leaders","legal_professionals"], "status": "active", "writer": "enrichment (unverified)", "notes": "Intended addressee(s); AIF dialogical context (target participants). t/3468 adds military_leaders, legal_professionals (canonical-adds)." },
     "intellectual_lineage":  { "type": "array", "elem": "string", "required": false, "cov_at_snapshot": 0.98, "status": "active", "writer": "enrichment (unverified)", "notes": "Genealogy/provenance of the idea (open set, ~63 distinct). Descriptive, not argumentative." },
     "assumes":               { "type": "array", "elem": "string", "required": false, "cov_at_snapshot": 0.95, "status": "active", "relational_content": true, "writer": "enrichment (unverified)", "notes": "Presuppositions. RELATIONAL content (semantically the ASSUMES edge / AIF RA-presupposition) stored node-locally; flagged for the intrinsic-vs-relational routing call, not mechanized." },
     "steelman_vulnerability":{ "type": "string", "required": false, "cov_at_snapshot": 0.98, "status": "active", "relational_content": true, "writer": "enrichment (unverified)", "notes": "Strongest counterargument (dialectical). RELATIONAL (semantically CONTRADICTS/WEAKENS / AIF CA) stored as node text. Canonical type = string; t/3449 normalizes the 27 dict-shaped nodes." },
@@ -54,6 +55,13 @@
     ],
     "deprecated_types": [],
     "note": "0 non-canonical in live edges[] at snapshot. deprecated_types present so any sprawl re-entry (the ~70 dead llm_proposed class) is a diff, not a silent addition."
+  },
+  "situation_relations": {
+    "id_space": "sit-*",
+    "groups": { "from": "sit-*", "to": "pov-node", "source_field": "linked_nodes", "cardinality": "many", "note": "a situation frames/aggregates the pov nodes that instantiate it" },
+    "parent": { "from": "sit-*", "to": "sit-*", "source_field": "parent_relationship", "values": ["is_a", "part_of", "specializes"] },
+    "disagreement_type": { "on": "sit-*", "source_field": "disagreement_type", "values": ["definitional", "interpretive", "structural"], "note": "attribute of the situation, not an inter-node edge" },
+    "category_node_exemption": "category/parent situations (see parent_relationship) may omit graph_attributes enums that don't apply; absence over sentinel (t/3468)."
   },
   "contested": {
     "attribution_text": { "status": "derived-or-retire", "derived_from": "description" }
