@@ -388,6 +388,20 @@ describe('isAnonAllowedRoute (t/763 anon_route_blocked classification)', () => {
     expect(isAnonAllowedRoute('POST', '/api/community/submit')).toBe(true);
     expect(isAnonAllowedRoute('POST', '/api/debates/export')).toBe(true);
   });
+
+  // t/3480: anon-allow the community op-ed public-link mint (regex predicate — parameterized path)
+  it('t/3480: allows anon POST to mint a community op-ed public link', () => {
+    expect(isAnonAllowedRoute('POST', '/api/community/opeds/abc123/share')).toBe(true);
+  });
+
+  it('t/3480: DELETE (revoke) on the same path stays authed-only', () => {
+    expect(isAnonAllowedRoute('DELETE', '/api/community/opeds/abc123/share')).toBe(false);
+  });
+
+  it('t/3480: exact-match only — sibling subpaths of /api/community/opeds/* stay blocked', () => {
+    expect(isAnonAllowedRoute('POST', '/api/community/opeds/abc123/vote')).toBe(false);
+    expect(isAnonAllowedRoute('POST', '/api/community/opeds/share')).toBe(false); // no id segment
+  });
 });
 
 describe('isTerminalAccessAllowed (L6)', () => {
