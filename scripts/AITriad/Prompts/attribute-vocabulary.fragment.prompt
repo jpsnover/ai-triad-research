@@ -14,7 +14,7 @@ ATTRIBUTE VOCABULARY:
     "credibility_framing", "analogical_reasoning", "appeal_to_fear",
     "inevitability_framing", "appeal_to_authority", "appeal_to_justice",
     "appeal_to_sovereignty", "rights_based", "pragmatic_framing",
-    "systemic_critique"
+    "systemic_critique", "reductio_ad_absurdum"
 
   assumes (required, array of 1-4 strings):
     Key premises that must be true for this node to hold. Be specific and concrete.

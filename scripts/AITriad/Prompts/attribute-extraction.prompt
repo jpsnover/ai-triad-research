@@ -18,7 +18,7 @@ ATTRIBUTE VOCABULARY:
     "interpretive_lens" — a framework for understanding other claims
 
   rhetorical_strategy (required, string — pick ONE or TWO, comma-separated):
-    Canonical-16 controlled vocab (lib/schema/taxonomy-schema.json, t/3448):
+    Canonical-17 controlled vocab (lib/schema/taxonomy-schema.json, t/3448 + t/3468):
     "structural_critique" — argues the system or structure itself is flawed
     "appeal_to_evidence" — grounds argument in data
     "precautionary_framing" — emphasizes risk of action
@@ -35,6 +35,7 @@ ATTRIBUTE VOCABULARY:
     "rights_based" — grounds the argument in fundamental rights or entitlements
     "pragmatic_framing" — emphasizes what is practical, workable, or feasible
     "systemic_critique" — attributes the outcome to system-wide incentives or dynamics
+    "reductio_ad_absurdum" — shows the opposing view leads to contradiction or absurdity
 
   assumes (required, array of 1-4 strings):
     Key premises that must be true for this node to hold. Be specific and concrete.
