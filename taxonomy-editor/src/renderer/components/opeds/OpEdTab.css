@@ -100,8 +100,11 @@
 .oped-share {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap; /* t/3482: let the error message wrap to its own line instead of clipping/overflowing */
   gap: 0.4rem;
   margin-left: auto; /* push to the far end of the reader bar */
+  max-width: 60%;
+  justify-content: flex-end;
 }
 .oped-share-status {
   font-size: 0.75rem;
@@ -122,7 +125,8 @@
 .oped-share-error {
   font-size: 0.75rem;
   color: var(--danger, #c0392b);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .oped-reader-loading,
