@@ -6,8 +6,12 @@
    (src/renderer/styles.css), already theme-aware (theme-token-completeness test, t/2567).
    Mirrors the PublicOpEdView.css posture (slim centered card). */
 
+/* t/3485: body has global `overflow: hidden; height: 100dvh` (styles.css, frozen) so this
+   must be its OWN scroll container — see PublicOpEdView.css for the full explanation. */
 .pov-oped-index-root {
-  min-height: 100vh;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   justify-content: center;
   padding: 2.5rem 1rem 4rem;

@@ -7,8 +7,17 @@
    theme-aware, so no per-scheme override block is needed (theme-token-completeness
    test, t/2567). Mirrors the PublicPovView.css posture (slim centered card). */
 
+/* t/3485: body has global `overflow: hidden; height: 100dvh` (styles.css, frozen — new
+   selectors go here, not there) so this must be its OWN scroll container, not rely on body
+   scroll. #root is `display:flex; flex-direction:column; height:100dvh` — `flex:1 1 auto` +
+   `min-height:0` makes this the flex child that fills and scrolls (min-height:0 overrides the
+   flex default of min-height:auto, which otherwise refuses to shrink below content size and
+   silently defeats overflow-y). Without this, content past the first viewport is unreachable —
+   the PI's "only 1 POV" and t/3477's "never scrolls past the topic" reports were the same bug. */
 .pov-oped-root {
-  min-height: 100vh;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   justify-content: center;
   padding: 2.5rem 1rem 4rem;
@@ -48,6 +57,33 @@
   color: var(--text-muted);
   font-size: 0.9rem;
 }
+
+/* Camp-tab strip (multi-voice sets only, t/3485) — mirrors OpEdReader.css's in-app tabs so the
+   public and in-app experiences stay visually consistent. */
+.pov-oped-tabstrip {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.pov-oped-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: -1px;
+}
+.pov-oped-tab:hover { color: var(--text-primary); }
+.pov-oped-tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.pov-oped-tab-active { font-weight: 700; }
 
 .pov-oped-article {
   margin: 1.75rem 0;

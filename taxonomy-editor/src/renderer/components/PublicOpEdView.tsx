@@ -13,7 +13,7 @@
 // `credentials: 'omit'` guarantees no cookie is sent or stored. Registered as an
 // approved bare-fetch exception in taxonomy-editor/AGENTS.md § Client Network Resilience.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -87,6 +87,70 @@ function OpEdArticle({ member, outlet }: { member: PublicOpEdMember; outlet: str
         </>
       )}
     </article>
+  );
+}
+
+// t/3485: PI feedback on the deployed t/3477 fix — stacking all op-eds sequentially traded one
+// burial (situation wall) for another (only the first op-ed visible without scrolling, no
+// indication two more exist). Mirrors OpEdReader.tsx's in-app tab pattern exactly (roving-
+// tabindex tablist, same keyboard nav, same single-voice-has-no-tabs ruling t/2576#3) so the
+// public and in-app experiences stay consistent.
+function OpEdTabbedArticles({ members, outlet }: { members: PublicOpEdMember[]; outlet: string | null }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const onTabKeyDown = useCallback((e: React.KeyboardEvent, idx: number) => {
+    let next = idx;
+    if (e.key === 'ArrowRight') next = (idx + 1) % members.length;
+    else if (e.key === 'ArrowLeft') next = (idx - 1 + members.length) % members.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = members.length - 1;
+    else return;
+    e.preventDefault();
+    setActiveIdx(next);
+    tabRefs.current[next]?.focus();
+  }, [members.length]);
+
+  if (members.length === 0) {
+    return <p className="pov-oped-empty">This shared op-ed has no voices.</p>;
+  }
+  if (members.length === 1) {
+    return <OpEdArticle member={members[0]} outlet={outlet} />;
+  }
+
+  const active = members[Math.min(activeIdx, members.length - 1)];
+
+  return (
+    <>
+      <div className="pov-oped-tabstrip" role="tablist" aria-label="Op-ed voices">
+        {members.map((m, i) => {
+          const meta = resolvePovMeta(m.pov);
+          const isActive = i === activeIdx;
+          return (
+            <button
+              key={`${m.pov}-${i}`}
+              ref={el => { tabRefs.current[i] = el; }}
+              type="button"
+              role="tab"
+              id={`pov-oped-tab-${i}`}
+              aria-selected={isActive}
+              aria-controls="pov-oped-panel"
+              tabIndex={isActive ? 0 : -1}
+              className={`pov-oped-tab${isActive ? ' pov-oped-tab-active' : ''}`}
+              // eslint-disable-next-line local/no-inline-style -- dynamic: active underline uses the camp's theme color
+              style={isActive ? { borderBottomColor: `var(${meta.cssVar})`, color: `var(${meta.cssVar})` } : undefined}
+              onClick={() => setActiveIdx(i)}
+              onKeyDown={e => onTabKeyDown(e, i)}
+            >
+              {meta.label}
+            </button>
+          );
+        })}
+      </div>
+      <div role="tabpanel" id="pov-oped-panel" aria-labelledby={`pov-oped-tab-${activeIdx}`}>
+        <OpEdArticle member={active} outlet={outlet} />
+      </div>
+    </>
   );
 }
 
@@ -177,11 +241,7 @@ export function PublicOpEdView() {
             <p className="pov-oped-outlet">For {doc.outlet}</p>
           </header>
         ) : null}
-        {doc.opeds.length === 0 ? (
-          <p className="pov-oped-empty">This shared op-ed has no voices.</p>
-        ) : (
-          doc.opeds.map((m, i) => <OpEdArticle key={`${m.pov}-${i}`} member={m} outlet={doc.outlet} />)
-        )}
+        <OpEdTabbedArticles members={doc.opeds} outlet={doc.outlet} />
         {/* Situation topic is source context, not the lead content — the op-eds above
             are (t/3477). Clamped to a scrollable box so a long situation narrative
             can't push below-the-fold content further down; no expand control, so the
