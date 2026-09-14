@@ -491,6 +491,17 @@ function Invoke-EdgeDiscovery {
             $SimCache = Get-Content $CachePath -Raw | ConvertFrom-Json -AsHashtable
             Write-OK "Loaded similarity cache ($($SimCache['node_count']) nodes, top-$($SimCache['top_k']))"
 
+            # Fallback-Path Logging (t/3473, docs/error-handling.md): cache ids that
+            # resolve to no live node are stale/retired (e.g. cc-* left over from the
+            # t/1308 cc→sit migration, which did NOT rewrite this cache). Their pairs are
+            # silently dropped below (source fails the ProcessIds gate, target fails the
+            # ValidNodeIds gate). Surface the degradation instead of dropping in silence.
+            $StaleCacheIds = @(Get-StaleSimilarityCacheIds -Entries $SimCache['entries'] -ValidNodeIds $ValidNodeIds)
+            if ($StaleCacheIds.Count -gt 0) {
+                $StaleSample = $StaleCacheIds | Select-Object -First 8
+                Write-Warn ("similarity-cache: $($StaleCacheIds.Count) cached id(s) resolve to no live node (stale/retired, e.g. cc-* pre-t/1308) — their candidate pairs are silently dropped from discovery. Regenerate the cache (embed_taxonomy.py similarity-matrix) to clear. Sample: $($StaleSample -join ', ') [t/3473]")
+            }
+
             # Extract candidate pairs above threshold
             $ProcessIds = [System.Collections.Generic.HashSet[string]]::new()
             foreach ($N in $NodesToProcess) { $null = $ProcessIds.Add($N.id) }
