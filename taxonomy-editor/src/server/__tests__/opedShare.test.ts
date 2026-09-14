@@ -11,13 +11,25 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { computeIsPublicPath, PUBLIC_PATH_PREFIXES } from '../publicPaths.js';
 
-const { loadMock, recordMock } = vi.hoisted(() => ({ loadMock: vi.fn(), recordMock: vi.fn() }));
+const { loadMock, recordMock, listOpedsMock, getShareEntryMock, warnMock } = vi.hoisted(() => ({
+  loadMock: vi.fn(), recordMock: vi.fn(), listOpedsMock: vi.fn(), getShareEntryMock: vi.fn(), warnMock: vi.fn(),
+}));
 vi.mock('../storage/opedShareStore.js', () => ({ loadPublicOpedShare: loadMock }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: recordMock }) }));
+vi.mock('../community/community.js', () => ({ listCommunityOpEds: (...a: unknown[]) => listOpedsMock(...a) }));
+vi.mock('../community/communityOpedShares.js', () => ({ getCommunityOpedShareEntry: (...a: unknown[]) => getShareEntryMock(...a) }));
+vi.mock('../logger.js', () => ({
+  log: {
+    api: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+    server: { info: vi.fn(), warn: (...a: unknown[]) => warnMock(...a), error: vi.fn(), debug: vi.fn() },
+    fr: { info: vi.fn(), warn: vi.fn() },
+  },
+  getRequestId: () => 'test-req', getRequestContext: () => undefined, LOG_MAX_LINE_BYTES: 65536,
+}));
 
 import type { ServerCtx } from '../routes/context.js';
 import { createRouter, type Handler } from '../httpKit.js';
-import { registerOpedShareRoutes, _resetPublicOpedCache } from '../routes/opedShare.js';
+import { registerOpedShareRoutes, _resetPublicOpedCache, shortDisplayTitle } from '../routes/opedShare.js';
 
 const ROUTE = '/api/public/oped/:shareId';
 
@@ -124,5 +136,113 @@ describe('GET /api/public/oped/:shareId (t/2727)', () => {
   it('the /api/public/ auth exemption covers the op-ed share path', () => {
     expect(PUBLIC_PATH_PREFIXES).toContain('/api/public/');
     expect(computeIsPublicPath('/api/public/oped/abc123')).toBe(true);
+  });
+});
+
+// ── t/3481: GET /api/public/opeds (public index of shared community op-eds) ───────────────────
+async function invokeIndex(ip = `3.4.5.${Math.floor(Math.random() * 1e6)}`): Promise<InvokeResult> {
+  const routes: { method: string; path: string; handler: Handler }[] = [];
+  registerOpedShareRoutes(createRouter(routes), {} as ServerCtx);
+  const route = routes.find(r => r.path === '/api/public/opeds');
+  if (!route) throw new Error('public opeds index route not registered');
+
+  const req = {
+    url: '/api/public/opeds', method: 'GET',
+    headers: { 'x-forwarded-for': ip }, socket: { remoteAddress: ip },
+  } as unknown as IncomingMessage;
+
+  const headers: Record<string, unknown> = {};
+  const result: InvokeResult = { status: 200, body: undefined, headers };
+  const res = {
+    writableEnded: false, headersSent: false, req,
+    setHeader(name: string, val: unknown) { headers[name.toLowerCase()] = val; },
+    getHeader(name: string) { return headers[name.toLowerCase()]; },
+    writeHead(s: number, hdrs?: Record<string, unknown>) {
+      result.status = s;
+      if (hdrs) for (const k of Object.keys(hdrs)) headers[k.toLowerCase()] = hdrs[k];
+      this.headersSent = true; return this;
+    },
+    end(b?: string) { result.body = b ? JSON.parse(b) : undefined; this.writableEnded = true; },
+  } as unknown as ServerResponse;
+
+  await route.handler(req, res, undefined);
+  return result;
+}
+
+describe('GET /api/public/opeds (t/3481)', () => {
+  beforeEach(() => {
+    listOpedsMock.mockReset(); getShareEntryMock.mockReset(); recordMock.mockReset(); warnMock.mockReset();
+  });
+
+  it('lists ONLY already-shared community op-eds, projecting {shareId,title,outlet,camps}', async () => {
+    listOpedsMock.mockResolvedValue([
+      { id: 'oped-1', topic: 'AI progress and its discontents', camps: ['accelerationist', 'safetyist'], outlet: 'The Atlantic' },
+      { id: 'oped-2', topic: 'Unshared set', camps: ['skeptic'], outlet: 'Wired' },
+    ]);
+    getShareEntryMock.mockImplementation(async (id: string) =>
+      id === 'oped-1' ? { shareId: 'share-aaa', submittedBy: 'author-9' } : null);
+    const { status, body } = await invokeIndex();
+    expect(status).toBe(200);
+    expect(body).toEqual({ opeds: [
+      { shareId: 'share-aaa', title: 'AI progress and its discontents', outlet: 'The Atlantic', camps: ['accelerationist', 'safetyist'] },
+    ] });
+    // no identity/metadata crosses the wire — only the projected fields
+    expect(JSON.stringify(body)).not.toContain('author-9');
+  });
+
+  it('truncates a long / multi-paragraph topic to a short display title (t/3477)', async () => {
+    const longTopic = 'A very long situation topic that goes well beyond eighty characters and would otherwise become a wall of text on the index card\n\nsecond paragraph';
+    listOpedsMock.mockResolvedValue([{ id: 'oped-1', topic: longTopic, camps: [], outlet: '' }]);
+    getShareEntryMock.mockResolvedValue({ shareId: 'share-aaa', submittedBy: 'x' });
+    const title = ((await invokeIndex()).body as { opeds: { title: string }[] }).opeds[0].title;
+    expect(title.length).toBeLessThanOrEqual(80);
+    expect(title.endsWith('…')).toBe(true);
+    expect(title).not.toContain('\n');
+  });
+
+  it('ADR-001 graceful-empty: loaded-0 corpus → {opeds:[]} AND a WARN (silent-degradation rule)', async () => {
+    listOpedsMock.mockResolvedValue([]);
+    const { status, body } = await invokeIndex();
+    expect(status).toBe(200);
+    expect(body).toEqual({ opeds: [] });
+    expect(warnMock).toHaveBeenCalledWith(
+      expect.objectContaining({ route: 'public-opeds' }),
+      expect.stringContaining('loaded 0'),
+    );
+  });
+
+  it('items present but none shared yet → {opeds:[]} with NO warn (normal steady state)', async () => {
+    listOpedsMock.mockResolvedValue([{ id: 'oped-1', topic: 'T', camps: [], outlet: '' }]);
+    getShareEntryMock.mockResolvedValue(null);
+    const { status, body } = await invokeIndex();
+    expect(status).toBe(200);
+    expect(body).toEqual({ opeds: [] });
+    expect(warnMock).not.toHaveBeenCalled();
+  });
+
+  it('records to the flight recorder and returns 500 when the listing throws', async () => {
+    listOpedsMock.mockRejectedValue(new Error('index unreachable'));
+    const { status } = await invokeIndex();
+    expect(status).toBe(500);
+    expect(recordMock).toHaveBeenCalledWith(expect.objectContaining({ level: 'error', type: 'system.error' }));
+  });
+
+  it('the /api/public/ auth exemption covers the index path', () => {
+    expect(computeIsPublicPath('/api/public/opeds')).toBe(true);
+  });
+});
+
+describe('shortDisplayTitle (t/3481 / t/3477)', () => {
+  it('returns the first non-empty line, whitespace-collapsed', () => {
+    expect(shortDisplayTitle('  Hello   world  \n\nignored')).toBe('Hello world');
+  });
+  it('caps at TITLE_MAX (80) chars with a trailing ellipsis', () => {
+    const t = shortDisplayTitle('x'.repeat(200));
+    expect(t.length).toBe(80);
+    expect(t.endsWith('…')).toBe(true);
+  });
+  it('empty/whitespace topic → empty string', () => {
+    expect(shortDisplayTitle('')).toBe('');
+    expect(shortDisplayTitle('   \n  ')).toBe('');
   });
 });
