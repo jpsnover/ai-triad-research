@@ -23,7 +23,12 @@ function Merge-CruxQuestionForm {
 
         # Previous output file to preserve question_form from. Missing file = no preservation.
         [Parameter(Mandatory)]
-        [string]$PreviousPath
+        [string]$PreviousPath,
+
+        # Optional run-scoped model override for the generation call (t/3478). Empty =
+        # use the enrichment.crux-question-form usage default. Applied per-call via
+        # -Override so the CL-owned usage default is never changed globally.
+        [string]$Model = ''
     )
 
     Set-StrictMode -Version Latest
@@ -86,10 +91,13 @@ function Merge-CruxQuestionForm {
         $Type = if ($Crux.Contains('type')) { [string]$Crux.type } else { 'empirical' }
 
         try {
-            $Res = Invoke-AIByUsage -UsageId 'enrichment.crux-question-form' -Values @{
-                type      = $Type
-                statement = $Stmt
+            $InvokeParams = @{
+                UsageId = 'enrichment.crux-question-form'
+                Values  = @{ type = $Type; statement = $Stmt }
             }
+            # Run-scoped model override (t/3478): per-call only, never mutates the usage default.
+            if (-not [string]::IsNullOrWhiteSpace($Model)) { $InvokeParams['Override'] = @{ model = $Model } }
+            $Res = Invoke-AIByUsage @InvokeParams
             if (-not $Res -or -not $Res.PSObject.Properties['Text']) {
                 throw 'no Text field on Invoke-AIByUsage result (call failed)'
             }

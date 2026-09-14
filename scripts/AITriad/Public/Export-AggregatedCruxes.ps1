@@ -45,7 +45,15 @@ function Export-AggregatedCruxes {
         [ValidateRange(1, 10)]
         [int]$MaxLinkedNodes = 5,
 
-        [string]$OutputPath
+        [string]$OutputPath,
+
+        # Run-scoped model override for Phase-5 question_form generation (t/3478). Empty =
+        # use the enrichment.crux-question-form usage default (claude-sonnet-4-6). Set e.g.
+        # -Model gemini-3.5-flash-lite for a cheaper bulk refresh (t/3476) WITHOUT changing
+        # the CL-owned usage default — applied per-call via -Override. Embeddings (Phase 2/4)
+        # are unaffected. Validated only when non-empty.
+        [ValidateScript({ [string]::IsNullOrWhiteSpace($_) -or (Test-AIModelId $_) })]
+        [string]$Model = ''
     )
 
     Set-StrictMode -Version Latest
@@ -368,7 +376,8 @@ function Export-AggregatedCruxes {
         Write-Host 'Phase 5: skipped under -WhatIf (would preserve existing question_form / external_evidence and call AI for new cruxes)' -ForegroundColor Yellow
     } else {
         Write-Host 'Phase 5a: Preserving/generating question_form...' -ForegroundColor Cyan
-        $QfStats = Merge-CruxQuestionForm -Cruxes $AggregatedCruxes -PreviousPath $OutputPath
+        if ($Model) { Write-Host "  question_form model override (run-scoped): $Model" -ForegroundColor Gray }
+        $QfStats = Merge-CruxQuestionForm -Cruxes $AggregatedCruxes -PreviousPath $OutputPath -Model $Model
         Write-Host ("  Preserved: {0} | Generated: {1} | Failed (field omitted): {2}" -f `
             $QfStats.Preserved, $QfStats.Generated, $QfStats.Failed) -ForegroundColor Gray
 
