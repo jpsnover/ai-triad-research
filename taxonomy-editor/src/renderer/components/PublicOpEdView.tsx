@@ -18,6 +18,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { resolvePovMeta } from './opeds/povResolve';
+import type { OpEdGroundingRef } from '../../../../lib/oped/types';
 import './PublicOpEdView.css';
 
 /**
@@ -25,6 +26,10 @@ import './PublicOpEdView.css';
  * `PublicOpEd` / `PublicOpEdMember` positive allowlist (opedShareStore.ts). Exactly
  * these fields are public; generation params (model/prompts/thesis/authorBio),
  * grounding internals, userId and the storage set_id are never exposed.
+ *
+ * t/3489 (SO-approved contract, t/3487#1): `grounding` on a member is the stored
+ * ref passed through unchanged — safe, since it only names/describes a node, and
+ * `grounding_nodes` is where the actual security boundary lives (see below).
  */
 export interface PublicOpEdMember {
   pov: string;
@@ -33,6 +38,20 @@ export interface PublicOpEdMember {
   subtitle: string;
   body: string;
   wordCount: number;
+  grounding?: OpEdGroundingRef[];
+}
+/**
+ * Resolved snapshot of a grounded node, embedded in the projection at mint time
+ * (SO cond 1, t/3487#1) — an explicit five-field positive pick, nothing else. This
+ * is the actual security boundary on an unauthenticated surface: whatever fields
+ * exist here are exactly what's public, so this type must never grow implicitly.
+ */
+export interface PublicGroundingNodeSnapshot {
+  id: string;
+  label: string;
+  pov: string;
+  category: string;
+  description_excerpt: string;
 }
 export interface PublicOpEd {
   schema_version: 1;
@@ -41,6 +60,12 @@ export interface PublicOpEd {
   outlet: string | null;
   created_at: string;
   opeds: PublicOpEdMember[];
+  /** SO cond 2 (t/3487#1): a backfill re-run REPLACES this map wholesale — a node retired
+   *  from the corpus disappears from every future projection rewrite (the takedown path). */
+  grounding_nodes?: Record<string, PublicGroundingNodeSnapshot>;
+  /** SO cond 4: snapshot semantics must be visible, not implicit — rendered as
+   *  "grounding as of <date>" next to the grounding section. */
+  grounded_at?: string;
 }
 
 type LoadState =
@@ -59,7 +84,91 @@ export function shareIdFromOpEdPath(pathname: string): string | null {
   return m ? m[1] : null;
 }
 
-function OpEdArticle({ member, outlet }: { member: PublicOpEdMember; outlet: string | null }) {
+// t/3489 (SO-approved contract, t/3487#1): grounding chips + detail card from projection-
+// embedded snapshots, mirroring the in-app GroundingDetailCard/GroundingSection pattern
+// (OpEdReader.tsx) minus openInTaxonomy (no taxonomy to open on a public page) and minus
+// claims cross-referencing (source claims aren't in the public projection).
+function PublicGroundingSection({
+  refs, nodes, groundedAt,
+}: {
+  refs: OpEdGroundingRef[];
+  nodes: Record<string, PublicGroundingNodeSnapshot> | undefined;
+  groundedAt: string | undefined;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // SO cond 3: a ref with no matching snapshot (retired/removed node) is omitted entirely —
+  // there's no label to show for it beyond a bare node_id, and omission is simpler/safer than
+  // a half-populated non-interactive chip. Never an error state on the public page.
+  const resolvable = refs.filter(r => nodes?.[r.node_id]);
+  if (resolvable.length === 0) return null;
+
+  return (
+    <div className="pov-oped-grounding">
+      <div className="pov-oped-grounding-head">
+        <span className="pov-oped-grounding-label">Grounding</span>
+        {groundedAt && (
+          <span className="pov-oped-grounding-date">
+            grounding as of {new Date(groundedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+          </span>
+        )}
+      </div>
+      <div className="pov-oped-grounding-chips">
+        {resolvable.map(ref => {
+          const node = nodes![ref.node_id];
+          const isOpen = ref.node_id === expandedId;
+          return (
+            <button
+              key={ref.node_id}
+              type="button"
+              className={`pov-oped-grounding-chip${isOpen ? ' pov-oped-grounding-chip-active' : ''}`}
+              aria-expanded={isOpen}
+              onClick={() => setExpandedId(isOpen ? null : ref.node_id)}
+            >
+              {node.label}
+            </button>
+          );
+        })}
+      </div>
+      {expandedId && nodes?.[expandedId] && (() => {
+        const node = nodes[expandedId];
+        const ref = resolvable.find(r => r.node_id === expandedId);
+        return (
+          <div className="pov-oped-grounding-card">
+            <div className="pov-oped-grounding-card-head">
+              <span className="pov-oped-grounding-card-id">{node.id}</span>
+              <button
+                type="button"
+                className="pov-oped-grounding-card-close"
+                onClick={() => setExpandedId(null)}
+                aria-label="Close element detail"
+              >
+                ×
+              </button>
+            </div>
+            <p className="pov-oped-grounding-card-label">{node.label}</p>
+            <p className="pov-oped-grounding-card-meta">{node.category} · {node.pov}</p>
+            <p className="pov-oped-grounding-card-excerpt">{node.description_excerpt}</p>
+            {ref?.how_reflected && (
+              <p className="pov-oped-grounding-card-reflected">
+                <span className="pov-oped-grounding-card-reflected-label">Reflected in this op-ed:</span> {ref.how_reflected}
+              </p>
+            )}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+function OpEdArticle({
+  member, outlet, groundingNodes, groundedAt,
+}: {
+  member: PublicOpEdMember;
+  outlet: string | null;
+  groundingNodes: Record<string, PublicGroundingNodeSnapshot> | undefined;
+  groundedAt: string | undefined;
+}) {
   const meta = resolvePovMeta(member.pov);
   const metaLine = [meta.label.toUpperCase(), outlet || null, `${member.wordCount} words`]
     .filter(Boolean).join(' · ');
@@ -84,6 +193,11 @@ function OpEdArticle({ member, outlet }: { member: PublicOpEdMember; outlet: str
           <div className="pov-oped-body">
             <Markdown remarkPlugins={[remarkGfm]}>{member.body}</Markdown>
           </div>
+          {/* Version tolerance: no `grounding` on the member (old projection) → no section
+              at all, renders exactly as before t/3489. */}
+          {member.grounding && member.grounding.length > 0 && (
+            <PublicGroundingSection refs={member.grounding} nodes={groundingNodes} groundedAt={groundedAt} />
+          )}
         </>
       )}
     </article>
@@ -95,7 +209,14 @@ function OpEdArticle({ member, outlet }: { member: PublicOpEdMember; outlet: str
 // indication two more exist). Mirrors OpEdReader.tsx's in-app tab pattern exactly (roving-
 // tabindex tablist, same keyboard nav, same single-voice-has-no-tabs ruling t/2576#3) so the
 // public and in-app experiences stay consistent.
-function OpEdTabbedArticles({ members, outlet }: { members: PublicOpEdMember[]; outlet: string | null }) {
+function OpEdTabbedArticles({
+  members, outlet, groundingNodes, groundedAt,
+}: {
+  members: PublicOpEdMember[];
+  outlet: string | null;
+  groundingNodes: Record<string, PublicGroundingNodeSnapshot> | undefined;
+  groundedAt: string | undefined;
+}) {
   const [activeIdx, setActiveIdx] = useState(0);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -115,7 +236,7 @@ function OpEdTabbedArticles({ members, outlet }: { members: PublicOpEdMember[]; 
     return <p className="pov-oped-empty">This shared op-ed has no voices.</p>;
   }
   if (members.length === 1) {
-    return <OpEdArticle member={members[0]} outlet={outlet} />;
+    return <OpEdArticle member={members[0]} outlet={outlet} groundingNodes={groundingNodes} groundedAt={groundedAt} />;
   }
 
   const active = members[Math.min(activeIdx, members.length - 1)];
@@ -148,7 +269,7 @@ function OpEdTabbedArticles({ members, outlet }: { members: PublicOpEdMember[]; 
         })}
       </div>
       <div role="tabpanel" id="pov-oped-panel" aria-labelledby={`pov-oped-tab-${activeIdx}`}>
-        <OpEdArticle member={active} outlet={outlet} />
+        <OpEdArticle member={active} outlet={outlet} groundingNodes={groundingNodes} groundedAt={groundedAt} />
       </div>
     </>
   );
@@ -241,7 +362,7 @@ export function PublicOpEdView() {
             <p className="pov-oped-outlet">For {doc.outlet}</p>
           </header>
         ) : null}
-        <OpEdTabbedArticles members={doc.opeds} outlet={doc.outlet} />
+        <OpEdTabbedArticles members={doc.opeds} outlet={doc.outlet} groundingNodes={doc.grounding_nodes} groundedAt={doc.grounded_at} />
         {/* Situation topic is source context, not the lead content — the op-eds above
             are (t/3477). Clamped to a scrollable box so a long situation narrative
             can't push below-the-fold content further down; no expand control, so the

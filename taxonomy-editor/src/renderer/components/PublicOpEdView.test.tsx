@@ -157,6 +157,92 @@ describe('PublicOpEdView (t/2728)', () => {
     });
   });
 
+  // t/3489: grounding chips + detail cards from projection-embedded snapshots (SO-approved
+  // contract, t/3487#1). Locks version tolerance, ref-without-snapshot omission, and the
+  // "grounding as of" snapshot-semantics label.
+  describe('grounding chips + detail cards (t/3489)', () => {
+    const GROUNDED_SAMPLE = {
+      ...SAMPLE,
+      grounded_at: '2026-09-01T00:00:00Z',
+      grounding_nodes: {
+        'acc-beliefs-001': {
+          id: 'acc-beliefs-001', label: 'Acceleration compounds safety', pov: 'acc',
+          category: 'beliefs', description_excerpt: 'Faster iteration surfaces failure modes sooner.',
+        },
+      },
+      opeds: [
+        {
+          ...SAMPLE.opeds[0],
+          grounding: [
+            { node_id: 'acc-beliefs-001', label: 'Acceleration compounds safety', category: 'beliefs', pov: 'acc', relevance: 'high', how_reflected: 'Cited directly in paragraph 2.' },
+            { node_id: 'acc-beliefs-999-retired', label: 'stale', category: 'beliefs', pov: 'acc', relevance: 'low', how_reflected: 'no longer resolvable' },
+          ],
+        },
+        SAMPLE.opeds[1],
+      ],
+    };
+
+    it('renders a chip for a resolvable ref and the "grounding as of" date label', async () => {
+      mockFetch.mockResolvedValue(fakeResponse({ body: GROUNDED_SAMPLE }));
+      render(<PublicOpEdView />);
+      await screen.findByText(SAMPLE.topic);
+
+      expect(screen.getByText('Acceleration compounds safety')).toBeInTheDocument();
+      expect(screen.getByText(/grounding as of/i)).toBeInTheDocument();
+    });
+
+    it('omits a ref with no matching snapshot — no error, no partial chip', async () => {
+      mockFetch.mockResolvedValue(fakeResponse({ body: GROUNDED_SAMPLE }));
+      render(<PublicOpEdView />);
+      await screen.findByText(SAMPLE.topic);
+
+      // Only ONE chip renders (the resolvable ref) — the retired ref is silently omitted.
+      const chips = screen.getAllByRole('button', { name: 'Acceleration compounds safety' });
+      expect(chips).toHaveLength(1);
+      expect(screen.queryByText('stale')).toBeNull();
+      expect(screen.queryByText(/acc-beliefs-999-retired/)).toBeNull();
+    });
+
+    it('clicking a chip opens a detail card with the snapshot fields + how_reflected; click again closes it', async () => {
+      mockFetch.mockResolvedValue(fakeResponse({ body: GROUNDED_SAMPLE }));
+      const user = userEvent.setup();
+      render(<PublicOpEdView />);
+      await screen.findByText(SAMPLE.topic);
+
+      const chip = screen.getByRole('button', { name: 'Acceleration compounds safety' });
+      expect(chip).toHaveAttribute('aria-expanded', 'false');
+
+      await user.click(chip);
+      expect(chip).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByText('acc-beliefs-001')).toBeInTheDocument();
+      expect(screen.getByText('beliefs · acc')).toBeInTheDocument();
+      expect(screen.getByText('Faster iteration surfaces failure modes sooner.')).toBeInTheDocument();
+      expect(screen.getByText('Cited directly in paragraph 2.')).toBeInTheDocument();
+
+      await user.click(chip);
+      expect(chip).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.queryByText('Faster iteration surfaces failure modes sooner.')).toBeNull();
+    });
+
+    it('version tolerance: an old projection with no grounding fields renders exactly as before, no section, no errors', async () => {
+      mockFetch.mockResolvedValue(fakeResponse({ body: SAMPLE }));
+      render(<PublicOpEdView />);
+      await screen.findByText(SAMPLE.topic);
+
+      expect(screen.queryByText(/grounding as of/i)).toBeNull();
+      expect(screen.queryByText(/^Grounding$/)).toBeNull();
+      expect(mockRecord).not.toHaveBeenCalled();
+    });
+
+    it('a member with an empty grounding array also renders no section', async () => {
+      mockFetch.mockResolvedValue(fakeResponse({ body: { ...SAMPLE, opeds: [{ ...SAMPLE.opeds[0], grounding: [] }, SAMPLE.opeds[1]] } }));
+      render(<PublicOpEdView />);
+      await screen.findByText(SAMPLE.topic);
+
+      expect(screen.queryByText(/^Grounding$/)).toBeNull();
+    });
+  });
+
   it('leads with the op-eds — the situation topic renders after them, not as the lead heading (t/3477)', async () => {
     mockFetch.mockResolvedValue(fakeResponse({ body: SAMPLE }));
     render(<PublicOpEdView />);
