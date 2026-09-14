@@ -13,11 +13,15 @@
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { resolveDataPath } from '../config.js';
-import type { OpEdSet, OpEdMember } from '../../../../lib/oped/types.js';
+import type { OpEdSet, OpEdMember, OpEdGroundingRef } from '../../../../lib/oped/types.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
-import { getUserContentBackend, assertSafeId } from './fileIO.js';
+import { getUserContentBackend, assertSafeId, readTaxonomyFile } from './fileIO.js';
 import { loadOpedSet } from './opedStore.js';
 import { log } from '../logger.js';
+
+// t/3488 (SO-fixed contract t/3487#1, TL amendment t/3488#2): description excerpt
+// length cap, defined at the pick site per SO condition 1.
+const GROUNDING_EXCERPT_MAX_CHARS = 280;
 
 // Public copies live under a fixed, user-agnostic prefix — NEVER under users/{id}/.
 const PUBLIC_OPEDS_DIR = 'public/opeds';
@@ -43,32 +47,124 @@ export interface PublicOpEdMember {
   subtitle: string;
   body: string;
   wordCount: number;
+  grounding: OpEdGroundingRef[];
+}
+// t/3488 (SO cond 1): explicit five-field pick, never `{...node}`. `pov`/`category`
+// come from the grounding ref (the citing voice's classification — situation
+// nodes carry neither field natively); `id`/`label`/`description_excerpt` are
+// resolved fresh from the taxonomy node so the snapshot reflects real data.
+export interface PublicGroundingNode {
+  id: string;
+  label: string;
+  pov: string;
+  category: string;
+  description_excerpt: string;
 }
 export interface PublicOpEd {
-  schema_version: 1;
+  schema_version: 1 | 2;
   shareId: string;
   topic: string;
   outlet: string | null;
   created_at: string;
   opeds: PublicOpEdMember[];
+  grounding_nodes: Record<string, PublicGroundingNode>;
+  grounded_at: string;
+}
+
+function truncateExcerpt(text: string, max: number): string {
+  const trimmed = text.trim();
+  return trimmed.length > max ? `${trimmed.slice(0, max).trimEnd()}…` : trimmed;
+}
+
+/**
+ * Resolve one grounding ref's node from taxonomy data. Mirrors the in-app
+ * resolution order (OpEdReader.tsx GroundingDetailCard, t/3488#2 TL amendment):
+ * sit-* ids resolve from the situations file; everything else resolves from the
+ * ref's own pov file (accelerationist/safetyist/skeptic). Returns null if the
+ * node isn't found or the backing file can't be read — caller WARNs and skips.
+ */
+async function resolveGroundingNode(
+  ref: OpEdGroundingRef,
+  cache: Map<string, Map<string, { label: string; description: string }>>,
+): Promise<{ label: string; description: string } | null> {
+  const fileKey = ref.node_id?.startsWith('sit-') ? 'situations' : ref.pov;
+  let nodesById = cache.get(fileKey);
+  if (!nodesById) {
+    nodesById = new Map();
+    try {
+      const data = await readTaxonomyFile(fileKey);
+      const nodes = Array.isArray((data as { nodes?: unknown })?.nodes)
+        ? (data as { nodes: Array<{ id: string; label?: string; description?: string }> }).nodes
+        : [];
+      for (const n of nodes) {
+        if (n?.id) nodesById.set(n.id, { label: String(n.label ?? ''), description: String(n.description ?? '') });
+      }
+    } catch (err) {
+      log.server.warn({ fileKey, err, cause: 'grounding-taxonomy-file-unreadable' },
+        'skipping grounding nodes from an unreadable taxonomy file in public op-ed projection (t/3488)');
+    }
+    cache.set(fileKey, nodesById);
+  }
+  return nodesById.get(ref.node_id) ?? null;
+}
+
+/**
+ * Build the grounding_nodes{} snapshot map for every unique node_id referenced
+ * across all members. Unresolvable refs are WARNed and OMITTED (never written
+ * as null/undefined) — SO cond 3, fallback-logging rule. Rebuilt from scratch on
+ * every call, so a full rewrite is always a full replace — SO cond 2.
+ */
+async function buildGroundingNodes(members: OpEdMember[]): Promise<Record<string, PublicGroundingNode>> {
+  const allRefs = members.flatMap(m => (Array.isArray(m.grounding) ? m.grounding : []));
+  const cache = new Map<string, Map<string, { label: string; description: string }>>();
+  const result: Record<string, PublicGroundingNode> = {};
+  for (const ref of allRefs) {
+    if (!ref?.node_id || result[ref.node_id]) continue; // already resolved this id
+    const node = await resolveGroundingNode(ref, cache);
+    if (!node) {
+      log.server.warn({ node_id: ref.node_id, pov: ref.pov, cause: 'grounding-node-unresolvable' },
+        'skipping unresolvable grounding node in public op-ed projection (t/3488)');
+      continue;
+    }
+    result[ref.node_id] = {
+      id: ref.node_id,
+      label: node.label,
+      pov: ref.pov,
+      category: ref.category,
+      description_excerpt: truncateExcerpt(node.description, GROUNDING_EXCERPT_MAX_CHARS),
+    };
+  }
+  return result;
 }
 
 /** Build the public projection by EXPLICIT field — never `{...set}` or a delete-keys denylist. */
-export function projectPublicOpEd(set: OpEdSet, shareId: string): PublicOpEd {
+export async function projectPublicOpEd(set: OpEdSet, shareId: string): Promise<PublicOpEd> {
+  const members = Array.isArray(set.opeds) ? set.opeds : [];
   return {
-    schema_version: 1,
+    schema_version: 2,
     shareId,
     topic: String(set.topic ?? ''),
     outlet: set.params?.outlet ?? null, // editorial context, public-safe
     created_at: String(set.created_at ?? ''),
-    opeds: (Array.isArray(set.opeds) ? set.opeds : []).map((m: OpEdMember) => ({
+    opeds: members.map((m: OpEdMember) => ({
       pov: m.pov,
       status: m.status,
       headline: String(m.headline ?? ''),
       subtitle: String(m.subtitle ?? ''),
       body: String(m.body ?? ''),
       wordCount: typeof m.wordCount === 'number' ? m.wordCount : 0,
+      grounding: (Array.isArray(m.grounding) ? m.grounding : []).map(g => ({
+        node_id: g.node_id,
+        label: g.label,
+        category: g.category,
+        pov: g.pov,
+        relevance: g.relevance,
+        how_reflected: g.how_reflected,
+        ...(g.document_claims ? { document_claims: g.document_claims } : {}),
+      })),
     })),
+    grounding_nodes: await buildGroundingNodes(members),
+    grounded_at: new Date().toISOString(),
   };
 }
 
@@ -98,7 +194,7 @@ export async function publishOpedShare(setId: string): Promise<{ shareId: string
   const shareId = existing ?? randomUUID();
   await getUserContentBackend().writeFile(
     publicOpedPath(shareId),
-    JSON.stringify(projectPublicOpEd(set, shareId), null, 2),
+    JSON.stringify(await projectPublicOpEd(set, shareId), null, 2),
   );
   if (!existing) {
     reg[setId] = shareId;

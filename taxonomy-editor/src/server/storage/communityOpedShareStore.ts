@@ -64,7 +64,7 @@ export async function writePublicCommunityOpEd(
     });
   }
 
-  const projection = projectPublicOpEd(item as OpEdSet, shareId);
+  const projection = await projectPublicOpEd(item as OpEdSet, shareId);
   await getUserContentBackend().writeFile(
     publicCommunityOpedPath(shareId),
     JSON.stringify(projection, null, 2),

@@ -19,10 +19,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Mocks (hoisted before imports) ──
 
-const { mockWriteFile, mockDeleteFile, mockReadFile } = vi.hoisted(() => ({
+const { mockWriteFile, mockDeleteFile, mockReadFile, mockReadTaxonomyFile, serverWarn } = vi.hoisted(() => ({
   mockWriteFile: vi.fn().mockResolvedValue(undefined),
   mockDeleteFile: vi.fn().mockResolvedValue(undefined),
   mockReadFile: vi.fn().mockResolvedValue(null),
+  mockReadTaxonomyFile: vi.fn().mockResolvedValue({ nodes: [] }),
+  serverWarn: vi.fn(),
 }));
 
 vi.mock('../storage/fileIO.js', () => ({
@@ -36,6 +38,7 @@ vi.mock('../storage/fileIO.js', () => ({
       throw new Error(`Unsafe ${label}: ${id}`);
     }
   },
+  readTaxonomyFile: mockReadTaxonomyFile,
 }));
 
 vi.mock('../config.js', () => ({
@@ -45,6 +48,16 @@ vi.mock('../config.js', () => ({
 
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({
   getGlobalRecorder: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock('../logger.js', () => ({
+  log: {
+    api: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+    server: { info: vi.fn(), warn: serverWarn, error: vi.fn(), debug: vi.fn() },
+  },
+  getRequestId: () => 'req-test',
+  LOG_MAX_LINE_BYTES: 65536,
+  writeFramedNdjson: vi.fn(),
 }));
 
 import {
@@ -127,7 +140,7 @@ describe('communityOpedShareStore (t/3315)', () => {
     const written = mockWriteFile.mock.calls[0][1] as string;
     const parsed = JSON.parse(written) as Record<string, unknown>;
 
-    expect(parsed.schema_version).toBe(1);
+    expect(parsed.schema_version).toBe(2);
     expect(parsed.shareId).toBe('share-xyz-456');
     expect(parsed.topic).toBe('AI Safety Perspectives');
     expect(parsed.created_at).toBe('2026-09-01T00:00:00Z');
@@ -139,7 +152,10 @@ describe('communityOpedShareStore (t/3315)', () => {
     // Internal fields stripped from member too
     expect(oped).not.toHaveProperty('byline');
     expect(oped).not.toHaveProperty('disclosure');
-    expect(oped).not.toHaveProperty('grounding');
+    // t/3488: grounding refs now pass through (positive allowlist, not stripped)
+    expect(oped.grounding).toEqual([]);
+    expect(parsed).toHaveProperty('grounding_nodes');
+    expect(parsed).toHaveProperty('grounded_at');
   });
 
   // ─── TL condition 4: non-empty guard ─────────────────────────────────────
