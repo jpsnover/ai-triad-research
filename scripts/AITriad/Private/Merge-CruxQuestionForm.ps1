@@ -29,25 +29,28 @@ function Merge-CruxQuestionForm {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    # Build map: id -> @{ Statement (Trim'd); QuestionForm }. Preservation requires
-    # BOTH id AND statement to match (t/1509 CL review) — otherwise the dedup
-    # clustering may have re-assigned the id to a materially different crux, and
-    # riding the old question_form along would be a silent semantic clobber.
+    # Build map: trimmed-statement -> question_form. Preservation keys on the
+    # STATEMENT, not the crux id (t/3474): crux ids (crux-NNN) are assigned by
+    # cluster order and renumber on every regen, so id-keyed preservation misses
+    # en masse and forces needless AI regeneration. Keying on the statement still
+    # honors the original t/1509 anti-clobber guard — a question_form is only ever
+    # carried onto a crux whose statement is byte-identical (Trim-normalized) to the
+    # one it was generated for, never across a materially changed statement.
     $ExistingQF = @{}
     if (Test-Path $PreviousPath) {
         try {
             $Existing = Get-Content -Raw $PreviousPath | ConvertFrom-Json
             if ($Existing.PSObject.Properties['cruxes'] -and $Existing.cruxes) {
                 foreach ($EC in @($Existing.cruxes)) {
-                    if (-not $EC.PSObject.Properties['id']) { continue }
                     if (-not $EC.PSObject.Properties['question_form']) { continue }
                     if (-not $EC.PSObject.Properties['statement']) { continue }
                     $Qf = [string]$EC.question_form
                     if ([string]::IsNullOrWhiteSpace($Qf)) { continue }
-                    $ExistingQF[[string]$EC.id] = [PSCustomObject]@{
-                        Statement    = ([string]$EC.statement).Trim()
-                        QuestionForm = $Qf.Trim()
-                    }
+                    $Key = ([string]$EC.statement).Trim()
+                    if ([string]::IsNullOrWhiteSpace($Key)) { continue }
+                    # First-wins on duplicate statements: dedup makes these rare, and
+                    # identical statements yield the same question anyway.
+                    if (-not $ExistingQF.ContainsKey($Key)) { $ExistingQF[$Key] = $Qf.Trim() }
                 }
             }
         } catch {
@@ -56,18 +59,28 @@ function Merge-CruxQuestionForm {
     }
 
     $Preserved = 0; $Generated = 0; $Failed = 0
+    $Total = @($Cruxes).Count
+    $Index = 0
     foreach ($Crux in $Cruxes) {
-        $CId = [string]$Crux.id
-        if ($ExistingQF.ContainsKey($CId)) {
-            $Prev = $ExistingQF[$CId]
-            $CurStmt = ([string]$Crux.statement).Trim()
-            if ($Prev.Statement -ceq $CurStmt) {
-                $Crux['question_form'] = $Prev.QuestionForm
-                $Preserved++
-                continue
-            }
-            Write-Verbose "Merge-CruxQuestionForm: id ${CId} statement changed — falling through to regeneration"
+        $Index++
+        # Progress: generation is a per-crux AI call, so a large regen can run long —
+        # surface position so it's visibly advancing and never mistaken for a hang (t/3474).
+        if ($Total -gt 0 -and ($Index % 25 -eq 0 -or $Index -eq $Total)) {
+            Write-Progress -Id 51 -Activity 'Crux question_form (preserve/generate)' `
+                -Status "$Index/$Total — preserved $Preserved, generated $Generated, failed $Failed" `
+                -PercentComplete ([int](($Index / $Total) * 100))
         }
+
+        $CId = [string]$Crux.id
+        $CurStmt = ([string]$Crux.statement).Trim()
+
+        # Preserve when the statement matches a previous crux's (id-independent, t/3474).
+        if (-not [string]::IsNullOrWhiteSpace($CurStmt) -and $ExistingQF.ContainsKey($CurStmt)) {
+            $Crux['question_form'] = $ExistingQF[$CurStmt]
+            $Preserved++
+            continue
+        }
+
         $Stmt = [string]$Crux.statement
         if ([string]::IsNullOrWhiteSpace($Stmt)) { $Failed++; continue }
         $Type = if ($Crux.Contains('type')) { [string]$Crux.type } else { 'empirical' }
@@ -87,6 +100,11 @@ function Merge-CruxQuestionForm {
             if (Test-CruxQuestionForm -Question $Q) {
                 $Crux['question_form'] = $Q.Trim()
                 $Generated++
+                # Periodic line so redirected/non-interactive logs (where Write-Progress
+                # is invisible) still show the slow generation path advancing (t/3474).
+                if ($Generated % 50 -eq 0) {
+                    Write-Host ("  question_form: {0} generated so far ({1}/{2} cruxes processed)" -f $Generated, $Index, $Total)
+                }
             } else {
                 Write-Verbose "Merge-CruxQuestionForm: validation failed for $CId (raw: $Q)"
                 $Failed++
@@ -96,6 +114,7 @@ function Merge-CruxQuestionForm {
             $Failed++
         }
     }
+    if ($Total -gt 0) { Write-Progress -Id 51 -Activity 'Crux question_form (preserve/generate)' -Completed }
 
     [PSCustomObject]@{
         Preserved = $Preserved
