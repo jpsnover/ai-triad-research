@@ -12,6 +12,8 @@ import { log } from '../logger.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import path from 'path';
 import { getConfig } from '../runtimeConfig.js';
+import { mintCommunityOpedShare, getCommunityOpedShareEntry } from './communityOpedShares.js';
+import { writePublicCommunityOpEd, type CommunityOpEdItem } from '../storage/communityOpedShareStore.js';
 
 // ── Paths ──
 
@@ -272,6 +274,61 @@ export async function getCommunityOpEd(id: string): Promise<CommunityOpEdLookup>
   return { found: true, item: parsed };
 }
 
+/**
+ * t/3483: the idempotent mint-and-project sequence, extracted from routes/community.ts's
+ * manual-mint handler so the mint-on-approve hook and the one-time backfill can reuse the
+ * exact same guard + write path (one path, not three copies to drift). Never throws on
+ * absent/empty/malformed — callers get a discriminated `skipped` outcome instead, since
+ * both call sites (approve, backfill) need to keep going / not fail on a bad item.
+ */
+export async function mintAndProjectCommunityOpEd(id: string, submittedBy: string): Promise<
+  | { outcome: 'minted'; shareId: string }
+  | { outcome: 'already-shared'; shareId: string }
+  | { outcome: 'skipped'; reason: 'absent' | 'empty' | 'malformed' }
+> {
+  const lookup = await getCommunityOpEd(id);
+  if (!lookup.found) return { outcome: 'skipped', reason: lookup.reason };
+
+  const it = lookup.item as { topic?: unknown; opeds?: unknown };
+  if (!it.topic || !Array.isArray(it.opeds) || it.opeds.length === 0) {
+    return { outcome: 'skipped', reason: 'malformed' };
+  }
+
+  const alreadyShared = !!(await getCommunityOpedShareEntry(id));
+  const shareId = await mintCommunityOpedShare(id, submittedBy);
+  await writePublicCommunityOpEd(lookup.item as unknown as CommunityOpEdItem, shareId);
+  return { outcome: alreadyShared ? 'already-shared' : 'minted', shareId };
+}
+
+/**
+ * t/3483 Part C — one-time (safe to re-run) backfill: mints + projects a public share for
+ * every existing community op-ed that doesn't have one yet, so the public index
+ * (GET /api/public/opeds) is complete immediately rather than waiting on someone to click
+ * Share on each item. Sequential, not parallel — a few hundred items is not a latency
+ * concern for an admin-triggered one-time op, and it keeps registry-write contention low.
+ */
+export async function backfillCommunityOpedShares(): Promise<{
+  minted: number; alreadyShared: number; skipped: number; skippedIds: string[];
+}> {
+  const items = await listCommunityOpEds() as { id: string; community_metadata?: { submitted_by_display?: string } }[];
+  let minted = 0;
+  let alreadyShared = 0;
+  const skippedIds: string[] = [];
+
+  for (const it of items) {
+    const result = await mintAndProjectCommunityOpEd(it.id, it.community_metadata?.submitted_by_display ?? '');
+    if (result.outcome === 'minted') minted++;
+    else if (result.outcome === 'already-shared') alreadyShared++;
+    else {
+      skippedIds.push(it.id);
+      log.server.warn({ id: it.id, reason: result.reason }, 'Community op-ed backfill: skipped malformed/empty item');
+    }
+  }
+
+  log.server.info({ minted, alreadyShared, skipped: skippedIds.length }, 'Community op-ed share backfill complete');
+  return { minted, alreadyShared, skipped: skippedIds.length, skippedIds };
+}
+
 // ── Submissions ──
 
 interface Submission {
@@ -427,6 +484,34 @@ function sanitizeForCommunity(data: unknown, submittedBy: string): unknown {
   return d;
 }
 
+/**
+ * t/3483 Part B: mint + project the public share at approve time (not submit — the item is
+ * unreviewed until now) so it appears on the public index without anyone clicking Share.
+ * Never fails the approve: a WARN'd item (thrown error or skipped outcome) is caught by the
+ * next backfill run (idempotent).
+ */
+async function autoShareApprovedOped(communityId: string, submittedBy: string): Promise<void> {
+  try {
+    const result = await mintAndProjectCommunityOpEd(communityId, submittedBy);
+    if (result.outcome === 'skipped') {
+      log.server.warn(
+        { communityId, reason: result.reason },
+        'Community op-ed auto-share on approve skipped — item approved but not indexed; backfill will catch it if fixed',
+      );
+    }
+  } catch (err) {
+    log.server.warn(
+      { err, communityId },
+      'Community op-ed auto-share on approve failed — item approved but not yet indexed; backfill will catch it',
+    );
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'community', level: 'warn',
+      message: 'Community op-ed auto-share on approve failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+}
+
 export async function approveSubmission(
   submissionId: string,
   edits?: Record<string, unknown>,
@@ -464,6 +549,11 @@ export async function approveSubmission(
   await backend.writeFile(subPath, JSON.stringify(submission, null, 2));
 
   log.server.info({ submissionId, communityId: sanitized.id, type: submission.type }, 'Community submission approved');
+
+  if (submission.type === 'oped') {
+    await autoShareApprovedOped(sanitized.id, submission.submittedBy);
+  }
+
   return { communityId: sanitized.id };
 }
 
