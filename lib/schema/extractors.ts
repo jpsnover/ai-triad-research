@@ -102,7 +102,15 @@ function typeOf(v: unknown): string {
  * Extract distinct graph-attribute values + edge types actually present in the live corpus.
  * `originDir` is the taxonomy Origin directory (…/ai-triad-data/taxonomy/Origin) — passed explicitly
  * so this stays pure/testable (CI wiring resolves it via taxonomyLoader.resolveDataRoot separately).
- * Missing files are skipped (best-effort; the gate reports on what IS present).
+ * Covers the POV files (acc/saf/skp) AND situations.json (sit-* nodes): since record v4.0.0 (t/3468)
+ * graph_attributes[] govern both pov and situation nodes, so the drift surface includes situations
+ * (t/3456). Category/parent situation nodes carry blanked (absent) enums by design and simply
+ * contribute nothing. Missing files are skipped (best-effort; the gate reports on what IS present).
+ *
+ * SCOPE (SO cond-3, t/3468): this compares VALUE SETS and TYPES only — it does NOT id-grammar-check.
+ * DERIVED artifacts (logs, caches, embeddings, crux aggregates) may still hold stale cc-* refs from the
+ * t/1308 migration; those are OUT OF SCOPE here and resolvable via the record's node_id.retired_id_spaces
+ * — do not point this extractor at a derived artifact and read stale-ref counts as drift.
  */
 export function extractCorpusValues(originDir: string): Extracted {
   const values: Record<string, Set<string>> = {};
@@ -110,12 +118,13 @@ export function extractCorpusValues(originDir: string): Extracted {
   const addVal = (field: string, v: string) => { (values[field] ??= new Set()).add(v); };
   const addType = (field: string, t: string) => { (observedTypes[field] ??= new Set()).add(t); };
 
-  for (const fn of ['accelerationist.json', 'safetyist.json', 'skeptic.json']) {
+  // POV camps + situations (sit-*): all carry the same graph_attributes[] the record governs (t/3456).
+  for (const fn of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json']) {
     let nodes: CorpusNode[];
     try {
       const raw = readFileSync(join(originDir, fn), 'utf-8').replace(/^﻿/, '');
       nodes = (JSON.parse(raw).nodes ?? []) as CorpusNode[];
-    } catch { continue; } // best-effort: a missing/malformed POV file is skipped, not fatal
+    } catch { continue; } // best-effort: a missing/malformed corpus file is skipped, not fatal
     for (const n of nodes) {
       const ga = n.graph_attributes;
       if (!ga) continue;

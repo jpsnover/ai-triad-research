@@ -78,6 +78,50 @@ describe('extractCorpusValues', () => {
     expect(findings.some((f) => f.type === 'extra_in_consumer' && f.value === 'evidence_based')).toBe(true);
     expect(findings.some((f) => f.type === 'type_mismatch' && f.field === 'graph_attributes.steelman_vulnerability')).toBe(true);
   });
+
+  it('reads situation (sit-*) graph_attributes, incl. the v4.0.0 canonical adds; category nodes contribute nothing (t/3456)', () => {
+    dir = mkdtempSync(join(tmpdir(), 'origin-'));
+    writeFileSync(join(dir, 'situations.json'), JSON.stringify({ nodes: [
+      { id: 'sit-001', graph_attributes: {
+        rhetorical_strategy: 'reductio_ad_absurdum, structural_critique', // reductio = v4.0.0 add (t/3468)
+        audience: 'military_leaders, policymakers',                        // military_leaders = v4.0.0 add
+        epistemic_type: 'definitional',
+      } },
+      // Category/parent node: enums blanked by design (t/3468 exemption) → contributes only node_scope.
+      { id: 'sit-170', graph_attributes: { node_scope: 'scheme', assumes: [], steelman_vulnerability: '' } },
+    ] }));
+    const ex = extractCorpusValues(dir);
+    expect(ex.kind).toBe('corpus');
+    expect(ex.attributes?.rhetorical_strategy?.values).toEqual(['reductio_ad_absurdum', 'structural_critique']);
+    expect(ex.attributes?.audience?.values).toEqual(['military_leaders', 'policymakers']);
+    expect(ex.attributes?.node_scope?.values).toEqual(['scheme']);
+  });
+
+  it('end-to-end CLEAN arm: a value-conformant situations corpus yields NO value drift vs the v4.0.0 record (t/3456)', () => {
+    dir = mkdtempSync(join(tmpdir(), 'origin-'));
+    writeFileSync(join(dir, 'situations.json'), JSON.stringify({ nodes: [
+      { id: 'sit-001', graph_attributes: {
+        rhetorical_strategy: 'reductio_ad_absurdum, appeal_to_evidence',
+        audience: 'legal_professionals',
+        emotional_register: 'measured',
+        node_scope: 'scheme',
+      } },
+    ] }));
+    const findings = checkSchemaDrift(RECORD, extractCorpusValues(dir));
+    // Every value ∈ the v4.0.0 canonical sets (incl. the 3 adds) → no value-level drift. (type_mismatch
+    // on the csv/enum fields is the known t/3467 comparator artifact, not situations drift — excluded here.)
+    expect(findings.some((f) => f.type === 'extra_in_consumer')).toBe(false);
+    expect(findings.some((f) => f.type === 'deprecated_in_use')).toBe(false);
+  });
+
+  it('end-to-end DRIFT arm: a non-canonical situations value fires extra_in_consumer (t/3456)', () => {
+    dir = mkdtempSync(join(tmpdir(), 'origin-'));
+    writeFileSync(join(dir, 'situations.json'), JSON.stringify({ nodes: [
+      { id: 'sit-001', graph_attributes: { rhetorical_strategy: 'Cost_Benefit_Analysis' } }, // Title_Case = non-canonical
+    ] }));
+    const findings = checkSchemaDrift(RECORD, extractCorpusValues(dir));
+    expect(findings.some((f) => f.type === 'extra_in_consumer' && f.field === 'graph_attributes.rhetorical_strategy' && f.value === 'Cost_Benefit_Analysis')).toBe(true);
+  });
 });
 
 // The exact CONTROLLED VOCABULARY block CL authored for renderer/prompts/analysis.ts (t/3455#3),
