@@ -54,7 +54,7 @@ Describe 'Merge-CruxQuestionForm preserve+generate (t/1509)' -Tag 'enrichment' {
         if (Test-Path $script:PrevPath) { Remove-Item $script:PrevPath -Force -ErrorAction SilentlyContinue }
     }
 
-    It 'Preserves existing question_form by crux id (round-trip)' {
+    It 'Preserves existing question_form by statement (round-trip)' {
         # Seed a "previous export" with two cruxes carrying question_form.
         $prev = [ordered]@{
             generated_at = '2026-05-08T00:00:00Z'
@@ -189,11 +189,13 @@ Describe 'Merge-CruxQuestionForm preserve+generate (t/1509)' -Tag 'enrichment' {
         }
     }
 
-    It 'Falls through to regeneration when the id matches but the statement changed (t/1509 CL guard)' {
-        # Previous export has id=crux-050 with statement A; fresh aggregate has
-        # id=crux-050 but a materially different statement — dedup clustering
-        # re-assigned the slot. Preservation must NOT ride the old question_form
-        # along; it must call the AI to generate a fresh one.
+    It 'Regenerates when the statement changed — never clobbers across statements (t/1509 guard, upheld under t/3474 statement-keying)' {
+        # Previous export has id=crux-050 with statement A; fresh aggregate reuses
+        # id=crux-050 but carries a materially different statement. Statement-keyed
+        # preservation (t/3474) finds no matching statement, so it must NOT ride the
+        # old question_form along — it calls the AI for a fresh one. This upholds the
+        # original t/1509 anti-clobber guarantee: a question_form is never carried
+        # across a changed statement, regardless of id.
         $prev = [ordered]@{
             cruxes = @(
                 [ordered]@{
@@ -283,6 +285,45 @@ Describe 'Merge-CruxQuestionForm preserve+generate (t/1509)' -Tag 'enrichment' {
             $stats.Preserved | Should -Be 0
             $stats.Generated | Should -Be 1
             $Fresh[0]['question_form'] | Should -Be 'Is something the case?'
+        }
+    }
+
+    It 'Preserves across a CHANGED id when the statement is unchanged (t/3474)' {
+        # The regen renumbers crux ids (cluster order shifts), so the same statement
+        # arrives under a different id. Statement-keyed preservation must carry the
+        # question_form forward WITHOUT an AI call — this is the t/3474 fix that stops
+        # id-renumbering from forcing mass regeneration.
+        $prev = [ordered]@{
+            cruxes = @(
+                [ordered]@{
+                    id            = 'crux-050'
+                    statement     = 'Compute thresholds are a workable trigger for frontier-model oversight.'
+                    type          = 'empirical'
+                    question_form = 'Are compute thresholds a workable trigger for frontier-model oversight?'
+                }
+            )
+        }
+        $prev | ConvertTo-Json -Depth 6 | Set-Content -Path $script:PrevPath -Encoding utf8NoBOM
+
+        # Same statement, DIFFERENT id (renumbered by a fresh clustering pass).
+        $fresh = @(
+            [ordered]@{
+                id        = 'crux-777'
+                statement = 'Compute thresholds are a workable trigger for frontier-model oversight.'
+                type      = 'empirical'
+            }
+        )
+
+        InModuleScope AITriad -Parameters @{ Fresh = $fresh; PrevPath = $script:PrevPath } {
+            param($Fresh, $PrevPath)
+            Mock Invoke-AIByUsage { throw 'must not be called — statement is unchanged, preserve across the new id' } -ModuleName AITriad
+
+            $stats = Merge-CruxQuestionForm -Cruxes $Fresh -PreviousPath $PrevPath
+
+            $stats.Preserved | Should -Be 1
+            $stats.Generated | Should -Be 0
+            $Fresh[0]['question_form'] | Should -Be 'Are compute thresholds a workable trigger for frontier-model oversight?'
+            Should -Invoke Invoke-AIByUsage -ModuleName AITriad -Times 0
         }
     }
 }
