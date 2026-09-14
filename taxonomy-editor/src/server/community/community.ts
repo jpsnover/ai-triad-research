@@ -484,6 +484,34 @@ function sanitizeForCommunity(data: unknown, submittedBy: string): unknown {
   return d;
 }
 
+/**
+ * t/3483 Part B: mint + project the public share at approve time (not submit — the item is
+ * unreviewed until now) so it appears on the public index without anyone clicking Share.
+ * Never fails the approve: a WARN'd item (thrown error or skipped outcome) is caught by the
+ * next backfill run (idempotent).
+ */
+async function autoShareApprovedOped(communityId: string, submittedBy: string): Promise<void> {
+  try {
+    const result = await mintAndProjectCommunityOpEd(communityId, submittedBy);
+    if (result.outcome === 'skipped') {
+      log.server.warn(
+        { communityId, reason: result.reason },
+        'Community op-ed auto-share on approve skipped — item approved but not indexed; backfill will catch it if fixed',
+      );
+    }
+  } catch (err) {
+    log.server.warn(
+      { err, communityId },
+      'Community op-ed auto-share on approve failed — item approved but not yet indexed; backfill will catch it',
+    );
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'community', level: 'warn',
+      message: 'Community op-ed auto-share on approve failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+}
+
 export async function approveSubmission(
   submissionId: string,
   edits?: Record<string, unknown>,
@@ -522,23 +550,8 @@ export async function approveSubmission(
 
   log.server.info({ submissionId, communityId: sanitized.id, type: submission.type }, 'Community submission approved');
 
-  // t/3483 Part B: mint + project the public share at approve time (not submit — the item is
-  // unreviewed until now) so it appears on the public index without anyone clicking Share.
-  // Never fails the approve: a WARN'd item is caught by the next backfill run (idempotent).
   if (submission.type === 'oped') {
-    try {
-      await mintAndProjectCommunityOpEd(sanitized.id, submission.submittedBy);
-    } catch (err) {
-      log.server.warn(
-        { err, communityId: sanitized.id },
-        'Community op-ed auto-share on approve failed — item approved but not yet indexed; backfill will catch it',
-      );
-      getGlobalRecorder()?.record({
-        type: 'system.error', component: 'community', level: 'warn',
-        message: 'Community op-ed auto-share on approve failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-    }
+    await autoShareApprovedOped(sanitized.id, submission.submittedBy);
   }
 
   return { communityId: sanitized.id };

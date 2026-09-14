@@ -40,6 +40,9 @@ vi.mock('../config.js', () => ({
   resolveDataPath: (p: string) => `/data/${p}`,
 }));
 
+const { warnSpy } = vi.hoisted(() => ({ warnSpy: vi.fn() }));
+vi.mock('../logger.js', () => ({ log: { server: { warn: warnSpy, info: vi.fn() } } }));
+
 import { approveSubmission } from '../community/community.js';
 import { getCommunityOpedShareEntry } from '../community/communityOpedShares.js';
 
@@ -50,7 +53,7 @@ function seedSubmission(id: string, data: Record<string, unknown>) {
 }
 
 describe('approveSubmission auto-share hook (t/3483 Part B)', () => {
-  beforeEach(() => { files.clear(); vi.clearAllMocks(); });
+  beforeEach(() => { files.clear(); warnSpy.mockClear(); });
 
   it('approving a valid oped submission mints + projects a public share', async () => {
     seedSubmission('sub-1', { topic: 'AI Safety', opeds: [{ pov: 'acc', headline: 'h', status: 'complete', body: 'text' }] });
@@ -61,13 +64,11 @@ describe('approveSubmission auto-share hook (t/3483 Part B)', () => {
   });
 
   it('a mint failure WARNs but does not throw / fail the approve', async () => {
-    const warnSpy = vi.fn();
     vi.resetModules();
     vi.doMock('../community/communityOpedShares.js', () => ({
       mintCommunityOpedShare: vi.fn().mockRejectedValue(new Error('registry write failed')),
       getCommunityOpedShareEntry: vi.fn().mockResolvedValue(null),
     }));
-    vi.doMock('../logger.js', () => ({ log: { server: { warn: warnSpy, info: vi.fn() } } }));
     const { approveSubmission: approveWithBrokenMint } = await import('../community/community.js');
 
     seedSubmission('sub-2', { topic: 'AI Safety', opeds: [{ pov: 'acc', headline: 'h', status: 'complete', body: 'text' }] });
@@ -79,8 +80,20 @@ describe('approveSubmission auto-share hook (t/3483 Part B)', () => {
     );
 
     vi.doUnmock('../community/communityOpedShares.js');
-    vi.doUnmock('../logger.js');
     vi.resetModules();
+  });
+
+  it('a skipped outcome (e.g. empty opeds surviving sanitize) WARNs with the reason, not silently ignored', async () => {
+    seedSubmission('sub-4', { topic: 'AI Safety', opeds: [] });
+    const { communityId } = await approveSubmission('sub-4');
+
+    const entry = await getCommunityOpedShareEntry(communityId);
+    expect(entry).toBeNull(); // never minted — skipped, not shared
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ communityId, reason: 'empty' }),
+      expect.stringContaining('auto-share on approve skipped'),
+    );
   });
 
   it('does not attempt to mint for chat/debate submission types', async () => {
