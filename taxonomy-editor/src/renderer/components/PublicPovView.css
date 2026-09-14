@@ -4,9 +4,13 @@
 /* Public read-only POV share view (t/1790). Slim, self-contained styling —
    theme variables come from styles.css (imported at the renderer entry). */
 
+/* t/3485: body has global `overflow: hidden; height: 100dvh` (styles.css, frozen) so this
+   must be its OWN scroll container — see PublicOpEdView.css for the full explanation. */
 .ppv-root {
   --ppv-accent: var(--text-secondary);
-  min-height: 100vh;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   align-items: flex-start;
   justify-content: center;

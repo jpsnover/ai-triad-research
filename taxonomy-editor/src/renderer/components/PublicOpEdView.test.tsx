@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 const mockRecord = vi.fn();
 vi.mock('@lib/flight-recorder/index', () => ({
@@ -86,7 +87,7 @@ describe('PublicOpEdView (t/2728)', () => {
     expect(hitAnonymous).toBe(false);
   });
 
-  it('renders the shared set read-only (topic, complete voice, failed-voice notice; no controls)', async () => {
+  it('renders the shared set read-only (topic, complete voice on the default tab; no inputs/buttons)', async () => {
     mockFetch.mockResolvedValue(fakeResponse({ body: SAMPLE }));
     render(<PublicOpEdView />);
 
@@ -95,12 +96,65 @@ describe('PublicOpEdView (t/2728)', () => {
     expect(screen.getByText('Ship the future')).toBeInTheDocument();
     expect(screen.getByText('Why acceleration wins')).toBeInTheDocument();
     expect(screen.getByText('Accelerate now, the body argues.')).toBeInTheDocument();
-    // Partial-set contract: the failed voice renders a notice, not an essay.
-    expect(screen.getByText(/failed to generate/)).toBeInTheDocument();
 
-    // Read-only: no inputs or actionable buttons on the public path.
+    // Read-only: no plain inputs/buttons on the public path — tab controls carry an explicit
+    // role="tab", not "button", so they don't trip this invariant.
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  // t/3485: PI feedback on the deployed t/3477 fix — stacking traded one burial (situation
+  // wall) for another (only the first op-ed visible, no indication two more exist).
+  describe('camp tabs (t/3485)', () => {
+    it('shows a tab per voice and defaults to the first (no scrolling needed to discover the rest)', async () => {
+      mockFetch.mockResolvedValue(fakeResponse({ body: SAMPLE }));
+      render(<PublicOpEdView />);
+      await screen.findByText(SAMPLE.topic);
+
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs).toHaveLength(2);
+      expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+      expect(tabs[1]).toHaveAttribute('aria-selected', 'false');
+      // The failed voice's notice is NOT in the initial (first-tab) panel.
+      expect(screen.queryByText(/failed to generate/)).toBeNull();
+    });
+
+    it('switches panels on click — the failed-voice notice appears behind its own tab', async () => {
+      mockFetch.mockResolvedValue(fakeResponse({ body: SAMPLE }));
+      const user = userEvent.setup();
+      render(<PublicOpEdView />);
+      await screen.findByText(SAMPLE.topic);
+
+      const tabs = screen.getAllByRole('tab');
+      await user.click(tabs[1]);
+
+      expect(screen.getByText(/failed to generate/)).toBeInTheDocument();
+      expect(screen.queryByText('Accelerate now, the body argues.')).toBeNull();
+      expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('supports ArrowRight/ArrowLeft keyboard navigation between tabs', async () => {
+      mockFetch.mockResolvedValue(fakeResponse({ body: SAMPLE }));
+      const user = userEvent.setup();
+      render(<PublicOpEdView />);
+      await screen.findByText(SAMPLE.topic);
+
+      const tabs = screen.getAllByRole('tab');
+      tabs[0].focus();
+      await user.keyboard('{ArrowRight}');
+      expect(screen.getByText(/failed to generate/)).toBeInTheDocument();
+      await user.keyboard('{ArrowLeft}');
+      expect(screen.getByText('Accelerate now, the body argues.')).toBeInTheDocument();
+    });
+
+    it('renders no tab strip for a single-voice set (matches the in-app ruling, t/2576#3)', async () => {
+      mockFetch.mockResolvedValue(fakeResponse({ body: { ...SAMPLE, opeds: [SAMPLE.opeds[0]] } }));
+      render(<PublicOpEdView />);
+      await screen.findByText(SAMPLE.topic);
+
+      expect(screen.queryByRole('tab')).toBeNull();
+      expect(screen.getByText('Ship the future')).toBeInTheDocument();
+    });
   });
 
   it('leads with the op-eds — the situation topic renders after them, not as the lead heading (t/3477)', async () => {
