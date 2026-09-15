@@ -6,8 +6,8 @@
 import { SUPPORT_MOVES, wordOverlap, bestOverlapMatch, lookupTaxonomyEdgeWeight } from '../helpers.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../types.js';
 import { retrieveEvidence } from '../evidenceRetriever.js';
-import { computeFactCheckStrength } from '../qbaf.js';
-import type { WebEvidenceItem } from '../qbaf.js';
+import { buildEvidenceQbaf } from '../evidenceQbaf.js';
+import type { AIAdapter } from '../aiAdapter.js';
 import { detectAmbiguityCollapse, findSourcePassage } from '../ambiguityDetector.js';
 import { fuzzyCorrectNodeId } from '../nodeIdUtils.js';
 import { disambiguateTerms } from '../vocabularyDisambiguation.js';
@@ -71,9 +71,15 @@ export interface ProcessClaimsOptions {
   maxClaims?: number;
   isClassifyPath: boolean;
   /** Path to sources directory for evidence retrieval (t/455 Stage 2).
-   *  When provided, Belief claims get QBAF-adjusted base_strength from
-   *  retrieved evidence. Requires Node.js filesystem access. */
+   *  When provided together with `adapter`, Belief claims get QBAF-adjusted
+   *  base_strength from retrieved evidence with LLM polarity classification.
+   *  Requires Node.js filesystem access. */
   sourcesDir?: string;
+  /** AI adapter for LLM-based evidence polarity classification in Stage 2.
+   *  Required alongside `sourcesDir` — without it Stage 2 is skipped. */
+  adapter?: AIAdapter;
+  /** Model to use for evidence classification. Defaults to debate model. */
+  evidenceModel?: string;
   /** Colloquial terms for post-extraction vocabulary disambiguation. When provided,
    *  bare terms in claim text are resolved to canonical forms based on speaker POV. */
   colloquialTerms?: import('../../dictionary/types.js').ColloquialTerm[];
@@ -117,10 +123,10 @@ export interface ProcessClaimsResult {
 
 const VALID_ATTACK_TYPES = new Set(['rebut', 'undercut', 'undermine']);
 
-export function processExtractedClaims(
+export async function processExtractedClaims(
   input: ProcessClaimsInput,
   options: ProcessClaimsOptions,
-): ProcessClaimsResult {
+): Promise<ProcessClaimsResult> {
   const {
     claims, statement, speaker, entryId,
     turnNumber, existingNodes, existingEdgeCount, startNodeId, taxonomyEdges,
@@ -286,36 +292,37 @@ export function processExtractedClaims(
         beliefScored = true;
       }
 
-      // Stage 2: Evidence-retrieval-augmented scoring via QBAF
-      // Converts the unreliable "rate evidence quality" judgment into a tractable
-      // comparison task: "does this passage support or contradict this claim?"
+      // Stage 2: Evidence-retrieval-augmented scoring via QBAF with LLM polarity classification.
+      // Retrieves evidence, classifies each item as support/contradict/irrelevant via LLM,
+      // then builds a QBAF sub-graph. Requires both sourcesDir and adapter — cosine similarity
+      // alone is polarity-blind (a negated proposition embeds near its affirmative twin).
       // Only runs if Stage 3 (ThinkPRM) didn't already score the claim.
-      if (!beliefScored && options.sourcesDir) {
+      if (!beliefScored && options.sourcesDir && options.adapter) {
         try {
           const evidence = retrieveEvidence(node.text, options.sourcesDir, { topK: 5 });
           if (evidence.length > 0) {
-            // Map EvidenceItem → WebEvidenceItem for the QBAF pipeline.
-            // Evidence items with high similarity likely support; low similarity
-            // items are neutral. We classify as supporting since retrieveEvidence
-            // already filters by relevance — truly contradicting evidence would
-            // require NLI classification which is Stage 3 territory.
-            const webEvidence: WebEvidenceItem[] = evidence.map(e => ({
-              id: e.id,
-              text: e.text,
-              relation: 'supports' as const,
-              source_reliability: Math.min(1, e.similarity_score + 0.2),
-              relevance: e.similarity_score,
-            }));
-
             const specStrength = BELIEF_SPECIFICITY_MAP[node.specificity ?? ''] ?? 0.50;
-            const result = computeFactCheckStrength(specStrength, webEvidence);
-            node.base_strength = result.adjusted_strength;
+            const qbafResult = await buildEvidenceQbaf(
+              node.text,
+              evidence,
+              options.adapter,
+              options.evidenceModel ?? 'gemini-3.5-flash-lite',
+              { claimBaseStrength: specStrength },
+            );
+            node.base_strength = qbafResult.computed_strength;
             node.scoring_method = 'evidence_qbaf';
             beliefScored = true;
           }
         } catch {
-          // Evidence retrieval failed (filesystem unavailable, etc.) — fall through
+          // Evidence retrieval or LLM classification failed — fall through to Stage 1
         }
+      } else if (!beliefScored && options.sourcesDir && !options.adapter) {
+        getGlobalRecorder()?.record({
+          type: 'an.evidence_qbaf_skipped', component: 'argument-network', level: 'warn',
+          speaker,
+          message: 'Stage 2 evidence QBAF skipped: sourcesDir provided but no adapter — polarity classification requires an adapter',
+          data: { node_id: nodeId },
+        });
       }
 
       // Stage 1: Specificity proxy fallback

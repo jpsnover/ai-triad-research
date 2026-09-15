@@ -26,6 +26,7 @@ export type EventType =
   | 'an.extraction_coverage_error'
   | 'an.exclusion_violation'
   | 'an.nli_direction_gate'
+  | 'an.evidence_qbaf_skipped'
   // Turn pipeline
   | 'turn.stage'
   | 'turn.validate'

@@ -141,7 +141,7 @@ export async function extractClaims(
   }
 
   const overlapThreshold = (debaterClaims && debaterClaims.length > 0) ? 0.1 : 0.15;
-  const claimsResult = processExtractedClaims(
+  const claimsResult = await processExtractedClaims(
     {
       claims,
       statement,
@@ -161,6 +161,7 @@ export async function extractClaims(
       groundingOverlapThreshold: overlapThreshold,
       isClassifyPath: !!(debaterClaims && debaterClaims.length > 0),
       colloquialTerms: ctx.config.vocabulary?.colloquialTerms,
+      adapter: ctx.adapter,
     },
   );
 

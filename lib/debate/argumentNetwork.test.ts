@@ -22,8 +22,8 @@ describe('BDI composite scoring', () => {
     isClassifyPath: false,
   };
 
-  it('composes Desire sub-scores into base_strength', () => {
-    const result = processExtractedClaims({
+  it('composes Desire sub-scores into base_strength', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'AI governance should prioritize safety mechanisms with clear tradeoff acknowledgment and precedent',
@@ -40,8 +40,8 @@ describe('BDI composite scoring', () => {
     expect(node.base_strength).toBeCloseTo(0.5, 5);
   });
 
-  it('composes Intention sub-scores into base_strength', () => {
-    const result = processExtractedClaims({
+  it('composes Intention sub-scores into base_strength', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'AI governance should prioritize safety mechanisms with specific scope and failure modes',
@@ -58,8 +58,8 @@ describe('BDI composite scoring', () => {
     expect(node.base_strength).toBeCloseTo(5 / 6, 4);
   });
 
-  it('does not compose Belief sub-scores (unreliable r≈0.20)', () => {
-    const result = processExtractedClaims({
+  it('does not compose Belief sub-scores (unreliable r≈0.20)', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'AI governance should prioritize safety mechanisms with strong evidence quality',
@@ -75,14 +75,14 @@ describe('BDI composite scoring', () => {
     expect(node.scoring_method).not.toBe('bdi_composite');
   });
 
-  it('applies specificity proxy for Belief claims (t/455 Stage 1)', () => {
+  it('applies specificity proxy for Belief claims (t/455 Stage 1)', async () => {
     const cases = [
       { specificity: 'precise', expected: 0.70 },
       { specificity: 'general', expected: 0.50 },
       { specificity: 'abstract', expected: 0.35 },
     ];
     for (const { specificity, expected } of cases) {
-      const result = processExtractedClaims({
+      const result = await processExtractedClaims({
         ...baseInput,
         claims: [{
           text: `AI governance claim with ${specificity} specificity for belief scoring test`,
@@ -99,8 +99,8 @@ describe('BDI composite scoring', () => {
     }
   });
 
-  it('uses ThinkPRM verification chain for Belief claims (t/455 Stage 3)', () => {
-    const result = processExtractedClaims({
+  it('uses ThinkPRM verification chain for Belief claims (t/455 Stage 3)', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'AI governance should prioritize safety mechanisms backed by clear empirical evidence',
@@ -121,7 +121,7 @@ describe('BDI composite scoring', () => {
     expect(node.base_strength).toBeGreaterThan(0.7);
   });
 
-  it('ThinkPRM verification penalizes contradicted claims', () => {
+  it('ThinkPRM verification penalizes contradicted claims', async () => {
     // Provide an existing node and responds_to so the low-strength claim isn't
     // rejected by the anti-filibustering filter (which drops claims < 0.25
     // strength that lack crux connections or novel schemes).
@@ -129,7 +129,7 @@ describe('BDI composite scoring', () => {
       id: 'AN-0', text: 'Rapid deployment creates accountability gaps', speaker: 'accelerationist',
       source_entry_id: 'entry-0', taxonomy_refs: [], turn_number: 0, base_strength: 0.5,
     };
-    const result = processExtractedClaims({
+    const result = await processExtractedClaims({
       ...baseInput,
       existingNodes: [existingNode] as any[],
       claims: [{
@@ -158,8 +158,8 @@ describe('BDI composite scoring', () => {
     expect(node.base_strength).toBeLessThan(0.3);
   });
 
-  it('falls back to generic scoring for Beliefs without specificity', () => {
-    const result = processExtractedClaims({
+  it('falls back to generic scoring for Beliefs without specificity', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'AI governance claim without specificity for belief fallback test',
@@ -174,8 +174,8 @@ describe('BDI composite scoring', () => {
     expect(node.scoring_method).not.toBe('belief_specificity');
   });
 
-  it('guards against NaN sub-scores in Desire composite', () => {
-    const result = processExtractedClaims({
+  it('guards against NaN sub-scores in Desire composite', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'AI governance should prioritize safety mechanisms with NaN guard test for desire claims',
@@ -193,8 +193,8 @@ describe('BDI composite scoring', () => {
     expect(Number.isFinite(node.base_strength)).toBe(true);
   });
 
-  it('guards against NaN sub-scores in Intention composite', () => {
-    const result = processExtractedClaims({
+  it('guards against NaN sub-scores in Intention composite', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'AI governance should prioritize safety mechanisms with NaN guard test for intention claims',
@@ -212,8 +212,8 @@ describe('BDI composite scoring', () => {
     expect(Number.isFinite(node.base_strength)).toBe(true);
   });
 
-  it('falls back to generic scoring when sub-scores are absent', () => {
-    const result = processExtractedClaims({
+  it('falls back to generic scoring when sub-scores are absent', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'AI governance should prioritize safety mechanisms with clear value tradeoffs acknowledged',
@@ -231,7 +231,7 @@ describe('BDI composite scoring', () => {
 });
 
 describe('beliefVerificationToStrength (t/455 Stage 3)', () => {
-  it('strong evidence → high strength', () => {
+  it('strong evidence → high strength', async () => {
     const s = beliefVerificationToStrength({
       evidence_cited: 'MIT 2025 audit',
       source_located: 'found',
@@ -242,7 +242,7 @@ describe('beliefVerificationToStrength (t/455 Stage 3)', () => {
     expect(s).toBeLessThanOrEqual(0.95);
   });
 
-  it('no source cited → low strength', () => {
+  it('no source cited → low strength', async () => {
     const s = beliefVerificationToStrength({
       evidence_cited: 'none',
       source_located: 'no_source',
@@ -252,7 +252,7 @@ describe('beliefVerificationToStrength (t/455 Stage 3)', () => {
     expect(s).toBeLessThan(0.35);
   });
 
-  it('significant counter-evidence reduces strength', () => {
+  it('significant counter-evidence reduces strength', async () => {
     const strong = beliefVerificationToStrength({
       evidence_cited: 'source A',
       source_located: 'found',
@@ -269,7 +269,7 @@ describe('beliefVerificationToStrength (t/455 Stage 3)', () => {
     expect(strong - countered).toBeCloseTo(0.30, 1);
   });
 
-  it('clamps output to [0.1, 0.95]', () => {
+  it('clamps output to [0.1, 0.95]', async () => {
     const worst: BeliefVerification = {
       evidence_cited: 'none',
       source_located: 'no_source',
@@ -288,7 +288,7 @@ describe('beliefVerificationToStrength (t/455 Stage 3)', () => {
 });
 
 describe('normalizeExtractedClaim — BDI sub-scores', () => {
-  it('converts discrete ternary strings to numeric scores', () => {
+  it('converts discrete ternary strings to numeric scores', async () => {
     const claim = normalizeExtractedClaim({
       text: 'test claim',
       bdi_sub_scores: { values_grounding: 'yes', tradeoff_acknowledgment: 'partial', precedent_citation: 'no' },
@@ -302,7 +302,7 @@ describe('normalizeExtractedClaim — BDI sub-scores', () => {
 });
 
 describe('normalizeExtractedClaim — base_strength BDI scoping', () => {
-  it('maps "asserted" to 0.2 for Belief claims', () => {
+  it('maps "asserted" to 0.2 for Belief claims', async () => {
     const claim = normalizeExtractedClaim({
       text: 'empirical claim about AI capabilities',
       bdi_category: 'belief',
@@ -311,7 +311,7 @@ describe('normalizeExtractedClaim — base_strength BDI scoping', () => {
     expect(claim.base_strength).toBe(0.2);
   });
 
-  it('maps "asserted" to neutral 0.5 for Desire claims', () => {
+  it('maps "asserted" to neutral 0.5 for Desire claims', async () => {
     const claim = normalizeExtractedClaim({
       text: 'We should prioritize safety over capability racing',
       bdi_category: 'desire',
@@ -320,7 +320,7 @@ describe('normalizeExtractedClaim — base_strength BDI scoping', () => {
     expect(claim.base_strength).toBe(0.5);
   });
 
-  it('maps "asserted" to neutral 0.5 for Intention claims', () => {
+  it('maps "asserted" to neutral 0.5 for Intention claims', async () => {
     const claim = normalizeExtractedClaim({
       text: 'Implement staged deployment with safety gates',
       bdi_category: 'intention',
@@ -329,7 +329,7 @@ describe('normalizeExtractedClaim — base_strength BDI scoping', () => {
     expect(claim.base_strength).toBe(0.5);
   });
 
-  it('maps "grounded" to 0.8 for Belief claims', () => {
+  it('maps "grounded" to 0.8 for Belief claims', async () => {
     const claim = normalizeExtractedClaim({
       text: 'GPT-4 scores 86% on MMLU benchmark',
       bdi_category: 'belief',
@@ -338,7 +338,7 @@ describe('normalizeExtractedClaim — base_strength BDI scoping', () => {
     expect(claim.base_strength).toBe(0.8);
   });
 
-  it('maps "grounded" to neutral 0.5 for Desire claims', () => {
+  it('maps "grounded" to neutral 0.5 for Desire claims', async () => {
     const claim = normalizeExtractedClaim({
       text: 'We should mandate transparency in AI systems',
       bdi_category: 'desire',
@@ -347,7 +347,7 @@ describe('normalizeExtractedClaim — base_strength BDI scoping', () => {
     expect(claim.base_strength).toBe(0.5);
   });
 
-  it('passes through numeric base_strength unchanged regardless of BDI category', () => {
+  it('passes through numeric base_strength unchanged regardless of BDI category', async () => {
     const claim = normalizeExtractedClaim({
       text: 'test claim with numeric strength',
       bdi_category: 'desire',
@@ -374,8 +374,8 @@ describe('processExtractedClaims — concession speaker guard', () => {
   };
   const baseOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
 
-  it('does NOT add own claim to conceded when self-supporting (EXTEND)', () => {
-    const result = processExtractedClaims({
+  it('does NOT add own claim to conceded when self-supporting (EXTEND)', async () => {
+    const result = await processExtractedClaims({
       ...concessionInput,
       claims: [{
         text: 'Regulatory frameworks must balance innovation incentives against precautionary oversight obligations effectively',
@@ -394,8 +394,8 @@ describe('processExtractedClaims — concession speaker guard', () => {
     expect(result.commitments.conceded).not.toContain('Mandatory discovery rights ensure transparent auditing of deployed systems');
   });
 
-  it('DOES add opponent claim to conceded when cross-speaker support', () => {
-    const result = processExtractedClaims({
+  it('DOES add opponent claim to conceded when cross-speaker support', async () => {
+    const result = await processExtractedClaims({
       ...concessionInput,
       claims: [{
         text: 'Regulatory frameworks must balance innovation incentives while granting that voluntary compliance has merits',
@@ -414,8 +414,8 @@ describe('processExtractedClaims — concession speaker guard', () => {
     expect(result.commitments.conceded).toContain('Voluntary compliance achieves better outcomes than prescriptive mandates');
   });
 
-  it('splits CONCEDE-AND-PIVOT dual edges correctly', () => {
-    const result = processExtractedClaims({
+  it('splits CONCEDE-AND-PIVOT dual edges correctly', async () => {
+    const result = await processExtractedClaims({
       ...concessionInput,
       claims: [{
         text: 'Regulatory frameworks must balance innovation incentives while granting that voluntary compliance has merits',
@@ -436,8 +436,8 @@ describe('processExtractedClaims — concession speaker guard', () => {
     expect(result.commitments.challenged).toContain('Voluntary compliance achieves better outcomes than prescriptive mandates');
   });
 
-  it('self-INTEGRATE does not add own claim to conceded', () => {
-    const result = processExtractedClaims({
+  it('self-INTEGRATE does not add own claim to conceded', async () => {
+    const result = await processExtractedClaims({
       ...concessionInput,
       claims: [{
         text: 'Regulatory frameworks must balance innovation incentives by integrating discovery rights with compliance flexibility',
@@ -496,8 +496,8 @@ describe('vocabulary_tags on AN nodes', () => {
     },
   ];
 
-  it('adds vocabulary_tags when colloquialTerms provided', () => {
-    const result = processExtractedClaims({
+  it('adds vocabulary_tags when colloquialTerms provided', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'The alignment problem requires accountability mechanisms to address bias in safety-critical systems',
@@ -516,8 +516,8 @@ describe('vocabulary_tags on AN nodes', () => {
     expect(node.vocabulary_tags!.some(t => t.canonical === 'accountability_algorithmic')).toBe(true);
   });
 
-  it('omits vocabulary_tags when colloquialTerms not provided', () => {
-    const result = processExtractedClaims({
+  it('omits vocabulary_tags when colloquialTerms not provided', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'The alignment problem requires accountability mechanisms to address bias in safety-critical systems',
@@ -545,8 +545,8 @@ describe('political salience QBAF boost (t/247)', () => {
   };
   const baseOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
 
-  it('applies +0.10 boost for high political_salience in policymaker debates', () => {
-    const result = processExtractedClaims({
+  it('applies +0.10 boost for high political_salience in policymaker debates', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{ text: 'The EU AI Act Section 6 mandates conformity assessments for high-risk systems deployed in healthcare', political_salience: 'high', base_strength: 0.5 }],
       audience: 'policymakers',
@@ -557,8 +557,8 @@ describe('political salience QBAF boost (t/247)', () => {
     expect(result.newNodes[0].base_strength).toBeCloseTo(0.6);
   });
 
-  it('does not boost medium or low salience', () => {
-    const result = processExtractedClaims({
+  it('does not boost medium or low salience', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{ text: 'The EU AI Act Section 6 mandates conformity assessments for high-risk systems deployed in healthcare', political_salience: 'medium', base_strength: 0.5 }],
       audience: 'policymakers',
@@ -568,8 +568,8 @@ describe('political salience QBAF boost (t/247)', () => {
     expect(result.newNodes[0].base_strength).toBeCloseTo(0.5);
   });
 
-  it('does not apply salience in non-policymaker debates', () => {
-    const result = processExtractedClaims({
+  it('does not apply salience in non-policymaker debates', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{ text: 'The EU AI Act Section 6 mandates conformity assessments for high-risk systems deployed in healthcare', political_salience: 'high', base_strength: 0.5 }],
       audience: 'technical_researchers',
@@ -579,8 +579,8 @@ describe('political salience QBAF boost (t/247)', () => {
     expect(result.newNodes[0].base_strength).toBeCloseTo(0.5);
   });
 
-  it('caps boosted base_strength at 1.0', () => {
-    const result = processExtractedClaims({
+  it('caps boosted base_strength at 1.0', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{ text: 'The EU AI Act Section 6 mandates conformity assessments for high-risk systems deployed in healthcare', political_salience: 'high', base_strength: 0.95 }],
       audience: 'policymakers',
@@ -603,8 +603,8 @@ describe('situation grounding (t/243)', () => {
   };
   const baseOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
 
-  it('adds sit- refs when claim text overlaps with activated situation', () => {
-    const result = processExtractedClaims({
+  it('adds sit- refs when claim text overlaps with activated situation', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{ text: 'Autonomous weapons deployment risks require governance safety mechanisms to prevent catastrophic outcomes' }],
       activatedSituations: [
@@ -619,8 +619,8 @@ describe('situation grounding (t/243)', () => {
     expect(result.newNodes[0].taxonomy_refs).not.toContain('sit-099');
   });
 
-  it('does not duplicate sit- refs already present from cite stage', () => {
-    const result = processExtractedClaims({
+  it('does not duplicate sit- refs already present from cite stage', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       taxonomyRefIds: ['saf-beliefs-001', 'sit-042'],
       claims: [{ text: 'Autonomous weapons deployment risks require governance safety mechanisms' }],
@@ -634,8 +634,8 @@ describe('situation grounding (t/243)', () => {
     expect(sitRefs).toHaveLength(1);
   });
 
-  it('skips grounding when no activated situations provided', () => {
-    const result = processExtractedClaims({
+  it('skips grounding when no activated situations provided', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{ text: 'Autonomous weapons deployment risks require governance safety mechanisms' }],
     }, baseOptions);
@@ -648,22 +648,22 @@ describe('situation grounding (t/243)', () => {
 // ── overlapToExtractionConfidence ──────────────────────────
 
 describe('overlapToExtractionConfidence', () => {
-  it('returns 1.0 for high overlap (>= 0.7)', () => {
+  it('returns 1.0 for high overlap (>= 0.7)', async () => {
     expect(overlapToExtractionConfidence(0.7)).toBe(1.0);
     expect(overlapToExtractionConfidence(0.9)).toBe(1.0);
   });
 
-  it('returns 0.8 for moderate overlap (0.5–0.69)', () => {
+  it('returns 0.8 for moderate overlap (0.5–0.69)', async () => {
     expect(overlapToExtractionConfidence(0.5)).toBe(0.8);
     expect(overlapToExtractionConfidence(0.65)).toBe(0.8);
   });
 
-  it('returns 0.6 for low overlap (0.3–0.49)', () => {
+  it('returns 0.6 for low overlap (0.3–0.49)', async () => {
     expect(overlapToExtractionConfidence(0.3)).toBe(0.6);
     expect(overlapToExtractionConfidence(0.45)).toBe(0.6);
   });
 
-  it('returns 0.5 for very low overlap (< 0.3)', () => {
+  it('returns 0.5 for very low overlap (< 0.3)', async () => {
     expect(overlapToExtractionConfidence(0.1)).toBe(0.5);
     expect(overlapToExtractionConfidence(0.0)).toBe(0.5);
   });
@@ -684,8 +684,8 @@ describe('extraction_confidence server-side computation', () => {
   };
   const ecOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
 
-  it('computes extraction_confidence from wordOverlap, ignoring LLM value', () => {
-    const result = processExtractedClaims({
+  it('computes extraction_confidence from wordOverlap, ignoring LLM value', async () => {
+    const result = await processExtractedClaims({
       ...ecBaseInput,
       claims: [{
         text: 'AI governance should prioritize safety mechanisms with clear tradeoff acknowledgment',
@@ -698,8 +698,8 @@ describe('extraction_confidence server-side computation', () => {
     expect(result.newNodes[0].extraction_confidence).toBe(1.0);
   });
 
-  it('computes extraction_confidence even when LLM omits the field', () => {
-    const result = processExtractedClaims({
+  it('computes extraction_confidence even when LLM omits the field', async () => {
+    const result = await processExtractedClaims({
       ...ecBaseInput,
       claims: [{
         text: 'AI governance should prioritize safety mechanisms with clear tradeoff acknowledgment',
@@ -711,8 +711,8 @@ describe('extraction_confidence server-side computation', () => {
     expect(typeof result.newNodes[0].extraction_confidence).toBe('number');
   });
 
-  it('uses server-side value even when LLM provides a very different extraction_confidence', () => {
-    const result = processExtractedClaims({
+  it('uses server-side value even when LLM provides a very different extraction_confidence', async () => {
+    const result = await processExtractedClaims({
       ...ecBaseInput,
       claims: [{
         text: 'AI governance should prioritize safety mechanisms with clear tradeoff acknowledgment',
@@ -724,8 +724,8 @@ describe('extraction_confidence server-side computation', () => {
     expect(result.newNodes[0].extraction_confidence).toBe(1.0);
   });
 
-  it('assigns lower confidence for loosely overlapping claims', () => {
-    const result = processExtractedClaims({
+  it('assigns lower confidence for loosely overlapping claims', async () => {
+    const result = await processExtractedClaims({
       ...ecBaseInput,
       claims: [{
         text: 'Governance safety mechanisms tradeoff acknowledgment policy debate considerations',
@@ -754,7 +754,7 @@ describe('sampleNodesForEntailment', () => {
     } as ArgumentNetworkNode;
   }
 
-  it('samples Intentions at 50% rate', () => {
+  it('samples Intentions at 50% rate', async () => {
     const nodes = Array.from({ length: 100 }, () => makeNode('intention'));
     const rngAlwaysLow = () => 0.49;
     expect(sampleNodesForEntailment(nodes, rngAlwaysLow)).toHaveLength(100);
@@ -762,7 +762,7 @@ describe('sampleNodesForEntailment', () => {
     expect(sampleNodesForEntailment(nodes, rngAbove)).toHaveLength(0);
   });
 
-  it('samples Beliefs at 30% rate', () => {
+  it('samples Beliefs at 30% rate', async () => {
     const nodes = Array.from({ length: 100 }, () => makeNode('belief'));
     const rngBelow = () => 0.29;
     expect(sampleNodesForEntailment(nodes, rngBelow)).toHaveLength(100);
@@ -770,7 +770,7 @@ describe('sampleNodesForEntailment', () => {
     expect(sampleNodesForEntailment(nodes, rngAbove)).toHaveLength(0);
   });
 
-  it('samples Desires at 15% rate', () => {
+  it('samples Desires at 15% rate', async () => {
     const nodes = Array.from({ length: 100 }, () => makeNode('desire'));
     const rngBelow = () => 0.14;
     expect(sampleNodesForEntailment(nodes, rngBelow)).toHaveLength(100);
@@ -778,7 +778,7 @@ describe('sampleNodesForEntailment', () => {
     expect(sampleNodesForEntailment(nodes, rngAbove)).toHaveLength(0);
   });
 
-  it('uses 30% default rate for unknown BDI category', () => {
+  it('uses 30% default rate for unknown BDI category', async () => {
     const nodes = Array.from({ length: 100 }, () => makeNode(''));
     const rngBelow = () => 0.29;
     expect(sampleNodesForEntailment(nodes, rngBelow)).toHaveLength(100);
@@ -786,7 +786,7 @@ describe('sampleNodesForEntailment', () => {
     expect(sampleNodesForEntailment(nodes, rngAbove)).toHaveLength(0);
   });
 
-  it('produces mixed results with varying rng', () => {
+  it('produces mixed results with varying rng', async () => {
     let callCount = 0;
     const alternating = () => (callCount++ % 2 === 0 ? 0.0 : 1.0);
     const nodes = Array.from({ length: 10 }, () => makeNode('belief'));
@@ -796,7 +796,7 @@ describe('sampleNodesForEntailment', () => {
 });
 
 describe('normalizeExtractedClaim — edge strength persistence', () => {
-  it('preserves canonical categorical strength alongside numeric weight', () => {
+  it('preserves canonical categorical strength alongside numeric weight', async () => {
     const claim = normalizeExtractedClaim({
       text: 'test claim',
       responds_to: [{ prior_claim_id: 'AN-1', relationship: 'supports', strength: 'decisive' }],
@@ -805,7 +805,7 @@ describe('normalizeExtractedClaim — edge strength persistence', () => {
     expect(claim.responds_to![0].strength).toBe('decisive');
   });
 
-  it('preserves strength for all three categories', () => {
+  it('preserves strength for all three categories', async () => {
     for (const [category, expectedWeight] of [['decisive', 1.0], ['substantial', 0.7], ['tangential', 0.3]] as const) {
       const claim = normalizeExtractedClaim({
         text: 'test',
@@ -816,7 +816,7 @@ describe('normalizeExtractedClaim — edge strength persistence', () => {
     }
   });
 
-  it('normalizes case before persisting strength', () => {
+  it('normalizes case before persisting strength', async () => {
     const claim = normalizeExtractedClaim({
       text: 'test',
       responds_to: [{ prior_claim_id: 'AN-1', relationship: 'supports', strength: 'Decisive' }],
@@ -824,7 +824,7 @@ describe('normalizeExtractedClaim — edge strength persistence', () => {
     expect(claim.responds_to![0].strength).toBe('decisive');
   });
 
-  it('does not persist strength for non-canonical values', () => {
+  it('does not persist strength for non-canonical values', async () => {
     const claim = normalizeExtractedClaim({
       text: 'test',
       responds_to: [{ prior_claim_id: 'AN-1', relationship: 'supports', strength: 'strong', weight: 0.65 }],
@@ -833,7 +833,7 @@ describe('normalizeExtractedClaim — edge strength persistence', () => {
     expect(claim.responds_to![0].strength).toBe('strong');
   });
 
-  it('passes through numeric weight without adding strength', () => {
+  it('passes through numeric weight without adding strength', async () => {
     const claim = normalizeExtractedClaim({
       text: 'test',
       responds_to: [{ prior_claim_id: 'AN-1', relationship: 'supports', weight: 0.8 }],
@@ -859,8 +859,8 @@ describe('processExtractedClaims — edge strength carry-through', () => {
   };
   const baseOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
 
-  it('carries validated strength through to persisted edge', () => {
-    const result = processExtractedClaims({
+  it('carries validated strength through to persisted edge', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'Multilateral governance structures enforce compliance standards across jurisdictions through coordinated regulatory oversight mechanisms and treaties',
@@ -873,8 +873,8 @@ describe('processExtractedClaims — edge strength carry-through', () => {
     expect(result.newEdges[0].strength).toBe('decisive');
   });
 
-  it('leaves strength undefined when only numeric weight is provided', () => {
-    const result = processExtractedClaims({
+  it('leaves strength undefined when only numeric weight is provided', async () => {
+    const result = await processExtractedClaims({
       ...baseInput,
       claims: [{
         text: 'Multilateral governance structures enforce compliance standards across jurisdictions through coordinated regulatory enforcement mechanisms',
@@ -906,13 +906,13 @@ describe('processExtractedClaims — extraction-trace math invariant (t/1616)', 
   };
   const baseOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
 
-  it('records empty and too-short candidates as rejections (no silent drop)', () => {
+  it('records empty and too-short candidates as rejections (no silent drop)', async () => {
     const claims = [
       { text: '' },                                                                                  // empty
       { text: 'too short' },                                                                         // 9 chars < 10 → too_short
       { text: 'AI safety governance requires mandatory third-party auditing of frontier deployment' }, // valid → accepted
     ];
-    const result = processExtractedClaims({ ...baseInput, claims }, baseOptions);
+    const result = await processExtractedClaims({ ...baseInput, claims }, baseOptions);
 
     // Invariant: every proposed candidate is either accepted or rejected.
     expect(result.accepted.length + result.rejected.length).toBe(claims.length);
@@ -924,12 +924,12 @@ describe('processExtractedClaims — extraction-trace math invariant (t/1616)', 
     expect(result.rejected.some(r => r.reason === 'too_short')).toBe(true);
   });
 
-  it('records maxClaims-truncated candidates as rejections', () => {
+  it('records maxClaims-truncated candidates as rejections', async () => {
     const claims = Array.from({ length: 5 }, (_, i) => ({
       text: `Distinct governance claim ${i} about frontier oversight mechanisms and compliance obligations`,
     }));
     // maxClaims = 3 → 2 candidates (indices 3,4) are truncated by the cap.
-    const result = processExtractedClaims({ ...baseInput, claims }, { ...baseOptions, maxClaims: 3 });
+    const result = await processExtractedClaims({ ...baseInput, claims }, { ...baseOptions, maxClaims: 3 });
 
     expect(result.accepted.length + result.rejected.length).toBe(claims.length);
     expect(result.rejectionReasons['truncated']).toBe(2);
