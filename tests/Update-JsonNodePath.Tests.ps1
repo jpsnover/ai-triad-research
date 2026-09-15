@@ -266,6 +266,34 @@ Describe 'Update-JsonNodePath -Remove — key deletion (t/3460)' -Tag 'summary' 
         }
     }
 
+    It 'no orphan blank line when removing a non-last member in multi-line JSON (trailing-comma branch)' {
+        # Regression test for the blank-line bug (t/3433). The single-line fixture cannot catch it;
+        # this fixture uses realistic multi-line indentation. Removing synthetic_phrases (non-last)
+        # must not leave behind a whitespace-only line from the absorbed preceding newline+indent.
+        InModuleScope AITriad {
+            $ml = @'
+{
+  "nodes": [
+    {
+      "id": "ml-001",
+      "graph_attributes": {
+        "attribution_text": "Some text.",
+        "synthetic_phrases": ["foo", "bar"],
+        "aphorism": "test aphorism"
+      }
+    }
+  ]
+}
+'@ -replace "`r`n", "`n"
+            $out = Update-JsonNodePath -RawText $ml -NodeId 'ml-001' -Path @('graph_attributes','synthetic_phrases') -Remove
+            $ga  = (@($out | ConvertFrom-Json).nodes | Where-Object { $_.id -eq 'ml-001' })[0].graph_attributes
+            $ga.PSObject.Properties['synthetic_phrases'] | Should -BeNullOrEmpty
+            $ga.aphorism           | Should -Be 'test aphorism'
+            $ga.attribution_text   | Should -Be 'Some text.'
+            $out | Should -Not -Match '(?m)^\s+$'   # no whitespace-only lines
+        }
+    }
+
     It 'REFUSES -Remove + -Upsert together (mutually exclusive)' {
         InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
             param($Raw)
