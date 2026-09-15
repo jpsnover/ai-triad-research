@@ -291,7 +291,7 @@ export function detectZeroClaims(
 // ── extractClaimsAndUpdateAN sub-steps (t/1848 batch 3) ──────────────
 // Behavior-preserving decomposition of the AN extraction hot-path. Bodies
 // moved verbatim (line-slice transform); only signatures/calls hand-authored.
-type _ProcessedClaims = ReturnType<typeof processExtractedClaims>;
+type _ProcessedClaims = Awaited<ReturnType<typeof processExtractedClaims>>;
 type NewAnNode = _ProcessedClaims['newNodes'][number];
 type NewAnEdge = _ProcessedClaims['newEdges'][number];
 type PriorClaimList = Parameters<typeof extractClaimsPrompt>[2];
@@ -401,7 +401,7 @@ async function runLookaheadGate(speaker: SpeakerId, an: { nodes: ArgumentNetwork
             }
 
             const taxEdgesRetry = useTaxonomyStore.getState().edgesFile?.edges;
-            const regenClaims = processExtractedClaims(
+            const regenClaims = await processExtractedClaims(
               {
                 claims: regenParsed.claims,
                 statement: regenResult.statement,
@@ -1150,7 +1150,7 @@ export async function extractClaimsAndUpdateAN(
     const speakerCommits: CommitmentStore = commitments[speaker] || { asserted: [], conceded: [], challenged: [] };
 
     const taxEdges = useTaxonomyStore.getState().edgesFile?.edges;
-    const claimsResult = processExtractedClaims(
+    const claimsResult = await processExtractedClaims(
       {
         claims: parsed.claims,
         statement,

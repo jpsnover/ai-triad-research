@@ -4,6 +4,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+
+function readJsonFile(filePath: string): string {
+  return readFileSync(filePath, 'utf8').replace(/^﻿/, '');
+}
 import { povTaxonomyFileSchema, situationsFileSchema, conflictFileSchema, aggregateConflictsFileSchema } from './validation';
 
 const REPO_ROOT = resolve(__dirname, '..', '..', '..', '..');
@@ -30,7 +34,7 @@ describe.skipIf(!dataRoot)('Schema safety net — validation.ts vs real producti
     it.each(povFiles)('%s parses without errors', (filename) => {
       const filePath = join(taxonomyDir, filename);
       expect(existsSync(filePath), `${filePath} must exist`).toBe(true);
-      const data = JSON.parse(readFileSync(filePath, 'utf8'));
+      const data = JSON.parse(readJsonFile(filePath));
       const result = povTaxonomyFileSchema.safeParse(data);
       if (!result.success) {
         const summary = result.error.issues
@@ -58,7 +62,7 @@ describe.skipIf(!dataRoot)('Schema safety net — validation.ts vs real producti
     it.each(povFiles)('%s carries at least the baseline logical_form frame count (t/3378)', (filename) => {
       const filePath = join(taxonomyDir, filename);
       expect(existsSync(filePath), `${filePath} must exist`).toBe(true);
-      const data = JSON.parse(readFileSync(filePath, 'utf8')) as { nodes: { logical_form?: unknown }[] };
+      const data = JSON.parse(readJsonFile(filePath)) as { nodes: { logical_form?: unknown }[] };
       const count = data.nodes.filter(n => n.logical_form).length;
       const floor = LOGICAL_FORM_FRAME_FLOOR[filename];
       expect(count, `${filename}: ${count} logical_form frames, below the t/3378 floor of ${floor} — a mass strip may have silently deleted frames`).toBeGreaterThanOrEqual(floor);
@@ -69,7 +73,7 @@ describe.skipIf(!dataRoot)('Schema safety net — validation.ts vs real producti
     it('situations.json parses without errors', () => {
       const filePath = join(taxonomyDir, 'situations.json');
       expect(existsSync(filePath), `${filePath} must exist`).toBe(true);
-      const data = JSON.parse(readFileSync(filePath, 'utf8'));
+      const data = JSON.parse(readJsonFile(filePath));
       const result = situationsFileSchema.safeParse(data);
       if (!result.success) {
         const summary = result.error.issues
@@ -93,7 +97,7 @@ describe.skipIf(!dataRoot)('Schema safety net — validation.ts vs real producti
     it.skipIf(conflictFiles.length === 0)
       .each(conflictFiles.length > 0 ? conflictFiles : ['none'])('%s parses without errors', (filename) => {
       const filePath = join(conflictsDir, filename);
-      const data = JSON.parse(readFileSync(filePath, 'utf8'));
+      const data = JSON.parse(readJsonFile(filePath));
       const result = conflictFileSchema.safeParse(data);
       if (!result.success) {
         const summary = result.error.issues
@@ -115,7 +119,7 @@ describe.skipIf(!dataRoot)('Schema safety net — validation.ts vs real producti
 
     it('conflicts.json parses without errors against aggregateConflictsFileSchema', () => {
       expect(existsSync(aggregatePath), `${aggregatePath} must exist`).toBe(true);
-      const data = JSON.parse(readFileSync(aggregatePath, 'utf8'));
+      const data = JSON.parse(readJsonFile(aggregatePath));
       const result = aggregateConflictsFileSchema.safeParse(data);
       if (!result.success) {
         const summary = result.error.issues
@@ -131,7 +135,7 @@ describe.skipIf(!dataRoot)('Schema safety net — validation.ts vs real producti
 
     it('rejects a seeded bad status (both-arms gate discipline)', () => {
       expect(existsSync(aggregatePath), `${aggregatePath} must exist`).toBe(true);
-      const data = JSON.parse(readFileSync(aggregatePath, 'utf8'));
+      const data = JSON.parse(readJsonFile(aggregatePath));
       expect(data.conflicts?.length, 'live aggregate must have at least one conflict to seed').toBeGreaterThan(0);
       const poisoned = { ...data, conflicts: [{ ...data.conflicts[0], status: 'bogus-status' }, ...data.conflicts.slice(1)] };
       const result = aggregateConflictsFileSchema.safeParse(poisoned);
@@ -143,7 +147,7 @@ describe.skipIf(!dataRoot)('Schema safety net — validation.ts vs real producti
     // AFTER the counter fix, not before (would have insta-red the positive arm above on known-bad data).
     it('rejects a seeded conflict_count/conflicts.length mismatch (both-arms gate discipline)', () => {
       expect(existsSync(aggregatePath), `${aggregatePath} must exist`).toBe(true);
-      const data = JSON.parse(readFileSync(aggregatePath, 'utf8'));
+      const data = JSON.parse(readJsonFile(aggregatePath));
       const poisoned = { ...data, conflict_count: data.conflict_count + 1 };
       const result = aggregateConflictsFileSchema.safeParse(poisoned);
       expect(result.success, 'a conflict_count/conflicts.length mismatch must fail the aggregate schema').toBe(false);
