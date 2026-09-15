@@ -20,8 +20,8 @@ import { rateLimitResponseBody } from '../security/rateLimitResponse.js';
 import * as rateLimiter from '../security/rateLimiter.js';
 import { getStorageUserId } from '../security/userContext.js';
 import * as community from '../community/community.js';
-import { mintCommunityOpedShare, revokeCommunityOpedShare, getCommunityOpedShareEntry } from '../community/communityOpedShares.js';
-import { writePublicCommunityOpEd, deletePublicCommunityOpEd, type CommunityOpEdItem } from '../storage/communityOpedShareStore.js';
+import { revokeCommunityOpedShare, getCommunityOpedShareEntry } from '../community/communityOpedShares.js';
+import { deletePublicCommunityOpEd } from '../storage/communityOpedShareStore.js';
 
 export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post, del } = r;
@@ -185,13 +185,30 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
         return;
       }
 
-      const lookup = await community.getCommunityOpEd(id);
-      if (!lookup.found) {
-        // t/3430: getCommunityOpEd now discriminates WHY the lookup failed, so the mint-guard WARN
-        // no longer conflates the ordinary case with the corruption case (was a single WARN on both).
-        if (lookup.reason === 'empty') {
-          // 'empty' = the ADR-001 guard tripped (blob present, zero voices) — a GitHub-API silent-empty
-          // response or real corruption. Operator-visible: WARN→Log_s, scoped to the MINT path only.
+      // t/3484: source submittedBy (the item's ORIGINAL submitter — tracked server-side ONLY for the
+      // revoke-auth check; the PUBLIC copy stays anonymous, community_metadata stripped). This pre-read
+      // is ONLY for submittedBy — the same pattern backfillCommunityOpedShares uses (it sources it from
+      // the listing summary). mintAndProjectCommunityOpEd below re-validates + is the SINGLE mint+project
+      // path (t/3483#2 — no dual mint paths; the manual mint+project that used to live here is gone).
+      const pre = await community.getCommunityOpEd(id);
+      const submittedBy = pre.found
+        ? ((pre.item as { community_metadata?: { submitted_by_display?: string } }).community_metadata?.submitted_by_display ?? '')
+        : '';
+
+      const result = await community.mintAndProjectCommunityOpEd(id, submittedBy);
+      if (result.outcome === 'skipped') {
+        // Preserve the t/3334/t/3430 discrimination via the helper's `reason`:
+        if (result.reason === 'malformed') {
+          // found item but missing topic (opeds non-empty) = unambiguous corruption → always WARN→Log_s → 422.
+          log.server.warn(
+            { id, backend: getUserContentBackend().constructor.name, reason: 'malformed' },
+            'Community op-ed share mint: item malformed (missing topic / empty opeds) — refusing to mint (corruption)',
+          );
+          error(res, 'Community op-ed is empty or malformed — cannot mint a public copy', 422);
+          return;
+        }
+        if (result.reason === 'empty') {
+          // ADR-001 silent-empty (blob present, zero voices) — GitHub-API silent-empty / corruption → WARN + 404.
           log.server.warn(
             { id, backend: getUserContentBackend().constructor.name, path: 'mint', reason: 'empty' },
             'Community op-ed share mint: getCommunityOpEd SILENT-EMPTY (blob present, zero voices) — possible corruption; refusing to mint',
@@ -202,27 +219,8 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
         return;
       }
 
-      // Condition 4: assert PRESENCE before minting — never register a shareId for a malformed item
-      // (found:true guarantees non-empty opeds per ADR-001, so this now catches a missing topic;
-      // kept as defense-in-depth — writePublicCommunityOpEd re-checks).
-      const it = lookup.item as { topic?: unknown; opeds?: unknown; community_metadata?: { submitted_by_display?: string } };
-      if (!it.topic || !Array.isArray(it.opeds) || it.opeds.length === 0) {
-        // t/3334: malformed (has a file but no topic / empty opeds) = unambiguous corruption → always WARN→Log_s.
-        log.server.warn(
-          { id, backend: getUserContentBackend().constructor.name, topicPresent: !!it.topic, opedsLen: Array.isArray(it.opeds) ? it.opeds.length : null },
-          'Community op-ed share mint: item malformed (missing topic / empty opeds) — refusing to mint (corruption)',
-        );
-        error(res, 'Community op-ed is empty or malformed — cannot mint a public copy', 422);
-        return;
-      }
-
-      // submittedBy is tracked server-side ONLY for the revoke-auth check; the PUBLIC copy stays anonymous
-      // (projectPublicOpEd strips all community_metadata — condition 1).
-      const submittedBy = it.community_metadata?.submitted_by_display ?? '';
-      const shareId = await mintCommunityOpedShare(id, submittedBy);
-      await writePublicCommunityOpEd(lookup.item as unknown as CommunityOpEdItem, shareId);
-
-      json(res, { shareId, url: `/share/oped/${shareId}` });
+      // minted | already-shared → the stable community-scoped public shareId.
+      json(res, { shareId: result.shareId, url: `/share/oped/${result.shareId}` });
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'server', level: 'error',

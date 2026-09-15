@@ -74,6 +74,24 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
   const { get, post, put, del } = r;
   const { serverRecorder, ensureSessionBranch, appendServerLogs } = ctx;
 
+  // t/3484 (t/3483 arc): one-time backfill — mint shareIds + write public projections for ALL existing
+  // community op-eds so GET /api/public/opeds (t/3481) lists every set and the count>0 deploy AC becomes
+  // satisfiable. Admin-gated; idempotent + safe to re-run (Server Community's backfillCommunityOpedShares
+  // skips malformed/empty items with a WARN, one stable shareId per item). Returns the run tally.
+  post('/api/admin/community/opeds/backfill-shares', async (_req, res) => {
+    if (!requireAdmin(res)) return;
+    try {
+      json(res, await community.backfillCommunityOpedShares());
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'error',
+        message: 'Community op-ed share backfill failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
+    }
+  });
+
   // Full flag definitions (admin only).
   get('/api/admin/flags', (_req, res) => {
     if (!requireAdmin(res)) return;
