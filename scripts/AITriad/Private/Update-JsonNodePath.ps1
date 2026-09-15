@@ -201,6 +201,13 @@ function Update-JsonNodePath {
         while ($t -lt $curEnd -and [char]::IsWhiteSpace($RawText[$t])) { $t++ }
         if ($t -lt $curEnd -and $RawText[$t] -eq ',') {
             $delEnd = $t   # include the trailing comma
+            # Absorb the preceding newline+indent so no orphan blank line is left (symmetric with
+            # the leading-comma branch below). Walk back past spaces/tabs to the newline character.
+            $q = $delStart - 1
+            while ($q -ge $curStart + 1 -and ($RawText[$q] -eq ' ' -or $RawText[$q] -eq "`t")) { $q-- }
+            if ($q -ge $curStart + 1 -and $RawText[$q] -eq "`n") {
+                $delStart = if ($q -gt $curStart -and $RawText[$q - 1] -eq "`r") { $q - 1 } else { $q }
+            }
         }
         else {
             $p = $member.KeyStart - 1
