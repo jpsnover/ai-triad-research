@@ -161,6 +161,32 @@ describe('OpEdReader — multi-voice set', () => {
     render(<OpEdReader set={set} />);
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
+
+  // t/3486: deep-linkable in-app URLs — the reader seeds its starting tab from a route
+  // restore and reports tab changes back so the URL can track the active camp.
+  it('t/3486: initialPov seeds the starting active tab', () => {
+    render(<OpEdReader set={set} initialPov="safetyist" />);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Safetyist headline');
+  });
+
+  it('t/3486: falls back to the first tab when initialPov matches no member', () => {
+    render(<OpEdReader set={set} initialPov="accelerationist" />);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('t/3486: onPovChange fires with the newly active pov on click and keyboard nav', () => {
+    const onPovChange = vi.fn();
+    render(<OpEdReader set={set} onPovChange={onPovChange} />);
+    fireEvent.click(screen.getAllByRole('tab')[1]);
+    expect(onPovChange).toHaveBeenCalledWith('safetyist');
+
+    onPovChange.mockClear();
+    fireEvent.keyDown(screen.getAllByRole('tab')[1], { key: 'ArrowRight' });
+    expect(onPovChange).toHaveBeenCalledWith('skeptic');
+  });
 });
 
 describe('OpEdReader — new member fields (t/2849)', () => {

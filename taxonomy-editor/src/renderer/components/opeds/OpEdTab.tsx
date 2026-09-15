@@ -22,6 +22,7 @@ import { mapErrorToUserMessage } from '../../utils/errorMessages';
 import { OpEdTable } from './OpEdTable';
 import { OpEdReader } from './OpEdReader';
 import { NewOpEdDialog } from './NewOpEdDialog';
+import { opedRoutePath, navigateTo, replaceRoute } from '../../routing/appRoutes';
 import './OpEdTab.css';
 
 function recordError(component: string, message: string, err: unknown): void {
@@ -255,7 +256,10 @@ function ShareOpEdControl({ setId, source = 'my' }: { setId: string; source?: 'm
   return (
     <span className="oped-share">
       <button type="button" className="btn btn-sm btn-ghost" onClick={() => void onShare()}
-        disabled={state.status === 'working'} aria-label={isCommunity ? 'Get a public share link for this community op-ed' : 'Create a public share link'}>
+        disabled={state.status === 'working'} aria-label={isCommunity ? 'Get a public share link for this community op-ed' : 'Create a public share link'}
+        // t/3486: the address bar now reflects the in-app view too (auth-gated) — this
+        // button mints a DIFFERENT, no-login link, so the tooltip disambiguates the two.
+        title="Creates a public, no-login link — different from this page's address bar URL">
         {state.status === 'working' ? 'Sharing…' : (isCommunity ? '🔗 Get public link' : '🔗 Share')}
       </button>
       {state.status === 'error' && <span className="oped-share-error" role="alert">{state.message}</span>}
@@ -266,7 +270,7 @@ function ShareOpEdControl({ setId, source = 'my' }: { setId: string; source?: 'm
 // ── Reader view (back bar + article/loading/error) ────────────────────────────
 
 export function OpEdReaderView({
-  readerSet, readerLoading, readerError, status, onBack, shareSource, communityId,
+  readerSet, readerLoading, readerError, status, onBack, shareSource, communityId, initialPov, onPovChange,
 }: {
   readerSet: OpEdSet | null;
   readerLoading: boolean;
@@ -284,6 +288,10 @@ export function OpEdReaderView({
    * passing set_id there 404s (getCommunityOpEd finds no record under the wrong id). Unused for 'my'.
    */
   communityId: string | null;
+  /** t/3486: camp tab a deep link asked to open on — seeds OpEdReader's initial tab. */
+  initialPov?: string;
+  /** t/3486: fires whenever the active camp tab changes, so the URL can track it. */
+  onPovChange?: (pov: string) => void;
 }) {
   const shareId = shareSource === 'community' ? communityId : (readerSet?.set_id ?? null);
   return (
@@ -300,7 +308,7 @@ export function OpEdReaderView({
         </div>
         {readerLoading && <p className="oped-reader-loading">Loading op-ed…</p>}
         {readerError && <p className="oped-reader-error">{readerError}</p>}
-        {readerSet && !readerLoading && <OpEdReader set={readerSet} />}
+        {readerSet && !readerLoading && <OpEdReader set={readerSet} initialPov={initialPov} onPovChange={onPovChange} />}
       </div>
     </div>
   );
@@ -310,12 +318,14 @@ export function OpEdReaderView({
 
 export function OpEdTab() {
   const {
-    sets, loading, editMode, selectedIds, selectedSetId,
-    loadSets, selectSet, renameSet, setEditMode, toggleSelected, clearSelected, deleteSelected,
+    sets, loading, editMode, selectedIds, selectedSetId, pendingOpen,
+    loadSets, selectSet, renameSet, setEditMode, toggleSelected, clearSelected, deleteSelected, clearPendingOpen,
   } = useOpEdStore(useShallow(s => ({
     sets: s.sets, loading: s.loading, editMode: s.editMode, selectedIds: s.selectedIds, selectedSetId: s.selectedSetId,
+    pendingOpen: s.pendingOpen,
     loadSets: s.loadSets, selectSet: s.selectSet, renameSet: s.renameSet, setEditMode: s.setEditMode,
     toggleSelected: s.toggleSelected, clearSelected: s.clearSelected, deleteSelected: s.deleteSelected,
+    clearPendingOpen: s.clearPendingOpen,
   })));
   const { opeds: communityOpeds, communityLoading, fetchOpeds, submitItem, copyItem } = useCommunityStore(useShallow(s => ({
     opeds: s.opeds, communityLoading: s.loading, fetchOpeds: s.fetchOpeds, submitItem: s.submitItem, copyItem: s.copyItem,
@@ -347,6 +357,9 @@ export function OpEdTab() {
   const [readerCommunityId, setReaderCommunityId] = useState<string | null>(null);
   const [readerLoading, setReaderLoading] = useState(false);
   const [readerError, setReaderError] = useState<string | null>(null);
+  // t/3486: which camp tab a deep link asked to open on — seeds OpEdReader's initial
+  // tab, then OpEdReader owns tab state normally from there.
+  const [initialPov, setInitialPov] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     void loadSets();
@@ -408,7 +421,7 @@ export function OpEdTab() {
 
   // ── Reader open/close ──
 
-  const openMy = useCallback((id: string) => {
+  const openMy = useCallback((id: string, pov?: string) => {
     // The My list holds index summaries (no body) — load the full doc for the reader.
     selectSet(id);
     setReaderSource('my'); // t/2987: My sets are shareable.
@@ -416,6 +429,8 @@ export function OpEdTab() {
     setReaderError(null);
     setReaderSet(null);
     setReaderLoading(true);
+    setInitialPov(pov);
+    navigateTo(opedRoutePath(id, pov)); // t/3486: reflect the open set in the address bar.
     api.loadOpEdSet(id).then(set => {
       setReaderSet(set);
     }).catch(err => {
@@ -423,6 +438,16 @@ export function OpEdTab() {
       setReaderError('Could not load this op-ed — it may have been removed.');
     }).finally(() => setReaderLoading(false));
   }, [selectSet]);
+
+  // t/3486: a deep-link route restore requests opening a set — bridges appRoutes.ts's pure
+  // store action (`useOpEdStore.requestOpen`) to this component's local reader-open logic.
+  // "my" sets only for now (t/3486#4) — a community deep link isn't distinguishable from
+  // the URL shape yet, so it 404s into "not found" rather than silently guessing wrong.
+  useEffect(() => {
+    if (!pendingOpen) return;
+    openMy(pendingOpen.setId, pendingOpen.pov);
+    clearPendingOpen();
+  }, [pendingOpen, openMy, clearPendingOpen]);
 
   const openCommunity = useCallback((id: string) => {
     selectSet(id);
@@ -445,6 +470,8 @@ export function OpEdTab() {
     setReaderSource(null);
     setReaderCommunityId(null);
     setReaderError(null);
+    setInitialPov(undefined);
+    navigateTo('/'); // t/3486: back to the table view — the address bar should match.
   }, [selectSet]);
 
   // A fresh create (PR#2) — reload the library, then open the new set in the reader.
@@ -455,6 +482,7 @@ export function OpEdTab() {
     selectSet(setId);
     setReaderSource('my'); // t/2987: a freshly-created set is the user's own → shareable.
     setReaderCommunityId(null); // t/3426: only set for the community branch.
+    navigateTo(opedRoutePath(setId)); // t/3486: reflect the newly-created set in the address bar.
     setReaderError(null);
     setReaderSet(null);
     setReaderLoading(true);
@@ -539,6 +567,12 @@ export function OpEdTab() {
         onBack={closeReader}
         shareSource={readerSource}
         communityId={readerCommunityId}
+        initialPov={initialPov}
+        // t/3486: only "my" sets are URL-tracked for now (t/3486#4) — a community set's
+        // reader still works, its tab switches just don't update the address bar.
+        onPovChange={readerSource === 'my' && readerSet
+          ? (pov: string) => replaceRoute(opedRoutePath(readerSet.set_id, pov))
+          : undefined}
       />
     );
   }
