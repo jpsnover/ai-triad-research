@@ -24,6 +24,13 @@ interface OpEdStore {
   /** Edit mode enables the bulk-select checkbox column + inline rename (My only). */
   editMode: boolean;
   selectedIds: Set<string>;
+  /**
+   * t/3486: a deep-link route restore's request to open a set — bridges `appRoutes.ts`'s
+   * `restore()` (a pure store action) to `OpEdTab.tsx`'s reader-open logic, which is
+   * component-local state (readerSet/readerLoading), not store-owned. `OpEdTab` watches
+   * this field and clears it once consumed; "my" sets only for now (t/3486#4).
+   */
+  pendingOpen: { setId: string; pov?: string } | null;
 
   loadSets: () => Promise<void>;
   selectSet: (id: string | null) => void;
@@ -33,6 +40,8 @@ interface OpEdStore {
   toggleSelected: (id: string) => void;
   clearSelected: () => void;
   deleteSelected: () => Promise<void>;
+  requestOpen: (setId: string, pov?: string) => void;
+  clearPendingOpen: () => void;
 }
 
 export const useOpEdStore = create<OpEdStore>((set, get) => ({
@@ -42,6 +51,7 @@ export const useOpEdStore = create<OpEdStore>((set, get) => ({
   error: null,
   editMode: false,
   selectedIds: new Set<string>(),
+  pendingOpen: null,
 
   loadSets: async () => {
     set({ loading: true, error: null });
@@ -58,6 +68,9 @@ export const useOpEdStore = create<OpEdStore>((set, get) => ({
   },
 
   selectSet: (id) => set({ selectedSetId: id }),
+
+  requestOpen: (setId, pov) => set({ pendingOpen: { setId, pov } }),
+  clearPendingOpen: () => set({ pendingOpen: null }),
 
   deleteSet: async (id) => {
     const prev = get().sets;

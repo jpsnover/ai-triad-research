@@ -266,12 +266,28 @@ function OpEdArticle({ member, outlet }: { member: OpEdMember; outlet?: string }
 // Reader (tab strip for multi-voice sets)
 // ──────────────────────────────────────────────
 
-export function OpEdReader({ set }: { set: OpEdSet }) {
+export function OpEdReader({
+  set, initialPov, onPovChange,
+}: {
+  set: OpEdSet;
+  /** t/3486: camp tab a deep link asked to open on — seeds the initial active tab. */
+  initialPov?: string;
+  /** t/3486: fires whenever the active camp tab changes, so the URL can track it. */
+  onPovChange?: (pov: string) => void;
+}) {
   const members = set.opeds;
-  const [activeIdx, setActiveIdx] = useState(0);
+  const [activeIdx, setActiveIdxState] = useState(() => {
+    const idx = initialPov ? members.findIndex(m => m.pov === initialPov) : -1;
+    return idx >= 0 ? idx : 0;
+  });
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const active = members[Math.min(activeIdx, members.length - 1)];
+
+  const setActiveIdx = useCallback((idx: number) => {
+    setActiveIdxState(idx);
+    onPovChange?.(members[idx].pov);
+  }, [members, onPovChange]);
 
   const onTabKeyDown = useCallback((e: React.KeyboardEvent, idx: number) => {
     let next = idx;
@@ -283,7 +299,7 @@ export function OpEdReader({ set }: { set: OpEdSet }) {
     e.preventDefault();
     setActiveIdx(next);
     tabRefs.current[next]?.focus();
-  }, [members.length]);
+  }, [members.length, setActiveIdx]);
 
   if (members.length === 0) {
     return <div className="oped-reader oped-reader-empty">This op-ed set has no voices.</div>;

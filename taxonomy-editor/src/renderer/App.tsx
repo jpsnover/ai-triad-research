@@ -8,6 +8,7 @@ import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import ErrorBoundary from '../../../lib/electron-shared/components/ErrorBoundary';
 import { useTaxonomyStore, initAIModels } from './hooks/useTaxonomyStore';
 import { initDebateSessions } from './hooks/useDebateStore';
+import { useAppRoute } from './routing/useAppRoute';
 import { Toolbar } from './components/shared/Toolbar';
 import { TabBar } from './components/shared/TabBar';
 import { SaveBar } from './components/sync/SaveBar';
@@ -286,6 +287,7 @@ function AppRouter() {
 /** Main taxonomy editor application */
 function MainApp() {
   const { activeTab, loading, backgroundLoading, loadingProgress, loadAll, colorScheme, paneSpacing, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
+  useAppRoute(); // t/3486: restore a deep-linked in-app view (e.g. /opeds/:setId) at boot + popstate.
   const summariesFlag = useFlag('env-electron-summaries');
   // OR both build flags — mirrors the navConfig Op-Eds gate (anyFlag: electron||web). Gates
   // BOTH the tab render below and must stay in sync with the nav gate, else the button shows
