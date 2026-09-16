@@ -28,6 +28,8 @@ import { isAdmin } from '../community/community.js';
 import * as analytics from '../community/analytics.js';
 import { parseCookies } from '../httpCookies.js';
 import { anonSessionCreatedCookie, readValidCreatedMs } from './anonSessionCreated.js';
+import * as allowlistStore from '../storage/allowlistStore.js';
+import type { UserSession } from '../../../../lib/allowlist/types.js';
 // Re-exported so server.ts's pre-route anon mint sites import it here (keeps the
 // server.ts import list flat / at its max-lines ceiling — t/2493).
 export { anonSessionCookiesWithCreated } from './anonSessionCreated.js';
@@ -138,14 +140,27 @@ export function registerSessionRoutes(r: Router, ctx: ServerCtx): void {
     const userId = deriveStorageUserId(principalName || '_local', idp || '_local');
     const adminUsers = (process.env.ADMIN_USERS || 'jpsnover,jsnover13-at-gmail-com').split(',').map(s => s.trim());
     const quotaLimits = isAnon ? null : getQuotaLimits(userId);
-    json(res, {
+    // t/3498 (t/3495 epic, SO cond 5): ALWAYS a boolean — `false` for anonymous
+    // callers and on any allowlist-read error, never absent/undefined (a client
+    // reading `undefined` as falsy-but-ambiguous was the exact failure mode SO
+    // cond 5 closes). allowlistStore.isAllowlisted already fails CLOSED to `[]`
+    // internally (t/3497); the try/catch is a second, cheap belt-and-suspenders
+    // layer against any other unexpected throw.
+    let geminiAllowlisted = false;
+    if (!isAnon) {
+      try { geminiAllowlisted = allowlistStore.isAllowlisted(userId); }
+      catch { geminiAllowlisted = false; }
+    }
+    const profile: UserSession = {
       userId,
       displayName: principalName || 'Anonymous',
       idp: idp || null,
       isAnonymous: isAnon,
       isAdmin: !isAnon && adminUsers.includes(userId),
       quotas: quotaLimits,
-    });
+      geminiAllowlisted,
+    };
+    json(res, profile);
   });
 
   post('/api/analytics/event', (_req, res, body) => {
