@@ -38,17 +38,6 @@ function allowlistPath(): string {
   return path.join(getStateRoot(), 'admin', 'admin-allowlist.json');
 }
 
-/** Record + WARN a read failure — the caller fails CLOSED (empty allowlist). */
-function warnUnreadable(err: unknown, p: string): void {
-  log.server.warn({ err, path: p, cause: 'admin-allowlist-unreadable' },
-    'admin allowlist file unreadable — failing CLOSED to an empty allowlist (t/3497)');
-  getGlobalRecorder()?.record({
-    type: 'system.error', component: 'allowlist-store', level: 'warn',
-    message: 'Admin allowlist file unreadable — failing closed',
-    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-  });
-}
-
 /**
  * Read admin-allowlist.json fresh (no cache). Used both to populate the cache
  * and, on the write path, as the read-modify-write base.
@@ -71,7 +60,16 @@ function readEntries(forWrite: boolean): AllowlistEntry[] {
     return data.entries;
   } catch (err) {
     if (forWrite && (err as NodeJS.ErrnoException).code === 'ENOENT') return [];
-    if (!forWrite) { warnUnreadable(err, p); return []; }
+    if (!forWrite) {
+      log.server.warn({ err, path: p, cause: 'admin-allowlist-unreadable' },
+        'admin allowlist file unreadable — failing CLOSED to an empty allowlist (t/3497)');
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'allowlist-store', level: 'warn',
+        message: 'Admin allowlist file unreadable — failing closed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return [];
+    }
     throw err;
   }
 }
