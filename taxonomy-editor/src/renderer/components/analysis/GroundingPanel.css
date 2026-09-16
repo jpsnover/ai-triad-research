@@ -133,3 +133,37 @@
 .grounding-none {
   color: var(--text-muted);
 }
+
+.grounding-th-testing { width: 1%; white-space: nowrap; }
+.grounding-cell-testing { white-space: nowrap; }
+
+.grounding-testing-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: help;
+}
+.grounding-testing-contested {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.grounding-testing-well-tested {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+.grounding-testing-cited {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.grounding-testing-reason {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}

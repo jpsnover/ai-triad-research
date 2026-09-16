@@ -52,4 +52,37 @@ describe('GroundingPanel (t/1025)', () => {
     expect(screen.getByText('because reasons')).toBeInTheDocument();
     expect(screen.getByText('Moderator')).toBeInTheDocument();
   });
+
+  it('classifies a single-speaker reference as Cited', () => {
+    render(<GroundingPanel debate={debateWith([
+      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
+    ])} />);
+    expect(screen.getByText('Cited')).toBeInTheDocument();
+  });
+
+  it('classifies cross-speaker corroboration with no attack as Well-tested', () => {
+    render(<GroundingPanel debate={debateWith([
+      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
+      { id: 'e2', speaker: 'safetyist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r2' }], metadata: {} },
+    ])} />);
+    expect(screen.getByText('Well-tested')).toBeInTheDocument();
+  });
+
+  it('classifies a node attacked in the argument network by an opposing speaker as Contested', () => {
+    const debate = debateWith([
+      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
+      { id: 'e2', speaker: 'safetyist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r2' }], metadata: {} },
+    ]) as unknown as DebateSession;
+    (debate as unknown as { argument_network: unknown }).argument_network = {
+      nodes: [
+        { id: 'an1', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: ['acc-belief-001'] },
+        { id: 'an2', speaker: 'safetyist', source_entry_id: 'e2', taxonomy_refs: ['acc-belief-001'] },
+      ],
+      edges: [
+        { id: 'edge1', source: 'an2', target: 'an1', type: 'attacks' },
+      ],
+    };
+    render(<GroundingPanel debate={debate} />);
+    expect(screen.getByText('Contested')).toBeInTheDocument();
+  });
 });
