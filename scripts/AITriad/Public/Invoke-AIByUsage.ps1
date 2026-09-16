@@ -161,9 +161,7 @@ function Invoke-AIByUsage {
         if ($schema -is [hashtable]) {
             $invokeParams['ResponseSchema'] = $schema
         } elseif ($schema -is [PSCustomObject]) {
-            $h = @{}
-            foreach ($p in $schema.PSObject.Properties) { $h[$p.Name] = $p.Value }
-            $invokeParams['ResponseSchema'] = $h
+            $invokeParams['ResponseSchema'] = $schema | ConvertTo-Json -Depth 10 | ConvertFrom-Json -AsHashtable
         }
     }
     if ($PSBoundParameters.ContainsKey('FallbackModels')) {
