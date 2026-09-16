@@ -14,6 +14,7 @@
 #   joint-gv-automerge-guard (t/3332; event-time auto-merge gap; TL GV both arms proven)
 # FLIP-PENDING (remove continue-on-error to enforce):
 #   doc-accuracy  doc-claims + REPO_MAP steps (t/1324)
+#   schema-drift  warn-only until Phase-2 blocking flip (t/3447, t/3469)
 # NEVER-FLIP (annotation-only by design — continue-on-error stays permanently):
 #   debate-eval        — nondeterministic AI scores, signal not gate (t/1329)
 #   commit-hygiene     — visibility not friction, never fails CI (t/1319)
@@ -77,6 +78,7 @@ jobs:
       lockfile-sync: ${{ steps.filter.outputs.lockfile-sync }}
       bicep-env: ${{ steps.filter.outputs.bicep-env }}
       bicep-resources: ${{ steps.filter.outputs.bicep-resources }}
+      schema-drift: ${{ steps.filter.outputs.schema-drift }}
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4.0.3
         id: filter
@@ -218,6 +220,15 @@ jobs:
             bicep-resources:
               - 'deploy/azure/main.bicep'
               - 'operations/devops/Test-BicepAcaResourcePairs.ps1'
+              - '.github/workflows/ci.yml'
+            # 'schema-drift' gates the warn-only drift gate (t/3469, t/3447 Phase-1).
+            # Triggers on schema-of-record changes, Zod validator changes, or the runner
+            # script. Skip = OK (warn-only; not in ci-gate). NEVER-FILTER on data-repo
+            # changes — that's a separate repo and can't be path-filtered here.
+            schema-drift:
+              - 'lib/schema/**'
+              - 'lib/debate/schemas.ts'
+              - 'operations/devops/run-schema-drift.ts'
               - '.github/workflows/ci.yml'
 
   test-powershell:
@@ -910,6 +921,63 @@ jobs:
       - name: Validate schemas
         continue-on-error: true
         run: node scripts/validate-schemas.mjs
+
+  # ── schema-drift: warn-only schema-of-record drift gate (t/3469, t/3447 Phase-1) ──
+  # Diffs lib/schema/taxonomy-schema.json against live consumer surfaces (Zod validators,
+  # corpus). Zero-noise preconditions cleared: t/3448–3451 (data defects), t/3467
+  # (comparator type_mismatch false positives). Warn-only: continue-on-error stays until
+  # Phase-2 blocking flip (separate PR, TL Gate-Verification required, t/3447).
+  # NOT in ci-gate — a warn-phase gate must never block the required context.
+  # Runner: operations/devops/run-schema-drift.ts (DevOps CI wiring, calls Shared Lib comparator).
+  schema-drift:
+    needs: [changes]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.schema-drift == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Checkout data repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        continue-on-error: true
+        with:
+          repository: jpsnover/ai-triad-data
+          path: ai-triad-data
+          fetch-depth: 1
+
+      - name: Symlink data repo to expected location
+        run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
+        continue-on-error: true
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6.0.10
+        with:
+          version: '11.20.0'
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies (retry on transient nuget/network failures — t/2975)
+        run: |
+          for i in 1 2 3; do
+            pnpm install --frozen-lockfile --ignore-scripts && break
+            if [ "$i" -lt 3 ]; then
+              echo "pnpm install attempt $i failed; retry in $((i * 15))s"
+              sleep $((i * 15))
+            else
+              echo "::error::pnpm install failed after $i attempts"
+              exit 1
+            fi
+          done
+
+      - name: Schema drift check — warn-only (t/3469)
+        continue-on-error: true
+        env:
+          AI_TRIAD_DATA_ROOT: ${{ github.workspace }}/ai-triad-data
+        run: pnpm exec tsx operations/devops/run-schema-drift.ts
 
   # ── test-container: build+readiness-smoke, PARALLELIZED off the test jobs (t/2073) ──
   # WAS `needs: [test-powershell, test-electron]` with a `!contains(failure)`
