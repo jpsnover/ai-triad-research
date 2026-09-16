@@ -231,7 +231,7 @@ export interface TaxonomyDataSlice {
   updatePovNode: (pov: Pov, nodeId: string, updates: Partial<PovNode>, editSource?: { source: TextEditSource; debateId?: string; reason?: string }) => void;
   createPovNode: (pov: Pov, category: Category) => string;
   deletePovNode: (pov: Pov, nodeId: string) => void;
-  movePovNodeCategory: (pov: Pov, nodeId: string, newCategory: Category) => void;
+  movePovNodeCategory: (pov: Pov, nodeId: string, newCategory: Category) => string | null;
   movePovNode: (sourcePov: Pov, nodeId: string, targetPov: Pov, targetCategory: Category) => void;
 
   updateSituationNode: (nodeId: string, updates: Partial<SituationNode>) => void;
@@ -806,6 +806,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   },
 
   movePovNodeCategory: (pov, nodeId, newCategory) => {
+    let resultId: string | null = null;
     set((state) => {
       const file = state[pov];
       if (!file) return state;
@@ -820,6 +821,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         console.error(`[taxonomy-store] movePovNodeCategory rejected: ${validation.error}`);
         return state;
       }
+      resultId = newId;
 
       const newNode: PovNode = {
         ...oldNode,
@@ -888,6 +890,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         embeddingDirty: true,
       };
     });
+    return resultId;
   },
 
   movePovNode: (sourcePov, nodeId, targetPov, targetCategory) => {

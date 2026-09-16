@@ -251,15 +251,38 @@ async function createReflectionAddNode(
   return { ok: true, nodeId: newId };
 }
 
+/** Inverse of idGenerator's CATEGORY_SLUG — maps the genus word used in the mandated
+ *  genus-differentia description format (Line 1: "A Belief/Desire/Intention within...")
+ *  back to the taxonomy's plural Category value. */
+const GENUS_TO_CATEGORY: Record<string, Category> = {
+  belief: 'Beliefs',
+  desire: 'Desires',
+  intention: 'Intentions',
+};
+
+/** Parse the proposed category out of a reflection edit's description text (t/3492).
+ *  `edit.category` reflects the node's CURRENT category for edit_existing edits — the
+ *  reflection prompt never updates it when a QUALIFY/REVISE changes the genus word — so the
+ *  only signal for a category change is the mandated Line 1 genus-differentia opening.
+ *  Returns null when the description doesn't match the format (graceful no-op, not an error). */
+function parseProposedCategory(description: string): Category | null {
+  const match = description.trimStart().match(/^An?\s+(Belief|Desire|Intention)\b/i);
+  if (!match) return null;
+  return GENUS_TO_CATEGORY[match[1].toLowerCase()] ?? null;
+}
+
 /**
  * The `edit_existing` branch of applyReflectionEdit: revise/qualify updates label+description;
  * deprecate prefixes a `[DEPRECATED]` marker when no explicit description is supplied.
+ * If the proposed description's genus word implies a different BDI category than the node's
+ * current one, cascades the rename via `movePovNodeCategory` (t/3492) and returns the new node
+ * id so the caller can enrich/track the renamed node instead of the now-stale old id.
  */
 function applyReflectionEditToExistingNode(
   povKey: Pov, edit: ReflectionEdit, finalLabel: string, finalDescription: string,
   taxStore: TaxStore, get: ReflectionGet,
-): void {
-  if (!edit.node_id) return;
+): string | null {
+  if (!edit.node_id) return null;
   const reflectionSource = { source: 'debate_reflection' as const, debateId: get().activeDebateId ?? undefined, reason: edit.rationale || undefined };
   if (edit.edit_type === 'deprecate') {
     const deprecatedDesc = finalDescription || `[DEPRECATED] ${edit.current_description || ''}`;
@@ -267,12 +290,18 @@ function applyReflectionEditToExistingNode(
       label: finalLabel || edit.current_label || '',
       description: deprecatedDesc,
     }, reflectionSource);
-  } else {
-    taxStore.updatePovNode(povKey, edit.node_id, {
-      label: finalLabel || edit.current_label || '',
-      description: finalDescription,
-    }, reflectionSource);
+    return null;
   }
+  taxStore.updatePovNode(povKey, edit.node_id, {
+    label: finalLabel || edit.current_label || '',
+    description: finalDescription,
+  }, reflectionSource);
+
+  const proposedCategory = parseProposedCategory(finalDescription);
+  if (proposedCategory && proposedCategory !== edit.category) {
+    return taxStore.movePovNodeCategory(povKey, edit.node_id, proposedCategory);
+  }
+  return null;
 }
 
 /** Gather all live node ids (every POV file, plus situations when requested) for anti-orphan edge validation / collision detection. */
@@ -733,7 +762,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
       if (!addResult.ok) return { ok: false, error: addResult.error };
       createdNodeId = addResult.nodeId;
     } else if (edit.node_id) {
-      applyReflectionEditToExistingNode(povKey, edit, finalLabel, finalDescription, taxStore, get);
+      createdNodeId = applyReflectionEditToExistingNode(povKey, edit, finalLabel, finalDescription, taxStore, get);
     }
 
     await taxStore.save();
