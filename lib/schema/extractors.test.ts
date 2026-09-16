@@ -217,3 +217,31 @@ falsifiability = high | medium | severe
     expect(f.some((x) => x.type === 'missing_in_consumer' && x.value === 'low')).toBe(true);
   });
 });
+
+// Live round-trip against the actual analysis.ts prompt file (t/3505). Reads the raw TS source —
+// the CONTROLLED VOCABULARY fence is static text so the template-literal interpolations outside it
+// don't affect parsing. Verifies the 6-field state including rhetorical_strategy (added post-t/3455).
+describe('extractPromptVocab — live analysis.ts round-trip (t/3505)', () => {
+  const ANALYSIS_SOURCE = readFileSync(
+    fileURLToPath(new URL('../../taxonomy-editor/src/renderer/prompts/analysis.ts', import.meta.url)),
+    'utf-8',
+  );
+
+  it('parses exactly 6 fields from reflectionNodeEnrichmentPrompt including rhetorical_strategy', () => {
+    const ex = extractPromptVocab(ANALYSIS_SOURCE, 'prompt:analysis.ts');
+    expect(ex.kind).toBe('validator');
+    expect(Object.keys(ex.attributes ?? {}).sort()).toEqual([
+      'audience', 'emotional_register', 'epistemic_type', 'falsifiability', 'node_scope', 'rhetorical_strategy',
+    ]);
+    expect(ex.attributes?.rhetorical_strategy?.values).toHaveLength(16);
+    expect(ex.attributes?.rhetorical_strategy?.values).toContain('appeal_to_evidence');
+    expect(ex.attributes?.rhetorical_strategy?.values).toContain('structural_critique');
+    // No type emitted — block declares values only (t/3467 context: no spurious type_mismatch).
+    expect(ex.attributes?.rhetorical_strategy?.type).toBeUndefined();
+  });
+
+  it('end-to-end CLEAN arm: no extra_in_consumer — all 6 field values are canonical per the real record', () => {
+    const findings = checkSchemaDrift(RECORD, extractPromptVocab(ANALYSIS_SOURCE, 'prompt:analysis.ts'));
+    expect(findings.filter((f) => f.type === 'extra_in_consumer')).toEqual([]);
+  });
+});
