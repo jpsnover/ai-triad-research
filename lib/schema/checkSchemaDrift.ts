@@ -77,6 +77,10 @@ function recordValueSet(attr: RecordAttribute): string[] | undefined {
  * Compare the schema-of-record against ONE extracted consumer surface. Pure — same inputs, same
  * Findings; caller aggregates across surfaces. Snapshot/coverage fields are never consulted.
  */
+// enum/controlled_vocab_csv are string-backed: the corpus always observes JSON runtime type
+// 'string' for these fields — suppress type_mismatch when both sides resolve to string (t/3467).
+const STRING_BACKED = new Set(['string', 'enum', 'controlled_vocab_csv']);
+
 export function checkSchemaDrift(record: SchemaRecord, extracted: Extracted): Finding[] {
   const findings: Finding[] = [];
   const src = extracted.source;
@@ -94,7 +98,9 @@ export function checkSchemaDrift(record: SchemaRecord, extracted: Extracted): Fi
 
     // Type divergence (both sides must state a type to compare).
     if (ex.type !== undefined && rec.type !== undefined && ex.type !== rec.type) {
-      findings.push({ type: 'type_mismatch', field: path, source: src, detail: `type ${JSON.stringify(ex.type)} in consumer vs ${JSON.stringify(rec.type)} in record` });
+      if (!(STRING_BACKED.has(rec.type) && ex.type === 'string')) {
+        findings.push({ type: 'type_mismatch', field: path, source: src, detail: `type ${JSON.stringify(ex.type)} in consumer vs ${JSON.stringify(rec.type)} in record` });
+      }
     }
 
     // A DEPRECATED or REMOVED record attribute observed in use by the corpus. `removed` is the
