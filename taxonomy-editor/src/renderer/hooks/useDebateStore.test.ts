@@ -42,6 +42,7 @@ const { mockApi, mockTaxonomyState, mockPromptConfigState } = vi.hoisted(() => {
     loadEdges: vi.fn().mockResolvedValue(undefined),
     createPovNode: vi.fn().mockReturnValue('new-node-id'),
     updatePovNode: vi.fn(),
+    movePovNodeCategory: vi.fn().mockReturnValue(null),
     save: vi.fn().mockResolvedValue(undefined),
     loadAll: vi.fn().mockResolvedValue(undefined),
     saveError: null as string | null,
@@ -1563,6 +1564,70 @@ describe('Reflection edits', () => {
         expect.objectContaining({ label: 'Custom label', description: 'New desc' }),
         expect.objectContaining({ source: 'debate_reflection' }),
       );
+    });
+  });
+
+  // t/3492: qualify edits that change the description's genus word ("A Belief..." /
+  // "A Desire..." / "An Intention...") must rename the node via movePovNodeCategory —
+  // edit.category reflects the OLD category for edit_existing, so it can't be trusted here.
+  describe('applyReflectionEdit — qualify category change (t/3492)', () => {
+    const makeQualifyReflection = (proposedDescription: string) => [
+      {
+        pover: 'accelerationist',
+        label: 'Accelerationist',
+        reflection_summary: 'Reflections on AI acceleration',
+        edits: [
+          {
+            edit_type: 'qualify' as const,
+            node_id: 'acc-intentions-088',
+            category: 'Intentions' as const,
+            current_label: 'Old label',
+            proposed_label: 'Old label',
+            current_description: 'An Intention within accelerationist discourse that...',
+            proposed_description: proposedDescription,
+            rationale: 'The debate revealed this is actually a belief, not an intention',
+            confidence: 'high' as const,
+            evidence_entries: ['e1'],
+            status: 'pending' as const,
+          },
+        ],
+      },
+    ];
+
+    it('renames the node via movePovNodeCategory when the genus word implies a new category', async () => {
+      mockTaxonomyState.saveError = null;
+      mockTaxonomyState.movePovNodeCategory.mockReturnValueOnce('acc-beliefs-005');
+      useDebateStore.setState({
+        reflections: makeQualifyReflection('A Belief within accelerationist discourse that dynamic defense outpaces static rules.'),
+      });
+
+      const result = await useDebateStore.getState().applyReflectionEdit('accelerationist', 0);
+
+      expect(mockTaxonomyState.movePovNodeCategory).toHaveBeenCalledWith('accelerationist', 'acc-intentions-088', 'Beliefs');
+      expect(result).toMatchObject({ ok: true, enrichNodeId: 'acc-beliefs-005' });
+    });
+
+    it('does not call movePovNodeCategory when the genus word matches the current category', async () => {
+      mockTaxonomyState.saveError = null;
+      useDebateStore.setState({
+        reflections: makeQualifyReflection('An Intention within accelerationist discourse that dynamic defense outpaces static rules.'),
+      });
+
+      await useDebateStore.getState().applyReflectionEdit('accelerationist', 0);
+
+      expect(mockTaxonomyState.movePovNodeCategory).not.toHaveBeenCalled();
+    });
+
+    it('does not call movePovNodeCategory and does not error when the description has no genus match', async () => {
+      mockTaxonomyState.saveError = null;
+      useDebateStore.setState({
+        reflections: makeQualifyReflection('Dynamic defense outpaces static rules — a malformed description with no genus line.'),
+      });
+
+      const result = await useDebateStore.getState().applyReflectionEdit('accelerationist', 0);
+
+      expect(mockTaxonomyState.movePovNodeCategory).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ ok: true });
     });
   });
 });
