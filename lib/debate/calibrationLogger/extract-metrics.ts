@@ -734,6 +734,11 @@ const CENSORED_REASONS: ReadonlySet<string> = new Set([
   'max_iterations', 'situation_cap', 'api_ceiling',
 ]);
 
+/** Reasons excluded from both convergence pools alongside 'unknown' (t/3502). */
+const EXCLUDED_REASONS: ReadonlySet<string> = new Set([
+  'unknown', 'first_round_exit',
+]);
+
 /** Result of computing a convergence metric conditioned on termination status (t/1671). */
 export interface CensoredConvergenceResult {
   /** n_censored / (n_completed + n_censored) — unknown rows excluded from denominator. */
@@ -753,7 +758,7 @@ export interface CensoredConvergenceResult {
  *
  * Censored  = termination_reason ∈ {max_iterations, situation_cap, api_ceiling}.
  * Completed = termination_reason === 'natural_conclusion'.
- * Unknown   = absent or 'unknown' — excluded from both pools; counted in n_unknown.
+ * Excluded  = absent, 'unknown', or 'first_round_exit' — excluded from both pools; counted in n_unknown.
  *
  * selector may return number | null | boolean. Boolean is coerced (true→1, false→0).
  */
@@ -769,7 +774,7 @@ export function computeConvergenceWithCensoring(
 
   for (const entry of entries) {
     const reason = entry.termination_reason;
-    if (!reason || reason === 'unknown') {
+    if (!reason || EXCLUDED_REASONS.has(reason)) {
       nUnknown++;
       continue;
     }
@@ -800,6 +805,33 @@ export function computeConvergenceWithCensoring(
       ? allValues.reduce((a, b) => a + b, 0) / allValues.length
       : null,
   };
+}
+
+// ── Unknown-rate monitor (t/3503) ────────────────────────────────────────────
+
+/** Threshold above which the unknown_rate is considered a logging-coverage gap (t/3503). */
+export const UNKNOWN_RATE_WARN_THRESHOLD = 0.20;
+
+/**
+ * Compute the fraction of entries (with termination_reason present) that recorded 'unknown'.
+ * Used to monitor logging-coverage gaps (t/3503). Optionally restricts to a rolling window.
+ *
+ * Returns n_with_field=0 / unknown_rate=0 when no qualifying entries exist in the window.
+ */
+export function computeUnknownRate(
+  entries: CalibrationDataPoint[],
+  windowDays?: number,
+): { unknown_rate: number; n_with_field: number; n_unknown: number } {
+  let filtered = entries;
+  if (windowDays !== undefined) {
+    const cutoffMs = Date.now() - windowDays * 24 * 60 * 60 * 1000;
+    const cutoff = new Date(cutoffMs).toISOString();
+    filtered = entries.filter(e => e.timestamp >= cutoff);
+  }
+  const withField = filtered.filter(e => e.termination_reason !== undefined);
+  const nUnknown = withField.filter(e => e.termination_reason === 'unknown').length;
+  const rate = withField.length > 0 ? nUnknown / withField.length : 0;
+  return { unknown_rate: rate, n_with_field: withField.length, n_unknown: nUnknown };
 }
 
 // ── Frame survival metric family (t/2045) ────────────────────────────────────

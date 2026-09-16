@@ -138,23 +138,28 @@ export function extractCalibrationData(
     convergenceScoreAtTermination = last.composite?.convergence_score ?? null;
     signalsAtTransition = last.signals ?? null;
   }
-  // ── Termination reason (t/1671) ──
+  // ── Round count ── (must precede termination_reason — used in first_round_exit guard)
+  const rounds = session.transcript.filter((e: { type: string }) => e.type === 'statement').length;
+
+  // ── Termination reason (t/1671, t/3502) ──
   // Derived from structured force_active stamped in crossRespond.ts — not prose regex.
   const hitApiCeiling = session.transcript.some((e: { content: string }) =>
     typeof e.content === 'string' && e.content.includes('API hard ceiling hit'),
   );
   const lastAsdPhase = asd?.phases && asd.phases.length > 0 ? asd.phases[asd.phases.length - 1] : undefined;
-  let terminationReason: 'natural_conclusion' | 'max_iterations' | 'situation_cap' | 'api_ceiling' | 'unknown' = 'unknown';
+  let terminationReason: 'natural_conclusion' | 'max_iterations' | 'situation_cap' | 'api_ceiling' | 'first_round_exit' | 'unknown' = 'unknown';
   if (hitApiCeiling) {
     terminationReason = 'api_ceiling';
   } else if (lastAsdPhase !== undefined && lastAsdPhase.force_active !== undefined) {
     terminationReason = lastAsdPhase.force_active
       ? (/Max total rounds/i.test(lastAsdPhase.exit_reason) ? 'max_iterations' : 'situation_cap')
       : 'natural_conclusion';
+  } else if (rounds <= 1) {
+    // No ASD phases + ≤1 round: debate exited before convergence logic ran (t/3502).
+    // Preserves 'unknown' for legacy-shape rows (phases present but force_active absent,
+    // rounds=2+) — those remain ambiguous and are handled separately.
+    terminationReason = 'first_round_exit';
   }
-
-  // ── Round count ──
-  const rounds = session.transcript.filter((e: { type: string }) => e.type === 'statement').length;
 
   // ── Parameter 6: Compression window — claims forgotten rate ──
   const ledger = session.unanswered_claims_ledger ?? [];
