@@ -149,7 +149,11 @@ export function registerSessionRoutes(r: Router, ctx: ServerCtx): void {
     let geminiAllowlisted = false;
     if (!isAnon) {
       try { geminiAllowlisted = allowlistStore.isAllowlisted(userId); }
-      catch { geminiAllowlisted = false; }
+      catch (err) {
+        geminiAllowlisted = false;
+        log.server.warn({ err, userId, cause: 'allowlist-check-unexpected-throw' },
+          'geminiAllowlisted check failed unexpectedly — failing closed to false (t/3498)');
+      }
     }
     const profile: UserSession = {
       userId,
