@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import { POVER_INFO } from '../../types/debate';
+import { POVER_INFO, AI_POVERS } from '../../types/debate';
 import type { SpeakerId, DebateSession } from '../../types/debate';
 import './GroundingPanel.css';
 
@@ -14,6 +14,87 @@ function speakerLabel(speaker: string): string {
   if (speaker === 'document') return 'Document';
   if (speaker === 'moderator') return 'Moderator';
   return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
+}
+
+const POV_SPEAKER_SET = new Set<string>(AI_POVERS);
+
+type RefDetail = { entryId: string; stmtId: string; speaker: string; speakerId: string; relevance: string };
+
+type TestingLevel = 'contested' | 'well-tested' | 'cited';
+
+type TestingInfo = { level: TestingLevel; reason: string };
+
+const TESTING_BADGE_LABEL: Record<TestingLevel, string> = {
+  contested: 'Contested',
+  'well-tested': 'Well-tested',
+  cited: 'Cited',
+};
+
+// Classify each referenced node's depth of debate testing.
+// - Contested: a claim citing this node was attacked (argument network) by a claim from a
+//   different speaker — the strongest available signal of a live disagreement over the node.
+// - Well-tested: cited by 2+ distinct POV debaters with no recorded rebuttal (cross-speaker
+//   corroboration, uncontested).
+// - Cited: referenced, but only by a single speaker (no corroboration or challenge).
+function computeTestingLevels(
+  detailMap: Map<string, RefDetail[]>,
+  argumentNetwork: DebateSession['argument_network'] | undefined,
+): Map<string, TestingInfo> {
+  const anNodeSpeaker = new Map<string, string>();
+  const nodeToAnNodeIds = new Map<string, Set<string>>();
+  if (argumentNetwork) {
+    for (const n of argumentNetwork.nodes) {
+      anNodeSpeaker.set(n.id, n.speaker);
+      for (const ref of n.taxonomy_refs ?? []) {
+        if (!nodeToAnNodeIds.has(ref)) nodeToAnNodeIds.set(ref, new Set());
+        nodeToAnNodeIds.get(ref)!.add(n.id);
+      }
+    }
+  }
+
+  const result = new Map<string, TestingInfo>();
+  for (const [nodeId, refs] of detailMap) {
+    const povSpeakers = new Set(refs.map(r => r.speakerId).filter(s => POV_SPEAKER_SET.has(s)));
+
+    let contestedBy: string | null = null;
+    const anIds = nodeToAnNodeIds.get(nodeId);
+    if (anIds && argumentNetwork) {
+      for (const edge of argumentNetwork.edges) {
+        if (edge.type !== 'attacks') continue;
+        const sourceIn = anIds.has(edge.source);
+        const targetIn = anIds.has(edge.target);
+        if (!sourceIn && !targetIn) continue;
+        const otherId = sourceIn ? edge.target : edge.source;
+        const ownId = sourceIn ? edge.source : edge.target;
+        const otherSpeaker = anNodeSpeaker.get(otherId);
+        const ownSpeaker = anNodeSpeaker.get(ownId);
+        if (otherSpeaker && otherSpeaker !== ownSpeaker) {
+          contestedBy = otherSpeaker;
+          break;
+        }
+      }
+    }
+
+    if (contestedBy) {
+      result.set(nodeId, {
+        level: 'contested',
+        reason: `A claim grounded in this node was attacked in the argument network by ${speakerLabel(contestedBy)}.`,
+      });
+    } else if (povSpeakers.size >= 2) {
+      result.set(nodeId, {
+        level: 'well-tested',
+        reason: `Cited by ${povSpeakers.size} distinct POV debaters (${[...povSpeakers].map(speakerLabel).join(', ')}) with no recorded rebuttal.`,
+      });
+    } else {
+      result.set(nodeId, {
+        level: 'cited',
+        reason: refs.length > 1
+          ? 'Cited multiple times, but only by a single speaker — no corroboration or challenge.'
+          : 'Cited once, with no corroboration or challenge.',
+      });
+    }
+  }
+  return result;
 }
 
 type LineageEffectiveness = {
@@ -121,7 +202,6 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
     return m;
   }, [debate.transcript]);
 
-  type RefDetail = { entryId: string; stmtId: string; speaker: string; relevance: string };
   const { rows, detailMap } = useMemo(() => {
     const counts = new Map<string, number>();
     const details = new Map<string, RefDetail[]>();
@@ -137,6 +217,7 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
           entryId: entry.id,
           stmtId: `S${idx}`,
           speaker: speakerLabel(entry.speaker),
+          speakerId: entry.speaker,
           relevance: ref.relevance ?? '',
         });
       }
@@ -150,6 +231,11 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
 
     return { rows: r, detailMap: details };
   }, [debate.transcript, labelMap, entryIndexMap]);
+
+  const testingLevels = useMemo(
+    () => computeTestingLevels(detailMap, debate.argument_network),
+    [detailMap, debate.argument_network],
+  );
 
   const filtered = useMemo(() => {
     let result = rows;
@@ -173,6 +259,7 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
   };
 
   const selectedDetails = selectedNodeId ? detailMap.get(selectedNodeId) ?? [] : [];
+  const selectedTesting = selectedNodeId ? testingLevels.get(selectedNodeId) : undefined;
 
   // Hook must precede the `if (rows.length === 0)` early return (rules-of-hooks, t/2299).
   // Compute lineage effectiveness from injection manifests (same logic as calibrationLogger).
@@ -224,20 +311,31 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
               <th onClick={() => handleSort('count')} className="grounding-th-sortable grounding-th-count">Count{sortArrow('count')}</th>
               <th onClick={() => handleSort('id')} className="grounding-th-sortable">ID{sortArrow('id')}</th>
               <th onClick={() => handleSort('label')} className="grounding-th-sortable">Label{sortArrow('label')}</th>
+              <th className="grounding-th-testing">Testing</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map(row => (
-              <tr
-                key={row.id}
-                className={`grounding-row ${selectedNodeId === row.id ? 'grounding-row-selected' : ''}`}
-                onClick={() => setSelectedNodeId(selectedNodeId === row.id ? null : row.id)}
-              >
-                <td className="grounding-cell-count">{row.count}</td>
-                <td className="grounding-cell-id">{row.id}</td>
-                <td className="grounding-cell-label">{row.label}</td>
-              </tr>
-            ))}
+            {filtered.map(row => {
+              const testing = testingLevels.get(row.id);
+              return (
+                <tr
+                  key={row.id}
+                  className={`grounding-row ${selectedNodeId === row.id ? 'grounding-row-selected' : ''}`}
+                  onClick={() => setSelectedNodeId(selectedNodeId === row.id ? null : row.id)}
+                >
+                  <td className="grounding-cell-count">{row.count}</td>
+                  <td className="grounding-cell-id">{row.id}</td>
+                  <td className="grounding-cell-label">{row.label}</td>
+                  <td className="grounding-cell-testing">
+                    {testing && (
+                      <span className={`grounding-testing-badge grounding-testing-${testing.level}`} title={testing.reason}>
+                        {TESTING_BADGE_LABEL[testing.level]}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -246,8 +344,16 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
           <div className="grounding-detail-header">
             <span className="grounding-detail-id">{selectedNodeId}</span>
             <span className="grounding-detail-label">{labelMap.get(selectedNodeId) ?? selectedNodeId}</span>
+            {selectedTesting && (
+              <span className={`grounding-testing-badge grounding-testing-${selectedTesting.level}`} title={selectedTesting.reason}>
+                {TESTING_BADGE_LABEL[selectedTesting.level]}
+              </span>
+            )}
             <span className="grounding-detail-count">{selectedDetails.length} reference{selectedDetails.length !== 1 ? 's' : ''}</span>
           </div>
+          {selectedTesting && (
+            <div className="grounding-testing-reason">{selectedTesting.reason}</div>
+          )}
           <table className="grounding-detail-table">
             <thead>
               <tr>
