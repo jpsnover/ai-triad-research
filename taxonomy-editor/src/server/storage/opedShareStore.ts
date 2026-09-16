@@ -14,8 +14,8 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { resolveDataPath } from '../config.js';
 import type { OpEdSet, OpEdMember, OpEdGroundingRef } from '../../../../lib/oped/types.js';
-import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
-import { getUserContentBackend, assertSafeId, readTaxonomyFile } from './fileIO.js';
+import { getStorageUserId, isAnonymousUser, runWithUser, type UserContext } from '../security/userContext.js';
+import { getUserContentBackend, assertSafeId, isSafeId, readTaxonomyFile } from './fileIO.js';
 import { loadOpedSet } from './opedStore.js';
 import { log } from '../logger.js';
 
@@ -220,6 +220,56 @@ export async function unpublishOpedShare(setId: string): Promise<boolean> {
   delete reg[setId];
   await writeShareRegistry(reg);
   return true;
+}
+
+/**
+ * t/3490 — one-time (safe to re-run) backfill: re-projects every existing owner-scoped
+ * public share by replaying publishOpedShare() for each users/{id}/oped-shares.json
+ * registry entry. projectPublicOpEd() is a full overwrite (SO cond 2), so this alone
+ * upgrades every pre-t/3488 share from schema_version 1 to 2 (grounding embed) — no
+ * migration logic needed. Mirrors Server Community's precedent for the sibling
+ * population (t/3483 backfillCommunityOpedShares). Sequential across users (an
+ * admin-triggered one-time op, not latency-sensitive); per-item failures are recorded
+ * and do not abort the run.
+ */
+export async function backfillOwnOpedShares(): Promise<{
+  reprojected: number; skipped: number; skippedDetails: { userId: string; setId: string; reason: string }[];
+}> {
+  const backend = getUserContentBackend();
+  const userIds = await backend.listDirectory(resolveDataPath('users'));
+  let reprojected = 0;
+  const skippedDetails: { userId: string; setId: string; reason: string }[] = [];
+
+  for (const userId of userIds) {
+    if (!isSafeId(userId)) {
+      skippedDetails.push({ userId, setId: '', reason: 'unsafe-user-dir-name' });
+      log.server.warn({ userId, cause: 'own-oped-share-backfill-unsafe-user-dir' },
+        'skipping own op-ed share backfill for an unsafe users/ directory entry (t/3490)');
+      continue;
+    }
+    const ctx: UserContext = { principalName: userId, idp: 'backfill', storageUserId: userId, isAnonymous: false };
+    const reg = await runWithUser(ctx, () => readShareRegistry());
+
+    for (const setId of Object.keys(reg)) {
+      try {
+        const result = await runWithUser(ctx, () => publishOpedShare(setId));
+        if (result) {
+          reprojected++;
+        } else {
+          skippedDetails.push({ userId, setId, reason: 'set-not-found' });
+          log.server.warn({ userId, setId, cause: 'own-oped-share-backfill-set-missing' },
+            'skipping own op-ed share backfill item whose set no longer exists (t/3490)');
+        }
+      } catch (err) {
+        skippedDetails.push({ userId, setId, reason: String(err) });
+        log.server.warn({ userId, setId, err, cause: 'own-oped-share-backfill-item-failed' },
+          'skipping own op-ed share backfill item that failed to re-project (t/3490)');
+      }
+    }
+  }
+
+  log.server.info({ reprojected, skipped: skippedDetails.length }, 'Own op-ed share backfill complete (t/3490)');
+  return { reprojected, skipped: skippedDetails.length, skippedDetails };
 }
 
 /**
