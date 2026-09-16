@@ -141,3 +141,32 @@ describe('checkSchemaDrift — CLEAN-modulo-known-defects arm (t/3448-t/3451)', 
     expect(f.some((x) => x.type === 'type_mismatch' && x.field === 'graph_attributes.steelman_vulnerability')).toBe(true);
   });
 });
+
+describe('checkSchemaDrift — string-backed kinds do not spuriously fire type_mismatch (t/3467)', () => {
+  it('(a) enum field stored as string in corpus → no type_mismatch', () => {
+    // epistemic_type has record type 'enum'; corpus observes JSON runtime type 'string' — not a real mismatch.
+    const f = checkSchemaDrift(RECORD, {
+      source: 'corpus', kind: 'corpus',
+      attributes: { epistemic_type: { type: 'string' } },
+    });
+    expect(f.some((x) => x.type === 'type_mismatch' && x.field === 'graph_attributes.epistemic_type')).toBe(false);
+  });
+
+  it('(a) controlled_vocab_csv field stored as string in corpus → no type_mismatch', () => {
+    // rhetorical_strategy has record type 'controlled_vocab_csv'; corpus observes 'string'.
+    const f = checkSchemaDrift(RECORD, {
+      source: 'corpus', kind: 'corpus',
+      attributes: { rhetorical_strategy: { type: 'string' } },
+    });
+    expect(f.some((x) => x.type === 'type_mismatch' && x.field === 'graph_attributes.rhetorical_strategy')).toBe(false);
+  });
+
+  it('(b) string-typed field stored as object in corpus → still fires type_mismatch', () => {
+    // steelman_vulnerability has record type 'string'; corpus observes 'object' — real drift, must fire.
+    const f = checkSchemaDrift(RECORD, {
+      source: 'corpus', kind: 'corpus',
+      attributes: { steelman_vulnerability: { type: 'object' } },
+    });
+    expect(f.some((x) => x.type === 'type_mismatch' && x.field === 'graph_attributes.steelman_vulnerability')).toBe(true);
+  });
+});
