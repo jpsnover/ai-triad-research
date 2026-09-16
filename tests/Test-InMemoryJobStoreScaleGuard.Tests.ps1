@@ -202,4 +202,52 @@ maxReplicas: $MaxReplicas
             }
         }
     }
+
+    # ── @INMEMORY_CACHE_SINGLE_REPLICA — fire arm (t/3504) ───────────────────
+    Context 'FIRE ARM — maxReplicas=2, @INMEMORY_CACHE_SINGLE_REPLICA marker present (must block)' {
+        It 'throws and blocks CI' {
+            $bicep = script:New-BicepFixture -MaxReplicas 2
+            $dir   = script:New-ServerDirFixture -MarkerFiles @('allowlistStore.ts')
+            Set-Content -Path (Join-Path $dir 'allowlistStore.ts') `
+                -Value '// @INMEMORY_CACHE_SINGLE_REPLICA — in-memory allowlist cache; must remain single-replica (t/3504)'
+            try {
+                { & $script:GateScript -BicepPath $bicep -ServerDir $dir } |
+                    Should -Throw -ExpectedMessage '*scale guard FAILED*'
+            } finally {
+                Remove-Item $bicep -ErrorAction SilentlyContinue
+                Remove-Item $dir -Recurse -ErrorAction SilentlyContinue
+            }
+        }
+
+        It 'emits ::error:: lines mentioning maxReplicas and cross-replica' {
+            $bicep = script:New-BicepFixture -MaxReplicas 2
+            $dir   = script:New-ServerDirFixture -MarkerFiles @('allowlistStore.ts')
+            Set-Content -Path (Join-Path $dir 'allowlistStore.ts') `
+                -Value '// @INMEMORY_CACHE_SINGLE_REPLICA — in-memory allowlist cache; must remain single-replica (t/3504)'
+            $output = & { try { & $script:GateScript -BicepPath $bicep -ServerDir $dir } catch {} } 6>&1 | Out-String
+            try {
+                $output | Should -Match '::error::.*maxReplicas=2'
+                $output | Should -Match '::error::.*cross-replica'
+            } finally {
+                Remove-Item $bicep -ErrorAction SilentlyContinue
+                Remove-Item $dir -Recurse -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    # ── @INMEMORY_CACHE_SINGLE_REPLICA — pass arm (t/3504) ───────────────────
+    Context 'PASS ARM — maxReplicas=1, @INMEMORY_CACHE_SINGLE_REPLICA marker present (must pass)' {
+        It 'does not throw' {
+            $bicep = script:New-BicepFixture -MaxReplicas 1
+            $dir   = script:New-ServerDirFixture -MarkerFiles @('allowlistStore.ts')
+            Set-Content -Path (Join-Path $dir 'allowlistStore.ts') `
+                -Value '// @INMEMORY_CACHE_SINGLE_REPLICA — in-memory allowlist cache; must remain single-replica (t/3504)'
+            try {
+                { & $script:GateScript -BicepPath $bicep -ServerDir $dir } | Should -Not -Throw
+            } finally {
+                Remove-Item $bicep -ErrorAction SilentlyContinue
+                Remove-Item $dir -Recurse -ErrorAction SilentlyContinue
+            }
+        }
+    }
 }
