@@ -24,7 +24,7 @@ import {
 } from './engagementTree';
 
 // A realistic wire tree: tool root, two camps (acc has a category+nodes, saf is bare),
-// and a non-taxonomy tab that must NOT surface as a camp.
+// and a non-taxonomy tab that must surface as its own section, not as a camp.
 const WIRE: WireEngagementTree = {
   tool: { visits: 100, engagedVisits: 60, engagedMs: 50_000, cappedRate: 0.1, uniqueUsers: 5 },
   camps: {
@@ -58,13 +58,17 @@ describe('engagementTreeToTreeNode (t/2709)', () => {
     expect(root.uniqueUsers).toBe(5);
   });
 
-  it('nests root → single tool → camps (the two levels sumByCamp walks)', () => {
+  it('nests root → taxonomy → camps (the two levels sumByCamp walks), plus sibling tab sections', () => {
     const root = engagementTreeToTreeNode(WIRE);
-    expect(Object.keys(root.children ?? {})).toEqual(['tool']);
-    const tool = root.children!.tool;
-    // camps present; the `summaries` tab is intentionally excluded (non-taxonomy).
-    expect(Object.keys(tool.children ?? {}).sort()).toEqual(['acc', 'saf']);
-    expect(tool.children!.summaries).toBeUndefined();
+    expect(Object.keys(root.children ?? {}).sort()).toEqual(['summaries', 'taxonomy']);
+    const taxonomy = root.children!.taxonomy;
+    expect(Object.keys(taxonomy.children ?? {}).sort()).toEqual(['acc', 'saf']);
+    // `summaries` is a sibling section leaf, not nested under taxonomy/camps.
+    expect(taxonomy.children!.summaries).toBeUndefined();
+    const summaries = root.children!.summaries;
+    expect(summaries.visits).toBe(35);
+    expect(summaries.engagedMs).toBe(18_000);
+    expect(summaries.children).toBeUndefined();
   });
 
   it('feeds sumByCamp correctly (per-camp engagedMs/visits/cappedRate, sorted desc)', () => {
@@ -121,7 +125,8 @@ describe('engagementTreeToTreeNode (t/2709)', () => {
     };
     const root = engagementTreeToTreeNode(bare);
     expect(root.visits).toBe(0);                       // isEmpty → true
-    expect(Object.keys(root.children!.tool.children ?? {})).toEqual([]);
+    expect(Object.keys(root.children ?? {})).toEqual(['taxonomy']);
+    expect(Object.keys(root.children!.taxonomy.children ?? {})).toEqual([]);
     expect(sumByCamp(root)).toEqual([]);
   });
 });

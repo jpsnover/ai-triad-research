@@ -30,17 +30,18 @@ export interface TreeNode {
 // is the single conversion point; every fetch boundary (useAnalytics,
 // EngagementDashboard, YourActivityPanel) runs its aggregate/user tree through it.
 //
-// Structure mapping — the traversal expects root → tool → camps → categories → nodes:
-//   root            = tool metrics, one child keyed 'tool'  (HealthStrip/isEmpty read root.visits)
-//   tool.children   = camps      (keyed acc|saf|skp|cc)
-//   camp.children   = categories (keyed `${camp}-${cat}`)
-//   category.children = taxonomy nodes (leaves, depth 4 → collectLeafNodes' depth≥3)
-// `tabs` are non-taxonomy views (Summaries, Lineage, …) whose ids are not camps; the
-// camp-based dashboard (CampBars is keyed to the 4 camps) has no place for them, so
-// they are intentionally excluded from the camp hierarchy. root.visits still counts
-// them — the server's `tool` rollup aggregates every view — so the totals stay
-// complete while the camp breakdown stays taxonomy-only. (Surfacing tabs is a separate
-// feature, not a silent loss.)
+// Structure mapping — the traversal expects root → section → camps → categories → nodes:
+//   root               = tool metrics (HealthStrip/isEmpty read root.visits)
+//   root.children      = one entry per section: 'taxonomy' (wrapping the camps below)
+//                         plus one leaf per `tabs` entry (debate-engine, chat, …) — the
+//                         `section` kind + labels are already registered in
+//                         kindRegistry.ts's SECTION_IDS/SECTION_LABELS (t/3493).
+//   taxonomy.children  = camps      (keyed acc|saf|skp|cc)
+//   camp.children      = categories (keyed `${camp}-${cat}`)
+//   category.children  = taxonomy nodes (leaves, depth 4 → collectLeafNodes' depth≥3)
+// Tab leaves carry no `children`, so sumByCamp/sumByCategoryForCamp's section→camps
+// traversal skips them without special-casing — they only ever surface via their own
+// root.visits/engagedMs on the section row itself.
 
 export interface WireEngagementNode {
   visits: number;
@@ -97,10 +98,15 @@ export function engagementTreeToTreeNode(tree: WireEngagementTree | null | undef
     }
     camps[campId] = wireToNode(campId, camp, categories);
   }
-  const toolNode = wireToNode('tool', tree.tool, camps);
-  // root carries tool metrics (HealthStrip/isEmpty read root.visits) and wraps the
-  // single tool node whose children are the camps — the two levels sumByCamp expects.
-  return wireToNode('root', tree.tool, { tool: toolNode });
+  const taxonomyNode = wireToNode('taxonomy', tree.tool, camps);
+  const sections: Record<string, TreeNode> = { taxonomy: taxonomyNode };
+  for (const [tabId, tab] of Object.entries(tree.tabs ?? {})) {
+    sections[tabId] = wireToNode(tabId, tab);
+  }
+  // root carries tool metrics (HealthStrip/isEmpty read root.visits) and wraps one
+  // child per section: 'taxonomy' (whose children are the camps — the two levels
+  // sumByCamp expects) plus the tabs sections (Debate Engine, Chat, …), each a leaf.
+  return wireToNode('root', tree.tool, sections);
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
