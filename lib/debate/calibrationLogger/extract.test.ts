@@ -90,20 +90,46 @@ describe('extractCalibrationData termination_reason golden set', () => {
     expect(dp.termination_reason).toBe('api_ceiling');
   });
 
-  it('unknown: no adaptive_staging_diagnostics → unknown', () => {
+  it('first_round_exit: no adaptive_staging_diagnostics, rounds=0 → first_round_exit', () => {
+    // makeSession() has no transcript entries — rounds=0, triggers first_round_exit (t/3502)
     const dp = extractCalibrationData(makeSession(), 'local');
+    expect(dp.termination_reason).toBe('first_round_exit');
+  });
+
+  it('first_round_exit: no adaptive_staging_diagnostics, rounds=1 → first_round_exit', () => {
+    const session = makeSession({
+      transcript: [{ type: 'statement', content: 'Opening argument.', speaker: 'accelerationist', taxonomy_refs: [] }],
+    });
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.termination_reason).toBe('first_round_exit');
+  });
+
+  it('unknown preserved: no asd, rounds=2 → unknown (not first_round_exit)', () => {
+    const session = makeSession({
+      transcript: [
+        { type: 'statement', content: 'Round 1.', speaker: 'accelerationist', taxonomy_refs: [] },
+        { type: 'statement', content: 'Round 2.', speaker: 'safetyist', taxonomy_refs: [] },
+      ],
+    });
+    const dp = extractCalibrationData(session, 'local');
     expect(dp.termination_reason).toBe('unknown');
   });
 
-  it('unknown: phases[] present but force_active absent (legacy row) → unknown', () => {
+  it('unknown: phases[] present but force_active absent (legacy row, rounds=8+) → unknown', () => {
+    // Must have rounds>1 so the first_round_exit guard does not fire (t/3502).
+    const transcript = Array.from({ length: 8 }, (_, i) => ({
+      type: 'statement' as const, content: `Round ${i + 1}.`,
+      speaker: 'accelerationist', taxonomy_refs: [],
+    }));
     const session = makeSession({
+      transcript,
       adaptive_staging_diagnostics: {
         enabled: true,
         // No force_active field — legacy shape
-        phases: [{ phase: 'synthesis', rounds: [1], exit_reason: 'Old reason format' }],
+        phases: [{ phase: 'synthesis', rounds: [1, 2, 3, 4, 5, 6, 7, 8], exit_reason: 'Old reason format' }],
         signal_telemetry: [],
         regressions: [],
-        total_predicate_evaluations: 1,
+        total_predicate_evaluations: 8,
         confidence_deferrals: 0,
         vetoes_fired: 0,
       },

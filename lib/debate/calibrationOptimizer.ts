@@ -26,6 +26,7 @@ import {
   seedInitialSnapshot,
   replicationGateByConfig,
 } from './calibrationLogger.js';
+import { computeUnknownRate, UNKNOWN_RATE_WARN_THRESHOLD } from './calibrationLogger/extract-metrics.js';
 import { PINNED_EVALUATOR_MODEL } from './neutralEvaluator.js';
 import { loadProvisionalWeights } from './phaseTransitions.js';
 import * as fs from 'fs';
@@ -75,6 +76,14 @@ export interface RecalibrationReport {
    * set. Additive/optional: absent in reports written before t/1668.
    */
   replication_gates?: Record<string, ReplicationGateResult[]>;
+  /**
+   * Fraction of entries (termination_reason present) recording 'unknown' over the last 7 days (t/3503).
+   * A rate > 0.20 indicates a logging coverage gap and triggers a WARN in the flight recorder.
+   * Absent when no entries with the field exist in the window.
+   */
+  unknown_rate_7d?: number;
+  /** n entries with termination_reason present in the 7-day window (t/3503). */
+  unknown_rate_7d_n?: number;
 }
 
 // ── Optimizer algorithms ────────────────────────────────────
@@ -1054,6 +1063,25 @@ export function recalibrateParameters(
         message: 'Failed to apply calibration parameter recommendations to calibration-config.json',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
+    }
+  }
+
+  // Unknown-rate monitor (t/3503): compute over all data (not evaluator-windowed)
+  // so pre-ASD and multi-evaluator entries are included in the coverage signal.
+  {
+    const monitor = computeUnknownRate(allData, 7);
+    if (monitor.n_with_field > 0) {
+      report.unknown_rate_7d = monitor.unknown_rate;
+      report.unknown_rate_7d_n = monitor.n_with_field;
+      if (monitor.unknown_rate > UNKNOWN_RATE_WARN_THRESHOLD) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'calibration-monitor',
+          level: 'warn',
+          message: `unknown termination_reason rate ${(monitor.unknown_rate * 100).toFixed(1)}% exceeds ${UNKNOWN_RATE_WARN_THRESHOLD * 100}% threshold over last 7d (n_unknown=${monitor.n_unknown}/${monitor.n_with_field}) — logging coverage gap (t/3503)`,
+          data: { unknown_rate: monitor.unknown_rate, n_unknown: monitor.n_unknown, n_with_field: monitor.n_with_field, window_days: 7 },
+        });
+      }
     }
   }
 

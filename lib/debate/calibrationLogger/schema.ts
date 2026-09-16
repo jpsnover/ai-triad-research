@@ -460,10 +460,11 @@ export interface CalibrationDataPoint {
    * 'max_iterations': force_active=true AND exit_reason matches /Max total rounds/i.
    * 'situation_cap': force_active=true, any other forced cap (health, synthesis stall, etc.).
    * 'api_ceiling': API hard ceiling hit (detected via transcript content; overrides force_active).
+   * 'first_round_exit': debate exited with ≤1 statement, no ASD phases — early failure before convergence logic ran (t/3502).
    * 'unknown': legacy rows without force_active — excluded from censoring pools.
    * Absent on pre-t/1671 rows; treated as 'unknown' by computeConvergenceWithCensoring.
    */
-  termination_reason?: 'natural_conclusion' | 'max_iterations' | 'situation_cap' | 'api_ceiling' | 'unknown';
+  termination_reason?: 'natural_conclusion' | 'max_iterations' | 'situation_cap' | 'api_ceiling' | 'first_round_exit' | 'unknown';
   /**
    * Last composite convergence_score from adaptive_staging_diagnostics.signal_telemetry.
    * Same extraction point as argumentative_saturation_at_transition. Null when no telemetry.
