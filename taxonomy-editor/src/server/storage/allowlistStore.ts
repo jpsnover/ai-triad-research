@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+// @INMEMORY_CACHE_SINGLE_REPLICA — in-memory allowlist cache; must remain single-replica until migrated to shared store (t/3504)
+
 // t/3497 (t/3495 epic — admin-managed shared Gemini key): storage for the admin
 // Gemini allowlist. Persists to <stateRoot>/admin/admin-allowlist.json — the
 // class-A WRITABLE state root (config.ts getStateRoot()), same family as
