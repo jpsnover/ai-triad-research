@@ -32,6 +32,7 @@ import * as fileIO from '../storage/fileIO.js';
 import * as supportStore from '../support/supportStore.js';
 import { isCaseStatus } from '../support/types.js';
 import { FEEDBACK_CATEGORIES, isFeedbackCategory, paginateFeedback } from '../storage/feedbackStore.js';
+import { backfillOwnOpedShares } from '../storage/opedShareStore.js';
 
 // Small server.ts helpers the moved admin handlers call. server.ts keeps its own
 // copies (used by the staying support-user endpoints / key-masking); duplicated
@@ -86,6 +87,24 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'server', level: 'error',
         message: 'Community op-ed share backfill failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  // t/3490: one-time backfill — re-project every existing own-share public op-ed
+  // (users/{id}/oped-shares.json registries) so it picks up the schema_version 2
+  // BDI grounding embed (t/3488). Admin-gated; idempotent (publishOpedShare fully
+  // overwrites), safe to re-run. Returns the run tally + per-item skip reasons.
+  post('/api/admin/opeds/backfill-own-shares', async (_req, res) => {
+    if (!requireAdmin(res)) return;
+    try {
+      json(res, await backfillOwnOpedShares());
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'error',
+        message: 'Own op-ed share backfill failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       error(res, String(err), 500, err);
