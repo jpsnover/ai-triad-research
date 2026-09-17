@@ -138,7 +138,7 @@ epistemic_type = empirical_claim | strategic_recommendation | normative_prescrip
 node_scope = claim | scheme | bridging | narrow_technical | domain_specific | cross_domain | systemic
 falsifiability = high | medium | low
 emotional_register = cautionary | pragmatic | measured | urgent | alarmed | aspirational | optimistic | defiant | dismissive | assertive | resolute | analytical
-audience = policymakers | technical_researchers | industry_leaders | academic_community | civil_society | general_public | labor_organizations
+audience = policymakers | technical_researchers | industry_leaders | academic_community | civil_society | general_public | labor_organizations | military_leaders | legal_professionals
 rhetorical_strategy = structural_critique | appeal_to_evidence | precautionary_framing | moral_imperative | cost_benefit_analysis | techno_optimism | credibility_framing | analogical_reasoning | appeal_to_fear | inevitability_framing | appeal_to_authority | appeal_to_justice | appeal_to_sovereignty | rights_based | pragmatic_framing | systemic_critique
 ### END CONTROLLED VOCABULARY ###
 
