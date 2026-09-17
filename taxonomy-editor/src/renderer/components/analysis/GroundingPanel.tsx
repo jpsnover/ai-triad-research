@@ -4,8 +4,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import { POVER_INFO, AI_POVERS } from '../../types/debate';
+import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId, DebateSession } from '../../types/debate';
+import type { DebateTestedTier } from '../../bridge/types';
 import './GroundingPanel.css';
 
 function speakerLabel(speaker: string): string {
@@ -16,9 +17,7 @@ function speakerLabel(speaker: string): string {
   return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 }
 
-const POV_SPEAKER_SET = new Set<string>(AI_POVERS);
-
-type RefDetail = { entryId: string; stmtId: string; speaker: string; speakerId: string; relevance: string };
+type RefDetail = { entryId: string; stmtId: string; speaker: string; relevance: string };
 
 type TestingLevel = 'contested' | 'well-tested' | 'cited';
 
@@ -30,71 +29,15 @@ const TESTING_BADGE_LABEL: Record<TestingLevel, string> = {
   cited: 'Cited',
 };
 
-// Classify each referenced node's depth of debate testing.
-// - Contested: a claim citing this node was attacked (argument network) by a claim from a
-//   different speaker — the strongest available signal of a live disagreement over the node.
-// - Well-tested: cited by 2+ distinct POV debaters with no recorded rebuttal (cross-speaker
-//   corroboration, uncontested).
-// - Cited: referenced, but only by a single speaker (no corroboration or challenge).
-function computeTestingLevels(
-  detailMap: Map<string, RefDetail[]>,
-  argumentNetwork: DebateSession['argument_network'] | undefined,
-): Map<string, TestingInfo> {
-  const anNodeSpeaker = new Map<string, string>();
-  const nodeToAnNodeIds = new Map<string, Set<string>>();
-  if (argumentNetwork) {
-    for (const n of argumentNetwork.nodes) {
-      anNodeSpeaker.set(n.id, n.speaker);
-      for (const ref of n.taxonomy_refs ?? []) {
-        if (!nodeToAnNodeIds.has(ref)) nodeToAnNodeIds.set(ref, new Set());
-        nodeToAnNodeIds.get(ref)!.add(n.id);
-      }
-    }
-  }
+const TESTING_REASON = 'Historical testing level from BDI taxonomy';
 
-  const result = new Map<string, TestingInfo>();
-  for (const [nodeId, refs] of detailMap) {
-    const povSpeakers = new Set(refs.map(r => r.speakerId).filter(s => POV_SPEAKER_SET.has(s)));
-
-    let contestedBy: string | null = null;
-    const anIds = nodeToAnNodeIds.get(nodeId);
-    if (anIds && argumentNetwork) {
-      for (const edge of argumentNetwork.edges) {
-        if (edge.type !== 'attacks') continue;
-        const sourceIn = anIds.has(edge.source);
-        const targetIn = anIds.has(edge.target);
-        if (!sourceIn && !targetIn) continue;
-        const otherId = sourceIn ? edge.target : edge.source;
-        const ownId = sourceIn ? edge.source : edge.target;
-        const otherSpeaker = anNodeSpeaker.get(otherId);
-        const ownSpeaker = anNodeSpeaker.get(ownId);
-        if (otherSpeaker && otherSpeaker !== ownSpeaker) {
-          contestedBy = otherSpeaker;
-          break;
-        }
-      }
-    }
-
-    if (contestedBy) {
-      result.set(nodeId, {
-        level: 'contested',
-        reason: `A claim grounded in this node was attacked in the argument network by ${speakerLabel(contestedBy)}.`,
-      });
-    } else if (povSpeakers.size >= 2) {
-      result.set(nodeId, {
-        level: 'well-tested',
-        reason: `Cited by ${povSpeakers.size} distinct POV debaters (${[...povSpeakers].map(speakerLabel).join(', ')}) with no recorded rebuttal.`,
-      });
-    } else {
-      result.set(nodeId, {
-        level: 'cited',
-        reason: refs.length > 1
-          ? 'Cited multiple times, but only by a single speaker — no corroboration or challenge.'
-          : 'Cited once, with no corroboration or challenge.',
-      });
-    }
-  }
-  return result;
+// Historical debate_tested.tier from the BDI taxonomy → display TestingLevel.
+// 'untested' has no badge — a node with no historical testing data shouldn't carry a testing claim.
+function testingLevelFromTier(tier: DebateTestedTier | undefined): TestingInfo | undefined {
+  if (tier === 'well_tested') return { level: 'well-tested', reason: TESTING_REASON };
+  if (tier === 'contested') return { level: 'contested', reason: TESTING_REASON };
+  if (tier === 'cited') return { level: 'cited', reason: TESTING_REASON };
+  return undefined;
 }
 
 type LineageEffectiveness = {
@@ -166,6 +109,7 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const [labelMap, setLabelMap] = useState<Map<string, string>>(new Map());
+  const [nodeTestedMap, setNodeTestedMap] = useState<Map<string, DebateTestedTier>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -182,14 +126,18 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
       ]);
       if (cancelled) return;
       const m = new Map<string, string>();
+      const tested = new Map<string, DebateTestedTier>();
       for (const f of files) {
-        const nodes = (f as { nodes?: { id: string; label: string }[] } | null)?.nodes;
+        const nodes = (f as { nodes?: { id: string; label: string; graph_attributes?: { debate_tested?: { tier?: DebateTestedTier } } }[] } | null)?.nodes;
         if (!Array.isArray(nodes)) continue;
         for (const n of nodes) {
           if (n.id && n.label) m.set(n.id, n.label);
+          const tier = n.graph_attributes?.debate_tested?.tier;
+          if (n.id && tier) tested.set(n.id, tier);
         }
       }
       setLabelMap(m);
+      setNodeTestedMap(tested);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -217,7 +165,6 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
           entryId: entry.id,
           stmtId: `S${idx}`,
           speaker: speakerLabel(entry.speaker),
-          speakerId: entry.speaker,
           relevance: ref.relevance ?? '',
         });
       }
@@ -232,10 +179,14 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
     return { rows: r, detailMap: details };
   }, [debate.transcript, labelMap, entryIndexMap]);
 
-  const testingLevels = useMemo(
-    () => computeTestingLevels(detailMap, debate.argument_network),
-    [detailMap, debate.argument_network],
-  );
+  const testingLevels = useMemo(() => {
+    const m = new Map<string, TestingInfo>();
+    for (const row of rows) {
+      const info = testingLevelFromTier(nodeTestedMap.get(row.id));
+      if (info) m.set(row.id, info);
+    }
+    return m;
+  }, [rows, nodeTestedMap]);
 
   const filtered = useMemo(() => {
     let result = rows;
