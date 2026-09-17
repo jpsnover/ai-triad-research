@@ -225,7 +225,7 @@ export function App() {
   if (!bridgeReady) return null;
 
   // If this window was opened as a diagnostics popout, render only that
-  if (hash === '#diagnostics-window') {
+  if (hash.startsWith('#diagnostics-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><DiagnosticsWindow /></Suspense></ErrorBoundary>;
   }
   if (hash === '#pov-progression-window') {
