@@ -12,9 +12,13 @@ import { describe, it, expect } from 'vitest';
 import { computeIsPublicPath, PUBLIC_EXACT_PATHS, PUBLIC_PATH_PREFIXES } from '../publicPaths.js';
 
 describe('computeIsPublicPath — auth-exempt allowlist (t/1910)', () => {
-  it('has exactly 18 exact + 7 prefix terms (guards accidental add/drop)', () => {
+  it('has exactly 18 exact + 8 prefix terms (guards accidental add/drop)', () => {
     expect(PUBLIC_EXACT_PATHS.size).toBe(18); // +/readyz (t/3112)
-    expect(PUBLIC_PATH_PREFIXES.length).toBe(7);
+    expect(PUBLIC_PATH_PREFIXES.length).toBe(8); // +/opeds/ (t/3507)
+  });
+
+  it('t/3507: the op-ed deep-link SPA shell is public', () => {
+    expect(computeIsPublicPath('/opeds/some-id')).toBe(true);
   });
 
   it('every exact-match path resolves public', () => {
@@ -31,7 +35,7 @@ describe('computeIsPublicPath — auth-exempt allowlist (t/1910)', () => {
   it('the full allowlist resolves public', () => {
     const samples = [...PUBLIC_EXACT_PATHS, ...PUBLIC_PATH_PREFIXES.map(p => `${p}anything`)];
     expect(samples.every(computeIsPublicPath)).toBe(true);
-    expect(samples.length).toBe(25); // 18 exact + 7 prefix (t/3112: +/readyz)
+    expect(samples.length).toBe(26); // 18 exact + 8 prefix (t/3507: +/opeds/)
   });
 
   // Near-miss NEGATIVES (Server Auth p/135#9): each proves an EXACT term did not become
@@ -43,6 +47,7 @@ describe('computeIsPublicPath — auth-exempt allowlist (t/1910)', () => {
     '/sw.jsx',            // NOT /sw.js — the exact/prefix flip pair
     '/api/publicX',       // NOT under /api/public/ (prefix needs the trailing slash)
     '/shareX',            // NOT under /share/
+    '/opedsX',            // NOT under /opeds/ (prefix needs the trailing slash)
     '/workbox',           // NOT /workbox- (prefix needs the hyphen)
     '/api/private/thing', // not auth-exempt at all
     '/',                  // root is NOT public (goes through the auth gate)
