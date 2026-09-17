@@ -11,6 +11,8 @@ import { CalibrationReviewViewer } from '../analysis';
 import { CommunityReviewViewer } from './CommunityReviewViewer';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 import './FeatureFlagsPanel.css';
+import { AllowlistPanel } from './AllowlistPanel';
+import './AllowlistPanel.css';
 import { RuntimeConfigPanel } from './RuntimeConfigPanel';
 import { SupportAdminPanel } from './SupportAdminPanel';
 import './AdminReviewPanel.css';
@@ -518,7 +520,7 @@ function PaidFallbackKeySection() {
 
 // ── Main panel ──
 
-type AdminTab = 'reviews' | 'feedback' | 'flags' | 'config' | 'support';
+type AdminTab = 'reviews' | 'feedback' | 'flags' | 'allowlist' | 'config' | 'support';
 
 // ── Non-admin access-denied view ──
 
@@ -554,6 +556,8 @@ function AdminReviewTabBar({ adminTab, onSelect }: {
         onClick={() => onSelect('feedback')}>Feedback</button>
       <button className={`admin-review-tab${adminTab === 'flags' ? ' active' : ''}`}
         onClick={() => onSelect('flags')}>Feature Flags</button>
+      <button className={`admin-review-tab${adminTab === 'allowlist' ? ' active' : ''}`}
+        onClick={() => onSelect('allowlist')}>Gemini Allowlist</button>
       <button className={`admin-review-tab${adminTab === 'config' ? ' active' : ''}`}
         onClick={() => onSelect('config')}>Config</button>
       <button className={`admin-review-tab${adminTab === 'support' ? ' active' : ''}`}
@@ -648,6 +652,7 @@ function AdminTabBody(props: ReviewsPaneProps & { adminTab: AdminTab }) {
     );
   }
   if (adminTab === 'flags') return <FeatureFlagsPanel />;
+  if (adminTab === 'allowlist') return <AllowlistPanel />;
   if (adminTab === 'feedback') return <FeedbackSection />;
   return <ReviewsPane {...reviewsProps} />;
 }
