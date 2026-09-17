@@ -761,7 +761,11 @@ Stored as `DialecticTrace[]` on `DebateSession.dialectic_traces`. Implementation
 
 ## Reflections
 
-After the debate concludes, each debater agent reflects on the debate using the full argument network, their commitment store, and convergence signals. The reflection prompt asks five questions:
+After the debate concludes, each debater agent reflects on the debate using the full argument network, their commitment store, and convergence signals.
+
+**Scope — engaged nodes only (t/3512).** The reflector receives only the nodes *this debate engaged*: injected into a turn, cited in `taxonomy_refs`, or referenced by an argument-network claim. Each carries a DEBATE RECORD (citation count, referencing claims, attacks and their strength), and the list is ranked by engagement so the nodes that carried the debate are reviewed first. A reflection turn's own refs never count as engagement. Passing the camp's entire POV file (207–361 nodes) is now an opt-in `fullTaxonomySweep`, rendered as a separate block that states the debate provides no evidence about those nodes. A camp with zero engaged nodes falls back to the full taxonomy and records a WARN. Before this, every camp saw its whole file, and edits landed on nodes the debate never touched.
+
+The reflection prompt asks five questions:
 
 1. **Arguments you could not adequately defend** — which taxonomy nodes had the lowest QBAF strength or were successfully attacked?
 2. **Concessions you made** — does the taxonomy reflect what you conceded?
@@ -787,7 +791,11 @@ Each proposed edit includes:
 
 All proposed edits require human review before taking effect. Descriptions must match the taxonomy's genus-differentia format with Encompasses/Excludes clauses. The edit limit is 3-5 per debater — quality over quantity.
 
-Implementation: `reflectionPrompt` in `lib/debate/prompts.ts`.
+**Evidence validation (t/3512).** Every edit to an existing node is checked against the argument network: at least one cited `evidence_entries` id must resolve to a claim whose `taxonomy_refs` include the node being edited. Transcript labels (`S13`), prose, and claims that reference a *different* node do not count. A failing edit is flagged `evidence_supported: false` with the reason, shown as "Unsupported by debate evidence" in the Reflections panel and diagnostics, skipped by Approve All, and refused by `applyReflectionEdit` unless a human explicitly overrides it (a second, differently-labeled click). New-node proposals are exempt — they have no node to have been engaged.
+
+The neutral post-debate refinement pass (`taxonomyRefinementPrompt`) already saw only referenced nodes; its 25-node cap is now applied *after* ranking by the same engagement score, so a heavily-cited-and-attacked node can no longer be cut in favour of an incidental one.
+
+Implementation: `reflectionPrompt` in `lib/debate/prompts.ts`; scope + validation in `lib/debate/reflectionScope.ts`.
 
 ## Argument Space Coverage
 

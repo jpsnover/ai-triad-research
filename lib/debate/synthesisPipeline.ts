@@ -27,6 +27,8 @@ import { computeExtractionCoverage } from './calibrationLogger.js';
 import { runNeutralEvaluation, buildSpeakerMapping, resolveEvaluatorModel } from './neutralEvaluator.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { computeNodeEngagement, type EngagementTranscriptEntry } from './reflectionScope.js';
+import { POV_PREFIXES } from './nodeIdUtils.js';
 
 export interface SynthesisContext {
   session: DebateSession;
@@ -255,6 +257,21 @@ export class SynthesisPipeline {
         }
       }
       if (referencedNodes.length === 0) return;
+
+      // Rank by engagement before the 25-node cap (t/3512): the cap used to keep whatever the POV
+      // files listed first, so a node cited 5x and attacked could be cut while an incidental one
+      // survived. Nodes the debate actually tested now come first.
+      const refEngagement = new Map<string, number>();
+      for (const povPrefix of Object.keys(POV_PREFIXES)) {
+        for (const e of computeNodeEngagement({
+          transcript: this.ctx.session.transcript as unknown as EngagementTranscriptEntry[],
+          anNodes: this.ctx.session.argument_network?.nodes ?? [],
+          anEdges: this.ctx.session.argument_network?.edges ?? [],
+        }, povPrefix)) {
+          refEngagement.set(e.nodeId, e.score);
+        }
+      }
+      referencedNodes.sort((a, b) => (refEngagement.get(b.id) ?? 0) - (refEngagement.get(a.id) ?? 0) || a.id.localeCompare(b.id));
 
       const an = this.ctx.session.argument_network;
       let anSummary = '(no argument network)';

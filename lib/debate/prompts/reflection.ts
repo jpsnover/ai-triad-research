@@ -128,20 +128,41 @@ Respond with JSON:
 }`;
 }
 
+/** A node offered to the reflector, with what the debate did with it (t/3512). */
+export interface ReflectionTaxonomyNode {
+  id: string;
+  category: string;
+  label: string;
+  description: string;
+  confidence?: number;
+  priority?: number;
+  doctrinally_anchored?: boolean;
+  /** Engagement record — absent for nodes listed in a full-taxonomy sweep. */
+  engagement?: {
+    injected: boolean;
+    citations: number;
+    claimIds: string[];
+    attackedClaimIds: string[];
+    strongestAttack: number;
+  };
+}
+
 export function reflectionPrompt(
   label: string,
   pov: string,
   personality: string,
   topic: string,
-  taxonomyNodes: { id: string; category: string; label: string; description: string; confidence?: number; priority?: number; doctrinally_anchored?: boolean }[],
+  taxonomyNodes: ReflectionTaxonomyNode[],
   transcript: string,
   argumentNetwork?: string,
   commitments?: string,
   convergenceSignals?: string,
   audience?: DebateAudience,
   priorReflections?: Array<{ pov: string; edits: Array<{ edit_type: string; proposed_label: string; category: string }> }>,
+  /** Full-taxonomy sweep (opt-in): nodes the debate never engaged, offered for review. */
+  unengagedNodes?: ReflectionTaxonomyNode[],
 ): string {
-  const nodesBlock = taxonomyNodes.map(n => {
+  const renderNode = (n: ReflectionTaxonomyNode): string => {
     let meta = `(${n.category})`;
     if (n.category === 'Beliefs' && n.confidence !== undefined) {
       const anchor = n.doctrinally_anchored ? ', doctrinally anchored' : '';
@@ -151,8 +172,26 @@ export function reflectionPrompt(
     } else if (n.category === 'Desires' && n.priority !== undefined) {
       meta += ` (priority: ${n.priority}/5)`;
     }
-    return `[${n.id}] ${meta} "${n.label}"\n  ${n.description}`;
-  }).join('\n\n');
+    const e = n.engagement;
+    const debateRecord = e
+      ? `\n  DEBATE RECORD: cited ${e.citations}x${e.injected ? ', offered to you' : ''}` +
+        (e.claimIds.length > 0 ? `; claims referencing it: ${e.claimIds.join(', ')}` : '; no claims referenced it') +
+        (e.attackedClaimIds.length > 0
+          ? `; ATTACKED — ${e.attackedClaimIds.join(', ')} (strongest attack strength ${e.strongestAttack.toFixed(2)})`
+          : '')
+      : '';
+    return `[${n.id}] ${meta} "${n.label}"\n  ${n.description}${debateRecord}`;
+  };
+
+  const nodesBlock = taxonomyNodes.map(renderNode).join('\n\n');
+  const unengagedBlock = unengagedNodes && unengagedNodes.length > 0
+    ? `\n=== FULL-TAXONOMY SWEEP — NODES THIS DEBATE NEVER ENGAGED ===
+These were neither offered to you nor cited by anyone. The debate provides NO evidence about them.
+Propose an edit here ONLY to record that a node is too vague, too broad, or wrong in a way THIS
+debate demonstrated. You may not cite claim ids as evidence for these — there are none.
+
+${unengagedNodes.map(renderNode).join('\n\n')}\n`
+    : '';
 
   const argNetSection = argumentNetwork
     ? `\n=== ARGUMENT NETWORK (claims, attacks, supports with QBAF strengths) ===\n${argumentNetwork}\n`
@@ -195,9 +234,12 @@ You have just finished a structured debate on:
 === DEBATE TRANSCRIPT ===
 ${transcript}
 ${argNetSection}${commitSection}${convergenceSection}${priorReflectionBlock}
-=== YOUR CURRENT TAXONOMY (Beliefs, Desires, Intentions) ===
+=== YOUR TAXONOMY NODES THIS DEBATE ENGAGED (ranked by engagement) ===
+These are the nodes the debate actually tested — offered to you, cited in turns, or referenced by
+argument-network claims. Each carries its DEBATE RECORD. The most-engaged nodes come first; the
+debate says most about them, so review them first.
 ${nodesBlock}
-
+${unengagedBlock}
 === REFLECTION TASK ===
 
 Reflect on this debate with intellectual honesty. Consider:
@@ -230,6 +272,11 @@ PROPOSE-NEW rules (apply when disposition = "propose_new"):
 
 Rules:
 - Only propose edits with clear debate evidence. Do not suggest changes based on general knowledge.
+- EVIDENCE RULE (enforced): evidence_entries for an edit to an EXISTING node MUST cite argument-network
+  claim ids ("AN-6", "AN-15") drawn from that node's DEBATE RECORD above. An edit is REJECTED when none
+  of its cited claims reference the node being edited. Transcript labels ("S13"), prose ("the skeptic's
+  turn on leakage") and claims that reference a DIFFERENT node do not establish that THIS node was
+  tested. Prefer nodes whose record shows citations or attacks — those are where the debate spoke.
 - Labels: Desires use present participle targeting ideal state, Beliefs use noun phrase, Intentions use present participle denoting strategic action.
 - Match the tone, abstraction level, and specificity of the existing taxonomy nodes above. Your proposed labels and descriptions should read as natural additions to the same taxonomy — not more abstract, not more concrete, not more colloquial, not more technical than the surrounding entries.
 - Be intellectually honest — if an opponent landed a strong blow, acknowledge it.
