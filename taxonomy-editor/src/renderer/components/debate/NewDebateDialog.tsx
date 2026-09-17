@@ -843,8 +843,8 @@ function DebateSettingsDialog({
                     onChange={e => setLocalExcludeGreatestHits(e.target.checked)}
                   />
                   <div>
-                    <span className="ndd-toggle-name">Exclude greatest-hits nodes</span>
-                    <span className="ndd-step-help">Skip the most-cited taxonomy nodes; forces debaters to draw on less-common arguments</span>
+                    <span className="ndd-toggle-name">Exclude well-tested nodes</span>
+                    <span className="ndd-step-help">Skip well-tested taxonomy nodes and the curated greatest-hits list, and favor untested or only-cited nodes, so the debate stress-tests under-examined arguments</span>
                   </div>
                 </label>
               </>

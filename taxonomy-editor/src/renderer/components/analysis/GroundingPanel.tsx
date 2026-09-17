@@ -102,6 +102,73 @@ function computeLineageEffectiveness(transcript: DebateSession['transcript']): L
   };
 }
 
+type WellTestedExclusion = {
+  /** Cited POV (BDI) nodes, and how many of them currently carry the well_tested tier. */
+  citedBdi: number;
+  citedWellTested: number;
+  /** Largest per-turn pre-filter counts from the manifests' `testing_selection` (null for pre-feature debates). */
+  maxWellTestedExcluded: number | null;
+  maxGreatestHitsExcluded: number | null;
+  underTestedPromoted: number;
+};
+
+type TestingSelectionManifest = {
+  testing_selection?: { well_tested_excluded?: number; greatest_hits_excluded?: number; under_tested_promoted_ids?: string[] };
+};
+
+const BDI_NODE_ID = /^(acc|saf|skp)-/;
+
+// Summarize the exclude-well-tested mode (null when the debate ran without it): what the selection
+// pre-filtered (from injection manifests) and whether the cited grounding moved off well-tested nodes.
+function computeWellTestedExclusion(
+  debate: DebateSession,
+  citedIds: string[],
+  nodeTestedMap: Map<string, DebateTestedTier>,
+): WellTestedExclusion | null {
+  if (!debate.exclude_greatest_hits) return null;
+  let maxWellTestedExcluded: number | null = null;
+  let maxGreatestHitsExcluded: number | null = null;
+  const promoted = new Set<string>();
+  for (const entry of debate.transcript) {
+    const ts = ((entry.metadata as Record<string, unknown>)?.injection_manifest as TestingSelectionManifest | undefined)?.testing_selection;
+    if (!ts) continue;
+    maxWellTestedExcluded = Math.max(maxWellTestedExcluded ?? 0, ts.well_tested_excluded ?? 0);
+    maxGreatestHitsExcluded = Math.max(maxGreatestHitsExcluded ?? 0, ts.greatest_hits_excluded ?? 0);
+    for (const id of ts.under_tested_promoted_ids ?? []) promoted.add(id);
+  }
+  const bdi = citedIds.filter(id => BDI_NODE_ID.test(id));
+  return {
+    citedBdi: bdi.length,
+    citedWellTested: bdi.filter(id => nodeTestedMap.get(id) === 'well_tested').length,
+    maxWellTestedExcluded,
+    maxGreatestHitsExcluded,
+    underTestedPromoted: promoted.size,
+  };
+}
+
+function WellTestedExclusionBox({ summary }: { summary: WellTestedExclusion | null }) {
+  if (!summary) return null;
+  const promoted = summary.underTestedPromoted;
+  return (
+    <div className="grounding-exclusion-box">
+      <div className="grounding-exclusion-title">Well-Tested Exclusion</div>
+      <div>
+        {summary.maxWellTestedExcluded === null
+          ? 'No exclusion diagnostics recorded (debate predates tier-based exclusion — only the greatest-hits list was applied).'
+          : <>Pre-filtered up to <strong>{summary.maxWellTestedExcluded}</strong> well-tested + <strong>{summary.maxGreatestHitsExcluded}</strong> greatest-hits nodes per turn; boost promoted <strong>{promoted}</strong> under-tested node{promoted !== 1 ? 's' : ''}</>}
+      </div>
+      <div>
+        <strong>{summary.citedWellTested}</strong> of {summary.citedBdi} cited BDI nodes are currently well-tested
+      </div>
+      {summary.citedWellTested * 2 > summary.citedBdi && (
+        <div className="grounding-exclusion-warning">
+          Well-tested nodes still dominate the cited grounding — the exclusion did not reach its goal for this debate
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function GroundingPanel({ debate }: { debate: DebateSession }) {
   const [sortCol, setSortCol] = useState<'count' | 'id' | 'label'>('count');
   const [sortAsc, setSortAsc] = useState(false);
@@ -218,6 +285,10 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
     () => computeLineageEffectiveness(debate.transcript),
     [debate.transcript],
   );
+  const wellTestedExclusion = useMemo(
+    () => computeWellTestedExclusion(debate, rows.map(r => r.id), nodeTestedMap),
+    [debate, rows, nodeTestedMap],
+  );
 
   if (rows.length === 0) {
     return <div className="grounding-empty">No taxonomy references found in this debate.</div>;
@@ -245,6 +316,7 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
           </div>
         </div>
       )}
+      <WellTestedExclusionBox summary={wellTestedExclusion} />
       <div className="grounding-summary">
         {rows.length} taxonomy nodes referenced across {statementsWithRefs} statement{statementsWithRefs !== 1 ? 's' : ''}
       </div>

@@ -1167,7 +1167,7 @@ export function DebateConfigSection({ debate }: { debate: DebateSession }) {
         </div>
       )}
       <div className="debate-detail-meta-row">
-        <span className="debate-detail-label">Greatest-hits exclusion:</span>
+        <span className="debate-detail-label">Well-tested exclusion:</span>
         <span>{debate.exclude_greatest_hits ? 'On' : 'Off'}</span>
       </div>
       {debate.speaker_models && Object.keys(debate.speaker_models).length > 0 && (

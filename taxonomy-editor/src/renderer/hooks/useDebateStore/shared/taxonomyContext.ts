@@ -256,7 +256,7 @@ function recordLineageBoostCheck(lineageFrame: { cluster_id: string }[] | undefi
 function surfaceGreatestHitsWarning(outcome: { requested: boolean; applied: boolean }): void {
   if (!outcome.requested || outcome.applied) return;
   const s = useDebateStore.getState();
-  const warning = 'Greatest-hits exclusion is On, but the exclusion list is unavailable — retread nodes were NOT filtered for this debate.';
+  const warning = 'Well-tested exclusion is On, but the curated greatest-hits list is unavailable — well-tested nodes are still excluded, but the list\'s extra nodes were NOT filtered for this debate.';
   if (s.debateWarnings.length < 50 && !s.debateWarnings.includes(warning)) {
     useDebateStore.setState({ debateWarnings: [...s.debateWarnings, warning] });
   }
@@ -273,6 +273,26 @@ function logLineageBoostResult(injectionManifest: Record<string, unknown>, total
     level: lb.promoted > 0 ? 'info' : 'debug',
     message: lb.promoted > 0 ? `Lineage boost promoted ${lb.promoted} nodes` : 'Lineage boost applied but promoted 0 nodes',
     data: { boosted_count: lb.boosted, promoted_count: lb.promoted, promoted_node_ids: lb.promotedNodeIds?.slice(0, 10), total_selected: totalSelected, total_candidates: totalCandidates },
+  });
+}
+
+/** Log what the exclude-well-tested mode did, from the manifest's `testing_selection`. WARN when the
+ *  mode was on but well-tested nodes are still the majority of the selection (re-eligible leak-in). */
+function logTestingSelection(injectionManifest: Record<string, unknown>, totalSelected: number): void {
+  const ts = injectionManifest.testing_selection as {
+    selected_tiers: Record<string, number>;
+    well_tested_excluded: number;
+    greatest_hits_excluded: number;
+    under_tested_promoted: number;
+  } | undefined;
+  if (!ts) return;
+  const wellTestedSelected = ts.selected_tiers.well_tested ?? 0;
+  getGlobalRecorder()?.record({
+    type: 'turn.taxonomy_inject',
+    component: 'debate-store',
+    level: wellTestedSelected * 2 > totalSelected ? 'warn' : 'info',
+    message: `Exclude-well-tested: ${ts.well_tested_excluded} well-tested + ${ts.greatest_hits_excluded} greatest-hits pre-filtered, ${ts.under_tested_promoted} under-tested promoted; ${wellTestedSelected}/${totalSelected} selected are well-tested`,
+    data: { ...ts },
   });
 }
 
@@ -413,6 +433,7 @@ export async function getRelevantTaxonomyContext(
 
     console.log(`[taxonomy] Relevance-filtered: ${filteredPov.length} POV nodes (from ${allPovNodes.length}), ${filteredCC.length} CC nodes (from ${allCCNodes.length})`);
     logLineageBoostResult(result.injectionManifest, filteredPov.length, allPovNodes.length);
+    logTestingSelection(result.injectionManifest, result.povNodes.length);
     recordSituationDivergence(filteredCC, allCCNodes);
 
     return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry: result.policyRegistry, nodeScores, nodeSourceMap, injectionManifest: result.injectionManifest };
