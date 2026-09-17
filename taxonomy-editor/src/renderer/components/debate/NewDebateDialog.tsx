@@ -19,7 +19,7 @@ import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
 import { useTierInfo, isFreeTier, type TierInfo } from '../../hooks/useTierInfo';
 import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
-import { useAuthStatus } from '../../hooks/useAuthStatus';
+import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
 import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { buildDebateOptions } from './newDebateOptions';
@@ -966,7 +966,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
   const freeTier = isFreeTier(tierInfo);
   const auth = useAuthStatus();
   const isAnonymous = auth?.anonymous === true;
-  const { modalProps: geminiModalProps, checkAndShow: checkGeminiOnboarding } = useGeminiOnboarding();
+  const userProfile = useUserProfile(); const { modalProps: geminiModalProps, checkAndShow: checkGeminiOnboarding } = useGeminiOnboarding();
 
   // Queue (overflow menu)
   const [queuedTopics, setQueuedTopics] = useState<{ text: string; sourceType: DebateSourceType; sourceRef: string; timestamp: string }[]>(() => {
@@ -1137,7 +1137,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
       setStartError('Sign in to use URL sources.');
       return;
     }
-    await checkGeminiOnboarding({ freeTier });
+    await checkGeminiOnboarding({ freeTier, geminiAllowlisted: userProfile?.geminiAllowlisted });
     setCreating(true);
     setStartError(null);
 
