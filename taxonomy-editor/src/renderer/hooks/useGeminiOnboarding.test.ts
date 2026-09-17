@@ -68,4 +68,26 @@ describe('useGeminiOnboarding', () => {
     await promise;
     expect(result.current.showModal).toBe(true);
   });
+
+  it('threads geminiAllowlisted:true through to modalProps when the modal shows (t/3500)', async () => {
+    mockHasApiKey.mockResolvedValue(false);
+    const { result } = renderHook(() => useGeminiOnboarding());
+    const promise = act(async () => {
+      result.current.checkAndShow({ geminiAllowlisted: true });
+    });
+    await promise;
+    expect(result.current.showModal).toBe(true);
+    expect(result.current.modalProps.geminiAllowlisted).toBe(true);
+  });
+
+  it('defaults modalProps.geminiAllowlisted to false when omitted (t/3500)', async () => {
+    mockHasApiKey.mockResolvedValue(false);
+    const { result } = renderHook(() => useGeminiOnboarding());
+    const promise = act(async () => {
+      result.current.checkAndShow();
+    });
+    await promise;
+    expect(result.current.showModal).toBe(true);
+    expect(result.current.modalProps.geminiAllowlisted).toBe(false);
+  });
 });

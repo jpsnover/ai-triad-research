@@ -10,13 +10,16 @@ type CloseResult = 'saved' | 'later' | 'permanent-dismiss';
 
 export function useGeminiOnboarding() {
   const [showModal, setShowModal] = useState(false);
+  // t/3500: threaded through to the modal so it can render "Gemini access provided"
+  // in place of the key input for allowlisted users, instead of the input + Save flow.
+  const [geminiAllowlisted, setGeminiAllowlisted] = useState(false);
   const resolveRef = useRef<((result: CloseResult) => void) | null>(null);
 
   useEffect(() => {
     clearSessionDismiss();
   }, []);
 
-  const checkAndShow = useCallback(async (opts?: { freeTier?: boolean }): Promise<boolean> => {
+  const checkAndShow = useCallback(async (opts?: { freeTier?: boolean; geminiAllowlisted?: boolean }): Promise<boolean> => {
     if (opts?.freeTier) return true;
     if (!shouldShowGeminiOnboarding()) return true;
     try {
@@ -33,6 +36,7 @@ export function useGeminiOnboarding() {
       return true;
     }
 
+    setGeminiAllowlisted(!!opts?.geminiAllowlisted);
     return new Promise<boolean>((resolve) => {
       resolveRef.current = () => resolve(true);
       setShowModal(true);
@@ -47,7 +51,7 @@ export function useGeminiOnboarding() {
 
   return {
     showModal,
-    modalProps: { open: showModal, onClose: handleClose },
+    modalProps: { open: showModal, onClose: handleClose, geminiAllowlisted },
     checkAndShow,
   };
 }
