@@ -56,6 +56,7 @@ vi.mock('../settings/GeminiOnboardingModal', () => ({
 
 vi.mock('../../hooks/useAuthStatus', () => ({
   useAuthStatus: () => ({ anonymous: false }),
+  useUserProfile: () => null,
 }));
 
 Object.defineProperty(window, 'matchMedia', {
