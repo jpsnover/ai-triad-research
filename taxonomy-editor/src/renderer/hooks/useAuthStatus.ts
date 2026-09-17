@@ -16,6 +16,7 @@ export interface UserProfile {
   isAnonymous: boolean;
   isAdmin: boolean;
   quotas: QuotaLimits | null;
+  geminiAllowlisted: boolean;
 }
 
 export function useAuthStatus(): AuthInfo | null {
@@ -33,9 +34,11 @@ export function useUserProfile(): UserProfile | null {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   useEffect(() => {
     if (import.meta.env.VITE_TARGET !== 'web') return;
-    bridgeGet<UserProfile>('/api/user/profile').then(setProfile).catch((err) => {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'useAuthStatus', level: 'warn', message: 'User profile fetch failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    });
+    bridgeGet<Omit<UserProfile, 'geminiAllowlisted'> & { geminiAllowlisted?: boolean }>('/api/user/profile')
+      .then((data) => setProfile({ ...data, geminiAllowlisted: data.geminiAllowlisted ?? false }))
+      .catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'useAuthStatus', level: 'warn', message: 'User profile fetch failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      });
   }, []);
   return profile;
 }
