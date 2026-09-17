@@ -5,12 +5,14 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { DebateSession } from '../../types/debate';
 
+let mockAccNode: Record<string, unknown> = { id: 'acc-belief-001', label: 'Growth belief' };
+
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => null }));
 vi.mock('@bridge', () => ({
   api: {
     loadTaxonomyFile: (name: string) =>
       name === 'accelerationist'
-        ? Promise.resolve({ nodes: [{ id: 'acc-belief-001', label: 'Growth belief' }] })
+        ? Promise.resolve({ nodes: [mockAccNode] })
         : Promise.resolve({ nodes: [] }),
   },
 }));
@@ -22,7 +24,10 @@ function debateWith(transcript: unknown[]): DebateSession {
 }
 
 describe('GroundingPanel (t/1025)', () => {
-  afterEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    mockAccNode = { id: 'acc-belief-001', label: 'Growth belief' };
+  });
 
   it('shows an empty state when no taxonomy refs exist', () => {
     render(<GroundingPanel debate={debateWith([
@@ -53,36 +58,52 @@ describe('GroundingPanel (t/1025)', () => {
     expect(screen.getByText('Moderator')).toBeInTheDocument();
   });
 
-  it('classifies a single-speaker reference as Cited', () => {
-    render(<GroundingPanel debate={debateWith([
-      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
-    ])} />);
-    expect(screen.getByText('Cited')).toBeInTheDocument();
-  });
-
-  it('classifies cross-speaker corroboration with no attack as Well-tested', () => {
-    render(<GroundingPanel debate={debateWith([
-      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
-      { id: 'e2', speaker: 'safetyist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r2' }], metadata: {} },
-    ])} />);
-    expect(screen.getByText('Well-tested')).toBeInTheDocument();
-  });
-
-  it('classifies a node attacked in the argument network by an opposing speaker as Contested', () => {
-    const debate = debateWith([
-      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
-      { id: 'e2', speaker: 'safetyist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r2' }], metadata: {} },
-    ]) as unknown as DebateSession;
-    (debate as unknown as { argument_network: unknown }).argument_network = {
-      nodes: [
-        { id: 'an1', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: ['acc-belief-001'] },
-        { id: 'an2', speaker: 'safetyist', source_entry_id: 'e2', taxonomy_refs: ['acc-belief-001'] },
-      ],
-      edges: [
-        { id: 'edge1', source: 'an2', target: 'an1', type: 'attacks' },
-      ],
+  it('reads the Testing badge from the taxonomy node\'s historical debate_tested.tier, not current-debate evidence', async () => {
+    // Historical tier says contested, but the current debate has a single citing
+    // statement with no attack and no cross-speaker corroboration — proves the
+    // badge is sourced from the taxonomy file, not derived from this debate.
+    mockAccNode = {
+      id: 'acc-belief-001',
+      label: 'Growth belief',
+      graph_attributes: { debate_tested: { tier: 'contested' } },
     };
-    render(<GroundingPanel debate={debate} />);
-    expect(screen.getByText('Contested')).toBeInTheDocument();
+    render(<GroundingPanel debate={debateWith([
+      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
+    ])} />);
+    await waitFor(() => expect(screen.getByText('Contested')).toBeInTheDocument());
+  });
+
+  it('renders Well-tested for a node with debate_tested.tier of well_tested', async () => {
+    mockAccNode = {
+      id: 'acc-belief-001',
+      label: 'Growth belief',
+      graph_attributes: { debate_tested: { tier: 'well_tested' } },
+    };
+    render(<GroundingPanel debate={debateWith([
+      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
+    ])} />);
+    await waitFor(() => expect(screen.getByText('Well-tested')).toBeInTheDocument());
+  });
+
+  it('renders Cited for a node with debate_tested.tier of cited', async () => {
+    mockAccNode = {
+      id: 'acc-belief-001',
+      label: 'Growth belief',
+      graph_attributes: { debate_tested: { tier: 'cited' } },
+    };
+    render(<GroundingPanel debate={debateWith([
+      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
+    ])} />);
+    await waitFor(() => expect(screen.getByText('Cited')).toBeInTheDocument());
+  });
+
+  it('omits the Testing badge for a node with no debate_tested data (untested)', async () => {
+    render(<GroundingPanel debate={debateWith([
+      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
+    ])} />);
+    await waitFor(() => expect(screen.getByText('Growth belief')).toBeInTheDocument());
+    expect(screen.queryByText('Cited')).not.toBeInTheDocument();
+    expect(screen.queryByText('Well-tested')).not.toBeInTheDocument();
+    expect(screen.queryByText('Contested')).not.toBeInTheDocument();
   });
 });
