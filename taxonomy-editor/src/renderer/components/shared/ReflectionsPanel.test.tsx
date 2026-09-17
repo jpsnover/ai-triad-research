@@ -201,3 +201,70 @@ describe('ReflectionsPanel — propose_new item proposals (t/1773 AC1)', () => {
     expect(debateStore.dismissReflectionProposal).toHaveBeenCalledWith('accelerationist', 0);
   });
 });
+
+// ── Evidence check (t/3512) ──────────────────────────────────
+
+describe('ReflectionsPanel — unsupported-evidence edits (t/3512)', () => {
+  function addFlaggedEdit() {
+    debateStore.reflections = [{
+      pover: 'accelerationist',
+      label: 'Accelerationist',
+      reflection_summary: '',
+      edits: [{
+        edit_type: 'revise',
+        status: 'pending',
+        category: 'Beliefs',
+        node_id: 'acc-beliefs-003',
+        current_label: 'Old label',
+        proposed_label: 'New label',
+        current_description: 'old description',
+        proposed_description: LONG_FORMAL,
+        rationale: 'because the debate showed it',
+        evidence_entries: ['AN-6'],
+        evidence_supported: false,
+        evidence_note: 'No debate evidence ties this edit to acc-beliefs-003: 1 cited claim(s) do not reference acc-beliefs-003 (AN-6)',
+        engagement: { injected: false, citations: 0, claim_count: 0, attacked_count: 0 },
+      }],
+    }];
+  }
+
+  beforeEach(() => { addFlaggedEdit(); });
+
+  it('shows the unsupported badge, the reason, and the never-engaged debate record', () => {
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    expect(screen.getByText('Unsupported by debate evidence')).toBeInTheDocument();
+    expect(screen.getByText(/do not reference acc-beliefs-003/)).toBeInTheDocument();
+    expect(screen.getByText('This debate never offered or cited this node.')).toBeInTheDocument();
+  });
+
+  it('first Approve click surfaces the refusal and arms an explicit override', async () => {
+    debateStore.applyReflectionEdit.mockResolvedValue({ ok: false, error: 'Unsupported by debate evidence — no cited claim references this node.' });
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Approve & Apply' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply anyway (no evidence)' })).toBeInTheDocument());
+    expect(debateStore.applyReflectionEdit).toHaveBeenCalledWith('accelerationist', 0, undefined, { regeneratePhrases: false });
+    expect(debateStore.applyReflectionEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it('the armed override passes allowUnsupportedEvidence', async () => {
+    debateStore.applyReflectionEdit.mockResolvedValue({ ok: false, error: 'Unsupported by debate evidence' });
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Approve & Apply' }));
+    const overrideBtn = await screen.findByRole('button', { name: 'Apply anyway (no evidence)' });
+
+    debateStore.applyReflectionEdit.mockResolvedValue({ ok: true });
+    fireEvent.click(overrideBtn);
+
+    await waitFor(() => expect(debateStore.applyReflectionEdit).toHaveBeenLastCalledWith(
+      'accelerationist', 0, undefined, { regeneratePhrases: false, allowUnsupportedEvidence: true },
+    ));
+  });
+
+  it('Approve All skips flagged edits', async () => {
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Approve All/ }));
+    await waitFor(() => expect(debateStore.applyReflectionEdit).not.toHaveBeenCalled());
+  });
+});

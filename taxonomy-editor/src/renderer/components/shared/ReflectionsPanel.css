@@ -205,6 +205,26 @@
 
 .rp-evidence-label { font-size: var(--text-2xs); color: var(--text-muted); margin-bottom: 8px; }
 
+/* Evidence check (t/3512) — edit whose cited claims do not reference the node it edits. */
+.rp-evidence-unsupported {
+  font-size: var(--text-2xs);
+  color: var(--text-primary);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+}
+
+.rp-evidence-unsupported-badge {
+  display: inline-block;
+  font-weight: 700;
+  color: #dc2626;
+  margin-bottom: 2px;
+}
+
+.rp-evidence-unsupported-record { color: var(--text-muted); margin-top: 2px; }
+
 /* Evidence toggle button — bg/color/text-decoration depend on whether this entry is expanded */
 .rp-evidence-btn {
   padding: 0 4px;

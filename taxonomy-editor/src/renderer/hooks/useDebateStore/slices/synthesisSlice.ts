@@ -30,6 +30,8 @@ import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
 import { computeProcessReward } from '@lib/debate/processReward';
 import type { ProcessRewardEntry, TaxonomyRef, CrossCuttingProposal, MissingArgument, TaxonomySuggestion } from '@lib/debate/types';
 import { computeTaxonomyGapAnalysis } from '@lib/debate/taxonomyGapAnalysis';
+import { computeNodeEngagement, type EngagementTranscriptEntry } from '@lib/debate/reflectionScope';
+import { POV_PREFIXES } from '@lib/debate/nodeIdUtils';
 import { computeBeliefConfidence } from '@lib/debate/beliefConfidence';
 import { computeTreePriority } from '@lib/debate/desirePriority';
 import { computeOperationality } from '@lib/debate/intentionOperationality';
@@ -296,6 +298,20 @@ async function runTaxonomyRefinementPass(get: () => DebateStore, set: (partial: 
                 }
               }
             }
+
+            // Rank by engagement before the 25-node cap (t/3512) — mirrors the engine path so both
+            // review the nodes the debate actually tested, not whatever the POV file listed first.
+            const refEngagement = new Map<string, number>();
+            for (const povPrefix of Object.keys(POV_PREFIXES)) {
+              for (const e of computeNodeEngagement({
+                transcript: currentD.transcript as unknown as EngagementTranscriptEntry[],
+                anNodes: currentD.argument_network?.nodes ?? [],
+                anEdges: currentD.argument_network?.edges ?? [],
+              }, povPrefix)) {
+                refEngagement.set(e.nodeId, e.score);
+              }
+            }
+            referencedNodes.sort((a, b) => (refEngagement.get(b.id) ?? 0) - (refEngagement.get(a.id) ?? 0) || a.id.localeCompare(b.id));
 
             if (referencedNodes.length > 0) {
               // Build argument map summary

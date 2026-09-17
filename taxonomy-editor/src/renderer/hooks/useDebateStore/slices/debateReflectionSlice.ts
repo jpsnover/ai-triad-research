@@ -44,6 +44,13 @@ import type { RawNewItemSuggestion } from '@lib/debate/confidenceEvolution';
 import type { NewPovItemProposal } from '@lib/debate/types/session';
 import { checkDolceCompliance } from '../../../utils/dolceCompliance';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import {
+  computeNodeEngagement,
+  validateEditEvidence,
+  type NodeEngagement,
+  type EngagementTranscriptEntry,
+} from '@lib/debate/reflectionScope';
+import type { ReflectionTaxonomyNode } from '@lib/debate/prompts/reflection';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { factCheckToBaseStrength } from '@lib/debate/argumentNetwork';
@@ -92,8 +99,12 @@ import { enrichPolicyRefs, serializeNodeSourceMap, formatEdgeContext, formatDeba
 import { extractClaimsAndUpdateAN, commitAnNodes, detectZeroClaims } from '../shared/argumentNetwork';
 
 export interface DebateReflectionSlice {
-  requestReflections: () => Promise<void>;
-  applyReflectionEdit: (pover: string, editIndex: number, overrides?: { label?: string; description?: string }, options?: { regeneratePhrases?: boolean }) => Promise<{ ok: boolean; error?: string; enrichNodeId?: string }>;
+  /** `fullTaxonomySweep` (t/3512) additionally offers the camp's never-engaged nodes — opt-in,
+   *  because the debate provides no evidence about them. Default: engaged nodes only. */
+  requestReflections: (options?: { fullTaxonomySweep?: boolean }) => Promise<void>;
+  /** `allowUnsupportedEvidence` (t/3512) applies an edit the evidence check flagged — the caller
+   *  must be an explicit human override; without it such an edit is refused. */
+  applyReflectionEdit: (pover: string, editIndex: number, overrides?: { label?: string; description?: string }, options?: { regeneratePhrases?: boolean; allowUnsupportedEvidence?: boolean }) => Promise<{ ok: boolean; error?: string; enrichNodeId?: string }>;
   retryReflectionEditAfterFix: (pover: string, editIndex: number) => Promise<{ ok: boolean; error?: string }>;
   dismissReflectionEdit: (pover: string, editIndex: number) => void;
   /** Apply a `propose_new` proposal (t/1773): create the new POV node AND persist its
@@ -469,6 +480,69 @@ function buildReflectionContextBlocks(
  * current_label/current_description against the live taxonomy to prevent hallucinated labels
  * (t/1564). propose_new entries are excluded upstream; `add` node_ids are cleared (t/1564).
  */
+/** Camp → node-id prefix (the inverse of POV_PREFIXES, which is keyed by prefix). */
+const POV_PREFIX_BY_KEY: Record<Pov, string> = {
+  accelerationist: 'acc-',
+  safetyist: 'saf-',
+  skeptic: 'skp-',
+};
+
+/**
+ * Build the reflector's node list (t/3512). Only nodes THIS debate engaged — injected, cited, or
+ * referenced by an argument-network claim — ranked by engagement, each carrying its debate record.
+ * `fullTaxonomySweep` additionally passes the never-engaged remainder as a clearly-marked block.
+ *
+ * Fallback: a camp with zero engaged nodes (nothing injected or cited — e.g. a debate that failed
+ * relevance selection) falls back to the full taxonomy and records a WARN, since reflecting on
+ * nothing is worse than reflecting unscoped.
+ */
+function buildReflectionNodes(
+  activeDebate: DebateSession,
+  povNodes: PovNode[],
+  povPrefix: string,
+  fullTaxonomySweep: boolean,
+): { nodes: ReflectionTaxonomyNode[]; unengaged?: ReflectionTaxonomyNode[]; engagementById: Map<string, NodeEngagement> } {
+  const engagements = computeNodeEngagement({
+    transcript: activeDebate.transcript as unknown as EngagementTranscriptEntry[],
+    anNodes: activeDebate.argument_network?.nodes ?? [],
+    anEdges: activeDebate.argument_network?.edges ?? [],
+  }, povPrefix);
+  const engagementById = new Map(engagements.map(e => [e.nodeId, e]));
+  const byId = new Map(povNodes.map(n => [n.id, n]));
+  const toPromptNode = (n: PovNode, e?: NodeEngagement): ReflectionTaxonomyNode => ({
+    id: n.id,
+    category: n.category,
+    label: n.label,
+    description: n.description,
+    ...(e ? { engagement: { injected: e.injected, citations: e.citations, claimIds: e.claimIds, attackedClaimIds: e.attackedClaimIds, strongestAttack: e.strongestAttack } } : {}),
+  });
+
+  // Engaged, in rank order; skip ids that no longer exist in the POV file.
+  const nodes = engagements
+    .map(e => { const n = byId.get(e.nodeId); return n ? toPromptNode(n, e) : null; })
+    .filter((n): n is ReflectionTaxonomyNode => n !== null);
+
+  if (nodes.length === 0) {
+    getGlobalRecorder()?.record({
+      type: 'state.change', component: 'debate-store', level: 'warn',
+      message: 'Reflection scope: no engaged nodes for this camp — falling back to the full taxonomy',
+      data: { pov_prefix: povPrefix, debate_id: activeDebate.id, pov_node_count: povNodes.length, reason: 'no_injected_or_cited_nodes' },
+    });
+    return { nodes: povNodes.map(n => toPromptNode(n)), engagementById };
+  }
+
+  const unengaged = fullTaxonomySweep
+    ? povNodes.filter(n => !engagementById.has(n.id)).map(n => toPromptNode(n))
+    : undefined;
+
+  getGlobalRecorder()?.record({
+    type: 'state.change', component: 'debate-store', level: 'info',
+    message: `Reflection scope: ${nodes.length} engaged node(s) of ${povNodes.length}${unengaged ? ` (+${unengaged.length} swept)` : ''}`,
+    data: { pov_prefix: povPrefix, engaged: nodes.length, total: povNodes.length, swept: unengaged?.length ?? 0, top_engaged: nodes.slice(0, 5).map(n => n.id) },
+  });
+  return { nodes, unengaged, engagementById };
+}
+
 function mapRawEditsToReflectionEdits(rawEdits: RawReflectionEdit[], taxState: TaxStore): ReflectionEdit[] {
   return rawEdits.filter(e => e.disposition !== 'propose_new').map(e => {
     // Ground-truth: override AI-provided current_label/current_description
@@ -497,6 +571,36 @@ function mapRawEditsToReflectionEdits(rawEdits: RawReflectionEdit[], taxState: T
       status: 'pending' as const,
     };
   });
+}
+
+/**
+ * Attach the evidence check + engagement record to each edit (t/3512). An edit whose cited claims
+ * do not reference the node it edits is FLAGGED (`evidence_supported: false`), not dropped — the
+ * reflection may still be right, but `applyReflectionEdit` refuses it without an explicit override.
+ */
+function annotateEditEvidence(
+  edits: ReflectionEdit[],
+  anNodes: ArgumentNetworkNode[],
+  engagementById: Map<string, NodeEngagement>,
+  pover: string,
+): ReflectionEdit[] {
+  for (const edit of edits) {
+    const check = validateEditEvidence(edit.node_id, edit.evidence_entries, anNodes);
+    edit.evidence_supported = check.supported;
+    edit.evidence_note = check.reason;
+    const e = edit.node_id ? engagementById.get(edit.node_id) : undefined;
+    edit.engagement = e
+      ? { injected: e.injected, citations: e.citations, claim_count: e.claimIds.length, attacked_count: e.attackedClaimIds.length }
+      : { injected: false, citations: 0, claim_count: 0, attacked_count: 0 };
+    if (!check.supported) {
+      getGlobalRecorder()?.record({
+        type: 'state.change', component: 'debate-store', level: 'warn',
+        message: `Reflection edit flagged unsupported: ${edit.node_id ?? '(new node)'} — ${check.reason}`,
+        data: { pover, node_id: edit.node_id, edit_type: edit.edit_type, evidence_entries: edit.evidence_entries, unrelated_claims: check.unrelatedClaimIds, unresolved: check.unresolvedEntries, engagement: edit.engagement },
+      });
+    }
+  }
+  return edits;
 }
 
 /**
@@ -595,9 +699,10 @@ async function enrichAppliedEditNode(
 }
 
 export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], DebateReflectionSlice> = (set, get) => ({
-  requestReflections: async () => {
+  requestReflections: async (options) => {
     const { activeDebate, saveDebate } = get();
     if (!activeDebate) return;
+    const fullTaxonomySweep = options?.fullTaxonomySweep ?? false;
 
     const isStillValid = createDebateGuard(get);
     set({ debateError: null, debateWarnings: [], reflections: [], newItemProposalStatus: {} });
@@ -617,12 +722,15 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
       const taxState = useTaxonomyStore.getState();
       const povKey = info.pov as 'accelerationist' | 'safetyist' | 'skeptic';
       const povFile = taxState[povKey];
-      const nodes = (povFile?.nodes ?? []).map(n => ({
-        id: n.id,
-        category: n.category,
-        label: n.label,
-        description: n.description,
-      }));
+      // t/3512 — the reflector sees the nodes THIS debate engaged, ranked, with their debate
+      // record; the full taxonomy is an opt-in sweep. Previously it received every node in the
+      // camp (207-361), so it edited nodes the debate never touched.
+      const { nodes, unengaged, engagementById } = buildReflectionNodes(
+        activeDebate,
+        povFile?.nodes ?? [],
+        POV_PREFIX_BY_KEY[povKey],
+        fullTaxonomySweep,
+      );
 
       const { anBlock, commitBlock, convBlock } = buildReflectionContextBlocks(activeDebate, pover);
 
@@ -648,6 +756,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
         convBlock,
         activeDebate.audience,
         priorReflections.length > 0 ? priorReflections : undefined,
+        unengaged,
       );
 
       try {
@@ -665,7 +774,12 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
         // routed to newItemSuggestionsToProposals below. `add` is retired at the prompt
         // (t/1820), so edit_existing is revise/qualify/deprecate only.
         const rawEdits = parsed?.edits ?? [];
-        const edits: ReflectionEdit[] = mapRawEditsToReflectionEdits(rawEdits, useTaxonomyStore.getState());
+        const edits: ReflectionEdit[] = annotateEditEvidence(
+          mapRawEditsToReflectionEdits(rawEdits, useTaxonomyStore.getState()),
+          activeDebate.argument_network?.nodes ?? [],
+          engagementById,
+          pover,
+        );
 
         // Validated new-node proposals (t/1773 front-half): wire the shared generator
         // (previously zero production callers) so propose_new suggestions actually
@@ -743,13 +857,32 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
     await saveDebate('requestReflections');
   },
 
-  applyReflectionEdit: async (pover: string, editIndex: number, overrides?: { label?: string; description?: string }, options?: { regeneratePhrases?: boolean }) => {
+  applyReflectionEdit: async (pover: string, editIndex: number, overrides?: { label?: string; description?: string }, options?: { regeneratePhrases?: boolean; allowUnsupportedEvidence?: boolean }) => {
     const startTime = performance.now();
     const { reflections } = get();
     const reflection = reflections.find(r => r.pover === pover);
     const edit = reflection?.edits[editIndex];
     getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.called', data: { pover, editIndex, edit_type: edit?.edit_type, node_id: edit?.node_id, hasOverrides: !!overrides } });
     if (!reflection || !edit) { getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'warn', message: 'applyReflectionEdit.result', data: { ok: false, error: 'Edit not found', pover, editIndex } }); return { ok: false, error: 'Edit not found' }; }
+
+    // Evidence gate (t/3512): an edit whose cited claims do not reference the node it edits is not
+    // applied. The debate did not test that node, so the edit has no warrant — the human can still
+    // override deliberately (ReflectionsPanel asks first), which is recorded.
+    if (edit.evidence_supported === false && !options?.allowUnsupportedEvidence) {
+      getGlobalRecorder()?.record({
+        type: 'state.error', component: 'reflection-edit', level: 'warn',
+        message: 'applyReflectionEdit.refused_unsupported_evidence',
+        data: { pover, editIndex, node_id: edit.node_id, evidence_entries: edit.evidence_entries, engagement: edit.engagement, note: edit.evidence_note },
+      });
+      return { ok: false, error: `Unsupported by debate evidence — ${edit.evidence_note ?? 'no cited claim references this node'}. Review the rationale; apply anyway to override.` };
+    }
+    if (edit.evidence_supported === false && options?.allowUnsupportedEvidence) {
+      getGlobalRecorder()?.record({
+        type: 'state.change', component: 'reflection-edit', level: 'warn',
+        message: 'applyReflectionEdit.unsupported_evidence_overridden',
+        data: { pover, editIndex, node_id: edit.node_id, note: edit.evidence_note },
+      });
+    }
 
     const finalLabel = overrides?.label ?? edit.proposed_label;
     const finalDescription = overrides?.description ?? edit.proposed_description;

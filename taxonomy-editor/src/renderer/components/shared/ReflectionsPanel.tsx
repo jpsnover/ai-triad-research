@@ -453,6 +453,25 @@ function EditCardCompliance({ complianceViolations, complianceErrors, compliance
   );
 }
 
+/** Evidence-check banner (t/3512): the debate record for the edited node, and why the edit was
+ *  flagged when no cited claim references it. */
+function EditCardEvidenceCheck({ edit }: { edit: ReflectionEdit }) {
+  if (edit.evidence_supported !== false) return null;
+  const e = edit.engagement;
+  const record = e
+    ? (e.citations === 0 && e.claim_count === 0 && !e.injected
+        ? 'This debate never offered or cited this node.'
+        : `This debate: cited ${e.citations}x, ${e.claim_count} claim(s) referenced it${e.injected ? ', offered to the debater' : ''}.`)
+    : '';
+  return (
+    <div className="rp-evidence-unsupported" role="note">
+      <span className="rp-evidence-unsupported-badge">Unsupported by debate evidence</span>
+      <div>{edit.evidence_note}</div>
+      {record && <div className="rp-evidence-unsupported-record">{record}</div>}
+    </div>
+  );
+}
+
 function EditCardEvidence({ edit, expandedEvidence, setExpandedEvidence, anNodes }: {
   edit: ReflectionEdit;
   expandedEvidence: Set<string>;
@@ -518,7 +537,7 @@ function EditCardRegenerateToggle({ showRegenerateToggle, regeneratePhrases, set
   );
 }
 
-function EditCardActions({ resolved, editing, isModified, applying, editType, setApplying, setApplyError, setTrackedEnrichNodeId, applyReflectionEdit, editedLabel, editedDescription, regeneratePhrases, pover, editIndex, handleReset, handleCancel, dismissReflectionEdit }: {
+function EditCardActions({ resolved, editing, isModified, applying, editType, setApplying, setApplyError, setTrackedEnrichNodeId, applyReflectionEdit, editedLabel, editedDescription, regeneratePhrases, pover, editIndex, handleReset, handleCancel, dismissReflectionEdit, unsupportedEvidence }: {
   resolved: boolean;
   editing: boolean;
   isModified: boolean;
@@ -536,7 +555,10 @@ function EditCardActions({ resolved, editing, isModified, applying, editType, se
   handleReset: () => void;
   handleCancel: () => void;
   dismissReflectionEdit: DebateStoreState['dismissReflectionEdit'];
+  /** The evidence check flagged this edit (t/3512) — apply requires an explicit override. */
+  unsupportedEvidence: boolean;
 }) {
+  const [overrideArmed, setOverrideArmed] = useState(false);
   if (resolved) return null;
   const isEmpty = editing && (
     (editType === 'add' && !editedLabel.trim()) || !editedDescription.trim()
@@ -550,10 +572,18 @@ function EditCardActions({ resolved, editing, isModified, applying, editType, se
               setApplying(true);
               setApplyError(null);
               try {
-                const result = await applyReflectionEdit(pover, editIndex,
-                  editing && isModified ? { label: editedLabel, description: editedDescription } : undefined,
-                  { regeneratePhrases },
+                const overrides = editing && isModified ? { label: editedLabel, description: editedDescription } : undefined;
+                // Evidence gate (t/3512): the store refuses a flagged edit; the first click surfaces
+                // why and arms an explicit override, so the human — not the model — decides to apply
+                // an edit the debate never evidenced.
+                const result = await applyReflectionEdit(pover, editIndex, overrides,
+                  { regeneratePhrases, ...(overrideArmed ? { allowUnsupportedEvidence: true } : {}) },
                 );
+                if (!result.ok && unsupportedEvidence && !overrideArmed) {
+                  setOverrideArmed(true);
+                  setApplyError(result.error ?? 'Unsupported by debate evidence');
+                  return;
+                }
                 if (!result.ok) {
                   setApplyError(result.error ?? 'Save failed — check SaveBar for details');
                 } else if (result.enrichNodeId) {
@@ -567,7 +597,7 @@ function EditCardActions({ resolved, editing, isModified, applying, editType, se
               }
             }}
           >
-            {applying ? 'Saving…' : 'Approve & Apply'}
+            {applying ? 'Saving…' : overrideArmed ? 'Apply anyway (no evidence)' : 'Approve & Apply'}
           </button>
           {editing && isModified && (
             <button
@@ -838,6 +868,8 @@ function EditCard({ edit, pover, editIndex }: {
 
       <EditCardEvidence edit={edit} expandedEvidence={expandedEvidence} setExpandedEvidence={setExpandedEvidence} anNodes={anNodes} />
 
+      <EditCardEvidenceCheck edit={edit} />
+
       <EditCardRegenerateToggle showRegenerateToggle={showRegenerateToggle} regeneratePhrases={regeneratePhrases} setRegeneratePhrases={setRegeneratePhrases} />
 
       <EditCardActions
@@ -858,6 +890,7 @@ function EditCard({ edit, pover, editIndex }: {
         handleReset={handleReset}
         handleCancel={handleCancel}
         dismissReflectionEdit={dismissReflectionEdit}
+        unsupportedEvidence={edit.evidence_supported === false}
       />
 
       <EditCardEnrichmentStatus
@@ -1089,7 +1122,9 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
   const approveAll = async () => {
     for (const r of reflections) {
       for (let i = 0; i < r.edits.length; i++) {
-        if (r.edits[i].status === 'pending') await applyReflectionEdit(r.pover, i);
+        // Evidence-flagged edits are skipped by Approve All (t/3512) — overriding the check is a
+        // per-edit, deliberate act, never a side effect of a bulk approve.
+        if (r.edits[i].status === 'pending' && r.edits[i].evidence_supported !== false) await applyReflectionEdit(r.pover, i);
       }
       const proposals = r.new_item_proposals ?? [];
       for (let i = 0; i < proposals.length; i++) {

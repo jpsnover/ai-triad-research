@@ -39,6 +39,13 @@ export interface ReflectionEdit {
   confidence: 'high' | 'medium' | 'low';
   evidence_entries: string[];
   status: 'pending' | 'approved' | 'dismissed';
+  /** Evidence check (t/3512): false when no cited claim references `node_id`. Such an edit is
+   *  flagged, not applied — `applyReflectionEdit` refuses it unless explicitly overridden. */
+  evidence_supported?: boolean;
+  /** Human-readable outcome of the evidence check (shown on the edit, logged on refusal). */
+  evidence_note?: string;
+  /** Engagement of `node_id` in this debate — drives the "never engaged" badge. */
+  engagement?: { injected: boolean; citations: number; claim_count: number; attacked_count: number };
 }
 
 export interface ReflectionResult {

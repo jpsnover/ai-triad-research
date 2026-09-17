@@ -18,6 +18,9 @@ interface ReflectionEdit {
   confidence?: string;
   evidence_entries?: string[];
   status: string;
+  /** t/3512 — false when no cited claim references `node_id`; absent on pre-t/3512 debates. */
+  evidence_supported?: boolean;
+  evidence_note?: string;
 }
 
 interface ReflectionResult {
@@ -119,6 +122,12 @@ export function ReflectionsTab({ debate }: ReflectionsTabProps) {
                 <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 2 }}>
                   {edit.rationale}
                 </div>
+                {edit.evidence_supported === false && (
+                  <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--danger)', marginBottom: 2 }}>
+                    <strong>Unsupported by debate evidence</strong>
+                    {edit.evidence_note ? ` — ${edit.evidence_note}` : ''}
+                  </div>
+                )}
                 {edit.evidence_entries && edit.evidence_entries.length > 0 && (
                   <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                     Evidence: {edit.evidence_entries.map((ev: string, evi: number) => (
