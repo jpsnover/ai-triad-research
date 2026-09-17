@@ -107,7 +107,10 @@ try {
     # 4. Classify each dirty file: 0-diff vs real WIP
     $hasRealDiff = $false
     foreach ($f in $dirtyFiles) {
-        $diff = Invoke-Git @('-C', $RepoRoot, 'diff', 'origin/main', '--', $f)
+        # --ignore-cr-at-eol suppresses CRLF-only differences (e.g. snapshot files on
+        # Windows) — a file whose diff is empty under this flag is CRLF-only, not real WIP
+        # (TL-approved fix for recurring routeTable.test.ts.snap false-positive, p/331#1175).
+        $diff = Invoke-Git @('-C', $RepoRoot, 'diff', '--ignore-cr-at-eol', 'origin/main', '--', $f)
         if ($diff) { $hasRealDiff = $true; break }
     }
     $result.HasRealDiff = $hasRealDiff
