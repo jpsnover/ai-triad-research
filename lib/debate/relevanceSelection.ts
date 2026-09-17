@@ -27,6 +27,8 @@ import {
   buildRelevanceQuery,
   selectRelevantNodes,
   selectRelevantSituationNodes,
+  excludeWellTestedModeOptions,
+  summarizeTestingSelection,
   type ANClaimEmbedding,
   type RelevanceOptions,
   type ScoredPovNode,
@@ -321,6 +323,8 @@ function buildManifest(
       promotedNodeIds: lb.promotedNodeIds.slice(0, 20),
     };
   }
+  const testingSelection = summarizeTestingSelection(scoredPov);
+  if (testingSelection) manifest.testing_selection = testingSelection;
   return manifest;
 }
 
@@ -340,10 +344,14 @@ export async function selectRelevantTaxonomy(input: SelectRelevantTaxonomyInput)
   const allNodeIds = [...povNodes.map(n => n.id), ...situationNodes.map(n => n.id)];
   const { scores, nodeSourceMap } = await computeScores(session.anClaimEmbeddings, nodeEmbeddings, allNodeIds, params, embed);
 
-  // 3. Selection options (+ lineage boost) and greatest-hits exclusion (pure — list passed in).
+  // 3. Selection options (+ lineage boost) and the exclude-well-tested mode: well-tested exclusion +
+  //    under-tested boost always, plus the curated greatest-hits list when one was passed in (pure).
   const opts = buildOptions(threshold, params, povNodes, session.lineageFrame, lineageMapping);
-  if (session.excludeGreatestHits && session.greatestHitsList && session.greatestHitsList.length > 0) {
-    opts.greatestHitsExclude = new Set(session.greatestHitsList);
+  if (session.excludeGreatestHits) {
+    Object.assign(opts, excludeWellTestedModeOptions());
+    if (session.greatestHitsList && session.greatestHitsList.length > 0) {
+      opts.greatestHitsExclude = new Set(session.greatestHitsList);
+    }
   }
 
   // 4. Order-preserving selection (W3).

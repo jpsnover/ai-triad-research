@@ -8,7 +8,7 @@ import { type ExtendedAIAdapter } from '../aiAdapter.js';
 import { type TaxonomyRef, POVER_INFO, POV_KEYS, type PovKey, type TurnValidation } from '../types.js';
 import { type TaxonomyContext, formatTaxonomyContext, computeInjectionManifest } from '../taxonomyContext.js';
 import { resolveRepoRoot, resolveDataRoot, loadSituationStatements } from '../taxonomyLoader.js';
-import { scoreNodeRelevance, scoreNodesLexical, scoreNodesViaAN, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery, computePolicymakerRelevanceBoost, type RelevanceOptions, type ANClaimEmbedding, type ScoredPovNode, filterByTopicConstraints } from '../taxonomyRelevance.js';
+import { scoreNodeRelevance, scoreNodesLexical, scoreNodesViaAN, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery, computePolicymakerRelevanceBoost, excludeWellTestedModeOptions, summarizeTestingSelection, type RelevanceOptions, type ANClaimEmbedding, type ScoredPovNode, filterByTopicConstraints } from '../taxonomyRelevance.js';
 import { formatRecentTranscript } from '../helpers.js';
 import { loadGreatestHitsFile } from '../corpusCoverage.js';
 import { ActionableError } from '../errors.js';
@@ -276,9 +276,11 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
     };
   }
 
-  // Load greatest-hits exclusion set when enabled (t/1438).
+  // "Exclude well-tested" mode (flag keeps its t/1438 name): hard-exclude well_tested nodes, boost
+  // under-tested ones, and also exclude the curated greatest-hits list.
   // Flag-On + missing file = ActionableError (CL binding condition #1 self-cert).
   if (engine.config.excludeGreatestHits) {
+    Object.assign(relevanceOpts, excludeWellTestedModeOptions());
     const __dir = path.dirname(fileURLToPath(import.meta.url));
     const repoRoot = resolveRepoRoot(__dir);
     const dataRoot = resolveDataRoot(repoRoot);
@@ -301,18 +303,21 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
 
   const scoredPovRaw = selectRelevantNodes(ctx.povNodes, scores, relevanceOpts);
 
-  // Log greatest-hits exclusion (t/1438)
-  const ghResult = (scoredPovRaw as ScoredPovNode[] & { _greatestHits?: { excludedCount: number; excludedNodeIds: string[] } })._greatestHits;
-  if (ghResult && ghResult.excludedCount > 0) {
-    getGlobalRecorder()?.record({
-      type: 'turn.taxonomy_inject', component: 'debate-engine', level: 'info',
-      message: `Greatest-hits exclusion: ${ghResult.excludedCount} nodes pre-filtered`,
-      data: ghResult,
-    });
-  }
-
   const constraintFilter = filterByTopicConstraints(scoredPovRaw, engine.session.topic.scope);
   const scoredPov = constraintFilter.nodes;
+
+  // Log what the exclude-well-tested mode did (t/1438 greatest-hits + well-tested + under-tested boost)
+  const testingSelection = summarizeTestingSelection(scoredPovRaw, scoredPov);
+  if (testingSelection) {
+    const wellTestedSelected = testingSelection.selected_tiers.well_tested ?? 0;
+    getGlobalRecorder()?.record({
+      type: 'turn.taxonomy_inject', component: 'debate-engine',
+      // WARN: the mode was on but well-tested nodes still dominate (re-eligible ones leaking in).
+      level: wellTestedSelected * 2 > scoredPov.length ? 'warn' : 'info',
+      message: `Exclude-well-tested: ${testingSelection.well_tested_excluded} well-tested + ${testingSelection.greatest_hits_excluded} greatest-hits pre-filtered, ${testingSelection.under_tested_promoted} under-tested promoted; ${wellTestedSelected}/${scoredPov.length} selected are well-tested`,
+      data: { ...testingSelection },
+    });
+  }
 
   if (constraintFilter.demoted.length > 0 || constraintFilter.boosted.length > 0) {
     getGlobalRecorder()?.record({
@@ -401,6 +406,7 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
   }));
   engine._lastInjectionManifest = computeInjectionManifest(filteredCtx, pov);
   engine._lastInjectionManifest.scoring_mode = scoringMode;
+  if (testingSelection) engine._lastInjectionManifest.testing_selection = testingSelection;
   engine._lastRelevanceScores = scores;
 
   // Flight recorder: taxonomy injection details

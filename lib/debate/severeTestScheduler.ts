@@ -1,7 +1,9 @@
 import { readFileSync } from 'fs';
 import type { PovNode } from './taxonomyTypes.js';
 import type { NodeTestingRecord } from './debateTested.js';
-import { WELL_TESTED_EXCLUSION } from './debateTested.js';
+import { WELL_TESTED_EXCLUSION, DEFICIT_SCORES } from './debateTested.js';
+
+export { DEFICIT_SCORES };
 
 // ── Importance weights (ticket-spec formula, t/1587) ─────────────────────────
 
@@ -12,14 +14,6 @@ export const IMPORTANCE_WEIGHTS = {
   doctrinal_anchor: 0.20,
   usage: 0.15,
 } as const;
-
-export const DEFICIT_SCORES: Record<string, number> = {
-  untested: 1.0,
-  cited: 0.7,
-  stale: 0.6,
-  contested: 0.4,
-  well_tested: 0.1,
-};
 
 // ── Batch config types ───────────────────────────────────────────────────────
 

@@ -32,6 +32,27 @@ export const WELL_TESTED_EXCLUSION = {
   MAX_TESTS_PER_NODE_PER_CYCLE: 1,
 } as const;
 
+// Testing-deficit weight per tier. Lives here (not severeTestScheduler.ts, which re-exports it)
+// because taxonomyRelevance consumes it for the under-tested boost and must stay fs-free for the
+// Electron renderer.
+export const DEFICIT_SCORES: Record<string, number> = {
+  untested: 1.0,
+  cited: 0.7,
+  stale: 0.6,
+  contested: 0.4,
+  well_tested: 0.1,
+};
+
+// Under-tested selection boost, applied with the well-tested exclusion when a debate runs in
+// "exclude well-tested" mode (`exclude_greatest_hits`). A node of tier untested/cited within
+// NEAR_MISS_WINDOW of the relevance threshold gets MAX_BOOST × DEFICIT_SCORES[tier] added to its
+// score. Mirrors the lineage-boost shape (0.08 increment, 0.06 near-miss gate).
+export const UNDER_TESTED_BOOST = {
+  MAX_BOOST: 0.08,
+  NEAR_MISS_WINDOW: 0.06,
+  BOOSTED_TIERS: ['untested', 'cited'],
+} as const;
+
 export const VERDICT_WEIGHTS: Record<string, number> = {
   held: 1.0,
   refined_held: 1.0,

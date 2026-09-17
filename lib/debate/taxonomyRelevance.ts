@@ -15,6 +15,7 @@ import { filterByExclusionRatio, type ExclusionFilterResult } from './exclusionG
 import { POV_PREFIXES } from './nodeIdUtils.js';
 import { loadProvisionalWeights } from './phaseTransitions.js';
 import { WELL_TESTED_EXCLUSION, isReeligible } from './debateTested.js';
+import { applyUnderTestedBoost, type UnderTestedBoostConfig, type UnderTestedBoostResult } from './wellTestedSelection.js';
 
 export interface NodeRelevanceScore {
   nodeId: string;
@@ -52,7 +53,12 @@ export interface RelevanceOptions {
   greatestHitsExclude?: Set<string>;
   /** Well-tested exclusion lever — downweights or excludes well_tested nodes (Phase 3, t/1587). */
   wellTested?: WellTestedConfig;
+  /** Under-tested boost — lifts near-threshold untested/cited nodes so they win selection slots. */
+  underTestedBoost?: UnderTestedBoostConfig;
 }
+
+export type { UnderTestedBoostConfig, UnderTestedBoostResult, TestingSelectionSummary } from './wellTestedSelection.js';
+export { excludeWellTestedModeOptions, summarizeTestingSelection } from './wellTestedSelection.js';
 
 export interface SituationBranchBoostConfig {
   /** Score boost for nodes in topic-relevant branches (default 0.06). */
@@ -235,6 +241,11 @@ export function selectRelevantNodes(
     _lineageBoostResult = { boostedNodeIds: boostedIds, promotedNodeIds: promotedIds, promotedCount: promotedIds.length };
   }
 
+  // Under-tested boost (exclude-well-tested mode) — see wellTestedSelection.ts.
+  const _underTestedBoostResult: UnderTestedBoostResult | undefined = opts.underTestedBoost
+    ? applyUnderTestedBoost(povNodes, effectiveScores, threshold, opts.underTestedBoost)
+    : undefined;
+
   // Pre-filter set: well-tested hard-excludes (t/1981 leak fix) + greatest-hits (t/1438).
   // Building as a pre-filter ensures excluded nodes can't re-enter via minPerCategory refill
   // or POV-diversity floor (the former score=0 approach had both leak paths).
@@ -378,7 +389,19 @@ export function selectRelevantNodes(
     sliced = maxTotal != null ? result.slice(0, maxTotal) : result;
   }
 
-  // Stash diagnostics on the result array for callers that want it
+  // Apply exclusion ratio filter when embeddings and query vector are provided
+  if (opts.nodeEmbeddings && opts.queryVector) {
+    const nodeIds = sliced.map(s => s.node.id);
+    const exclusionResult = filterByExclusionRatio(nodeIds, opts.queryVector, opts.nodeEmbeddings);
+    if (exclusionResult.demoted.length > 0) {
+      const passedSet = new Set(exclusionResult.passed);
+      sliced = sliced.filter(s => passedSet.has(s.node.id));
+    }
+    (sliced as ScoredPovNode[] & { _exclusionFilter?: ExclusionFilterResult })._exclusionFilter = exclusionResult;
+  }
+
+  // Stash diagnostics on the result array for callers that want it. Done AFTER the exclusion-ratio
+  // filter: its .filter() returns a new array, which previously dropped every stash made before it.
   if (_lineageBoostResult) {
     (sliced as ScoredPovNode[] & { _lineageBoost?: LineageBoostResult })._lineageBoost = _lineageBoostResult;
   }
@@ -391,16 +414,8 @@ export function selectRelevantNodes(
   if (_wellTestedResult) {
     (sliced as ScoredPovNode[] & { _wellTested?: WellTestedExclusionResult })._wellTested = _wellTestedResult;
   }
-
-  // Apply exclusion ratio filter when embeddings and query vector are provided
-  if (opts.nodeEmbeddings && opts.queryVector) {
-    const nodeIds = sliced.map(s => s.node.id);
-    const exclusionResult = filterByExclusionRatio(nodeIds, opts.queryVector, opts.nodeEmbeddings);
-    if (exclusionResult.demoted.length > 0) {
-      const passedSet = new Set(exclusionResult.passed);
-      sliced = sliced.filter(s => passedSet.has(s.node.id));
-    }
-    (sliced as ScoredPovNode[] & { _exclusionFilter?: ExclusionFilterResult })._exclusionFilter = exclusionResult;
+  if (_underTestedBoostResult) {
+    (sliced as ScoredPovNode[] & { _underTestedBoost?: UnderTestedBoostResult })._underTestedBoost = _underTestedBoostResult;
   }
 
   return sliced;

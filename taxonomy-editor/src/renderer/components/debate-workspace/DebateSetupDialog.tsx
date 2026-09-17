@@ -292,7 +292,7 @@ export function DebateSetupDialog({
               </Fragment>
             )}
             <Fragment>
-              <dt className="dsd-setup-dt">Greatest hits</dt>
+              <dt className="dsd-setup-dt">Well-tested nodes</dt>
               <dd className="dsd-setup-dd">{activeDebate.exclude_greatest_hits ? 'excluded' : 'included'}</dd>
             </Fragment>
           </dl>

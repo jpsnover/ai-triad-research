@@ -107,3 +107,37 @@ describe('GroundingPanel (t/1025)', () => {
     expect(screen.queryByText('Contested')).not.toBeInTheDocument();
   });
 });
+
+describe('GroundingPanel — Well-Tested Exclusion box', () => {
+  afterEach(() => {
+    mockAccNode = { id: 'acc-belief-001', label: 'Growth belief' };
+  });
+
+  const citing = (metadata: Record<string, unknown> = {}) => [
+    { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata },
+  ];
+
+  it('is hidden when the debate ran without the exclusion', () => {
+    render(<GroundingPanel debate={debateWith(citing())} />);
+    expect(screen.queryByText('Well-Tested Exclusion')).not.toBeInTheDocument();
+  });
+
+  it('shows manifest pre-filter counts and warns when cited grounding is still mostly well-tested', async () => {
+    mockAccNode = { id: 'acc-belief-001', label: 'Growth belief', graph_attributes: { debate_tested: { tier: 'well_tested' } } };
+    const manifest = { injection_manifest: { povNodeIds: ['acc-belief-001'], testing_selection: { well_tested_excluded: 73, greatest_hits_excluded: 12, under_tested_promoted_ids: ['acc-belief-009'] } } };
+    const debate = { ...debateWith(citing(manifest)), exclude_greatest_hits: true } as DebateSession;
+    render(<GroundingPanel debate={debate} />);
+    expect(screen.getByText('Well-Tested Exclusion')).toBeInTheDocument();
+    expect(screen.getByText('73')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Well-tested nodes still dominate/)).toBeInTheDocument());
+  });
+
+  it('notes a pre-feature debate that has no exclusion diagnostics, without a warning for untested grounding', async () => {
+    const debate = { ...debateWith(citing()), exclude_greatest_hits: true } as DebateSession;
+    render(<GroundingPanel debate={debate} />);
+    expect(screen.getByText(/No exclusion diagnostics recorded/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Growth belief')).toBeInTheDocument());
+    expect(screen.queryByText(/Well-tested nodes still dominate/)).not.toBeInTheDocument();
+  });
+});

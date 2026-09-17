@@ -124,6 +124,27 @@
   margin-top: 2px;
 }
 
+.grounding-exclusion-box {
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.18);
+  font-size: 0.7rem;
+  line-height: 1.6;
+}
+
+.grounding-exclusion-title {
+  font-weight: 700;
+  color: #16a34a;
+  margin-bottom: 4px;
+}
+
+.grounding-exclusion-warning {
+  color: #dc2626;
+  margin-top: 2px;
+}
+
 .grounding-summary {
   font-size: 0.75rem;
   color: var(--text-secondary);
