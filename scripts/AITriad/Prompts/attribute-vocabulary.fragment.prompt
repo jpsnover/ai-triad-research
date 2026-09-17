@@ -1,14 +1,25 @@
+### CONTROLLED VOCABULARY (source of truth: lib/schema/taxonomy-schema.json) ###
+# Emit ONLY these exact values. Comma-separate where a field is multi-valued.
+epistemic_type = empirical_claim | strategic_recommendation | normative_prescription | interpretive_lens | predictive | definitional | causal_mechanism
+node_scope = claim | scheme | bridging | narrow_technical | domain_specific | cross_domain | systemic
+falsifiability = high | medium | low
+emotional_register = cautionary | pragmatic | measured | urgent | alarmed | aspirational | optimistic | defiant | dismissive | assertive | resolute | analytical
+audience = policymakers | technical_researchers | industry_leaders | academic_community | civil_society | general_public | labor_organizations | military_leaders | legal_professionals
+rhetorical_strategy = structural_critique | appeal_to_evidence | precautionary_framing | moral_imperative | cost_benefit_analysis | techno_optimism | credibility_framing | analogical_reasoning | appeal_to_fear | inevitability_framing | appeal_to_authority | appeal_to_justice | appeal_to_sovereignty | rights_based | pragmatic_framing | systemic_critique | reductio_ad_absurdum
+### END CONTROLLED VOCABULARY ###
+
 ATTRIBUTE VOCABULARY:
 
-  epistemic_type (required, string -- pick ONE):
+  epistemic_type (required, string -- pick ONE) (CV):
     "normative_prescription" -- a value judgment or should-statement
     "empirical_claim" -- a factual assertion about the world
     "definitional" -- defines or frames a concept
     "strategic_recommendation" -- proposes a method or course of action
     "predictive" -- forecasts a future state or trend
     "interpretive_lens" -- a framework for understanding other claims
+    "causal_mechanism" -- describes how a cause produces an effect
 
-  rhetorical_strategy (required, string -- pick ONE or TWO, comma-separated):
+  rhetorical_strategy (required, string -- pick ONE or TWO, comma-separated) (CV):
     "structural_critique", "appeal_to_evidence", "precautionary_framing",
     "moral_imperative", "cost_benefit_analysis", "techno_optimism",
     "credibility_framing", "analogical_reasoning", "appeal_to_fear",
@@ -19,20 +30,22 @@ ATTRIBUTE VOCABULARY:
   assumes (required, array of 1-4 strings):
     Key premises that must be true for this node to hold. Be specific and concrete.
 
-  falsifiability (required, string -- pick ONE):
+  falsifiability (required, string -- pick ONE) (CV):
     "high" -- could be clearly disproven by specific evidence or events.
     "medium" -- partially testable but involves value judgments or long time horizons.
     "low" -- primarily a value claim, definitional, or unfalsifiable by nature.
     Category guidance: Beliefs -> usually "high"/"medium", Desires -> usually "low",
     Intentions -> usually "medium". Override when content doesn't match.
 
-  audience (required, string -- pick ONE or TWO, comma-separated):
+  audience (required, string -- pick 1-2 comma-separated) (CV):
     "policymakers", "technical_researchers", "industry_leaders",
-    "general_public", "civil_society", "academic_community"
+    "general_public", "civil_society", "academic_community",
+    "labor_organizations", "military_leaders", "legal_professionals"
 
-  emotional_register (required, string -- pick ONE):
+  emotional_register (required, string -- pick 1-2 comma-separated) (CV):
     "urgent", "measured", "optimistic", "cautionary", "defiant",
-    "pragmatic", "alarmed", "dismissive", "aspirational"
+    "pragmatic", "alarmed", "dismissive", "aspirational",
+    "assertive", "resolute", "analytical"
 
   policy_actions (required, array of 0-3 objects):
     Each: { "policy_id": null, "action": "5-15 word action", "framing": "1-2 sentences" }
@@ -49,7 +62,11 @@ ATTRIBUTE VOCABULARY:
     "confidence": "likely|possible|borderline", "explanation": "1-3 sentences" }
     Empty array is acceptable for well-reasoned nodes. Do not force findings.
 
-  node_scope (required, string -- pick ONE):
+  node_scope (required, string -- pick ONE) (CV):
     "claim" -- a specific, testable assertion. Most Beliefs nodes.
     "scheme" -- an argumentative strategy or reasoning pattern. Most Intentions nodes.
     "bridging" -- connects claims to schemes or values. Use sparingly.
+    "narrow_technical" -- highly specialized; applies only within a narrow technical domain.
+    "domain_specific" -- applies within a recognized field but not broadly transferable.
+    "cross_domain" -- connects or applies across multiple fields.
+    "systemic" -- operates at the level of whole systems, structures, or societal dynamics.
