@@ -33,9 +33,15 @@ function Invoke-BatchSummary {
     .PARAMETER ImportedToday
         Process only documents whose date_ingested matches today's date.
         Useful after importing a batch to summarize just the new documents.
+    .PARAMETER ImportedSince
+        Process only documents whose date_ingested is on or after this date.
+        Useful for summarizing documents imported within a recent window.
     .EXAMPLE
         Invoke-BatchSummary -ImportedToday
         # Summarize only documents imported today.
+    .EXAMPLE
+        Invoke-BatchSummary -ImportedSince (Get-Date).AddDays(-7)
+        # Summarize documents imported in the last 7 days.
     .EXAMPLE
         Invoke-BatchSummary
     .EXAMPLE
@@ -89,6 +95,9 @@ function Invoke-BatchSummary {
 
         [Parameter(HelpMessage = 'Process only documents imported today (date_ingested = today)')]
         [switch]$ImportedToday,
+
+        [Parameter(HelpMessage = 'Process only documents whose date_ingested is on or after this date')]
+        [datetime]$ImportedSince,
 
         [Parameter(HelpMessage = 'Print a per-stage timing trace (embeddings, API calls, merge) at the end. Use with -MaxConcurrent 1 for accurate aggregation.')]
         [switch]$TimingTrace
@@ -196,8 +205,9 @@ function Invoke-BatchSummary {
     if ($DryRun)                { Write-Warn "DRY RUN — no API calls, no file writes" }
     if ($ForceAll)              { Write-Warn "FORCE ALL — every document will be reprocessed" }
     if ($HasDocFilter)          { Write-Info "Doc filter ($($DocIdFilter.Count)): $($DocIdFilter -join ', ')" }
-    if ($SkipConflictDetection) { Write-Info "Conflict detection: skipped" }
-    if ($ImportedToday)         { Write-Info "Filtering to documents imported today" }
+    if ($SkipConflictDetection)                            { Write-Info "Conflict detection: skipped" }
+    if ($ImportedToday)                                    { Write-Info "Filtering to documents imported today" }
+    if ($PSBoundParameters.ContainsKey('ImportedSince'))   { Write-Info "Filtering to documents imported since $($ImportedSince.ToString('yyyy-MM-dd'))" }
 
     # -- STEP 1 — Load the full taxonomy -------------------------------------
     Write-Step "Loading taxonomy"
@@ -297,6 +307,18 @@ function Invoke-BatchSummary {
             $m.date_ingested -eq $TodayDate
         })
         Write-Info "ImportedToday filter: $($AllMetaFiles.Count) documents ingested on $TodayDate"
+    }
+
+    if ($PSBoundParameters.ContainsKey('ImportedSince')) {
+        $SinceDate = $ImportedSince.Date
+        $AllMetaFiles = @($AllMetaFiles | Where-Object {
+            $m = Get-Content $_.FullName -Raw | ConvertFrom-Json
+            if ($null -ne $m.PSObject.Properties['date_ingested'] -and $m.date_ingested) {
+                try { [datetime]::ParseExact($m.date_ingested, 'yyyy-MM-dd', $null) -ge $SinceDate }
+                catch { $false }
+            } else { $false }
+        })
+        Write-Info "ImportedSince filter: $($AllMetaFiles.Count) documents ingested on or after $($SinceDate.ToString('yyyy-MM-dd'))"
     }
 
     if ($AllMetaFiles.Count -eq 0) {
