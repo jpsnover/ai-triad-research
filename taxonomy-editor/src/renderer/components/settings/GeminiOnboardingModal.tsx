@@ -16,9 +16,15 @@ type CloseResult = 'saved' | 'later' | 'permanent-dismiss';
 interface GeminiOnboardingModalProps {
   open: boolean;
   onClose: (result: CloseResult) => void;
+  /** t/3495 epic (admin-managed shared Gemini key): when true, the caller has
+   *  been granted access to the admin's registered Gemini key (t/3500's
+   *  `useGeminiOnboarding` threads this from `UserProfile.geminiAllowlisted`).
+   *  Renders a confirmation in place of the key-entry flow — no input,
+   *  no Save. */
+  geminiAllowlisted?: boolean;
 }
 
-export function GeminiOnboardingModal({ open, onClose }: GeminiOnboardingModalProps) {
+export function GeminiOnboardingModal({ open, onClose, geminiAllowlisted = false }: GeminiOnboardingModalProps) {
   const [key, setKey] = useState('');
   const [state, setState] = useState<ModalState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -26,7 +32,7 @@ export function GeminiOnboardingModal({ open, onClose }: GeminiOnboardingModalPr
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || geminiAllowlisted) return;
     setKey('');
     setState('idle');
     setErrorMsg('');
@@ -46,11 +52,13 @@ export function GeminiOnboardingModal({ open, onClose }: GeminiOnboardingModalPr
         setHasOtherKeys(false);
       });
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, [open]);
+  }, [open, geminiAllowlisted]);
 
   if (!open) return null;
 
-  const headline = hasOtherKeys ? 'Add Gemini for Free-Tier Access' : 'Get Free AI Features';
+  const headline = geminiAllowlisted
+    ? 'Gemini Access Provided'
+    : hasOtherKeys ? 'Add Gemini for Free-Tier Access' : 'Get Free AI Features';
 
   const handleOpenStudio = () => {
     if (isWeb) {
@@ -124,74 +132,96 @@ export function GeminiOnboardingModal({ open, onClose }: GeminiOnboardingModalPr
       >
         <h3 id="gemini-onboarding-title">{headline}</h3>
 
-        <div className="gemini-onboarding-intro">
-          <p className="gemini-onboarding-intro-text">
-            Gemini offers a generous free tier for AI features like debate, chat, and fact-checking.
-            Get your API key in three steps:
-          </p>
-          <ol className="gemini-onboarding-steps">
-            <li>
+        {geminiAllowlisted ? (
+          <>
+            <div className="gemini-onboarding-intro">
+              <p className="gemini-onboarding-intro-text">
+                Your admin has granted you access to run debates with Gemini models using their
+                registered key — no personal API key needed.
+              </p>
+            </div>
+
+            <div className="dialog-actions gemini-onboarding-actions">
               <button
-                className="btn btn-sm gemini-onboarding-studio-btn"
-                onClick={handleOpenStudio}
+                className="btn btn-primary"
+                onClick={() => handleDismiss('permanent-dismiss')}
               >
-                Open Google AI Studio
+                Continue
               </button>
-            </li>
-            <li>Click <strong>"Create API Key"</strong> and copy the key</li>
-            <li>Paste the key below and click Save</li>
-          </ol>
-        </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="gemini-onboarding-intro">
+              <p className="gemini-onboarding-intro-text">
+                Gemini offers a generous free tier for AI features like debate, chat, and fact-checking.
+                Get your API key in three steps:
+              </p>
+              <ol className="gemini-onboarding-steps">
+                <li>
+                  <button
+                    className="btn btn-sm gemini-onboarding-studio-btn"
+                    onClick={handleOpenStudio}
+                  >
+                    Open Google AI Studio
+                  </button>
+                </li>
+                <li>Click <strong>"Create API Key"</strong> and copy the key</li>
+                <li>Paste the key below and click Save</li>
+              </ol>
+            </div>
 
-        <div className="form-group">
-          <label htmlFor="gemini-key-input">API Key</label>
-          <input
-            id="gemini-key-input"
-            ref={inputRef}
-            type="password"
-            value={key}
-            onChange={(e) => { setKey(e.target.value); if (state === 'error') setState('idle'); }}
-            placeholder="AIza..."
-            disabled={state === 'validating' || state === 'success'}
-            autoComplete="off"
-          />
-        </div>
+            <div className="form-group">
+              <label htmlFor="gemini-key-input">API Key</label>
+              <input
+                id="gemini-key-input"
+                ref={inputRef}
+                type="password"
+                value={key}
+                onChange={(e) => { setKey(e.target.value); if (state === 'error') setState('idle'); }}
+                placeholder="AIza..."
+                disabled={state === 'validating' || state === 'success'}
+                autoComplete="off"
+              />
+            </div>
 
-        {state === 'error' && (
-          <div className="error-text gemini-onboarding-error">
-            {errorMsg}
-          </div>
+            {state === 'error' && (
+              <div className="error-text gemini-onboarding-error">
+                {errorMsg}
+              </div>
+            )}
+
+            {state === 'success' && (
+              <div className="gemini-onboarding-success">
+                &#10003; Key saved!
+              </div>
+            )}
+
+            <div className="dialog-actions gemini-onboarding-actions">
+              <button
+                className="btn gemini-onboarding-dismiss-btn"
+                onClick={() => handleDismiss('permanent-dismiss')}
+                disabled={state === 'validating' || state === 'success'}
+              >
+                I use a different AI
+              </button>
+              <button
+                className="btn"
+                onClick={() => handleDismiss('later')}
+                disabled={state === 'validating' || state === 'success'}
+              >
+                I'll do this later
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={!key.trim() || state === 'validating' || state === 'success'}
+              >
+                {state === 'validating' ? 'Validating...' : 'Save'}
+              </button>
+            </div>
+          </>
         )}
-
-        {state === 'success' && (
-          <div className="gemini-onboarding-success">
-            &#10003; Key saved!
-          </div>
-        )}
-
-        <div className="dialog-actions gemini-onboarding-actions">
-          <button
-            className="btn gemini-onboarding-dismiss-btn"
-            onClick={() => handleDismiss('permanent-dismiss')}
-            disabled={state === 'validating' || state === 'success'}
-          >
-            I use a different AI
-          </button>
-          <button
-            className="btn"
-            onClick={() => handleDismiss('later')}
-            disabled={state === 'validating' || state === 'success'}
-          >
-            I'll do this later
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={handleSave}
-            disabled={!key.trim() || state === 'validating' || state === 'success'}
-          >
-            {state === 'validating' ? 'Validating...' : 'Save'}
-          </button>
-        </div>
       </div>
     </div>
   );
