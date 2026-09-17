@@ -64,6 +64,10 @@ vi.mock('../security/accessControl.js', () => ({
 }));
 
 vi.mock('../config.js', () => ({ hasApiKey: async () => true, getPaidGeminiFallbackKey: async () => null }));
+// t/3498: /api/ai/generate now consults the allowlist store when no explicit
+// key is present + backend is gemini (both true in this fixture) — mock it
+// out so this pre-existing integration test doesn't load the real module.
+vi.mock('../storage/allowlistStore.js', () => ({ isAllowlisted: () => false }));
 vi.mock('../logger.js', () => ({ log: { server: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }, getRequestContext: () => null, getRequestId: () => 'test-req-id' }));
 vi.mock('../../../../lib/ai-client/index.js', () => ({ DEFAULT_MODEL: 'gemini-flash' }));
 vi.mock('../storage/fileIO.js', () => ({}));

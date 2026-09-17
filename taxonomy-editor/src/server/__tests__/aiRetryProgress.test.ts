@@ -70,6 +70,13 @@ vi.mock('../config.js', () => ({
   getPaidGeminiFallbackKey: vi.fn(async () => null),
 }));
 
+// t/3498: /api/ai/generate now consults the allowlist store when no explicit
+// key is present + backend is gemini (both true in this test's fixture) —
+// mock it out so this pre-existing suite doesn't load the real module.
+vi.mock('../storage/allowlistStore.js', () => ({
+  isAllowlisted: vi.fn(() => false),
+}));
+
 vi.mock('../logger.js', () => ({
   log: { server: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } },
   getRequestContext: vi.fn(() => null),

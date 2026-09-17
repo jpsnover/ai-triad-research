@@ -33,6 +33,8 @@ import * as supportStore from '../support/supportStore.js';
 import { isCaseStatus } from '../support/types.js';
 import { FEEDBACK_CATEGORIES, isFeedbackCategory, paginateFeedback } from '../storage/feedbackStore.js';
 import { backfillOwnOpedShares } from '../storage/opedShareStore.js';
+import * as allowlistStore from '../storage/allowlistStore.js';
+import type { AllowlistEntry, AdminAllowlistResponse } from '../../../../lib/allowlist/types.js';
 
 // Small server.ts helpers the moved admin handlers call. server.ts keeps its own
 // copies (used by the staying support-user endpoints / key-masking); duplicated
@@ -105,6 +107,59 @@ export function registerAdminRoutes(r: Router, ctx: ServerCtx): void {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'server', level: 'error',
         message: 'Own op-ed share backfill failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  // t/3498 (t/3495 epic — admin-managed shared Gemini key): admin CRUD for the
+  // allowlist gating access to the admin's registered paid Gemini key. `userId`
+  // is the authoritative membership key (SO cond 4, t/3495#2) — accepted
+  // directly from the caller (TL t/3498#2/#4: server-side email→userId
+  // derivation is wrong for GitHub principals, whose derived id doesn't match
+  // their email in any way). `email` is audit-display only.
+  get('/api/admin/allowlist', (_req, res) => {
+    if (!requireAdmin(res)) return;
+    try {
+      const response: AdminAllowlistResponse = { entries: allowlistStore.getEntries() };
+      json(res, response);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'error', message: 'Failed to list admin allowlist',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  post('/api/admin/allowlist', async (_req, res, body) => {
+    if (!requireAdmin(res)) return;
+    try {
+      const { userId, email } = (body ?? {}) as { userId?: string; email?: string };
+      if (!userId || typeof userId !== 'string') { error(res, 'userId is required', 400); return; }
+      if (!email || typeof email !== 'string') { error(res, 'email is required', 400); return; }
+      const entry: AllowlistEntry = { userId, email, addedAt: new Date().toISOString() };
+      await allowlistStore.addEntry(entry);
+      json(res, entry);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'error', message: 'Failed to add admin allowlist entry',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  del('/api/admin/allowlist/:userId', async (req, res) => {
+    if (!requireAdmin(res)) return;
+    try {
+      const userId = param(req, 'userId', '/api/admin/allowlist/:userId');
+      await allowlistStore.removeEntry(userId);
+      json(res, { ok: true });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'server', level: 'error', message: 'Failed to remove admin allowlist entry',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       error(res, String(err), 500, err);

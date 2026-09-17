@@ -19,7 +19,8 @@ import type { ServerCtx } from './context.js';
 import { json, error, param, getClientIp, withEndpointTimeout } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { callerTierIdentity, missingApiKeyError, expiredAuthCookies } from '../security/accessControl.js';
-import { getCurrentUser, getCurrentUserId } from '../security/userContext.js';
+import { getCurrentUser, getCurrentUserId, getStorageUserId } from '../security/userContext.js';
+import * as allowlistStore from '../storage/allowlistStore.js';
 import type { GenerateTextProgress } from '../ai/aiBackends.js';
 import { log, getRequestContext, getRequestId } from '../logger.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
@@ -416,7 +417,27 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       // → server-side keys; BYOK → client key, with a free-tier Gemini fallback (t/945).
       const keyResult = resolveExplicitAiKey(res, tier, clientKey, backend);
       if (!keyResult.ok) return;
-      const explicitKey = keyResult.key;
+      let explicitKey = keyResult.key;
+
+      // t/3498 (t/3495 epic): an allowlisted user running Gemini with no personal
+      // key gets the admin's registered paid key injected server-side — never
+      // echoed to the client. Membership is keyed on the derived storage userId
+      // (SO cond 4, t/3495#2) — the same id `/api/user/profile` exposes as
+      // `userId` and t/3497's allowlistStore expects. Falls through to the
+      // existing 422 below if the admin hasn't registered a key yet — no
+      // special-cased error for that edge (t/3498#1).
+      const noExplicitKey = !explicitKey || (Array.isArray(explicitKey) && explicitKey.length === 0);
+      if (backend === 'gemini' && noExplicitKey && allowlistStore.isAllowlisted(getStorageUserId())) {
+        const allowlistKey = await getPaidGeminiFallbackKey();
+        if (allowlistKey) {
+          explicitKey = allowlistKey;
+          // SO-required audit event (financial accountability + forensic trail, e/169#3).
+          log.server.info(
+            { userId: getStorageUserId(), timestamp: new Date().toISOString(), model: effectiveModel ?? DEFAULT_MODEL },
+            'allowlist-key-used',
+          );
+        }
+      }
 
       // t/896: fail fast with a clear 422 when there's no usable key for the target
       // backend — before the request reaches the AI adapter (opaque upstream 401/403).
