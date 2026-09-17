@@ -233,7 +233,7 @@ describe('extractPromptVocab — live analysis.ts round-trip (t/3505)', () => {
     expect(Object.keys(ex.attributes ?? {}).sort()).toEqual([
       'audience', 'emotional_register', 'epistemic_type', 'falsifiability', 'node_scope', 'rhetorical_strategy',
     ]);
-    expect(ex.attributes?.rhetorical_strategy?.values).toHaveLength(16);
+    expect(ex.attributes?.rhetorical_strategy?.values).toHaveLength(17);
     expect(ex.attributes?.rhetorical_strategy?.values).toContain('appeal_to_evidence');
     expect(ex.attributes?.rhetorical_strategy?.values).toContain('structural_critique');
     // No type emitted — block declares values only (t/3467 context: no spurious type_mismatch).
