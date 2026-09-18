@@ -74,6 +74,7 @@ import type { TurnPipelineInput } from './turnPipeline.js';
 import type { GenerateOptions } from './aiAdapter.js';
 import { validateTurn, resolveTurnValidationConfig } from './turnValidator.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { applyEngineFloor, checkModeratorDormancy, recordEnginePin } from './moderatorEngineTriggers.js';
 import { resolveBackend } from '../ai-client/registry.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
 import { runPropositionalGate } from './revoiceGate.js';
@@ -752,9 +753,19 @@ export async function runModeratorSelection(
         };
       }
 
+      // ── Engine floor + dormancy check (t/3513) — see moderatorEngineTriggers.ts ──
+      selectionResultObj = applyEngineFloor(selectionResultObj, {
+        round, phase, moderatorMode, dialecticalStyle: input.dialecticalStyle,
+        responder: selectionResultObj.responder ?? activePovers[0],
+        convergenceSignals: convergenceSignals ?? [], unansweredLedger: unansweredLedger ?? [],
+        modState, labelOf: id => poverInfo[id]?.label ?? id,
+      });
+      checkModeratorDormancy(modState, phase);
+
       // ── Engine validation (deterministic) ──
       if (selectionResultObj.intervene) {
         engineValidation = validateRecommendation(selectionResultObj as SelectionResult, modState);
+        if (engineValidation.proceed) recordEnginePin(selectionResultObj, modState);
 
         if (engineValidation.proceed) {
           try {
