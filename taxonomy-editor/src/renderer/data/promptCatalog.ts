@@ -54,6 +54,7 @@ import {
   citeRetryPrompt,
   draftQualityCheckPrompt,
   decomposeResolutionPrompt,
+  narrativeVoicingPrompt,
 } from '@lib/debate/prompts';
 import { critiqueTopicPrompt } from '@lib/debate/topicCritique';
 
@@ -1252,6 +1253,19 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     purpose: 'Pre-generation step. Reads {{SOURCE_MATERIAL}} and returns a structured JSON brief (key claims, evidence, positions) that grounds the subsequent op-ed. Returns JSON.',
     applicableDataSources: ['sourceDocument'],
     promptFiles: ['op-ed-source-brief'],
+  },
+
+  // === Opening narrative voicing (h3) ===
+  {
+    id: 'debate-narrative-voicing',
+    title: 'Moderator: Opening Narrative Voicing',
+    description: 'Before the openings, the moderator retells each camp\'s story (what it fears losing, what history it carries) without judgment.',
+    source: 'lib/debate/prompts/narrative.ts',
+    template: narrativeVoicingPrompt('{topic}', [{ pov: '{pov}', label: '{label}', context: '{taxonomy_context}' }]),
+    group: 'moderator',
+    purpose: 'Fires once before the opening statements when "Moderator voices each camp\'s story" is on. The voicing is shown in the transcript, injected into each debater\'s opening brief and draft (where the debater affirms or amends its own camp\'s account), and embedded as each camp\'s drift reference. Hidden from the neutral evaluator and claim extraction.',
+    phase: 'opening',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes'],
   },
 
   // === Debate turn pipeline (non-opening stages) + analytical builders (t/2834 / CL EXPOSE t/2835#1) ===

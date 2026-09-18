@@ -171,6 +171,7 @@ import { setupDoctrinalAnchoring } from './debateEngine/doctrinal.js';
 import { seedExplorationSummary, applyExplorationConfigDefaults } from './debateEngine/explorationSeeding.js';
 import { runDocumentAnalysis } from './debateEngine/phases/documentPreAnalysis.js';
 import { runOpeningStatements } from './debateEngine/phases/opening.js';
+import { runNarrativeVoicing, finalizeNarrativeReference } from './debateEngine/phases/narrativeVoicing.js';
 import { runFixedCrossRespond, runAdaptiveCrossRespond } from './debateEngine/phases/crossRespond.js';
 import { _rescoreSituations } from './debateEngine/adaptiveStaging.js';
 export { modelTierRank } from './debateEngine/modelResolution.js';
@@ -512,8 +513,12 @@ export class DebateEngine {
         await runDocumentAnalysis(this._internal);
       }
 
+      // Phase 1.9: Moderator voices each camp's story before any argument (h3, flag-gated)
+      await runNarrativeVoicing(this._internal);
+
       // Phase 2: Opening statements
       await runOpeningStatements(this._internal);
+      await finalizeNarrativeReference(this._internal);
 
       // Cache opening embeddings for position drift detection
       await this._claimPipeline.cacheOpeningEmbeddings();
@@ -981,6 +986,7 @@ export class DebateEngine {
       model_tier: this.config.modelTier,
       protocol_id: this.config.protocolId ?? 'structured',
       ...(this.config.excludeGreatestHits ? { exclude_greatest_hits: true } : {}),
+      ...(this.config.narrativeVoicing ? { narrative_voicing_enabled: true } : {}),
       diagnostics: {
         enabled: true,
         entries: {},

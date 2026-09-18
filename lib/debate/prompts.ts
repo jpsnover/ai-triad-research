@@ -23,6 +23,7 @@ export * from './prompts/synthesis.js';
 export * from './prompts/reflection.js';
 export * from './prompts/moderator.js';
 export * from './prompts/topic-crux.js';
+export * from './prompts/narrative.js';
 
 // Aliased re-exports for envelope builders (lib/debate/envelopes.ts).
 // Preserves the underscore-prefixed public names the original module exposed.

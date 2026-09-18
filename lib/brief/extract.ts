@@ -56,6 +56,8 @@ const STRIP_LIST = new Set([
   // Explicitly stripped so a community-copied debate doesn't emit misleading
   // "unmapped field" warnings (which misdirected the t/2883 diagnosis).
   'community_metadata', 'copied_from_community',
+  // h3 opening narrative voicing: experiment config + drift reference, not deck content.
+  'narrative_voicing_enabled', 'narrative_voicing',
 ]);
 
 const KNOWN_FIELDS = new Set([...MAPPED_FIELDS, ...STRIP_LIST]);

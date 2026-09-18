@@ -60,6 +60,8 @@ export interface OpeningPipelineInput {
   briefTimeoutMs?: number;
   /** Max brief-stage timeout retries. Default: 3. */
   briefMaxRetries?: number;
+  /** Moderator's narrative voicing of each camp (h3), pre-formatted by narrativeVoicingDebaterBlock. */
+  narrativeVoicing?: string;
 }
 
 export async function runOpeningPipeline(
@@ -89,6 +91,7 @@ export async function runOpeningPipeline(
     documentAnalysis: input.documentAnalysis,
     audience: input.audience,
     userSeedClaims: input.userSeedClaims,
+    narrativeVoicing: input.narrativeVoicing,
   };
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();

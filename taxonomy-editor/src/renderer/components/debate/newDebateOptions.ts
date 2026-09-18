@@ -16,6 +16,7 @@ export type CreateDebateOptions = {
   stageModels?: { brief?: string; plan?: string; cite?: string };
   background?: string;
   excludeGreatestHits?: boolean;
+  narrativeVoicing?: boolean;
 };
 
 /** Map the setup form's raw field values into the createDebate options object. Pure. */
@@ -31,6 +32,7 @@ export function buildDebateOptions(p: {
   modelTier: 'basic' | 'advanced';
   stepMode: boolean;
   excludeGreatestHits: boolean;
+  narrativeVoicing: boolean;
   stageModels: { brief: string; plan: string; cite: string };
 }): CreateDebateOptions {
   return {
@@ -47,6 +49,7 @@ export function buildDebateOptions(p: {
     modelTier: p.multiProvider ? p.modelTier : undefined,
     stepMode: p.stepMode || undefined,
     excludeGreatestHits: p.excludeGreatestHits || undefined,
+    narrativeVoicing: p.narrativeVoicing || undefined,
     stageModels: (p.stageModels.brief || p.stageModels.plan || p.stageModels.cite)
       ? { ...(p.stageModels.brief && { brief: p.stageModels.brief }), ...(p.stageModels.plan && { plan: p.stageModels.plan }), ...(p.stageModels.cite && { cite: p.stageModels.cite }) }
       : undefined,

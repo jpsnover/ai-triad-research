@@ -47,6 +47,7 @@ import {
 import { injectPerturbation } from '../perturbation.js';
 import { shouldTriggerDiversityRound, runDiversityRound } from './diversityInjection.js';
 import { runProbingQuestions } from './probingQuestions.js';
+import { updateNarrativeSimilarity } from './narrativeVoicing.js';
 import { retrieveTalmudicReference, formatTalmudicSourceDirective, validateTalmudicReferenceResponse } from '../../talmudicReferences.js';
 import type { TalmudicReferenceSelection } from '../../types.js';
 
@@ -1066,6 +1067,9 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
       getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'Frame similarity series update failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     }
   }
+
+  // h3: similarity of this turn to the speaker's own camp narrative (drift from the opening baseline)
+  await updateNarrativeSimilarity(engine, entry);
 
   // Accumulate context manifest for taxonomy gap analysis
   accumulateContextManifest(engine, round, responder, info.pov, taxonomyRefs.map(r => r.node_id));

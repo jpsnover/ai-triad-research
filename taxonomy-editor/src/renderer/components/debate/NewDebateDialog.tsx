@@ -23,6 +23,7 @@ import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
 import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { buildDebateOptions } from './newDebateOptions';
+import { SettingsToggleRow } from './SettingsToggleRow';
 
 const DEBATE_EXCLUDED_BACKENDS = new Set(['ollama']); // can't reliably produce structured JSON for debates — capability gap, not an oversight
 
@@ -295,6 +296,7 @@ interface SettingsApply {
   multiProvider: boolean;
   excludedBackends: Set<string>;
   excludeGreatestHits: boolean;
+  narrativeVoicing: boolean;
   useCustomModel: boolean;
   customModel: string;
   titleOverride: string;
@@ -315,6 +317,7 @@ interface DebateSettingsProps {
   argumentationRounds: number;
   concludingRounds: number;
   stepMode: boolean;
+  narrativeVoicing: boolean;
   // Model & providers
   modelTier: 'basic' | 'advanced';
   multiProvider: boolean;
@@ -341,7 +344,7 @@ function sectionHasDiff(
   s: {
     protocolId: string; dialecticalStyle: DialecticalStyle;
     confrontationRounds: number; argumentationRounds: number; concludingRounds: number;
-    stepMode: boolean; modelTier: 'basic' | 'advanced';
+    stepMode: boolean; narrativeVoicing: boolean; modelTier: 'basic' | 'advanced';
     multiProvider: boolean; useCustomModel: boolean;
     selected: Set<SpeakerId>; userIsPover: boolean; audience: DebateAudience;
     excludeGreatestHits: boolean;
@@ -353,7 +356,7 @@ function sectionHasDiff(
     case 'format':
       return s.protocolId !== p.protocolId || s.dialecticalStyle !== p.dialecticalStyle ||
         s.confrontationRounds !== p.confrontationRounds || s.argumentationRounds !== p.argumentationRounds ||
-        s.concludingRounds !== p.concludingRounds || s.stepMode !== p.stepMode;
+        s.concludingRounds !== p.concludingRounds || s.stepMode !== p.stepMode || s.narrativeVoicing;
     case 'voices':
       return s.selected.size !== AI_POVERS.length ||
         AI_POVERS.some(id => !s.selected.has(id)) || s.userIsPover ||
@@ -407,6 +410,7 @@ function DebateSettingsDialog({
   argumentationRounds: initArgumentationRounds,
   concludingRounds: initConcludingRounds,
   stepMode: initStepMode,
+  narrativeVoicing: initNarrativeVoicing,
   modelTier: initModelTier,
   multiProvider: initMultiProvider,
   excludedBackends: initExcludedBackends,
@@ -434,6 +438,7 @@ function DebateSettingsDialog({
   const [localArgumentation, setLocalArgumentation] = useState(initArgumentationRounds);
   const [localConcluding, setLocalConcluding] = useState(initConcludingRounds);
   const [localStepMode, setLocalStepMode] = useState(initStepMode);
+  const [localNarrativeVoicing, setLocalNarrativeVoicing] = useState(initNarrativeVoicing);
   // Model
   const [localModelTier, setLocalModelTier] = useState(initModelTier);
   const [localMultiProvider, setLocalMultiProvider] = useState(initMultiProvider);
@@ -471,7 +476,7 @@ function DebateSettingsDialog({
   const currentSettings = useMemo<Parameters<typeof sectionHasDiff>[2]>(() => ({
     protocolId: localProtocolId, dialecticalStyle: localStyle,
     confrontationRounds: localConfrontation, argumentationRounds: localArgumentation,
-    concludingRounds: localConcluding, stepMode: localStepMode,
+    concludingRounds: localConcluding, stepMode: localStepMode, narrativeVoicing: localNarrativeVoicing,
     modelTier: localModelTier, multiProvider: localMultiProvider,
     useCustomModel: localUseCustomModel, selected: localSelected,
     userIsPover: localUserIsPover, audience: localAudience,
@@ -479,7 +484,7 @@ function DebateSettingsDialog({
     titleOverride: localTitleOverride, background: localBackground,
   }), [
     localProtocolId, localStyle, localConfrontation, localArgumentation, localConcluding,
-    localStepMode, localModelTier, localMultiProvider, localUseCustomModel, localSelected,
+    localStepMode, localNarrativeVoicing, localModelTier, localMultiProvider, localUseCustomModel, localSelected,
     localUserIsPover, localAudience, localExcludeGreatestHits, localTitleOverride, localBackground,
   ]);
 
@@ -503,7 +508,7 @@ function DebateSettingsDialog({
     selected: localSelected, userIsPover: localUserIsPover, audience: localAudience,
     protocolId: localProtocolId, dialecticalStyle: localStyle,
     confrontationRounds: localConfrontation, argumentationRounds: localArgumentation,
-    concludingRounds: localConcluding, stepMode: localStepMode,
+    concludingRounds: localConcluding, stepMode: localStepMode, narrativeVoicing: localNarrativeVoicing,
     modelTier: localModelTier, multiProvider: localMultiProvider,
     excludedBackends: localExcludedBackends,
     useCustomModel: localUseCustomModel, customModel: localCustomModel,
@@ -522,6 +527,7 @@ function DebateSettingsDialog({
     setLocalArgumentation(p.argumentationRounds);
     setLocalConcluding(p.concludingRounds);
     setLocalStepMode(p.stepMode);
+    setLocalNarrativeVoicing(false);
     setLocalModelTier(p.modelTier);
     setLocalMultiProvider(false);
     setLocalExcludedBackends(new Set());
@@ -648,17 +654,11 @@ function DebateSettingsDialog({
                   </div>
                 </div>
 
-                <label className="ndd-settings-toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={localStepMode}
-                    onChange={e => setLocalStepMode(e.target.checked)}
-                  />
-                  <div>
-                    <span className="ndd-toggle-name">Pause between phases</span>
-                    <span className="ndd-step-help">Wait for your input before each new debate phase</span>
-                  </div>
-                </label>
+                <SettingsToggleRow checked={localStepMode} onChange={setLocalStepMode}
+                  name="Pause between phases" help="Wait for your input before each new debate phase" />
+                <SettingsToggleRow checked={localNarrativeVoicing} onChange={setLocalNarrativeVoicing}
+                  name="Moderator voices each camp's story"
+                  help="Before the openings, the moderator retells what each camp fears losing and what history it carries. Experimental." />
               </>
             )}
 
@@ -836,17 +836,9 @@ function DebateSettingsDialog({
             {activeSection === 'sourcing' && (
               <>
                 <h3 className="ndd-settings-section-title">Argument sourcing</h3>
-                <label className="ndd-settings-toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={localExcludeGreatestHits}
-                    onChange={e => setLocalExcludeGreatestHits(e.target.checked)}
-                  />
-                  <div>
-                    <span className="ndd-toggle-name">Exclude well-tested nodes</span>
-                    <span className="ndd-step-help">Skip well-tested taxonomy nodes and the curated greatest-hits list, and favor untested or only-cited nodes, so the debate stress-tests under-examined arguments</span>
-                  </div>
-                </label>
+                <SettingsToggleRow checked={localExcludeGreatestHits} onChange={setLocalExcludeGreatestHits}
+                  name="Exclude well-tested nodes"
+                  help="Skip well-tested taxonomy nodes and the curated greatest-hits list, and favor untested or only-cited nodes, so the debate stress-tests under-examined arguments" />
               </>
             )}
 
@@ -950,6 +942,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
   const [multiProvider, setMultiProvider] = useState(false);
   const [excludedBackends, setExcludedBackends] = useState<Set<string>>(new Set());
   const [excludeGreatestHits, setExcludeGreatestHits] = useState(false);
+  const [narrativeVoicing, setNarrativeVoicing] = useState(false);
   const [stageModels] = useState<{ brief: string; plan: string; cite: string }>({ brief: '', plan: '', cite: '' });
   const [titleOverride, setTitleOverride] = useState('');
 
@@ -1100,6 +1093,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
     setArgumentationRounds(changes.argumentationRounds);
     setConcludingRounds(changes.concludingRounds);
     setStepMode(changes.stepMode);
+    setNarrativeVoicing(changes.narrativeVoicing);
     setModelTier(changes.modelTier);
     setMultiProvider(changes.multiProvider);
     setExcludedBackends(changes.excludedBackends);
@@ -1173,7 +1167,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
       const id = await createDebate(
         finalTopic, povers, userIsPover, sourceTypeArg, sourceRefArg, contentArg,
         debateModelOverride, protocolId, temperature, audience,
-        buildDebateOptions({ debateTitle: titleOverride, background, evaluatorModel, confrontationRounds, argumentationRounds, concludingRounds, speakerModels, multiProvider, modelTier, stepMode, excludeGreatestHits, stageModels }),
+        buildDebateOptions({ debateTitle: titleOverride, background, evaluatorModel, confrontationRounds, argumentationRounds, concludingRounds, speakerModels, multiProvider, modelTier, stepMode, excludeGreatestHits, narrativeVoicing, stageModels }),
       );
       await loadDebate(id);
       const creationWeights = buildCreationWeights(confrontationRounds, argumentationRounds, concludingRounds);
@@ -1483,6 +1477,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
           backendsWithKeys={backendsWithKeys}
           hasApiKey={hasApiKey}
           excludeGreatestHits={excludeGreatestHits}
+          narrativeVoicing={narrativeVoicing}
           titleOverride={titleOverride}
           background={background}
           onApply={handleSettingsApply}
