@@ -13,6 +13,20 @@ import { fuzzyCorrectNodeId } from '../nodeIdUtils.js';
 import { disambiguateTerms } from '../vocabularyDisambiguation.js';
 import type { CampOrigin } from '../../dictionary/types.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
+import { normalizeSteelmanTarget } from '../steelman.js';
+
+/** Normalize an extracted steelman_of to a camp id (t/3514); log what gets dropped and why. */
+function normalizeClaimSteelmanTarget(raw: string | null | undefined, speaker: string, nodeId: string): string | undefined {
+  const { target, rejected } = normalizeSteelmanTarget(raw, speaker);
+  if (rejected) {
+    getGlobalRecorder()?.record({
+      type: 'an.extract', component: 'argument-network', level: 'warn',
+      message: `Dropped steelman_of "${raw}" on ${nodeId}: ${rejected === 'self_steelman' ? 'a debater cannot steelman themselves' : 'not a camp'}`,
+      data: { node_id: nodeId, raw, speaker, reason: rejected },
+    });
+  }
+  return target ?? undefined;
+}
 import {
   BELIEF_SPECIFICITY_MAP,
   beliefVerificationToStrength,
@@ -226,7 +240,7 @@ export async function processExtractedClaims(
       bdi_confidence: bdiConfidenceMap[claim.bdi_category ?? ''] ?? 0.5,
       bdi_category: claim.bdi_category as ArgumentNetworkNode['bdi_category'],
       specificity: claim.specificity as ArgumentNetworkNode['specificity'],
-      steelman_of: claim.steelman_of || undefined,
+      steelman_of: normalizeClaimSteelmanTarget(claim.steelman_of, String(speaker), nodeId),
       extraction_confidence: overlapToExtractionConfidence(overlap),
     };
 

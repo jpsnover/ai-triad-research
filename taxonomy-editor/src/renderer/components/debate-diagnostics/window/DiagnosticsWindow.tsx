@@ -23,6 +23,7 @@ import type { OverviewTab } from './types';
 import type { DebateSession } from '../../../types/debate';
 import { useRef, type RefObject } from 'react';
 import { LoadingProgress } from '../../shared/LoadingProgress';
+import { steelmanCount } from '../../shared/Steelman';
 import './DiagnosticsWindow.css';
 
 // ---------------------------------------------------------------------------
@@ -249,6 +250,7 @@ function buildDebateSection(debate: DebateSession, hasAn: boolean, hasCommitment
     { id: 'argument-network', label: 'Arg Net', visible: hasAn },
     { id: 'arg-strength', label: 'Arg Strength', visible: hasAn },
     { id: 'commitments', label: 'Commitments', visible: hasCommitments },
+    { id: 'steelmans', label: `Steelmans (${steelmanCount(debate)})`, visible: steelmanCount(debate) > 0 },
     { id: 'transcript', label: `Transcript (${debate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length} stmts / ${debate.transcript.length} total)`, visible: true },
     { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
     { id: 'gaps', label: 'Gaps', visible: !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)) },

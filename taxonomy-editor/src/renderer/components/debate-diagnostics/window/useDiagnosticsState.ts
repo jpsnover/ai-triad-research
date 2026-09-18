@@ -14,6 +14,7 @@ import type { OverviewTab, EntryTab, UtilitySnapshot } from './types';
 import { UTILITY_WEIGHTS } from './types';
 import { parseHashParams } from '../../../lib/parseHash';
 import { usePopoutTheme } from '../../../hooks/usePopoutTheme';
+import { steelmanCount } from '../../shared/Steelman';
 
 function countMatchesInValue(value: unknown, term: string): number {
   if (typeof value === 'string') return countMatches(value, term);
@@ -145,7 +146,7 @@ function applyDeepLinkTab(params: URLSearchParams, setEntryTab: (t: EntryTab) =>
 function applyDeepLinkOverview(params: URLSearchParams, entryParam: string | null, setOverviewTab: (t: OverviewTab) => void): void {
   const overviewParam = params.get('overviewTab');
   if (overviewParam && !entryParam) {
-    const VALID_OVERVIEW_TABS: string[] = ['topic-scope', 'extraction', 'argument-network', 'commitments', 'transcript', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview', 'emotional-register'];
+    const VALID_OVERVIEW_TABS: string[] = ['topic-scope', 'extraction', 'argument-network', 'commitments', 'steelmans', 'transcript', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview', 'emotional-register'];
     if (VALID_OVERVIEW_TABS.includes(overviewParam)) {
       setOverviewTab(overviewParam as OverviewTab);
     }
@@ -264,6 +265,7 @@ function isOverviewTabVisible(
   if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
   if (id === 'convergence') return !!(debate.convergence_signals && debate.convergence_signals.length > 0);
   if (id === 'reflections') return debate.transcript.some(e => e.type === 'reflection');
+  if (id === 'steelmans') return steelmanCount(debate) > 0;
   if (id === 'gaps') return hasGaps(debate);
   if (id === 'grounding') return debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0);
   return true;
@@ -277,7 +279,7 @@ function handleTabNav(dir: number, ctx: KeydownCtx): void {
     const next = idx + dir;
     if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
   } else if (debate) {
-    const OVERVIEW_TABS: OverviewTab[] = ['topic-scope', 'argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview', 'emotional-register'];
+    const OVERVIEW_TABS: OverviewTab[] = ['topic-scope', 'argument-network', 'commitments', 'steelmans', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview', 'emotional-register'];
     const visible = OVERVIEW_TABS.filter(id => isOverviewTabVisible(id, debate, an, commitments));
     const idx = visible.indexOf(overviewTab);
     const next = idx + dir;
@@ -586,6 +588,7 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
       'extraction': true,
       'convergence': !!(debate.convergence_signals && debate.convergence_signals.length > 0),
       'reflections': debate.transcript.some(e => e.type === 'reflection'),
+      'steelmans': steelmanCount(debate) > 0,
       'gaps': !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)),
       'grounding': debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0),
       'lineage': !!(debate.topic.critique?.lineage_frame && debate.topic.critique.lineage_frame.length > 0),

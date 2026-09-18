@@ -64,8 +64,11 @@ export interface ArgumentNetworkNode {
   embedding?: number[];
   /** Embedding computed from attribution_text_genus (genus-differentia rewrite). Used for taxonomy attribution when available. */
   attribution_embedding?: number[];
-  /** If this claim is a steelman of an opponent's position, the opponent's SpeakerId. */
+  /** If this claim is a steelman of an opponent's position, the opponent's camp id. Normalized at
+   *  ingestion (t/3514); pre-t/3514 debates may hold a display label ("Safetyist"). */
   steelman_of?: string;
+  /** Outcome of the NLI check of this steelman against what the target actually asserted (t/3514). */
+  steelman_check?: import('../steelman.js').SteelmanCheck;
   /**
    * Inline verification status from web search (Intervention 2).
    * Uses the shared `FactVerdict` vocabulary plus the `pending` lifecycle state (not-yet-checked).

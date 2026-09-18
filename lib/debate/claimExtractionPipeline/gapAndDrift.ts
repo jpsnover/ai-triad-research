@@ -35,6 +35,7 @@ import { optimizeRelevanceThreshold, applyRelevanceThresholdAdaptation } from '.
 import { loadProvisionalWeights } from '../phaseTransitions.js';
 import { resolveRepoRoot, resolveSourcesDir } from '../taxonomyLoader.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
+import { normalizeSteelmanTarget, steelmanVerdict } from '../steelman.js';
 import { detectSycophancy, runEvidenceQbaf } from './helpers.js';
 import type { ClaimExtractionContext } from './context.js';
 
@@ -514,27 +515,36 @@ export async function validateSteelmans(
   speaker: Exclude<SpeakerId, 'user'>,
 ): Promise<void> {
   const adapter = ctx.adapter as ExtendedAIAdapter;
-  if (!adapter.nliClassify) return; // NLI not available in CLI adapter
-
   const steelmanNodes = newNodes.filter(n => n.steelman_of);
   if (steelmanNodes.length === 0) return;
 
   for (const node of steelmanNodes) {
     try {
-      const targetPover = node.steelman_of!;
-      const targetCommitments = ctx.session.commitments?.[targetPover];
-      if (!targetCommitments || targetCommitments.asserted.length === 0) continue;
+      // Normalize (t/3514): legacy/label values ("Safetyist") used to miss the id-keyed
+      // commitments lookup, so every steelman was skipped silently.
+      const targetPover = normalizeSteelmanTarget(node.steelman_of, speaker).target;
+      if (!targetPover) {
+        node.steelman_check = { verdict: 'unchecked', reason: `"${node.steelman_of}" is not a steelman target` };
+        continue;
+      }
+      if (!adapter.nliClassify) {
+        node.steelman_check = { verdict: 'unchecked', reason: 'NLI not available on this adapter' };
+        continue;
+      }
+      const asserted = (ctx.session.commitments?.[targetPover]?.asserted ?? []).slice(-10);
+      if (asserted.length === 0) {
+        node.steelman_check = { verdict: 'unchecked', reason: 'Target has no recorded assertions yet' };
+        continue;
+      }
 
       // Compare steelman against opponent's actual assertions
-      const pairs = targetCommitments.asserted.slice(-10).map(assertion => ({
-        text_a: node.text,
-        text_b: assertion,
-      }));
-
+      const pairs = asserted.map(assertion => ({ text_a: node.text, text_b: assertion }));
       const result = await adapter.nliClassify(pairs);
-      const maxEntailment = Math.max(...result.results.map(r => r.nli_entailment ?? 0));
+      node.steelman_check = steelmanVerdict(asserted, result.results.map(r => r.nli_entailment));
+      const maxEntailment = node.steelman_check.max_entailment ?? 0;
+      const targetCommitments = { asserted };
 
-      if (maxEntailment < 0.6) {
+      if (node.steelman_check.verdict === 'diverges') {
         const targetLabel = POVER_INFO[targetPover as Exclude<SpeakerId, 'user'>]?.label ?? targetPover;
         const speakerLabel = POVER_INFO[speaker]?.label ?? speaker;
         const topAssertions = targetCommitments.asserted.slice(-3).map(a => `"${a}"`).join('; ');

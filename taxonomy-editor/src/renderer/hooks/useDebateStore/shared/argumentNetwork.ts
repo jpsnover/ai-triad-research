@@ -26,6 +26,7 @@ import { updateConvergenceTracker } from '../../../utils/convergenceScoring';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { factCheckToBaseStrength } from '@lib/debate/argumentNetwork';
+import { normalizeSteelmanTarget, steelmanVerdict } from '@lib/debate/steelman';
 import { validateFactCheckResult } from '@lib/debate/factCheckValidator';
 import { needsGc, pruneArgumentNetwork, GC_TRIGGER, GC_TARGET } from '@lib/debate/networkGc';
 import { computeConvergenceSignals } from '@lib/debate/convergenceSignals';
@@ -745,23 +746,29 @@ async function runPostExtractionAnalytics(get: () => any, set: (partial: any) =>
 }
 
 async function runSteelmanValidation(newNodes: NewAnNode[], get: () => any, set: (partial: any) => void, speaker: SpeakerId, debate: DebateSession): Promise<void> {
-    // Steelman validation (non-blocking)
+    // Steelman validation (non-blocking). t/3514: the target is normalized first — label values
+    // ("Safetyist") used to miss the id-keyed commitments lookup and skip every steelman silently.
+    // Every steelman now gets a persisted verdict (faithful / diverges / unchecked + reason).
     const steelmanNodes = newNodes.filter(n => n.steelman_of);
     if (steelmanNodes.length > 0) {
       try {
         for (const sNode of steelmanNodes) {
-          const targetPover = sNode.steelman_of!;
-          const targetCommits = (get().activeDebate?.commitments?.[targetPover] as CommitmentStore | undefined);
-          if (!targetCommits || targetCommits.asserted.length === 0) continue;
+          const targetPover = normalizeSteelmanTarget(sNode.steelman_of, speaker).target;
+          const asserted = targetPover
+            ? ((get().activeDebate?.commitments?.[targetPover] as CommitmentStore | undefined)?.asserted ?? []).slice(-10)
+            : [];
+          if (!targetPover || asserted.length === 0) {
+            sNode.steelman_check = { verdict: 'unchecked', reason: targetPover ? 'Target has no recorded assertions yet' : `"${sNode.steelman_of}" is not a steelman target` };
+            continue;
+          }
 
-          const pairs = targetCommits.asserted.slice(-10).map(assertion => ({
-            text_a: sNode.text,
-            text_b: assertion,
-          }));
+          const pairs = asserted.map(assertion => ({ text_a: sNode.text, text_b: assertion }));
           const nliResult = await api.nliClassify(pairs);
-          const maxEntailment = Math.max(...nliResult.results.map(r => r.nli_entailment ?? 0));
+          sNode.steelman_check = steelmanVerdict(asserted, nliResult.results.map(r => r.nli_entailment));
+          const maxEntailment = sNode.steelman_check.max_entailment ?? 0;
+          const targetCommits = { asserted };
 
-          if (maxEntailment < 0.6) {
+          if (sNode.steelman_check.verdict === 'diverges') {
             const targetLabel = POVER_INFO[targetPover as Exclude<SpeakerId, 'user'>]?.label ?? targetPover;
             const speakerLbl = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label ?? speaker;
             const topAssertions = targetCommits.asserted.slice(-3).map(a => `"${a}"`).join('; ');
@@ -791,8 +798,12 @@ async function runSteelmanValidation(newNodes: NewAnNode[], get: () => any, set:
           error: { name: (nliErr as Error).name ?? 'Error', message: String(nliErr), stack: (nliErr as Error).stack },
         });
         console.warn('[Steelman] NLI validation failed (non-blocking):', nliErr);
+        for (const sNode of steelmanNodes) {
+          sNode.steelman_check ??= { verdict: 'unchecked', reason: 'NLI check failed this turn' };
+        }
         pushWarning(get, set, 'Steelman validation skipped this turn');
       }
+      phaseGuardedSet(get, set, {}); // re-render: verdicts were written onto committed nodes
     }
 }
 

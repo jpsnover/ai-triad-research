@@ -27,6 +27,7 @@ import { PovProgressionView } from '../../PovProgression/PovProgressionView';
 import { PromptDiffContent } from '../../chat/PromptDiffWindow';
 import { CommitmentsPanel } from './shared';
 import { TheoryLink } from '../../shared/TheoryLink';
+import { SteelmansPanel } from '../../shared/Steelman';
 
 declare const __COMPONENT_VERSIONS__: Record<string, string>;
 
@@ -1052,6 +1053,11 @@ export function OverviewTabRouter({
       {/* Adaptive Staging — signal telemetry, phase transitions, GC events */}
       {effectiveOverviewTab === 'adaptive' && (
         <AdaptiveStagingTab debate={debate} />
+      )}
+
+      {/* Steelmans — each debater's strongest restatement of an opponent, and whether it held (t/3514) */}
+      {effectiveOverviewTab === 'steelmans' && (
+        <SteelmansPanel debate={debate} />
       )}
 
       {/* Reflections — taxonomy edits proposed by debaters */}
