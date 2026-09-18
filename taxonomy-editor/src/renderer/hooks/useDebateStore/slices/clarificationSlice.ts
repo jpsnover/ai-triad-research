@@ -41,6 +41,8 @@ import { generateTextWithProgress, summarizeTranscriptEntry, makeStageGenerate }
 import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import { pushWarning, recordDiagnostic } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
+import { runNarrativeVoicing, recordNarrativeCheck, finalizeNarrativeReference } from '../shared/narrativeVoicing';
+import { narrativeBlockForDebater } from '@lib/debate/narrativeVoicing';
 import { buildLineageContext, getRelevantTaxonomyContext, formatDebaterEdgeContext, enrichPolicyRefs, serializeNodeSourceMap, getAllKnownNodeIds } from '../shared/taxonomyContext';
 import { extractClaimsAndUpdateAN } from '../shared/argumentNetwork';
 
@@ -872,6 +874,13 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
 
     await extractTopicScope(get, set, activeDebate, model, topic);
 
+    // h3: moderator voices each camp's story before any argument (flag-gated, idempotent)
+    await runNarrativeVoicing(get, set, addTranscriptEntry, model);
+    if (!isStillValid()) {
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'runOpeningStatements aborted after narrative voicing' });
+      return;
+    }
+
     // Use the user-configurable opening order (randomized at proceedToOpening).
     // Priority: Zustand state > persisted on debate object > default order.
     const { openingOrder } = get();
@@ -1003,6 +1012,10 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
           availablePovNodeIds: [...getAllKnownNodeIds()],
           background: activeDebate.topic?.background || undefined,
+          narrativeVoicing: (() => {
+            const voicing = get().activeDebate?.narrative_voicing;
+            return voicing ? narrativeBlockForDebater(voicing.narratives, poverId) : undefined;
+          })(),
         };
 
         // Emit on the renderer-local brief-timeout bus (t/2307). Both builds: the
@@ -1074,6 +1087,9 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           console.error(`[debate] ${info.label} opening produced empty/trivial statement (${statement.length} chars) — treating as failure`);
           throw new Error(`Opening statement was empty or too short (${statement.trim().length} chars). The AI may have returned only structural metadata without prose content.`);
         }
+
+        // h3: record this debater's affirm/amend check of its own camp's narrative
+        recordNarrativeCheck(get, set, poverId, pipelineResult.draft as unknown as Record<string, unknown>);
 
         // Enrich policy refs with per-policy relevance from draft stage
         meta.policy_refs = enrichPolicyRefs(meta.policy_refs, pipelineResult.draft as unknown as Record<string, unknown>);
@@ -1246,6 +1262,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     }
 
     await cacheOpeningEmbeddings(get, set);
+    await finalizeNarrativeReference(get, set);
 
     // Neutral evaluation: baseline checkpoint (after openings, before cross-respond)
     void runNeutralCheckpoint('baseline', get, set as any, addTranscriptEntry as Parameters<typeof runNeutralCheckpoint>[3]);

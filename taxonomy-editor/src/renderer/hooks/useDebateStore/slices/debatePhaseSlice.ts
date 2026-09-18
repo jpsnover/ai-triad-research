@@ -91,6 +91,7 @@ import { generateTextWithProgress, phaseGuardedSet, summarizeTranscriptEntry, ma
 import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import { pushWarning, recordDiagnostic, recordSignalHistory, getSignalValue, movingAverageSignal, incrementGapInjectionCount, _gapInjectionCount } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
+import { updateNarrativeSimilarity } from '../shared/narrativeVoicing';
 import { enrichPolicyRefs, serializeNodeSourceMap, formatEdgeContext, formatDebaterEdgeContext, getRelevantTaxonomyContext, getAllKnownNodeIds, getAllPolicyIds, findNodeMetaInStore, getTaxonomyContext } from '../shared/taxonomyContext';
 import { extractClaimsAndUpdateAN, commitAnNodes, detectZeroClaims } from '../shared/argumentNetwork';
 
@@ -389,6 +390,8 @@ export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePha
         await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
 
         await detectPositionDrift(get, set, addTranscriptEntry, activeDebate, responderPover, info, crossRespondRound, statement);
+        // h3: similarity to the speaker's own camp narrative (drift from the opening baseline)
+        await updateNarrativeSimilarity(get, set, lastEntry.id, responderPover, statement);
       }
       // ── Neutral evaluation: midpoint checkpoint ──
       try {

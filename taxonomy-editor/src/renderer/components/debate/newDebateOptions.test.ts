@@ -15,6 +15,7 @@ const base = {
   multiProvider: false,
   modelTier: 'basic' as const,
   stepMode: false,
+  narrativeVoicing: false,
   stageModels: { brief: '', plan: '', cite: '' },
 };
 
@@ -32,5 +33,12 @@ describe('buildDebateOptions — excludeGreatestHits toggle wiring (t/1979)', ()
     const opts = buildDebateOptions({ ...base, excludeGreatestHits: true });
     expect(opts.useAdaptiveStaging).toBe(true);
     expect(opts.phaseBoundsOverride?.maxArgumentationRounds).toBe(3);
+  });
+});
+
+describe('buildDebateOptions — narrative voicing toggle wiring (h3)', () => {
+  it('passes narrativeVoicing: true when on and omits it when off', () => {
+    expect(buildDebateOptions({ ...base, excludeGreatestHits: false, narrativeVoicing: true }).narrativeVoicing).toBe(true);
+    expect(buildDebateOptions({ ...base, excludeGreatestHits: false }).narrativeVoicing).toBeUndefined();
   });
 });

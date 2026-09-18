@@ -125,6 +125,32 @@ export interface TranscriptEntry {
   errorMessage?: string;
 }
 
+/** One camp's story as voiced by the moderator before the openings (h3). */
+export interface CampNarrative {
+  speaker: Exclude<SpeakerId, 'user'>;
+  fears_losing: string;
+  history_carried: string;
+  /** 3-4 sentences in the moderator's conditional first person ("If I were a Safetyist, …"). */
+  narrative: string;
+  /** The debater's own check of this account, taken from its opening DRAFT stage. */
+  acknowledgment?: { verdict: 'affirm' | 'amend'; amendment?: string };
+  /** all-MiniLM-L6-v2 embedding of the narrative plus any amendment. Set after openings. */
+  embedding?: number[];
+}
+
+/** Moderator's opening narrative voicing (h3) and its use as a per-camp drift reference. */
+export interface NarrativeVoicing {
+  /** Transcript entry that displays the voicing (type 'system', speaker 'moderator'). */
+  entry_id: string;
+  model: string;
+  narratives: CampNarrative[];
+  /**
+   * Mean paragraph cosine similarity of each debater turn to that debater's own camp
+   * narrative, keyed by transcript entry id. Openings are the baseline; later turns show drift.
+   */
+  similarity_series?: Record<string, number>;
+}
+
 export type ModelTier = 'basic' | 'advanced';
 
 export interface ContextSummary {
@@ -340,6 +366,10 @@ export interface DebateSession {
   protocol_id?: string;
   /** Exclude greatest-hits (retread) nodes from selection for this debate (t/1438). Absent ⇒ false. */
   exclude_greatest_hits?: boolean;
+  /** Moderator voices each camp's story before the openings (h3). Absent ⇒ false. */
+  narrative_voicing_enabled?: boolean;
+  /** Result of the h3 narrative voicing. Absent when disabled or when generation failed. */
+  narrative_voicing?: NarrativeVoicing;
   /** Legacy config object from older saved debates. */
   config?: Record<string, unknown>;
   /** AI temperature for this debate (0.0-1.0). Absent uses system default. */

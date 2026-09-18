@@ -13,6 +13,7 @@ import {
   formatDoctrinalBoundaries,
 } from './shared-helpers.js';
 import { sourceContext, MUST_CORE_BEHAVIORS, STEELMAN_INSTRUCTION } from './shared-instructions.js';
+import { NARRATIVE_CHECK_INSTRUCTION } from './narrative.js';
 
 // ── 4-Stage opening pipeline prompts ─────────────────────────
 
@@ -31,6 +32,8 @@ export interface OpeningStagePromptInput {
   audience?: DebateAudience;
   userSeedClaims?: { id: string; text: string; bdi_category?: string }[];
   edgeContext?: string;
+  /** Moderator's narrative voicing of each camp (h3), pre-formatted by narrativeVoicingDebaterBlock. */
+  narrativeVoicing?: string;
 }
 
 export function briefOpeningStagePrompt(input: OpeningStagePromptInput): string {
@@ -46,7 +49,7 @@ ${input.taxonomyContext}
 ${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}
 === DEBATE TOPIC ===
 "${input.topic}"${input.background ? `\n\n=== BACKGROUND CONTEXT ===\nThe user provided the following supporting context. Use it to inform your analysis, but keep it separate from the debate question itself.\n${input.background}` : ''}${documentBlock}
-${input.userSeedClaims && input.userSeedClaims.length > 0 ? `\n=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Factor these into your analysis.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n` : ''}${input.priorStatements}
+${input.userSeedClaims && input.userSeedClaims.length > 0 ? `\n=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Factor these into your analysis.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n` : ''}${input.narrativeVoicing ? `${input.narrativeVoicing}\n` : ''}${input.priorStatements}
 
 Analyze the topic${input.isFirst ? '' : ' and prior opening statements'} and produce a structured brief. Focus on:
 1. What are the key dimensions of this topic that ${input.label}'s perspective can address?
@@ -186,7 +189,7 @@ ${brief}
 
 === YOUR ARGUMENT PLAN ===
 ${plan}
-
+${input.narrativeVoicing ? `${input.narrativeVoicing}\n` : ''}
 ${input.userSeedClaims && input.userSeedClaims.length > 0 ? `=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Engage with these directly — state which you agree with, which you challenge, and why. Reference their IDs in your claim_sketches targets.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n\n` : ''}=== YOUR ASSIGNMENT ===
 Deliver your opening statement as ${input.label} — stay in character. Frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 ${hasDocument ? documentInstructions : ''}
@@ -214,7 +217,7 @@ PARAGRAPH STRUCTURE:
 - A single unbroken block will be rejected — structure your argument into clear, quotable sections.
 
 ${getStyleReinforcement(input.audience)}
-
+${input.narrativeVoicing ? `${NARRATIVE_CHECK_INSTRUCTION}\n` : ''}
 Respond ONLY with a JSON object matching this exact schema (no markdown, no code fences):
 {
   "statement": "your opening statement (3-5 paragraphs separated by \\n\\n)",

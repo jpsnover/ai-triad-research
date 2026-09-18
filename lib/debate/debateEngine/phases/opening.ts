@@ -12,11 +12,16 @@ import { accumulateContextManifest } from '../adaptiveStaging.js';
 import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContext } from '../taxonomyContext.js';
 import { getCommitmentContext, getEstablishedPointsContext } from '../context.js';
 import { EMBEDDING_DIM } from '../../constants.js';
+import { narrativeBlockForDebater, extractNarrativeCheck } from '../../narrativeVoicing.js';
+import { runNarrativeVoicing, finalizeNarrativeReference } from './narrativeVoicing.js';
 
 // ── Phase: Opening statements ──────────────────────────────
 
 export async function runOpeningStatements(engine: DebateEngineInternals): Promise<void> {
   engine.session.phase = 'opening';
+
+  // h3: moderator voices each camp's story before any argument (flag-gated, idempotent)
+  await runNarrativeVoicing(engine);
 
   // Shuffle opening order (Fisher-Yates)
   const order = [...engine.config.activePovers];
@@ -103,6 +108,9 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
       availablePovNodeIds: [...engine.getKnownNodeIds()],
       briefTimeoutMs: engine.config.briefTimeoutMs,
       briefMaxRetries: engine.config.briefMaxRetries,
+      narrativeVoicing: engine.session.narrative_voicing
+        ? narrativeBlockForDebater(engine.session.narrative_voicing.narratives, poverId)
+        : undefined,
       ...(engine.config.temperature != null ? {
         stageTemperatures: {
           brief_temperature: engine.config.temperature,
@@ -159,6 +167,15 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
 
     const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, engine.getKnownNodeIds());
     enrichTaxonomyRefs(engine, taxonomyRefs);
+
+    // h3: record the debater's affirm/amend check of its own camp's narrative
+    const ownNarrative = engine.session.narrative_voicing?.narratives.find(n => n.speaker === poverId);
+    if (ownNarrative) {
+      ownNarrative.acknowledgment = extractNarrativeCheck(pipelineResult.draft);
+      if (!ownNarrative.acknowledgment) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: `${info.label} opening returned no usable narrative_check — narrative reference uses the moderator's account unamended`, data: { speaker: poverId, narrative_check: pipelineResult.draft?.narrative_check ?? null } });
+      }
+    }
 
     const speakerModel = resolveModelForSpeaker(engine, poverId);
     const entry = engine.addEntry({
@@ -238,6 +255,9 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
       summary: statement.split('\n')[0].slice(0, 150) + '...',
     });
   }
+
+  // h3: embed each camp's (possibly amended) narrative as its drift reference; score the openings
+  await finalizeNarrativeReference(engine);
 
   engine.session.phase = 'debate';
 }

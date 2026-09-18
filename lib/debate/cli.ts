@@ -76,6 +76,8 @@ interface CLIConfig {
   exploreModel?: string;
   excludeGreatestHits?: boolean;
   breadthAwareSituationSelection?: boolean;
+  /** Moderator voices each camp's story before the openings (h3 experiment). */
+  narrativeVoicing?: boolean;
 }
 
 interface GoldenFixtureConfig extends CLIConfig {
@@ -449,6 +451,7 @@ async function main(): Promise<void> {
     utilityModels: config.utilityModels,
     excludeGreatestHits: config.excludeGreatestHits,
     breadthAwareSituationSelection: config.breadthAwareSituationSelection,
+    narrativeVoicing: config.narrativeVoicing,
   };
 
   // Prepare output paths early so the snapshot callback can write partial files

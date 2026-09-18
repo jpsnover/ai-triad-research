@@ -102,6 +102,8 @@ export interface DebateConfig {
   enableDiversityRound?: boolean;
   /** Exclude greatest-hits (retread) nodes from debate node selection (t/1438). Requires calibration/greatest-hits.json. */
   excludeGreatestHits?: boolean;
+  /** Moderator voices each camp's story before the openings; debaters affirm or amend their own (h3). Off by default — experiment flag. */
+  narrativeVoicing?: boolean;
   /** Inject comp-linguist per-POV, per-BDI situation register-statements at setup (t/1450 experiment). Off by default. */
   enableSituationStatements?: boolean;
   /** Use debate_grounding register text instead of description when present on a node (t/3366). Off by default. Falls back to description per node when field absent. */

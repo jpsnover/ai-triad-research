@@ -272,6 +272,7 @@ vi.mock('@lib/debate/prompts', () => ({
   synthExtractPrompt: vi.fn().mockReturnValue('mock-synth-extract-prompt'),
   synthMapPrompt: vi.fn().mockReturnValue('mock-synth-map-prompt'),
   synthEvaluatePrompt: vi.fn().mockReturnValue('mock-synth-evaluate-prompt'),
+  narrativeVoicingPrompt: vi.fn().mockReturnValue('mock-narrative-voicing-prompt'),
 }));
 
 vi.mock('@lib/debate/phaseTransitions', () => ({
