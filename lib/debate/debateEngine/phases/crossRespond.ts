@@ -423,6 +423,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
         drift_detected: selectionResult.drift_detected ?? false,
         drift_reasoning: selectionResult.trigger_reasoning ?? null,
         intervention_recommended: selectionResult.intervene ?? false,
+        intervention_source: selectionResult.intervene ? (selectionResult.trigger_source ?? 'moderator') : null,
         intervention_move: activeIntervention?.move ?? modResult.engineValidation?.validated_move ?? null,
         intervention_validated: !!activeIntervention,
         suppressed_reason: modResult.engineValidation?.suppressed_reason ?? null,

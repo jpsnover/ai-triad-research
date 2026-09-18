@@ -34,6 +34,8 @@ export interface ModeratorTraceData {
   selection_prompt?: string; selection_response?: string;
   health_score?: number; health_components?: Record<string, number>; health_trend?: number;
   intervention_recommended?: boolean; intervention_move?: string | null;
+  /** t/3513 — 'engine' when the deterministic floor proposed it after the moderator declined. */
+  intervention_source?: 'moderator' | 'engine' | null;
   intervention_validated?: boolean; intervention_suppressed_reason?: string | null;
   intervention_suppression_explanation?: string | null;
   intervention_target?: string | null;
