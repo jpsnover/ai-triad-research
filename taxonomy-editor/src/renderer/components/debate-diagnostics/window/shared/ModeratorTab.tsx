@@ -253,6 +253,7 @@ function InterventionBox({ trace }: { trace: ModeratorTraceData }) {
         {trace.intervention_validated ? 'Intervention Fired' : 'Intervention Suppressed'}
         {trace.intervention_move && `: ${trace.intervention_move}`}
         {trace.intervention_target && ` → ${trace.intervention_target}`}
+        {trace.intervention_source === 'engine' && ' (engine floor — moderator declined)'}
       </div>
       <InterventionSuppressionReason trace={trace} />
       {trace.trigger_reasoning && (
