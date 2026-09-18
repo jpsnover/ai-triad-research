@@ -65,6 +65,7 @@ describe('runNarrativeVoicing (engine)', () => {
     expect(entry).toMatchObject({ type: 'system', speaker: 'moderator', metadata: { kind: NARRATIVE_VOICING_KIND } });
     expect(entry.content).toContain('If I were a safetyist');
     expect(engine.session.narrative_voicing).toMatchObject({ entry_id: entry.id, model: 'moderator-model' });
+    expect(engine.session.narrative_voicing_enabled).toBe(true);
     expect(engine.session.narrative_voicing!.narratives.map(n => n.speaker)).toEqual(['accelerationist', 'safetyist']);
   });
 

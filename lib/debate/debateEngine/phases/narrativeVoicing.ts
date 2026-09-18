@@ -26,6 +26,7 @@ import { resolveStageModel } from '../modelResolution.js';
  */
 export async function runNarrativeVoicing(engine: DebateEngineInternals): Promise<void> {
   if (!engine.config.narrativeVoicing) return;
+  engine.session.narrative_voicing_enabled = true;
   if (engine.session.narrative_voicing) return;
 
   const povers = engine.config.activePovers;

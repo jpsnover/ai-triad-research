@@ -13,11 +13,15 @@ import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContex
 import { getCommitmentContext, getEstablishedPointsContext } from '../context.js';
 import { EMBEDDING_DIM } from '../../constants.js';
 import { narrativeBlockForDebater, extractNarrativeCheck } from '../../narrativeVoicing.js';
+import { runNarrativeVoicing, finalizeNarrativeReference } from './narrativeVoicing.js';
 
 // ── Phase: Opening statements ──────────────────────────────
 
 export async function runOpeningStatements(engine: DebateEngineInternals): Promise<void> {
   engine.session.phase = 'opening';
+
+  // h3: moderator voices each camp's story before any argument (flag-gated, idempotent)
+  await runNarrativeVoicing(engine);
 
   // Shuffle opening order (Fisher-Yates)
   const order = [...engine.config.activePovers];
@@ -251,6 +255,9 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
       summary: statement.split('\n')[0].slice(0, 150) + '...',
     });
   }
+
+  // h3: embed each camp's (possibly amended) narrative as its drift reference; score the openings
+  await finalizeNarrativeReference(engine);
 
   engine.session.phase = 'debate';
 }
