@@ -8,6 +8,7 @@ import { POVER_INFO } from '../../../../types/debate';
 import { Highlight, Section, CopyButton } from '../helpers';
 import { ScoreBadge, VerdictChip } from '../shared';
 import type { Verdict } from '../shared/VerdictChip';
+import { SteelmanBadge } from '../../../shared/Steelman';
 import './ClaimsTab.css';
 
 interface ArgumentNetwork {
@@ -63,14 +64,14 @@ function computeSharedBadges(accepted: AcceptedClaim[], an: ArgumentNetwork | un
   const acceptedAnNodes = accepted.map(c => an?.nodes.find(n => n.id === c.id));
   const uniqueBdiCategories = new Set(acceptedAnNodes.map(n => n?.bdi_category).filter(Boolean));
   const uniqueSpecificities = new Set(acceptedAnNodes.map(n => n?.specificity).filter(Boolean));
-  const uniqueSteelmanOfs = new Set(acceptedAnNodes.map(n => n?.steelman_of).filter(Boolean));
   // Only hoist to header when all rows share the exact same non-null value
   const sharedBdiCategory = uniqueBdiCategories.size === 1 && accepted.length > 1
     ? [...uniqueBdiCategories][0] as string : null;
   const sharedSpecificity = uniqueSpecificities.size === 1 && accepted.length > 1
     ? [...uniqueSpecificities][0] as string : null;
-  const sharedSteelmanOf = uniqueSteelmanOfs.size === 1 && accepted.length > 1
-    ? [...uniqueSteelmanOfs][0] as string : null;
+  // Never hoisted (t/3514): each steelman carries its own verdict, which a shared header label
+  // would hide. The row renders SteelmanBadge instead.
+  const sharedSteelmanOf = null;
   return { sharedBdiCategory, sharedSpecificity, sharedSteelmanOf };
 }
 
@@ -153,11 +154,7 @@ function ClaimRowBadges({ anNode, sharedBdiCategory, sharedSpecificity, sharedSt
           {anNode.specificity}
         </span>
       )}
-      {anNode?.steelman_of && !sharedSteelmanOf && (
-        <span className="clm-row-steelman">
-          steelman of {POVER_INFO[anNode.steelman_of as keyof typeof POVER_INFO]?.label ?? anNode.steelman_of}
-        </span>
-      )}
+      {anNode && <SteelmanBadge node={anNode} />}
     </>
   );
 }

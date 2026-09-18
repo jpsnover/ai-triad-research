@@ -1,0 +1,68 @@
+/* Steelman display (t/3514) — verdict colours: faithful = success, diverges = danger, unchecked = muted. */
+
+.steelman-badge {
+  display: inline-block;
+  padding: 0 6px;
+  margin: 0 4px;
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+}
+
+.steelman-badge.steelman-faithful { color: var(--success, #16a34a); }
+.steelman-badge.steelman-diverges { color: var(--danger, #dc2626); }
+.steelman-badge.steelman-unchecked { color: var(--text-muted); }
+
+.steelman-list { margin: 8px 0; }
+
+.steelman-callout {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 4px solid var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
+  font-size: var(--text-xs);
+}
+
+.steelman-callout.steelman-faithful {
+  border-left-color: var(--success, #16a34a);
+  background: color-mix(in srgb, var(--success, #16a34a) 8%, transparent);
+}
+
+.steelman-callout.steelman-diverges {
+  border-left-color: var(--danger, #dc2626);
+  background: color-mix(in srgb, var(--danger, #dc2626) 8%, transparent);
+}
+
+.steelman-callout-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.steelman-callout-title { font-weight: 700; color: var(--text-primary); }
+
+.steelman-verdict { font-weight: 600; }
+.steelman-faithful .steelman-verdict, .steelman-faithful-text { color: var(--success, #16a34a); }
+.steelman-diverges .steelman-verdict, .steelman-diverges-text { color: var(--danger, #dc2626); }
+.steelman-unchecked .steelman-verdict { color: var(--text-muted); }
+
+.steelman-claim-id { color: var(--text-muted); font-size: var(--text-2xs); margin-left: auto; }
+
+.steelman-text {
+  margin: 0 0 4px;
+  padding: 0;
+  font-style: italic;
+  color: var(--text-primary);
+}
+
+.steelman-evidence { color: var(--text-secondary); font-size: var(--text-2xs); }
+.steelman-evidence q { display: block; margin-top: 2px; font-style: italic; }
+
+.steelman-panel { padding: 4px 0; }
+.steelman-summary { font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: 8px; }
+.steelman-empty { padding: 16px; text-align: center; color: var(--text-muted); }

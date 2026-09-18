@@ -36,6 +36,7 @@ import { CommentOverlay, useEntryCommentCount } from '../chat/CommentHighlights'
 import { useCommentStore } from '../../hooks/useCommentStore';
 import type { DetailTier } from '@lib/debate/comments';
 import { TaxonomyRefsSection } from './TaxonomyRefs';
+import { StatementSteelmans } from '../shared/Steelman';
 import { api } from '@bridge';
 
 /** Remark pipeline for debate transcript text: GFM + POV colorization + ID-token ref links (t/1776). */
@@ -1207,7 +1208,7 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
             setEntryDisplayTier={setEntryDisplayTier}
           />
           <ElapsedTimer since={entry.timestamp} active={statementId === 'S1' && !!debateGenerating} />
-
+          <StatementSteelmans entryId={entry.id} debate={activeDebate} />
           <StatementFooter entry={entry} activeDebate={activeDebate} activeTier={activeTier} debateGenerating={debateGenerating} askQuestion={askQuestion} />
         </>
       )}

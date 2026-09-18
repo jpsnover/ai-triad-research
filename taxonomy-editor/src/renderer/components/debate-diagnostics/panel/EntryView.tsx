@@ -15,6 +15,7 @@ import { api } from '@bridge';
 import { CollapsibleSection, speakerLabel } from './helpers';
 import { ScoreBadge, VerdictChip } from '../window/shared';
 import type { Verdict } from '../window/shared/VerdictChip';
+import { SteelmanBadge } from '../../shared/Steelman';
 
 // ── Shared derived types ─────────────────────────────────────────────────────
 type ActiveDebate = NonNullable<ReturnType<typeof useDebateStore.getState>['activeDebate']>;
@@ -769,11 +770,7 @@ function AcceptedClaimRow({ c, diag, activeDebate }: { c: AcceptedClaim; diag: E
           {anNode.specificity}
         </span>
       )}
-      {anNode?.steelman_of && (
-        <span className="ev-mini-badge ev-badge-secondary">
-          ⬆
-        </span>
-      )}
+      {anNode && <SteelmanBadge node={anNode} />}
       <span className="diag-claim-text">{c.text}</span>
       <ClaimRepairDiff repair={repair} />
     </div>

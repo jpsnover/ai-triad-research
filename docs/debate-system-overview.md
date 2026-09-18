@@ -1051,11 +1051,15 @@ Five interventions address LLM-specific debate failure modes. All are non-blocki
 
 **Problem:** LLMs fabricate opponent positions when steelmanning — presenting a plausible-sounding but inaccurate version of what the opponent actually said.
 
-**Solution:** Claim extraction now outputs `steelman_of` (opponent name or null). When detected, NLI cross-encoder compares the steelman against the opponent's `commitments.asserted` (up to 10 most recent). If max entailment < 0.6, a `[Steelman check]` system entry surfaces the opponent's actual top-3 assertions.
+**Solution:** Claim extraction outputs `steelman_of` (the opponent's camp id, or null). When detected, NLI cross-encoder compares the steelman against the opponent's `commitments.asserted` (up to 10 most recent). If max entailment < 0.6, a `[Steelman check]` system entry surfaces the opponent's actual top-3 assertions.
 
-**New AN node field:** `steelman_of`.
+**Fix (t/3514):** until September 2026 this check never ran. The extraction prompt asked for the opponent's *name* ("Safetyist"), the validators looked commitments up by camp *id* ("safetyist"), and every lookup missed and was skipped silently — zero `[Steelman check]` entries in any debate. `steelman_of` is now normalized at ingestion (`lib/debate/steelman.ts`: ids, labels, persona names → camp id; claim/document ids and self-steelmans dropped with a WARN), the prompt asks for the camp id and states that a rebuttal or concession is not a steelman, and the validators tolerate legacy label values.
 
-**Graceful degradation:** CLI adapter lacks NLI — validation silently skips. UI path uses `api.nliClassify`.
+**AN node fields:** `steelman_of`; `steelman_check` — the persisted verdict (`faithful` / `diverges` / `unchecked` with a reason), max entailment, and the target assertion it best matches.
+
+**Display:** each steelman appears as a callout in its statement card in the debate transcript (verdict, the steelman text, and "closest thing the target actually said"), as a verdict badge in the diagnostics Claims views, and in a debate-wide **Steelmans** diagnostics tab with a faithful / misrepresents / unchecked summary.
+
+**Graceful degradation:** an adapter without NLI (the CLI) records `unchecked` with the reason rather than skipping silently. UI path uses `api.nliClassify`.
 
 ### 4. Position Drift Detection (Sycophancy Guard)
 
