@@ -10,7 +10,7 @@ markdownify>=1.2.3
 trafilatura>=2.2.0
 
 # PDF text extraction
-pypdf>=6.18.0
+pypdf>=6.19.0
 pdfminer.six>=20260107
 
 # URL/slug utilities
@@ -20,7 +20,7 @@ python-slugify>=9.0.0
 waybackpy>=3.0.6
 
 # AI API clients (install whichever you use)
-anthropic>=1.4.0
+anthropic>=1.6.0
 # google-generativeai>=0.7
 
 # Git inspection
