@@ -2,3 +2,10 @@
 /* Licensed under the MIT License. See LICENSE file in the project root. */
 
 .api-key-dialog-error { margin-bottom: 12px; }
+
+.api-key-dialog-protection-link {
+  font-size: 0.8rem;
+  color: var(--focus-ring);
+  text-decoration: underline;
+  cursor: pointer;
+}

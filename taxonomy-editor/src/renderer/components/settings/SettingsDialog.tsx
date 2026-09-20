@@ -717,6 +717,16 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               <ShowKeysSection onKeysChanged={() => setKeyRefreshTrigger(n => n + 1)} />
             </div>
 
+            <div className="settings-dialog-provision-link-wrap">
+              <a
+                href="#"
+                onClick={(e) => { e.preventDefault(); void api.openExternal('https://github.com/jpsnover/ai-triad-research/blob/main/docs/security/api-key-protection.md'); }}
+                className="settings-dialog-provision-link"
+              >
+                How is my API key protected?
+              </a>
+            </div>
+
             {showKeySharing && (
               <KeySharingDialog
                 onClose={() => setShowKeySharing(false)}
