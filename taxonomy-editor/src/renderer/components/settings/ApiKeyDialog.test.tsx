@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 const { mockApi } = vi.hoisted(() => ({
   mockApi: {
     setApiKey: vi.fn().mockResolvedValue(undefined),
+    openExternal: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -71,5 +72,16 @@ describe('ApiKeyDialog', () => {
     const overlay = container.querySelector('.dialog-overlay')!;
     await user.click(overlay);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('does not claim at-rest encryption unconditionally, and links to the protection doc', async () => {
+    const user = userEvent.setup();
+    render(<ApiKeyDialog onClose={onClose} />);
+    expect(screen.queryByText(/stored encrypted on this machine/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('how is my API key protected?'));
+    expect(mockApi.openExternal).toHaveBeenCalledWith(
+      'https://github.com/jpsnover/ai-triad-research/blob/main/docs/security/api-key-protection.md',
+    );
   });
 });

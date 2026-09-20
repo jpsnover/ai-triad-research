@@ -42,7 +42,15 @@ export function ApiKeyDialog({ onClose }: ApiKeyDialogProps) {
         <h3>Configure API Key</h3>
         <p>
           Semantic search uses the Gemini gemini-embedding-001 model.
-          Enter your Google Gemini API key below. It will be stored encrypted on this machine.
+          Enter your Google Gemini API key below. Your key is stored securely — how it&apos;s
+          protected depends on how you&apos;re running the app; see{' '}
+          <a
+            href="#"
+            onClick={(e) => { e.preventDefault(); void api.openExternal('https://github.com/jpsnover/ai-triad-research/blob/main/docs/security/api-key-protection.md'); }}
+            className="api-key-dialog-protection-link"
+          >
+            how is my API key protected?
+          </a>
         </p>
         <div className="form-group">
           <label>API Key</label>
