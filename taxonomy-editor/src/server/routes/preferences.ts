@@ -8,7 +8,6 @@
 
 import fs from 'fs';
 import path from 'path';
-import { z } from 'zod';
 import type { Router } from '../httpKit.js';
 import type { ServerCtx } from './context.js';
 import { json, error } from '../httpKit.js';
@@ -17,10 +16,11 @@ import { resolveDataPath } from '../config.js';
 import { getStorageUserId } from '../security/userContext.js';
 import { readDataFile } from '../storage/readDataFile.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
-
-const UserPreferencesSchema = z.object({
-  viewMode: z.enum(['simple', 'advanced']),
-});
+// t/3537 (t/3534): the single shared UserPreferences schema (t/3535) — both read
+// boundaries (this route + ElectronMain's get-preferences IPC) validate against
+// the same source so Electron and web can't silently diverge. Replaces the local
+// inline copy this route used to declare.
+import { UserPreferencesSchema, validateUserPreferencesOrDefault } from '../../../../lib/userPreferencesSchema.js';
 
 export function registerPreferencesRoutes(r: Router, _ctx: ServerCtx): void {
   const { get, put } = r;
@@ -31,7 +31,12 @@ export function registerPreferencesRoutes(r: Router, _ctx: ServerCtx): void {
     try {
       const relPath = path.join('preferences', `${getStorageUserId()}.json`);
       const buf = await readDataFile(relPath);
-      json(res, JSON.parse(buf.toString('utf8')));
+      // t/3537: validate the stored (untrusted) file against the shared schema. A
+      // present-but-invalid file (stale schema, hand-edit) degrades to defaults +
+      // an FR WARN naming the offending field, never a throw — missing/empty file
+      // is a distinct case handled by the ActionableError catch below (→ null).
+      const parsed = JSON.parse(buf.toString('utf8')) as unknown;
+      json(res, validateUserPreferencesOrDefault(parsed, 'server'));
     } catch (err) {
       // readDataFile throws ActionableError for missing/empty file — no prefs yet.
       if (err instanceof ActionableError) { json(res, null); return; }
