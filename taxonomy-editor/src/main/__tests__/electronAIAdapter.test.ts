@@ -22,7 +22,7 @@ beforeEach(() => {
 
 describe('makeElectronAIAdapter — scenario parameterization (t/3370)', () => {
   it('logs with the caller-supplied scenario, not a hardcoded "Debate"', async () => {
-    mockGenerateText.mockResolvedValue('generated text');
+    mockGenerateText.mockResolvedValue({ text: 'generated text' });
     const adapter = makeElectronAIAdapter('OpEd Generation');
     await adapter.generateText('a prompt', 'gemini-2.0-flash');
 
@@ -42,7 +42,7 @@ describe('makeElectronAIAdapter — scenario parameterization (t/3370)', () => {
   });
 
   it('still supports the original Debate scenario for the debate engine caller', async () => {
-    mockGenerateText.mockResolvedValue('generated text');
+    mockGenerateText.mockResolvedValue({ text: 'generated text' });
     const adapter = makeElectronAIAdapter('Debate');
     await adapter.generateText('a prompt', 'gemini-2.0-flash');
 

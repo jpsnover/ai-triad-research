@@ -18,7 +18,7 @@ export function makeElectronAIAdapter(scenario: string, voiceTimeoutMs?: number)
     generateText: async (prompt: string, model: string, opts?: GenerateOptions): Promise<string> => {
       let retryCount = 0;
       try {
-        const text = await generateText(
+        const { text } = await generateText(
           prompt,
           model,
           // Count retries so the log entry reflects the Nth retry (0 = first attempt succeeded).

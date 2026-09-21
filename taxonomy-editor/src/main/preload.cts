@@ -3,6 +3,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import type { OpEdSet, OpEdSetSummary } from '../../../lib/oped/types.js';
+import type { StopReason } from '../../../lib/ai-client/index.js';
 
 // Inlined from preloadBuffer.cts — sandboxed preloads (sandbox:true) cannot
 // require sibling files at runtime; inlining avoids the require('./preloadBuffer.cjs')
@@ -220,7 +221,8 @@ try {
 
   // t/3528: single payload object, forwarded unchanged — see aiHandlers.ts's
   // GenerateTextIpcPayload (renderer's electron.d.ts mirrors this shape, Rosetta scope).
-  generateText: (payload: { prompt: string; model?: string; timeoutMs?: number; temperature?: number; requestId?: string; maxTokens?: number }): Promise<{ text: string }> =>
+  // t/3525: return type carries the normalized stopReason.
+  generateText: (payload: { prompt: string; model?: string; timeoutMs?: number; temperature?: number; requestId?: string; maxTokens?: number }): Promise<{ text: string; stopReason?: StopReason }> =>
     ipcRenderer.invoke('generate-text', payload),
 
   cancelGenerate: (requestId: string): void =>

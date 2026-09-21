@@ -90,7 +90,7 @@ afterEach(() => {
 describe('generate-text — AI call log wiring (t/3370)', () => {
   it('flag ON: logs 1 entry with scenario Debate on success', async () => {
     process.env.AI_CALL_LOG_ENABLED = '1';
-    mockGenerateText.mockResolvedValue('ok');
+    mockGenerateText.mockResolvedValue({ text: 'ok' });
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
     await handler({ sender }, { prompt: 'prompt-text', requestId: 'req-log-1' });
@@ -114,7 +114,7 @@ describe('generate-text — AI call log wiring (t/3370)', () => {
 
   it('flag OFF (default): writes nothing', async () => {
     delete process.env.AI_CALL_LOG_ENABLED;
-    mockGenerateText.mockResolvedValue('ok');
+    mockGenerateText.mockResolvedValue({ text: 'ok' });
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
     await handler({ sender }, { prompt: 'prompt-text', requestId: 'req-log-3' });
