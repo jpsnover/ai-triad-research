@@ -53,30 +53,22 @@ true satisfies _Equal<IsAny<ElectronAPI>, false>;
 // below to `_Equal` (mutual assignability), so full strength isn't quietly forgotten.
 type _Assignable<A, B> = A extends B ? true : false;
 
-// CARVE-OUT (TL ruling, e/182#2 — folded into t/3532, no separate ticket). Named methods
-// ONLY, never a wildcard. Shrinking this list (fixing one and removing its name) is free —
-// growing it needs TL review, because an exclusion list is a gate-weakening surface (same
-// threat model as a `.trivyignore` entry).
+// CARVE-OUT (TL ruling, e/182#2 → t/3532#3 — folded into t/3532, no separate ticket).
+// Named methods ONLY, never a wildcard. Shrinking this list (fixing one and removing its
+// name) is free — growing it needs TL review, because an exclusion list is a
+// gate-weakening surface (same threat model as a `.trivyignore` entry).
 //
-// `exportChatToFile`: electron.d.ts's own params are too loose (`string`/`unknown[]` vs the
-// real literal-union shapes `preload.cts`/`bridge/types.ts`'s `AppAPI` already use) — a
-// Rosetta-file fix, t/3532.
+// t/3532 resolved 12 of the original 14: `exportChatToFile` (Rosetta tightened
+// electron.d.ts's params) and 11 `Promise<unknown>` precision gaps sharpened in preload.cts
+// after verification against their real IPC handlers (`listBriefExports`,
+// `fetchRelevantNodes`, `computeAttribution`, `listOrganizations`, `getOrganization`,
+// `getOrganizationsByPov`, `getOrganizationsByTopic`, `getOrganizationsByPolicy`,
+// `getOrganizationEdges`, `getEntity`, `listEntities`, `getContainerMentions`).
 //
-// The other 13 (`listBriefExports`, `getPreferences`, `fetchRelevantNodes`,
-// `computeAttribution`, `listOrganizations`, `getOrganization`, `getOrganizationsByPov`,
-// `getOrganizationsByTopic`, `getOrganizationsByPolicy`, `getOrganizationEdges`,
-// `getEntity`, `listEntities`, `getContainerMentions`): preload declares `Promise<unknown>`
-// because `ipcRenderer.invoke(...)` genuinely returns an untyped result — that IS the honest
-// type. electron.d.ts's more precise declared type is an unverified CLAIM about what the
-// corresponding main-process IPC handler actually returns; casting preload to match it would
-// just restate that same unverified claim in a second place ("conformance theatre"), not add
-// real safety. Real safety requires checking each handler's actual return type — unscoped
-// here, folded into t/3532's AC, which allows resolving a gap either by verifying-and-typing
-// (as done for the 5 methods fixed alongside this file, e.g. `getSourceEvidence`) or by
-// documenting the claim as accepted-unverified.
-type _CarveOut =
-  | 'listBriefExports' | 'getPreferences' | 'fetchRelevantNodes' | 'computeAttribution'
-  | 'listOrganizations' | 'getOrganization' | 'getOrganizationsByPov'
-  | 'getOrganizationsByTopic' | 'getOrganizationsByPolicy' | 'getOrganizationEdges'
-  | 'getEntity' | 'listEntities' | 'getContainerMentions';
+// `getPreferences` remains carved out DELIBERATELY (TL ruling, t/3532#3): it reads
+// unvalidated JSON off disk and returns it as-is — declaring `UserPreferences | null` in
+// electron.d.ts is a good claim that happens to be unenforced, and the fix is to make the
+// claim TRUE (Zod-validate on read, t/3534/t/3536), not to downgrade the type and push
+// unsafety into every settings call site. Removing this from the carve-out is t/3536's job.
+type _CarveOut = 'getPreferences';
 true satisfies _Assignable<Omit<PreloadElectronAPI, _CarveOut>, Omit<ElectronAPI, _CarveOut>>;

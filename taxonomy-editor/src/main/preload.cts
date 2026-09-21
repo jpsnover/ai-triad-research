@@ -4,7 +4,45 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { OpEdSet, OpEdSetSummary } from '../../../lib/oped/types.js';
 import type { StopReason } from '../../../lib/ai-client/index.js';
-import type { ExportJobState, ExportErrorCode } from '../../../lib/brief/types.js';
+import type { ExportJobState, ExportErrorCode, BriefPreset, BriefArtifactName } from '../../../lib/brief/types.js';
+// t/3532: these mirror bridge/types.ts's re-exports, imported from their true origin
+// instead — bridge/types.ts is a real .ts (not .d.ts) using renderer-only `@lib/*`
+// aliases that don't resolve under this file's tsconfig.main.json (nodenext), same
+// issue as t/3529's BriefExportJobView/ExportJobState fix.
+import type { Organization, OrganizationEdge } from '../../../lib/organizations/types.js';
+import type { EntityDetail, EntitySummary, EntityListQuery } from '../../../lib/entities/types.js';
+import type { ContainerMentions } from '../../../lib/entities/mentionTypes.js';
+import type { ANClaimInput, RelevantTaxonomyResult } from '../../../lib/debate/relevanceSelection.js';
+import type { ClaimAttributionResult } from '../../../lib/debate/argumentNetwork/attribution.js';
+import type { ClaimTaxonomyAttribution } from '../../../lib/debate/types.js';
+
+// t/3532: mirrors bridge/types.ts's FetchRelevantNodesPayload/FetchClaimAttributionPayload/
+// ClaimAttributionResponse structurally (those are defined directly in bridge/types.ts, not
+// re-exported from a lib file, so inlined here rather than imported for the same reason as
+// above). Param sharpening constrains OUR callers (TL reasoning, t/3532#3) — genuinely
+// enforced by tsc at every call site, unlike a return-type claim about data we receive.
+interface FetchRelevantNodesPayload {
+  pov: string;
+  topic: string;
+  recentTranscript: string;
+  threshold?: number;
+  session: {
+    anClaimEmbeddings: ANClaimInput[];
+    lineageFrame?: { cluster_id: string; label?: string }[];
+    sourceType?: string;
+    excludeGreatestHits?: boolean;
+    greatestHitsList?: string[];
+  };
+}
+interface FetchClaimAttributionPayload {
+  pov: string;
+  claims: { id: string; embedding?: number[]; attribution_embedding?: number[] }[];
+  topN?: number;
+}
+interface ClaimAttributionResponse {
+  attributions: Record<string, ClaimTaxonomyAttribution>;
+  summary: ClaimAttributionResult;
+}
 
 // Inlined from preloadBuffer.cts — sandboxed preloads (sandbox:true) cannot
 // require sibling files at runtime; inlining avoids the require('./preloadBuffer.cjs')
@@ -211,10 +249,14 @@ function buildElectronApi() {
   importKeysFromSharing: (payload: unknown, passphrase: string): Promise<string[]> =>
     ipcRenderer.invoke('import-keys-from-sharing', payload, passphrase),
 
-  fetchRelevantNodes: (payload: unknown): Promise<unknown> =>
+  // t/3532: param AND return sharpened — Rosetta verified both handlers delegate to the
+  // real typed functions genuinely returning these shapes (t/3532#2); the param sharpening
+  // additionally constrains our own callers, enforced by tsc regardless of the internal
+  // `as`-cast on the handler side (TL reasoning, t/3532#3).
+  fetchRelevantNodes: (payload: FetchRelevantNodesPayload): Promise<RelevantTaxonomyResult> =>
     ipcRenderer.invoke('fetch-relevant-nodes', payload),
 
-  computeAttribution: (payload: unknown): Promise<unknown> =>
+  computeAttribution: (payload: FetchClaimAttributionPayload): Promise<ClaimAttributionResponse> =>
     ipcRenderer.invoke('compute-attribution', payload),
 
   computeEmbeddings: (texts: string[], ids?: string[]): Promise<{ vectors: number[][] }> =>
@@ -545,32 +587,36 @@ function buildElectronApi() {
     ipcRenderer.invoke('export-chat-to-file', entries, format, options),
 
   // Organizations (t/1544)
-  listOrganizations: (filters?: { type?: string; pov?: string }): Promise<unknown[]> =>
+  // t/3532: return types were `Promise<unknown[]>`/`Promise<unknown>` — sharpened after
+  // Rosetta verified organizationHandlers.ts delegates to typed functions returning these
+  // exact shapes verbatim (t/3532#2).
+  listOrganizations: (filters?: { type?: string; pov?: string }): Promise<Organization[]> =>
     ipcRenderer.invoke('list-organizations', filters),
-  getOrganization: (id: string): Promise<unknown> =>
+  getOrganization: (id: string): Promise<Organization> =>
     ipcRenderer.invoke('get-organization', id),
-  getOrganizationsByPov: (pov: string): Promise<unknown[]> =>
+  getOrganizationsByPov: (pov: string): Promise<Organization[]> =>
     ipcRenderer.invoke('get-organizations-by-pov', pov),
-  getOrganizationsByTopic: (topicRef: string): Promise<unknown[]> =>
+  getOrganizationsByTopic: (topicRef: string): Promise<Organization[]> =>
     ipcRenderer.invoke('get-organizations-by-topic', topicRef),
-  getOrganizationsByPolicy: (policyId: string): Promise<unknown[]> =>
+  getOrganizationsByPolicy: (policyId: string): Promise<Organization[]> =>
     ipcRenderer.invoke('get-organizations-by-policy', policyId),
-  getOrganizationEdges: (orgId: string): Promise<unknown[]> =>
+  getOrganizationEdges: (orgId: string): Promise<OrganizationEdge[]> =>
     ipcRenderer.invoke('get-organization-edges', orgId),
 
   // Entity ref resolution (t/1809) — desktop transport for getEntity (t/1775).
-  // Returns the EntityDetail union (strongly typed on the renderer side in electron.d.ts).
-  getEntity: (ref: string): Promise<unknown> =>
+  // t/3532: sharpened to EntityDetail — the handler is already explicitly typed this way
+  // (Rosetta, t/3532#2), matching electron.d.ts exactly.
+  getEntity: (ref: string): Promise<EntityDetail> =>
     ipcRenderer.invoke('entity-resolve', ref),
 
   // Entity list (t/1889) — desktop transport for listEntities (entity browser).
-  // Returns EntitySummary[]; strongly typed on the renderer side (electron.d.ts).
-  listEntities: (query?: unknown): Promise<unknown[]> =>
+  // t/3532: sharpened to EntitySummary[] (handler explicitly typed this way).
+  listEntities: (query?: EntityListQuery): Promise<EntitySummary[]> =>
     ipcRenderer.invoke('list-entities', query),
 
   // Container mentions (t/1903) — desktop transport for getContainerMentions.
-  // Returns ContainerMentions | null; strongly typed on the renderer side (electron.d.ts).
-  getContainerMentions: (containerId: string): Promise<unknown> =>
+  // t/3532: sharpened to ContainerMentions | null (handler explicitly typed this way).
+  getContainerMentions: (containerId: string): Promise<ContainerMentions | null> =>
     ipcRenderer.invoke('get-container-mentions', containerId),
 
   loadDebateComments: (debateId: string): Promise<unknown> =>
@@ -714,7 +760,19 @@ function buildElectronApi() {
     error: string | null; errorCode: ExportErrorCode | null; exportId: string | null;
   }> =>
     ipcRenderer.invoke('get-brief-export-job', jobId),
-  listBriefExports: (debateId: string): Promise<unknown[]> =>
+  // t/3532: was `Promise<unknown[]>` — sharpened to mirror electron.d.ts's BriefExportRecord
+  // structurally (defined directly in bridge/types.ts, inlined here for the same reason as
+  // BriefExportJobView in t/3529). narratorModel/narratorModelSource are optional: they're
+  // populated only on the server/web path (src/server/briefExportJobs.ts,
+  // briefExportStore.ts) — this desktop handler never sets them by design, not a gap
+  // (TL ruling, t/3532#3; Rosetta made the shared type optional to match).
+  listBriefExports: (debateId: string): Promise<{
+    exportId: string; debateId: string; title: string; preset: BriefPreset;
+    status: 'done' | 'failed'; errorCode?: ExportErrorCode; reason?: string;
+    narratorModel?: string; narratorModelSource?: string; checkerModel?: string | null;
+    formats: string[]; artifacts: BriefArtifactName[]; traceCoveragePct: number;
+    warnings: string[]; createdAt: string;
+  }[]> =>
     ipcRenderer.invoke('list-brief-exports', debateId),
   downloadBriefArtifact: (exportId: string, name: string): Promise<Uint8Array | null> =>
     ipcRenderer.invoke('download-brief-artifact', exportId, name),
