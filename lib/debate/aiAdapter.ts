@@ -59,8 +59,8 @@ export interface GenerateOptions extends SharedGenerateOptions {
 
 export interface AIAdapter {
   generateText(prompt: string, model: string, options?: GenerateOptions): Promise<string>;
-  /** Returns the registry-driven default timeout for model (tiered + minTimeoutMs floor). */
-  getModelTimeoutMs(model: string): number;
+  /** Returns the model's minTimeoutMs floor (0 if unset). Compose with a stage constant via Math.max. */
+  getModelMinTimeout(model: string): number;
   /** Optional callback for retry progress events. Set by the engine to surface retries in the UI. */
   onRetryProgress?: (info: { attempt: number; maxRetries: number; backoffSeconds: number; message: string }) => void;
   generate?(request: GenerateRequest): Promise<GenerateResponse>;
@@ -483,7 +483,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
 
   const adapter: ExtendedAIAdapter = {
     generateText: doGenerateText,
-    getModelTimeoutMs: (model) => getDefaultTimeout(model, registry),
+    getModelMinTimeout: (model) => getModelMinTimeout(model, registry),
     generate: process.env.DEBATE_ENVELOPE !== '0' ? doGenerate : undefined,
 
     async generateTextWithSearch(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[]; citations?: GroundingCitation[] }> {

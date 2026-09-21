@@ -38,7 +38,7 @@ describe('DebateEngine construction', () => {
     const config = createDefaultConfig();
     const plainAdapter: AIAdapter = {
       async generateText() { return '{}'; },
-      getModelTimeoutMs: (_model: string) => 120_000,
+      getModelMinTimeout: (_model) => 0,
     };
     const taxonomy = createMinimalTaxonomy();
     const engine = new DebateEngine(config, plainAdapter, taxonomy);
@@ -799,7 +799,7 @@ describe('Graceful degradation in catch blocks', () => {
           brief: 'Brief', medium: 'Medium',
         });
       },
-      getModelTimeoutMs: (_model: string) => 120_000,
+      getModelMinTimeout: (_model) => 0,
     };
 
     const config = createDefaultConfig({ rounds: 1 });
@@ -838,7 +838,7 @@ describe('Graceful degradation in catch blocks', () => {
           brief: 'Brief', medium: 'Medium',
         });
       },
-      getModelTimeoutMs: (_model: string) => 120_000,
+      getModelMinTimeout: (_model) => 0,
     };
 
     const config = createDefaultConfig({ rounds: 1 });
@@ -875,7 +875,7 @@ describe('Graceful degradation in catch blocks', () => {
           brief: 'Brief', medium: 'Medium',
         });
       },
-      getModelTimeoutMs: (_model: string) => 120_000,
+      getModelMinTimeout: (_model) => 0,
     };
 
     const config = createDefaultConfig({ rounds: 1 });
@@ -1063,7 +1063,7 @@ describe('Finalization', () => {
           overall_assessment: { notes: 'test' },
         });
       },
-      getModelTimeoutMs: (_model: string) => 120_000,
+      getModelMinTimeout: (_model) => 0,
     };
 
     const config = createDefaultConfig({ rounds: 1 });
@@ -1200,7 +1200,7 @@ describe('Internal utility behavior (tested via extraction)', () => {
           overall_assessment: { notes: 'test' },
         });
       },
-      getModelTimeoutMs: (_model: string) => 120_000,
+      getModelMinTimeout: (_model) => 0,
     };
 
     const config = createDefaultConfig({ rounds: 1 });
@@ -1234,7 +1234,7 @@ describe('Internal utility behavior (tested via extraction)', () => {
           overall_assessment: { notes: 'test' },
         });
       },
-      getModelTimeoutMs: (_model: string) => 120_000,
+      getModelMinTimeout: (_model) => 0,
     };
 
     const config = createDefaultConfig({ rounds: 1 });

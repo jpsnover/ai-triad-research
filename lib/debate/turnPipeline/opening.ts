@@ -22,7 +22,7 @@ import type { StageGenerateFn, StageProgressFn } from './types.js';
 // budget for the brief stage's prompt complexity regardless of model speed. Per-model minimums
 // live in ai-models.json minTimeoutMs and compose via Math.max — a slow model on this stage gets
 // the larger. Do not move this into the registry; that would over-broaden non-brief calls.
-const DEFAULT_BRIEF_TIMEOUT_MS = 120_000;
+export const DEFAULT_BRIEF_TIMEOUT_MS = 120_000;
 const DEFAULT_BRIEF_MAX_RETRIES = 3;
 
 function isBriefTimeout(err: unknown): boolean {

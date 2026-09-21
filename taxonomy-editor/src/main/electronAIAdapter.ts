@@ -42,5 +42,6 @@ export function makeElectronAIAdapter(scenario: string, voiceTimeoutMs?: number)
         throw err;
       }
     },
+    getModelMinTimeout: (_model) => 0,
   };
 }

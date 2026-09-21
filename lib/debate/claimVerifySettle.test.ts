@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 // Regression test for t/1781 fix (a): the post-completion settle-gate that waits
@@ -53,7 +53,7 @@ function createMockAdapter(): ExtendedAIAdapter {
     async generateText(_prompt: string, _model: string, _options?: GenerateOptions) {
       return '{"response": "mock"}';
     },
-    getModelTimeoutMs: (_model) => 120_000,
+    getModelMinTimeout: (_model) => 0,
   };
 }
 

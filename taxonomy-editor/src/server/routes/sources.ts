@@ -319,6 +319,7 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
           const result = await ai.generateText(prompt, mdl);
           return result.text;
         },
+        getModelMinTimeout: (_model) => 0,
       };
 
       const evalModel = effectiveModel || DEFAULT_MODEL;

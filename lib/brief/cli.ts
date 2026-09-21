@@ -149,6 +149,7 @@ const skipNarrationGuardAdapter: AIAdapter = {
       nextSteps: ['Remove --skip-narration to narrate with a model, or report this as a bug'],
     });
   },
+  getModelMinTimeout: (_model) => 0,
 };
 
 /** Tool versions recorded in the manifest. Best-effort; the gate records, not validates. */
