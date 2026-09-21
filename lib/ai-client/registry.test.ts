@@ -524,6 +524,17 @@ describe('getDefaultTimeout — minTimeoutMs floor (t/3518 Phase 2)', () => {
     expect(() => getDefaultTimeout('claude-made-up-9', floorRegistry)).not.toThrow();
   });
 
+  it('applies the floor even when the registry has no debateTiers (no default/explicit asymmetry — TL e/185#8)', () => {
+    // Pre-fix, getDefaultTimeout early-returned base before consulting the floor when debateTiers was
+    // absent; now the floor is applied on every path, so a registry with models+floor but no tiers
+    // still floors. (Unreachable with the real registry, which has debateTiers — guards the invariant.)
+    const noTiers: ModelRegistry = {
+      backends: [],
+      models: [{ id: 'claude-sonnet-5', apiModelId: 'claude-sonnet-5', label: 'Sonnet 5', backend: 'claude', minTimeoutMs: 300_000 }],
+    };
+    expect(getDefaultTimeout('claude-sonnet-5', noTiers)).toBe(300_000); // floor, not base 180_000
+  });
+
   // getModelMinTimeout — the shared floor primitive. Exposed so explicit-timeout call sites (the
   // opening-brief stage) can enforce the floor themselves, since a `?? explicit` short-circuits
   // getDefaultTimeout (TL e/185#6 item 1). This is what DebateTool's retirement of

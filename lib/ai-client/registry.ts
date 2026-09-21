@@ -15,10 +15,14 @@ export interface ModelEntry {
   /** Reasoning models that reject arbitrary temperature (e.g. moonshot kimi-k3, which
    *  only accepts 1) — when set, the provider MUST send exactly this value (t/2068). */
   fixedTemperature?: number;
-  /** Per-model minimum timeout FLOOR in ms. getDefaultTimeout returns Math.max(tiered, this),
-   *  so it can only RAISE an effective timeout, never shorten one the tier logic already granted
-   *  (floor semantics — SO e/184#2 condition 1). Replaces the model-substring checks that keyed
-   *  on 'opus'/'fable' outside the registry (t/3518). */
+  /** Per-model minimum timeout FLOOR in ms — a MODEL property: "how slow is this model?" It can
+   *  only RAISE an effective timeout, never shorten one (floor semantics — SO e/184#2 condition 1;
+   *  getDefaultTimeout / getModelMinTimeout apply Math.max). This is DISTINCT from a STAGE timeout
+   *  such as the debate opening-brief's DEFAULT_BRIEF_TIMEOUT_MS ("how large is this stage's
+   *  prompt?"): the two compose via Math.max (a slow model on a big stage gets the larger) and must
+   *  NOT be merged — folding a stage default (e.g. the 120s brief floor) into this field would
+   *  over-broaden it to EVERY call of that model (t/3518 Phase 2, TL e/185#8). Replaces the
+   *  'opus'/'fable' substring checks that lived outside the registry (t/3518). */
   minTimeoutMs?: number;
 }
 
@@ -129,9 +133,12 @@ export function getModelMinTimeout(model: string, registry?: ModelRegistry): num
 export function getDefaultTimeout(model: string, registry?: ModelRegistry): number {
   const backend = resolveBackend(model);
   const base = baseTimeout(backend);
-  if (!registry?.debateTiers) return base;
-  const advanced = registry.debateTiers['advanced']?.[backend];
-  const basic    = registry.debateTiers['basic']?.[backend];
+  // Tiered default: 2× base for the advanced-tier model of its backend (advanced ≠ basic); base
+  // otherwise, and base when there is no registry / no debateTiers. The floor below is applied on
+  // EVERY path — no early return before it — so the default path and the explicit-timeout path
+  // (getModelMinTimeout) can't diverge if debateTiers is ever absent (TL e/185#8 nit).
+  const advanced = registry?.debateTiers?.['advanced']?.[backend];
+  const basic    = registry?.debateTiers?.['basic']?.[backend];
   const tiered = (advanced === model && advanced !== basic) ? base * 2 : base;
   // Apply the per-model floor via the shared primitive (single source of truth). NOTE: this only
   // covers callers that DON'T pass an explicit timeout — a `?? explicit` upstream short-circuits
