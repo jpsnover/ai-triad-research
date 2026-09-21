@@ -5,7 +5,7 @@
  * Electron bridge — delegates every AppAPI method to window.electronAPI (IPC).
  * Used when the app runs inside Electron (desktop mode).
  */
-import type { AppAPI, UserPreferences, CreateOpEdPayload, OpEdProgressEvent } from './types';
+import type { AppAPI, UserPreferences } from './types';
 import { makeCancellationError } from './cancellation';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { ALL_API_KEY_BACKENDS } from '@lib/ai-client/types';
@@ -17,7 +17,7 @@ import {
   localComputeEmbeddings,
 } from '../utils/localEmbedding';
 import { ActionableError } from '@lib/debate/errors';
-import type { OpEdSet, OpEdSetSummary } from '../../../../lib/oped/types';
+import type { OpEdSet } from '../../../../lib/oped/types';
 
 // Fire-and-forget: start local embedding init on module load.
 // Bridge is always available in Electron, so WASM-init-failed is harmless noise.
@@ -50,20 +50,11 @@ export function waitForElectronAPI(timeoutMs = 2000): Promise<void> {
   });
 }
 
-// Op-Ed Studio (t/2576) — the op-ed persistence IPC surface is added to the preload
-// API by t/2575. Until that lands, the methods are absent from window.electronAPI, so
-// we feature-detect (optional-chained cast) and reject with an honest ActionableError.
-// No stub to swap out: when t/2575 installs the real methods, these calls light up.
-type OpEdIpc = {
-  listOpEdSets?: () => Promise<OpEdSetSummary[]>;
-  loadOpEdSet?: (id: string) => Promise<OpEdSet>;
-  saveOpEdSet?: (set: OpEdSet) => Promise<void>;
-  deleteOpEdSet?: (id: string) => Promise<void>;
-  createOpEdSet?: (payload: CreateOpEdPayload) => Promise<{ set_id: string }>;
-  cancelOpEdSet?: (setId: string) => void;
-  onOpEdProgress?: (cb: (e: OpEdProgressEvent) => void) => () => void;
-};
-const opEdIpc = (): OpEdIpc => window.electronAPI as unknown as OpEdIpc;
+// Op-Ed Studio (t/2576) persistence landed with t/2575 — window.electronAPI implements
+// listOpEdSets/loadOpEdSet/saveOpEdSet/deleteOpEdSet/createOpEdSet/cancelOpEdSet/onOpEdProgress
+// unconditionally (t/3532 declared them in electron.d.ts; previously a local ad-hoc
+// feature-detection type stood in for the undeclared surface). rejectOpEdIpc below remains
+// for the genuinely desktop-unsupported methods (sharing needs a hosted public URL).
 function rejectOpEdIpc(goal: string, method: string): Promise<never> {
   return Promise.reject(new ActionableError({
     goal: `Op-Ed Studio: ${goal}`,
@@ -326,14 +317,14 @@ export const api: AppAPI = {
   listBriefTemplates: () => Promise.resolve([]),
   deleteBriefTemplate: () => Promise.resolve(),
 
-  // Op-Ed Studio (t/2576) — feature-detected IPC (lands with t/2575); see opEdIpc above.
-  listOpEdSets: () => opEdIpc().listOpEdSets?.() ?? rejectOpEdIpc('list op-eds', 'listOpEdSets'),
-  loadOpEdSet: (id) => opEdIpc().loadOpEdSet?.(id) ?? rejectOpEdIpc('load an op-ed', 'loadOpEdSet'),
-  saveOpEdSet: (set) => opEdIpc().saveOpEdSet?.(set) ?? rejectOpEdIpc('save an op-ed', 'saveOpEdSet'),
-  deleteOpEdSet: (id) => opEdIpc().deleteOpEdSet?.(id) ?? rejectOpEdIpc('delete an op-ed', 'deleteOpEdSet'),
-  createOpEdSet: (payload) => opEdIpc().createOpEdSet?.(payload) ?? rejectOpEdIpc('create an op-ed', 'createOpEdSet'),
-  cancelOpEdSet: (setId) => { opEdIpc().cancelOpEdSet?.(setId); },
-  onOpEdProgress: (cb) => opEdIpc().onOpEdProgress?.(cb) ?? (() => {}),
+  // Op-Ed Studio (t/2576) — persistence landed with t/2575, declared on ElectronAPI (t/3532).
+  listOpEdSets: () => window.electronAPI.listOpEdSets(),
+  loadOpEdSet: (id) => window.electronAPI.loadOpEdSet(id),
+  saveOpEdSet: (set) => window.electronAPI.saveOpEdSet(set),
+  deleteOpEdSet: (id) => window.electronAPI.deleteOpEdSet(id),
+  createOpEdSet: (payload) => window.electronAPI.createOpEdSet(payload),
+  cancelOpEdSet: (setId) => { window.electronAPI.cancelOpEdSet(setId); },
+  onOpEdProgress: (cb) => window.electronAPI.onOpEdProgress(cb),
   // t/2728: op-ed public sharing is a hosted-web feature (needs the public server route);
   // desktop has no public URL, so reject with the standard web-only actionable error.
   shareOpEdSet: () => rejectOpEdIpc('share an op-ed', 'shareOpEdSet'),

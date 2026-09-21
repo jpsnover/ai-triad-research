@@ -75,7 +75,6 @@ type _Assignable<A, B> = A extends B ? true : false;
 // (as done for the 5 methods fixed alongside this file, e.g. `getSourceEvidence`) or by
 // documenting the claim as accepted-unverified.
 type _CarveOut =
-  | 'exportChatToFile'
   | 'listBriefExports' | 'getPreferences' | 'fetchRelevantNodes' | 'computeAttribution'
   | 'listOrganizations' | 'getOrganization' | 'getOrganizationsByPov'
   | 'getOrganizationsByTopic' | 'getOrganizationsByPolicy' | 'getOrganizationEdges'

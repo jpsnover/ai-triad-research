@@ -8,6 +8,7 @@ import type { EdgesFile } from '@lib/debate/taxonomyTypes';
 import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload } from '../bridge/types';
 import type { BriefArtifactName } from '@lib/brief/types';
 import type { StopReason } from '@lib/ai-client/types';
+import type { OpEdSet, OpEdSetSummary } from '@lib/oped/types';
 
 export interface ElectronAPI {
   // Brief Export — desktop parity (t/2840). download returns raw bytes (the bridge wraps a Blob).
@@ -18,6 +19,12 @@ export interface ElectronAPI {
   deleteBriefExport: (exportId: string) => Promise<void>;
   processVersions: Record<string, string | undefined>;
   osRelease: string;
+  /** t/3532: process.platform/process.arch, exposed synchronously alongside osRelease. Typed
+   *  to match preload.cts's actual `process.platform`/`process.arch` values exactly — a plain
+   *  `string` would satisfy preload→declared assignability but fail the reverse (mutual)
+   *  direction, since not every string is a valid NodeJS.Platform/Architecture literal. */
+  osPlatform: NodeJS.Platform;
+  osArch: NodeJS.Architecture;
   /** t/2766: performance.now() stamp from when contextBridge.exposeInMainWorld ran. */
   preloadTimestamp: number;
   getEmbeddingInfo: () => Promise<{ backend: string; execution_provider?: string; calibration_version?: number }>;
@@ -157,10 +164,26 @@ export interface ElectronAPI {
   saveChatSession: (session: unknown) => Promise<void>;
   deleteChatSession: (id: string) => Promise<void>;
   exportChatToFile: (
-    entries: unknown[],
-    format: string,
-    options: { title: string; mode: string; pov: string },
+    entries: { id: string; timestamp: string; speaker: string; content: string; taxonomy_refs: { node_id: string; label?: string; relevance: string }[] }[],
+    format: 'markdown' | 'text' | 'pdf' | 'json',
+    options: { title: string; mode: 'brainstorm' | 'inform' | 'decide'; pov: 'accelerationist' | 'safetyist' | 'skeptic' },
   ) => Promise<{ cancelled: boolean; filePath?: string }>;
+
+  // Op-Ed Studio (t/2575, t/2576, t/2591) — declared t/3532; preload.cts implemented these
+  // unconditionally, but electron.d.ts never declared them, forcing 3 renderer call sites to
+  // bypass this interface with local ad-hoc types / an `as unknown as` cast (t/3529 conformance
+  // check finding). `params: unknown` on createOpEdSet matches preload.cts's actual (looser)
+  // implementation — AppAPI's CreateOpEdPayload types it as CreateOpEdParams, an unverified
+  // claim about IPC-handler-side validation; restating that here would just be conformance
+  // theatre (t/3529#6 reasoning) without adding real safety, since preload also allows any value.
+  createOpEdSet: (payload: { topic: string; url?: string; params: unknown; voices: string[] }) => Promise<{ set_id: string }>;
+  cancelOpEdSet: (setId: string) => void;
+  exportOpEdSet: (setId: string) => Promise<{ cancelled: boolean; filePath?: string }>;
+  onOpEdProgress: (callback: (event: { set_id: string; voice: string; stage: string; error?: string }) => void) => () => void;
+  listOpEdSets: () => Promise<OpEdSetSummary[]>;
+  loadOpEdSet: (setId: string) => Promise<OpEdSet>;
+  deleteOpEdSet: (setId: string) => Promise<void>;
+  saveOpEdSet: (set: OpEdSet) => Promise<void>;
 
   // Harvest
   harvestCreateConflict: (conflict: Record<string, unknown>) => Promise<{ created: boolean }>;
@@ -220,6 +243,7 @@ export interface ElectronAPI {
 
   // Prompt Diff popout
   openPromptDiffWindow: (debateId: string, entryId: string) => Promise<void>;
+  onPromptDiffContext: (callback: (ctx: { debateId: string; entryId: string }) => void) => void;
 
   // Chat popout
   openChatWindow: (chatId: string, source?: 'my' | 'community') => Promise<{ atCap: true } | void>;
@@ -234,6 +258,9 @@ export interface ElectronAPI {
   triggerMainDump?: () => Promise<{ filePath: string }>;
   onTriggerDump?: (callback: () => void) => () => void;
   sendDumpResult?: (result: { filePath: string }) => void;
+  /** t/3532: raw `ipcRenderer.on` passthrough (event, payload) — the popout window's flight
+   *  events forwarded to the main window, unwrapped like other on* handlers below. */
+  onFlightEventFromPopup: (callback: (_e: unknown, payload: unknown) => void) => void;
 
   // Terminal
   terminalSpawn: () => Promise<void>;
