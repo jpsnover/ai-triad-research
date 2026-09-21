@@ -2,7 +2,7 @@
 # What:  Builds and pushes the shared Node.js base image to GHCR. Includes
 #        Hadolint linting, Trivy security scanning, and SBOM generation.
 # Before: Update deploy/azure/Dockerfile.base as needed. Runs automatically
-#         monthly or on push to that file.
+#         weekly or on push to that file.
 # After:  The new base image tag is available in GHCR. Update the taxonomy-editor
 #         Dockerfile's FROM line if using a specific tag (not :latest).
 
@@ -11,7 +11,13 @@ name: Base Image
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 1 * *'  # Rebuild monthly (1st of each month) for OS security patches
+    # Rebuild WEEKLY (Sunday 00:00 UTC) so apt-get upgrade auto-retires trixie CVEs
+    # within ~1 week of Debian shipping a fix, and the Trivy rescan uploads a fresh
+    # SARIF that clears the corresponding code-scanning alerts — no human dismissals
+    # (t/3520; auto-retirement for t/3513#2 cond. 3). Was monthly; weekly is the
+    # responsiveness the no-fix residual policy needs. Cost negligible (public GHCR +
+    # Actions minutes are free; base build ~6 min).
+    - cron: '0 0 * * 0'
   push:
     paths:
       - 'deploy/azure/Dockerfile.base'
@@ -95,7 +101,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.date_tag.outputs.tag }}
           # CACHE_BUST invalidates the npm@latest + apt-get upgrade layers so security
           # upgrades genuinely re-run instead of restoring a stale cached layer (t/3137).
-          # Date-tag granularity busts on the real rebuild cadence (monthly cron / new-day
+          # Date-tag granularity busts on the real rebuild cadence (weekly cron / new-day
           # dispatch); the in-image version tripwires catch any residual same-day no-op.
           build-args: |
             CACHE_BUST=${{ steps.date_tag.outputs.tag }}
