@@ -17,7 +17,9 @@ Describe 'Request-FlightRecorderDump' -Tag 'health' {
             timestamp   = '2026-06-07T10:15:30Z'
         } | ConvertTo-Json -Compress
 
-        $pipeName = "test-fr-dump-$PID"
+        # Unique per-run pipe name (GUID, not $PID) so a leftover pipe from a
+        # previously wedged run can never collide with this one (t/3527).
+        $pipeName = "test-fr-dump-$([guid]::NewGuid().ToString('N'))"
         $serverJob = Start-Job -ScriptBlock {
             param($pipeName, $response)
             $server = [System.IO.Pipes.NamedPipeServerStream]::new(
@@ -39,29 +41,37 @@ Describe 'Request-FlightRecorderDump' -Tag 'health' {
             }
         } -ArgumentList $pipeName, $mockResponse
 
-        Start-Sleep -Milliseconds 300
+        $pipe = $null
+        $writer = $null
+        $reader = $null
+        try {
+            # No fixed pre-sleep: Connect(timeout) itself polls for the server to
+            # create the pipe, so a generous 30s timeout absorbs cross-process
+            # Start-Job startup latency on a loaded CI runner (t/3527). The old
+            # 300ms sleep + 3s connect raced job startup and flaked the required gate.
+            $pipe = [System.IO.Pipes.NamedPipeClientStream]::new('.', $pipeName, [System.IO.Pipes.PipeDirection]::InOut)
+            $pipe.Connect(30000)
+            $writer = [System.IO.StreamWriter]::new($pipe, [System.Text.Encoding]::UTF8, 1024, $true)
+            $reader = [System.IO.StreamReader]::new($pipe, [System.Text.Encoding]::UTF8, $false, 1024, $true)
 
-        $pipe = [System.IO.Pipes.NamedPipeClientStream]::new('.', $pipeName, [System.IO.Pipes.PipeDirection]::InOut)
-        $pipe.Connect(3000)
-        $writer = [System.IO.StreamWriter]::new($pipe, [System.Text.Encoding]::UTF8, 1024, $true)
-        $reader = [System.IO.StreamReader]::new($pipe, [System.Text.Encoding]::UTF8, $false, 1024, $true)
+            $request = @{ action = 'dump' } | ConvertTo-Json -Compress
+            $writer.WriteLine($request)
+            $writer.Flush()
 
-        $request = @{ action = 'dump' } | ConvertTo-Json -Compress
-        $writer.WriteLine($request)
-        $writer.Flush()
+            $responseLine = $reader.ReadLine()
+            $result = $responseLine | ConvertFrom-Json
 
-        $responseLine = $reader.ReadLine()
-        $result = $responseLine | ConvertFrom-Json
-
-        $reader.Dispose()
-        $writer.Dispose()
-        $pipe.Dispose()
-
-        $result.event_count | Should -Be 150
-        $result.debate_id | Should -Be 'abc-123'
-        $result.path | Should -Not -BeNullOrEmpty
-
-        $null = Receive-Job $serverJob -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
+            $result.event_count | Should -Be 150
+            $result.debate_id | Should -Be 'abc-123'
+            $result.path | Should -Not -BeNullOrEmpty
+        } finally {
+            # Dispose in try/finally so a failed Connect/assertion can't leak the
+            # client pipe or leave the server job running into later runs (t/3527).
+            if ($reader) { try { $reader.Dispose() } catch { } }
+            if ($writer) { try { $writer.Dispose() } catch { } }
+            if ($pipe)   { try { $pipe.Dispose() } catch { } }
+            $null = Receive-Job $serverJob -Wait -AutoRemoveJob -ErrorAction SilentlyContinue
+        }
     }
 
     It 'outputs object with expected properties' {
