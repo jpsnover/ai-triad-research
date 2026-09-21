@@ -33,7 +33,7 @@ describe('generation helpers thread the abort signal (t/2508)', () => {
     const ctrl = newAbortController();
     generateText.mockResolvedValue({ text: 'hi' });
     await generateTextWithProgress('prompt', 'model-x', 'activity', vi.fn());
-    expect(generateText).toHaveBeenCalledWith('prompt', 'model-x', undefined, undefined, { signal: ctrl.signal });
+    expect(generateText).toHaveBeenCalledWith('prompt', 'model-x', undefined, undefined, { signal: ctrl.signal, purpose: 'activity' });
   });
 
   it('generateTextWithProgress re-throws a tagged cancellation (does not swallow)', async () => {
@@ -47,13 +47,13 @@ describe('generation helpers thread the abort signal (t/2508)', () => {
     generateText.mockResolvedValue({ text: 'out' });
     const gen = makeStageGenerate(vi.fn(), 'base-model');
     await gen('prompt', 'call-model', { temperature: 0.4, timeoutMs: 1234 }, 'label');
-    expect(generateText).toHaveBeenCalledWith('prompt', 'call-model', 1234, 0.4, { signal: ctrl.signal });
+    expect(generateText).toHaveBeenCalledWith('prompt', 'call-model', 1234, 0.4, { signal: ctrl.signal, purpose: 'label' });
   });
 
   it('with no active controller the signal is undefined (no-signal callers unchanged)', async () => {
     cancelAndResetAbort(); // _abortController = null
     generateText.mockResolvedValue({ text: 'hi' });
     await generateTextWithProgress('p', 'm', 'a', vi.fn());
-    expect(generateText).toHaveBeenCalledWith('p', 'm', undefined, undefined, { signal: undefined });
+    expect(generateText).toHaveBeenCalledWith('p', 'm', undefined, undefined, { signal: undefined, purpose: 'a' });
   });
 });

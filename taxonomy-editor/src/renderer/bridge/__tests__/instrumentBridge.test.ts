@@ -248,3 +248,85 @@ describe('instrumentBridge — embedding batch_size (t/3071)', () => {
     expect(start?.data?.batch_size).toBeUndefined();
   });
 });
+
+describe('instrumentBridge — ai call metadata: model/timeoutMs/purpose (t/3519)', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  /** Find the request/start event for a bridge method (message `bridge.<method>`, no suffix). */
+  function startRecord(method: string): { data?: Record<string, unknown> } | undefined {
+    return mockRecord.mock.calls
+      .map((c) => c[0] as { message: string; data?: Record<string, unknown> })
+      .find((e) => e.message === `bridge.${method}`);
+  }
+
+  it('records model/timeoutMs/purpose on the ai.request start event for generateText', async () => {
+    const api = instrumentBridge({ generateText: () => Promise.resolve({ text: 'ok' }) } as unknown as AppAPI);
+    await (api as unknown as { generateText: (p: string, m: string, t: number, temp: number, o: { purpose?: string }) => Promise<unknown> })
+      .generateText('prompt', 'claude-5-sonnet', 60_000, 0.7, { purpose: 'brief' });
+
+    const start = startRecord('generateText');
+    expect(start?.data?.model).toBe('claude-5-sonnet');
+    expect(start?.data?.timeoutMs).toBe(60_000);
+    expect(start?.data?.purpose).toBe('brief');
+  });
+
+  it('omits purpose when the caller passes no opts (optional field)', async () => {
+    const api = instrumentBridge({ generateText: () => Promise.resolve({ text: 'ok' }) } as unknown as AppAPI);
+    await (api as unknown as { generateText: (p: string, m: string, t: number) => Promise<unknown> })
+      .generateText('prompt', 'claude-5-sonnet', 60_000);
+
+    const start = startRecord('generateText');
+    expect(start?.data?.model).toBe('claude-5-sonnet');
+    expect(start?.data?.timeoutMs).toBe(60_000);
+    expect(start?.data?.purpose).toBeUndefined();
+  });
+
+  it('records model/timeoutMs/purpose on the ai.response ok event', async () => {
+    const api = instrumentBridge({ generateText: () => Promise.resolve({ text: 'ok' }) } as unknown as AppAPI);
+    await (api as unknown as { generateText: (p: string, m: string, t: number, temp: number, o: { purpose?: string }) => Promise<unknown> })
+      .generateText('prompt', 'claude-5-sonnet', 180_000, 0.7, { purpose: 'plan' });
+
+    const ok = okRecord('generateText');
+    expect(ok?.data?.model).toBe('claude-5-sonnet');
+    expect(ok?.data?.timeoutMs).toBe(180_000);
+    expect(ok?.data?.purpose).toBe('plan');
+  });
+
+  it('records model/timeoutMs/purpose on the ai.error event (the t/3518 diagnostic gap)', async () => {
+    const api = instrumentBridge({ generateText: () => Promise.reject(new Error('timed out')) } as unknown as AppAPI);
+    await expect(
+      (api as unknown as { generateText: (p: string, m: string, t: number, temp: number, o: { purpose?: string }) => Promise<unknown> })
+        .generateText('prompt', 'claude-5-sonnet', 60_000, 0.7, { purpose: 'brief' }),
+    ).rejects.toThrow();
+
+    const rec = lastRecord();
+    expect(rec.data?.model).toBe('claude-5-sonnet');
+    expect(rec.data?.timeoutMs).toBe(60_000);
+    expect(rec.data?.purpose).toBe('brief');
+  });
+
+  it('records model on generateTextWithSearch and startChatStream (their model arg positions)', async () => {
+    const api = instrumentBridge({
+      generateTextWithSearch: () => Promise.resolve({ text: 'ok' }),
+      startChatStream: () => Promise.resolve('ok'),
+    } as unknown as AppAPI);
+
+    await (api as unknown as { generateTextWithSearch: (p: string, m: string) => Promise<unknown> })
+      .generateTextWithSearch('prompt', 'gemini-3-flash');
+    expect(startRecord('generateTextWithSearch')?.data?.model).toBe('gemini-3-flash');
+
+    await (api as unknown as { startChatStream: (s: string, msgs: unknown[], m: string) => Promise<unknown> })
+      .startChatStream('system', [], 'claude-5-sonnet');
+    expect(startRecord('startChatStream')?.data?.model).toBe('claude-5-sonnet');
+  });
+
+  it('omits model/timeoutMs/purpose for a non-AI method (field is ai-scoped)', async () => {
+    const api = instrumentBridge({ loadEdges: () => Promise.resolve({ edges: [] }) } as unknown as AppAPI);
+    await (api as unknown as { loadEdges: () => Promise<unknown> }).loadEdges();
+
+    const start = startRecord('loadEdges');
+    expect(start?.data?.model).toBeUndefined();
+    expect(start?.data?.timeoutMs).toBeUndefined();
+    expect(start?.data?.purpose).toBeUndefined();
+  });
+});

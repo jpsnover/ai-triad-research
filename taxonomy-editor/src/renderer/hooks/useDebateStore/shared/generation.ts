@@ -65,7 +65,7 @@ export async function generateTextWithProgress(
     // Thread the live debate abort signal (t/2508) so cancelAndResetAbort() physically
     // kills the in-flight request instead of merely gating late results. Read inline:
     // the currently-active controller is the one owning this call at await time.
-    const result = await api.generateText(prompt, model, timeoutMs, undefined, { signal: _abortController?.signal });
+    const result = await api.generateText(prompt, model, timeoutMs, undefined, { signal: _abortController?.signal, purpose: activity });
     return result;
   } catch (err) {
     if (isCancellationError(err)) {
@@ -223,7 +223,7 @@ export function makeStageGenerate(
     });
     try {
       // Thread the live debate abort signal (t/2508) — see generateTextWithProgress.
-      const result = await api.generateText(prompt, callModel || model, options.timeoutMs, options.temperature, { signal: _abortController?.signal });
+      const result = await api.generateText(prompt, callModel || model, options.timeoutMs, options.temperature, { signal: _abortController?.signal, purpose: label });
       return result.text;
     } catch (err) {
       if (isCancellationError(err)) {

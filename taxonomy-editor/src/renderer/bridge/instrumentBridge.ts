@@ -62,6 +62,39 @@ function embeddingBatchData(method: string, args: unknown[]): { batch_size?: num
   return {};
 }
 
+/**
+ * `model`/`timeoutMs`/`purpose` for the ai.request/ai.response/ai.error FR events (t/3519). The
+ * t/3518 triage found all 20 ai.error/ai.request events for a PI debate failure carried only
+ * `{method, category, _origin}` — the model had to be inferred from unrelated debate.lifecycle
+ * events, and the decisive fact (60s budget vs 180s expected) only surfaced because the thrown
+ * ActionableError happened to mention elapsed ms. This is a positional read of each AI method's
+ * PARAMETER LIST — pinned to the current `AppAPI` (bridge/types.ts) signatures below. If any of
+ * these signatures' argument ORDER changes, update the indices here too (a silent mismatch would
+ * misattribute model/timeoutMs, not just go missing — no test catches a swap, only omission).
+ *   generateText(prompt, model, timeoutMs, temperature, opts: GenerateTextOptions)
+ *   generateTextWithSearch(prompt, model)
+ *   startChatStream(systemInstruction, messages, model, temperature, urlContext, context)
+ * All other "ai"-category methods (computeEmbeddings, computeQueryEmbedding, updateNodeEmbeddings,
+ * nliClassify) call a fixed server-side model with no per-call selection — nothing to extract.
+ */
+function aiCallMeta(method: string, args: unknown[]): { model?: string; timeoutMs?: number; purpose?: string } {
+  if (method === 'generateText') {
+    const opts = args[4] as { purpose?: string } | undefined;
+    return {
+      model: typeof args[1] === 'string' ? args[1] : undefined,
+      timeoutMs: typeof args[2] === 'number' ? args[2] : undefined,
+      purpose: typeof opts?.purpose === 'string' ? opts.purpose : undefined,
+    };
+  }
+  if (method === 'generateTextWithSearch') {
+    return { model: typeof args[1] === 'string' ? args[1] : undefined };
+  }
+  if (method === 'startChatStream') {
+    return { model: typeof args[2] === 'string' ? args[2] : undefined };
+  }
+  return {};
+}
+
 /** Extract result metadata for data-loading methods to enrich completion events. */
 function extractResultMeta(method: string, args: unknown[], value: unknown): Record<string, unknown> | undefined {
   if (!value || typeof value !== 'object') return undefined;
@@ -221,6 +254,9 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
       const startTs = performance.now();
 
       const isAI = category === 'ai';
+      // Self-gating by method name (see aiCallMeta doc) — returns {} for any non-AI method, so no
+      // extra isAI branch is needed here (keeps this closure's complexity flat).
+      const aiMeta = aiCallMeta(key, args);
 
       // Record call start (only if recorder is initialized)
       recorder?.record({
@@ -228,7 +264,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
         component: recorder.intern('component', 'bridge') as string | number,
         level: 'debug',
         message: `bridge.${key}`,
-        data: { method: key, category, arg_count: args.length, args: summarizeArgs(args, key), ...embeddingBatchData(key, args) },
+        data: { method: key, category, arg_count: args.length, args: summarizeArgs(args, key), ...embeddingBatchData(key, args), ...aiMeta },
       });
 
       let result: unknown;
@@ -249,7 +285,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
           message: expected ? `bridge.${key} expected ${httpStatus} (sync)` : `bridge.${key} failed (sync)`,
           duration_ms,
           error: normalizeError(err),
-          data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }), ...(retryAfterS !== undefined && { retry_after_s: retryAfterS }), ...rateLimitFieldsFromError(err, httpStatus) },
+          data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }), ...(retryAfterS !== undefined && { retry_after_s: retryAfterS }), ...rateLimitFieldsFromError(err, httpStatus), ...aiMeta },
         });
         throw err;
       }
@@ -270,7 +306,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
             level: 'info',
             message: `bridge.${key} ok`,
             duration_ms,
-            data: { method: key, category, ...resultMeta },
+            data: { method: key, category, ...resultMeta, ...aiMeta },
           });
           if (isAI) {
             const model = typeof args[1] === 'string' ? args[1] : 'unknown';
@@ -295,7 +331,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
             message: expected ? `bridge.${key} expected ${httpStatus}` : `bridge.${key} failed`,
             duration_ms,
             error: normalizeError(err),
-            data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }), ...(retryAfterS !== undefined && { retry_after_s: retryAfterS }), ...rateLimitFieldsFromError(err, httpStatus) },
+            data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }), ...(retryAfterS !== undefined && { retry_after_s: retryAfterS }), ...rateLimitFieldsFromError(err, httpStatus), ...aiMeta },
           });
           throw err;
         },
