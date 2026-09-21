@@ -15,6 +15,7 @@ import type { ContainerMentions } from '../../../lib/entities/mentionTypes.js';
 import type { ANClaimInput, RelevantTaxonomyResult } from '../../../lib/debate/relevanceSelection.js';
 import type { ClaimAttributionResult } from '../../../lib/debate/argumentNetwork/attribution.js';
 import type { ClaimTaxonomyAttribution } from '../../../lib/debate/types.js';
+import type { UserPreferences } from '../../../lib/userPreferencesSchema.js';
 
 // t/3532: mirrors bridge/types.ts's FetchRelevantNodesPayload/FetchClaimAttributionPayload/
 // ClaimAttributionResponse structurally (those are defined directly in bridge/types.ts, not
@@ -117,7 +118,11 @@ function buildElectronApi() {
     ipcRenderer.invoke('get-embedding-info'),
 
   // User preferences (t/2118)
-  getPreferences: (): Promise<unknown> =>
+  // t/3536: was `Promise<unknown>` — narrowed now that the handler validates via the
+  // shared lib/userPreferencesSchema.ts (t/3535) instead of returning the parsed file
+  // contents as-is, making this declared type an enforced claim rather than an
+  // unverified one (the t/3529/t/3532 carve-out reason this was left loose).
+  getPreferences: (): Promise<UserPreferences | null> =>
     ipcRenderer.invoke('get-preferences'),
   setPreferences: (prefs: unknown): Promise<void> =>
     ipcRenderer.invoke('set-preferences', prefs),

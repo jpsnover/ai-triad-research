@@ -83,13 +83,12 @@ true satisfies _Equal<_Undeclared, never>;
 // `loadAggregatedCruxes`, `loadConflictClusters`, `loadGreatestHits`, `onTriggerDump`,
 // `saveEdges`, `sendDumpResult`, `triggerMainDump`, `validateApiKey`, `verifyStoredKeys`.
 //
-// `getPreferences` remains carved out DELIBERATELY (TL ruling, t/3532#3/#7): it reads
-// unvalidated JSON off disk and returns it as-is — declaring `UserPreferences | null` in
-// electron.d.ts is a good claim that happens to be unenforced, and the fix is to make the
-// claim TRUE (Zod-validate on read, t/3534/t/3536), not to downgrade the type and push
-// unsafety into every settings call site. Removing it from the carve-out is t/3536's job.
-// (`setPreferences` and the 5 param-precision entries found during the mutual-assignability
-// attempt — `openDebateWindow`, `importKeysFromSharing`, `saveEdges`, `reportError`,
-// `createBriefExport` — are NOT carved out: arm 1's contravariant param check passes them
-// correctly, since a looser preload param is safe, not a gap.)
-type _CarveOut = 'getPreferences';
+// `getPreferences` — CARVE-OUT EMPTIED (t/3536): the handler now validates via the shared
+// lib/userPreferencesSchema.ts (t/3535) instead of returning the parsed file contents
+// as-is, so `UserPreferences | null` is now an enforced claim, not an unverified one — the
+// exact condition TL set for removing it (t/3532#3/#7). (`setPreferences` and the 5
+// param-precision entries found during the mutual-assignability attempt — `openDebateWindow`,
+// `importKeysFromSharing`, `saveEdges`, `reportError`, `createBriefExport` — were never
+// carved out: arm 1's contravariant param check passes them correctly, since a looser
+// preload param is safe, not a gap.)
+type _CarveOut = never;
