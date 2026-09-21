@@ -67,6 +67,24 @@ export interface UrlContextMetadata {
   urlMetadata: UrlContextEntry[];
 }
 
+/**
+ * Normalized provider finish reason (t/3525). The axis is "is `text` the complete intended
+ * output?" — consumers act on this, never on a provider-native token:
+ *  - `'stop'`          — complete intended output; the model finished on its own terms
+ *                        (includes Claude `stop_sequence` — a requested stop is a normal stop).
+ *  - `'max_tokens'`    — TRUNCATED at the output ceiling. Callers MUST NOT parse the partial
+ *                        output; the fix is raise maxTokens / shorten the prompt.
+ *  - `'content_filter'`— provider policy/safety/recitation stop. Text is incomplete for a reason
+ *                        raising maxTokens will NOT fix; the right message is "blocked by policy".
+ *  - `'other'`         — tool-stop or a native reason not (yet) recognized by the mapping table.
+ *
+ * `undefined` (absent) is DISTINCT from `'other'`: absent = the provider reported no reason, or
+ * the parse site predates this field; `'other'` = a reason WAS reported but is unmapped. Never
+ * fabricate `'stop'` when the native reason is missing. Invariant: if a native token was present,
+ * the normalized value is non-undefined (a present-but-unmapped token is `'other'`, never absent).
+ */
+export type StopReason = 'stop' | 'max_tokens' | 'content_filter' | 'other';
+
 export interface ProviderResult {
   text: string;
   usage?: TokenUsage;
@@ -76,6 +94,14 @@ export interface ProviderResult {
   rawResponsePreview?: string;
   /** Gemini URL-context grounding metadata — present when `urlContext` was enabled. */
   urlContextMetadata?: UrlContextMetadata;
+  /** Normalized finish reason (t/3525). See {@link StopReason}. Undefined when the provider
+   *  reported no native reason (never fabricated). Consumers act on THIS, not `rawStopReason`. */
+  stopReason?: StopReason;
+  /** Raw provider-native finish token (e.g. Claude `"end_turn"`, Gemini `"SAFETY"`, OpenAI
+   *  `"max_output_tokens"`) — flight-recorder forensics ONLY, NOT part of the consumer contract.
+   *  Mirrors the `rawResponsePreview` FR-diagnostic convention. The FR `ai.response` event records
+   *  this so a future unmapped native reason is diagnosable behind an `'other'` normalization. */
+  rawStopReason?: string;
 }
 
 export interface TokenUsage {

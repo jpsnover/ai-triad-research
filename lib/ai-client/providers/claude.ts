@@ -4,6 +4,7 @@
 import { ActionableError } from '../../debate/errors.js';
 import { withTimeout, makeFetchSignal } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult, ToolCall } from '../types.js';
+import { normalizeStopReason } from './stopReason.js';
 
 export async function generateViaClaude(
   fetchFn: FetchFn,
@@ -115,6 +116,7 @@ export async function generateViaClaude(
 function parseClaudeResponse(bodyText: string): ProviderResult {
   let json: {
     content?: { type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }[];
+    stop_reason?: string;
     usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
   };
   try {
@@ -151,5 +153,6 @@ function parseClaudeResponse(bodyText: string): ProviderResult {
     cachedTokens: (u.cache_read_input_tokens ?? 0) || undefined,
     totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0) || undefined,
   } : undefined;
-  return { text, usage, toolCalls };
+  const rawStopReason = json.stop_reason ?? undefined;
+  return { text, usage, toolCalls, stopReason: normalizeStopReason(rawStopReason), rawStopReason };
 }

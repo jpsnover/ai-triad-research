@@ -5,6 +5,7 @@ import { ActionableError } from '../../debate/errors.js';
 import { withTimeout, makeFetchSignal } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult, ToolCall, UrlContextMetadata } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
+import { normalizeStopReason } from './stopReason.js';
 
 export const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -167,7 +168,9 @@ export async function generateViaGemini(
     totalTokens: um.totalTokenCount,
   } : undefined;
   const urlContextMetadata = parseUrlContextMetadata(candidate);
-  return { text, usage, toolCalls, urlContextMetadata };
+  // finishReason lives on the candidate (e.g. "STOP", "MAX_TOKENS", "SAFETY"); typed unknown here.
+  const rawStopReason = typeof candidate.finishReason === 'string' ? candidate.finishReason : undefined;
+  return { text, usage, toolCalls, urlContextMetadata, stopReason: normalizeStopReason(rawStopReason), rawStopReason };
 }
 
 export async function generateViaGeminiStream(
@@ -229,6 +232,9 @@ export async function generateViaGeminiStream(
 
   const chunks: string[] = [];
   let urlContextMetadata: UrlContextMetadata | undefined;
+  // The finishReason arrives on the FINAL SSE chunk (and Gemini can emit MAX_TOKENS with empty
+  // parts), so track the last non-empty value seen across chunks rather than any single chunk's.
+  let rawStopReason: string | undefined;
   const decoder = new TextDecoder();
   let buffer = '';
 
@@ -249,6 +255,9 @@ export async function generateViaGeminiStream(
     if (text) {
       chunks.push(text);
       onChunk?.(text);
+    }
+    if (typeof candidate.finishReason === 'string' && candidate.finishReason) {
+      rawStopReason = candidate.finishReason;
     }
     const meta = parseUrlContextMetadata(candidate);
     if (meta) urlContextMetadata = meta;
@@ -271,7 +280,7 @@ export async function generateViaGeminiStream(
     reader.releaseLock();
   }
 
-  return { text: chunks.join(''), urlContextMetadata };
+  return { text: chunks.join(''), urlContextMetadata, stopReason: normalizeStopReason(rawStopReason), rawStopReason };
 }
 
 export function mapGeminiError(status: number, bodyText: string): ActionableError {
