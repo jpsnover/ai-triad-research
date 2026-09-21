@@ -36,6 +36,7 @@
       "@lib/organizations/*": ["../lib/organizations/*"],
       "@lib/entities/*": ["../lib/entities/*"],
       "@lib/policy/*": ["../lib/policy/*"],
+      "@lib/userPreferencesSchema": ["../lib/userPreferencesSchema.ts"],
       "zod": ["node_modules/zod"],
       "react": ["node_modules/@types/react"],
       "react/jsx-runtime": ["node_modules/@types/react/jsx-runtime"]

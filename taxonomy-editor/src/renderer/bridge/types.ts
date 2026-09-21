@@ -276,11 +276,13 @@ export interface GenerateTextIpcPayload {
   maxTokens?: number;
 }
 
-export type ViewMode = 'simple' | 'advanced';
-
-export interface UserPreferences {
-  viewMode: ViewMode;
-}
+// Re-exported from the shared schema (t/3534) — single source of truth for both
+// read boundaries (ElectronMain get-preferences, ServerAPI GET /api/preferences),
+// so Electron and web can never silently diverge on the same preferences file.
+// Same names, same shape — zero renderer call-site churn.
+import type { ViewMode as _ViewMode, UserPreferences as _UserPreferences } from '@lib/userPreferencesSchema';
+export type ViewMode = _ViewMode;
+export type UserPreferences = _UserPreferences;
 
 export interface AppAPI {
   // --- User preferences ---
