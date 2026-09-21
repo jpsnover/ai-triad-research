@@ -369,19 +369,19 @@ jobs:
       #   NEVER an ad-hoc skip. Emergency bypass = the EXISTING merge-guard override path
       #   (disable the feedback rule / `--no-verify` per the commit-guard pattern), recorded.
       #
-      # STALENESS (Part 1b, 4-week rule): the scheduled report-only scan tracks the LAST
-      # RELEASED image (newest resolved v* tag, never :latest). If time-since-last-`v*`-tag
-      # exceeds 4 WEEKS, run a build+scan from main HEAD once via `workflow_dispatch` before
-      # the next release (the released-image proxy degrades past ~4 weekly-base-rebuild cycles).
+      # STALENESS (Part 1b, 4-week rule): the deployed image is scanned out-of-band by
+      # `deployed-image-scan.yml` (weekly, report-only) against `:latest` — the real deployed
+      # artifact, since no `v*` tags exist. That workflow's freshness guard fails RED if
+      # `:latest` is older than the 4-week window, so a stale deployed image can't report
+      # false-clean. This gate here covers the freshly-built image at dispatch time.
       #
-      # WARN PHASE (t/3520#2 cond. 1 / AGENTS.md Gate-Promotion rule, t/2683 precedent):
-      # continue-on-error keeps this NON-BLOCKING until it logs ≥1 green cycle on real
-      # CI — a self-buggy exit-code probe promoted straight to blocking can down builds
-      # on its own defect. The flip to blocking = DELETE the `continue-on-error: true`
-      # line below, and lands ONLY after: SO Recommendation + warn-cycle green evidence
-      # + TL sign-off (t/3520). Do not remove it before all three.
-      - name: Trivy blocking gate (fixable high/critical) — WARN PHASE
-        continue-on-error: true
+      # BLOCKING (flipped t/3520 after: Arm-A red proof run 35645266261 [__run_4 outcome=failure
+      # on a fixable HIGH] + warn-cycle green run 35646605903 [__run_4 outcome=success, 0
+      # findings] + Second Opinion Recommendation + TL sign-off). A fixable high/critical now
+      # FAILS the dispatched build. TO REVERT to non-blocking in an emergency (self-buggy gate
+      # downing builds), re-add `continue-on-error: true` to this step — same spirit as the
+      # commit-guard `--no-verify` / merge-guard disable path; record the revert on t/3520.
+      - name: Trivy blocking gate (fixable high/critical) — BLOCKING
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         env:
           TRIVY_SKIP_DB_UPDATE: 'true'     # C3: reuse the warmed DB — a red here is a FINDING, never a DB flake
