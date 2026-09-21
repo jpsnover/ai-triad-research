@@ -139,7 +139,10 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
     };
 
     let pipelineResult = await engine.executeWithModelFailover(poverId, async (model) => {
-      const input = { ...pipelineInput, model };
+      // Slow frontier models need more than the 60s default for the large brief prompt (t/3518).
+      // Mirror the aiAdapter floor: 300s for opus/fable, 120s for all others (covers haiku intermittent).
+      const briefTimeoutFloor = (model.includes('opus') || model.includes('fable')) ? 300_000 : 120_000;
+      const input = { ...pipelineInput, model, briefTimeoutMs: pipelineInput.briefTimeoutMs ?? briefTimeoutFloor };
       let result = await runOpeningPipeline(
         input,
         engine.stageGenerate.bind(engine),

@@ -1165,7 +1165,7 @@
     },
     "advanced": {
       "gemini": "gemini-3.1-pro-preview",
-      "claude": "claude-sonnet-4-6",
+      "claude": "claude-fable-5",
       "groq": "groq-llama-3.3-70b-versatile",
       "openai": "openai-gpt-4.1",
       "azure": "azure-gpt-4.1",

@@ -100,7 +100,7 @@ export function getDefaultTimeout(model: string, registry?: ModelRegistry): numb
 function parseVersionedModelId(id: string): { family: string; version: number } | null {
   const gemini = id.match(/^(gemini)-(\d+\.\d+)-(.+?)(?:-preview)?$/);
   if (gemini) return { family: `${gemini[1]}-${gemini[3]}`, version: parseFloat(gemini[2]) };
-  const claude = id.match(/^(claude-(?:opus|sonnet|haiku))-(\d+(?:-\d+)?)$/);
+  const claude = id.match(/^(claude-(?:opus|sonnet|haiku|fable))-(\d+(?:-\d+)?)$/);
   if (claude) return { family: claude[1], version: parseFloat(claude[2].replace('-', '.')) };
   return null;
 }
