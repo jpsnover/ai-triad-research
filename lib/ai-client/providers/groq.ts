@@ -5,6 +5,7 @@ import { ActionableError } from '../../debate/errors.js';
 import { withTimeout, makeFetchSignal } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
+import { normalizeStopReason } from './stopReason.js';
 
 export async function generateViaGroq(
   fetchFn: FetchFn,
@@ -62,7 +63,7 @@ export async function generateViaGroq(
   }
 
   let json: {
-    choices?: { message: { content: string } }[];
+    choices?: { message: { content: string }; finish_reason?: string }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
   try {
@@ -90,5 +91,6 @@ export async function generateViaGroq(
     completionTokens: u.completion_tokens,
     totalTokens: u.total_tokens,
   } : undefined;
-  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200) };
+  const rawStopReason = json.choices[0].finish_reason ?? undefined;
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason };
 }

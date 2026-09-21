@@ -5,6 +5,7 @@ import { ActionableError } from '../../debate/errors.js';
 import { withTimeout, makeFetchSignal } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
+import { normalizeStopReason } from './stopReason.js';
 
 export async function generateViaDeepSeek(
   fetchFn: FetchFn,
@@ -57,7 +58,7 @@ export async function generateViaDeepSeek(
   }
 
   let json: {
-    choices?: { message: { content: string } }[];
+    choices?: { message: { content: string }; finish_reason?: string }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_cache_hit_tokens?: number };
   };
   try {
@@ -86,7 +87,8 @@ export async function generateViaDeepSeek(
     cachedTokens: u.prompt_cache_hit_tokens,
     totalTokens: u.total_tokens,
   } : undefined;
-  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200) };
+  const rawStopReason = json.choices[0].finish_reason ?? undefined;
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason };
 }
 
 export async function generateViaDeepSeekStream(
@@ -151,6 +153,8 @@ export async function generateViaDeepSeekStream(
 
   const chunks: string[] = [];
   let usage: ProviderResult['usage'];
+  // finish_reason arrives on the final SSE chunk (delta empty) — track the last non-null seen.
+  let rawStopReason: string | undefined;
   const decoder = new TextDecoder();
   let buffer = '';
 
@@ -186,6 +190,9 @@ export async function generateViaDeepSeekStream(
           onChunk?.(delta);
         }
 
+        const fr = parsed.choices?.[0]?.finish_reason;
+        if (fr) rawStopReason = fr;
+
         if (parsed.usage) {
           const u = parsed.usage;
           usage = {
@@ -211,5 +218,5 @@ export async function generateViaDeepSeekStream(
     });
   }
 
-  return { text, usage };
+  return { text, usage, stopReason: normalizeStopReason(rawStopReason), rawStopReason };
 }

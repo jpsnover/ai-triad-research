@@ -9,6 +9,7 @@ import { ActionableError } from '../../debate/errors.js';
 import { withTimeout, makeFetchSignal } from '../retry.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
+import { normalizeStopReason } from './stopReason.js';
 
 const XAI_BASE = 'https://api.x.ai/v1';
 
@@ -69,7 +70,7 @@ export async function generateViaXai(
   }
 
   let json: {
-    choices?: { message: { content: string } }[];
+    choices?: { message: { content: string }; finish_reason?: string }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_cache_hit_tokens?: number };
   };
   try {
@@ -98,5 +99,6 @@ export async function generateViaXai(
     cachedTokens: u.prompt_cache_hit_tokens,
     totalTokens: u.total_tokens,
   } : undefined;
-  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200) };
+  const rawStopReason = json.choices[0].finish_reason ?? undefined;
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason };
 }

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-export type { GenerateOptions, ProviderResult, TokenUsage, RateLimitType, RateLimitHeaders, RetryProgress, BackendId, ApiKeyBackend, FetchFn, ToolDefinition, ToolCall, ToolResult, ModelCapabilities, UrlContextEntry, UrlContextMetadata, GeminiContentPart, GeminiContent } from './types.js';
+export type { GenerateOptions, ProviderResult, StopReason, TokenUsage, RateLimitType, RateLimitHeaders, RetryProgress, BackendId, ApiKeyBackend, FetchFn, ToolDefinition, ToolCall, ToolResult, ModelCapabilities, UrlContextEntry, UrlContextMetadata, GeminiContentPart, GeminiContent } from './types.js';
 export type { ModelEntry, ModelRegistry, ModelPricing } from './registry.js';
 export { ALL_API_KEY_BACKENDS } from './types.js';
 export { resolveBackend, resolveModel, buildModelIdMap, buildModelEntryMap, getApiModelId, getDefaultTimeout, getModelCapabilities, filterByCapabilities, estimateCost } from './registry.js';
@@ -17,6 +17,7 @@ export { generateViaOllama, isOllamaAvailable, OLLAMA_BASE } from './providers/o
 export { generateViaZai } from './providers/zai.js';
 export { generateViaMoonshot } from './providers/moonshot.js';
 export { generateViaXai } from './providers/xai.js';
+export { normalizeStopReason } from './providers/stopReason.js';
 export { TaskTier, resolveModelForPurpose, probeOllama, configureRouter, getRouterConfig, getTierForPurpose, PURPOSE_TIER_MAP, resolveMultiProviderModels } from './modelRouter.js';
 export type { TaskPurpose, RouterConfig, RoutedModel, ModelTier } from './modelRouter.js';
 export { callGeminiBatchEmbed } from './providers/gemini-embeddings.js';
