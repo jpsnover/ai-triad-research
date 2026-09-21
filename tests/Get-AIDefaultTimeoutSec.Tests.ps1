@@ -65,9 +65,9 @@ Describe 'Get-AIDefaultTimeoutSec — base timeouts' -Tag 'enrichment' {
 Describe 'Get-AIDefaultTimeoutSec — frontier 2x tier (requires ai-models.json debateTiers)' -Tag 'enrichment' {
 
     It 'Returns 360 for the claude advanced-tier model (2x base)' {
-        # claude advanced = claude-sonnet-4-6 (from ai-models.json debateTiers.advanced.claude)
+        # claude advanced = claude-fable-5 (from ai-models.json debateTiers.advanced.claude)
         # claude basic    = claude-haiku-4-5  — different, so 2x applies
-        $result = Invoke-DefaultTimeout 'claude-sonnet-4-6'
+        $result = Invoke-DefaultTimeout 'claude-fable-5'
         $result | Should -Be 360
     }
 
@@ -95,7 +95,7 @@ Describe 'Get-AIDefaultTimeoutSec — frontier 2x tier (requires ai-models.json 
 Describe 'Invoke-AIApi — TimeoutSec sentinel wiring' -Tag 'enrichment' {
 
     It 'Get-AIDefaultTimeoutSec returns > 120 for frontier model — sentinel produces model-aware timeout above hardcoded 120' {
-        Invoke-DefaultTimeout 'claude-sonnet-4-6' | Should -BeGreaterThan 120
+        Invoke-DefaultTimeout 'claude-fable-5' | Should -BeGreaterThan 120
     }
 
     It 'Get-AIDefaultTimeoutSec returns base (not 2x) for basic-tier model — sentinel does not over-extend' {
