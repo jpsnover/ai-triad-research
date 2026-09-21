@@ -158,6 +158,17 @@ LABEL org.opencontainers.image.licenses="MIT"
 ARG BUILD_SHA=unknown
 ENV BUILD_SHA=${BUILD_SHA}
 
+# ===== t/3520 C1 Arm-A GATE-VERIFICATION VECTOR — THROWAWAY, MUST NOT MERGE =====
+# Injects a known FIXABLE HIGH into the runtime image so the Trivy gate is proven to go
+# RED on a fixable/patchable CVE (the "true positive → block" arm). adm-zip 0.6.0 carries
+# CVE-2026-77301 (HIGH, FIXED in 0.6.1) — so `ignore-unfixed: true` KEEPS it (fixable).
+# Isolation: this is a SEPARATE global install; the project's transitive adm-zip stays
+# pinned >=0.6.1 by the pnpm-workspace override, so ci.yml's dependency-audit sees nothing
+# and stays green — only Trivy's IMAGE scan sees this 0.6.0 copy. Reverted after evidence.
+# Delete this block before any real build.  (t/3520)
+RUN npm install -g adm-zip@0.6.0
+# ===== end throwaway vector =====
+
 # Cache dir created at runtime by the app (GitHubAPIBackend).
 # TAXONOMY_CACHE_DIR MUST match AI_TRIAD_DATA_ROOT (t/2061): config.ts's cacheDir
 # defaults to ~/.cache/taxonomy (=/root/.cache/taxonomy in-container) when unset,
