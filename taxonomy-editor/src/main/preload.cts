@@ -4,6 +4,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { OpEdSet, OpEdSetSummary } from '../../../lib/oped/types.js';
 import type { StopReason } from '../../../lib/ai-client/index.js';
+import type { ExportJobState, ExportErrorCode } from '../../../lib/brief/types.js';
 
 // Inlined from preloadBuffer.cts — sandboxed preloads (sandbox:true) cannot
 // require sibling files at runtime; inlining avoids the require('./preloadBuffer.cjs')
@@ -58,8 +59,14 @@ let _chatBufferActive = true;
 // pure helper so it's unit-tested (preloadBuffer.test.ts, unblocked by t/2698).
 const _diagnosticsStateBuffer = createLatestValueBuffer<unknown>();
 
-try {
-  contextBridge.exposeInMainWorld('electronAPI', {
+// t/3529: named function (not an inline object literal) so its return shape is capturable
+// via `ReturnType<>` for the compile-time conformance check against the renderer's
+// `ElectronAPI` (`__typecheck__/preloadElectronApiContract.ts`) — closes the gap where this
+// surface and `electron.d.ts` could silently diverge (t/3528 postmortem, t/3529). Still
+// invoked INSIDE the try block below, so construction-time errors are caught exactly as
+// before this change.
+function buildElectronApi() {
+  return {
   // Synchronous system info — available without IPC round-trip
   processVersions: { ...process.versions },
   osRelease: process.getSystemVersion?.() ?? process.platform,
@@ -479,15 +486,31 @@ try {
     ipcRenderer.invoke('delete-chat-session', id),
 
   // Source evidence (main process filesystem access)
-  loadSourceEvidenceIndex: (): Promise<unknown> =>
+  // t/3529: was `Promise<unknown>` — tightened to match the handler's real return shape
+  // (`loadEvidenceIndex` in sourceHandlers.ts returns `null` on a missing/corrupt index
+  // file, not just the index object), which the conformance check caught as a mismatch
+  // against `electron.d.ts`'s already-correct `Promise<Record<string, unknown> | null>`.
+  loadSourceEvidenceIndex: (): Promise<Record<string, unknown> | null> =>
     ipcRenderer.invoke('load-source-evidence-index'),
   loadDocTitles: (): Promise<Record<string, string> | null> =>
     ipcRenderer.invoke('load-doc-titles'),
   loadGreatestHits: (): Promise<{ node_ids: string[] } | null> =>
     ipcRenderer.invoke('load-greatest-hits'),
-  getSourceEvidence: (nodeIds: string[], pov: string): Promise<unknown> =>
+  // t/3529: both return types were `Promise<unknown>` — tightened to match the handlers'
+  // real return shapes (sourceHandlers.ts / debateHandlers.ts always resolve one of these
+  // exact shapes, never an arbitrary value), which the conformance check caught as
+  // mismatches against electron.d.ts's already-correct declared types.
+  getSourceEvidence: (nodeIds: string[], pov: string): Promise<{
+    facts: unknown[]; keyPoints: unknown[]; formattedBlock: string;
+    nodesCovered: string[]; totalCandidates: number;
+  }> =>
     ipcRenderer.invoke('get-source-evidence', nodeIds, pov),
-  runEvidenceQbaf: (claimText: string, claimId: string, model?: string): Promise<unknown> =>
+  runEvidenceQbaf: (claimText: string, claimId: string, model?: string): Promise<{
+    computed_strength: number;
+    qbaf_iterations: number;
+    evidence_items: Array<{ id: string; source_doc_id: string; text: string; relation: 'support' | 'contradict'; similarity: number }>;
+    claim_id: string;
+  } | null> =>
     ipcRenderer.invoke('run-evidence-qbaf', claimText, claimId, model),
 
   // Debate sessions
@@ -509,9 +532,14 @@ try {
   printBriefToPdf: (html: string): Promise<{ cancelled: boolean; filePath?: string }> =>
     ipcRenderer.invoke('brief:html-to-pdf', html),
 
+  // t/3529: format union was missing 'json' — the export-chat-to-file handler
+  // (chatHandlers.ts) and bridge/types.ts's AppAPI both already support it; preload's
+  // local type had simply never been updated. Caught by the conformance check, though
+  // electron.d.ts's own (looser `string`/`unknown[]`) declaration for this method is a
+  // separate, pre-existing imprecision not fixed here — flagged to Rosetta alongside t/3532.
   exportChatToFile: (
     entries: { id: string; timestamp: string; speaker: string; content: string; taxonomy_refs: { node_id: string; label?: string; relevance: string }[] }[],
-    format: 'markdown' | 'text' | 'pdf',
+    format: 'markdown' | 'text' | 'pdf' | 'json',
     options: { title: string; mode: 'brainstorm' | 'inform' | 'decide'; pov: 'accelerationist' | 'safetyist' | 'skeptic' },
   ): Promise<{ cancelled: boolean; filePath?: string }> =>
     ipcRenderer.invoke('export-chat-to-file', entries, format, options),
@@ -559,9 +587,13 @@ try {
     ipcRenderer.invoke('fetch-url-content', url),
 
   // Community submit (from main process to avoid renderer CORS against the remote server)
+  // t/3529: 'oped' was missing here — the IPC schema (communitySubmitSchema.ts) and
+  // bridge/types.ts's AppAPI already accept it (t/2986 fixed those two; this one was
+  // simply never updated), so a desktop op-ed share would have failed only at the type
+  // level while working fine at runtime. Caught by the preload/electron.d.ts conformance check.
   communitySubmit: (
     baseUrl: string,
-    payload: { type: 'chat' | 'debate'; data: unknown; note?: string },
+    payload: { type: 'chat' | 'debate' | 'oped'; data: unknown; note?: string },
   ): Promise<{ submissionId: string }> =>
     ipcRenderer.invoke('community-submit', baseUrl, payload),
 
@@ -668,7 +700,19 @@ try {
   // that the electron-bridge wraps into a Blob (Blob-returning AppAPI in both builds).
   createBriefExport: (debateId: string, body: unknown): Promise<{ jobId: string }> =>
     ipcRenderer.invoke('create-brief-export', debateId, body),
-  getBriefExportJob: (jobId: string): Promise<unknown> =>
+  // t/3529: was `Promise<unknown>` — tightened to match the handler's real return shape
+  // (briefExportHandlers.ts's get-brief-export-job always resolves this exact shape or
+  // throws). Mirrors electron.d.ts's `BriefExportJobView` structurally, importing the two
+  // literal-union types from the shared lib/brief/types.js (safe under both tsconfigs)
+  // rather than importing BriefExportJobView itself from renderer/bridge/types.ts — that
+  // file is a real .ts (not .d.ts), so tsconfig.main.json's stricter nodenext resolution
+  // would fully type-check it and hit its renderer-only `@lib/*` path aliases, which don't
+  // resolve under main's config. Caught only under the RENDERER tsconfig, not
+  // tsconfig.main.json — this check must run under both, not just one.
+  getBriefExportJob: (jobId: string): Promise<{
+    status: ExportJobState; progressPct: number; warnings: string[];
+    error: string | null; errorCode: ExportErrorCode | null; exportId: string | null;
+  }> =>
     ipcRenderer.invoke('get-brief-export-job', jobId),
   listBriefExports: (debateId: string): Promise<unknown[]> =>
     ipcRenderer.invoke('list-brief-exports', debateId),
@@ -676,7 +720,13 @@ try {
     ipcRenderer.invoke('download-brief-artifact', exportId, name),
   deleteBriefExport: (exportId: string): Promise<void> =>
     ipcRenderer.invoke('delete-brief-export', exportId),
-  });
+  };
+}
+
+export type PreloadElectronAPI = ReturnType<typeof buildElectronApi>;
+
+try {
+  contextBridge.exposeInMainWorld('electronAPI', buildElectronApi());
   console.log('[preload] electronAPI exposed');
   ipcRenderer.send('forward-flight-event', {
     type: 'lifecycle', component: 'preload', level: 'info',
