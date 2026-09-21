@@ -31,7 +31,7 @@ import {
 import { critiqueTopicPrompt, parseTopicCritique } from '@lib/debate/topicCritique';
 import { decomposeResolutionPrompt, topicScopeExtractionPrompt, setTopicScope } from '@lib/debate/prompts';
 import { documentAnalysisPrompt, buildTaxonomySample } from '@lib/debate/documentAnalysis';
-import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints } from '@lib/debate/turnPipeline';
+import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, openingBriefTimeoutFloor } from '@lib/debate/turnPipeline';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
@@ -994,6 +994,11 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           .filter(n => n.speaker === 'user' && n.id.startsWith('user-seed-'))
           .map(n => ({ id: n.id, text: n.text, bdi_category: n.bdi_category }));
 
+        // t/3518 (reopened): moved above pipelineInput so briefTimeoutMs can use it. This is the
+        // SAME model the brief actually runs with (stage override, else speaker/base model) —
+        // reused below for the timeout toast/dialog instead of a second resolveBriefModel call.
+        const resolvedBriefModel = resolveBriefModel(activeDebate, poverId, model);
+
         const pipelineInput: OpeningPipelineInput = {
           label: info.label,
           pov: info.pov,
@@ -1016,17 +1021,22 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
             const voicing = get().activeDebate?.narrative_voicing;
             return voicing ? narrativeBlockForDebater(voicing.narratives, poverId) : undefined;
           })(),
+          // t/3518 (reopened, t/3518#8): the renderer's own orchestration was the live path that
+          // never got the timeout fix — engine phases/opening.ts landed openingBriefTimeoutFloor,
+          // this slice constructed pipelineInput without it, so DEFAULT_BRIEF_TIMEOUT_MS (60s)
+          // silently applied here regardless. Same shared helper, no floor logic re-pasted.
+          briefTimeoutMs: openingBriefTimeoutFloor(resolvedBriefModel),
         };
 
         // Emit on the renderer-local brief-timeout bus (t/2307). Both builds: the
         // opening pipeline runs in this renderer, so emit and the same-window toast
         // consumer share @bridge's bus — no IPC. Previously web-only; the Electron
         // path routed through an unfed IPC channel and never fired.
-        // The model the brief actually runs with (stage override, else speaker/base model) —
-        // this is what the timeout toast/dialog must display so "Switch model" is an informed
-        // choice (t/2504). onBriefEvent is created per-speaker inside the aiPovers loop, so
-        // poverId/model already resolve the timed-out speaker (data.agent).
-        const resolvedBriefModel = resolveBriefModel(activeDebate, poverId, model);
+        // resolvedBriefModel (computed above, now also feeding briefTimeoutMs) is what the brief
+        // actually runs with (stage override, else speaker/base model) — what the timeout toast/
+        // dialog must display so "Switch model" is an informed choice (t/2504). onBriefEvent is
+        // created per-speaker inside the aiPovers loop, so poverId/model already resolve the
+        // timed-out speaker (data.agent).
         const onBriefEvent: BriefEventFn = (phase, data) => {
           if (phase === 'brief.timeout' || phase === 'brief.retrying') {
             emitBriefTimeout({ debateId: activeDebate.id, speaker: data.agent, attempt: data.attempt, maxAttempts: data.maxRetries, currentModel: resolvedBriefModel });
