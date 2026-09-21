@@ -84,7 +84,7 @@ describe('generate-text — TimeoutError surfaces a distinct, actionable message
 
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
-    const err = await handler({ sender }, 'prompt', undefined, undefined, undefined, undefined).catch(e => e);
+    const err = await handler({ sender }, { prompt: 'prompt' }).catch(e => e);
 
     expect(err).toBeInstanceOf(ActionableError);
     const ae = err as ActionableError;
@@ -99,7 +99,7 @@ describe('generate-text — TimeoutError surfaces a distinct, actionable message
 
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
-    const err = await handler({ sender }, 'prompt', undefined, undefined, undefined, 'req-timeout-1').catch(e => e);
+    const err = await handler({ sender }, { prompt: 'prompt', requestId: 'req-timeout-1' }).catch(e => e);
 
     // A genuine cancel rethrows the raw error verbatim; a timeout must be wrapped.
     expect(err).toBeInstanceOf(ActionableError);
@@ -111,7 +111,7 @@ describe('generate-text — TimeoutError surfaces a distinct, actionable message
 
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
-    const err = await handler({ sender }, 'prompt', undefined, undefined, undefined, 'req-cancel-1').catch(e => e);
+    const err = await handler({ sender }, { prompt: 'prompt', requestId: 'req-cancel-1' }).catch(e => e);
 
     expect(err).toBe(abortErr);
     expect(err).not.toBeInstanceOf(ActionableError);

@@ -77,7 +77,7 @@ describe('generate-text — AbortController map lifecycle', () => {
     mockGenerateText.mockResolvedValue('ok');
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
-    await handler({ sender }, 'prompt', undefined, undefined, undefined, 'req-1');
+    await handler({ sender }, { prompt: 'prompt', requestId: 'req-1' });
     // After completion the cancel handler is a no-op (entry gone)
     const cancel = getHandler('ai:cancel-generate');
     expect(cancel({}, 'req-1')).toBeUndefined();
@@ -87,15 +87,15 @@ describe('generate-text — AbortController map lifecycle', () => {
     mockGenerateText.mockRejectedValue(new Error('boom'));
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
-    await expect(handler({ sender }, 'prompt', undefined, undefined, undefined, 'req-2')).rejects.toThrow();
+    await expect(handler({ sender }, { prompt: 'prompt', requestId: 'req-2' })).rejects.toThrow();
     const cancel = getHandler('ai:cancel-generate');
     expect(cancel({}, 'req-2')).toBeUndefined();
   });
 
   it('cancel path: AbortError rethrown without ActionableError wrapping', async () => {
-    mockGenerateText.mockImplementation((_p: string, _m: unknown, _r: unknown, _t: unknown, _temp: unknown, signal: AbortSignal) =>
+    mockGenerateText.mockImplementation((_p: string, _m: unknown, _r: unknown, opts: { signal?: AbortSignal }) =>
       new Promise((_resolve, reject) => {
-        signal.addEventListener('abort', () => {
+        opts.signal!.addEventListener('abort', () => {
           const e = new Error('cancelled');
           e.name = 'AbortError';
           reject(e);
@@ -107,7 +107,7 @@ describe('generate-text — AbortController map lifecycle', () => {
     const cancel = getHandler('ai:cancel-generate');
     const { sender } = makeSender();
 
-    const resultP = handler({ sender }, 'prompt', undefined, undefined, undefined, 'req-3');
+    const resultP = handler({ sender }, { prompt: 'prompt', requestId: 'req-3' });
     await cancel({}, 'req-3');
     const err = await resultP.catch((e: Error) => e);
     expect((err as Error).name).toBe('AbortError');
@@ -117,10 +117,10 @@ describe('generate-text — AbortController map lifecycle', () => {
     mockGenerateText.mockResolvedValue('result');
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
-    const result = await handler({ sender }, 'prompt');
+    const result = await handler({ sender }, { prompt: 'prompt' });
     expect(result).toEqual({ text: 'result' });
-    // signal arg to generateText must be undefined
-    const signalArg = mockGenerateText.mock.calls[0][5];
-    expect(signalArg).toBeUndefined();
+    // signal field on the opts object passed to generateText must be undefined
+    const optsArg = mockGenerateText.mock.calls[0][3] as { signal?: AbortSignal } | undefined;
+    expect(optsArg?.signal).toBeUndefined();
   });
 });

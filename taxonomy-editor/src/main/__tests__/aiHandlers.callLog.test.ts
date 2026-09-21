@@ -93,7 +93,7 @@ describe('generate-text — AI call log wiring (t/3370)', () => {
     mockGenerateText.mockResolvedValue('ok');
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
-    await handler({ sender }, 'prompt-text', undefined, undefined, undefined, 'req-log-1');
+    await handler({ sender }, { prompt: 'prompt-text', requestId: 'req-log-1' });
 
     const lines = readLogLines() as Array<{ Scenario: string; PromptStart: string; Status: string }>;
     expect(lines).toHaveLength(1);
@@ -105,7 +105,7 @@ describe('generate-text — AI call log wiring (t/3370)', () => {
     mockGenerateText.mockRejectedValue(new Error('boom'));
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
-    await expect(handler({ sender }, 'prompt-text', undefined, undefined, undefined, 'req-log-2')).rejects.toThrow();
+    await expect(handler({ sender }, { prompt: 'prompt-text', requestId: 'req-log-2' })).rejects.toThrow();
 
     const lines = readLogLines() as Array<{ Scenario: string; Status: string }>;
     expect(lines).toHaveLength(1);
@@ -117,7 +117,7 @@ describe('generate-text — AI call log wiring (t/3370)', () => {
     mockGenerateText.mockResolvedValue('ok');
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
-    await handler({ sender }, 'prompt-text', undefined, undefined, undefined, 'req-log-3');
+    await handler({ sender }, { prompt: 'prompt-text', requestId: 'req-log-3' });
 
     expect(readLogLines()).toHaveLength(0);
   });
