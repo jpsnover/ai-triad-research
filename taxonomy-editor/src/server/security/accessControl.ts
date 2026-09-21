@@ -225,14 +225,41 @@ function isActionableErrorLike(e: unknown): e is { goal: string; problem: string
 }
 
 /**
+ * t/3515 (CodeQL js/stack-trace-exposure #5707): remove V8 stack-frame lines from a string.
+ * A frame is `    at <site> (path:line:col)` or `    at path:line:col` — keyed on the
+ * `:line:col` numeric signature, NOT a bare `at ` prefix, so legitimate prose that merely
+ * starts with "at " ("at least 3 nodes required") survives untouched (TL t/3515#2).
+ * This is the sanitizer barrier on the client-error path: even if a stack ever leaked into
+ * an error `message` (e.g. a caller passing `String(err)` where err.stack bled into it), it
+ * is scrubbed before `clientSafeMessage` returns it toward an HTTP response body.
+ */
+export function stripStackFrames(s: string): string {
+  const stripped = s
+    .split('\n')
+    .filter(line => !/\bat\s+.*:\d+:\d+\)?\s*$/.test(line))
+    .join('\n')
+    .trimEnd();
+  // If the input was nothing but frames, don't return an empty body — give a generic floor.
+  return stripped.trim() ? stripped : 'Request failed';
+}
+
+/**
  * t/853: produce a client-safe error string for production. ActionableError
  * carries `location`, `Resolve:` steps, and stacks that reveal server internals
  * (source paths, function names) — in production keep only the user-actionable
  * `goal: problem`. Handles an ActionableError `cause` and a message that is
  * already a serialized ActionableError dump. Outside production the full message
  * is returned unchanged (dev/debug ergonomics).
+ *
+ * t/3515: every return is routed through `stripStackFrames` — a single, CodeQL-visible
+ * sanitizer barrier on the flow from the caught error toward the response body, so
+ * js/stack-trace-exposure (#5707) closes structurally rather than via per-line suppression.
  */
 export function clientSafeMessage(message: string, cause?: unknown, isProduction = process.env.NODE_ENV === 'production'): string {
+  return stripStackFrames(rawClientMessage(message, cause, isProduction));
+}
+
+function rawClientMessage(message: string, cause: unknown, isProduction: boolean): string {
   if (!isProduction) return message;
   if (isActionableErrorLike(cause)) return `${cause.goal}: ${cause.problem}`;
   if (/\n\s*Location:/.test(message)) {

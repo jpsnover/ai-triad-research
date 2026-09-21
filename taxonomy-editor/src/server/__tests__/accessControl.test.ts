@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'path';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, missingApiKeyError, expiredAuthCookies, anonymousSessionCookies, isValidAnonSessionId, resolveAnonSessionId, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from '../security/accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute, invalidRouteParam, callerTierIdentity, clientSafeMessage, stripStackFrames, missingApiKeyError, expiredAuthCookies, anonymousSessionCookies, isValidAnonSessionId, resolveAnonSessionId, hasEasyAuthSessionCookie, resolveTestPersonaOverride } from '../security/accessControl.js';
 import { deriveStorageUserId } from '../security/userContext.js';
 import { resolveTier } from '../ai/proxyTiers.js';
 
@@ -258,6 +258,54 @@ describe('clientSafeMessage (t/853)', () => {
 
   it('returns the full message in development (unchanged)', () => {
     expect(clientSafeMessage(dump, undefined, false)).toBe(dump);
+  });
+
+  // t/3515 (CodeQL js/stack-trace-exposure #5707): the sanitizer barrier — a stack that
+  // bled into the error message must never survive into the client-facing string, in EITHER
+  // NODE_ENV (dev returns the message verbatim, so it needs the strip too).
+  const FRAME_SIG = /\bat\s+\S.*:\d+:\d+/; // an `at <site> …:line:col` V8 frame
+
+  it('t/3515: strips stack frames from a message carrying a stack (production)', () => {
+    const withStack = 'Chat not found\n    at loadChatSession (/app/server/fileIO.ts:412:15)\n    at async /app/server/routes/chat.ts:88:5';
+    const out = clientSafeMessage(withStack, undefined, true);
+    expect(out).toBe('Chat not found');
+    expect(out).not.toMatch(FRAME_SIG);
+    expect(out).not.toMatch(/fileIO\.ts|chat\.ts/);
+  });
+
+  it('t/3515: strips stack frames in development too (dev returns message verbatim)', () => {
+    const withStack = 'Boom\n    at doThing (/srv/x.ts:1:2)';
+    const out = clientSafeMessage(withStack, undefined, false);
+    expect(out).toBe('Boom');
+    expect(out).not.toMatch(FRAME_SIG);
+  });
+});
+
+describe('stripStackFrames (t/3515)', () => {
+  it('removes V8 frame lines (with and without parens, Windows and POSIX paths)', () => {
+    const s = [
+      'Something failed',
+      '    at fn (/app/server/foo.ts:10:5)',
+      '    at /app/server/bar.ts:20:3',
+      '    at Object.<anonymous> (C:\\app\\baz.ts:30:7)',
+    ].join('\n');
+    expect(stripStackFrames(s)).toBe('Something failed');
+  });
+
+  it('preserves prose that merely starts with "at " (no :line:col signature)', () => {
+    // The exact TL-cited false-positive class (t/3515#2): must NOT be deleted.
+    expect(stripStackFrames('at least 3 nodes required')).toBe('at least 3 nodes required');
+    expect(stripStackFrames('Rejected: at least one field must be set')).toBe('Rejected: at least one field must be set');
+  });
+
+  it('preserves a multi-line ActionableError (Goal/Error/Location/Resolve — no frame lines)', () => {
+    const dump = '  Goal: Load\n  Error: Not found\n  Location: fileIO.ts → load\n  Resolve:\n  1. Check id';
+    expect(stripStackFrames(dump)).toBe(dump);
+  });
+
+  it('falls back to a generic message when the input is nothing but frames', () => {
+    const pureStack = '    at a (/x.ts:1:1)\n    at b (/y.ts:2:2)';
+    expect(stripStackFrames(pureStack)).toBe('Request failed');
   });
 });
 
