@@ -18,6 +18,11 @@ import type { StageGenerateFn, StageProgressFn } from './types.js';
 
 // ── Opening pipeline ──────────────────────────────────
 
+/** Model-aware brief timeout floor (t/3518). Single source of truth — import this instead of inlining the ternary. */
+export function openingBriefTimeoutFloor(model: string): number {
+  return (model.includes('opus') || model.includes('fable')) ? 300_000 : 120_000;
+}
+
 const DEFAULT_BRIEF_TIMEOUT_MS = 60_000;
 const DEFAULT_BRIEF_MAX_RETRIES = 3;
 

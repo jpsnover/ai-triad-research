@@ -6,7 +6,7 @@ import path from 'path';
 import { POVER_INFO } from '../../types.js';
 import { formatVocabularyContext } from '../../vocabularyContext.js';
 import { getGlobalRecorder } from '../../../flight-recorder/index.js';
-import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, type OpeningPipelineInput } from '../../turnPipeline.js';
+import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, openingBriefTimeoutFloor, type OpeningPipelineInput } from '../../turnPipeline.js';
 import { resolveModelForSpeaker } from '../modelResolution.js';
 import { accumulateContextManifest } from '../adaptiveStaging.js';
 import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContext } from '../taxonomyContext.js';
@@ -139,10 +139,7 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
     };
 
     let pipelineResult = await engine.executeWithModelFailover(poverId, async (model) => {
-      // Slow frontier models need more than the 60s default for the large brief prompt (t/3518).
-      // Mirror the aiAdapter floor: 300s for opus/fable, 120s for all others (covers haiku intermittent).
-      const briefTimeoutFloor = (model.includes('opus') || model.includes('fable')) ? 300_000 : 120_000;
-      const input = { ...pipelineInput, model, briefTimeoutMs: pipelineInput.briefTimeoutMs ?? briefTimeoutFloor };
+      const input = { ...pipelineInput, model, briefTimeoutMs: pipelineInput.briefTimeoutMs ?? openingBriefTimeoutFloor(model) };
       let result = await runOpeningPipeline(
         input,
         engine.stageGenerate.bind(engine),
