@@ -254,6 +254,22 @@ export interface GenerateTextOptions {
   maxTokens?: number;
 }
 
+/**
+ * Single-object payload for the `generate-text` IPC call (t/3528). Replaces a positional
+ * parameter chain that grew to 6 args across `electron.d.ts` → `preload.cts` → the
+ * `generate-text` handler → `embeddings.generateText`, each restating the order by hand.
+ * `signal` and `purpose` (renderer-only concerns — see {@link GenerateTextOptions}) don't
+ * cross the IPC boundary and are deliberately excluded.
+ */
+export interface GenerateTextIpcPayload {
+  prompt: string;
+  model?: string;
+  timeoutMs?: number;
+  temperature?: number;
+  requestId?: string;
+  maxTokens?: number;
+}
+
 export type ViewMode = 'simple' | 'advanced';
 
 export interface UserPreferences {

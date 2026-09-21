@@ -5,7 +5,7 @@ import type { Organization, OrganizationEdge } from '@lib/organizations/types';
 import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities/types';
 import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
-import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse } from '../bridge/types';
+import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload } from '../bridge/types';
 import type { BriefArtifactName } from '@lib/brief/types';
 
 export interface ElectronAPI {
@@ -104,10 +104,9 @@ export interface ElectronAPI {
   importKeysFromSharing: (payload: { v: number; salt: string; iv: string; data: string; tag: string }, passphrase: string) => Promise<string[]>;
 
   // AI generation
-  // `requestId` (t/2508) correlates the request so `cancelGenerate` can abort the exact
-  // in-flight provider call. Optional trailing arg — ignored by the handler until the
-  // main-process AbortController map lands (t/2509); harmless before then.
-  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, requestId?: string, maxTokens?: number) => Promise<{ text: string }>;
+  // Single-payload signature (t/3528) — see GenerateTextIpcPayload. `requestId` (t/2508)
+  // correlates the request so `cancelGenerate` can abort the exact in-flight provider call.
+  generateText: (payload: GenerateTextIpcPayload) => Promise<{ text: string }>;
   // Fire-and-forget cancel for an in-flight generateText (t/2508). Optional — wired by the
   // ai:cancel-generate IPC channel (ElectronMain, t/2509). Feature-detected by electron-bridge,
   // so it lands safely in either order; an unknown requestId is a silent no-op main-side.
