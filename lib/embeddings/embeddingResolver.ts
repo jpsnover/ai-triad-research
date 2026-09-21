@@ -1,5 +1,6 @@
 import type { EmbeddingsFile } from '../electron-shared/embeddingIO.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { ActionableError } from '../debate/errors.js';
 
 export interface EmbeddingFallback {
   name: string;
@@ -60,8 +61,21 @@ export async function resolveEmbeddings(
     }
 
     if (!computed) {
-      const tried = fallbackChain.map(f => f.name).join(', ');
-      throw new Error(`All embedding fallbacks failed (tried: ${tried})`);
+      // Every backend in the chain failed. Fail with an ActionableError (not a bare throw) so the
+      // upstream catch/triage doesn't misattribute this to an unrelated cause (e.g. "ONNX init
+      // failure"): the real cause is chain exhaustion, and each member's specific failure is in the
+      // ai.fallback WARN records emitted above. (e/134 #3; root AGENTS.md error-handling convention.)
+      const tried = fallbackChain.length ? fallbackChain.map(f => f.name).join(', ') : '(empty chain)';
+      throw new ActionableError({
+        goal: 'Resolve embeddings for the requested texts',
+        problem: `All embedding fallbacks failed (tried: ${tried})`,
+        location: 'lib/embeddings/embeddingResolver.ts resolveEmbeddings',
+        nextSteps: [
+          'Inspect the ai.fallback WARN records above for each backend’s specific failure',
+          'Ensure at least one embedding backend is available: provision the ONNX model, install Python sentence-transformers, or set a Gemini API key',
+          'Retry once a backend is restored',
+        ],
+      });
     }
 
     for (let j = 0; j < missingIndices.length; j++) {
