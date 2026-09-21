@@ -326,8 +326,24 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
           type: 'ai.response', component: 'ai-adapter', level: 'info',
           duration_ms: Math.round(performance.now() - t0),
           message: `generateText success ${backend}/${apiModelId}`,
-          data: { backend, model: apiModelId, fn: 'generateText', usage: result.usage },
+          data: { backend, model: apiModelId, fn: 'generateText', usage: result.usage, rawStopReason: result.rawStopReason },
         });
+        if (result.stopReason === 'max_tokens') {
+          throw new ActionableError({
+            goal: 'Generate AI response',
+            problem: `Response truncated at provider output limit (${result.rawStopReason ?? 'max_tokens'}) — JSON parse would fail on partial output`,
+            location: 'aiAdapter.doGenerateText',
+            nextSteps: ['Raise maxTokens for this stage', 'Shorten the prompt'],
+          });
+        }
+        if (result.stopReason === 'content_filter') {
+          throw new ActionableError({
+            goal: 'Generate AI response',
+            problem: `Response blocked by provider content policy (${result.rawStopReason ?? 'content_filter'})`,
+            location: 'aiAdapter.doGenerateText',
+            nextSteps: ['Review the prompt for policy-violating content', 'Try a different model or backend'],
+          });
+        }
         return result.text;
       } catch (err) {
         lastErr = err;
