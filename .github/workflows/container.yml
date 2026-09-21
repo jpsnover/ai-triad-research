@@ -211,7 +211,13 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            # Publish :latest on BOTH v* release tags AND main-branch dispatch builds
+            # (t/3522). The old `{{is_default_branch}}` fired only on main dispatch, so
+            # `v*` releases never refreshed :latest — leaving a stale tag that deploy.ps1
+            # / main.bicep default to (silent prod-deploy staleness). Adding the tag ref
+            # keeps :latest = newest of {last release, last main dispatch}; the main-branch
+            # clause is load-bearing for the Invoke-ContainerBuild dispatch -> deploy path.
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Fetch taxonomy snapshot for fallback
         id: snapshot
