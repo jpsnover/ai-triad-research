@@ -47,7 +47,7 @@ import {
   generateViaGeminiStream,
   DEFAULT_MODEL,
 } from '../../../lib/ai-client/index.js';
-import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn, UrlContextMetadata, GeminiContent } from '../../../lib/ai-client/index.js';
+import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn, UrlContextMetadata, GeminiContent, StopReason } from '../../../lib/ai-client/index.js';
 import type { ModelEntry } from '../../../lib/ai-client/index.js';
 import { resolveModelEntry as resolveModelEntryFromCache } from './modelConfigCache.js';
 
@@ -702,7 +702,7 @@ export async function generateText(
   model?: string,
   onRetry?: (progress: GenerateTextProgress) => void,
   opts?: GenerateTextCallOptions,
-): Promise<string> {
+): Promise<{ text: string; stopReason?: StopReason }> {
   const { timeoutMs, temperature, signal, responseSchema, maxTokens } = opts ?? {};
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
@@ -768,7 +768,7 @@ export async function generateText(
   );
 
   console.log('[generateText] Success, result length:', result.text.length);
-  return result.text;
+  return { text: result.text, stopReason: result.stopReason };
 }
 
 export interface ChatMessage {
@@ -867,7 +867,7 @@ async function generateWithTavily(
 
   const { augmentedPrompt, searchQueries, citations: searchCitations } = buildSearchAugmentedPrompt(prompt, searchResult);
 
-  const text = await generateText(augmentedPrompt, model);
+  const { text } = await generateText(augmentedPrompt, model);
 
   const citations: GroundingCitation[] = searchCitations.map((c: any) => ({
     uri: c.uri,
@@ -976,7 +976,7 @@ export async function generateTextWithSearch(
     if (tavilyKey) {
       return generateWithTavily(prompt, resolvedModel, tavilyKey);
     }
-    const text = await generateText(prompt, resolvedModel);
+    const { text } = await generateText(prompt, resolvedModel);
     return { text };
   }
 

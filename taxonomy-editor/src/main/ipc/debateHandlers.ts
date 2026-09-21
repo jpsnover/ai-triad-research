@@ -90,7 +90,7 @@ export function registerDebateHandlers(): void {
 
     const audience = (session.audience as string | undefined) ?? undefined;
     const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis, undefined, audience as import('../../../../lib/debate/types.js').DebateAudience | undefined);
-    const text = await generateText(prompt, undefined, undefined, { timeoutMs: 120_000 });
+    const { text } = await generateText(prompt, undefined, undefined, { timeoutMs: 120_000 });
     return { article: text };
   });
 
@@ -109,7 +109,8 @@ export function registerDebateHandlers(): void {
 
       const adapter: AIAdapter = {
         generateText: async (prompt: string, mdl: string, opts?: { temperature?: number; maxTokens?: number; timeoutMs?: number }) => {
-          return generateText(prompt, mdl, undefined, { timeoutMs: opts?.timeoutMs, temperature: opts?.temperature });
+          const { text } = await generateText(prompt, mdl, undefined, { timeoutMs: opts?.timeoutMs, temperature: opts?.temperature });
+          return text;
         },
       };
 

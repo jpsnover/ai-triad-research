@@ -74,7 +74,7 @@ describe('ai:cancel-generate — unknown requestId is silent no-op', () => {
 
 describe('generate-text — AbortController map lifecycle', () => {
   it('success path: map entry removed in finally', async () => {
-    mockGenerateText.mockResolvedValue('ok');
+    mockGenerateText.mockResolvedValue({ text: 'ok' });
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
     await handler({ sender }, { prompt: 'prompt', requestId: 'req-1' });
@@ -114,7 +114,7 @@ describe('generate-text — AbortController map lifecycle', () => {
   });
 
   it('no-requestId call: behaves identically to today (no AbortController created)', async () => {
-    mockGenerateText.mockResolvedValue('result');
+    mockGenerateText.mockResolvedValue({ text: 'result' });
     const handler = getHandler('generate-text');
     const { sender } = makeSender();
     const result = await handler({ sender }, { prompt: 'prompt' });
