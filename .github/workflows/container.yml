@@ -288,9 +288,40 @@ jobs:
 
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567  # v0.3.1
+        with:
+          # C4 (t/3520): pin the trivy BINARY. Actions are SHA-pinned already; the binary
+          # floated to `latest`, so DB-schema / severity-mapping / fixed-version-detection /
+          # .trivyignore-parsing semantics could change with no repo diff. Pin so gate
+          # behaviour changes only by an explicit PR. (Verify on the next build's
+          # "Install Trivy" log; re-pin deliberately when bumping.)
+          version: v0.74.0
+
+      # C3 (t/3520): DB warm-up with retry — makes an INFRA failure (Trivy-DB registry
+      # unreachable / rate-limited) distinct from a FINDING failure (the gate step's
+      # exit-code 1 on a fixable CVE). It runs BEFORE the scan/gate steps, so a transient
+      # ghcr/OCI DB flake fails HERE, visibly labelled infra, and the run stops before the
+      # gate evaluates findings. The scan + gate steps set TRIVY_SKIP_DB_UPDATE so they
+      # reuse this warmed DB and can only fail on findings — never on a DB download.
+      - name: Warm Trivy vuln DB (infra step — a failure here is DB/registry, NOT a CVE finding)
+        shell: bash
+        env:
+          TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
+        run: |
+          for attempt in 1 2 3; do
+            if trivy image --download-db-only --cache-dir "$TRIVY_CACHE_DIR"; then
+              echo "Trivy DB ready (attempt $attempt)"; exit 0
+            fi
+            echo "::warning::Trivy DB download failed (attempt $attempt/3) — retrying in 15s"
+            sleep 15
+          done
+          echo "::error::Trivy DB download failed after 3 attempts — INFRA failure (DB registry unreachable/rate-limited), NOT a vulnerability finding. Re-run; if persistent, check ghcr.io/aquasecurity/trivy-db availability."
+          exit 1
 
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        env:
+          TRIVY_SKIP_DB_UPDATE: 'true'     # reuse the warmed DB; DB flakes already surfaced as infra above
+          TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
           format: 'sarif'
@@ -323,6 +354,9 @@ jobs:
       - name: Trivy blocking gate (fixable high/critical) — WARN PHASE
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        env:
+          TRIVY_SKIP_DB_UPDATE: 'true'     # C3: reuse the warmed DB — a red here is a FINDING, never a DB flake
+          TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
           format: 'table'
