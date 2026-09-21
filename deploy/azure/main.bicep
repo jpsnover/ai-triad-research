@@ -25,7 +25,12 @@
 @description('Azure region for all resources')
 param location string = resourceGroup().location
 
-@description('Container image (ghcr.io/jpsnover/taxonomy-editor:latest)')
+// Mutable :latest default is a deliberate decision (t/3523) — see the rationale block at
+// $ContainerImage in deploy.ps1. Post-t/3522 :latest is always current; the deployed commit is
+// recorded (commit-granular) in the ACA revision NAME (e.g. taxonomy-editor--deploy-89c3d9a-…)
+// + /health buildSha. NB the revision's image field records this mutable tag, not a resolved
+// digest (verified, t/3523). Override per-deploy to pin a specific version.
+@description('Container image — defaults to mutable :latest (t/3523 decision; override to pin). ghcr.io/jpsnover/taxonomy-editor:latest')
 param containerImage string = 'ghcr.io/jpsnover/taxonomy-editor:latest'
 
 @description('Unique suffix for globally unique resource names')
