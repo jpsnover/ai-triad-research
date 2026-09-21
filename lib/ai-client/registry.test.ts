@@ -11,6 +11,7 @@ import {
   resolveBackend,
   resolveModel,
   getDefaultTimeout,
+  getModelMinTimeout,
   buildModelEntryMap,
   buildModelIdMap,
 } from './registry.js';
@@ -521,5 +522,42 @@ describe('getDefaultTimeout — minTimeoutMs floor (t/3518 Phase 2)', () => {
   it('WARN path is null-safe when no recorder is wired (never throws)', () => {
     clearGlobalRecorder();
     expect(() => getDefaultTimeout('claude-made-up-9', floorRegistry)).not.toThrow();
+  });
+
+  // getModelMinTimeout — the shared floor primitive. Exposed so explicit-timeout call sites (the
+  // opening-brief stage) can enforce the floor themselves, since a `?? explicit` short-circuits
+  // getDefaultTimeout (TL e/185#6 item 1). This is what DebateTool's retirement of
+  // openingBriefTimeoutFloor consumes: Math.max(explicitTimeout, getModelMinTimeout(model, reg)).
+  describe('getModelMinTimeout (explicit-timeout floor primitive)', () => {
+    it('returns the concrete floor for a registry id', () => {
+      expect(getModelMinTimeout('claude-fable-5', floorRegistry)).toBe(300_000);
+    });
+
+    it('returns the floor for a synthesized -latest alias (not just bare ids)', () => {
+      expect(getModelMinTimeout('claude-opus-latest', floorRegistry)).toBe(300_000);
+      expect(record).not.toHaveBeenCalled();
+    });
+
+    it('returns 0 for a model with no floor (no WARN — it IS in the registry)', () => {
+      expect(getModelMinTimeout('claude-haiku-4-5', floorRegistry)).toBe(0);
+      expect(record).not.toHaveBeenCalled();
+    });
+
+    it('returns 0 + WARN for a model absent from the registry map', () => {
+      expect(getModelMinTimeout('claude-made-up-9', floorRegistry)).toBe(0);
+      expect(record).toHaveBeenCalledTimes(1);
+      expect(record.mock.calls[0][0].message).toContain('claude-made-up-9');
+    });
+
+    it('returns 0 (no WARN) when no registry is supplied', () => {
+      expect(getModelMinTimeout('claude-fable-5')).toBe(0);
+      expect(record).not.toHaveBeenCalled();
+    });
+
+    it('enforces the floor on an explicit below-floor timeout via Math.max (the opening-brief pattern)', () => {
+      // The exact narrowing TL flagged: an explicit 60s on a floored model must not undercut 300s.
+      const explicit = 60_000;
+      expect(Math.max(explicit, getModelMinTimeout('claude-fable-5', floorRegistry))).toBe(300_000);
+    });
   });
 });

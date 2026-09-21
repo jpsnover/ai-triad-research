@@ -93,6 +93,39 @@ function baseTimeout(backend: string): number {
  * receive 2× the backend base. Same-model tiers (ollama, zai) are
  * intentionally held at 1× — they have no frontier/basic distinction (t/2495).
  */
+/**
+ * The per-model minimum-timeout FLOOR (ms) declared in the registry — the concrete entry's
+ * `minTimeoutMs`, or 0 if none / no registry (t/3518 Phase 2).
+ *
+ * Resolves via {@link buildModelEntryMap} (NOT `models.find`): the map also carries the synthesized
+ * `*-latest` aliases (highest-versioned entry per family) that `models[]` lacks, so an alias caller
+ * (e.g. `claude-opus-latest`) still inherits its concrete entry's floor. A plain `.find()` would miss
+ * the alias, silently drop the floor, and re-open t/3518. Rebuild-per-call is deliberate and NOT
+ * cached (SO e/184#4): O(n log n) over ~40 models is noise beside the multi-hundred-second call this
+ * guards, and caching a map derived from a mutable registry would risk staleness.
+ *
+ * **Exposed as a primitive** so call sites that pass an EXPLICIT timeout can still enforce the floor.
+ * `getDefaultTimeout` applies it for the no-explicit path, but a `?? explicitTimeout` short-circuits
+ * `getDefaultTimeout` entirely — the opening-brief stage does exactly this (the t/3518 trigger path).
+ * Such sites must floor themselves: `Math.max(explicitTimeout, getModelMinTimeout(model, registry))`.
+ */
+export function getModelMinTimeout(model: string, registry?: ModelRegistry): number {
+  if (!registry) return 0;
+  const entry = buildModelEntryMap(registry)[model];
+  if (!entry) {
+    // Fallback-path logging (root AGENTS.md): a registry WAS provided but this model isn't in the
+    // map — a dated variant (e.g. `claude-opus-5-20260115`) or an unregistered id. The floor can't
+    // be read; surface that rather than silently using 0.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'ai-client.getModelMinTimeout',
+      level: 'warn',
+      message: `getModelMinTimeout: no registry entry for model "${model}" — minTimeoutMs floor not applied (0)`,
+    });
+  }
+  return entry?.minTimeoutMs ?? 0;
+}
+
 export function getDefaultTimeout(model: string, registry?: ModelRegistry): number {
   const backend = resolveBackend(model);
   const base = baseTimeout(backend);
@@ -100,28 +133,10 @@ export function getDefaultTimeout(model: string, registry?: ModelRegistry): numb
   const advanced = registry.debateTiers['advanced']?.[backend];
   const basic    = registry.debateTiers['basic']?.[backend];
   const tiered = (advanced === model && advanced !== basic) ? base * 2 : base;
-
-  // Per-model minTimeoutMs FLOOR (t/3518 Phase 2). Resolve the entry via buildModelEntryMap — NOT
-  // models.find(): the map also carries the synthesized `*-latest` aliases (highest-versioned entry
-  // per family) that models[] does not, so an alias caller (e.g. `claude-opus-latest`) still gets
-  // its floor. A plain .find() would miss the alias, silently drop the floor, and re-open t/3518.
-  // Rebuild-per-call is deliberate and NOT cached: O(n log n) over ~40 models is noise beside the
-  // multi-hundred-second network call this timeout guards, and caching a map derived from a mutable
-  // registry would risk staleness (SO e/184#4 caching decision).
-  const entry = buildModelEntryMap(registry)[model];
-  if (!entry) {
-    // Fallback-path logging (root AGENTS.md): a registry WAS provided but this model isn't in the
-    // map — a dated variant (e.g. `claude-opus-5-20260115`) or an unregistered id. The floor can't
-    // be read, so we fall back to the tiered default; surface that rather than silently using 0.
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'ai-client.getDefaultTimeout',
-      level: 'warn',
-      message: `getDefaultTimeout: no registry entry for model "${model}" — minTimeoutMs floor not applied (using ${tiered}ms)`,
-    });
-  }
-  const floorMs = entry?.minTimeoutMs ?? 0;
-  return Math.max(tiered, floorMs);
+  // Apply the per-model floor via the shared primitive (single source of truth). NOTE: this only
+  // covers callers that DON'T pass an explicit timeout — a `?? explicit` upstream short-circuits
+  // this function, so explicit-timeout sites must call getModelMinTimeout themselves (t/3518 P2).
+  return Math.max(tiered, getModelMinTimeout(model, registry));
 }
 
 function parseVersionedModelId(id: string): { family: string; version: number } | null {
