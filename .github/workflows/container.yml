@@ -299,6 +299,33 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
+      # ── Trivy blocking gate — fixable high/critical (t/3520) ────────────────────
+      # NEW blocking gate (a promotion — there was previously NO build-failing Trivy
+      # step; the scan above is report-only SARIF). Fails CI on a FIXABLE high/critical
+      # so a patchable CVE can't ship unnoticed. `ignore-unfixed: true` means no-fix
+      # trixie residuals do NOT fail here — those stay governed by the annotated
+      # .trivyignore (report step above, t/2006 no-silent-suppression) + the weekly
+      # base rebuild that auto-retires them. So: hard floor on fixable, full visibility
+      # on the rest.
+      #
+      # WARN PHASE (t/3520#2 cond. 1 / AGENTS.md Gate-Promotion rule, t/2683 precedent):
+      # continue-on-error keeps this NON-BLOCKING until it logs ≥1 green cycle on real
+      # CI — a self-buggy exit-code probe promoted straight to blocking can down builds
+      # on its own defect. The flip to blocking = DELETE the `continue-on-error: true`
+      # line below, and lands ONLY after: SO Recommendation + warn-cycle green evidence
+      # + TL sign-off (t/3520). Do not remove it before all three.
+      - name: Trivy blocking gate (fixable high/critical) — WARN PHASE
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '1'
+          trivyignores: '.trivyignore'
+          skip-setup-trivy: true
+
       - name: Generate SBOM
         continue-on-error: true
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26  # v0.24.2
