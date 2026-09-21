@@ -42,12 +42,20 @@ module.exports = {
       to: { path: '(^|/)src/renderer/' },
     },
 
-    // ── main → renderer: main process must not import renderer code ──
+    // ── main → renderer: main process must not import renderer code — use IPC ──
+    // Exception: preloadElectronApiContract.ts (t/3529) is a compile-time-only, never
+    // imported-or-bundled conformance check that deliberately imports electron.d.ts's
+    // ElectronAPI type to catch preload/renderer drift at build time (TL-approved design,
+    // e/179#2). Scoped out by path rather than loosening the boundary for all of
+    // src/main/ (t/3542) — every other main-process file still hits this rule.
     {
       name: 'main-not-to-renderer',
       comment: 'Main process must not import renderer code — use IPC.',
       severity: 'error',
-      from: { path: '(^|/)src/main/' },
+      from: {
+        path: '(^|/)src/main/',
+        pathNot: '(^|/)src/main/__typecheck__/preloadElectronApiContract\\.ts$',
+      },
       to: { path: '(^|/)src/renderer/' },
     },
 
