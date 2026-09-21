@@ -249,6 +249,9 @@ vi.mock('@lib/debate/turnPipeline', () => ({
   runOpeningPipeline: vi.fn().mockResolvedValue({}),
   assembleOpeningPipelineResult: vi.fn().mockReturnValue({}),
   getOpeningRepairHints: vi.fn().mockReturnValue([]),
+  // t/3518 (reopened): real implementation (not a stub) — tests assert on its actual output
+  // flowing into pipelineInput.briefTimeoutMs, the exact gap that caused the escape.
+  openingBriefTimeoutFloor: vi.fn((model: string) => (model.includes('opus') || model.includes('fable')) ? 300_000 : 120_000),
 }));
 
 vi.mock('@lib/debate/topicCritique', () => ({
