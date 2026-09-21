@@ -11,7 +11,13 @@ name: Base Image
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 1 * *'  # Rebuild monthly (1st of each month) for OS security patches
+    # Rebuild WEEKLY (Sunday 00:00 UTC) so apt-get upgrade auto-retires trixie CVEs
+    # within ~1 week of Debian shipping a fix, and the Trivy rescan uploads a fresh
+    # SARIF that clears the corresponding code-scanning alerts — no human dismissals
+    # (t/3520; auto-retirement for t/3513#2 cond. 3). Was monthly; weekly is the
+    # responsiveness the no-fix residual policy needs. Cost negligible (public GHCR +
+    # Actions minutes are free; base build ~6 min).
+    - cron: '0 0 * * 0'
   push:
     paths:
       - 'deploy/azure/Dockerfile.base'
