@@ -4,6 +4,7 @@
 import './OverviewTabRouter.css';
 import React from 'react';
 import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore } from '../../../types/debate';
+import type { ElectronAPI } from '../../../types/electron';
 import type { TopicScope, TopicScopeRiskLevel } from '@lib/debate/types';
 import type { WeightHistoryEntry } from '../../../types/taxonomy';
 import { useTaxonomyStore } from '../../../hooks/useTaxonomyStore';
@@ -538,7 +539,7 @@ function PromptDiffSection({ debate, effectiveOverviewTab, selectedEntry }: { de
 
 type FrRow = [string, string | number | null | undefined];
 type FrSection = { title: string; rows: FrRow[] };
-type FrEApi = { processVersions?: Record<string, string | undefined>; osRelease?: string; osPlatform?: string; osArch?: string } | undefined;
+type FrEApi = Pick<ElectronAPI, 'processVersions' | 'osRelease' | 'osPlatform' | 'osArch'> | undefined;
 type FrMem = { usedJSHeapSize: number; totalJSHeapSize: number } | undefined;
 type FrTaxState = ReturnType<typeof useTaxonomyStore.getState>;
 
@@ -645,7 +646,7 @@ function FrContextSection({ debate, effectiveOverviewTab }: { debate: DebateSess
   if (effectiveOverviewTab !== 'fr-context') return null;
   const taxState = useTaxonomyStore.getState();
   const mem = (performance as unknown as { memory?: { usedJSHeapSize: number; totalJSHeapSize: number } }).memory;
-  const eApi = (window as unknown as { electronAPI?: { processVersions?: Record<string, string | undefined>; osRelease?: string; osPlatform?: string; osArch?: string } }).electronAPI;
+  const eApi = (window as { electronAPI?: ElectronAPI }).electronAPI;
   const pv = eApi?.processVersions;
   const sections: FrSection[] = [
     buildAppSection(eApi),

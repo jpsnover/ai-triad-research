@@ -392,7 +392,10 @@ export function BriefExportDialog({ debateId, debateTitle, debatePhase, onClose,
                     </li>
                   ))}
                 </ul>
-                <div className="bx-meta">Trace coverage {record.traceCoveragePct}% · model {record.narratorModel}</div>
+                <div className="bx-meta">
+                  Trace coverage {record.traceCoveragePct}%
+                  {record.narratorModel ? ` · model ${record.narratorModel}` : ''}
+                </div>
                 {record.artifacts.includes(BRIEF_ARTIFACTS.htmlDoc) && (
                   <div className="bx-pdf-row">
                     <button className="bx-btn-ghost" onClick={() => void savePdf()} disabled={pdfSaving}>
