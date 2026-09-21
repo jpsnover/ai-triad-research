@@ -147,7 +147,7 @@ function loadModelConfig(): { entryMap: Record<string, ModelEntry>; fallbackChai
       type: 'system.error',
       component: 'ai-backends',
       level: 'error',
-      message: 'Operation failed',
+      message: 'Failed to load/reload the model registry (ai-models.json) — serving from the previous cache or empty maps', // e/134 #4
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     log.api.warn({ err }, 'Failed to load model config');
@@ -930,6 +930,12 @@ export async function computeEmbeddings(
         ],
       });
     }
+    // e/134 (Shared Lib handoff, e/134#2 + t/3538): resolveEmbeddings now throws a well-formed
+    // ActionableError naming the tried fallback chain. Preserve that precise diagnosis instead of
+    // relabeling EVERY failure as an ONNX-init failure — the old blanket wrap misdirected triage
+    // (a fallback-exhaustion or worker-module error reported as "ONNX fallback failed to initialize").
+    // Only synthesize the generic ONNX message when the underlying error is NOT already actionable.
+    if (err instanceof ActionableError) throw err;
     throw new ActionableError({
       goal: 'Compute embeddings',
       problem: `No local embedding encoder available after ${elapsedMs}ms — the Python sentence-transformers venv is absent and the in-process ONNX all-MiniLM-L6-v2 fallback failed to initialize`,
@@ -1162,6 +1168,14 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
     // t/3176 (Fallback-Path Logging): a read failure here silently starts from an EMPTY baseline —
     // this write only re-adds the current nodes, so any embeddings the file held for OTHER nodes are
     // dropped until the next full re-embed. That data-losing degradation must not be silent. WARN.
+    // e/134 #2: the FR record is mandatory in server scope (docs/error-handling.md) — the Pino WARN
+    // alone doesn't reach a flight-recorder dump; record both.
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'ai-backends', level: 'warn',
+      message: 'updateNodeEmbeddings: embeddings file unreadable — continuing with an EMPTY baseline (other nodes’ stored embeddings are discarded this write; they re-populate on the next full embed)',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      data: { path: EMBEDDINGS_REL_PATH },
+    });
     log.api.warn(
       { err: (err as Error).message, path: EMBEDDINGS_REL_PATH },
       'updateNodeEmbeddings: embeddings file unreadable — continuing with an EMPTY baseline (other nodes’ stored embeddings are discarded this write; they re-populate on the next full embed)',
@@ -1179,7 +1193,30 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
     }
   }
   data.node_count = Object.keys(data.nodes).length;
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  // e/134 #1 (CRITICAL): this is a production write path. A disk-full or read-only-mount
+  // condition previously threw a raw exception with no FR record and no ActionableError.
+  // Record + wrap so the failure is diagnosable and carries recovery guidance.
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'ai-backends', level: 'error',
+      message: `Failed to write embeddings.json (${data.node_count} nodes)`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      data: { path: filePath, nodeCount: data.node_count },
+    });
+    throw new ActionableError({
+      goal: 'Persist updated node embeddings',
+      problem: 'Writing embeddings.json failed — likely a full disk, read-only mount, or permission denial on the data root',
+      location: 'aiBackends.updateNodeEmbeddings',
+      nextSteps: [
+        'Check the data-root disk for a full or read-only condition (ENOSPC / EROFS / EACCES)',
+        `Verify the process can write to ${filePath} and its parent directory`,
+        'Re-run the embedding update once the disk/mount condition is resolved',
+      ],
+      innerError: err, // t/2761: chain the raw fs error rather than embedding its message
+    });
+  }
   embeddingsCache = null;
   embeddingsLoadInFlight = null; // bust any in-flight read that would return the stale file
 }
@@ -1414,8 +1451,9 @@ export async function refreshAIModels(): Promise<unknown> {
         type: 'system.error',
         component: 'ai-backends',
         level: 'error',
-        message: 'Operation failed',
+        message: `Model discovery failed for backend '${backend}'`, // e/134 #4
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        data: { backend },
       });
       result[backend] = { ok: false, count: 0, error: String(err) };
     }

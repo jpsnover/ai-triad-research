@@ -11,21 +11,22 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs';
+import { ActionableError } from '../../../../lib/debate/errors.js';
 
-const { apiWarn, serverWarn, onnxCompute, readData, execFileMock } = vi.hoisted(() => ({
-  apiWarn: vi.fn(), serverWarn: vi.fn(), onnxCompute: vi.fn(), readData: vi.fn(),
-  execFileMock: vi.fn(),
+const { apiWarn, serverWarn, apiError, onnxCompute, readData, execFileMock, recordMock } = vi.hoisted(() => ({
+  apiWarn: vi.fn(), serverWarn: vi.fn(), apiError: vi.fn(), onnxCompute: vi.fn(), readData: vi.fn(),
+  execFileMock: vi.fn(), recordMock: vi.fn(),
 }));
 
 vi.mock('../logger.js', () => ({
   log: {
-    api: { info: vi.fn(), warn: apiWarn, error: vi.fn(), debug: vi.fn() },
+    api: { info: vi.fn(), warn: apiWarn, error: apiError, debug: vi.fn() },
     server: { info: vi.fn(), warn: serverWarn, error: vi.fn(), debug: vi.fn() },
   },
   getRequestId: () => 'req-test',
   LOG_MAX_LINE_BYTES: 65536,
 }));
-vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
+vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: recordMock }) }));
 vi.mock('child_process', () => ({ execFile: execFileMock }));
 vi.mock('../../../../lib/embeddings/onnxEmbedding.js', () => ({
   tryWarmup: vi.fn(async () => true), warmup: vi.fn(async () => true),
@@ -54,8 +55,8 @@ import {
 } from '../ai/aiBackends.js';
 
 beforeEach(() => {
-  apiWarn.mockReset(); serverWarn.mockReset(); onnxCompute.mockReset(); readData.mockReset();
-  execFileMock.mockReset();
+  apiWarn.mockReset(); serverWarn.mockReset(); apiError.mockReset(); onnxCompute.mockReset(); readData.mockReset();
+  execFileMock.mockReset(); recordMock.mockReset();
   onnxCompute.mockImplementation(async (t: string[]) => t.map(() => new Array(384).fill(0.1)));
   _resetEmbeddingsCacheForTest();
 });
@@ -96,6 +97,21 @@ describe('t/3176 — Fallback-Path Logging WARNs in aiBackends.ts', () => {
     vi.spyOn(fs, 'writeFileSync').mockImplementation(() => undefined); // don't touch disk
     await updateNodeEmbeddings([{ id: 'acc-x-1', text: 'hello', pov: 'acc' }]);
     expect(warnMsgs(apiWarn).some(m => /unreadable — continuing with an EMPTY baseline/.test(m))).toBe(true);
+    // e/134 #2: the unreadable-baseline fallback also records to the flight recorder now (not Pino-only).
+    expect(recordMock.mock.calls.some(c => c[0]?.level === 'warn' && /unreadable/.test(String(c[0]?.message)))).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  // e/134 #1 (CRITICAL): a write failure on the production embeddings.json path must record + throw a
+  // well-formed ActionableError, not a raw exception with no diagnostic.
+  it('Finding 1b: updateNodeEmbeddings throws an ActionableError + records when the write fails', async () => {
+    _setPythonAvailableForTest(false);
+    readData.mockResolvedValue(Buffer.from(JSON.stringify({ model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} })));
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(() => { const e = new Error('ENOSPC: no space left on device'); throw e; });
+    await expect(
+      updateNodeEmbeddings([{ id: 'acc-x-1', text: 'hello', pov: 'acc' }]),
+    ).rejects.toBeInstanceOf(ActionableError);
+    expect(recordMock.mock.calls.some(c => c[0]?.level === 'error' && /write embeddings\.json/i.test(String(c[0]?.message)))).toBe(true);
     vi.restoreAllMocks();
   });
 });
