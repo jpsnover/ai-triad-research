@@ -218,8 +218,10 @@ try {
   computeQueryEmbedding: (text: string): Promise<{ vector: number[] }> =>
     ipcRenderer.invoke('compute-query-embedding', text),
 
-  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, requestId?: string, maxTokens?: number): Promise<{ text: string }> =>
-    ipcRenderer.invoke('generate-text', prompt, model, timeoutMs, temperature, requestId, maxTokens),
+  // t/3528: single payload object, forwarded unchanged — see aiHandlers.ts's
+  // GenerateTextIpcPayload (renderer's electron.d.ts mirrors this shape, Rosetta scope).
+  generateText: (payload: { prompt: string; model?: string; timeoutMs?: number; temperature?: number; requestId?: string; maxTokens?: number }): Promise<{ text: string }> =>
+    ipcRenderer.invoke('generate-text', payload),
 
   cancelGenerate: (requestId: string): void =>
     void ipcRenderer.invoke('ai:cancel-generate', requestId),

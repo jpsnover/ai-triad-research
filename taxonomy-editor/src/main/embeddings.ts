@@ -686,16 +686,24 @@ export function setDebateTemperature(temp: number | null): void {
   else console.log('[AI] Debate temperature reset to default (0.7)');
 }
 
+// t/3528: trailing options grouped in one object rather than five positional params —
+// every prior addition (signal t/2507, responseSchema, maxTokens t/3524) forced every
+// caller to pass placeholder `undefined` holes to reach the new param.
+export interface GenerateTextCallOptions {
+  timeoutMs?: number;
+  temperature?: number;
+  signal?: AbortSignal;
+  responseSchema?: Record<string, unknown>;
+  maxTokens?: number;
+}
+
 export async function generateText(
   prompt: string,
   model?: string,
   onRetry?: (progress: GenerateTextProgress) => void,
-  timeoutMs?: number,
-  temperature?: number,
-  signal?: AbortSignal,
-  responseSchema?: Record<string, unknown>,
-  maxTokens?: number,
+  opts?: GenerateTextCallOptions,
 ): Promise<string> {
+  const { timeoutMs, temperature, signal, responseSchema, maxTokens } = opts ?? {};
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
   const entry = resolveModelEntry(friendlyModel);
@@ -727,7 +735,7 @@ export async function generateText(
     _lastLoggedModel = friendlyModel;
   }
 
-  const opts: GenerateOptions = {
+  const providerOpts: GenerateOptions = {
     temperature: temperature ?? _debateTemperature ?? 0.7,
     timeoutMs: timeoutMs ?? getDefaultTimeout(friendlyModel),
     ...fixedTempOverride(entry),
@@ -737,8 +745,8 @@ export async function generateText(
   };
 
   const providerFn = backend === 'deepseek'
-    ? () => generateViaDeepSeekStream(electronFetch, prompt, resolvedModel, apiKey, opts)
-    : () => callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, opts);
+    ? () => generateViaDeepSeekStream(electronFetch, prompt, resolvedModel, apiKey, providerOpts)
+    : () => callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, providerOpts);
 
   const result = await withRetry(
     providerFn,

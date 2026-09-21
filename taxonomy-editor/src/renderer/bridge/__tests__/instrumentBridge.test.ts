@@ -249,7 +249,7 @@ describe('instrumentBridge — embedding batch_size (t/3071)', () => {
   });
 });
 
-describe('instrumentBridge — ai call metadata: model/timeoutMs/purpose (t/3519)', () => {
+describe('instrumentBridge — ai call metadata: model/timeoutMs/purpose/maxTokens (t/3519, t/3524, t/3528)', () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
   /** Find the request/start event for a bridge method (message `bridge.<method>`, no suffix). */
@@ -259,15 +259,16 @@ describe('instrumentBridge — ai call metadata: model/timeoutMs/purpose (t/3519
       .find((e) => e.message === `bridge.${method}`);
   }
 
-  it('records model/timeoutMs/purpose on the ai.request start event for generateText', async () => {
+  it('records model/timeoutMs/purpose/maxTokens on the ai.request start event for generateText', async () => {
     const api = instrumentBridge({ generateText: () => Promise.resolve({ text: 'ok' }) } as unknown as AppAPI);
-    await (api as unknown as { generateText: (p: string, m: string, t: number, temp: number, o: { purpose?: string }) => Promise<unknown> })
-      .generateText('prompt', 'claude-5-sonnet', 60_000, 0.7, { purpose: 'brief' });
+    await (api as unknown as { generateText: (p: string, m: string, t: number, temp: number, o: { purpose?: string; maxTokens?: number }) => Promise<unknown> })
+      .generateText('prompt', 'claude-5-sonnet', 60_000, 0.7, { purpose: 'brief', maxTokens: 16_000 });
 
     const start = startRecord('generateText');
     expect(start?.data?.model).toBe('claude-5-sonnet');
     expect(start?.data?.timeoutMs).toBe(60_000);
     expect(start?.data?.purpose).toBe('brief');
+    expect(start?.data?.maxTokens).toBe(16_000);
   });
 
   it('omits purpose when the caller passes no opts (optional field)', async () => {

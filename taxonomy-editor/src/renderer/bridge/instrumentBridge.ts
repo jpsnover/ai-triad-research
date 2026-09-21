@@ -63,6 +63,38 @@ function embeddingBatchData(method: string, args: unknown[]): { batch_size?: num
 }
 
 /**
+ * Bidirectional type equality — true only when `A` and `B` are mutually assignable. Unlike
+ * `A extends B`, which is one-way and would accept a *widened* `B`, this catches a widening in
+ * either direction. Standard TS type-level-equals trick (distributes over a bare function-type
+ * comparison to dodge variance quirks a plain conditional would miss).
+ */
+type _Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+
+/**
+ * Compile-time pin on `AppAPI.generateText`'s parameter shape (t/3528, TL ruling t/3528#5). The
+ * positional reads in `aiCallMeta` below (`args[1]`, `args[2]`, `args[4]`) assume this exact
+ * order and these exact types. Runtime `unknown[]` args can't self-verify that, so a reorder
+ * (or a param swapping type, e.g. two adjacent `number | undefined`s) used to misattribute
+ * model/timeoutMs/maxTokens in the very ai.request/ai.response/ai.error telemetry added (t/3519)
+ * to diagnose incidents — silently, with no test catching it (t/3518 traced an incident partly
+ * blind because of exactly this class of gap). This assertion turns that into a build failure:
+ * if `AppAPI['generateText']`'s params ever change shape, `_Equal<...>` evaluates to `false` and
+ * `satisfies true` below stops compiling. `Parameters<>` narrowing was considered and rejected
+ * (t/3528#5) — a same-typed adjacent-param swap (e.g. model↔timeoutMs) still type-checks under
+ * narrowing and would silently yield `undefined` forever.
+ */
+type _PinnedGenerateTextParams = Parameters<AppAPI['generateText']>;
+type _ExpectedGenerateTextParams = [
+  prompt: string,
+  model?: string,
+  timeoutMs?: number,
+  temperature?: number,
+  opts?: import('./types').GenerateTextOptions,
+];
+true satisfies _Equal<_PinnedGenerateTextParams, _ExpectedGenerateTextParams>;
+
+/**
  * `model`/`timeoutMs`/`purpose`/`maxTokens` for the ai.request/ai.response/ai.error FR events
  * (t/3519, maxTokens added t/3524). The t/3518 triage found all 20 ai.error/ai.request events for
  * a PI debate failure carried only `{method, category, _origin}` — the model had to be inferred
@@ -71,10 +103,9 @@ function embeddingBatchData(method: string, args: unknown[]): { batch_size?: num
  * same event for the analogous reason: t/3524's Fable 5 truncation was diagnosable only via a raw
  * FR field (discarded_tail), with no first-class record of the ceiling that caused it. This is a
  * positional read of each AI method's PARAMETER LIST — pinned to the current `AppAPI`
- * (bridge/types.ts) signatures below. If any of these signatures' argument ORDER changes, update
- * the indices here too (a silent mismatch would misattribute model/timeoutMs, not just go missing —
- * no test catches a swap, only omission).
- *   generateText(prompt, model, timeoutMs, temperature, opts: GenerateTextOptions)
+ * (bridge/types.ts) signatures below.
+ *   generateText(prompt, model, timeoutMs, temperature, opts: GenerateTextOptions) — pinned above;
+ *     a reorder or type change fails the build (t/3528).
  *   generateTextWithSearch(prompt, model)
  *   startChatStream(systemInstruction, messages, model, temperature, urlContext, context)
  * All other "ai"-category methods (computeEmbeddings, computeQueryEmbedding, updateNodeEmbeddings,

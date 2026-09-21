@@ -55,6 +55,18 @@ function buildTimeoutError(err: unknown, elapsedMs: number): ActionableError {
   });
 }
 
+// t/3528: single payload object for the 'generate-text' IPC channel, replacing six
+// positional params that preload.cts/electron.d.ts/electron-bridge.ts each had to
+// restate in the same order by hand.
+interface GenerateTextIpcPayload {
+  prompt: string;
+  model?: string;
+  timeoutMs?: number;
+  temperature?: number;
+  requestId?: string;
+  maxTokens?: number;
+}
+
 // t/3524: maxTokens crosses an IPC trust boundary (renderer → main → provider) and directly
 // scales spend, so the main process clamps/validates rather than trusting the caller (SO
 // condition, t/3524#2). Non-integer/non-positive input is dropped (provider default applies);
@@ -220,7 +232,8 @@ export function registerAiHandlers(): void {
     }
   });
 
-  ipcMain.handle('generate-text', async (event, prompt: string, model?: string, timeoutMs?: number, temperature?: number, requestId?: string, maxTokens?: number) => {
+  ipcMain.handle('generate-text', async (event, payload: GenerateTextIpcPayload) => {
+    const { prompt, model, timeoutMs, temperature, requestId, maxTokens } = payload;
     const t0 = Date.now();
     const controller = requestId ? new AbortController() : undefined;
     if (requestId && controller) activeGenerations.set(requestId, controller);
@@ -230,7 +243,7 @@ export function registerAiHandlers(): void {
       const text = await generateText(prompt, model, (progress) => {
         retryCount = progress.attempt;
         event.sender.send('generate-text-progress', progress);
-      }, timeoutMs, temperature, controller?.signal, undefined, clampedMaxTokens);
+      }, { timeoutMs, temperature, signal: controller?.signal, maxTokens: clampedMaxTokens });
       writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: '200' });
       return { text };
     } catch (err) {

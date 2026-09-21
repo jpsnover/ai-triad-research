@@ -205,7 +205,7 @@ export const api: AppAPI = {
     // Correlate the request so the cancel channel can target it (t/2508). The main-process
     // handler ignores an unknown trailing arg until it wires requestId + AbortController (t/2509).
     const requestId = opts?.requestId ?? crypto.randomUUID();
-    const invoke = window.electronAPI.generateText(prompt, model, timeout, temperature, requestId, opts?.maxTokens);
+    const invoke = window.electronAPI.generateText({ prompt, model, timeoutMs: timeout, temperature, requestId, maxTokens: opts?.maxTokens });
     const signal = opts?.signal;
     if (!signal) return invoke;
     // Race the invoke against the abort signal so the renderer promise rejects PROMPTLY on a

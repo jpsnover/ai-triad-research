@@ -23,10 +23,12 @@ export function makeElectronAIAdapter(scenario: string, voiceTimeoutMs?: number)
           model,
           // Count retries so the log entry reflects the Nth retry (0 = first attempt succeeded).
           (p) => { retryCount = p.attempt; },
-          opts?.timeoutMs ?? voiceTimeoutMs,
-          opts?.temperature,
-          opts?.signal,
-          opts?.responseSchema,
+          {
+            timeoutMs: opts?.timeoutMs ?? voiceTimeoutMs,
+            temperature: opts?.temperature,
+            signal: opts?.signal,
+            responseSchema: opts?.responseSchema,
+          },
         );
         writeAICallLogEntry({ scenario, promptId: '', promptStart: prompt, retryCount, status: '200' });
         return text;
