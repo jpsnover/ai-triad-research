@@ -40,6 +40,9 @@ const KNOWN_BACKENDS: ReadonlySet<AIBackend> = new Set(['gemini', 'claude', 'gro
 // JSON-module string fields to `string`, which silently deletes typo protection while
 // appearing to work (verified empirically, t/3517#3). None of the per-backend union names
 // were consumed outside this file (confirmed via repo-wide grep before deletion).
+// (Merge note: origin/main independently hand-patched ClaudeModel with the same opus-5/
+// sonnet-5/fable-5 ids this ticket exists to stop needing — superseded by the generated
+// union, which already includes them since they're in ai-models.json's models[].)
 
 export interface AIModelEntry { value: AIModel; label: string }
 
@@ -60,7 +63,9 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] =
 
 // t/3517: SOURCED from the bundled ai-models.json snapshot via deriveModelsByBackend —
 // was a ~70-line hand-maintained literal kept in sync by a byte-identical parity test;
-// now the two are the same computation over the same data by construction.
+// now the two are the same computation over the same data by construction. (Merge note:
+// origin/main independently hand-curated claude-opus-5/sonnet-5/fable-5 picker labels here
+// — superseded; the same labels come from ai-models.json's picker.label field now.)
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> =
   deriveModelsByBackend(preloadConfig);
 
