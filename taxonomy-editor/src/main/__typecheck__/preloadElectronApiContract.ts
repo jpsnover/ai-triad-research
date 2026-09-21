@@ -36,60 +36,60 @@ type IsAny<T> = 0 extends (1 & T) ? true : false;
 true satisfies _Equal<IsAny<PreloadElectronAPI>, false>;
 true satisfies _Equal<IsAny<ElectronAPI>, false>;
 
-// MUTUAL ASSIGNABILITY (t/3532 exit criterion — flipped from the one-directional check t/3529
-// landed with). `_Equal` above is exact identity, the wrong semantic for this object interface:
-// `ElectronAPI` carries dozens of legitimate optional members (e.g. `getWebAppUrl`, web-only,
-// correctly `?.()`-guarded at its call site), and exact identity would permanently fail on
-// every one of them — unlike t/3528's tuple pin, where "wider" was itself the hazard being
-// guarded against. `MutuallyAssignable` below checks BOTH directions of plain assignability:
-// a declared member missing from preload, or present with an incompatible type, fails (the
-// direction that caught the real `loadSourceEvidenceIndex` mismatch, t/3529); AND a method
-// preload implements that electron.d.ts never declares now ALSO fails (the direction t/3529
-// deliberately left uncovered, closed here) — this is what t/3532's 12-method declaration +
-// 11-method precision sharpening earned: nothing left in the carve-out but `getPreferences`
-// (t/3532#3, unenforced-by-design pending t/3536's Zod validation, not a type gap).
-type MutuallyAssignable<A, B> = A extends B ? (B extends A ? true : false) : false;
+// DECOMPOSED CHECK (t/3532 exit criterion, TL ruling t/3532#7 — supersedes the ticket's
+// original "flip to mutual assignability" wording). A bidirectional mutual-assignability
+// check (tried first, see git history) conflates two different properties and produced
+// false positives: with `strictFunctionTypes` on and `ElectronAPI` using arrow-property
+// syntax (contravariant param checking applies), a preload param typed looser than its
+// declaration (e.g. `unknown` vs a specific payload shape) is the CORRECT, safe direction —
+// an implementation that accepts more than the interface promises is exactly what you want.
+// Mutual assignability demanded exact param identity anyway, manufacturing ~5+ "gaps" that
+// were never real drift (t/3532#6 found new ones every time the last was excluded — a
+// scripted audit would have catalogued ~190 non-problems, not debt). Splitting into the two
+// properties this check actually needs to prove avoids that:
+//
+// 1. Implementation satisfies the declaration — plain `extends`, letting TypeScript apply
+//    correct variance (return types covariant, params contravariant).
+type _Assignable<A, B> = A extends B ? true : false;
+true satisfies _Assignable<Omit<PreloadElectronAPI, _CarveOut>, Omit<ElectronAPI, _CarveOut>>;
 
-// CARVE-OUT (TL ruling, e/182#2 → t/3532#3 — folded into t/3532, no separate ticket).
+// 2. Nothing preload implements is undeclared — key containment only, no param-identity
+//    demand. This is the direction t/3529 deliberately left uncovered pending this ticket;
+//    `_Equal<_Undeclared, never>` also names the offending keys in a failing diagnostic,
+//    which a bare `extends` check wouldn't.
+type _Undeclared = Exclude<keyof PreloadElectronAPI, keyof ElectronAPI | _CarveOut>;
+true satisfies _Equal<_Undeclared, never>;
+
+// CARVE-OUT (TL ruling, e/182#2 → t/3532#3/#7 — folded into t/3532, no separate ticket).
 // Named methods ONLY, never a wildcard. Shrinking this list (fixing one and removing its
 // name) is free — growing it needs TL review, because an exclusion list is a
 // gate-weakening surface (same threat model as a `.trivyignore` entry).
 //
-// t/3532 resolved 12 of the original 14: `exportChatToFile` (Rosetta tightened
-// electron.d.ts's params) and 11 `Promise<unknown>` precision gaps sharpened in preload.cts
-// after verification against their real IPC handlers (`listBriefExports`,
-// `fetchRelevantNodes`, `computeAttribution`, `listOrganizations`, `getOrganization`,
-// `getOrganizationsByPov`, `getOrganizationsByTopic`, `getOrganizationsByPolicy`,
-// `getOrganizationEdges`, `getEntity`, `listEntities`, `getContainerMentions`).
+// t/3532 resolved 12 of the original 14 undeclared/miscast methods: `exportChatToFile`
+// (Rosetta tightened electron.d.ts's params) and 11 `Promise<unknown>` precision gaps
+// sharpened in preload.cts after verification against their real IPC handlers
+// (`listBriefExports`, `fetchRelevantNodes`, `computeAttribution`, `listOrganizations`,
+// `getOrganization`, `getOrganizationsByPov`, `getOrganizationsByTopic`,
+// `getOrganizationsByPolicy`, `getOrganizationEdges`, `getEntity`, `listEntities`,
+// `getContainerMentions`). It also fixed two type-shape gaps found while proving arm 1
+// above (`processVersions` widened from a generic `Record` to the real `NodeJS.ProcessVersions`
+// shape; `getApiKeySummary` widened to include the `keyCount`/`maskedKeys` fields preload's
+// real return already carries) and removed 20 stale `?:` optional markers — landing-order
+// safety left over from each method's original IPC wiring (comments like "Optional — wired
+// by X; until then undefined"), all long since unconditionally implemented in preload.cts:
+// `cancelGenerate`, `forwardFlightEvent`, `getContainerMentions`, `getEntity`,
+// `getOrganization`, `getOrganizationEdges`, `getOrganizationsByPolicy`,
+// `getOrganizationsByPov`, `getOrganizationsByTopic`, `listEntities`, `listOrganizations`,
+// `loadAggregatedCruxes`, `loadConflictClusters`, `loadGreatestHits`, `onTriggerDump`,
+// `saveEdges`, `sendDumpResult`, `triggerMainDump`, `validateApiKey`, `verifyStoredKeys`.
 //
-// `getPreferences`/`setPreferences` remain carved out DELIBERATELY (TL ruling, t/3532#3):
-// `getPreferences` reads unvalidated JSON off disk and returns it as-is — declaring
-// `UserPreferences | null` in electron.d.ts is a good claim that happens to be unenforced,
-// and the fix is to make the claim TRUE (Zod-validate on read, t/3534/t/3536), not to
-// downgrade the type and push unsafety into every settings call site. `setPreferences`'s
-// param has the same shape of gap (preload accepts `unknown`, unvalidated) — paired here
-// rather than a separate exclusion since they're the same read/write surface. Removing
-// both from the carve-out is t/3536's job.
-//
-// Flipping the assertion below (mutual assignability) also surfaced a THIRD class beyond
-// the ticket's original inventory: 20 methods declared `?:` optional in electron.d.ts
-// as a landing-order safety measure during their original IPC wiring (comments like
-// "Optional — wired by X (ElectronMain); until then undefined"), all now unconditionally
-// implemented in preload.cts for a long time — a false-optional stale from history that
-// the prior one-directional check couldn't see (optional-in-declared vs required-in-preload
-// only breaks the REVERSE direction). Fixed alongside this flip: `cancelGenerate`,
-// `forwardFlightEvent`, `getContainerMentions`, `getEntity`, `getOrganization`,
-// `getOrganizationEdges`, `getOrganizationsByPolicy`, `getOrganizationsByPov`,
-// `getOrganizationsByTopic`, `listEntities`, `listOrganizations`, `loadAggregatedCruxes`,
-// `loadConflictClusters`, `loadGreatestHits`, `onTriggerDump`, `saveEdges`,
-// `sendDumpResult`, `triggerMainDump`, `validateApiKey`, `verifyStoredKeys`. `getWebAppUrl`
-// remains legitimately optional (genuinely absent from preload — web-only concept).
-// FURTHER TEMPORARY carve-outs pending an ElectronMain preload.cts param-sharpening pass
-// (same category TL already approved for fetchRelevantNodes/computeAttribution, t/3532#3) —
-// discovered mid-flip, reported for a scope decision before continuing (t/3532#6):
-// openDebateWindow, importKeysFromSharing, saveEdges, reportError, createBriefExport.
-// Surfaced one new instance every time the prior one was excluded — likely NOT exhaustive;
-// see t/3532#6 for the recommendation to stop trickle-discovery and audit systematically.
-type _CarveOut = 'getPreferences' | 'setPreferences'
-  | 'openDebateWindow' | 'importKeysFromSharing' | 'saveEdges' | 'reportError' | 'createBriefExport';
-true satisfies MutuallyAssignable<Omit<PreloadElectronAPI, _CarveOut>, Omit<ElectronAPI, _CarveOut>>;
+// `getPreferences` remains carved out DELIBERATELY (TL ruling, t/3532#3/#7): it reads
+// unvalidated JSON off disk and returns it as-is — declaring `UserPreferences | null` in
+// electron.d.ts is a good claim that happens to be unenforced, and the fix is to make the
+// claim TRUE (Zod-validate on read, t/3534/t/3536), not to downgrade the type and push
+// unsafety into every settings call site. Removing it from the carve-out is t/3536's job.
+// (`setPreferences` and the 5 param-precision entries found during the mutual-assignability
+// attempt — `openDebateWindow`, `importKeysFromSharing`, `saveEdges`, `reportError`,
+// `createBriefExport` — are NOT carved out: arm 1's contravariant param check passes them
+// correctly, since a looser preload param is safe, not a gap.)
+type _CarveOut = 'getPreferences';
