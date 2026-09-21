@@ -35,6 +35,9 @@ export type GeminiModel =
   | 'gemini-2.5-pro';
 
 export type ClaudeModel =
+  | 'claude-opus-5'
+  | 'claude-sonnet-5'
+  | 'claude-fable-5'
   | 'claude-opus-4-7'
   | 'claude-sonnet-4-6'
   | 'claude-sonnet-4-5'
