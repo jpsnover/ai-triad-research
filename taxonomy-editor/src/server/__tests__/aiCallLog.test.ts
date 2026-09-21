@@ -113,6 +113,26 @@ describe('writeAICallLogEntry', () => {
     }
   });
 
+  // t/3516 (CodeQL js/http-to-file-access #5741): the write IS request-derived (PromptStart), which is
+  // the by-design audit feature — but it must be injection-safe. A crafted prompt carrying embedded
+  // newlines + a forged JSON record must NOT forge a second JSONL line: JSON.stringify escapes the
+  // control chars, so the whole record stays exactly one physical line. This is the regression proof
+  // behind the alert dismissal.
+  it('a prompt with embedded newlines/JSON cannot forge a second JSONL line (injection-safe)', () => {
+    process.env.AI_CALL_LOG_ENABLED = '1';
+    const malicious = 'safe\n{"ID":999,"Scenario":"FORGED","Status":"200"}\nmore';
+    writeAICallLogEntry({ ...sample, promptStart: malicious }, logPath);
+    // Exactly one physical line was written — the embedded newlines did not split the record.
+    const lines = readLines();
+    expect(lines).toHaveLength(1);
+    // ...and it parses as a single record whose PromptStart round-trips the raw (escaped) string,
+    // never a second record with the forged ID/Scenario.
+    const rec = JSON.parse(lines[0]);
+    expect(rec.PromptStart).toContain('\n'); // the newline survived as escaped data inside the field
+    expect(rec.ID).toBe(1);
+    expect(rec.Scenario).toBe(sample.scenario); // NOT 'FORGED'
+  });
+
   it('an IO error is swallowed (fail-safe) — never throws', () => {
     process.env.AI_CALL_LOG_ENABLED = '1';
     // Point at a path whose parent is a FILE, so mkdir/open fails; the write must not throw.
