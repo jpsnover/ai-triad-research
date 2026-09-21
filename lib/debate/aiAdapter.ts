@@ -439,8 +439,24 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         type: 'ai.response', component: 'ai-adapter', level: 'info',
         duration_ms: Math.round(latency),
         message: `generate (envelope) success ${backend}/${apiModelId}`,
-        data: { backend, model: apiModelId, fn: 'generate', usage: { inputTokens: result.usage?.promptTokens, outputTokens: result.usage?.completionTokens, cachedTokens: result.usage?.cachedTokens } },
+        data: { backend, model: apiModelId, fn: 'generate', usage: { inputTokens: result.usage?.promptTokens, outputTokens: result.usage?.completionTokens, cachedTokens: result.usage?.cachedTokens }, rawStopReason: result.rawStopReason },
       });
+      if (result.stopReason === 'max_tokens') {
+        throw new ActionableError({
+          goal: 'Generate AI response',
+          problem: `Response truncated at provider output limit (${result.rawStopReason ?? 'max_tokens'}) — JSON parse would fail on partial output`,
+          location: 'aiAdapter.generate',
+          nextSteps: ['Raise maxTokens for this stage', 'Shorten the prompt'],
+        });
+      }
+      if (result.stopReason === 'content_filter') {
+        throw new ActionableError({
+          goal: 'Generate AI response',
+          problem: `Response blocked by provider content policy (${result.rawStopReason ?? 'content_filter'})`,
+          location: 'aiAdapter.generate',
+          nextSteps: ['Review the prompt for policy-violating content', 'Try a different model or backend'],
+        });
+      }
       return { text: result.text, usage, model: apiModelId, backend, responseTimeMs: Math.round(latency) };
     } catch (err) {
       getGlobalRecorder()?.record({
