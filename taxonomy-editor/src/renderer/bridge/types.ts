@@ -243,6 +243,11 @@ export interface OrgFilters { type?: string; pov?: string }
 export interface GenerateTextOptions {
   signal?: AbortSignal;
   requestId?: string;
+  /** Caller-supplied stage/activity label (e.g. "brief", "Moderator is voicing each camp's
+   * story") surfaced on the bridge's ai.request/ai.response/ai.error flight-recorder events
+   * so a dump can attribute a slow/failed call to its call site without guessing from
+   * unrelated debate.lifecycle events (t/3519). Purely diagnostic — never sent to the provider. */
+  purpose?: string;
 }
 
 export type ViewMode = 'simple' | 'advanced';
