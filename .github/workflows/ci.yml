@@ -291,11 +291,68 @@ jobs:
           # (t/2331, t/2324#1): data-corpus state must not block code PRs.
           $config.Run.ExcludePath = Get-PesterExcludePaths
           $config.Output.Verbosity = 'Detailed'
-          $config.Run.Exit = $true
+          # t/3530: we OWN the red/green decision (Run.Exit=$false + PassThru) so we can rerun a
+          # lone flaky test once and surface the failing test name after the coverage dump. The
+          # manual verdict below is >= as strict as Run.Exit was: it gates on Pester's overall
+          # $r.Result (failed tests AND container/discovery errors), NOT on FailedCount — a
+          # syntax-error-only file yields FailedCount=0 but Result=Failed (verified, Pester 6.1.0).
+          $config.Run.Exit = $false
+          $config.Run.PassThru = $true
           $config.CodeCoverage.Enabled = $true
           $config.CodeCoverage.Path = @('./scripts/AITriad/Public/*.ps1')
+          # REPORTING-ONLY — NOT an enforced floor. Verified (t/3530): Pester's Run.Exit never
+          # failed the build on sub-target coverage, and this step deliberately does not either.
+          # It only prints "Covered X% / 5%" for visibility. Making coverage a real gate would be
+          # a gate promotion (own SO + warn phase), not a quiet addition here.
           $config.CodeCoverage.CoveragePercentTarget = 5
-          Invoke-Pester -Configuration $config
+
+          $r = Invoke-Pester -Configuration $config
+
+          # ── t/3530 manual verdict: reruns a lone flake, fails safe on everything else ──
+          if ($null -eq $r) {
+            Write-Host "::error::test-powershell: Pester returned no result object — failing safe."
+            exit 1
+          }
+          if ($r.Result -eq 'Passed') { exit 0 }
+          # Container/discovery error (syntax error, throwing BeforeAll): FailedContainersCount>0,
+          # often with FailedCount=0. Nothing to rerun — fail immediately (R1/R3).
+          if ($r.FailedContainersCount -gt 0) {
+            $r.Containers | Where-Object { $_.Result -eq 'Failed' } | ForEach-Object {
+              Write-Host "::error::test-powershell container/discovery error: $($_.Item.Name)"
+            }
+            Write-Host "::error::test-powershell: $($r.FailedContainersCount) container/discovery error(s) — fix required (not a flaky test)."
+            exit 1
+          }
+          # Not passed, but no failed tests and no failed containers -> unknown non-pass. Fail safe.
+          if ($r.FailedCount -le 0) {
+            Write-Host "::error::test-powershell: run did not pass (Result=$($r.Result)) with no failed tests or containers — failing safe."
+            exit 1
+          }
+          # Pure test failure(s) — eligible for ONE flake rerun of only those tests (R3), no coverage.
+          $failedNames = @($r.Tests | Where-Object { $_.Result -eq 'Failed' } | ForEach-Object { $_.ExpandedPath })
+          Write-Host "::warning::test-powershell: $($failedNames.Count) test(s) failed on run 1 — rerunning only those once to distinguish flake from real failure."
+          $rc = New-PesterConfiguration
+          $rc.Run.Path = './tests/'
+          $rc.Run.ExcludePath = Get-PesterExcludePaths
+          $rc.Run.Exit = $false
+          $rc.Run.PassThru = $true
+          $rc.Output.Verbosity = 'Detailed'
+          $rc.Filter.FullName = $failedNames
+          $r2 = Invoke-Pester -Configuration $rc
+          # R4: a rerun that discovers FEWER tests than failed (Filter.FullName metachar [ * ? matching
+          # nothing, or discovery no longer finding them) must NOT count as healed — require every
+          # failed test to have re-run AND the rerun to be fully green.
+          if ($null -ne $r2 -and $r2.Result -eq 'Passed' -and $r2.TotalCount -ge $failedNames.Count) {
+            Write-Host "::warning::test-powershell: all $($failedNames.Count) failing test(s) PASSED on rerun — treated as flake (self-healed): $($failedNames -join '; ')"
+            exit 0
+          }
+          # Real failure (still red, or rerun didn't cover all). Surface the [-] names loudly (Part 2).
+          $stillFailed = if ($null -ne $r2) { @($r2.Tests | Where-Object { $_.Result -eq 'Failed' } | ForEach-Object { $_.ExpandedPath }) } else { $failedNames }
+          foreach ($n in $stillFailed) { Write-Host "::error::test-powershell FAILED (both runs): $n" }
+          if ($null -ne $r2 -and $r2.TotalCount -lt $failedNames.Count) {
+            Write-Host "::error::test-powershell: rerun discovered $($r2.TotalCount) of $($failedNames.Count) failed test(s) — NOT treated as flake (fail safe)."
+          }
+          exit 1
 
       - name: In-memory job store scale guard (real files)
         # Runs the gate against the ACTUAL main.bicep + briefExportJobs.ts — distinct
