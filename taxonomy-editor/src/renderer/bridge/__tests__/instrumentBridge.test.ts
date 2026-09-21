@@ -293,6 +293,17 @@ describe('instrumentBridge — ai call metadata: model/timeoutMs/purpose/maxToke
     expect(ok?.data?.purpose).toBe('plan');
   });
 
+  it('records prompt_chars alongside maxTokens on the ok event (t/3544)', async () => {
+    const api = instrumentBridge({ generateText: () => Promise.resolve({ text: 'a response' }) } as unknown as AppAPI);
+    await (api as unknown as { generateText: (p: string, m: string, t: number, temp: number, o: { maxTokens?: number }) => Promise<unknown> })
+      .generateText('a sufficiently long prompt', 'claude-5-sonnet', 180_000, 0.7, { maxTokens: 16_000 });
+
+    const ok = okRecord('generateText');
+    expect(ok?.data?.prompt_chars).toBe('a sufficiently long prompt'.length);
+    expect(ok?.data?.maxTokens).toBe(16_000);
+    expect(ok?.data?.response_chars).toBe('a response'.length);
+  });
+
   it('records model/timeoutMs/purpose on the ai.error event (the t/3518 diagnostic gap)', async () => {
     const api = instrumentBridge({ generateText: () => Promise.reject(new Error('timed out')) } as unknown as AppAPI);
     await expect(
