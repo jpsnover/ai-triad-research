@@ -184,6 +184,11 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
       meta.response_chars = text.length;
       meta.response_preview = text.slice(0, 300) + (text.length > 300 ? '…' : '');
     }
+    // t/3544: prompt length reveals whether the context window (not the response cap) is the
+    // binding constraint — the maxTokens half of this picture already rides aiCallMeta (t/3524).
+    if (typeof args[0] === 'string') {
+      meta.prompt_chars = args[0].length;
+    }
     const usage = v.tokenUsage as Record<string, unknown> | undefined;
     if (usage) {
       meta.input_tokens = usage.inputTokens;
