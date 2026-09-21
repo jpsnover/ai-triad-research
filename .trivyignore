@@ -883,4 +883,141 @@ CVE-2021-34141
 CVE-2021-41495
 CVE-2021-41496
 
+# ==============================================================================
+# Wave 6 — post-rebuild residuals (t/3513, 2026-09-21)
+# New no-fix CVEs surfaced by the 2026-09-21 cache-busted base rebuild
+# (ai-triad-base:2026-09-01 -> :2026-09-21). The rebuild's apt-get upgrade cleared
+# every FIXABLE CVE (0 fixable highs remain); these 18 are the residual set with
+# NO fixed version in debian:trixie as of 2026-09-21. TL-approved accept-risk at
+# t/3513#2 (poppler cleared for accept-risk by the reachability finding, t/3513#3).
+# Policy: t/2006 — CVE + package + justification + REVISIT trigger required.
+# ==============================================================================
+
+# ── util-linux (Trixie) — HIGH — NO UPSTREAM FIX AVAILABLE ──────────────────
+# CVE-2026-76642  util-linux: HIGH — no Trixie fix as of 2026-09-21 (t/3513)
+# CVE-2026-78408  util-linux: HIGH — no Trixie fix as of 2026-09-21 (t/3513)
+# CVE-2026-78409  util-linux: HIGH — no Trixie fix as of 2026-09-21 (t/3513)
+# CVE-2026-78410  util-linux: HIGH — no Trixie fix as of 2026-09-21 (t/3513)
+#
+# Packages:  util-linux, bsdutils, mount, login, libblkid1, libmount1, libuuid1,
+#            libsmartcols1, liblastlog2-2 (trixie, all from the util-linux source)
+# Fix state: Debian trixie has published NO fixed version for any of these as of
+#            2026-09-21 (Fixed Version empty in Trivy Code Scanning).
+# Exposure:  util-linux privilege-escalation / mount TOCTOU paths require
+#            CAP_SYS_ADMIN or root. The container runs as the non-root aitriad user
+#            with no-new-privileges under Azure Container Apps (no privileged mode,
+#            no CAP_SYS_ADMIN), and mount(8)/login(1) are never invoked at runtime.
+#            Not reachable in our deployment.
+# REVISIT:   drop when Debian trixie ships a fixed util-linux (deb13uN+). Re-scan.
+CVE-2026-76642
+CVE-2026-78408
+CVE-2026-78409
+CVE-2026-78410
+
+# ── python3.13 (Trixie) — HIGH+MEDIUM — NO UPSTREAM FIX AVAILABLE ────────────
+# CVE-2026-82049  python3.13: HIGH — tarfile extraction issue; no Trixie fix 2026-09-21 (t/3513)
+# CVE-2026-87910  python3.13: MEDIUM — no Trixie fix as of 2026-09-21 (t/3513)
+#
+# Packages:  python3.13, python3.13-minimal, python3.13-venv,
+#            libpython3.13-stdlib, libpython3.13-minimal (trixie)
+# Fix state: Debian trixie has published NO fixed version as of 2026-09-21.
+# Exposure:  python3 is installed only for pty-broker.py (the terminal-UI PTY
+#            subprocess broker). No untrusted tarfile extraction or venv/pip install
+#            occurs at runtime; the tarfile CVE path is not reached by the app.
+# REVISIT:   drop when Debian trixie ships a fixed python3.13 (deb13uN+). Re-scan.
+CVE-2026-82049
+CVE-2026-87910
+
+# ── poppler (Trixie) — MEDIUM+note — NO UPSTREAM FIX AVAILABLE ───────────────
+# CVE-2026-93653  poppler: MEDIUM — no Trixie fix as of 2026-09-21 (t/3513)
+# CVE-2026-93311  poppler: note — no Trixie fix as of 2026-09-21 (t/3513)
+# CVE-2026-93312  poppler: note — no Trixie fix as of 2026-09-21 (t/3513)
+# CVE-2026-93313  poppler: note — no Trixie fix as of 2026-09-21 (t/3513)
+# CVE-2026-93314  poppler: note — no Trixie fix as of 2026-09-21 (t/3513)
+#
+# Packages:  poppler-utils, libpoppler147 (trixie)
+# Fix state: Debian trixie has published NO fixed version as of 2026-09-21.
+# Exposure:  NOT server-reachable (reachability finding t/3513#3). The deployed
+#            server never invokes poppler — its only execFile targets are python
+#            (embeddings), git, and cp; the one upload route (/api/upload-document)
+#            reads raw bytes without parsing; and routes/oped.ts explicitly rejects
+#            PDF/file sources server-side ("require the desktop app"). Poppler runs
+#            only in the desktop PowerShell DocConverters flow over author-selected
+#            documents — not untrusted network input, and the container ships no pwsh.
+# REVISIT:   drop when Debian trixie ships a fixed poppler. Re-scan. (Also a
+#            base-minimization candidate — drop poppler-utils from runtime; Track-C.)
+CVE-2026-93653
+CVE-2026-93311
+CVE-2026-93312
+CVE-2026-93313
+CVE-2026-93314
+
+# ── glibc / libc6 (Trixie) — MEDIUM — NO UPSTREAM FIX AVAILABLE ──────────────
+# CVE-2026-8674   libc6: MEDIUM — no Trixie fix as of 2026-09-21 (t/3513)
+# CVE-2026-89092  libc6: MEDIUM — no Trixie fix as of 2026-09-21 (t/3513)
+#
+# Packages:  libc6, libc-bin (trixie, base C library)
+# Fix state: Debian trixie has published NO fixed version as of 2026-09-21.
+# Exposure:  glibc is the base C library. The vulnerable paths are not driven by
+#            attacker-controlled input on any external-facing endpoint; Node.js
+#            handles all runtime I/O. Same accept-risk class as the Wave-4 libc6 set.
+# REVISIT:   drop when Debian trixie ships a fixed glibc (deb13uN+). Re-scan.
+CVE-2026-8674
+CVE-2026-89092
+
+# ── libtiff6 (Trixie) — MEDIUM — NO UPSTREAM FIX AVAILABLE ───────────────────
+# CVE-2026-18495  libtiff6: MEDIUM — no Trixie fix as of 2026-09-21 (t/3513)
+#
+# Package:   libtiff6 (trixie, transitive dep of poppler-utils)
+# Fix state: Debian trixie has published NO fixed version as of 2026-09-21.
+# Exposure:  Transitive dep of poppler-utils, which is itself not server-reachable
+#            (t/3513#3). The TIFF decode path is not invoked by our text-only
+#            pipeline. Negligible practical exploitability.
+# REVISIT:   drop when Debian trixie ships a fixed libtiff6. Re-scan.
+CVE-2026-18495
+
+# ── zlib1g (Trixie) — MEDIUM — NO UPSTREAM FIX AVAILABLE ─────────────────────
+# CVE-2026-85091  zlib1g: MEDIUM — no Trixie fix as of 2026-09-21 (t/3513)
+#
+# Package:   zlib1g (trixie, base compression library)
+# Fix state: Debian trixie has published NO fixed version as of 2026-09-21.
+# Exposure:  Base compression library; Node.js handles all runtime (de)compression,
+#            not zlib1g directly on attacker-controlled input. Same class as the
+#            Wave-4 zlib1g set.
+# REVISIT:   drop when Debian trixie ships a fixed zlib1g. Re-scan.
+CVE-2026-85091
+
+# ── libexpat1 (Trixie) — note — NO UPSTREAM FIX AVAILABLE ────────────────────
+# CVE-2026-93990  libexpat1: note — no Trixie fix as of 2026-09-21 (t/3513)
+#
+# Package:   libexpat1 (trixie, XML parser, transitive of python/pandoc)
+# Fix state: Debian trixie has published NO fixed version as of 2026-09-21.
+# Exposure:  The server does not parse untrusted XML via libexpat at runtime. Same
+#            accept-risk class as the extensive Wave-4 libexpat1 set already here.
+# REVISIT:   drop when Debian trixie ships a fixed libexpat1. Re-scan.
+CVE-2026-93990
+
+# ── liblzma5 (Trixie) — note — NO UPSTREAM FIX AVAILABLE ─────────────────────
+# TEMP-1147318-639065  liblzma5: note — Debian temp id, no Trixie fix as of 2026-09-21 (t/3513)
+#
+# Package:   liblzma5 (trixie, xz compression, base dep)
+# Fix state: Debian trixie has published NO fixed version as of 2026-09-21; the
+#            advisory carries a Debian TEMP id (not yet a numbered CVE).
+# Exposure:  Base xz-compression library; not invoked on attacker-controlled input
+#            at runtime. Node.js handles runtime (de)compression.
+# REVISIT:   drop when Debian trixie ships a fix / the CVE is assigned+fixed. Re-scan.
+TEMP-1147318-639065
+
+# ── perl (Trixie) — note — NO UPSTREAM FIX AVAILABLE ─────────────────────────
+# CVE-2026-82560  perl: note — no Trixie fix as of 2026-09-21 (t/3513)
+#
+# Packages:  perl, perl-base, libperl5.40, perl-modules-5.40 (trixie)
+# Fix state: Debian trixie has published NO fixed version as of 2026-09-21.
+# Exposure:  perl is pulled in transitively by dpkg maintenance scripts and cannot be
+#            stripped without breaking package management. No exec surface — the CMD
+#            is a direct `node` invocation; perl is not callable from any external
+#            interface. Same accept-risk class as the Wave-5 perl CRITICALs already here.
+# REVISIT:   drop when Debian trixie ships a fixed perl. Re-scan.
+CVE-2026-82560
+
 
