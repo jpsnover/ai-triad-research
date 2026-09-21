@@ -2,7 +2,7 @@
 # What:  Builds and pushes the shared Node.js base image to GHCR. Includes
 #        Hadolint linting, Trivy security scanning, and SBOM generation.
 # Before: Update deploy/azure/Dockerfile.base as needed. Runs automatically
-#         monthly or on push to that file.
+#         weekly or on push to that file.
 # After:  The new base image tag is available in GHCR. Update the taxonomy-editor
 #         Dockerfile's FROM line if using a specific tag (not :latest).
 
@@ -101,7 +101,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.date_tag.outputs.tag }}
           # CACHE_BUST invalidates the npm@latest + apt-get upgrade layers so security
           # upgrades genuinely re-run instead of restoring a stale cached layer (t/3137).
-          # Date-tag granularity busts on the real rebuild cadence (monthly cron / new-day
+          # Date-tag granularity busts on the real rebuild cadence (weekly cron / new-day
           # dispatch); the in-image version tripwires catch any residual same-day no-op.
           build-args: |
             CACHE_BUST=${{ steps.date_tag.outputs.tag }}
