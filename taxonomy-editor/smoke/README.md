@@ -111,6 +111,11 @@ the CI job (#1599). The runner now runs clean on Node 22 (CI) and Node 24.15.0 (
 (#1599). It runs on every electron PR + main push. Promotion warn→block is a separate TL-signed
 draft PR gated on DevOps's real-env both-arms — unchanged, DevOps-owned (t/3026#10 cond 4).
 
+**Why `package.json` hard-pins `@playwright/test` (no `^`, t/3541):** deliberate, not an oversight —
+an unpinned bump can silently redownload the Chromium browser binary and shift rendering behavior
+under what is a blocking-gate candidate (DevOps, t/3026#4 item 3). Bump this version deliberately
+(review the change, re-run both-arms) rather than via caret-range drift.
+
 **Coverage (honest, per "no silent caps"):** this harness now covers **5 active + both-arms-proven**
 POV-surface assertions (Attributes `.ga-*`, HighlightedField `.hl-*`, DataSourceCard `.pi-*`,
 ApiKeyErrorMessage `.api-key-error-*`, claim-attribution `.claim-attribution-*`). The medium-3
