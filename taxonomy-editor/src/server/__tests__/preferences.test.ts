@@ -73,11 +73,32 @@ describe('GET /api/preferences (t/2119)', () => {
     expect(body).toBeNull();
   });
 
-  it('returns stored prefs when file exists', async () => {
+  it('returns stored prefs when file exists (valid file round-trips)', async () => {
     readDataFileMock.mockResolvedValue(Buffer.from(JSON.stringify({ viewMode: 'advanced' })));
     const { status, body } = await invokeGet();
     expect(status).toBe(200);
     expect(body).toEqual({ viewMode: 'advanced' });
+  });
+
+  // t/3537 (t/3534): a present-but-invalid stored file must degrade to defaults +
+  // an FR WARN naming the offending field — NOT a 500, NOT the raw bad value. This
+  // is the unvalidated-read gap the shared schema (t/3535) closes.
+  it('malformed stored file → defaults + a flight-recorder WARN naming the field', async () => {
+    readDataFileMock.mockResolvedValue(Buffer.from(JSON.stringify({ viewMode: 'superuser' })));
+    const { status, body } = await invokeGet();
+    expect(status).toBe(200);
+    expect(body).toEqual({ viewMode: 'simple' }); // DEFAULT_USER_PREFERENCES
+    const warn = recordMock.mock.calls.find(c => c[0]?.level === 'warn');
+    expect(warn, 'a warn-level FR event should be recorded').toBeTruthy();
+    expect(warn![0].message).toContain('viewMode'); // names the offending field
+  });
+
+  it('non-object stored content → defaults + WARN (never throws / 500)', async () => {
+    readDataFileMock.mockResolvedValue(Buffer.from(JSON.stringify('garbage')));
+    const { status, body } = await invokeGet();
+    expect(status).toBe(200);
+    expect(body).toEqual({ viewMode: 'simple' });
+    expect(recordMock.mock.calls.some(c => c[0]?.level === 'warn')).toBe(true);
   });
 });
 
