@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   getModelCapabilities,
   filterByCapabilities,
@@ -15,6 +15,8 @@ import {
   buildModelIdMap,
 } from './registry.js';
 import type { ModelRegistry } from './registry.js';
+import type { FlightRecorder, RecordInput } from '../flight-recorder/index.js';
+import { setGlobalRecorder, clearGlobalRecorder } from '../flight-recorder/index.js';
 
 const TEST_REGISTRY: ModelRegistry = {
   backends: [
@@ -455,5 +457,69 @@ describe('moonshot backend routing (t/1945)', () => {
   it('getDefaultTimeout returns base when no registry is passed (back-compat)', () => {
     expect(getDefaultTimeout('claude-sonnet-4-6')).toBe(180_000);
     expect(getDefaultTimeout('gemini-3.1-pro-preview')).toBe(120_000);
+  });
+});
+
+// Per-model minTimeoutMs floor (t/3518 Phase 2, SO e/184). Registry-driven timeout floor replaces
+// the model-substring checks. Floor semantics = Math.max(tiered, floor): it can raise, never shorten.
+describe('getDefaultTimeout — minTimeoutMs floor (t/3518 Phase 2)', () => {
+  const floorRegistry: ModelRegistry = {
+    backends: [],
+    models: [
+      { id: 'claude-opus-5',   apiModelId: 'claude-opus-5',   label: 'Opus 5',   backend: 'claude', minTimeoutMs: 300_000 },
+      { id: 'claude-sonnet-5', apiModelId: 'claude-sonnet-5', label: 'Sonnet 5', backend: 'claude', minTimeoutMs: 300_000 },
+      { id: 'claude-fable-5',  apiModelId: 'claude-fable-5',  label: 'Fable 5',  backend: 'claude', minTimeoutMs: 300_000 },
+      { id: 'claude-haiku-4-5', apiModelId: 'claude-haiku-4-5', label: 'Haiku', backend: 'claude' }, // no floor
+    ],
+    debateTiers: {
+      basic:    { claude: 'claude-haiku-4-5' },
+      advanced: { claude: 'claude-fable-5' }, // fable is the advanced-tier claude (Phase 1)
+    },
+  };
+
+  const record = vi.fn<(e: RecordInput) => void>();
+  beforeEach(() => { record.mockClear(); setGlobalRecorder({ record } as unknown as FlightRecorder); });
+  afterEach(() => { clearGlobalRecorder(); });
+
+  it('applies the floor when it exceeds the tiered value (sonnet-5: base 180s → floored to 300s)', () => {
+    // sonnet-5 is NOT the advanced-tier model → tiered = base 180s; the 300s floor wins.
+    expect(getDefaultTimeout('claude-sonnet-5', floorRegistry)).toBe(300_000);
+    expect(record).not.toHaveBeenCalled(); // entry found → no WARN
+  });
+
+  it('composes with the ×2 tier bump — floor never SHORTENS a larger tiered value (fable-5: 360s wins over 300s floor)', () => {
+    // fable-5 is advanced.claude → tiered = 2×180s = 360s; Math.max(360s, 300s floor) = 360s.
+    expect(getDefaultTimeout('claude-fable-5', floorRegistry)).toBe(360_000);
+  });
+
+  it('a model without a floor is unchanged — pure tiered/base (haiku: basic → 180s)', () => {
+    expect(getDefaultTimeout('claude-haiku-4-5', floorRegistry)).toBe(180_000);
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('ALIAS ARM (regression guard, TL AC): claude-opus-latest resolves to opus-5 via the entry map → floor applied', () => {
+    // buildModelEntryMap synthesizes `claude-opus-latest` → the opus-5 entry (with its floor). A plain
+    // models.find() would MISS this alias and silently drop the floor — the exact t/3518 re-open the
+    // SO condition exists to prevent. opus-latest is not the advanced model → tiered 180s, floor 300s.
+    expect(getDefaultTimeout('claude-opus-latest', floorRegistry)).toBe(300_000);
+    expect(record).not.toHaveBeenCalled(); // alias IS in the entry map → no WARN
+  });
+
+  it('unknown/non-registry model → current behavior (base), NOT silently degraded, and emits a WARN', () => {
+    // Not in the entry map (a dated variant or typo). Floor can't be read → falls back to base; the
+    // miss is surfaced via a system.error WARN rather than a silent `?? 0` (SO condition 2).
+    const backend_base = getDefaultTimeout('claude-made-up-9', floorRegistry);
+    expect(backend_base).toBe(180_000); // claude base, unchanged from pre-Phase-2 behavior
+    expect(record).toHaveBeenCalledTimes(1);
+    const ev = record.mock.calls[0][0];
+    expect(ev.type).toBe('system.error');
+    expect(ev.level).toBe('warn');
+    expect(ev.message).toContain('claude-made-up-9');
+    expect(ev.message).toContain('minTimeoutMs floor not applied');
+  });
+
+  it('WARN path is null-safe when no recorder is wired (never throws)', () => {
+    clearGlobalRecorder();
+    expect(() => getDefaultTimeout('claude-made-up-9', floorRegistry)).not.toThrow();
   });
 });

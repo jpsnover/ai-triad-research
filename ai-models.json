@@ -215,6 +215,7 @@
       "apiModelId": "claude-opus-5",
       "label": "Claude Opus 5",
       "backend": "claude",
+      "minTimeoutMs": 300000,
       "picker": {
         "label": "Opus 5 (flagship)",
         "order": 5
@@ -225,6 +226,7 @@
       "apiModelId": "claude-sonnet-5",
       "label": "Claude Sonnet 5",
       "backend": "claude",
+      "minTimeoutMs": 300000,
       "picker": {
         "label": "Sonnet 5",
         "order": 7
@@ -235,6 +237,7 @@
       "apiModelId": "claude-fable-5",
       "label": "Claude Fable 5",
       "backend": "claude",
+      "minTimeoutMs": 300000,
       "picker": {
         "label": "Fable 5",
         "order": 9

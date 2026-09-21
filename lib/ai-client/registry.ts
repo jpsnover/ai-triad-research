@@ -4,6 +4,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ActionableError } from '../debate/errors.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { BackendId, ModelCapabilities, TokenUsage } from './types.js';
 
 export interface ModelEntry {
@@ -14,6 +15,11 @@ export interface ModelEntry {
   /** Reasoning models that reject arbitrary temperature (e.g. moonshot kimi-k3, which
    *  only accepts 1) — when set, the provider MUST send exactly this value (t/2068). */
   fixedTemperature?: number;
+  /** Per-model minimum timeout FLOOR in ms. getDefaultTimeout returns Math.max(tiered, this),
+   *  so it can only RAISE an effective timeout, never shorten one the tier logic already granted
+   *  (floor semantics — SO e/184#2 condition 1). Replaces the model-substring checks that keyed
+   *  on 'opus'/'fable' outside the registry (t/3518). */
+  minTimeoutMs?: number;
 }
 
 export interface ModelPricing {
@@ -93,8 +99,29 @@ export function getDefaultTimeout(model: string, registry?: ModelRegistry): numb
   if (!registry?.debateTiers) return base;
   const advanced = registry.debateTiers['advanced']?.[backend];
   const basic    = registry.debateTiers['basic']?.[backend];
-  if (advanced === model && advanced !== basic) return base * 2;
-  return base;
+  const tiered = (advanced === model && advanced !== basic) ? base * 2 : base;
+
+  // Per-model minTimeoutMs FLOOR (t/3518 Phase 2). Resolve the entry via buildModelEntryMap — NOT
+  // models.find(): the map also carries the synthesized `*-latest` aliases (highest-versioned entry
+  // per family) that models[] does not, so an alias caller (e.g. `claude-opus-latest`) still gets
+  // its floor. A plain .find() would miss the alias, silently drop the floor, and re-open t/3518.
+  // Rebuild-per-call is deliberate and NOT cached: O(n log n) over ~40 models is noise beside the
+  // multi-hundred-second network call this timeout guards, and caching a map derived from a mutable
+  // registry would risk staleness (SO e/184#4 caching decision).
+  const entry = buildModelEntryMap(registry)[model];
+  if (!entry) {
+    // Fallback-path logging (root AGENTS.md): a registry WAS provided but this model isn't in the
+    // map — a dated variant (e.g. `claude-opus-5-20260115`) or an unregistered id. The floor can't
+    // be read, so we fall back to the tiered default; surface that rather than silently using 0.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'ai-client.getDefaultTimeout',
+      level: 'warn',
+      message: `getDefaultTimeout: no registry entry for model "${model}" — minTimeoutMs floor not applied (using ${tiered}ms)`,
+    });
+  }
+  const floorMs = entry?.minTimeoutMs ?? 0;
+  return Math.max(tiered, floorMs);
 }
 
 function parseVersionedModelId(id: string): { family: string; version: number } | null {
