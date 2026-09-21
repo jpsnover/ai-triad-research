@@ -215,7 +215,7 @@ export async function getSourceEvidenceIndex(): Promise<Record<string, unknown> 
 export function makeStageGenerate(
   set: (partial: Record<string, unknown>) => void,
   model: string,
-): (prompt: string, callModel: string, options: { temperature?: number; timeoutMs?: number }, label: string) => Promise<string> {
+): (prompt: string, callModel: string, options: { temperature?: number; timeoutMs?: number; maxTokens?: number }, label: string) => Promise<string> {
   return async (prompt, callModel, options, label) => {
     set({ debateGeneratingStartedAt: Date.now(), debateActivity: label, debateProgress: null });
     const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
@@ -223,7 +223,7 @@ export function makeStageGenerate(
     });
     try {
       // Thread the live debate abort signal (t/2508) — see generateTextWithProgress.
-      const result = await api.generateText(prompt, callModel || model, options.timeoutMs, options.temperature, { signal: _abortController?.signal, purpose: label });
+      const result = await api.generateText(prompt, callModel || model, options.timeoutMs, options.temperature, { signal: _abortController?.signal, purpose: label, maxTokens: options.maxTokens });
       return result.text;
     } catch (err) {
       if (isCancellationError(err)) {

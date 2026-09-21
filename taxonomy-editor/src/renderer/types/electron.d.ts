@@ -107,7 +107,7 @@ export interface ElectronAPI {
   // `requestId` (t/2508) correlates the request so `cancelGenerate` can abort the exact
   // in-flight provider call. Optional trailing arg — ignored by the handler until the
   // main-process AbortController map lands (t/2509); harmless before then.
-  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, requestId?: string) => Promise<{ text: string }>;
+  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, requestId?: string, maxTokens?: number) => Promise<{ text: string }>;
   // Fire-and-forget cancel for an in-flight generateText (t/2508). Optional — wired by the
   // ai:cancel-generate IPC channel (ElectronMain, t/2509). Feature-detected by electron-bridge,
   // so it lands safely in either order; an unknown requestId is a silent no-op main-side.

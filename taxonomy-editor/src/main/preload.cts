@@ -218,8 +218,8 @@ try {
   computeQueryEmbedding: (text: string): Promise<{ vector: number[] }> =>
     ipcRenderer.invoke('compute-query-embedding', text),
 
-  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, requestId?: string): Promise<{ text: string }> =>
-    ipcRenderer.invoke('generate-text', prompt, model, timeoutMs, temperature, requestId),
+  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, requestId?: string, maxTokens?: number): Promise<{ text: string }> =>
+    ipcRenderer.invoke('generate-text', prompt, model, timeoutMs, temperature, requestId, maxTokens),
 
   cancelGenerate: (requestId: string): void =>
     void ipcRenderer.invoke('ai:cancel-generate', requestId),
