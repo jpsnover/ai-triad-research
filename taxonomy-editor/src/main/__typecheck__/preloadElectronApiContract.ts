@@ -36,22 +36,19 @@ type IsAny<T> = 0 extends (1 & T) ? true : false;
 true satisfies _Equal<IsAny<PreloadElectronAPI>, false>;
 true satisfies _Equal<IsAny<ElectronAPI>, false>;
 
-// Deliberately ONE-DIRECTIONAL pending t/3532 (TL ruling, e/179#2) — checks only that
-// preload.cts's actual surface satisfies everything electron.d.ts declares: a declared
-// member missing from preload, or present with an incompatible type, fails the build (this
-// caught the real `loadSourceEvidenceIndex` type mismatch fixed alongside this file). It
-// does NOT yet catch the reverse direction — methods preload.cts implements that
-// electron.d.ts never declares — because `ElectronAPI` carries dozens of legitimate optional
-// members (e.g. `getWebAppUrl`, web-only, correctly `?.()`-guarded at its call site); a naive
-// bidirectional equality check permanently fails on those, unlike t/3528's tuple pin, where
-// "wider" was itself the hazard being guarded against. `_Equal` above remains right for that
-// case; plain one-directional assignability is the correct semantics for this interface.
-// t/3532 (Rosetta, electron.d.ts) adds the 12 currently-undeclared methods this check
-// surfaced (osArch/osPlatform, onFlightEventFromPopup, onPromptDiffContext, the OpEd set)
-// and cleans up 3 renderer call sites that bypass the interface today with local ad-hoc
-// types or an unsafe `as unknown as` cast. Its exit criterion is flipping the assertion
-// below to `_Equal` (mutual assignability), so full strength isn't quietly forgotten.
-type _Assignable<A, B> = A extends B ? true : false;
+// MUTUAL ASSIGNABILITY (t/3532 exit criterion — flipped from the one-directional check t/3529
+// landed with). `_Equal` above is exact identity, the wrong semantic for this object interface:
+// `ElectronAPI` carries dozens of legitimate optional members (e.g. `getWebAppUrl`, web-only,
+// correctly `?.()`-guarded at its call site), and exact identity would permanently fail on
+// every one of them — unlike t/3528's tuple pin, where "wider" was itself the hazard being
+// guarded against. `MutuallyAssignable` below checks BOTH directions of plain assignability:
+// a declared member missing from preload, or present with an incompatible type, fails (the
+// direction that caught the real `loadSourceEvidenceIndex` mismatch, t/3529); AND a method
+// preload implements that electron.d.ts never declares now ALSO fails (the direction t/3529
+// deliberately left uncovered, closed here) — this is what t/3532's 12-method declaration +
+// 11-method precision sharpening earned: nothing left in the carve-out but `getPreferences`
+// (t/3532#3, unenforced-by-design pending t/3536's Zod validation, not a type gap).
+type MutuallyAssignable<A, B> = A extends B ? (B extends A ? true : false) : false;
 
 // CARVE-OUT (TL ruling, e/182#2 → t/3532#3 — folded into t/3532, no separate ticket).
 // Named methods ONLY, never a wildcard. Shrinking this list (fixing one and removing its
@@ -65,10 +62,34 @@ type _Assignable<A, B> = A extends B ? true : false;
 // `getOrganizationsByPov`, `getOrganizationsByTopic`, `getOrganizationsByPolicy`,
 // `getOrganizationEdges`, `getEntity`, `listEntities`, `getContainerMentions`).
 //
-// `getPreferences` remains carved out DELIBERATELY (TL ruling, t/3532#3): it reads
-// unvalidated JSON off disk and returns it as-is — declaring `UserPreferences | null` in
-// electron.d.ts is a good claim that happens to be unenforced, and the fix is to make the
-// claim TRUE (Zod-validate on read, t/3534/t/3536), not to downgrade the type and push
-// unsafety into every settings call site. Removing this from the carve-out is t/3536's job.
-type _CarveOut = 'getPreferences';
-true satisfies _Assignable<Omit<PreloadElectronAPI, _CarveOut>, Omit<ElectronAPI, _CarveOut>>;
+// `getPreferences`/`setPreferences` remain carved out DELIBERATELY (TL ruling, t/3532#3):
+// `getPreferences` reads unvalidated JSON off disk and returns it as-is — declaring
+// `UserPreferences | null` in electron.d.ts is a good claim that happens to be unenforced,
+// and the fix is to make the claim TRUE (Zod-validate on read, t/3534/t/3536), not to
+// downgrade the type and push unsafety into every settings call site. `setPreferences`'s
+// param has the same shape of gap (preload accepts `unknown`, unvalidated) — paired here
+// rather than a separate exclusion since they're the same read/write surface. Removing
+// both from the carve-out is t/3536's job.
+//
+// Flipping the assertion below (mutual assignability) also surfaced a THIRD class beyond
+// the ticket's original inventory: 20 methods declared `?:` optional in electron.d.ts
+// as a landing-order safety measure during their original IPC wiring (comments like
+// "Optional — wired by X (ElectronMain); until then undefined"), all now unconditionally
+// implemented in preload.cts for a long time — a false-optional stale from history that
+// the prior one-directional check couldn't see (optional-in-declared vs required-in-preload
+// only breaks the REVERSE direction). Fixed alongside this flip: `cancelGenerate`,
+// `forwardFlightEvent`, `getContainerMentions`, `getEntity`, `getOrganization`,
+// `getOrganizationEdges`, `getOrganizationsByPolicy`, `getOrganizationsByPov`,
+// `getOrganizationsByTopic`, `listEntities`, `listOrganizations`, `loadAggregatedCruxes`,
+// `loadConflictClusters`, `loadGreatestHits`, `onTriggerDump`, `saveEdges`,
+// `sendDumpResult`, `triggerMainDump`, `validateApiKey`, `verifyStoredKeys`. `getWebAppUrl`
+// remains legitimately optional (genuinely absent from preload — web-only concept).
+// FURTHER TEMPORARY carve-outs pending an ElectronMain preload.cts param-sharpening pass
+// (same category TL already approved for fetchRelevantNodes/computeAttribution, t/3532#3) —
+// discovered mid-flip, reported for a scope decision before continuing (t/3532#6):
+// openDebateWindow, importKeysFromSharing, saveEdges, reportError, createBriefExport.
+// Surfaced one new instance every time the prior one was excluded — likely NOT exhaustive;
+// see t/3532#6 for the recommendation to stop trickle-discovery and audit systematically.
+type _CarveOut = 'getPreferences' | 'setPreferences'
+  | 'openDebateWindow' | 'importKeysFromSharing' | 'saveEdges' | 'reportError' | 'createBriefExport';
+true satisfies MutuallyAssignable<Omit<PreloadElectronAPI, _CarveOut>, Omit<ElectronAPI, _CarveOut>>;

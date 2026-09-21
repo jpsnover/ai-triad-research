@@ -17,7 +17,12 @@ export interface ElectronAPI {
   listBriefExports: (debateId: string) => Promise<BriefExportRecord[]>;
   downloadBriefArtifact: (exportId: string, name: BriefArtifactName) => Promise<Uint8Array | null>;
   deleteBriefExport: (exportId: string) => Promise<void>;
-  processVersions: Record<string, string | undefined>;
+  /** t/3532: typed to match preload.cts's actual `{ ...process.versions }` spread exactly
+   *  (NodeJS.ProcessVersions, augmented with `electron`/`chrome` by Electron's own ambient
+   *  types) — a generic `Record<string, string | undefined>` satisfied the old one-directional
+   *  check but failed the reverse: an index signature isn't assignable to a type with specific
+   *  required named properties (electron, chrome, node, v8, ...). */
+  processVersions: NodeJS.ProcessVersions;
   osRelease: string;
   /** t/3532: process.platform/process.arch, exposed synchronously alongside osRelease. Typed
    *  to match preload.cts's actual `process.platform`/`process.arch` values exactly — a plain
@@ -41,9 +46,9 @@ export interface ElectronAPI {
   // Taxonomy CRUD
   loadTaxonomyFile: (pov: string) => Promise<unknown>;
   saveTaxonomyFile: (pov: string, data: unknown) => Promise<void>;
-  // New-edge persistence (t/1816). Optional — wired by the save-edges IPC handler
-  // (ElectronMain); until then undefined and the bridge degrades gracefully.
-  saveEdges?: (data: EdgesFile) => Promise<void>;
+  // New-edge persistence (t/1816) — unconditionally implemented since; required-ness
+  // verified t/3532.
+  saveEdges: (data: EdgesFile) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
   loadLineageCategories: () => Promise<unknown>;
   loadLineageInfo: () => Promise<Record<string, unknown>>;
@@ -57,8 +62,9 @@ export interface ElectronAPI {
 
   // Conflict CRUD
   loadConflictFiles: () => Promise<unknown[]>;
-  loadConflictClusters?: () => Promise<unknown | null>;
-  loadAggregatedCruxes?: () => Promise<unknown | null>;
+  // Unconditionally implemented in preload.cts; required-ness verified t/3532.
+  loadConflictClusters: () => Promise<unknown | null>;
+  loadAggregatedCruxes: () => Promise<unknown | null>;
   saveConflictFile: (claimId: string, data: unknown) => Promise<void>;
   createConflictFile: (claimId: string, data: unknown) => Promise<void>;
   deleteConflictFile: (claimId: string) => Promise<void>;
@@ -70,9 +76,10 @@ export interface ElectronAPI {
   resolveSourceDocument: (docId: string) => Promise<{ available: boolean; type: 'pdf' | 'markdown' | null; content?: string; path?: string }>;
   loadSourceEvidenceIndex: () => Promise<Record<string, unknown> | null>;
   loadDocTitles: () => Promise<Record<string, string> | null>;
-  // IPC handler (`load-greatest-hits`) lands in parallel (ElectronMain, t/1998).
-  // Optional until then so electron-bridge's fallback (`?.() ?? null`) typechecks.
-  loadGreatestHits?: () => Promise<{ node_ids: string[] } | null>;
+  // IPC handler (`load-greatest-hits`, ElectronMain, t/1998) — unconditionally implemented
+  // since; required-ness verified t/3532. electron-bridge.ts's `?.() ?? null` fallback is
+  // harmless on a required function and left as-is.
+  loadGreatestHits: () => Promise<{ node_ids: string[] } | null>;
   getSourceEvidence: (nodeIds: string[], pov: string) => Promise<{
     facts: unknown[]; keyPoints: unknown[]; formattedBlock: string;
     nodesCovered: string[]; totalCandidates: number;
@@ -98,8 +105,9 @@ export interface ElectronAPI {
   // AI models & keys
   loadAIModels: () => Promise<unknown>;
   refreshAIModels: () => Promise<unknown>;
-  validateApiKey?: (key: string, backend: string) => Promise<{ valid: boolean; error?: string }>;
-  verifyStoredKeys?: (backend: string) => Promise<{ results: { index: number; masked: string; valid: boolean; error?: string }[] }>;
+  // Unconditionally implemented in preload.cts; required-ness verified t/3532.
+  validateApiKey: (key: string, backend: string) => Promise<{ valid: boolean; error?: string }>;
+  verifyStoredKeys: (backend: string) => Promise<{ results: { index: number; masked: string; valid: boolean; error?: string }[] }>;
   setApiKey: (key: string, backend?: string) => Promise<void>;
   hasApiKey: (backend?: string) => Promise<boolean>;
   addApiKey: (key: string, backend?: string) => Promise<number>;
@@ -107,7 +115,9 @@ export interface ElectronAPI {
   getApiKeys: (backend?: string) => Promise<string[]>;
   deleteApiKey: (backend?: string) => Promise<void>;
   deleteAllApiKeys: () => Promise<void>;
-  getApiKeySummary: () => Promise<{ backend: string; hasKey: boolean; maskedKey: string | null }[]>;
+  // t/3532: preload.cts's actual return also carries keyCount/maskedKeys (multi-key
+  // backends) — this declaration was under-specified, not preload over-claiming.
+  getApiKeySummary: () => Promise<{ backend: string; hasKey: boolean; maskedKey: string | null; keyCount: number; maskedKeys: string[] }[]>;
   exportKeysForSharing: (passphrase: string) => Promise<{ dataUrl: string; payloadText: string }>;
   importKeysFromSharing: (payload: { v: number; salt: string; iv: string; data: string; tag: string }, passphrase: string) => Promise<string[]>;
 
@@ -115,10 +125,10 @@ export interface ElectronAPI {
   // Single-payload signature (t/3528) — see GenerateTextIpcPayload. `requestId` (t/2508)
   // correlates the request so `cancelGenerate` can abort the exact in-flight provider call.
   generateText: (payload: GenerateTextIpcPayload) => Promise<{ text: string; stopReason?: StopReason }>;
-  // Fire-and-forget cancel for an in-flight generateText (t/2508). Optional — wired by the
-  // ai:cancel-generate IPC channel (ElectronMain, t/2509). Feature-detected by electron-bridge,
-  // so it lands safely in either order; an unknown requestId is a silent no-op main-side.
-  cancelGenerate?: (requestId: string) => void;
+  // Fire-and-forget cancel for an in-flight generateText (t/2508, wired t/2509) —
+  // unconditionally implemented since; required-ness verified t/3532. electron-bridge.ts's
+  // `?.()` call site is harmless on a required function and left as-is.
+  cancelGenerate: (requestId: string) => void;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{
     text: string;
     searchQueries?: string[];
@@ -254,10 +264,11 @@ export interface ElectronAPI {
   dumpFlightRecorder: (ndjson: string, dumpId?: string) => Promise<{ filePath: string; filename: string }>;
   openFile: (filePath: string) => Promise<void>;
   openFlightRecorderViewer: (dumpPath: string) => Promise<void>;
-  forwardFlightEvent?: (event: unknown) => void;
-  triggerMainDump?: () => Promise<{ filePath: string }>;
-  onTriggerDump?: (callback: () => void) => () => void;
-  sendDumpResult?: (result: { filePath: string }) => void;
+  // Unconditionally implemented in preload.cts; required-ness verified t/3532.
+  forwardFlightEvent: (event: unknown) => void;
+  triggerMainDump: () => Promise<{ filePath: string }>;
+  onTriggerDump: (callback: () => void) => () => void;
+  sendDumpResult: (result: { filePath: string }) => void;
   /** t/3532: raw `ipcRenderer.on` passthrough (event, payload) — the popout window's flight
    *  events forwarded to the main window, unwrapped like other on* handlers below. */
   onFlightEventFromPopup: (callback: (_e: unknown, payload: unknown) => void) => void;
@@ -298,26 +309,27 @@ export interface ElectronAPI {
   adminReviewAction: (action: unknown) => Promise<void>;
   adminRemoveCommunityItem: (type: string, id: string, reason?: string) => Promise<void>;
 
-  // Organizations
-  listOrganizations?: (filters?: { type?: string; pov?: string }) => Promise<Organization[]>;
-  getOrganization?: (id: string) => Promise<Organization>;
-  getOrganizationsByPov?: (pov: string) => Promise<Organization[]>;
-  getOrganizationsByTopic?: (topicRef: string) => Promise<Organization[]>;
-  getOrganizationsByPolicy?: (policyId: string) => Promise<Organization[]>;
-  getOrganizationEdges?: (orgId: string) => Promise<OrganizationEdge[]>;
+  // Organizations. Were marked optional pending ElectronMain wiring; all unconditionally
+  // implemented in preload.cts now — verified + sharpened from Promise<unknown> t/3532,
+  // required-ness verified t/3532 (mutual-assignability flip).
+  listOrganizations: (filters?: { type?: string; pov?: string }) => Promise<Organization[]>;
+  getOrganization: (id: string) => Promise<Organization>;
+  getOrganizationsByPov: (pov: string) => Promise<Organization[]>;
+  getOrganizationsByTopic: (topicRef: string) => Promise<Organization[]>;
+  getOrganizationsByPolicy: (policyId: string) => Promise<Organization[]>;
+  getOrganizationEdges: (orgId: string) => Promise<OrganizationEdge[]>;
 
-  // Entity / ref resolution (t/1775). Optional — wired by the entity-resolve IPC
-  // handler in t/1809 (ElectronMain). Until then window.electronAPI.getEntity is
-  // undefined and the bridge degrades gracefully.
-  getEntity?: (ref: string) => Promise<EntityDetail>;
+  // Entity / ref resolution (t/1775, wired t/1809) — unconditionally implemented since;
+  // required-ness verified t/3532.
+  getEntity: (ref: string) => Promise<EntityDetail>;
 
-  // Entity list/browser (t/1883). Optional — wired by the list-entities IPC handler
-  // (ElectronMain, later). Until then undefined and the bridge degrades to [].
-  listEntities?: (query?: EntityListQuery) => Promise<EntitySummary[]>;
+  // Entity list/browser (t/1883) — unconditionally implemented since; required-ness
+  // verified t/3532.
+  listEntities: (query?: EntityListQuery) => Promise<EntitySummary[]>;
 
-  // Container mentions (t/1901). Optional — wired by the container-mentions IPC handler
-  // (ElectronMain, t/1903). Until then undefined and the bridge fails loud.
-  getContainerMentions?: (id: string) => Promise<ContainerMentions | null>;
+  // Container mentions (t/1901, wired t/1903) — unconditionally implemented since;
+  // required-ness verified t/3532.
+  getContainerMentions: (id: string) => Promise<ContainerMentions | null>;
 
   // User preferences (t/2117). Optional — wired by ElectronMain in t/2118.
   // Until then the bridge degrades gracefully (returns null / no-ops).
