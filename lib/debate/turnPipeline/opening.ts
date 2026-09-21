@@ -107,8 +107,10 @@ export async function runOpeningPipeline(
   const MAX_OPENING_RETRIES = isOpeningOuterRetry ? 0 : 3;
   const briefTimeoutMs = input.briefTimeoutMs ?? DEFAULT_BRIEF_TIMEOUT_MS;
   const briefMaxRetries = input.briefMaxRetries ?? DEFAULT_BRIEF_MAX_RETRIES;
+  // 32_000 = clampMaxTokens ceiling in aiHandlers.ts; opus/fable produce verbose structured JSON
+  // and consistently hit the old 16_000 cap on 9+ turn debates (t/3543).
   const briefMaxTokens = input.briefMaxTokens
-    ?? ((oBriefModel.includes('opus') || oBriefModel.includes('fable')) ? 16_000 : undefined);
+    ?? ((oBriefModel.includes('opus') || oBriefModel.includes('fable')) ? 32_000 : undefined);
   let brief: OpeningBriefWorkProduct | undefined;
   let briefJson = '';
   let t0: number = Date.now();
