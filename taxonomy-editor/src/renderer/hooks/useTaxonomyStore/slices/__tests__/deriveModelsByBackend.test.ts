@@ -6,21 +6,27 @@
 // t/3280 Phase 2b: the renderer model picker (MODELS_BY_BACKEND) is DERIVED from ai-models.json's
 // per-model `picker:{label,order}` field — the single source of truth — not maintained by hand.
 // These gates prove the derive is faithful and lock the SSOT invariant:
-//   1. PARITY — deriveModelsByBackend(ai-models.json) is byte-identical to the curated
-//      MODELS_BY_BACKEND checked into source (so the pre-load fallback == the runtime derive; no drift).
+//   1. PARITY — deriveModelsByBackend(ai-models.json) matches MODELS_BY_BACKEND. (t/3517: MODELS_BY_BACKEND
+//      is now ITSELF `deriveModelsByBackend(<the bundled JSON import>)`, not a hand-copied literal, so this
+//      no longer catches a hand-copy drifting — that failure mode is gone by construction. It still guards
+//      the two loading paths (settingsSlice's static import vs this test's readFileSync) agreeing, i.e. a
+//      caught regression if the import path/mechanism ever diverges from the on-disk file.)
 //   2. DEFAULT_MODEL is present as a selectable picker entry (the global default must be pickable).
 //   3. (t/3286) The graceful-empty invariant — a ZERO-picker backend derives to [], is filtered from the
 //      selector, and getStoredModel never yields a non-model id — held against a SYNTHETIC subject (since
 //      t/3286 restored deepseek's picker, no real backend is empty; the invariant is nonetheless permanent).
 //      Plus a general real-config no-strand guard: every OFFERED backend has ≥1 picker entry.
 //   4. (t/3329) AI_BACKENDS is SSOT-derived — deriveBackends(config) byte-identical to the pre-load list.
-//   5. (t/3328) derive keyspace = config.backends ∪ constant keys — a config-only backend still surfaces.
+//   5. (t/3328) derive keyspace = config.backends ∪ known backend keys — a config-only backend still surfaces.
 // Wired into `npm run verify:config`.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 import {
   deriveModelsByBackend,
   deriveBackends,
@@ -219,5 +225,30 @@ describe('resolveStoredModel — graceful-empty guard, both arms (t/3286, TL t/3
 
   it('a bogus stored id is rejected, then the backend default resolves', () => {
     expect(resolveStoredModel('bogus-id', 'good' as AIBackend, DEFAULTS, ALL, GLOBAL)).toBe('real-model');
+  });
+});
+
+// t/3517: the `AIModel` union is the one piece of the registry that genuinely cannot be
+// derived at runtime (TS types are erased before this code ever executes) — a direct
+// `typeof import('ai-models.json')` type derivation was tried and rejected because TS
+// widens JSON-module string fields to `string`, silently deleting typo protection while
+// LOOKING like it worked. generatedAIModelIds.ts is codegen'd instead (scripts/
+// generate-ai-model-union.cjs) and committed — this is the staleness check that replaces
+// the "new blocking CI gate" TL's alternative would have required a Second Opinion for
+// (t/3517#2): it's one more assertion inside the already-blocking `vitest run` step, not a
+// new required check. A person who edits ai-models.json and forgets to regenerate fails
+// this test locally and in CI, same loudness as any other test failure.
+describe('generatedAIModelIds.ts staleness (t/3517)', () => {
+  it('the committed generated file matches what generate-ai-model-union.cjs produces right now', () => {
+    const { generateAIModelUnionSource } = require('../../../../../../scripts/generate-ai-model-union.cjs') as {
+      generateAIModelUnionSource: (config: unknown) => string;
+    };
+    const generatedPath = resolve(here, '../generatedAIModelIds.ts');
+    const committed = readFileSync(generatedPath, 'utf8');
+    const fresh = generateAIModelUnionSource(aiModels);
+    expect(
+      committed,
+      'generatedAIModelIds.ts is stale — run: node scripts/generate-ai-model-union.cjs',
+    ).toBe(fresh);
   });
 });

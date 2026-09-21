@@ -7,6 +7,12 @@ import { api } from '@bridge';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { applyThemeToRoot, getStoredTheme, THEME_STORAGE_KEY } from '../../../utils/theme';
+// t/3517: real (not type-only) import — the bundled snapshot becomes MODELS_BY_BACKEND/
+// AI_BACKENDS/DEFAULT_MODELS' pre-load fallback via deriveModelsByBackend/deriveBackends
+// below, instead of hand-duplicating ai-models.json's content as source literals.
+import aiModelsRegistry from '../../../../../../ai-models.json';
+import type { AIModel } from './generatedAIModelIds';
+export type { AIModel };
 
 /**
  * Default Community Library server — the Azure Container Apps production deployment.
@@ -22,134 +28,41 @@ export type ColorScheme = 'light' | 'dark' | 'bkc' | 'harvard' | 'system';
 
 export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'azure' | 'ollama' | 'zai' | 'moonshot' | 'xai';
 
-export type GeminiModel =
-  | typeof DEFAULT_MODEL
-  | 'gemini-3-flash-preview'
-  | 'gemini-3.1-pro-preview'
-  | 'gemini-3.8-flash'      // t/3277
-  | 'gemini-3.6-flash'      // t/3277
-  | 'gemini-3.5-flash'      // t/3277
-  | 'gemini-3.1-flash-lite' // t/3277
-  | 'gemini-2.5-flash'
-  | 'gemini-2.5-flash-lite'
-  | 'gemini-2.5-pro';
+// t/3517: moved above MODELS_BY_BACKEND/AI_BACKENDS — deriveModelsByBackend's keyspace union
+// (below) now reads this instead of Object.keys(MODELS_BY_BACKEND), since MODELS_BY_BACKEND
+// is itself computed by calling deriveModelsByBackend (a self-reference/TDZ error otherwise).
+const KNOWN_BACKENDS: ReadonlySet<AIBackend> = new Set(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'ollama', 'zai', 'moonshot', 'xai']);
 
-export type ClaudeModel =
-  | 'claude-opus-4-7'
-  | 'claude-sonnet-4-6'
-  | 'claude-sonnet-4-5'
-  | 'claude-haiku-4-5'
-  | 'claude-haiku-3.5';
-
-export type GroqModel =
-  | 'groq-llama-4-scout'
-  | 'groq-llama-4-scout-17b-16e'
-  | 'groq-llama-3.3-70b'
-  | 'groq-llama-3.3-70b-versatile'
-  | 'groq-openai-gpt-oss-120b';
-
-export type OpenAIModel =
-  | 'openai-gpt-5.5'
-  | 'openai-gpt-5.5-pro';
-
-// t/3286: real config model ids (the old 'deepseek-chat'/'deepseek-reasoner' were phantoms — no
-// ai-models.json entry). deepseek-v4-flash is defaults.deepseek.
-export type DeepSeekModel =
-  | 'deepseek-deepseek-v4-flash'
-  | 'deepseek-deepseek-v4-pro';
-
-export type AzureModel =
-  | 'azure-gpt-4o'
-  | 'azure-gpt-4o-mini'
-  | 'azure-gpt-4.1'
-  | 'azure-gpt-4.1-mini';
-
-export type OllamaModel =
-  | 'ollama-gemma4-e4b-it-q4-k-m';
-
-export type ZAIModel =
-  | 'zai-glm-5-2';
-
-export type MoonshotModel =
-  | 'moonshot-kimi-k3';
-
-export type XAIModel =
-  | 'xai-grok-4-6';
-
-export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel | DeepSeekModel | AzureModel | OllamaModel | ZAIModel | MoonshotModel | XAIModel;
+// t/3517: the per-backend unions (GeminiModel/ClaudeModel/...) and their AIModel composition
+// used to live here, hand-maintained. AIModel is now generated from ai-models.json's actual
+// model ids (see generatedAIModelIds.ts + scripts/generate-ai-model-union.cjs) — a direct
+// `typeof import('ai-models.json')` type derivation was tried first and rejected: TS widens
+// JSON-module string fields to `string`, which silently deletes typo protection while
+// appearing to work (verified empirically, t/3517#3). None of the per-backend union names
+// were consumed outside this file (confirmed via repo-wide grep before deletion).
 
 export interface AIModelEntry { value: AIModel; label: string }
 
 // -- Exported constants --
 
-// t/3329: pre-load fallback ONLY — at runtime initAIModels replaces this with deriveBackends(config).
-// A parity gate keeps it byte-identical to deriveBackends(ai-models.json): membership, order, and labels
-// all follow config.backends (SSOT). Order matches config.backends. (t/3286: deepseek re-added once its
-// v4 models gained picker entries — deriveBackends now offers it automatically, this fallback mirrors it.)
-export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
-  { value: 'gemini', label: 'Google Gemini' },
-  { value: 'claude', label: 'Anthropic Claude' },
-  { value: 'groq', label: 'Groq' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'deepseek', label: 'DeepSeek' },
-  { value: 'azure', label: 'Azure OpenAI' },
-  { value: 'zai', label: 'Z.AI (GLM)' },
-  { value: 'moonshot', label: 'Moonshot (Kimi)' },
-  { value: 'xai', label: 'xAI (Grok)' },
-  { value: 'ollama', label: 'Ollama (Local)' },
-];
+// t/3517: pre-load fallback, now SOURCED from the bundled ai-models.json snapshot (via
+// deriveBackends) instead of hand-duplicated as a literal — at runtime initAIModels()
+// still replaces this with deriveBackends(the LIVE config from api.loadAIModels()), so
+// an on-disk edit ops make post-build is picked up exactly as before. Membership, order,
+// and labels all follow config.backends (SSOT).
+// The bundled JSON has fields (apiModelId, local, debateTiers._comment, ...) the minimal
+// AIModelsConfig shape below doesn't declare — that's fine, the derive functions only read
+// backends/models/defaults, but it means the structural cast needs the `unknown` bridge.
+const preloadConfig = aiModelsRegistry as unknown as AIModelsConfig;
 
-export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
-  gemini: [
-    { value: DEFAULT_MODEL, label: '3.5 Flash Lite (default)' },
-    { value: 'gemini-3.1-pro-preview', label: '3.1 Pro Preview (best quality)' },
-    { value: 'gemini-3.8-flash', label: '3.8 Flash' },
-    { value: 'gemini-3.6-flash', label: '3.6 Flash' },
-    { value: 'gemini-3.5-flash', label: '3.5 Flash' },
-    { value: 'gemini-3.1-flash-lite', label: '3.1 Flash Lite' },
-    { value: 'gemini-2.5-flash', label: '2.5 Flash' },
-    { value: 'gemini-2.5-flash-lite', label: '2.5 Flash Lite (fastest)' },
-    { value: 'gemini-2.5-pro', label: '2.5 Pro' },
-  ],
-  claude: [
-    { value: 'claude-opus-4-7', label: 'Opus 4.7 (flagship)' },
-    { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
-    { value: 'claude-haiku-4-5', label: 'Haiku 4.5 (fastest)' },
-  ],
-  groq: [
-    { value: 'groq-llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
-    { value: 'groq-openai-gpt-oss-120b', label: 'GPT-OSS 120B' },
-  ],
-  openai: [
-    { value: 'openai-gpt-5.5', label: 'GPT-5.5' },
-    { value: 'openai-gpt-5.5-pro', label: 'GPT-5.5 Pro' },
-  ],
-  // t/3286: deepseek picker restored — its real config models (v4-flash/v4-pro) gained `picker` entries
-  // in ai-models.json, replacing the old phantoms (deepseek-chat/reasoner). Kept byte-identical to the
-  // derive by the parity gate. v4-flash is defaults.deepseek → its label carries the '(default)' marker.
-  deepseek: [
-    { value: 'deepseek-deepseek-v4-flash', label: 'V4 Flash (default)' },
-    { value: 'deepseek-deepseek-v4-pro', label: 'V4 Pro (reasoning)' },
-  ],
-  azure: [
-    { value: 'azure-gpt-4o', label: 'GPT-4o' },
-    { value: 'azure-gpt-4o-mini', label: 'GPT-4o Mini' },
-    { value: 'azure-gpt-4.1', label: 'GPT-4.1' },
-    { value: 'azure-gpt-4.1-mini', label: 'GPT-4.1 Mini' },
-  ],
-  ollama: [
-    { value: 'ollama-gemma4-e4b-it-q4-k-m', label: 'Gemma 4 E4B (default)' },
-  ],
-  zai: [
-    { value: 'zai-glm-5-2', label: 'GLM 5.3' },
-  ],
-  moonshot: [
-    { value: 'moonshot-kimi-k3', label: 'Kimi K3' },
-  ],
-  xai: [
-    { value: 'xai-grok-4-6', label: 'Grok 4.6' },
-  ],
-};
+export const AI_BACKENDS: { value: AIBackend; label: string }[] =
+  deriveBackends(preloadConfig);
+
+// t/3517: SOURCED from the bundled ai-models.json snapshot via deriveModelsByBackend —
+// was a ~70-line hand-maintained literal kept in sync by a byte-identical parity test;
+// now the two are the same computation over the same data by construction.
+export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> =
+  deriveModelsByBackend(preloadConfig);
 
 /** @deprecated Use MODELS_BY_BACKEND.gemini instead */
 export const GEMINI_MODELS = MODELS_BY_BACKEND.gemini;
@@ -158,25 +71,16 @@ const ALL_MODEL_IDS: Set<string> = new Set(
   Object.values(MODELS_BY_BACKEND).flat().map(m => m.value),
 );
 
-const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
-  gemini: DEFAULT_MODEL,
-  claude: 'claude-sonnet-4-6',
-  groq: 'groq-llama-4-scout-17b-16e',
-  openai: 'openai-gpt-5.5',
-  deepseek: 'deepseek-deepseek-v4-flash',
-  azure: 'azure-gpt-4o',
-  ollama: 'ollama-gemma4-e4b-it-q4-k-m',
-  zai: 'zai-glm-5-2',
-  moonshot: 'moonshot-kimi-k3',
-  xai: 'xai-grok-4-6',
-};
+// t/3517: SOURCED from ai-models.json's `defaults` map instead of hand-listed per backend —
+// same drift class as AI_BACKENDS/MODELS_BY_BACKEND, just without a prior parity test.
+// initAIModels() still overwrites per-key from the LIVE config at runtime (unchanged).
+const DEFAULT_MODELS: Record<AIBackend, AIModel> =
+  preloadConfig.defaults as Record<AIBackend, AIModel>;
 
 export let DEBATE_TIERS: Record<string, Record<string, string>> = {};
 export let FALLBACK_CHAINS: Record<string, string[]> = {};
 
 // -- Module-level helpers --
-
-const KNOWN_BACKENDS: ReadonlySet<AIBackend> = new Set(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'azure', 'ollama', 'zai', 'moonshot', 'xai']);
 
 export function isKnownBackend(id: string): id is AIBackend {
   return (KNOWN_BACKENDS as ReadonlySet<string>).has(id);
@@ -243,11 +147,13 @@ export function deriveModelsByBackend(config: AIModelsConfig): Record<AIBackend,
     if (!m.picker) continue;
     (buckets[m.backend] ??= []).push({ value: m.id as AIModel, label: m.picker.label, order: m.picker.order });
   }
-  // t/3328: keyspace = config.backends ∪ constant keys. Iterating only the constant keys would silently
-  // drop a backend added to ai-models.json (with picker models) whose key the in-source constant lacks.
+  // t/3328: keyspace = config.backends ∪ known backend keys. Iterating only the known keys would
+  // silently drop a backend added to ai-models.json (with picker models) whose key the renderer's
+  // KNOWN_BACKENDS allowlist lacks. (t/3517: was Object.keys(MODELS_BY_BACKEND) — now a TDZ hazard,
+  // since MODELS_BY_BACKEND's own initializer calls this function.)
   const backends = new Set<AIBackend>([
     ...config.backends.map(b => b.id as AIBackend),
-    ...(Object.keys(MODELS_BY_BACKEND) as AIBackend[]),
+    ...KNOWN_BACKENDS,
   ]);
   const out = {} as Record<AIBackend, AIModelEntry[]>;
   for (const backend of backends) {

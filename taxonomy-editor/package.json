@@ -15,6 +15,7 @@
   },
   "main": "dist/main/taxonomy-editor/src/main/main.js",
   "scripts": {
+    "generate:ai-model-union": "node scripts/generate-ai-model-union.cjs",
     "predev": "node scripts/check-drift.cjs",
     "dev": "npm run build:main && concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
     "dev:fresh": "cross-env CHECK_DRIFT_FETCH=1 npm run dev",

@@ -21,14 +21,6 @@ export {
 export type {
   ColorScheme,
   AIBackend,
-  GeminiModel,
-  ClaudeModel,
-  GroqModel,
-  OpenAIModel,
-  DeepSeekModel,
-  OllamaModel,
-  ZAIModel,
-  MoonshotModel,
   AIModel,
   AIModelEntry,
 } from './slices/settingsSlice';
