@@ -4,6 +4,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ActionableError } from '../debate/errors.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { BackendId, ModelCapabilities, TokenUsage } from './types.js';
 
 export interface ModelEntry {
@@ -14,6 +15,15 @@ export interface ModelEntry {
   /** Reasoning models that reject arbitrary temperature (e.g. moonshot kimi-k3, which
    *  only accepts 1) — when set, the provider MUST send exactly this value (t/2068). */
   fixedTemperature?: number;
+  /** Per-model minimum timeout FLOOR in ms — a MODEL property: "how slow is this model?" It can
+   *  only RAISE an effective timeout, never shorten one (floor semantics — SO e/184#2 condition 1;
+   *  getDefaultTimeout / getModelMinTimeout apply Math.max). This is DISTINCT from a STAGE timeout
+   *  such as the debate opening-brief's DEFAULT_BRIEF_TIMEOUT_MS ("how large is this stage's
+   *  prompt?"): the two compose via Math.max (a slow model on a big stage gets the larger) and must
+   *  NOT be merged — folding a stage default (e.g. the 120s brief floor) into this field would
+   *  over-broaden it to EVERY call of that model (t/3518 Phase 2, TL e/185#8). Replaces the
+   *  'opus'/'fable' substring checks that lived outside the registry (t/3518). */
+  minTimeoutMs?: number;
 }
 
 export interface ModelPricing {
@@ -87,14 +97,53 @@ function baseTimeout(backend: string): number {
  * receive 2× the backend base. Same-model tiers (ollama, zai) are
  * intentionally held at 1× — they have no frontier/basic distinction (t/2495).
  */
+/**
+ * The per-model minimum-timeout FLOOR (ms) declared in the registry — the concrete entry's
+ * `minTimeoutMs`, or 0 if none / no registry (t/3518 Phase 2).
+ *
+ * Resolves via {@link buildModelEntryMap} (NOT `models.find`): the map also carries the synthesized
+ * `*-latest` aliases (highest-versioned entry per family) that `models[]` lacks, so an alias caller
+ * (e.g. `claude-opus-latest`) still inherits its concrete entry's floor. A plain `.find()` would miss
+ * the alias, silently drop the floor, and re-open t/3518. Rebuild-per-call is deliberate and NOT
+ * cached (SO e/184#4): O(n log n) over ~40 models is noise beside the multi-hundred-second call this
+ * guards, and caching a map derived from a mutable registry would risk staleness.
+ *
+ * **Exposed as a primitive** so call sites that pass an EXPLICIT timeout can still enforce the floor.
+ * `getDefaultTimeout` applies it for the no-explicit path, but a `?? explicitTimeout` short-circuits
+ * `getDefaultTimeout` entirely — the opening-brief stage does exactly this (the t/3518 trigger path).
+ * Such sites must floor themselves: `Math.max(explicitTimeout, getModelMinTimeout(model, registry))`.
+ */
+export function getModelMinTimeout(model: string, registry?: ModelRegistry): number {
+  if (!registry) return 0;
+  const entry = buildModelEntryMap(registry)[model];
+  if (!entry) {
+    // Fallback-path logging (root AGENTS.md): a registry WAS provided but this model isn't in the
+    // map — a dated variant (e.g. `claude-opus-5-20260115`) or an unregistered id. The floor can't
+    // be read; surface that rather than silently using 0.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'ai-client.getModelMinTimeout',
+      level: 'warn',
+      message: `getModelMinTimeout: no registry entry for model "${model}" — minTimeoutMs floor not applied (0)`,
+    });
+  }
+  return entry?.minTimeoutMs ?? 0;
+}
+
 export function getDefaultTimeout(model: string, registry?: ModelRegistry): number {
   const backend = resolveBackend(model);
   const base = baseTimeout(backend);
-  if (!registry?.debateTiers) return base;
-  const advanced = registry.debateTiers['advanced']?.[backend];
-  const basic    = registry.debateTiers['basic']?.[backend];
-  if (advanced === model && advanced !== basic) return base * 2;
-  return base;
+  // Tiered default: 2× base for the advanced-tier model of its backend (advanced ≠ basic); base
+  // otherwise, and base when there is no registry / no debateTiers. The floor below is applied on
+  // EVERY path — no early return before it — so the default path and the explicit-timeout path
+  // (getModelMinTimeout) can't diverge if debateTiers is ever absent (TL e/185#8 nit).
+  const advanced = registry?.debateTiers?.['advanced']?.[backend];
+  const basic    = registry?.debateTiers?.['basic']?.[backend];
+  const tiered = (advanced === model && advanced !== basic) ? base * 2 : base;
+  // Apply the per-model floor via the shared primitive (single source of truth). NOTE: this only
+  // covers callers that DON'T pass an explicit timeout — a `?? explicit` upstream short-circuits
+  // this function, so explicit-timeout sites must call getModelMinTimeout themselves (t/3518 P2).
+  return Math.max(tiered, getModelMinTimeout(model, registry));
 }
 
 function parseVersionedModelId(id: string): { family: string; version: number } | null {

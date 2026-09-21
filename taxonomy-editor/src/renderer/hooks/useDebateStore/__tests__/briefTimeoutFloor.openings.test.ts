@@ -8,11 +8,16 @@
 // (60s) silently applied regardless of model — the exact escape that reopened this ticket.
 // These tests assert briefTimeoutMs on the ACTUAL runOpeningPipeline call args, not just
 // that the helper exists, so a future regression here fails loudly instead of silently.
+//
+// Phase 2: openingBriefTimeoutFloor is retired — clarificationSlice.ts now computes
+// briefTimeoutMs via Math.max(120_000, getModelMinTimeout(model, registry)), reading the
+// real bundled ai-models.json (minTimeoutMs: 300_000 on fable/opus/sonnet-5). Assertions
+// below use the literal expected values instead of calling a helper that no longer exists.
 // Harness FIRST so its hoisted mocks register before the store.
 import { describe, it, expect, vi } from 'vitest';
 import { makeSession, mockApi } from './storeTestHarness';
 import { useDebateStore } from '../../useDebateStore';
-import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, openingBriefTimeoutFloor } from '@lib/debate/turnPipeline';
+import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints } from '@lib/debate/turnPipeline';
 import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
 
 const LONG = 'This is a sufficiently long opening statement that clears the 50-character minimum guard.';
@@ -47,7 +52,6 @@ describe('runOpeningStatements — briefTimeoutMs on the live pipelineInput (t/3
     await useDebateStore.getState().runOpeningStatements();
 
     expect(inputs()).toHaveLength(1);
-    expect(inputs()[0].briefTimeoutMs).toBe(openingBriefTimeoutFloor('claude-fable-5'));
     expect(inputs()[0].briefTimeoutMs).toBe(300_000);
   });
 
@@ -66,7 +70,6 @@ describe('runOpeningStatements — briefTimeoutMs on the live pipelineInput (t/3
 
     await useDebateStore.getState().runOpeningStatements();
 
-    expect(inputs()[0].briefTimeoutMs).toBe(openingBriefTimeoutFloor('claude-haiku-4-5'));
     expect(inputs()[0].briefTimeoutMs).toBe(120_000);
   });
 

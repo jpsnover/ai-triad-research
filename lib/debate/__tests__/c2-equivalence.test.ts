@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 // C2 (ClaimExtractionPipeline) behavioral equivalence test — t/1300 condition 3.
@@ -16,6 +16,7 @@ function createMockAdapter(): ExtendedAIAdapter {
     async generateText(_prompt: string, _model: string, _options?: GenerateOptions) {
       return '{"response": "mock"}';
     },
+    getModelMinTimeout: (_model) => 0,
   };
 }
 

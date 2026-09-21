@@ -112,6 +112,7 @@ export function registerDebateHandlers(): void {
           const { text } = await generateText(prompt, mdl, undefined, { timeoutMs: opts?.timeoutMs, temperature: opts?.temperature });
           return text;
         },
+        getModelMinTimeout: (_model) => 0,
       };
 
       const evalModel = model || DEFAULT_MODEL;

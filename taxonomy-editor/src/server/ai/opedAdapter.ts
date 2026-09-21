@@ -37,5 +37,6 @@ export function createWebOpEdAdapter(): AIAdapter {
       );
       return result.text;
     },
+    getModelMinTimeout: (_model) => 0,
   };
 }

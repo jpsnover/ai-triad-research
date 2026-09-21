@@ -16,6 +16,7 @@ export function createMockAdapter(responses: string[] = []): ExtendedAIAdapter {
     async generateText(_prompt: string, _model: string, _options?: GenerateOptions) {
       return responses[callIndex++] || '{"response": "mock"}';
     },
+    getModelMinTimeout: (_model) => 0,
   };
 }
 
@@ -24,6 +25,7 @@ export function createThrowingAdapter(error: Error): ExtendedAIAdapter {
     async generateText() {
       throw error;
     },
+    getModelMinTimeout: (_model) => 0,
   };
 }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 // C1 (TopicPipeline) behavioral equivalence test — t/1300 condition 3.
@@ -68,6 +68,7 @@ function createDeterministicAdapter(): ExtendedAIAdapter {
       callIndex++;
       return resp;
     },
+    getModelMinTimeout: (_model) => 0,
   };
 }
 
