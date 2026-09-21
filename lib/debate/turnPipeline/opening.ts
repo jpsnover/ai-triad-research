@@ -18,12 +18,11 @@ import type { StageGenerateFn, StageProgressFn } from './types.js';
 
 // ── Opening pipeline ──────────────────────────────────
 
-/** Model-aware brief timeout floor (t/3518). Single source of truth — import this instead of inlining the ternary. */
-export function openingBriefTimeoutFloor(model: string): number {
-  return (model.includes('opus') || model.includes('fable')) ? 300_000 : 120_000;
-}
-
-const DEFAULT_BRIEF_TIMEOUT_MS = 60_000;
+// Stage property, not a model property (t/3518 Phase 2, TL e/185#8): this 120s is the minimum
+// budget for the brief stage's prompt complexity regardless of model speed. Per-model minimums
+// live in ai-models.json minTimeoutMs and compose via Math.max — a slow model on this stage gets
+// the larger. Do not move this into the registry; that would over-broaden non-brief calls.
+const DEFAULT_BRIEF_TIMEOUT_MS = 120_000;
 const DEFAULT_BRIEF_MAX_RETRIES = 3;
 
 function isBriefTimeout(err: unknown): boolean {

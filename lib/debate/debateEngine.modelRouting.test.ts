@@ -111,6 +111,7 @@ describe('Per-speaker model routing', () => {
           disagreement_type: 'empirical', position_update: null,
         });
       },
+      getModelTimeoutMs: (_model) => 120_000,
     };
 
     const config = createDefaultConfig({
@@ -159,6 +160,7 @@ describe('Per-speaker model routing', () => {
           disagreement_type: 'empirical', position_update: null,
         });
       },
+      getModelTimeoutMs: (_model) => 120_000,
     };
 
     const config = createDefaultConfig({
@@ -406,6 +408,7 @@ describe('maxModelId cap on failover chain (t/1164)', () => {
         attemptedModels.push(model);
         throw new Error('500 Internal Server Error');
       },
+      getModelTimeoutMs: (_model) => 120_000,
     };
 
     const config = createDefaultConfig({
@@ -426,6 +429,7 @@ describe('maxModelId cap on failover chain (t/1164)', () => {
   it('without maxModelId, fallback chain escalation proceeds normally', () => {
     const adapter: ExtendedAIAdapter = {
       async generateText() { return '{}'; },
+      getModelTimeoutMs: (_model: string) => 120_000,
     };
 
     const config = createDefaultConfig({
@@ -443,6 +447,7 @@ describe('maxModelId cap on failover chain (t/1164)', () => {
   it('maxModelId at flash tier allows flash but blocks sonnet', () => {
     const adapter: ExtendedAIAdapter = {
       async generateText() { return '{}'; },
+      getModelTimeoutMs: (_model: string) => 120_000,
     };
 
     const config = createDefaultConfig({

@@ -6,7 +6,7 @@ import path from 'path';
 import { POVER_INFO } from '../../types.js';
 import { formatVocabularyContext } from '../../vocabularyContext.js';
 import { getGlobalRecorder } from '../../../flight-recorder/index.js';
-import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, openingBriefTimeoutFloor, type OpeningPipelineInput } from '../../turnPipeline.js';
+import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, type OpeningPipelineInput } from '../../turnPipeline.js';
 import { resolveModelForSpeaker } from '../modelResolution.js';
 import { accumulateContextManifest } from '../adaptiveStaging.js';
 import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContext } from '../taxonomyContext.js';
@@ -139,7 +139,7 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
     };
 
     let pipelineResult = await engine.executeWithModelFailover(poverId, async (model) => {
-      const input = { ...pipelineInput, model, briefTimeoutMs: pipelineInput.briefTimeoutMs ?? openingBriefTimeoutFloor(model) };
+      const input = { ...pipelineInput, model, briefTimeoutMs: pipelineInput.briefTimeoutMs ?? engine.adapter.getModelTimeoutMs(model) };
       let result = await runOpeningPipeline(
         input,
         engine.stageGenerate.bind(engine),

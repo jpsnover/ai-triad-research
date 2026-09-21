@@ -68,6 +68,7 @@ function createDeterministicAdapter(): ExtendedAIAdapter {
       callIndex++;
       return resp;
     },
+    getModelTimeoutMs: (_model) => 120_000,
   };
 }
 

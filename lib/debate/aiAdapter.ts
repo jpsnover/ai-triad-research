@@ -27,6 +27,7 @@ import {
   CLI_RETRY_CONFIG,
   resolveModel,
   getDefaultTimeout,
+  getModelMinTimeout,
   GEMINI_BASE,
   geminiGroundedSearch,
   DEFAULT_MODEL,
@@ -58,6 +59,8 @@ export interface GenerateOptions extends SharedGenerateOptions {
 
 export interface AIAdapter {
   generateText(prompt: string, model: string, options?: GenerateOptions): Promise<string>;
+  /** Returns the registry-driven default timeout for model (tiered + minTimeoutMs floor). */
+  getModelTimeoutMs(model: string): number;
   /** Optional callback for retry progress events. Set by the engine to surface retries in the UI. */
   onRetryProgress?: (info: { attempt: number; maxRetries: number; backoffSeconds: number; message: string }) => void;
   generate?(request: GenerateRequest): Promise<GenerateResponse>;
@@ -295,10 +298,12 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
   async function doGenerateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
     const { apiModelId, backend, fixedTemperature } = resolveModel(registry, model);
     const apiKey = resolveApiKey(backend, explicitApiKey);
-    // Opus and Fable models require extended per-call time on complex structured topics (t/1075, t/1069#6, t/3518).
-    // Apply a 300s floor for slow frontier models; other models use the registry default.
+    // Use registry-driven timeout (tiered default + minTimeoutMs floor from ai-models.json — t/3518 Phase 2).
+    // Floor applies even when caller passes an explicit timeout so slow-flagship models can't be
+    // accidentally undersized by a short timeoutMs (matches behaviour of the old string-match floor).
     const baseTimeoutMs = options?.timeoutMs ?? getDefaultTimeout(model, registry);
-    const timeoutMs = (model.includes('opus') || model.includes('fable')) ? Math.max(baseTimeoutMs, 300_000) : baseTimeoutMs;
+    const floorMs = getModelMinTimeout(model, registry);
+    const timeoutMs = Math.max(baseTimeoutMs, floorMs);
     const opts = { ...options, timeoutMs, fixedTemperature };
 
     const t0 = performance.now();
@@ -478,6 +483,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
 
   const adapter: ExtendedAIAdapter = {
     generateText: doGenerateText,
+    getModelTimeoutMs: (model) => getDefaultTimeout(model, registry),
     generate: process.env.DEBATE_ENVELOPE !== '0' ? doGenerate : undefined,
 
     async generateTextWithSearch(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[]; citations?: GroundingCitation[] }> {
