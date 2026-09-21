@@ -173,8 +173,11 @@ export async function generateWithPaidFallback(
   } catch (genErr) {
     const paidKey = (ai.is429Error(genErr) && isFree) ? await getPaidGeminiFallbackKey() : null;
     if (!paidKey) throw genErr; // non-free, non-429, or no paid key → outer 429 mapping records it
+    // e/134 #6: a fallback path must record at WARN, not info (Fallback-Path Logging rule,
+    // docs/error-handling.md) — at info it's below the default filter and the free-pool-exhausted
+    // → paid-key degradation goes unseen. The search path (generateWithSearch) already does this.
     getGlobalRecorder()?.record({
-      type: 'ai.fallback', component: 'ai-generate', level: 'info',
+      type: 'ai.fallback', component: 'ai-generate', level: 'warn',
       message: 'Free-tier keys exhausted — waiting 3s before paid fallback',
       data: { model: requestModel, backend, fallback: 'paid', delayMs: 3000, freeKeyCount: proxyTiers.parseFreeTierKeys(process.env.FREE_TIER_GEMINI_KEY).length },
     });
@@ -530,6 +533,10 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       });
       if (ai.isContextTooLongError(err)) log.server.warn({ component: 'ai-search', model: model ?? 'default' }, 'AI search input exceeds model context window');
       else if (ai.is429Error(err)) log.server.warn({ component: 'ai-search', model: model ?? 'default', retryAfterMs: ai.retryAfterMs(err) }, 'AI search upstream rate-limited — returning 429');
+      // e/134 #5: an UNEXPECTED failure is a genuine 500 — always log at error level to Pino/stdout so
+      // it's visible in `az containerapp logs show` (the FR record above is ring-buffer only). Mirrors
+      // the /api/ai/generate catch. The two expected sub-cases above already log their own WARN.
+      else log.server.error({ component: 'ai-search', model: model ?? 'default', err }, 'AI search failed');
       respondAiSearchError(res, err);
     }
   });
