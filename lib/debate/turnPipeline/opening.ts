@@ -65,6 +65,8 @@ export interface OpeningPipelineInput {
   briefTimeoutMs?: number;
   /** Max brief-stage timeout retries. Default: 3. */
   briefMaxRetries?: number;
+  /** Max output tokens for brief-stage AI call. Default: 16,000 for opus/fable models, undefined (provider default) for others. */
+  briefMaxTokens?: number;
   /** Moderator's narrative voicing of each camp (h3), pre-formatted by narrativeVoicingDebaterBlock. */
   narrativeVoicing?: string;
 }
@@ -106,6 +108,8 @@ export async function runOpeningPipeline(
   const MAX_OPENING_RETRIES = isOpeningOuterRetry ? 0 : 3;
   const briefTimeoutMs = input.briefTimeoutMs ?? DEFAULT_BRIEF_TIMEOUT_MS;
   const briefMaxRetries = input.briefMaxRetries ?? DEFAULT_BRIEF_MAX_RETRIES;
+  const briefMaxTokens = input.briefMaxTokens
+    ?? ((oBriefModel.includes('opus') || oBriefModel.includes('fable')) ? 16_000 : undefined);
   let brief: OpeningBriefWorkProduct | undefined;
   let briefJson = '';
   let t0: number = Date.now();
@@ -119,7 +123,7 @@ export async function runOpeningPipeline(
       try {
         briefRaw = await generate(
           briefPrompt, oBriefModel,
-          { temperature: temps.brief_temperature, timeoutMs: briefTimeoutMs },
+          { temperature: temps.brief_temperature, timeoutMs: briefTimeoutMs, maxTokens: briefMaxTokens },
           `${input.label} opening brief`,
         );
         break;

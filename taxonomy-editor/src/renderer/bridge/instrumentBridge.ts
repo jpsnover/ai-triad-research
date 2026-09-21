@@ -63,27 +63,31 @@ function embeddingBatchData(method: string, args: unknown[]): { batch_size?: num
 }
 
 /**
- * `model`/`timeoutMs`/`purpose` for the ai.request/ai.response/ai.error FR events (t/3519). The
- * t/3518 triage found all 20 ai.error/ai.request events for a PI debate failure carried only
- * `{method, category, _origin}` — the model had to be inferred from unrelated debate.lifecycle
- * events, and the decisive fact (60s budget vs 180s expected) only surfaced because the thrown
- * ActionableError happened to mention elapsed ms. This is a positional read of each AI method's
- * PARAMETER LIST — pinned to the current `AppAPI` (bridge/types.ts) signatures below. If any of
- * these signatures' argument ORDER changes, update the indices here too (a silent mismatch would
- * misattribute model/timeoutMs, not just go missing — no test catches a swap, only omission).
+ * `model`/`timeoutMs`/`purpose`/`maxTokens` for the ai.request/ai.response/ai.error FR events
+ * (t/3519, maxTokens added t/3524). The t/3518 triage found all 20 ai.error/ai.request events for
+ * a PI debate failure carried only `{method, category, _origin}` — the model had to be inferred
+ * from unrelated debate.lifecycle events, and the decisive fact (60s budget vs 180s expected) only
+ * surfaced because the thrown ActionableError happened to mention elapsed ms. maxTokens joins the
+ * same event for the analogous reason: t/3524's Fable 5 truncation was diagnosable only via a raw
+ * FR field (discarded_tail), with no first-class record of the ceiling that caused it. This is a
+ * positional read of each AI method's PARAMETER LIST — pinned to the current `AppAPI`
+ * (bridge/types.ts) signatures below. If any of these signatures' argument ORDER changes, update
+ * the indices here too (a silent mismatch would misattribute model/timeoutMs, not just go missing —
+ * no test catches a swap, only omission).
  *   generateText(prompt, model, timeoutMs, temperature, opts: GenerateTextOptions)
  *   generateTextWithSearch(prompt, model)
  *   startChatStream(systemInstruction, messages, model, temperature, urlContext, context)
  * All other "ai"-category methods (computeEmbeddings, computeQueryEmbedding, updateNodeEmbeddings,
  * nliClassify) call a fixed server-side model with no per-call selection — nothing to extract.
  */
-function aiCallMeta(method: string, args: unknown[]): { model?: string; timeoutMs?: number; purpose?: string } {
+function aiCallMeta(method: string, args: unknown[]): { model?: string; timeoutMs?: number; purpose?: string; maxTokens?: number } {
   if (method === 'generateText') {
-    const opts = args[4] as { purpose?: string } | undefined;
+    const opts = args[4] as { purpose?: string; maxTokens?: number } | undefined;
     return {
       model: typeof args[1] === 'string' ? args[1] : undefined,
       timeoutMs: typeof args[2] === 'number' ? args[2] : undefined,
       purpose: typeof opts?.purpose === 'string' ? opts.purpose : undefined,
+      maxTokens: typeof opts?.maxTokens === 'number' ? opts.maxTokens : undefined,
     };
   }
   if (method === 'generateTextWithSearch') {

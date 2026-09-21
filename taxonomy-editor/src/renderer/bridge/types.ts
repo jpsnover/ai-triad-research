@@ -248,6 +248,10 @@ export interface GenerateTextOptions {
    * so a dump can attribute a slow/failed call to its call site without guessing from
    * unrelated debate.lifecycle events (t/3519). Purely diagnostic — never sent to the provider. */
   purpose?: string;
+  /** Caps provider output length for this call (e.g. Fable 5's opening brief, which
+   * otherwise hits the provider default ceiling and truncates mid-JSON, t/3524).
+   * Optional — omitted calls use the backend/model default. */
+  maxTokens?: number;
 }
 
 export type ViewMode = 'simple' | 'advanced';

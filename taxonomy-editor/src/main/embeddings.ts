@@ -694,6 +694,7 @@ export async function generateText(
   temperature?: number,
   signal?: AbortSignal,
   responseSchema?: Record<string, unknown>,
+  maxTokens?: number,
 ): Promise<string> {
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
@@ -732,6 +733,7 @@ export async function generateText(
     ...fixedTempOverride(entry),
     ...(signal ? { signal } : {}),
     ...(responseSchema ? { responseSchema } : {}),
+    ...(maxTokens !== undefined ? { maxTokens } : {}),
   };
 
   const providerFn = backend === 'deepseek'

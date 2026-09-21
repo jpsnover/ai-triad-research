@@ -55,6 +55,36 @@ function buildTimeoutError(err: unknown, elapsedMs: number): ActionableError {
   });
 }
 
+// t/3524: maxTokens crosses an IPC trust boundary (renderer → main → provider) and directly
+// scales spend, so the main process clamps/validates rather than trusting the caller (SO
+// condition, t/3524#2). Non-integer/non-positive input is dropped (provider default applies);
+// values above the ceiling are clamped down. Either case is logged so a silent drop/clamp is
+// diagnosable from a flight recorder dump (root AGENTS.md fallback-path logging rule).
+const MAX_TOKENS_CEILING = 32_000;
+
+function clampMaxTokens(raw: number | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  if (!Number.isInteger(raw) || raw < 1) {
+    getGlobalRecorder()?.record({
+      type: 'system.info',
+      component: 'ipc-handlers',
+      level: 'warn',
+      message: `generate-text: ignoring invalid maxTokens (${JSON.stringify(raw)}) — must be a positive integer; falling back to provider default`,
+    });
+    return undefined;
+  }
+  if (raw > MAX_TOKENS_CEILING) {
+    getGlobalRecorder()?.record({
+      type: 'system.info',
+      component: 'ipc-handlers',
+      level: 'warn',
+      message: `generate-text: clamping maxTokens from ${raw} to ceiling ${MAX_TOKENS_CEILING}`,
+    });
+    return MAX_TOKENS_CEILING;
+  }
+  return raw;
+}
+
 // ── Per-request AbortController map (t/2509) ──────────────────────────────
 
 const activeGenerations = new Map<string, AbortController>();
@@ -190,16 +220,17 @@ export function registerAiHandlers(): void {
     }
   });
 
-  ipcMain.handle('generate-text', async (event, prompt: string, model?: string, timeoutMs?: number, temperature?: number, requestId?: string) => {
+  ipcMain.handle('generate-text', async (event, prompt: string, model?: string, timeoutMs?: number, temperature?: number, requestId?: string, maxTokens?: number) => {
     const t0 = Date.now();
     const controller = requestId ? new AbortController() : undefined;
     if (requestId && controller) activeGenerations.set(requestId, controller);
+    const clampedMaxTokens = clampMaxTokens(maxTokens);
     let retryCount = 0;
     try {
       const text = await generateText(prompt, model, (progress) => {
         retryCount = progress.attempt;
         event.sender.send('generate-text-progress', progress);
-      }, timeoutMs, temperature, controller?.signal);
+      }, timeoutMs, temperature, controller?.signal, undefined, clampedMaxTokens);
       writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: '200' });
       return { text };
     } catch (err) {
