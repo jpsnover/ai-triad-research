@@ -140,8 +140,12 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod 
 # Bumped to :2026-08-31 for the cache-bust security rebuild (t/3137) — the base now
 # genuinely re-runs apt/npm upgrades: openssl 3.5.7-1~deb13u2 (CVE-2026-14456) and
 # npm's bundled tar 7.5.21 (CVE-2026-73566), both proven by the base build tripwires.
+# Bumped to :2026-09-21 for the code-scanning CVE sweep (t/3513) — fresh cache-busted
+# apt-get upgrade clears the fixable OS-package CVEs; node held at 22.23.2 per the
+# Dockerfile.base guardrail (t/2047 P1). Residual no-fix CVEs ride .trivyignore + the
+# weekly-rebuild auto-retirement.
 # Gate base bumps on staging /healthz, not CI green.
-FROM ghcr.io/jpsnover/ai-triad-base:2026-09-01@sha256:82fdf56b8dfeefd81fc09d5f69960e6c54d216043adc9a942df179f0ff74f77e AS runtime
+FROM ghcr.io/jpsnover/ai-triad-base:2026-09-21@sha256:90b6f1934253dbbf15ca78e27294df21d24d050910a70496d682c0c208c06268 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
