@@ -345,6 +345,35 @@ jobs:
       # base rebuild that auto-retires them. So: hard floor on fixable, full visibility
       # on the rest.
       #
+      # ── UNBLOCK PLAYBOOK (SO condition 2, t/3520) — READ WHEN THIS GATE GOES RED ──
+      # OWNER: DevOps. SCOPE: Option A — this scans EVERY IMAGE BUILT VIA THE DISPATCH PATH.
+      # `container.yml`'s `push: tags: ['v*']` trigger exists but never fires — there are no
+      # `v*` tags on origin (t/3520#11/#12), so the only build path is `workflow_dispatch`
+      # (Invoke-ContainerBuild). A red here blocks that dispatched build/ship, not a PR merge;
+      # merge-time coverage is deliberately out of scope (t/3520#3 Finding 1). ("Release gate"
+      # is a misnomer while no tag-based release flow exists — it's a build-path gate.)
+      #
+      # EXOGENOUS RED — this gate can go red with ZERO repo change: the trivy vuln DB
+      # refreshes nightly, so a CVE can be reclassified, or one of the annotated no-fix
+      # .trivyignore residuals can gain an upstream fix — either flips a build red with no
+      # code change. Expected, and release-scoped (an attended event, not a PR wall).
+      #
+      # DECISION RULE when red:
+      #   1. VERIFY AGAINST THE REGISTRY, NOT THE YAML — read the actual Trivy finding
+      #      (package + "Fixed Version"); don't reason from config (t/3520 / t/3522 lesson).
+      #   2. FIXABLE (a patched version exists) -> BUMP THE FIX: OS pkg -> base rebuild
+      #      (base-image.yml); npm dep -> pnpm-workspace.yaml override + regen both lockfiles.
+      #   3. GENUINELY NO UPSTREAM FIX -> add an annotated `.trivyignore` entry (CVE + package
+      #      + "no upstream fix as of <date>" + reachability note + REVISIT trigger, t/2006).
+      #      A `.trivyignore` diff is a blocking-gate surface now — review it like a workflow diff.
+      #   NEVER an ad-hoc skip. Emergency bypass = the EXISTING merge-guard override path
+      #   (disable the feedback rule / `--no-verify` per the commit-guard pattern), recorded.
+      #
+      # STALENESS (Part 1b, 4-week rule): the scheduled report-only scan tracks the LAST
+      # RELEASED image (newest resolved v* tag, never :latest). If time-since-last-`v*`-tag
+      # exceeds 4 WEEKS, run a build+scan from main HEAD once via `workflow_dispatch` before
+      # the next release (the released-image proxy degrades past ~4 weekly-base-rebuild cycles).
+      #
       # WARN PHASE (t/3520#2 cond. 1 / AGENTS.md Gate-Promotion rule, t/2683 precedent):
       # continue-on-error keeps this NON-BLOCKING until it logs ≥1 green cycle on real
       # CI — a self-buggy exit-code probe promoted straight to blocking can down builds

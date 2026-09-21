@@ -99,6 +99,19 @@ For code with special shell chars (template literals, nested quotes, apostrophes
 
 On some Windows agents, MSYS path conversion mangles the `<path>` half of a git colon-revspec (`git show <ref>:<path>`, `cat-file`, `rev-parse`), so a **valid** ref reports a spurious `unknown revision or path`. Discriminator: valid ref + `unknown revision` = suspect MSYS, not a real absence (confirmed on ≥2 agents). Fix: prefix `MSYS_NO_PATHCONV=1` or run via PowerShell.
 
+## Verify Against the Authoritative Source
+
+Before asserting what a system *is* doing, read the system — not the artifact that describes it. Config, docs, and local state are **descriptions**. They drift, and a description that has drifted reads exactly like one that hasn't.
+
+Same rule, four surfaces:
+
+- **Merged state** → read `origin/main` (`gh api …/contents?ref=main`, `MSYS_NO_PATHCONV=1 git show origin/main:<path>`), never the shared checkout, which lags behind merges (t/3332).
+- **Infrastructure state** → query the registry or cloud API, not the workflow YAML that populates it. A `:latest` tag reasoned about from `metadata-action` config turned out to exist, be stale, and be the production deploy default (t/3522).
+- **Baselines** → validate against design intent, not recent observation (t/3085).
+- **Gate behaviour** → run the failing arm. A green build proves only the passing one, and silence never discriminates *enforcing* from *inert* (t/3396).
+
+**Discriminator:** if you are about to write "X does Y" and your evidence is a file that *configures* Y, you have not verified it. One query usually settles it.
+
 ## Error Handling Convention
 
 Unrecoverable errors use `New-ActionableError` (PS) / `ActionableError` (TS) with **Goal / Problem / Location / Next Steps**. Never bare `throw "message"`. Prefer recovery over failure. See `docs/error-handling.md`.

@@ -33,7 +33,14 @@ Describe 'Invoke-BlobContainerGateCheck — discrimination + retry (t/2718, t/34
         $script:AllContainers = @('analytics', 'staging-analytics', 'user-content', 'staging-user-content', 'community', 'staging-community', 'brief-exports', 'staging-brief-exports')
 
         function script:Invoke-Gate ([string]$StorageAccount, [string[]]$Containers = $script:AllContainers, [int]$MaxAttempts = 3) {
-            & $script:GateScript -StorageAccount $StorageAccount -Containers $Containers -MaxAttempts $MaxAttempts -RetryDelaySeconds 0
+            # 6>$null drops the gate script's Write-Host info stream so its literal
+            # "::error::" lines don't reach the CI console (GitHub renders them as
+            # ##[error] annotations, ~24 per run, alarming a passing gate — t/3533).
+            # The terminating `throw` is unaffected (it propagates as an exception,
+            # not via stream 6), so every Should -Throw assertion below still holds.
+            # Tests that assert on the gate's diagnostic text use Capture-GateOutput,
+            # which captures stream 6 (6>&1) instead of suppressing it.
+            & $script:GateScript -StorageAccount $StorageAccount -Containers $Containers -MaxAttempts $MaxAttempts -RetryDelaySeconds 0 6>$null
         }
 
         # Captures Write-Host (stream 6) output even when gate throws

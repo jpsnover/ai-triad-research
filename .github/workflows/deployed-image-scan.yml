@@ -1,0 +1,80 @@
+# ─── Deployed Image Scan (report-only) ───
+# What:  Weekly report-only Trivy scan of the DEPLOYED app image, so a fixable-high CVE
+#        introduced/reclassified after a deploy surfaces in code-scanning days before it
+#        ambushes the next build — the detection-latency gap Option A leaves open.
+#        t/3520 Part 1b(a). Report-only: uploads SARIF, never fails on findings.
+#
+# Target:  ghcr.io/<owner>/taxonomy-editor:latest — the artifact deploys actually run.
+#          deploy.ps1/main.bicep default containerImage to :latest, and t/3522 made :latest
+#          refresh on release + main dispatch. There are NO v* release tags (t/3520#11/#12:
+#          release objects outlived their deleted tags), so :latest — not a "newest v* tag" —
+#          is the real deployed image.
+#
+# Freshness guard (t/3520 Part 1b, TL note p/331#1226): scanning a STALE :latest would report
+#   clean against an image prod may not be running — a silent-degradation false-confidence.
+#   So this FAILS THE JOB RED (not warn — it's scheduled/report-only, a red is the only signal
+#   anyone sees) if :latest is older than the 4-week window, or if it can't be resolved at all
+#   (fallback-logging rule: never skip silently). A red here means "refresh :latest, then rescan".
+name: Deployed Image Scan
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'   # weekly (Sun 00:00 UTC), matching base-image.yml's rebuild cadence
+  workflow_dispatch:
+
+permissions:
+  contents: read            # checkout for .trivyignore
+  security-events: write    # SARIF upload to code-scanning
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/taxonomy-editor
+  STALE_DAYS: '28'          # 4-week window (t/3520) — reused from the staleness rule
+
+jobs:
+  scan-deployed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for .trivyignore)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v5
+
+      - name: Resolve + freshness guard (:latest) — FAIL RED if stale or unresolvable
+        env:
+          IMG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        run: |
+          # The image is public (must remain so — root AGENTS.md), so an anonymous pull works.
+          if ! docker pull "$IMG"; then
+            echo "::error::Cannot pull $IMG — the deployed image is unresolvable. Failing visibly (never skip silently, t/3520 Part 1b)."
+            exit 1
+          fi
+          created=$(docker inspect -f '{{.Created}}' "$IMG")
+          created_ts=$(date -d "$created" +%s)
+          age_days=$(( ( $(date +%s) - created_ts ) / 86400 ))
+          echo "deployed :latest created=$created  age=${age_days}d  (stale threshold ${STALE_DAYS}d)"
+          if [ "$age_days" -gt "${STALE_DAYS}" ]; then
+            echo "::error::Deployed :latest is ${age_days} days old (> ${STALE_DAYS}d window). Scanning it would report against a possibly-undeployed image (silent-degradation). Refresh :latest — dispatch a container build / deploy — then re-run this scan. Failing RED per t/3520 Part 1b."
+            exit 1
+          fi
+          echo "Freshness OK — scanning the deployed image."
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567  # v0.3.1
+        with:
+          version: v0.74.0   # pinned to match the container.yml gate (t/3520 C4)
+
+      - name: Scan deployed image (report-only)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          trivyignores: '.trivyignore'
+          skip-setup-trivy: true
+
+      - name: Upload SARIF to code-scanning
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938  # v4
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: deployed-image-scan   # distinct category — does not clobber container.yml's SARIF
