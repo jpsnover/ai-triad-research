@@ -60,14 +60,19 @@ param(
     # Default is the MUTABLE :latest tag, by deliberate decision (t/3523), not oversight.
     # Post-t/3522, :latest is refreshed on every v* release AND every main dispatch, so it
     # is always the current image — never stale. We do NOT pin an explicit tag/digest here
-    # because reproducibility is already preserved elsewhere: the running version is recorded
-    # in the deploy run's image_tag + headSha, the live /health buildSha, and (at digest
-    # precision) ACA revision history — `az containerapp revision list` shows the exact image
-    # each revision was created from. Rollback is a revision-layer op (see production-release.md
-    # `az containerapp ingress traffic set`), independent of this tag. Pinning would force a
-    # per-release defaults bump — its own forget/drift surface — for no gain the revision layer
-    # doesn't already provide. To pin a SPECIFIC version for one deploy (reproducible/rollback),
-    # pass -ContainerImage explicitly (or deploy-azure.yml -f image_tag=<vX.Y.Z|digest>).
+    # because the DEPLOYED VERSION is already recorded, at commit granularity, in three places:
+    #   - the deploy run's image_tag input + headSha;
+    #   - the live /health buildSha (full commit SHA, queryable anytime);
+    #   - the ACA REVISION NAME, which encodes the deployed short-SHA — e.g.
+    #     `taxonomy-editor--deploy-89c3d9a-…` (`az containerapp revision list`).
+    # NB (verified against live revisions, t/3523): the revision's template `image` field holds
+    # the mutable `:latest` tag, NOT a resolved digest — ACA does not pin the pulled digest there.
+    # So reproducibility here is COMMIT-granular (revision-name + /health), not digest-pinned;
+    # that's sufficient for this single-app deploy. Rollback is a revision-layer op — roll back to
+    # a prior commit-named revision (see production-release.md `az containerapp ingress traffic set`),
+    # independent of this tag. Pinning the default would force a per-release bump — its own
+    # forget/drift surface — for no gain the revision layer doesn't already provide. To pin a
+    # SPECIFIC version for one deploy, pass -ContainerImage (or deploy-azure.yml -f image_tag=<vX.Y.Z|digest>).
     [string]$ContainerImage = 'ghcr.io/jpsnover/taxonomy-editor:latest',
 
     [switch]$SeedData,
