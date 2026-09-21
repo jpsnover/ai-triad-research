@@ -249,9 +249,13 @@ vi.mock('@lib/debate/turnPipeline', () => ({
   runOpeningPipeline: vi.fn().mockResolvedValue({}),
   assembleOpeningPipelineResult: vi.fn().mockReturnValue({}),
   getOpeningRepairHints: vi.fn().mockReturnValue([]),
-  // t/3518 (reopened): real implementation (not a stub) — tests assert on its actual output
-  // flowing into pipelineInput.briefTimeoutMs, the exact gap that caused the escape.
-  openingBriefTimeoutFloor: vi.fn((model: string) => (model.includes('opus') || model.includes('fable')) ? 300_000 : 120_000),
+  // t/3518 Phase 2: openingBriefTimeoutFloor is retired — clarificationSlice.ts now computes
+  // briefTimeoutMs via @lib/ai-client's getModelMinTimeout (a real, unmocked pure function
+  // reading the bundled ai-models.json), so there's no predicate left here to re-implement.
+  // DEFAULT_BRIEF_TIMEOUT_MS is a real constant (not a function) that the slice still imports
+  // from this module — mirror its actual value rather than mask it, or every real import of
+  // it from a mocked module throws "no export defined on the mock" at runtime.
+  DEFAULT_BRIEF_TIMEOUT_MS: 120_000,
 }));
 
 vi.mock('@lib/debate/topicCritique', () => ({

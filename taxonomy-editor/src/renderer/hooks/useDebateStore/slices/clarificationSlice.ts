@@ -31,7 +31,10 @@ import {
 import { critiqueTopicPrompt, parseTopicCritique } from '@lib/debate/topicCritique';
 import { decomposeResolutionPrompt, topicScopeExtractionPrompt, setTopicScope } from '@lib/debate/prompts';
 import { documentAnalysisPrompt, buildTaxonomySample } from '@lib/debate/documentAnalysis';
-import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, openingBriefTimeoutFloor } from '@lib/debate/turnPipeline';
+import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, DEFAULT_BRIEF_TIMEOUT_MS } from '@lib/debate/turnPipeline';
+import { getModelMinTimeout } from '@lib/ai-client/index';
+import type { ModelRegistry } from '@lib/ai-client/registry';
+import aiModelsRegistry from '../../../../../../ai-models.json';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
@@ -1021,11 +1024,13 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
             const voicing = get().activeDebate?.narrative_voicing;
             return voicing ? narrativeBlockForDebater(voicing.narratives, poverId) : undefined;
           })(),
-          // t/3518 (reopened, t/3518#8): the renderer's own orchestration was the live path that
-          // never got the timeout fix — engine phases/opening.ts landed openingBriefTimeoutFloor,
-          // this slice constructed pipelineInput without it, so DEFAULT_BRIEF_TIMEOUT_MS (60s)
-          // silently applied here regardless. Same shared helper, no floor logic re-pasted.
-          briefTimeoutMs: openingBriefTimeoutFloor(resolvedBriefModel),
+          // t/3518 Phase 2: openingBriefTimeoutFloor is retired — the registry now owns per-model
+          // timeout floors (minTimeoutMs). The renderer has no AIAdapter to call getModelMinTimeout
+          // through, so this mirrors turnPipeline/opening.ts's own fallback directly: DEFAULT_BRIEF_
+          // TIMEOUT_MS is the base when no explicit value is passed (imported, not re-hardcoded —
+          // TL flagged the earlier inline 120_000 as a second copy of the same constant), and
+          // getModelMinTimeout applies the SAME registry floor getDefaultTimeout would.
+          briefTimeoutMs: Math.max(DEFAULT_BRIEF_TIMEOUT_MS, getModelMinTimeout(resolvedBriefModel, aiModelsRegistry as unknown as ModelRegistry)),
         };
 
         // Emit on the renderer-local brief-timeout bus (t/2307). Both builds: the
