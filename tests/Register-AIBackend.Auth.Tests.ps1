@@ -15,8 +15,19 @@ BeforeAll {
     $SourcePath  = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Register-AIBackend.ps1'
     $script:Src  = Get-Content $SourcePath -Raw
 
-    # Start server on an ephemeral test port with no browser
-    $script:TestPort = 19943
+    # Start server on an OS-assigned ephemeral port with no browser.
+    # Bind a TcpListener on 127.0.0.1:0 so the OS picks a free port, capture it, then
+    # release the probe before the server binds. A fixed port (was 19943) flaked this
+    # suite (t/3547): when a prior job's server left the port in TIME_WAIT (~60s on
+    # Linux), the listener couldn't bind and every integration test failed — and
+    # t/3530's immediate same-job rerun failed identically, so the flake classifier
+    # reported a definitive failure (false TL hold on PR #2286). An OS-assigned port
+    # from the ephemeral range can never collide with a prior run's leftover; a probe
+    # listener that never accepts a connection leaves no TIME_WAIT, so it frees cleanly.
+    $script:PortProbe = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    $script:PortProbe.Start()
+    $script:TestPort = ([System.Net.IPEndPoint]$script:PortProbe.LocalEndpoint).Port
+    $script:PortProbe.Stop()
     $script:Job = Start-Job -ScriptBlock {
         param($ModPath, $Port)
         Import-Module $ModPath -Force -WarningAction SilentlyContinue
