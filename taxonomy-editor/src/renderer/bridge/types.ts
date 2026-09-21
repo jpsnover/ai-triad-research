@@ -11,6 +11,8 @@
  * window.electronAPI directly.
  */
 
+import type { StopReason } from '@lib/ai-client/types';
+
 export interface GroundingSegment {
   startIndex: number;
   endIndex: number;
@@ -356,7 +358,11 @@ export interface AppAPI {
   importKeysFromSharing: (payload: { v: number; salt: string; iv: string; data: string; tag: string }, passphrase: string) => Promise<string[]>;
 
   // --- AI generation ---
-  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, opts?: GenerateTextOptions) => Promise<{ text: string; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } }>;
+  /** `stopReason` (t/3525) is the provider's normalized finish reason — 'max_tokens' means the
+   *  text is truncated and callers must not attempt to parse it as complete JSON. Undefined when
+   *  the backend hasn't reported one (web builds, until ServerAPI threads it through the REST
+   *  response) — never fabricated. */
+  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, opts?: GenerateTextOptions) => Promise<{ text: string; stopReason?: StopReason; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } }>;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{
     text: string;
     searchQueries?: string[];

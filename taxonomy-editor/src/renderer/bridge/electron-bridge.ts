@@ -217,7 +217,7 @@ export const api: AppAPI = {
       cancel();
       return Promise.reject(makeCancellationError('generateText cancelled by caller'));
     }
-    return new Promise<{ text: string }>((resolve, reject) => {
+    return new Promise<Awaited<typeof invoke>>((resolve, reject) => {
       const onAbort = () => { cancel(); reject(makeCancellationError('generateText cancelled by caller')); };
       signal.addEventListener('abort', onAbort, { once: true });
       invoke.then(

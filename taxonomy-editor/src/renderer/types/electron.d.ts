@@ -7,6 +7,7 @@ import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
 import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload } from '../bridge/types';
 import type { BriefArtifactName } from '@lib/brief/types';
+import type { StopReason } from '@lib/ai-client/types';
 
 export interface ElectronAPI {
   // Brief Export — desktop parity (t/2840). download returns raw bytes (the bridge wraps a Blob).
@@ -106,7 +107,7 @@ export interface ElectronAPI {
   // AI generation
   // Single-payload signature (t/3528) — see GenerateTextIpcPayload. `requestId` (t/2508)
   // correlates the request so `cancelGenerate` can abort the exact in-flight provider call.
-  generateText: (payload: GenerateTextIpcPayload) => Promise<{ text: string }>;
+  generateText: (payload: GenerateTextIpcPayload) => Promise<{ text: string; stopReason?: StopReason }>;
   // Fire-and-forget cancel for an in-flight generateText (t/2508). Optional — wired by the
   // ai:cancel-generate IPC channel (ElectronMain, t/2509). Feature-detected by electron-bridge,
   // so it lands safely in either order; an unknown requestId is a silent no-op main-side.

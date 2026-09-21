@@ -9,6 +9,7 @@ import { parseAIJson } from '@lib/debate/helpers';
 import { entrySummarizationPrompt } from '../../../prompts/debate';
 import { findNodeMetaInStore } from './taxonomyContext';
 import { _abortController, isCancellationError } from './guards';
+import { ActionableError } from '@lib/debate/errors';
 // getDocTitles lives in a store-free module to avoid a load-order cycle (t/1779);
 // re-exported here so existing importers (debate*Slice) stay unchanged.
 export { getDocTitles } from './docTitles';
@@ -224,6 +225,25 @@ export function makeStageGenerate(
     try {
       // Thread the live debate abort signal (t/2508) — see generateTextWithProgress.
       const result = await api.generateText(prompt, callModel || model, options.timeoutMs, options.temperature, { signal: _abortController?.signal, purpose: label, maxTokens: options.maxTokens });
+      // t/3525: the live app's stage pipeline (this function) never routes through
+      // lib/debate/aiAdapter.ts's equivalent check — mirror it here so a truncated/blocked
+      // response fails loudly instead of reaching parseAIJson as corrupt partial JSON.
+      if (result.stopReason === 'max_tokens') {
+        throw new ActionableError({
+          goal: 'Generate AI response',
+          problem: `Response truncated at provider output limit for "${label}" — JSON parse would fail on partial output`,
+          location: 'generation.makeStageGenerate',
+          nextSteps: ['Raise maxTokens for this stage', 'Shorten the prompt'],
+        });
+      }
+      if (result.stopReason === 'content_filter') {
+        throw new ActionableError({
+          goal: 'Generate AI response',
+          problem: `Response blocked by provider content policy for "${label}"`,
+          location: 'generation.makeStageGenerate',
+          nextSteps: ['Review the prompt for policy-violating content', 'Try a different model or backend'],
+        });
+      }
       return result.text;
     } catch (err) {
       if (isCancellationError(err)) {
