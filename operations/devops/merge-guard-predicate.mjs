@@ -61,6 +61,15 @@ export function mergeGuardVerdict(command) {
  * fails CLOSED on a gh error (blocks --auto with a distinct "couldn't verify" message), because
  * --auto-enable is rare + overridable and letting the t/3307 hazard through on a transient gh blip is
  * the worse failure. `--match-head-commit` manual self-merge is entirely unaffected (no --auto).
+ *
+ * NOT THE ENFORCER — READ THIS BEFORE FILING AN "ORDERING HOLE" BUG (t/3531). This command-level
+ * predicate is POINT-IN-TIME: it only sees the label state at the `gh pr merge --auto` call, so
+ * enabling --auto BEFORE the `joint-gv` label is applied does not trip it. That is a cosmetic
+ * early-feedback gap, NOT a correctness hole. The ORDER-INDEPENDENT enforcer is the
+ * `joint-gv-automerge-guard` CI CHECK (ci.yml, t/3332) — required via ci-gate, re-fired on
+ * labeled/unlabeled/auto_merge_enabled events, it fails whenever joint-gv + auto-merge coexist
+ * regardless of which came first and so blocks the merge. This predicate is convenience UX layered
+ * ON TOP of that check; the check is what actually protects the t/3307 co-merge hazard.
  */
 export function jointGvAutoMergeVerdict({ isAutoMerge, isJointGvLabeled } = {}) {
   if (isAutoMerge && isJointGvLabeled) return { block: true, reason: 'auto-merge-on-joint-gv' };
