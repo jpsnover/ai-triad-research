@@ -58,7 +58,7 @@ export function BriefExportsList({ debateId, refreshKey }: { debateId: string; r
             <li key={r.exportId} className={`bxl-row bxl-row-${r.status}`}>
               <div className="bxl-row-main">
                 <span className="bxl-preset">{r.preset}</span>
-                <span className="bxl-model">{r.narratorModel}</span>
+                {r.narratorModel && <span className="bxl-model">{r.narratorModel}</span>}
                 <span className="bxl-date">{r.createdAt.slice(0, 10)}</span>
                 {r.status === 'failed' && <span className="bxl-failed">failed{r.errorCode ? ` · ${r.errorCode}` : ''}</span>}
               </div>

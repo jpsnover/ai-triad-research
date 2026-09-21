@@ -205,8 +205,12 @@ export interface BriefExportRecord {
   /** Human-readable failure reason (verify message / thrown error) — shown by the export
    *  dialog's list fallback so a failed export explains WHY, not just a code (t/2888). */
   reason?: string;
-  narratorModel: string;
-  narratorModelSource: string;
+  /** Populated on the server/web path only (src/server/briefExportJobs.ts,
+   *  briefExportStore.ts) — absent by design on desktop, where the main-process handler
+   *  never sets them (t/3532, TL ruling t/3532#3: this was a web-only concept incorrectly
+   *  typed as required on a type shared with the desktop bridge). */
+  narratorModel?: string;
+  narratorModelSource?: string;
   checkerModel?: string | null;
   formats: string[];
   artifacts: BriefArtifactName[];
