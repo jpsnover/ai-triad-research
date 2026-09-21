@@ -346,9 +346,12 @@ jobs:
       # on the rest.
       #
       # ── UNBLOCK PLAYBOOK (SO condition 2, t/3520) — READ WHEN THIS GATE GOES RED ──
-      # OWNER: DevOps. SCOPE: Option A — this gates the RELEASE (container.yml runs on v*
-      # tags + workflow_dispatch, NOT on PRs), so a red here blocks SHIPPING a fixable high,
-      # not merging one. Merge-time coverage is deliberately out of scope (t/3520#3 Finding 1).
+      # OWNER: DevOps. SCOPE: Option A — this scans EVERY IMAGE BUILT VIA THE DISPATCH PATH.
+      # `container.yml`'s `push: tags: ['v*']` trigger exists but never fires — there are no
+      # `v*` tags on origin (t/3520#11/#12), so the only build path is `workflow_dispatch`
+      # (Invoke-ContainerBuild). A red here blocks that dispatched build/ship, not a PR merge;
+      # merge-time coverage is deliberately out of scope (t/3520#3 Finding 1). ("Release gate"
+      # is a misnomer while no tag-based release flow exists — it's a build-path gate.)
       #
       # EXOGENOUS RED — this gate can go red with ZERO repo change: the trivy vuln DB
       # refreshes nightly, so a CVE can be reclassified, or one of the annotated no-fix
