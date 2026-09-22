@@ -79,9 +79,14 @@ describe('stopReason — per-provider both-arm parse (t/3525)', () => {
       expect(r.rawStopReason).toBe(c.truncatedRaw);
     });
     it(`${c.name}: normal → 'stop' (raw "${c.normalRaw}")`, async () => {
-      const r = await c.fn(jsonFetch(c.normal), 'p', 'm', 'k', { timeoutMs: 5000 });
+      const r = await c.fn(jsonFetch(c.normal), 'the-prompt', 'm', 'k', { timeoutMs: 5000 });
       expect(r.stopReason).toBe('stop');
       expect(r.rawStopReason).toBe(c.normalRaw);
+      // t/3566: the FR-forensics diagnostics passenger is wired end-to-end through every non-stream
+      // adapter — request/response byte sizes and the HTTP status are populated on the ProviderResult.
+      expect(r.diagnostics?.requestBytes).toBeGreaterThan(0);
+      expect(r.diagnostics?.responseBytes).toBeGreaterThan(0);
+      expect(r.diagnostics?.httpStatus).toBe(200);
     });
   }
 });

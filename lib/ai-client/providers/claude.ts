@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout, makeFetchSignal } from '../retry.js';
-import type { FetchFn, GenerateOptions, ProviderResult, ToolCall } from '../types.js';
+import { makeFetchSignal } from '../retry.js';
+import { fetchWithDiagnostics } from '../instrumentation.js';
+import type { FetchFn, GenerateOptions, ProviderResult, ProviderCallDiagnostics, ToolCall } from '../types.js';
 import { normalizeStopReason } from './stopReason.js';
 
 export async function generateViaClaude(
@@ -45,14 +46,12 @@ export async function generateViaClaude(
     'anthropic-version': '2023-06-01',
   };
 
-  const response = await fetchFn('https://api.anthropic.com/v1/messages', {
+  const { response, bodyText, diagnostics } = await fetchWithDiagnostics(fetchFn, 'https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers,
     body: JSON.stringify(reqBody),
     signal: makeFetchSignal(timeoutMs, opts.signal),
-  });
-
-  const bodyText = await withTimeout(response.text(), 180_000, 'Reading Claude response');
+  }, 180_000, 'Reading Claude response');
 
   if (response.status === 429 || response.status === 503) {
     throw new ActionableError({
@@ -65,13 +64,12 @@ export async function generateViaClaude(
   // Some models (e.g. claude-opus-4-7) reject temperature — retry without it
   if (response.status === 400 && reqBody.temperature != null && bodyText.includes('temperature')) {
     delete reqBody.temperature;
-    const retryResponse = await fetchFn('https://api.anthropic.com/v1/messages', {
+    const { response: retryResponse, bodyText: retryBodyText, diagnostics: retryDiagnostics } = await fetchWithDiagnostics(fetchFn, 'https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers,
       body: JSON.stringify(reqBody),
       signal: makeFetchSignal(timeoutMs, opts.signal),
-    });
-    const retryBodyText = await withTimeout(retryResponse.text(), 180_000, 'Reading Claude retry response');
+    }, 180_000, 'Reading Claude retry response');
     if (!retryResponse.ok) {
       throw new ActionableError({
         goal: 'Generate text via Claude',
@@ -80,7 +78,7 @@ export async function generateViaClaude(
         nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
       });
     }
-    return parseClaudeResponse(retryBodyText);
+    return parseClaudeResponse(retryBodyText, retryDiagnostics);
   }
   // t/3020: Claude returns HTTP 400 `invalid_request_error` for MONTHLY QUOTA EXHAUSTION (not an
   // auth/model problem) — e.g. "You have reached your specified API usage limits. You will regain
@@ -110,10 +108,10 @@ export async function generateViaClaude(
     });
   }
 
-  return parseClaudeResponse(bodyText);
+  return parseClaudeResponse(bodyText, diagnostics);
 }
 
-function parseClaudeResponse(bodyText: string): ProviderResult {
+function parseClaudeResponse(bodyText: string, diagnostics: ProviderCallDiagnostics): ProviderResult {
   let json: {
     content?: { type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }[];
     stop_reason?: string;
@@ -154,5 +152,5 @@ function parseClaudeResponse(bodyText: string): ProviderResult {
     totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0) || undefined,
   } : undefined;
   const rawStopReason = json.stop_reason ?? undefined;
-  return { text, usage, toolCalls, stopReason: normalizeStopReason(rawStopReason), rawStopReason };
+  return { text, usage, toolCalls, stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics };
 }

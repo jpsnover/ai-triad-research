@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout, makeFetchSignal } from '../retry.js';
+import { makeFetchSignal } from '../retry.js';
+import { fetchWithDiagnostics } from '../instrumentation.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
 import { normalizeStopReason } from './stopReason.js';
@@ -51,14 +52,12 @@ export async function generateViaOllama(
     reqBody.format = 'json';
   }
 
-  const response = await fetchFn(`${OLLAMA_BASE}/v1/chat/completions`, {
+  const { response, bodyText, diagnostics } = await fetchWithDiagnostics(fetchFn, `${OLLAMA_BASE}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(reqBody),
     signal: makeFetchSignal(timeoutMs, opts.signal),
-  });
-
-  const bodyText = await withTimeout(response.text(), 120_000, 'Reading Ollama response');
+  }, 120_000, 'Reading Ollama response');
 
   if (response.status === 503 || response.status === 500) {
     throw new ActionableError({
@@ -115,5 +114,5 @@ export async function generateViaOllama(
     totalTokens: u.total_tokens,
   } : undefined;
   const rawStopReason = json.choices[0].finish_reason ?? undefined;
-  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason };
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics };
 }

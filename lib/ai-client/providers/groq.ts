@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout, makeFetchSignal } from '../retry.js';
+import { makeFetchSignal } from '../retry.js';
+import { fetchWithDiagnostics } from '../instrumentation.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
 import { normalizeStopReason } from './stopReason.js';
@@ -20,7 +21,7 @@ export async function generateViaGroq(
   if (opts.systemMessage) messages.push({ role: 'system', content: opts.systemMessage });
   messages.push({ role: 'user', content: prompt });
 
-  const response = await fetchFn('https://api.groq.com/openai/v1/chat/completions', {
+  const { response, bodyText, diagnostics } = await fetchWithDiagnostics(fetchFn, 'https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -41,9 +42,7 @@ export async function generateViaGroq(
       } : {}),
     }),
     signal: makeFetchSignal(timeoutMs, opts.signal),
-  });
-
-  const bodyText = await withTimeout(response.text(), 60_000, 'Reading Groq response');
+  }, 60_000, 'Reading Groq response');
 
   if (response.status === 429 || response.status === 503) {
     throw new ActionableError({
@@ -92,5 +91,5 @@ export async function generateViaGroq(
     totalTokens: u.total_tokens,
   } : undefined;
   const rawStopReason = json.choices[0].finish_reason ?? undefined;
-  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason };
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics };
 }

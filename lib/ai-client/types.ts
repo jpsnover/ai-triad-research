@@ -85,6 +85,35 @@ export interface UrlContextMetadata {
  */
 export type StopReason = 'stop' | 'max_tokens' | 'content_filter' | 'other';
 
+/**
+ * Per-call provider diagnostics (t/3566) — captured by `fetchWithDiagnostics` and surfaced on
+ * {@link ProviderResult.diagnostics} for the flight recorder. Splits the fetch (time to response
+ * headers) from the body read so a hung request is distinguishable from slow generation, and records
+ * request/response byte sizes + xAI's free server-timing headers when present.
+ *
+ * FORENSICS ONLY — same status as `rawStopReason`/`rawResponsePreview`: the flight recorder reads it,
+ * NO consumer branches on it. This is why the field is SO-exempt (t/3566#2). THE EXEMPTION LAPSES the
+ * moment any code path reads `diagnostics` to make a DECISION (routing, retry, fallback, thresholds):
+ * at that point it becomes part of the consumer contract and a Second Opinion is required for the
+ * change that introduces the read. Keep it write-only-to-the-recorder.
+ */
+export interface ProviderCallDiagnostics {
+  /** UTF-8 bytes of the serialized request body actually sent. */
+  requestBytes: number;
+  /** HTTP status of the response (200 on success; error paths throw before a ProviderResult). */
+  httpStatus: number;
+  /** ms from fetch start until response headers arrived — a hung request shows here. */
+  headersMs: number;
+  /** ms spent reading the response body after headers — slow generation shows here. */
+  bodyReadMs: number;
+  /** Provider-reported time-to-first-token (xAI `x-metrics-ttft-ms`); absent when unsupported. */
+  ttftMs?: number;
+  /** Provider-reported end-to-end time (xAI `x-metrics-e2e-ms`); absent when unsupported. */
+  e2eMs?: number;
+  /** UTF-8 bytes of the response body read. */
+  responseBytes: number;
+}
+
 export interface ProviderResult {
   text: string;
   usage?: TokenUsage;
@@ -92,6 +121,9 @@ export interface ProviderResult {
   estimatedCostUsd?: number;
   /** First 200 chars of raw API response body when content is empty — aids FR diagnosis. */
   rawResponsePreview?: string;
+  /** Per-call fetch/read diagnostics (t/3566) — flight-recorder forensics ONLY, not the consumer
+   *  contract. See {@link ProviderCallDiagnostics} for the SO-exemption-lapse condition. */
+  diagnostics?: ProviderCallDiagnostics;
   /** Gemini URL-context grounding metadata — present when `urlContext` was enabled. */
   urlContextMetadata?: UrlContextMetadata;
   /** Normalized finish reason (t/3525). See {@link StopReason}. Undefined when the provider

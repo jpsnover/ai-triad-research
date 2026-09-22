@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout, makeFetchSignal } from '../retry.js';
+import { makeFetchSignal } from '../retry.js';
+import { fetchWithDiagnostics } from '../instrumentation.js';
 import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 import { normalizeStopReason } from './stopReason.js';
 
@@ -24,7 +25,7 @@ export async function generateViaOpenAI(
     reqBody.instructions = opts.systemMessage;
   }
 
-  const response = await fetchFn('https://api.openai.com/v1/responses', {
+  const { response, bodyText, diagnostics } = await fetchWithDiagnostics(fetchFn, 'https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -32,9 +33,7 @@ export async function generateViaOpenAI(
     },
     body: JSON.stringify(reqBody),
     signal: makeFetchSignal(timeoutMs, opts.signal),
-  });
-
-  const bodyText = await withTimeout(response.text(), 60_000, 'Reading OpenAI response');
+  }, 60_000, 'Reading OpenAI response');
 
   if (response.status === 429 || response.status === 503) {
     throw new ActionableError({
@@ -95,5 +94,6 @@ export async function generateViaOpenAI(
     rawResponsePreview: text ? undefined : bodyText.slice(0, 200),
     stopReason: normalizeStopReason(rawStopReason),
     rawStopReason,
+    diagnostics,
   };
 }

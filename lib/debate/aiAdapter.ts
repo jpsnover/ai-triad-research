@@ -31,6 +31,7 @@ import {
   GEMINI_BASE,
   geminiGroundedSearch,
   DEFAULT_MODEL,
+  utf8ByteLength,
 } from '../ai-client/index.js';
 import { callGeminiBatchEmbed } from '../ai-client/providers/gemini-embeddings.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
@@ -310,7 +311,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     getGlobalRecorder()?.record({
       type: 'ai.request', component: 'ai-adapter', level: 'info',
       message: `generateText ${backend}/${apiModelId}`,
-      data: { backend, model: apiModelId, fn: 'generateText' },
+      data: { backend, model: apiModelId, fn: 'generateText', promptBytes: utf8ByteLength(prompt) },
     });
 
     const attemptCall = () => callWithTimeout(
@@ -331,7 +332,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
           type: 'ai.response', component: 'ai-adapter', level: 'info',
           duration_ms: Math.round(performance.now() - t0),
           message: `generateText success ${backend}/${apiModelId}`,
-          data: { backend, model: apiModelId, fn: 'generateText', usage: result.usage, rawStopReason: result.rawStopReason },
+          data: { backend, model: apiModelId, fn: 'generateText', usage: result.usage, rawStopReason: result.rawStopReason, diagnostics: result.diagnostics },
         });
         if (result.stopReason === 'max_tokens') {
           throw new ActionableError({
@@ -425,7 +426,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     getGlobalRecorder()?.record({
       type: 'ai.request', component: 'ai-adapter', level: 'info',
       message: `generate (envelope) ${backend}/${apiModelId}`,
-      data: { backend, model: apiModelId, fn: 'generate' },
+      data: { backend, model: apiModelId, fn: 'generate', promptBytes: utf8ByteLength(flattenEnvelope(request.envelope)) },
     });
     try {
       const result = await withRetry(
@@ -444,7 +445,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         type: 'ai.response', component: 'ai-adapter', level: 'info',
         duration_ms: Math.round(latency),
         message: `generate (envelope) success ${backend}/${apiModelId}`,
-        data: { backend, model: apiModelId, fn: 'generate', usage: { inputTokens: result.usage?.promptTokens, outputTokens: result.usage?.completionTokens, cachedTokens: result.usage?.cachedTokens }, rawStopReason: result.rawStopReason },
+        data: { backend, model: apiModelId, fn: 'generate', usage: { inputTokens: result.usage?.promptTokens, outputTokens: result.usage?.completionTokens, cachedTokens: result.usage?.cachedTokens }, rawStopReason: result.rawStopReason, diagnostics: result.diagnostics },
       });
       if (result.stopReason === 'max_tokens') {
         throw new ActionableError({
