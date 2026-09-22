@@ -6,19 +6,20 @@
 // openingBriefTimeoutFloor(model), but the renderer's pipelineInput construction (the path
 // live debates actually use) never got briefTimeoutMs at all, so DEFAULT_BRIEF_TIMEOUT_MS
 // (60s) silently applied regardless of model — the exact escape that reopened this ticket.
-// These tests assert briefTimeoutMs on the ACTUAL runOpeningPipeline call args, not just
-// that the helper exists, so a future regression here fails loudly instead of silently.
 //
-// Phase 2: openingBriefTimeoutFloor is retired — clarificationSlice.ts now computes
-// briefTimeoutMs via Math.max(120_000, getModelMinTimeout(model, registry)), reading the
-// real bundled ai-models.json (minTimeoutMs: 300_000 on fable/opus/sonnet-5). Assertions
-// below use the literal expected values instead of calling a helper that no longer exists.
+// t/3521: the floor arithmetic (Math.max(DEFAULT_BRIEF_TIMEOUT_MS, getMinTimeout(model)))
+// and the repair-retry sequence both moved into lib/debate/turnPipeline/opening.ts's
+// runOpeningPipelineWithRepair — single source of truth shared with the engine path, tested
+// there. What's left to prove AT THIS LAYER is narrower but still real: clarificationSlice.ts
+// must pass a `getMinTimeout` callback that correctly resolves via the actual bundled
+// ai-models.json registry — a wrong or stubbed-out callback would silently zero the floor
+// again, reproducing t/3518 one level up. So these tests capture the REAL callback
+// clarificationSlice.ts constructs and invoke it directly (not a re-implementation).
 // Harness FIRST so its hoisted mocks register before the store.
 import { describe, it, expect, vi } from 'vitest';
 import { makeSession, mockApi } from './storeTestHarness';
 import { useDebateStore } from '../../useDebateStore';
-import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints } from '@lib/debate/turnPipeline';
-import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
+import { runOpeningPipelineWithRepair, assembleOpeningPipelineResult, getOpeningRepairHints } from '@lib/debate/turnPipeline';
 
 const LONG = 'This is a sufficiently long opening statement that clears the 50-character minimum guard.';
 
@@ -34,55 +35,46 @@ function setActive(overrides: Record<string, unknown>): void {
 function arrange(): void {
   mockApi.generateText.mockResolvedValue({ text: '{}' });
   vi.mocked(getOpeningRepairHints).mockReturnValue([]);
-  vi.mocked(runOpeningPipeline).mockResolvedValue({
+  vi.mocked(runOpeningPipelineWithRepair).mockResolvedValue({
     stage_diagnostics: [], total_time_ms: 1, topicAlignmentResult: null, qualityGateResult: null,
   } as never);
   vi.mocked(assembleOpeningPipelineResult).mockReturnValue({ statement: LONG, taxonomyRefs: [], meta: { policy_refs: [] } } as never);
 }
 
-function inputs(): OpeningPipelineInput[] {
-  return vi.mocked(runOpeningPipeline).mock.calls.map(c => c[0]);
+/** The real getMinTimeout closure clarificationSlice.ts passes as the 5th arg. */
+function capturedGetMinTimeout(): (model: string) => number {
+  const call = vi.mocked(runOpeningPipelineWithRepair).mock.calls[0];
+  const fn = call[4];
+  expect(fn).toBeTypeOf('function');
+  return fn as (model: string) => number;
 }
 
-describe('runOpeningStatements — briefTimeoutMs on the live pipelineInput (t/3518 reopened)', () => {
-  it('a slow-model brief (fable) gets the 300s floor, not the 60s default', async () => {
+describe('runOpeningStatements — getMinTimeout callback passed to runOpeningPipelineWithRepair (t/3521)', () => {
+  it('resolves the registry floor for a slow-model brief (fable) via the real bundled ai-models.json', async () => {
     arrange();
     setActive({ stage_models: { brief: 'claude-fable-5' } });
 
     await useDebateStore.getState().runOpeningStatements();
 
-    expect(inputs()).toHaveLength(1);
-    expect(inputs()[0].briefTimeoutMs).toBe(300_000);
+    expect(vi.mocked(runOpeningPipelineWithRepair)).toHaveBeenCalledTimes(1);
+    expect(capturedGetMinTimeout()('claude-fable-5')).toBe(300_000);
   });
 
-  it('an opus brief also gets the 300s floor', async () => {
+  it('resolves the same floor for opus', async () => {
     arrange();
     setActive({ stage_models: { brief: 'claude-opus-5' } });
 
     await useDebateStore.getState().runOpeningStatements();
 
-    expect(inputs()[0].briefTimeoutMs).toBe(300_000);
+    expect(capturedGetMinTimeout()('claude-opus-5')).toBe(300_000);
   });
 
-  it('a non-flagship brief gets the 120s floor, still well above the 60s default', async () => {
+  it('resolves 0 (no floor entry — DEFAULT_BRIEF_TIMEOUT_MS applies inside the shared helper) for a non-flagship model', async () => {
     arrange();
     setActive({ stage_models: { brief: 'claude-haiku-4-5' } });
 
     await useDebateStore.getState().runOpeningStatements();
 
-    expect(inputs()[0].briefTimeoutMs).toBe(120_000);
-  });
-
-  it('the repair-hints retry call inherits the same briefTimeoutMs via the pipelineInput spread', async () => {
-    arrange();
-    vi.mocked(getOpeningRepairHints)
-      .mockReturnValueOnce([{ field: 'statement', issue: 'too short' } as never])
-      .mockReturnValue([]);
-    setActive({ stage_models: { brief: 'claude-fable-5' } });
-
-    await useDebateStore.getState().runOpeningStatements();
-
-    expect(inputs().length).toBeGreaterThanOrEqual(2);
-    expect(inputs().every(i => i.briefTimeoutMs === 300_000)).toBe(true);
+    expect(capturedGetMinTimeout()('claude-haiku-4-5')).toBe(0);
   });
 });

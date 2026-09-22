@@ -31,7 +31,7 @@ import {
 import { critiqueTopicPrompt, parseTopicCritique } from '@lib/debate/topicCritique';
 import { decomposeResolutionPrompt, topicScopeExtractionPrompt, setTopicScope } from '@lib/debate/prompts';
 import { documentAnalysisPrompt, buildTaxonomySample } from '@lib/debate/documentAnalysis';
-import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, DEFAULT_BRIEF_TIMEOUT_MS } from '@lib/debate/turnPipeline';
+import { runOpeningPipelineWithRepair, assembleOpeningPipelineResult } from '@lib/debate/turnPipeline';
 import { getModelMinTimeout } from '@lib/ai-client/index';
 import type { ModelRegistry } from '@lib/ai-client/registry';
 import aiModelsRegistry from '../../../../../../ai-models.json';
@@ -997,9 +997,8 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           .filter(n => n.speaker === 'user' && n.id.startsWith('user-seed-'))
           .map(n => ({ id: n.id, text: n.text, bdi_category: n.bdi_category }));
 
-        // t/3518 (reopened): moved above pipelineInput so briefTimeoutMs can use it. This is the
-        // SAME model the brief actually runs with (stage override, else speaker/base model) —
-        // reused below for the timeout toast/dialog instead of a second resolveBriefModel call.
+        // This is the SAME model the brief actually runs with (stage override, else
+        // speaker/base model) — used below for the timeout toast/dialog.
         const resolvedBriefModel = resolveBriefModel(activeDebate, poverId, model);
 
         const pipelineInput: OpeningPipelineInput = {
@@ -1024,24 +1023,21 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
             const voicing = get().activeDebate?.narrative_voicing;
             return voicing ? narrativeBlockForDebater(voicing.narratives, poverId) : undefined;
           })(),
-          // t/3518 Phase 2: openingBriefTimeoutFloor is retired — the registry now owns per-model
-          // timeout floors (minTimeoutMs). The renderer has no AIAdapter to call getModelMinTimeout
-          // through, so this mirrors turnPipeline/opening.ts's own fallback directly: DEFAULT_BRIEF_
-          // TIMEOUT_MS is the base when no explicit value is passed (imported, not re-hardcoded —
-          // TL flagged the earlier inline 120_000 as a second copy of the same constant), and
-          // getModelMinTimeout applies the SAME registry floor getDefaultTimeout would.
-          briefTimeoutMs: Math.max(DEFAULT_BRIEF_TIMEOUT_MS, getModelMinTimeout(resolvedBriefModel, aiModelsRegistry as unknown as ModelRegistry)),
+          // t/3521: briefTimeoutMs floor is no longer computed here — runOpeningPipelineWithRepair
+          // applies Math.max(DEFAULT_BRIEF_TIMEOUT_MS, getMinTimeout(model)) internally, the single
+          // source of truth shared with the engine path (t/3518's escape was this floor computed
+          // independently in two places and drifting).
         };
 
         // Emit on the renderer-local brief-timeout bus (t/2307). Both builds: the
         // opening pipeline runs in this renderer, so emit and the same-window toast
         // consumer share @bridge's bus — no IPC. Previously web-only; the Electron
         // path routed through an unfed IPC channel and never fired.
-        // resolvedBriefModel (computed above, now also feeding briefTimeoutMs) is what the brief
-        // actually runs with (stage override, else speaker/base model) — what the timeout toast/
-        // dialog must display so "Switch model" is an informed choice (t/2504). onBriefEvent is
-        // created per-speaker inside the aiPovers loop, so poverId/model already resolve the
-        // timed-out speaker (data.agent).
+        // resolvedBriefModel (computed above) is what the brief actually runs with (stage
+        // override, else speaker/base model) — what the timeout toast/dialog must display so
+        // "Switch model" is an informed choice (t/2504). onBriefEvent is created per-speaker
+        // inside the aiPovers loop, so poverId/model already resolve the timed-out speaker
+        // (data.agent).
         const onBriefEvent: BriefEventFn = (phase, data) => {
           if (phase === 'brief.timeout' || phase === 'brief.retrying') {
             emitBriefTimeout({ debateId: activeDebate.id, speaker: data.agent, attempt: data.attempt, maxAttempts: data.maxRetries, currentModel: resolvedBriefModel });
@@ -1050,48 +1046,23 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           }
         };
 
-        let pipelineResult = await runOpeningPipeline(
+        // t/3521: floor computation + repair-retry sequence now live in one place
+        // (turnPipeline/opening.ts's runOpeningPipelineWithRepair), shared with the engine
+        // path — the exact seam that caused t/3518's escape. onProgress fires the same
+        // 'retrying (N issues)' message before the internal repair retry that this call
+        // site used to set manually, so debateActivity keeps updating during repairs.
+        const pipelineResult = await runOpeningPipelineWithRepair(
           pipelineInput,
           stageGenerate,
           (_stage, label) => set({ debateActivity: label }),
           onBriefEvent,
+          (m) => getModelMinTimeout(m, aiModelsRegistry as unknown as ModelRegistry),
         );
         if (!isStillValid()) {
           console.warn(`[debate-store] Debate state changed after ${info.label} opening pipeline — remaining speakers will be skipped. activeDebateId: ${get().activeDebateId}, aborted: ${_abortController?.signal.aborted}`);
           addTranscriptEntry({ type: 'system', speaker: 'system', content: `Opening generation interrupted after ${info.label} — superseded by a model switch or a debate change.`, taxonomy_refs: [] });
           getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate?.id, message: 'runOpeningStatements aborted post-pipeline', data: { speaker: info.label } });
           return;
-        }
-
-        // Opening retry: if per-stage validation found errors, retry once with repair hints.
-        const openingRepairHints = getOpeningRepairHints(pipelineResult);
-        if (openingRepairHints.length > 0) {
-          console.log(`[debate-store] Opening retry for ${info.label}: ${openingRepairHints.length} issue(s)`);
-          set({ debateActivity: `${info.label} retrying (${openingRepairHints.length} issue${openingRepairHints.length > 1 ? 's' : ''})` });
-          try {
-            pipelineResult = await runOpeningPipeline(
-              { ...pipelineInput, repairHints: openingRepairHints },
-              stageGenerate,
-              (_stage, label) => set({ debateActivity: label }),
-              onBriefEvent,
-            );
-          } catch (err) {
-            getGlobalRecorder()?.record({
-              type: 'system.error',
-              debate_id: activeDebate?.id,
-              component: 'debate-store',
-              level: 'warn',
-              message: `Opening retry failed for ${info.label}`,
-              error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-            });
-            console.warn(`[debate-store] Opening retry failed for ${info.label}:`, err);
-          }
-          if (!isStillValid()) {
-            console.warn(`[debate-store] Debate state changed after ${info.label} opening retry — remaining speakers will be skipped. activeDebateId: ${get().activeDebateId}, aborted: ${_abortController?.signal.aborted}`);
-            addTranscriptEntry({ type: 'system', speaker: 'system', content: `Opening generation interrupted after ${info.label} retry — superseded by a model switch or a debate change.`, taxonomy_refs: [] });
-            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate?.id, message: 'runOpeningStatements aborted post-retry', data: { speaker: info.label } });
-            return;
-          }
         }
 
         const knownNodeIds = getAllKnownNodeIds();

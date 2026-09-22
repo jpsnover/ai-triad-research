@@ -5,12 +5,12 @@
 // mid-pipeline (Switch-model restart aborts it and installs a fresh controller), the
 // abandoned run must bail at the post-pipeline guard and write NO opening transcript
 // entry after the interrupted-line — otherwise a duplicate/mixed-model opening lands.
-// Import the harness FIRST so its hoisted mocks (incl. runOpeningPipeline) register
+// Import the harness FIRST so its hoisted mocks (incl. runOpeningPipelineWithRepair) register
 // before the store graph is imported.
 import { describe, it, expect, vi } from 'vitest';
 import { makeSession } from './storeTestHarness';
 import { useDebateStore } from '../../useDebateStore';
-import { runOpeningPipeline } from '@lib/debate/turnPipeline';
+import { runOpeningPipelineWithRepair } from '@lib/debate/turnPipeline';
 import { newAbortController, cancelAndResetAbort } from '../shared/guards';
 
 describe('runOpeningStatements — superseded run writes no opening (t/2505)', () => {
@@ -25,10 +25,10 @@ describe('runOpeningStatements — superseded run writes no opening (t/2505)', (
     // run's captured controller, then install a fresh (un-aborted) one — exactly what
     // retryWithModel → runOpeningStatements does. With the captured-controller guard fix,
     // this run's isStillValid() must now return false and bail before writing an opening.
-    vi.mocked(runOpeningPipeline).mockImplementation(async () => {
+    vi.mocked(runOpeningPipelineWithRepair).mockImplementation(async () => {
       cancelAndResetAbort();
       newAbortController();
-      return {} as unknown as Awaited<ReturnType<typeof runOpeningPipeline>>;
+      return {} as unknown as Awaited<ReturnType<typeof runOpeningPipelineWithRepair>>;
     });
 
     await useDebateStore.getState().runOpeningStatements();
@@ -54,6 +54,6 @@ describe('runOpeningStatements — superseded run writes no opening (t/2505)', (
     expect(transcript[transcript.length - 1]).toBe(interrupted[0]);
 
     // Pipeline entered exactly once (aborted on the first speaker; the run bails, no re-loop).
-    expect(vi.mocked(runOpeningPipeline)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(runOpeningPipelineWithRepair)).toHaveBeenCalledTimes(1);
   });
 });
