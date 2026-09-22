@@ -528,6 +528,33 @@ async function discoverBackend(
 
 const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'ollama'] as const;
 
+/**
+ * Attribute-preserving merge for a refresh (t/3551). Probed backends are regenerated from the live
+ * catalog, which only knows `{id,apiModelId,label,backend}`. Non-probed backends survive untouched
+ * (t/1711 — the Z.AI-outage fix). For a discovered model whose `id` still exists, SPREAD-preserve the
+ * prior entry's curated fields: `{ ...prior, ...discovered }` — the live catalog wins on
+ * id/apiModelId/label/backend, but curated extras (`picker`, `minTimeoutMs` [t/3518 floors],
+ * `fixedTemperature`, and any FUTURE one) carry over.
+ *
+ * Spread, NOT a field allowlist (TL p/342#300): a curated field added later is safe by construction —
+ * `minTimeoutMs` itself didn't exist 48h before this fix, and an allowlist would have silently dropped
+ * it on the next refresh with `verify:config` fully green (the extras are unreferenced). A genuinely
+ * de-listed model simply isn't in `discovered`, so it drops — the explicit-removal review still applies.
+ */
+export function mergeDiscoveredModels(
+  existing: ModelEntry[],
+  discovered: ModelEntry[],
+  probed: ReadonlySet<string>,
+): ModelEntry[] {
+  const preserved = existing.filter(m => !probed.has(m.backend));
+  const priorById = new Map(existing.map(m => [m.id, m]));
+  const merged = discovered.map(m => {
+    const prior = priorById.get(m.id);
+    return prior ? { ...prior, ...m } : m;
+  });
+  return [...preserved, ...merged];
+}
+
 export async function refreshAIModels(deps: ModelDiscoveryDeps): Promise<RefreshResult> {
   const config = loadModelConfig(deps.repoRoot);
   const result: RefreshResult = {
@@ -550,15 +577,13 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps): Promise<Refresh
     result[backendId] = discovery.result;
   }
 
-  // Merge, not replace (t/1711): only the backends probed this run are regenerated.
-  // Backends we did NOT probe (zai, azure, any manually-curated entry) must survive
-  // untouched, along with their defaults/debateTiers/fallbackChains references. A bare
-  // `config.models = newModels` silently deleted every non-probed backend — the Z.AI
-  // outage root cause (dropped zai models[] left defaults.zai -> zai-glm-5-2 dangling
-  // -> getApiModelId returns it verbatim -> Z.AI HTTP 1211 -> all opening statements fail).
-  const probed = new Set<string>(ALL_BACKENDS);
-  const preserved = config.models.filter(m => !probed.has(m.backend));
-  config.models = [...preserved, ...newModels];
+  // Merge, not replace (t/1711): only the backends probed this run are regenerated; non-probed
+  // backends (zai, azure, manually-curated) survive untouched with their defaults/debateTiers/
+  // fallbackChains refs (a bare replace caused the Z.AI outage: dropped zai models -> dangling
+  // defaults.zai -> HTTP 1211). And attribute-preserving (t/3551): a discovered model keeps the prior
+  // entry's curated extras (picker, minTimeoutMs [t/3518], fixedTemperature) — a bare replace wiped
+  // them, invisibly to verify:config since they're unreferenced.
+  config.models = mergeDiscoveredModels(config.models, newModels, new Set<string>(ALL_BACKENDS));
   // ── Repair pass (t/2039) ──────────────────────────────────────────────────────
   // Extend the merge repair from defaults-only to ALL runtime model-id reference
   // surfaces, on the merged in-memory config, BEFORE the validate-before-write guard.
