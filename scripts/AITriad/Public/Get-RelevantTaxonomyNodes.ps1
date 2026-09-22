@@ -131,7 +131,7 @@ function Get-RelevantTaxonomyNodes {
         [ValidateRange(1, 100)]
         [int]$RerankTopN = 10,
 
-        [string]$RerankerModel = 'cross-encoder/ms-marco-MiniLM-L-6-v2'
+        [string]$RerankerModel = 'cross-encoder/ms-marco-MiniLM-L-6-v2'  # model-lint:allow reranker cross-encoder model, not an ai-models.json LLM backend
     )
 
     Set-StrictMode -Version Latest

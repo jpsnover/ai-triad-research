@@ -49,7 +49,7 @@ function Invoke-POVSummary {
     .EXAMPLE
         Invoke-POVSummary -DocId "altman-2024-agi-path" -DryRun
     .EXAMPLE
-        Invoke-POVSummary -DocId "lecun-2024-critique" -Model "gemini-3.5-flash-lite-lite"
+        Invoke-POVSummary -DocId "lecun-2024-critique" -Model "gemini-3.5-flash-lite"
     .LINK
         Show-AITriadHelp
     .LINK
