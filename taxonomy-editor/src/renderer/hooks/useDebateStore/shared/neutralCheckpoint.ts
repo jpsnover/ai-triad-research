@@ -32,7 +32,10 @@ export async function runNeutralCheckpoint(
     const model = getConfiguredModel();
     const adapter = {
       generateText: async (prompt: string, m: string, opts?: { temperature?: number; maxTokens?: number; timeoutMs?: number }) => {
-        const result = await api.generateText(prompt, m, opts?.timeoutMs, opts?.temperature);
+        // t/3545: forward the cap runNeutralEvaluation already sets (EVALUATOR_MAX_TOKENS,
+        // 16384) — omitting it let this call site fall through to the provider default,
+        // which truncated the JSON response mid-string and silently dropped the evaluation.
+        const result = await api.generateText(prompt, m, opts?.timeoutMs, opts?.temperature, { maxTokens: opts?.maxTokens });
         return result.text;
       },
       getModelMinTimeout: (_model: string) => 0,
