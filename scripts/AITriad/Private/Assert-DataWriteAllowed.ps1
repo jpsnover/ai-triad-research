@@ -146,6 +146,7 @@ function Assert-DataWriteAllowed {
         Assert-CleanDataTree -Path $Path            # dirty data-target -> throw
     }
     else {
-        Assert-CleanDataTree -Path $Path -Force     # Warn: dirty -> warn, proceed
+        # Warn: dirty -> warn, proceed
+        Assert-CleanDataTree -Path $Path -Force -ForceReason 'data-write guard is in Warn mode for this target; it will block once promoted'
     }
 }
