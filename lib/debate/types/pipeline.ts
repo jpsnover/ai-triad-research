@@ -6,7 +6,7 @@ import type { DraftQualityGateResult } from './diagnostics.js';
 
 // ── Turn pipeline types ──────────────────────────────
 
-export type TurnStageId = 'brief' | 'plan' | 'draft' | 'postDraft' | 'draft_quality' | 'evidence' | 'cite' | 'micro-fix';
+export type TurnStageId = 'brief' | 'plan' | 'draft' | 'postDraft' | 'draft_quality' | 'evidence' | 'cite' | 'micro-fix' | 'repair';
 
 export interface TurnStageConfig {
   brief_temperature?: number;
