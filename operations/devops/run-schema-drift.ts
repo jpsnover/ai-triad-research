@@ -8,6 +8,8 @@
 // Surfaces checked:
 //   1. Zod validators — lib/debate/schemas.ts (NodeScopeSchema, CanonicalEdgeTypeSchema)
 //   2. Corpus         — ai-triad-data/taxonomy/Origin (if data repo present)
+//   3. Prompt-writer guard (t/3550) — registered controlled-vocab writers must keep a fence, and no
+//      un-registered prompt may emit vocab values without one (the silent-new-writer gap).
 //
 // No PS logic twin (SO cond 2, t/3447#5): this is the one canonical JS comparator entry point.
 
@@ -15,6 +17,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { checkSchemaDrift, type SchemaRecord } from '../../lib/schema/checkSchemaDrift.js';
 import { extractZodVocab, extractCorpusValues } from '../../lib/schema/extractors.js';
+import { runPromptWriterGuard, collectPromptFiles } from '../../lib/schema/promptWriterGuard.js';
 
 const repoRoot = resolve(import.meta.dirname, '../..');
 const schemaPath = join(repoRoot, 'lib/schema/taxonomy-schema.json');
@@ -38,6 +41,14 @@ for (const extracted of surfaces) {
     console.log(`::warning::schema-drift [${f.source}] ${f.type} @ ${f.field}: ${f.detail}`);
     total++;
   }
+}
+
+// Surface 3 — prompt-writer guard (t/3550). Scans the local prompt files (no data repo needed); a
+// registered writer that lost its fence, or an un-registered prompt that emits vocab without one, is
+// a warn-only finding — same phase discipline as the surface findings above.
+for (const f of runPromptWriterGuard(collectPromptFiles(repoRoot), record)) {
+  console.log(`::warning::schema-drift [prompt-writer-guard] ${f.type} @ ${f.path}: ${f.detail}`);
+  total++;
 }
 
 if (total === 0) {
