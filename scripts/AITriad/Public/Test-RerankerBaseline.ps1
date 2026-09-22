@@ -22,7 +22,7 @@ function Test-RerankerBaseline {
         Test-RerankerBaseline
         # Evaluates with default settings (top-10, ms-marco reranker).
     .EXAMPLE
-        Test-RerankerBaseline -TopK 20 -RerankerModel 'cross-encoder/ms-marco-MiniLM-L-12-v2'
+        Test-RerankerBaseline -TopK 20 -RerankerModel 'cross-encoder/ms-marco-MiniLM-L-12-v2'  # model-lint:allow reranker cross-encoder model, not an ai-models.json LLM backend
     .LINK
         Show-AITriadHelp
     .LINK
@@ -41,7 +41,7 @@ function Test-RerankerBaseline {
         [ValidateRange(1, 100)]
         [int]$TopK = 10,
 
-        [string]$RerankerModel = 'cross-encoder/ms-marco-MiniLM-L-6-v2',
+        [string]$RerankerModel = 'cross-encoder/ms-marco-MiniLM-L-6-v2',  # model-lint:allow reranker cross-encoder model, not an ai-models.json LLM backend
 
         [string]$GoldenSetPath
     )

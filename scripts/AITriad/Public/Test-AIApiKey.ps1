@@ -195,7 +195,7 @@ function Test-AIApiKey {
         try {
             if ($B -eq 'zai') {
                 $ProbeBody = @{
-                    model       = 'glm-5.2'
+                    model       = 'glm-5.2'  # model-lint:allow raw ZAI provider model id (registry id: zai-glm-5-2)
                     messages    = @(@{ role = 'user'; content = 'ping' })
                     max_tokens  = 5
                     temperature = 0.0

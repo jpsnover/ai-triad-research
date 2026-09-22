@@ -403,7 +403,7 @@ function Invoke-EdgeDiscovery {
     # Two-phase: resolve screen model and load screen prompt
     if ($TwoPhase) {
         $ScreenPrompt = Get-Prompt -Name 'edge-screen'
-        if ([string]::IsNullOrWhiteSpace($ScreenModel)) { $ScreenModel = 'gemini-2.0-flash-lite' }
+        if ([string]::IsNullOrWhiteSpace($ScreenModel)) { $ScreenModel = 'gemini-3.5-flash-lite' }
         # Resolve screen model API key (may differ from main model)
         if     ($ScreenModel -match '^gemini') { $ScreenBackend = 'gemini' }
         elseif ($ScreenModel -match '^claude') { $ScreenBackend = 'claude' }

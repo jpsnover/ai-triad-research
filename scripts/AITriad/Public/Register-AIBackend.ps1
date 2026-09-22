@@ -689,7 +689,7 @@ init();
                                             'content-type'      = 'application/json'
                                         }
                                         $Payload = @{
-                                            model      = 'claude-3-5-haiku-20241022'
+                                            model      = 'claude-3-5-haiku-20241022'  # model-lint:allow raw Anthropic API liveness-probe id, intentionally not a registry backend
                                             max_tokens = 10
                                             messages   = @(@{ role = 'user'; content = 'Say OK' })
                                         } | ConvertTo-Json -Depth 5
@@ -723,7 +723,7 @@ init();
                                         # t/1437 — z.ai's OpenAI-compatible surface may not expose /v1/models,
                                         # so probe a minimal chat completion (cheap: 5 max tokens).
                                         $Payload = @{
-                                            model       = 'glm-5.2'
+                                            model       = 'glm-5.2'  # model-lint:allow raw ZAI provider model id (registry id: zai-glm-5-2)
                                             messages    = @(@{ role = 'user'; content = 'ping' })
                                             max_tokens  = 5
                                             temperature = 0.0

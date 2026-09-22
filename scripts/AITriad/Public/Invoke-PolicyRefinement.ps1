@@ -25,7 +25,7 @@ function Invoke-PolicyRefinement {
     .EXAMPLE
         Invoke-PolicyRefinement -DryRun
     .EXAMPLE
-        Invoke-PolicyRefinement -Model 'claude-sonnet-4-20250514'
+        Invoke-PolicyRefinement -Model 'claude-sonnet-4-6'
     .EXAMPLE
         Invoke-PolicyRefinement -PassThru
     .LINK
