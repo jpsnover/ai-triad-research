@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { ActionableError } from '../../debate/errors.js';
-import { withTimeout, makeFetchSignal } from '../retry.js';
+import { makeFetchSignal } from '../retry.js';
+import { fetchWithDiagnostics } from '../instrumentation.js';
 import type { FetchFn, GenerateOptions, ProviderResult, ToolCall, UrlContextMetadata } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
 import { normalizeStopReason } from './stopReason.js';
@@ -106,14 +107,12 @@ export async function generateViaGemini(
   const tools = buildGeminiTools(opts);
   if (tools) body.tools = tools;
 
-  const response = await fetchFn(url, {
+  const { response, bodyText, diagnostics } = await fetchWithDiagnostics(fetchFn, url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(body),
     signal: makeFetchSignal(timeoutMs, opts.signal),
-  });
-
-  const bodyText = await withTimeout(response.text(), 60_000, 'Reading Gemini response');
+  }, 60_000, 'Reading Gemini response');
 
   if (response.status === 429 || response.status === 503) {
     throw new ActionableError({
@@ -170,7 +169,7 @@ export async function generateViaGemini(
   const urlContextMetadata = parseUrlContextMetadata(candidate);
   // finishReason lives on the candidate (e.g. "STOP", "MAX_TOKENS", "SAFETY"); typed unknown here.
   const rawStopReason = typeof candidate.finishReason === 'string' ? candidate.finishReason : undefined;
-  return { text, usage, toolCalls, urlContextMetadata, stopReason: normalizeStopReason(rawStopReason), rawStopReason };
+  return { text, usage, toolCalls, urlContextMetadata, stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics };
 }
 
 export async function generateViaGeminiStream(
