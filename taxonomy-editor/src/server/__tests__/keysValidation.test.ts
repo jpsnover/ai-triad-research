@@ -16,7 +16,16 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { KEY_VALIDATION_PROBES, validateProviderKey, deriveKeyErrorMessage, extractProviderReason } from '../routes/keys.js';
+import { resolveDebateTierModel, getResolvedApiModelId } from '../ai/aiBackends.js';
 import { setGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
+
+// t/3563: the model the probe SHOULD hit — resolved the same way resolveGeminiProbeModel does
+// (registry debateTiers.basic.gemini → apiModelId), with the same fallback literal. Ties the
+// assertion to the registry SSOT so it can't silently re-drift to a retired id.
+const derivedGeminiProbeModel = (() => {
+  const friendly = resolveDebateTierModel('basic', 'gemini');
+  return friendly ? getResolvedApiModelId(friendly) : 'gemini-2.5-flash-lite';
+})();
 
 // ai-models.json is the canonical backend registry at the repo root. Resolve it
 // relative to this test file (deterministic) rather than via getProjectRoot(),
@@ -72,7 +81,8 @@ describe('gemini key probe uses generateContent, not list-models (t/1572)', () =
     expect(verdict.valid).toBe(false);
 
     expect(calls).toHaveLength(1);
-    expect(calls[0].url).toContain('gemini-2.0-flash:generateContent');
+    expect(calls[0].url).toContain(`${derivedGeminiProbeModel}:generateContent`);
+    expect(calls[0].url).not.toContain('gemini-2.0-flash'); // t/3563: never the retired hardcoded model
     expect(calls[0].url).not.toContain('/v1beta/models?key='); // NOT the permissive list endpoint
     expect(calls[0].init?.method).toBe('POST');
     expect(String(calls[0].init?.body)).toContain('maxOutputTokens');
@@ -82,6 +92,24 @@ describe('gemini key probe uses generateContent, not list-models (t/1572)', () =
     global.fetch = vi.fn(async () => new Response('{}', { status: 200 })) as unknown as typeof fetch;
     const verdict = await validateProviderKey('gemini', 'good-key');
     expect(verdict.valid).toBe(true);
+  });
+
+  // t/3563 (mirrors ElectronMain t/3556) — the probe model is resolved from the registry
+  // (debateTiers.basic.gemini), not a hardcoded literal, so a model retirement can't cause a
+  // false "Invalid API key" for a valid key.
+  it('probes the registry-derived model (debateTiers.basic.gemini), not a hardcoded/retired id', async () => {
+    const calls: string[] = [];
+    global.fetch = vi.fn(async (url: RequestInfo | URL) => {
+      calls.push(String(url));
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await validateProviderKey('gemini', 'good-key');
+
+    // The derived model resolves from ai-models.json and is a real registered gemini model.
+    expect(derivedGeminiProbeModel).toMatch(/^gemini-/);
+    expect(derivedGeminiProbeModel).not.toBe('gemini-2.0-flash');
+    expect(calls[0]).toContain(`${derivedGeminiProbeModel}:generateContent`);
   });
 
   it('reports valid:false with a provider-unreachable message on network error (AC#3 unchanged)', async () => {
