@@ -9,7 +9,8 @@ vi.mock('fs', () => ({
   },
 }));
 
-import { curateGeminiModels, curateClaudeModels, discoverClaudeModels, refreshAIModels } from './modelDiscovery.js';
+import { curateGeminiModels, curateClaudeModels, discoverClaudeModels, refreshAIModels, mergeDiscoveredModels } from './modelDiscovery.js';
+import type { ModelEntry } from './modelDiscovery.js';
 
 function model(name: string, displayName: string, methods = ['generateContent']) {
   return { name: `models/${name}`, displayName, supportedGenerationMethods: methods };
@@ -417,5 +418,60 @@ describe('discoverClaudeModels — live catalog', () => {
 
     const result = await discoverClaudeModels('test-key');
     expect(Array.isArray(result)).toBe(true);
+  });
+});
+
+describe('mergeDiscoveredModels — attribute-preserving refresh (t/3551; guards the t/3518 floors)', () => {
+  const probed = new Set(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'ollama']);
+
+  // The registry carries curated fields the live catalog NEVER returns (discovery is {id,apiModelId,
+  // label,backend} only). A bare replace wiped these, invisibly to verify:config (they're unreferenced).
+  const existing = [
+    { id: 'claude-fable-5',  apiModelId: 'claude-fable-5',  label: 'Claude Fable 5',  backend: 'claude', minTimeoutMs: 300000, picker: { order: 9 } },
+    { id: 'claude-opus-5',   apiModelId: 'claude-opus-5',   label: 'Claude Opus 5',   backend: 'claude', minTimeoutMs: 300000, picker: { order: 5 } },
+    { id: 'claude-sonnet-5', apiModelId: 'claude-sonnet-5', label: 'Claude Sonnet 5', backend: 'claude', minTimeoutMs: 300000, picker: { order: 7 } },
+    { id: 'claude-retired-4', apiModelId: 'claude-retired-4', label: 'Retired', backend: 'claude' }, // de-listed: absent from discovery below
+    { id: 'moonshot-kimi',   apiModelId: 'kimi', label: 'Kimi', backend: 'moonshot', fixedTemperature: 1 }, // non-probed backend
+  ] as unknown as ModelEntry[];
+
+  // Live catalog: minimal entries, same ids (label refreshed) + one brand-new model; retired-4 gone.
+  const discovered = [
+    { id: 'claude-fable-5',  apiModelId: 'claude-fable-5',  label: 'Claude Fable 5 (live)',  backend: 'claude' },
+    { id: 'claude-opus-5',   apiModelId: 'claude-opus-5',   label: 'Claude Opus 5 (live)',   backend: 'claude' },
+    { id: 'claude-sonnet-5', apiModelId: 'claude-sonnet-5', label: 'Claude Sonnet 5 (live)', backend: 'claude' },
+    { id: 'claude-new-6',    apiModelId: 'claude-new-6',    label: 'Claude New 6',           backend: 'claude' },
+  ] as ModelEntry[];
+
+  const merged = mergeDiscoveredModels(existing, discovered, probed);
+  const byId = (id: string) => merged.find(m => m.id === id) as unknown as Record<string, unknown> | undefined;
+
+  it('the 3 Claude-5 minTimeoutMs floors SURVIVE the refresh (t/3518 regression guard — a naive replace re-opens the P1)', () => {
+    for (const id of ['claude-fable-5', 'claude-opus-5', 'claude-sonnet-5']) {
+      expect(byId(id)?.minTimeoutMs).toBe(300000);
+    }
+  });
+
+  it('picker ordering survives too (all 22 real entries carry it)', () => {
+    expect(byId('claude-fable-5')?.picker).toEqual({ order: 9 });
+  });
+
+  it('the live catalog still WINS on core fields (label refreshed from discovery)', () => {
+    expect(byId('claude-fable-5')?.label).toBe('Claude Fable 5 (live)');
+  });
+
+  it('a brand-new discovered model is added with no synthetic extras', () => {
+    expect(byId('claude-new-6')).toBeDefined();
+    expect(byId('claude-new-6')?.minTimeoutMs).toBeUndefined();
+  });
+
+  it('non-probed backends survive untouched (moonshot fixedTemperature kept)', () => {
+    expect(byId('moonshot-kimi')?.fixedTemperature).toBe(1);
+  });
+
+  it('a genuinely de-listed model (absent from the live catalog) DROPS', () => {
+    expect(byId('claude-retired-4')).toBeUndefined();
+    expect(merged.map(m => m.id).sort()).toEqual(
+      ['claude-fable-5', 'claude-new-6', 'claude-opus-5', 'claude-sonnet-5', 'moonshot-kimi'],
+    );
   });
 });
