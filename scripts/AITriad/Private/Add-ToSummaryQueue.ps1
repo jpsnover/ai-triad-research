@@ -39,7 +39,11 @@ function Add-ToSummaryQueue {
     if ($DocId -notin $Queue) {
         $Queue += $DocId
         try {
-            @($Queue) | ConvertTo-Json | Write-Utf8NoBom $QueueFile 
+            # The queue is an append-only accumulator: every ingest after the first
+            # finds it dirty from earlier ingests, and this read-modify-write keeps all
+            # existing entries, so there is no concurrent state to sweep. Opt out of the
+            # dirty-tree guard (which would otherwise warn now and block after promotion).
+            @($Queue) | ConvertTo-Json | Write-Utf8NoBom $QueueFile -AllowDirty
             Write-Info "Added to summary queue: $QueueFile"
         }
         catch {

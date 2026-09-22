@@ -57,7 +57,12 @@ function Assert-CleanDataTree {
         [Alias('FullName', 'PSPath')]
         [string[]]$Path,
 
-        [switch]$Force
+        [switch]$Force,
+
+        # Why a -Force warning proceeds; shown in the warning. Callers that pass
+        # -Force on the user's behalf (e.g. the Warn-mode guard tier) say so here
+        # rather than misattributing it to a user-specified -Force.
+        [string]$ForceReason = '-Force specified'
     )
     begin {
         $dirty = [System.Collections.Generic.List[string]]::new()
@@ -100,7 +105,7 @@ function Assert-CleanDataTree {
         $problem = "Target file(s) already carry uncommitted changes; a whole-file rewrite would sweep that concurrent state into your commit:`n$fileList"
 
         if ($Force) {
-            Write-Warning "Assert-CleanDataTree: $problem`n(Proceeding anyway — -Force specified.)"
+            Write-Warning "Assert-CleanDataTree: $problem`n(Proceeding anyway — $ForceReason.)"
             return
         }
 
