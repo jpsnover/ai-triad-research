@@ -285,6 +285,7 @@ jobs:
         shell: pwsh
         run: |
           . ./operations/devops/Get-PesterExcludePaths.ps1  # single source of truth (t/3010)
+          . ./operations/devops/FlakeVerdict.ps1            # t/3546 verdict message (content regression-guarded by tests/FlakeVerdict.Tests.ps1)
           $config = New-PesterConfiguration
           $config.Run.Path = './tests/'
           # Live-data SituationBDI compliance decoupled to compliance-live.yml
@@ -338,6 +339,12 @@ jobs:
           $rc.Run.PassThru = $true
           $rc.Output.Verbosity = 'Detailed'
           $rc.Filter.FullName = $failedNames
+          # t/3546: best-effort delay before the in-job rerun. Lets TRANSIENT-releasing contention
+          # clear — a subprocess mid-teardown still releasing its port, a temp-file / advisory-lock
+          # race. Honest limit: it does NOT clear a fixed-port TIME_WAIT (~60s on Linux) or a live
+          # parallel-shard hold of the same port; those need the ephemeral -Port 0 source fix
+          # (t/3547, PowerShell). Cheap — only paid on the (rare) failure path.
+          Start-Sleep -Seconds 5
           $r2 = Invoke-Pester -Configuration $rc
           # R4: a rerun that discovers FEWER tests than failed (Filter.FullName metachar [ * ? matching
           # nothing, or discovery no longer finding them) must NOT count as healed — require every
@@ -346,9 +353,21 @@ jobs:
             Write-Host "::warning::test-powershell: all $($failedNames.Count) failing test(s) PASSED on rerun — treated as flake (self-healed): $($failedNames -join '; ')"
             exit 0
           }
-          # Real failure (still red, or rerun didn't cover all). Surface the [-] names loudly (Part 2).
-          $stillFailed = if ($null -ne $r2) { @($r2.Tests | Where-Object { $_.Result -eq 'Failed' } | ForEach-Object { $_.ExpandedPath }) } else { $failedNames }
-          foreach ($n in $stillFailed) { Write-Host "::error::test-powershell FAILED (both runs): $n" }
+          # Real failure (still red, or rerun didn't cover all). t/3546: the verdict claims only
+          # what an IN-JOB rerun can prove. An immediate same-job rerun cannot clear resource
+          # contention held by the first attempt (fixed-port TIME_WAIT, parallel-shard bind, lock,
+          # temp file), so a contention flake fails both attempts identically — the old
+          # "FAILED (both runs)" wording read as definitive and a good PR was held on it. The
+          # message (Format-FlakeVerdictMessage, in FlakeVerdict.ps1) names the classes it can't
+          # clear + each test's duration + a fresh-run-verify direction; its content is
+          # regression-guarded by tests/FlakeVerdict.Tests.ps1 (A/B/D can't catch a stripped
+          # caveat). Selection is unchanged from t/3530; only the wording + durations are new.
+          $stillFailedTests = if ($null -ne $r2) {
+            @($r2.Tests | Where-Object { $_.Result -eq 'Failed' } | ForEach-Object { @{ Name = $_.ExpandedPath; DurationMs = $_.Duration.TotalMilliseconds } })
+          } else {
+            @($r.Tests | Where-Object { $_.Result -eq 'Failed' } | ForEach-Object { @{ Name = $_.ExpandedPath; DurationMs = $_.Duration.TotalMilliseconds } })
+          }
+          Format-FlakeVerdictMessage -FailedTest $stillFailedTests | ForEach-Object { Write-Host $_ }
           if ($null -ne $r2 -and $r2.TotalCount -lt $failedNames.Count) {
             Write-Host "::error::test-powershell: rerun discovered $($r2.TotalCount) of $($failedNames.Count) failed test(s) — NOT treated as flake (fail safe)."
           }
