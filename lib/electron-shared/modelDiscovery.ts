@@ -529,23 +529,38 @@ async function discoverBackend(
 const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'ollama'] as const;
 
 /**
- * Attribute-preserving merge for a refresh (t/3551). Probed backends are regenerated from the live
- * catalog, which only knows `{id,apiModelId,label,backend}`. Non-probed backends survive untouched
- * (t/1711 — the Z.AI-outage fix). For a discovered model whose `id` still exists, SPREAD-preserve the
- * prior entry's curated fields: `{ ...prior, ...discovered }` — the live catalog wins on
- * id/apiModelId/label/backend, but curated extras (`picker`, `minTimeoutMs` [t/3518 floors],
- * `fixedTemperature`, and any FUTURE one) carry over.
+ * Merge a refresh's discovered models into the registry. TWO modes with DIFFERENT de-listing policy —
+ * the mode is a deliberate choice, not an implementation detail (TL p/342#306).
  *
- * Spread, NOT a field allowlist (TL p/342#300): a curated field added later is safe by construction —
- * `minTimeoutMs` itself didn't exist 48h before this fix, and an allowlist would have silently dropped
- * it on the next refresh with `verify:config` fully green (the extras are unreferenced). A genuinely
- * de-listed model simply isn't in `discovered`, so it drops — the explicit-removal review still applies.
+ * REPLACE (default): probed backends are regenerated from the live catalog (which only knows
+ * `{id,apiModelId,label,backend}`); non-probed backends survive untouched (t/1711 — the Z.AI-outage
+ * fix). For a discovered model whose `id` still exists, SPREAD-preserve the prior entry's curated
+ * fields — `{ ...prior, ...discovered }` — so the live catalog wins on id/apiModelId/label/backend but
+ * curated extras (`picker`, `minTimeoutMs` [t/3518 floors], `fixedTemperature`, and any FUTURE one)
+ * carry over. Spread, NOT a field allowlist (TL p/342#300): a curated field added later is safe by
+ * construction — an allowlist would silently drop the next one with `verify:config` fully green (the
+ * extras are unreferenced). **De-listing policy:** a model absent from `discovered` DROPS — this is the
+ * mode's automatic de-listing path, and it demands an explicit-removal review, since a partial/rate-
+ * limited catalog would otherwise delete a chunk of the registry while every gate stays green (t/3551
+ * guardrail 1). #2300 protects the surviving models' FIELDS; this mode still governs their EXISTENCE.
+ *
+ * ADDITIVE (`additive=true`, t/3551 decision 2): keep EVERY existing entry as-is and append only
+ * discovered ids not already present. Surfaces newly-released models (the user-facing goal) while
+ * making it structurally impossible to drop a model, break a fallbackChain, or dangle a default.
+ * **De-listing policy:** NOTHING is ever removed — additive-only DELIBERATELY REMOVES the automatic
+ * de-listing path above. So in this mode de-listing is a MANUAL, explicit-review decision (there is no
+ * automatic path); the drop policy for a full replace-and-prune refresh is tracked separately in t/3553.
  */
 export function mergeDiscoveredModels(
   existing: ModelEntry[],
   discovered: ModelEntry[],
   probed: ReadonlySet<string>,
+  additive = false,
 ): ModelEntry[] {
+  if (additive) {
+    const existingIds = new Set(existing.map(m => m.id));
+    return [...existing, ...discovered.filter(m => !existingIds.has(m.id))];
+  }
   const preserved = existing.filter(m => !probed.has(m.backend));
   const priorById = new Map(existing.map(m => [m.id, m]));
   const merged = discovered.map(m => {
@@ -555,7 +570,16 @@ export function mergeDiscoveredModels(
   return [...preserved, ...merged];
 }
 
-export async function refreshAIModels(deps: ModelDiscoveryDeps): Promise<RefreshResult> {
+export interface RefreshOptions {
+  /** Additive-only: add newly-discovered ids, drop nothing (t/3551 decision 2). */
+  additive?: boolean;
+  /** Backends to NOT probe this run — their existing models are preserved untouched (e.g. 'openai'
+   *  while its discovery filter is a defect, t/3552). Distinct from the always-manually-curated set. */
+  skipBackends?: readonly string[];
+}
+
+export async function refreshAIModels(deps: ModelDiscoveryDeps, opts: RefreshOptions = {}): Promise<RefreshResult> {
+  const skip = new Set(opts.skipBackends ?? []);
   const config = loadModelConfig(deps.repoRoot);
   const result: RefreshResult = {
     gemini:   { ok: false, count: 0 },
@@ -572,6 +596,11 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps): Promise<Refresh
   const newModels: ModelEntry[] = [];
 
   for (const backendId of ALL_BACKENDS) {
+    if (skip.has(backendId)) {
+      // Not probed this run → treated as non-probed so its existing models survive untouched.
+      result[backendId] = { ok: false, count: 0, error: 'skipped this run' };
+      continue;
+    }
     const discovery = await discoverBackend(backendId, config, deps, existingClaude);
     newModels.push(...discovery.models);
     result[backendId] = discovery.result;
@@ -583,7 +612,10 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps): Promise<Refresh
   // defaults.zai -> HTTP 1211). And attribute-preserving (t/3551): a discovered model keeps the prior
   // entry's curated extras (picker, minTimeoutMs [t/3518], fixedTemperature) — a bare replace wiped
   // them, invisibly to verify:config since they're unreferenced.
-  config.models = mergeDiscoveredModels(config.models, newModels, new Set<string>(ALL_BACKENDS));
+  // Skipped backends are excluded from `probed` so the merge preserves their existing models (openai
+  // stays as-is while t/3552 fixes its filter). Additive mode (t/3551 decision 2) drops nothing.
+  const probedThisRun = new Set<string>(ALL_BACKENDS.filter(b => !skip.has(b)));
+  config.models = mergeDiscoveredModels(config.models, newModels, probedThisRun, opts.additive ?? false);
   // ── Repair pass (t/2039) ──────────────────────────────────────────────────────
   // Extend the merge repair from defaults-only to ALL runtime model-id reference
   // surfaces, on the merged in-memory config, BEFORE the validate-before-write guard.

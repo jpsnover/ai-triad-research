@@ -475,3 +475,34 @@ describe('mergeDiscoveredModels — attribute-preserving refresh (t/3551; guards
     );
   });
 });
+
+describe('mergeDiscoveredModels — ADDITIVE mode (t/3551 decision 2; drops nothing)', () => {
+  const probed = new Set(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'ollama']);
+  const existing = [
+    { id: 'claude-fable-5', apiModelId: 'claude-fable-5', label: 'Fable 5', backend: 'claude', minTimeoutMs: 300000 },
+    { id: 'gemini-2.5-pro', apiModelId: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', backend: 'gemini', picker: { order: 3 } },
+    { id: 'groq-old', apiModelId: 'old', label: 'Old', backend: 'groq' },
+  ] as unknown as ModelEntry[];
+  const discovered = [
+    { id: 'claude-fable-5', apiModelId: 'claude-fable-5', label: 'Fable 5 (live)', backend: 'claude' }, // already present
+    { id: 'claude-new-6',   apiModelId: 'claude-new-6',   label: 'New 6',          backend: 'claude' }, // NEW
+    { id: 'groq-new',       apiModelId: 'gnew',           label: 'GNew',           backend: 'groq' },   // NEW
+  ] as ModelEntry[];
+
+  const merged = mergeDiscoveredModels(existing, discovered, probed, true);
+  const byId = (id: string) => merged.find(m => m.id === id) as unknown as Record<string, unknown> | undefined;
+
+  it('adds only NEW discovered ids and drops NOTHING', () => {
+    expect(merged.map(m => m.id).sort()).toEqual(['claude-fable-5', 'claude-new-6', 'gemini-2.5-pro', 'groq-new', 'groq-old']);
+  });
+
+  it('every existing entry survives untouched — minTimeoutMs + picker kept, existing WINS (label not overwritten)', () => {
+    expect(byId('claude-fable-5')?.minTimeoutMs).toBe(300000);
+    expect(byId('claude-fable-5')?.label).toBe('Fable 5'); // additive does NOT replace existing — surface-only
+    expect(byId('gemini-2.5-pro')?.picker).toEqual({ order: 3 });
+  });
+
+  it('cannot drop a model → cannot dangle a default / empty a chain (guard-refusal class gone by construction)', () => {
+    for (const m of existing) expect(byId(m.id)).toBeDefined();
+  });
+});

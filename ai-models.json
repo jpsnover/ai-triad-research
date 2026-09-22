@@ -115,6 +115,16 @@
       }
     },
     {
+      "id": "xai-grok-4-7",
+      "apiModelId": "grok-4.7",
+      "label": "Grok 4.7",
+      "backend": "xai",
+      "picker": {
+        "label": "Grok 4.7",
+        "order": 5
+      }
+    },
+    {
       "id": "gemini-3.7-flash",
       "apiModelId": "gemini-3.7-flash",
       "label": "Gemini 3.7 Flash",
@@ -912,6 +922,32 @@
         "label": "Gemma 4 E4B (default)",
         "order": 10
       }
+    },
+    {
+      "id": "claude-opus-5-5",
+      "apiModelId": "claude-opus-5-5",
+      "label": "Claude Opus 5.5",
+      "backend": "claude",
+      "minTimeoutMs": 300000
+    },
+    {
+      "id": "claude-fable-5-1",
+      "apiModelId": "claude-fable-5-1",
+      "label": "Claude Fable 5.1",
+      "backend": "claude",
+      "minTimeoutMs": 300000
+    },
+    {
+      "id": "groq-qwen-qwen3.8-27b",
+      "apiModelId": "qwen/qwen3.8-27b",
+      "label": "Qwen/Qwen3.8 27b",
+      "backend": "groq"
+    },
+    {
+      "id": "deepseek-deepseek-flash",
+      "apiModelId": "deepseek-flash",
+      "label": "Deepseek Flash",
+      "backend": "deepseek"
     }
   ],
   "defaults": {
@@ -923,7 +959,7 @@
     "ollama": "ollama-gemma4-e4b-it-q4-k-m",
     "zai": "zai-glm-5-2",
     "moonshot": "moonshot-kimi-k3",
-    "xai": "xai-grok-4-6"
+    "xai": "xai-grok-4-7"
   },
   "fallbackChains": {
     "gemini-3.1-pro-preview": [
@@ -980,6 +1016,9 @@
       "groq-llama-3.3-70b-versatile"
     ],
     "xai-grok-4-6": [
+      "groq-llama-3.3-70b-versatile"
+    ],
+    "xai-grok-4-7": [
       "groq-llama-3.3-70b-versatile"
     ]
   },
@@ -1289,5 +1328,5 @@
       "cachedInputPer1M": 0.5
     }
   },
-  "lastRefreshed": "2026-08-13T16:58:37.846Z"
+  "lastRefreshed": "2026-09-22T21:08:31.752Z"
 }

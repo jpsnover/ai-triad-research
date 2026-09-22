@@ -14,6 +14,7 @@ export type AIModel =
   | 'zai-glm-5-2'
   | 'moonshot-kimi-k3'
   | 'xai-grok-4-6'
+  | 'xai-grok-4-7'
   | 'gemini-3.7-flash'
   | 'gemini-3.1-pro-preview'
   | 'gemini-3.5-flash-lite'
@@ -131,4 +132,8 @@ export type AIModel =
   | 'openai-gpt-3.5-turbo-16k'
   | 'deepseek-deepseek-v4-flash'
   | 'deepseek-deepseek-v4-pro'
-  | 'ollama-gemma4-e4b-it-q4-k-m';
+  | 'ollama-gemma4-e4b-it-q4-k-m'
+  | 'claude-opus-5-5'
+  | 'claude-fable-5-1'
+  | 'groq-qwen-qwen3.8-27b'
+  | 'deepseek-deepseek-flash';
