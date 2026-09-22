@@ -6,7 +6,7 @@ import path from 'path';
 import { POVER_INFO } from '../../types.js';
 import { formatVocabularyContext } from '../../vocabularyContext.js';
 import { getGlobalRecorder } from '../../../flight-recorder/index.js';
-import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints, DEFAULT_BRIEF_TIMEOUT_MS, type OpeningPipelineInput } from '../../turnPipeline.js';
+import { runOpeningPipelineWithRepair, assembleOpeningPipelineResult, type OpeningPipelineInput } from '../../turnPipeline.js';
 import { resolveModelForSpeaker } from '../modelResolution.js';
 import { accumulateContextManifest } from '../adaptiveStaging.js';
 import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContext } from '../taxonomyContext.js';
@@ -139,30 +139,13 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
     };
 
     let pipelineResult = await engine.executeWithModelFailover(poverId, async (model) => {
-      const input = { ...pipelineInput, model, briefTimeoutMs: pipelineInput.briefTimeoutMs ?? Math.max(DEFAULT_BRIEF_TIMEOUT_MS, engine.adapter.getModelMinTimeout(model)) };
-      let result = await runOpeningPipeline(
-        input,
+      return runOpeningPipelineWithRepair(
+        { ...pipelineInput, model },
         engine.stageGenerate.bind(engine),
         (_stage, label) => engine.progress('opening', poverId, label),
         onBriefEvent,
+        engine.adapter.getModelMinTimeout.bind(engine.adapter),
       );
-
-      const repairHints = getOpeningRepairHints(result);
-      if (repairHints.length > 0) {
-        engine.progress('opening', poverId, `${info.label} retrying (${repairHints.length} issue${repairHints.length > 1 ? 's' : ''})`);
-        try {
-          result = await runOpeningPipeline(
-            { ...input, repairHints },
-            engine.stageGenerate.bind(engine),
-            (_stage, label) => engine.progress('opening', poverId, label),
-            onBriefEvent,
-          );
-        } catch (err) {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: 'Opening retry failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-          engine.warn('Opening retry', err, 'Using first attempt');
-        }
-      }
-      return result;
     });
 
     const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, engine.getKnownNodeIds());
