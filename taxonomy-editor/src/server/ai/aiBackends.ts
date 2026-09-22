@@ -129,8 +129,9 @@ export interface GenerateTextProgress {
 let _modelEntryCache: Record<string, ModelEntry> | null = null;
 let _fallbackChainCache: Record<string, string[]> | null = null;
 let _defaultsCache: Record<string, string> | null = null;
+let _debateTiersCache: Record<string, Record<string, string>> | null = null;
 let _modelConfigMtime = 0;
-function loadModelConfig(): { entryMap: Record<string, ModelEntry>; fallbackChains: Record<string, string[]>; defaults: Record<string, string> } {
+function loadModelConfig(): { entryMap: Record<string, ModelEntry>; fallbackChains: Record<string, string[]>; defaults: Record<string, string>; debateTiers: Record<string, Record<string, string>> } {
   try {
     const configPath = path.join(getProjectRoot(), 'ai-models.json');
     const { content: raw, mtimeMs } = readFileWithMtime(configPath, _modelEntryCache ? _modelConfigMtime : undefined);
@@ -139,6 +140,7 @@ function loadModelConfig(): { entryMap: Record<string, ModelEntry>; fallbackChai
       _modelEntryCache = buildModelEntryMap(registry);
       _fallbackChainCache = registry.fallbackChains ?? {};
       _defaultsCache = registry.defaults ?? {};
+      _debateTiersCache = (registry.debateTiers ?? {}) as Record<string, Record<string, string>>;
       _modelConfigMtime = mtimeMs;
       log.api.debug({ models: Object.keys(_modelEntryCache!).length, chains: Object.keys(_fallbackChainCache!).length }, 'Reloaded model config');
     }
@@ -154,8 +156,17 @@ function loadModelConfig(): { entryMap: Record<string, ModelEntry>; fallbackChai
     if (!_modelEntryCache) _modelEntryCache = {};
     if (!_fallbackChainCache) _fallbackChainCache = {};
     if (!_defaultsCache) _defaultsCache = {};
+    if (!_debateTiersCache) _debateTiersCache = {};
   }
-  return { entryMap: _modelEntryCache!, fallbackChains: _fallbackChainCache!, defaults: _defaultsCache! };
+  return { entryMap: _modelEntryCache!, fallbackChains: _fallbackChainCache!, defaults: _defaultsCache!, debateTiers: _debateTiersCache! };
+}
+
+/** t/3563: the friendly model id designated for a debate tier + backend in ai-models.json
+ *  (e.g. debateTiers.basic.gemini). Single source of truth for "the current, cheap, fast model
+ *  for this backend" — used by the key-probe so a model retirement is a registry edit, not a
+ *  hand-maintained literal. Returns undefined if the registry lacks the tier/backend entry. */
+export function resolveDebateTierModel(tier: string, backend: string): string | undefined {
+  return loadModelConfig().debateTiers[tier]?.[backend];
 }
 
 function loadModelMap(): Record<string, string> {
