@@ -75,25 +75,50 @@ BeforeAll {
     # compound key like `ModelUnavailable = '...'` from matching (its value isn't an id).
     $script:ProdModelPattern = '(?:-[A-Za-z]*[Mm]odel[A-Za-z]*(?::|\s+)|\$[A-Za-z]*[Mm]odel[A-Za-z]*\s*=\s*|(?<![\w$-])[Mm]odel\s*=\s*)([''"])([^''"]+)\1'
 
-    # Collect (file, line, id) for a scope. $Exclusions drops non-literal / non-single-id
-    # values so the vacuous-lint guard counts only real literals.
+    # ── Pure predicate (t/3565, Guard Testability t/2971) ───────────────────────
+    # The offender resolution is factored into PURE functions that operate on
+    # in-memory lines/records (no file IO), so the blocking arm's exact logic is
+    # exercised by direct both-arms unit tests below EVEN while the toggle is $false.
+    # Without this, flipping $ProductionModelLintBlocking would run the blocking
+    # assertion on main for the first time ever (t/2971 clean-arm-never-exercised class).
+
+    # Pure: parse in-memory lines -> literal records. Skips marked lines and (when
+    # -Exclusions) drops non-literal / non-single-id values. No file IO.
+    function script:Get-ModelLiteralsFromLines {
+        param([string[]]$Lines, [string]$Pattern, [switch]$Exclusions, [string]$FileName = '(memory)')
+        $out = [System.Collections.Generic.List[object]]::new()
+        $lineNo = 0
+        foreach ($line in $Lines) {
+            $lineNo++
+            if ($line.Contains($script:SuppressMarker)) { continue }
+            foreach ($match in [regex]::Matches($line, $Pattern)) {
+                $id = $match.Groups[2].Value
+                if ($Exclusions) {
+                    if ([string]::IsNullOrWhiteSpace($id)) { continue }  # runtime-resolved default
+                    if ($id.Contains('$'))                 { continue }  # interpolation, not a literal
+                    if ($id.Contains(','))                 { continue }  # alias CSV, not a single id
+                }
+                $out.Add([PSCustomObject]@{ File = $FileName; Line = $lineNo; Id = $id })
+            }
+        }
+        $out
+    }
+
+    # Pure: offenders = literal records whose Id is not in the registered set. This is
+    # the exact predicate the blocking assertion checks; tested directly below.
+    function script:Get-ModelLintOffenders {
+        param([object[]]$Literals, [string[]]$ValidIds)
+        @($Literals | Where-Object { $_.Id -notin $ValidIds })
+    }
+
+    # Impure shell: read each file's lines and delegate to the pure parser above.
     function script:Get-ModelLiterals {
         param([string]$Path, [string]$Pattern, [switch]$Exclusions)
         $out = [System.Collections.Generic.List[object]]::new()
         foreach ($file in Get-ChildItem -Path $Path -File -Recurse -Include '*.ps1', '*.psm1') {
-            $lineNo = 0
-            foreach ($line in [System.IO.File]::ReadAllLines($file.FullName)) {
-                $lineNo++
-                if ($line.Contains($script:SuppressMarker)) { continue }
-                foreach ($match in [regex]::Matches($line, $Pattern)) {
-                    $id = $match.Groups[2].Value
-                    if ($Exclusions) {
-                        if ([string]::IsNullOrWhiteSpace($id)) { continue }  # runtime-resolved default
-                        if ($id.Contains('$'))                 { continue }  # interpolation, not a literal
-                        if ($id.Contains(','))                 { continue }  # alias CSV, not a single id
-                    }
-                    $out.Add([PSCustomObject]@{ File = $file.Name; Line = $lineNo; Id = $id })
-                }
+            $lines = [System.IO.File]::ReadAllLines($file.FullName)
+            foreach ($rec in (script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $Pattern -Exclusions:$Exclusions -FileName $file.Name)) {
+                $out.Add($rec)
             }
         }
         $out
@@ -128,13 +153,13 @@ Describe 'Model-id literals resolve to registered models' -Tag 'config' {
     }
 
     It 'every -Model literal in tests/ names a model registered in ai-models.json' {
-        $offenders = @($script:ModelLiterals | Where-Object { $_.Id -notin $script:ValidIds })
+        $offenders = @(script:Get-ModelLintOffenders -Literals $script:ModelLiterals -ValidIds $script:ValidIds)
         $report = ($offenders | ForEach-Object { "$($_.File):$($_.Line) names unregistered id '$($_.Id)'" }) -join "`n"
         $offenders.Count | Should -Be 0 -Because "test fixtures must mock only registered models. Fix each: register the id in ai-models.json, repoint to a valid id, or (if the id is intentionally invalid) append a model-lint:allow marker comment on that line.`n$report"
     }
 
     It 'every production model-id literal names a registered model (WARN-only — t/3560)' {
-        $offenders = @($script:ProdLiterals | Where-Object { $_.Id -notin $script:ValidIds })
+        $offenders = @(script:Get-ModelLintOffenders -Literals $script:ProdLiterals -ValidIds $script:ValidIds)
         $report = ($offenders | ForEach-Object { "$($_.File):$($_.Line) names unregistered id '$($_.Id)'" }) -join "`n"
         $remedy = "register the id in ai-models.json, repoint to a registered id, or append '$($script:SuppressMarker) <reason>' on that line (raw provider ids / embedding / reranker / TTS models are legitimate pins)."
 
@@ -149,5 +174,64 @@ Describe 'Model-id literals resolve to registered models' -Tag 'config' {
             }
             @($script:ProdLiterals).Count | Should -BeGreaterThan 0
         }
+    }
+}
+
+Describe 'Offender-resolution predicate — direct both-arms tests (t/3565, Guard Testability t/2971)' -Tag 'config' {
+    # Exercise the SAME pure functions the WARN/blocking arms use, on seeded in-memory
+    # input, so the blocking assertion's logic runs in CI today (toggle $false) rather
+    # than for the first time on main the moment the TL flips it. Uses a stand-in
+    # registered set so the test is independent of ai-models.json churn.
+
+    BeforeAll { $script:FakeValid = @('gemini-3.5-flash-lite', 'claude-sonnet-4-6') }
+
+    It 'BLOCKING ARM: an unregistered, unmarked literal is reported as an offender (file:line:id)' {
+        $lines = @("        `$ScreenModel = 'retired-model-999'")
+        $lits  = @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions -FileName 'Seed.ps1')
+        $off   = @(script:Get-ModelLintOffenders -Literals $lits -ValidIds $script:FakeValid)
+        $off.Count   | Should -Be 1
+        $off[0].Id   | Should -Be 'retired-model-999'
+        $off[0].Line | Should -Be 1
+        $off[0].File | Should -Be 'Seed.ps1'
+    }
+
+    It 'PASS ARM: a registered literal reports no offender' {
+        $lines = @("        [string]`$Model = 'gemini-3.5-flash-lite'")
+        $lits  = @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions)
+        @(script:Get-ModelLintOffenders -Literals $lits -ValidIds $script:FakeValid).Count | Should -Be 0
+    }
+
+    It 'PASS ARM: an unregistered literal carrying the marker is not collected (marker filter)' {
+        $lines = @("        model = 'retired-model-999'  $($script:SuppressMarker) intentional pin")
+        $lits  = @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions)
+        $lits.Count | Should -Be 0
+        @(script:Get-ModelLintOffenders -Literals $lits -ValidIds $script:FakeValid).Count | Should -Be 0
+    }
+
+    It 'EXCLUSIONS: interpolation ($), alias CSV (,), and empty values are not literals' {
+        $lines = @(
+            "        Write-Verbose `"model='`$Model'`"",   # $ interpolation
+            "        `$Models = 'haiku,gemini'",           # , alias CSV
+            "        [string]`$Model = ''"                 # empty (runtime default)
+        )
+        @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions).Count | Should -Be 0
+    }
+
+    It 'END-TO-END: mixed input yields exactly the unregistered, unmarked, real literals' {
+        $lines = @(
+            "        `$ScreenModel = 'retired-a'",                                 # offender
+            "        Find-Thing -Model 'retired-b'",                               # model-lint:allow test-fixture literal (offender, dash param), not a real pin
+            "        [string]`$Model = 'gemini-3.5-flash-lite'",                   # registered -> not an offender
+            "        model = 'retired-c'  $($script:SuppressMarker) pinned",       # marked -> excluded
+            "        `$Models = 'a,b'"                                             # CSV -> excluded
+        )
+        $lits = @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions)
+        $off  = @(script:Get-ModelLintOffenders -Literals $lits -ValidIds $script:FakeValid)
+        @($off.Id) | Should -Be @('retired-a', 'retired-b')
+    }
+
+    It 'the seeded scan itself is non-vacuous (a broken pattern would surface here too)' {
+        $lines = @("        -Model 'anything-at-all'")  # model-lint:allow test-fixture literal, not a real pin
+        @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions).Count | Should -BeGreaterThan 0
     }
 }
