@@ -339,6 +339,48 @@ export function getOpeningRepairHints(result: OpeningPipelineResult): string[] {
   return hints;
 }
 
+/**
+ * Run the opening pipeline with the brief-timeout floor applied and one
+ * repair-retry on validation failures (t/3521). Single source of truth for
+ * both the engine and renderer paths — a config change here applies everywhere.
+ *
+ * @param getMinTimeout Optional per-model minimum timeout (e.g. from the AI
+ *   registry). Used to compute the floor: Math.max(DEFAULT_BRIEF_TIMEOUT_MS,
+ *   getMinTimeout(model)). Callers that have no registry may omit it.
+ */
+export async function runOpeningPipelineWithRepair(
+  input: OpeningPipelineInput,
+  generate: StageGenerateFn,
+  onProgress?: StageProgressFn,
+  onBriefEvent?: BriefEventFn,
+  getMinTimeout?: (model: string) => number,
+): Promise<OpeningPipelineResult> {
+  const briefModel = input.briefModel ?? input.model;
+  const floored: OpeningPipelineInput = {
+    ...input,
+    briefTimeoutMs: input.briefTimeoutMs ?? Math.max(DEFAULT_BRIEF_TIMEOUT_MS, getMinTimeout?.(briefModel) ?? 0),
+  };
+
+  let result = await runOpeningPipeline(floored, generate, onProgress, onBriefEvent);
+
+  const repairHints = getOpeningRepairHints(result);
+  if (repairHints.length > 0) {
+    const issueCount = repairHints.length;
+    onProgress?.('repair', `${input.label} retrying (${issueCount} issue${issueCount > 1 ? 's' : ''})`);
+    try {
+      result = await runOpeningPipeline({ ...floored, repairHints }, generate, onProgress, onBriefEvent);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'turn-pipeline', level: 'warn',
+        message: 'Opening repair retry failed — using first attempt result',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
+  }
+
+  return result;
+}
+
 export function assembleOpeningPipelineResult(
   result: OpeningPipelineResult,
   validNodeIds?: Set<string>,
