@@ -42,6 +42,16 @@ const VOCAB_FENCE_START = /^###\s*CONTROLLED VOCABULARY\b/;
 const VOCAB_FENCE_END = /^###\s*END CONTROLLED VOCABULARY\b/;
 
 /**
+ * True iff `source` carries a CONTROLLED VOCABULARY fence START marker (t/3550). Fence PRESENCE is
+ * distinct from parse-success (extractPromptVocab returns empty attributes for both a fence-less
+ * prompt AND a fenced-but-empty one) — the prompt-writer guard needs the presence signal to tell a
+ * fenced writer from an un-fenced one.
+ */
+export function hasVocabFence(source: string): boolean {
+  return source.split(/\r?\n/).some((raw) => VOCAB_FENCE_START.test(raw.trim()));
+}
+
+/**
  * Extract the controlled-vocab value-sets a prompt carries in its machine-readable block (t/3455,
  * SO cond 3, t/3447#5). `source` is the raw prompt text (the template string, or the file read as
  * text); `sourceLabel` is echoed into every Finding (e.g. 'prompt:analysis.ts'). This parses ONLY the
