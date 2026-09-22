@@ -4,11 +4,11 @@
 // t/2907 — slot-first opening lifecycle. A speaker's opening is a SINGLE transcript
 // card that mutates generating→retrying→done/error in place, instead of appending a
 // new card + a `type:'system'` retry toast per attempt. Harness FIRST so its hoisted
-// mocks (runOpeningPipeline, assembleOpeningPipelineResult, …) register before the store.
+// mocks (runOpeningPipelineWithRepair, assembleOpeningPipelineResult, …) register before the store.
 import { describe, it, expect, vi } from 'vitest';
 import { makeSession } from './storeTestHarness';
 import { useDebateStore } from '../../useDebateStore';
-import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints } from '@lib/debate/turnPipeline';
+import { runOpeningPipelineWithRepair, assembleOpeningPipelineResult, getOpeningRepairHints } from '@lib/debate/turnPipeline';
 
 type Entry = { id: string; type: string; speaker: string; content: string; status?: string; errorMessage?: string };
 function transcript(): Entry[] {
@@ -68,7 +68,7 @@ describe('runOpeningStatements slot-first integration (t/2907)', () => {
   const LONG = 'This is a sufficiently long opening statement that clears the 50-character minimum guard.';
 
   it('success completes ONE opening slot to status:done with content, no system toast', async () => {
-    vi.mocked(runOpeningPipeline).mockResolvedValue({ stage_diagnostics: [], total_time_ms: 1, draft: {}, topicAlignmentResult: null, qualityGateResult: null } as never);
+    vi.mocked(runOpeningPipelineWithRepair).mockResolvedValue({ stage_diagnostics: [], total_time_ms: 1, draft: {}, topicAlignmentResult: null, qualityGateResult: null } as never);
     vi.mocked(getOpeningRepairHints).mockReturnValue([]);
     vi.mocked(assembleOpeningPipelineResult).mockReturnValue({ statement: LONG, taxonomyRefs: [], meta: { policy_refs: [] } } as never);
     setActive(makeSession({ active_povers: ['skeptic'], phase: 'opening' }));
@@ -86,7 +86,7 @@ describe('runOpeningStatements slot-first integration (t/2907)', () => {
   it('a non-retryable failure settles the speaker slot to status:error inline — no new card, no system toast', async () => {
     vi.mocked(getOpeningRepairHints).mockReturnValue([]);
     // A plain 400 is classified non-retryable → the pass ends without a backoff retry.
-    vi.mocked(runOpeningPipeline).mockRejectedValue(Object.assign(new Error('HTTP 400 Bad Request'), { httpStatus: 400 }));
+    vi.mocked(runOpeningPipelineWithRepair).mockRejectedValue(Object.assign(new Error('HTTP 400 Bad Request'), { httpStatus: 400 }));
     setActive(makeSession({ active_povers: ['skeptic'], phase: 'opening' }));
 
     await useDebateStore.getState().runOpeningStatements();

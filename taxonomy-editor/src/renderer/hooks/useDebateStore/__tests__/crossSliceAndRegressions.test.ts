@@ -7,7 +7,7 @@
 // under the ADR-007 2000-LOC test budget (t/1690, epic t/1681). The shared mock
 // harness lives in ./storeTestHarness and is imported FIRST so its hoisted mocks
 // register before the store import below resolves. Blocks moved verbatim — no
-// coverage change. (runOpeningPipeline/assembleOpeningPipelineResult are pulled in
+// coverage change. (runOpeningPipelineWithRepair/assembleOpeningPipelineResult are pulled in
 // via inline await import() inside their test bodies, as in the original.)
 import { describe, it, expect, vi } from 'vitest';
 import { mockApi, mockPromptConfigState, makeSession } from './storeTestHarness';
@@ -334,9 +334,9 @@ describe('Lookahead WEAK claim filtering (t/459)', () => {
 
 describe('runOpeningStatements — failure halts flow (t/920)', () => {
   it('does not advance to debate phase when opening pipeline throws a fatal error', async () => {
-    const { runOpeningPipeline } = await import('@lib/debate/turnPipeline');
+    const { runOpeningPipelineWithRepair } = await import('@lib/debate/turnPipeline');
     const fatalError = Object.assign(new Error('Internal server error'), { httpStatus: 500 });
-    vi.mocked(runOpeningPipeline).mockRejectedValue(fatalError);
+    vi.mocked(runOpeningPipelineWithRepair).mockRejectedValue(fatalError);
 
     const session = makeSession({
       phase: 'opening',
@@ -353,12 +353,12 @@ describe('runOpeningStatements — failure halts flow (t/920)', () => {
     expect(state.debateError).toMatch(/Opening statements failed/);
     expect(state.debateGenerating).toBeNull();
 
-    vi.mocked(runOpeningPipeline).mockResolvedValue({});
+    vi.mocked(runOpeningPipelineWithRepair).mockResolvedValue({});
   });
 
   it('sets debateError with speaker names on partial failure', async () => {
-    const { runOpeningPipeline, assembleOpeningPipelineResult } = await import('@lib/debate/turnPipeline');
-    vi.mocked(runOpeningPipeline)
+    const { runOpeningPipelineWithRepair, assembleOpeningPipelineResult } = await import('@lib/debate/turnPipeline');
+    vi.mocked(runOpeningPipelineWithRepair)
       .mockResolvedValueOnce({ stage_diagnostics: [] })
       .mockRejectedValueOnce(Object.assign(new Error('Server error'), { httpStatus: 500 }));
     vi.mocked(assembleOpeningPipelineResult).mockReturnValueOnce({
@@ -381,17 +381,17 @@ describe('runOpeningStatements — failure halts flow (t/920)', () => {
     expect(state.debateError).toMatch(/Safetyist/);
     expect(state.debateGenerating).toBeNull();
 
-    vi.mocked(runOpeningPipeline).mockResolvedValue({});
+    vi.mocked(runOpeningPipelineWithRepair).mockResolvedValue({});
     vi.mocked(assembleOpeningPipelineResult).mockReturnValue({});
   });
 
   it('retries once on 429 rate-limit errors before halting', async () => {
-    const { runOpeningPipeline } = await import('@lib/debate/turnPipeline');
+    const { runOpeningPipelineWithRepair } = await import('@lib/debate/turnPipeline');
     const rateLimitError = Object.assign(
       new Error('Rate limit exceeded. Retry in 1s.'),
       { httpStatus: 429 },
     );
-    vi.mocked(runOpeningPipeline).mockRejectedValue(rateLimitError);
+    vi.mocked(runOpeningPipelineWithRepair).mockRejectedValue(rateLimitError);
 
     const session = makeSession({
       phase: 'opening',
@@ -403,19 +403,19 @@ describe('runOpeningStatements — failure halts flow (t/920)', () => {
     await useDebateStore.getState().runOpeningStatements();
 
     // Pipeline was called twice: initial attempt + one retry
-    expect(vi.mocked(runOpeningPipeline).mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(vi.mocked(runOpeningPipelineWithRepair).mock.calls.length).toBeGreaterThanOrEqual(2);
     const state = useDebateStore.getState();
     expect(state.activeDebate?.phase).toBe('opening');
     expect(state.debateError).toBeTruthy();
 
-    vi.mocked(runOpeningPipeline).mockResolvedValue({});
+    vi.mocked(runOpeningPipelineWithRepair).mockResolvedValue({});
   });
 
   it('auto-retries on a transient TIMEOUT (no httpStatus), not just 429 (t/2492)', async () => {
-    const { runOpeningPipeline } = await import('@lib/debate/turnPipeline');
+    const { runOpeningPipelineWithRepair } = await import('@lib/debate/turnPipeline');
     // The PI case: a ~3-min timeout with no httpStatus. Pre-fix this got 1 attempt + manual banner.
     const timeoutError = Object.assign(new Error('Request timed out after 180s'), { name: 'AbortError' });
-    vi.mocked(runOpeningPipeline).mockRejectedValue(timeoutError);
+    vi.mocked(runOpeningPipelineWithRepair).mockRejectedValue(timeoutError);
 
     const session = makeSession({
       phase: 'opening',
@@ -435,21 +435,21 @@ describe('runOpeningStatements — failure halts flow (t/920)', () => {
     }
 
     // Auto-retry engaged (initial + at least one retry) — the honest banner appears only after the cap.
-    expect(vi.mocked(runOpeningPipeline).mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(vi.mocked(runOpeningPipelineWithRepair).mock.calls.length).toBeGreaterThanOrEqual(2);
     const state = useDebateStore.getState();
     expect(state.debateError).toBeTruthy();
     expect(state.debateGenerating).toBeNull();
 
-    vi.mocked(runOpeningPipeline).mockResolvedValue({});
+    vi.mocked(runOpeningPipelineWithRepair).mockResolvedValue({});
   });
 
   it('does NOT retry a daily-limit error — immediate pause banner (t/2492)', async () => {
-    const { runOpeningPipeline } = await import('@lib/debate/turnPipeline');
+    const { runOpeningPipelineWithRepair } = await import('@lib/debate/turnPipeline');
     const dailyLimitError = Object.assign(
       new Error('Daily AI usage limit reached'),
       { httpStatus: 429, limitType: 'tokens_per_day' },
     );
-    vi.mocked(runOpeningPipeline).mockRejectedValue(dailyLimitError);
+    vi.mocked(runOpeningPipelineWithRepair).mockRejectedValue(dailyLimitError);
 
     const session = makeSession({
       phase: 'opening',
@@ -461,12 +461,12 @@ describe('runOpeningStatements — failure halts flow (t/920)', () => {
     await useDebateStore.getState().runOpeningStatements();
 
     // Exactly one attempt — daily-limit halts immediately, no auto-retry.
-    expect(vi.mocked(runOpeningPipeline).mock.calls.length).toBe(1);
+    expect(vi.mocked(runOpeningPipelineWithRepair).mock.calls.length).toBe(1);
     const state = useDebateStore.getState();
     expect(state.dailyLimitPaused).toBe(true);
     expect(state.debateError).toMatch(/Daily/i);
 
-    vi.mocked(runOpeningPipeline).mockResolvedValue({});
+    vi.mocked(runOpeningPipelineWithRepair).mockResolvedValue({});
   });
 });
 

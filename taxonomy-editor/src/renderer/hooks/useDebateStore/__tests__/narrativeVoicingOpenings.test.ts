@@ -6,7 +6,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { makeSession, mockApi } from './storeTestHarness';
 import { useDebateStore } from '../../useDebateStore';
-import { runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints } from '@lib/debate/turnPipeline';
+import { runOpeningPipelineWithRepair, assembleOpeningPipelineResult, getOpeningRepairHints } from '@lib/debate/turnPipeline';
 import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
 import type { NarrativeVoicing } from '@lib/debate/types';
 
@@ -33,7 +33,7 @@ function arrange(): void {
   mockApi.computeEmbeddings.mockImplementation(async (texts: string[]) =>
     ({ vectors: texts.map(() => [1, 0]) }));
   vi.mocked(getOpeningRepairHints).mockReturnValue([]);
-  vi.mocked(runOpeningPipeline).mockImplementation(async (input: OpeningPipelineInput) => ({
+  vi.mocked(runOpeningPipelineWithRepair).mockImplementation(async (input: OpeningPipelineInput) => ({
     stage_diagnostics: [], total_time_ms: 1, topicAlignmentResult: null, qualityGateResult: null,
     draft: input.pov === 'skeptic'
       ? { narrative_check: { verdict: 'amend', amendment: 'We also remember the last hype cycle.' } }
@@ -61,7 +61,7 @@ describe('runOpeningStatements with narrative voicing (h3)', () => {
     expect(voicingIdx).toBeLessThan(firstOpeningIdx);
     expect(voicing()?.entry_id).toBe(transcript[voicingIdx].id);
 
-    const inputs = vi.mocked(runOpeningPipeline).mock.calls.map(c => c[0]);
+    const inputs = vi.mocked(runOpeningPipelineWithRepair).mock.calls.map(c => c[0]);
     expect(inputs.find(i => i.pov === 'skeptic')?.narrativeVoicing).toContain('YOUR camp (Skeptic)');
     expect(inputs.find(i => i.pov === 'safetyist')?.narrativeVoicing).toContain('YOUR camp (Safetyist)');
   });
@@ -93,7 +93,7 @@ describe('runOpeningStatements with narrative voicing (h3)', () => {
     expect(mockApi.generateText.mock.calls.some(c => c[0] === 'mock-narrative-voicing-prompt')).toBe(false);
     expect(useDebateStore.getState().activeDebate!.transcript.some(e => e.speaker === 'moderator')).toBe(false);
     expect(voicing()).toBeUndefined();
-    expect(vi.mocked(runOpeningPipeline).mock.calls.every(c => c[0].narrativeVoicing === undefined)).toBe(true);
+    expect(vi.mocked(runOpeningPipelineWithRepair).mock.calls.every(c => c[0].narrativeVoicing === undefined)).toBe(true);
   });
 
   it('an unusable voicing response still lets the openings run', async () => {

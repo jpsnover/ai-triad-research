@@ -247,6 +247,10 @@ vi.mock('@lib/debate/turnPipeline', () => ({
   runTurnPipeline: vi.fn().mockResolvedValue({}),
   assemblePipelineResult: vi.fn().mockReturnValue({}),
   runOpeningPipeline: vi.fn().mockResolvedValue({}),
+  // t/3521: clarificationSlice.ts now calls this instead of runOpeningPipeline directly —
+  // the floor + repair-retry sequence moved into lib/debate/turnPipeline/opening.ts, single
+  // source of truth shared with the engine path.
+  runOpeningPipelineWithRepair: vi.fn().mockResolvedValue({}),
   assembleOpeningPipelineResult: vi.fn().mockReturnValue({}),
   getOpeningRepairHints: vi.fn().mockReturnValue([]),
   // t/3518 Phase 2: openingBriefTimeoutFloor is retired — clarificationSlice.ts now computes
