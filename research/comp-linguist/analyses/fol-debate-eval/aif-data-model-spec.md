@@ -16,9 +16,13 @@ A minimal AIF subset. Each object is a JSON record keyed by a controlled `type`.
 
 **I-node (information / claim):**
 ```
-{ "id": string, "type": "claim", "speaker": "accelerationist"|"safetyist"|"skeptic", "text": string, "held": boolean }
+{ "id": string, "type": "claim", "speaker": SpeakerId, "turn": number, "text": string, "held": boolean }
 ```
-`held` = the `retained_hold` move (the speaker reasserts this claim despite an incoming attack). Empirically reliable: exact inter-annotator agreement in the t/3587 pilot.
+`speaker` is the `SpeakerId` union from `lib/debate/types/phase.ts`: `"accelerationist"|"safetyist"|"skeptic"|"user"`. `user` is included deliberately: a user-participated debate has user turns that can be attacked or conceded, so they must be able to become I-nodes. (`cc` is a taxonomy POV camp, not a debate speaker, and is correctly absent.)
+
+`turn` is the claim's 0-based position in the debate's immutable transcript. It is the single carrier of temporal order: every time-dependent metric (concession accumulation, retained-hold reduction, and whether a CA-node is *sustained across rounds*) derives from comparing `turn` values. The reference is stable because the transcript is immutable, and it stays in-memory only. Without it the graph could not express the change-over-time its metrics measure: for example, `held` on a single I-node cannot distinguish a claim held in round two then conceded in round five, but the concession's own I-node carries the later `turn`.
+
+`held` = the `retained_hold` move (the speaker reasserts this claim despite an incoming attack). Applied consistently on the instances present in the t/3587 pilot (2 positive instances, N=10 turns, 1 session); reliability not yet estimated, pending the sized run and B1.5 human adjudication.
 
 **CA-node (conflict / attack):**
 ```
@@ -30,7 +34,7 @@ A cross-agent attack: the `attacker` I-node conflicts with the `target` I-node. 
 ```
 { "id": string, "type": "support", "from": I-id, "to": I-id, "concession": boolean }
 ```
-`concession` = the `concession` move (`from` grants `to`, an opponent's I-node). Empirically reliable: exact inter-annotator agreement in the pilot.
+`concession` = the `concession` move (`from` grants `to`, an opponent's I-node). Applied consistently on the instances present in the t/3587 pilot (2 positive instances, N=10 turns, 1 session); reliability not yet estimated, pending the sized run and B1.5 human adjudication. A **non-concession** RA-node (`concession: false`) is a support/inference edge derived structurally from discourse relations, one I-node grounding or providing a reason for another, not from an annotated move; it is produced by B3's edge emission, not by the gold-set annotation.
 
 **Graph container:**
 ```
@@ -41,14 +45,15 @@ A cross-agent attack: the `attacker` I-node conflicts with the `target` I-node. 
 
 ## 3. Field provenance: every field maps to a validated move
 
-| Field | Move | Validation (t/3587) |
+| Field | Move | Basis |
 |---|---|---|
-| `I-node.held` | retained_hold | exact inter-annotator agreement (pilot) |
-| `RA-node.concession` | concession | exact inter-annotator agreement (pilot) |
-| `CA-node` (attacker/target) | cross-agent conflict | reuses the t/3302 semantic-opposition classifier (via B3) |
-| `RA-node` (from/to) | support / grounding | structural |
+| `I-node.held` | retained_hold | Annotation, t/3587 pilot: applied consistently on 2 positive instances, N=10 turns, 1 session. Reliability not yet estimated, pending the sized run + B1.5. |
+| `RA-node.concession` | concession | Annotation, t/3587 pilot: applied consistently on 2 positive instances, N=10 turns, 1 session. Reliability not yet estimated, pending the sized run + B1.5. |
+| `CA-node` (attacker/target) | cross-agent conflict | Classifier: reuses the t/3302 semantic-opposition classifier (via B3). |
+| `RA-node` (from/to) | support / grounding | Structural-by-construction, not empirically validated: derived from discourse relations by B3, not from an annotated move. |
+| `I-node.turn` | transcript position | Structural-by-construction: the claim's 0-based index in the immutable transcript. |
 
-No field encodes an unvalidated interpretive judgment. That is the core discipline: the schema is exactly as large as the evidence supports, and no larger.
+The rows differ in kind, and the table now says so: two are annotation-backed (with counts, and explicitly not yet reliability-estimated), one is classifier-backed, and two are structural-by-construction. No field encodes an unvalidated *interpretive* judgment. That is the core discipline: the schema is exactly as large as the evidence supports, and no larger.
 
 ## 4. Deliberately omitted (with rationale)
 
@@ -73,7 +78,7 @@ Additive only. New node types, edge types, or fields (a future `condition` or `s
 ## 7. Consumers and the build seam
 
 - **B3 (t/3591):** emits conflict/support edges. Its detection logic (t/3302 reuse, attribution/coref, paraphrase handling, false-negative measurement) is independent of this shape and builds behind a seam; the shape is applied at the boundary (the t/3578 `runInquiryPipeline` pattern) once this spec clears SO.
-- **B5 (t/3588):** crux = a sustained cross-agent CA-node; `convergence_score` re-specified on the two reliable signals (concession accumulation via `RA.concession`, retained-hold reduction via `I-node.held`); `crux_addressed_rate` unchanged (aggregate). Eval = residual paraphrase false-negative rate, not raw crux counts.
+- **B5 (t/3588):** crux = a cross-agent CA-node sustained across rounds (its attacker/target `turn` values span more than one round); `convergence_score` re-specified on the two reliable signals (concession accumulation via `RA.concession`, retained-hold reduction via `I-node.held`), both ordered by `I-node.turn`; `crux_addressed_rate` unchanged (aggregate). Eval = residual paraphrase false-negative rate, not raw crux counts.
 - **B4b (t/3590):** implements these shapes in `lib/debate/aif/`, in-memory, once SO clears.
 
 ## 8. Claims scope (SO point 6)
