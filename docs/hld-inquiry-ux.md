@@ -50,6 +50,13 @@ with a job id, the client polls. That pattern already exists in this codebase at
 progress percentage, and durable persistence. The inquiry runner mirrors it rather than
 inventing a second job model.
 
+**Each build runs its own job store, and they share one pipeline.** Electron does not call the
+server. `briefExportHandlers.ts` keeps a local `Map` and imports nothing from
+`server/briefExportJobs.ts`; what the two share is `runBriefPipeline`. The inquiry feature copies
+that split exactly. Two thin job stores, one `runInquiryPipeline` orchestrator, because the
+bookkeeping is legitimately per-host while the stage sequencing must never exist twice — two
+copies would drift between desktop and web.
+
 **The pilot's own run was censored.** It terminated on `api_ceiling`, having run out of budget
 mid-argument. Under the t/1671 censoring gate, convergence-family metrics from a truncated run
 are a data confound, not a result. A feature that renders `convergence_score: 0.649` without
@@ -183,9 +190,9 @@ directly:
 | Area | Files | Owner |
 |---|---|---|
 | **Contract + parser** | `lib/inquiry/` | **Shared Lib** |
-| Fidelity, trust, grounding, synthesis | `lib/debate/inquiry*.ts`, `calibrationLogger/` | DebateTool |
-| Job runner, REST routes | `server/inquiryJobs.ts`, `server/routes/inquiry.ts` | ServerAPI |
-| IPC + preload | `main/ipc/`, `main/preload.ts` | ElectronMain |
+| Fidelity, trust, grounding, synthesis, **orchestrator** | `lib/debate/inquiry*.ts`, `calibrationLogger/` | DebateTool |
+| Web job store + REST routes | `server/inquiryJobs.ts`, `server/routes/inquiry.ts` | ServerAPI |
+| **Electron job store** + IPC + preload | `main/ipc/`, `main/preload.ts` | ElectronMain |
 | Bridge + UI | `renderer/bridge/*`, `renderer/components/inquiry/` | Rosetta Stone |
 | Hosted verification | deploy smoke | DevOps Lead |
 
@@ -199,20 +206,29 @@ cleanup is a separate t/3564 follow-up.
 ## Ticket DAG
 
 ```
-T0 contract + ADR (TL) ──┬─→ T1 fidelity derivation (DebateTool)
-                         ├─→ T2 trust projection (DebateTool)
-                         ├─→ T3 grounding envelope (DebateTool)
-                         ├─→ T5 job runner (ServerAPI) ─→ T6 REST routes (ServerAPI) ─┐
-                         └─→ T7 IPC + preload (ElectronMain) ───────────────────────┐ │
-                                                                                    ▼ ▼
-              T2, T3 ─→ T4 synthesis (DebateTool) ─────────────→ T8 bridge (Rosetta Stone)
-                                                                          │
-                                       T4, T8 ─→ T9 Ask UI + result page (Rosetta Stone)
-                                                                          │
-                                              T9 ─→ T10 hosted smoke (DevOps Lead)
+t/3574 contract (Shared Lib) ─┬─→ t/3575 fidelity derivation ─┐
+                              ├─→ t/3576 trust projection ────┤   (DebateTool)
+                              ├─→ t/3577 grounding envelope ──┤
+                              └─→ t/3580 synthesis ───────────┘
+                                                              │
+                                    t/3585 runInquiryPipeline ◄┘  (DebateTool, shared)
+                                              │
+                          ┌───────────────────┴───────────────────┐
+                          ▼                                       ▼
+        t/3578 web job store (ServerAPI)        t/3579 Electron job store + IPC (ElectronMain)
+                          │                                       │
+        t/3581 REST routes (ServerAPI)                            │
+                          └───────────────┬───────────────────────┘
+                                          ▼
+                          t/3582 bridge, both builds (Rosetta Stone)
+                                          │
+                          t/3583 Ask UI + answer page (Rosetta Stone)
+                                          │
+                          t/3584 hosted smoke (DevOps Lead)
 ```
 
-T0 ships types only, not implementations, so T1/T2/T3/T5/T7 all start in parallel behind it.
+t/3574 ships schemas only, so the four DebateTool stage tickets start in parallel behind it.
+The orchestrator then gates both job stores, which is what keeps the two builds from drifting.
 
 ## Non-Goals
 
