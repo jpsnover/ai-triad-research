@@ -54,7 +54,7 @@ inventing a second job model.
 server. `briefExportHandlers.ts` keeps a local `Map` and imports nothing from
 `server/briefExportJobs.ts`; what the two share is `runBriefPipeline`. The inquiry feature copies
 that split exactly. Two thin job stores, one `runInquiryPipeline` orchestrator, because the
-bookkeeping is legitimately per-host while the stage sequencing must never exist twice — two
+bookkeeping is legitimately per-host while the stage sequencing must never exist twice. Two
 copies would drift between desktop and web.
 
 **The pilot's own run was censored.** It terminated on `api_ceiling`, having run out of budget
