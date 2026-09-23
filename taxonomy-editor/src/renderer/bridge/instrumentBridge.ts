@@ -204,6 +204,14 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
       meta.input_tokens = usage.inputTokens;
       meta.output_tokens = usage.outputTokens;
     }
+    // t/3568 item 2: provider diagnostics (requestBytes/httpStatus/headersMs/bodyReadMs/
+    // responseBytes, +ttftMs/e2eMs on xAI) threaded across IPC by t/3569. Only rides the
+    // SUCCESS path — see the doc comment on AppAPI['generateText'] (bridge/types.ts) for why
+    // there is nothing to attach here on a rejected call yet.
+    const diagnostics = v.diagnostics;
+    if (diagnostics && typeof diagnostics === 'object') {
+      meta.diagnostics = diagnostics;
+    }
     return Object.keys(meta).length > 0 ? meta : undefined;
   }
   return undefined;
