@@ -6,15 +6,33 @@
 
 ## 1. The key finding: most of this already exists
 
-A per-turn topical-drift signal is already computed and persisted. We are **not** building a parallel estimator; we are adding a validated banding layer on top of the existing signal and one missing dimension.
+A per-turn topical-drift signal is already **computed in code**. We are **not** building a parallel estimator; we are adding a validated banding layer on top of the existing computation and one missing dimension. **Correction (verified against the data, 2026-09-23):** the signal is computed *transiently* and is **not persisted** to the debate JSON, so it cannot be read off the corpus. See "Substrate reality" below.
 
 Existing machinery (verified in `lib/debate`):
-- **ArCo (Argument Coherence)** in `convergenceSignals.ts` (`computeConvergenceSignals`, ArCo block): per turn it computes `arco.turn_similarity = cosineSimilarity(turnEmbedding, topic.embedding)`, a running `phase_mean`, and a binary `drift_warning` against `ARCO_DRIFT_THRESHOLD = 0.5`. Persisted in `ConvergenceSignals.arco` per transcript entry.
-- **The seed anchor:** `session.topic.embedding` (384-dim all-MiniLM of `topic.final`, computed once at setup by `topicPipeline.ts embedResolutionAnchors`), plus `session.topic.clause_embeddings[]` (per decomposed clause) and the persisted `clause_coverage.best_similarity`.
+- **ArCo (Argument Coherence)** in `convergenceSignals.ts` (`computeConvergenceSignals`, ArCo block): per turn it computes `arco.turn_similarity = cosineSimilarity(turnEmbedding, topic.embedding)`, a running `phase_mean`, and a binary `drift_warning` against `ARCO_DRIFT_THRESHOLD = 0.5`. Computed in-memory during extraction and consumed for the live `drift_warning`; **not written to the persisted `convergence_signals` block.**
+- **The seed anchor:** `session.topic.embedding` (384-dim all-MiniLM of `topic.final`, computed once at setup by `topicPipeline.ts embedResolutionAnchors`), plus `session.topic.clause_embeddings[]` and `clause_coverage.best_similarity`. Held on the in-memory session; **also not persisted to the debate file.**
 - **Cruxes:** `session.crux_tracker[]` (`TrackedCrux`: id, description, speakers_involved, node embeddings available via the AN); `computeTopicCoherence` already uses a crux-centroid cosine pattern (whole-debate, per-speaker).
-- **Substrate:** per-turn `turn_embeddings` (Map entryId to vector) and `cosineSimilarity` (`lib/embeddings/similarity.ts`, re-exported via `taxonomyRelevance.ts`).
+- **Reusable primitives:** `cosineSimilarity` (`lib/embeddings/similarity.ts`, re-exported via `taxonomyRelevance.ts`) and `adapter.computeQueryEmbedding` (in-process all-MiniLM-L6-v2).
 
-So `1 - arco.turn_similarity` is essentially the raw drift the proposal describes, already per-turn. The gap t/3602 fills is (a) three interpretable **bands** instead of one binary threshold, and (b) the **deepening-vs-drift** discrimination that a single seed-similarity threshold cannot make.
+So `1 - arco.turn_similarity` is essentially the raw drift the proposal describes, and the *computation* exists per turn. The gap t/3602 fills is (a) three interpretable **bands** instead of one binary threshold, and (b) the **deepening-vs-drift** discrimination that a single seed-similarity threshold cannot make.
+
+### Substrate reality (verified: do not assume persistence)
+
+A corpus audit (40 random debates + the 12 newest, incl. the latest app versions) found the ArCo substrate is **not** persisted:
+
+| Field | Persisted in debate JSON |
+|---|---|
+| `convergence_signals[].arco` (turn_similarity, phase_mean, drift_warning) | **0 / 40** (and 0 / 12 newest) |
+| `convergence_signals[].clause_coverage` | **0 / 40** |
+| `topic.embedding` (the seed anchor) | **0 / 40** (and 0 / 12 newest) |
+| `turn_embeddings` (non-empty) | 21 / 40, sparse where present (0 to 13 for ~27-turn debates) |
+| `crux_tracker` | 25 / 40 |
+
+Consequence, split by path:
+- **Go-forward (live pipeline):** the estimator hooks the live `computeConvergenceSignals` ArCo computation, where `s_seed` and the embeddings are in scope. **t/3603 (shadow telemetry) is the first place these per-turn signals get persisted**: the estimator output is a *new* persisted field, not a projection of an existing one.
+- **Validation over historical debates (section 5):** the substrate is absent, so the reliability study must **recompute** embeddings from each sampled debate's `transcript` content, `topic.final`, and crux text via `adapter.computeQueryEmbedding`; it cannot read persisted ArCo. Heavier than "read a persisted field," and scoped accordingly.
+
+This correction does not change the estimator's definition (section 3); it changes how the signal is obtained (recompute, not read) and where it first lands (t/3603, going forward).
 
 ## 2. Naming and collision (load-bearing)
 
@@ -22,11 +40,11 @@ The output is `topical_state` (with an underlying continuous `topical_drift_scor
 - `position_drift[]` measures speaker **self-similarity** round-over-round and similarity to opponents (stance consistency / convergence). It is not topical.
 - `per_claim_drift[]` measures whether individual claims are maintained/refined/abandoned. Also not topical.
 
-`topical_state` measures distance of a turn from the **seeded question**, not a speaker's self-consistency. It **extends ArCo** (same substrate, same anchor) from a binary `drift_warning` to a 3-band state plus a crux dimension. Implementation should mirror or extend the ArCo block in `computeConvergenceSignals`, not add a parallel path.
+`topical_state` measures distance of a turn from the **seeded question**, not a speaker's self-consistency. It **extends ArCo** (same anchor and computation) from a binary `drift_warning` to a 3-band state plus a crux dimension. Implementation should mirror or extend the ArCo block in `computeConvergenceSignals`, not add a parallel path.
 
 ## 3. The definition (candidate; thresholds stipulated until validated)
 
-Per turn, from existing embeddings:
+Per turn, from embeddings (computed live in the pipeline; **recomputed** from transcript + `topic.final` + crux text for historical validation, since none of these are persisted):
 - `s_seed` = `cosineSimilarity(turnEmbedding, topic.embedding)` (this is `arco.turn_similarity`).
 - `s_clause` = `clause_coverage.best_similarity` (nearest topic clause).
 - `s_crux` = `max` over **active** cruxes `c` of `cosineSimilarity(turnEmbedding, embedding(c))`. This is the one new per-turn computation (the crux-centroid pattern from `computeTopicCoherence`, applied per turn and per crux rather than whole-debate).
@@ -58,11 +76,11 @@ Measurement-first. The estimator is not "done" until reliability is estimated.
 
 ## 6. Provenance declaration
 
-- Class: **derived** (computed from persisted embeddings + link structure; no new annotation on the corpus, only on the validation sample).
+- Class: **derived** (computed from embeddings, live in the pipeline or recomputed for historical validation; no new annotation on the corpus, only on the validation sample).
 - Thresholds are **stipulated** until section 5 tunes them against human labels; at that point they become **human-validated** and the register entry is updated with the count.
 - Register: add `topical_state` / `topical_drift_score` to `research/comp-linguist/docs/metric-provenance-register.md` in the implementation PR.
 - **Gates nothing** until reliability-established.
 
 ## 7. Seam for t/3603 (shadow telemetry)
 
-The shadow-log "state" column is exactly this estimator's per-turn output: `{ topical_state, topical_drift_score, s_seed, s_clause, s_crux }`. Because ArCo already persists `s_seed` per entry and the substrate exists, the added cost is `s_crux` + the banding. The action / outcome / cost columns of t/3603 do not depend on this and can land first. DebateTool owns the pipeline hook and the calibration-schema wiring; CL owns these field definitions (this document). We align on the schema shape before the hook lands.
+The shadow-log "state" column is exactly this estimator's per-turn output: `{ topical_state, topical_drift_score, s_seed, s_clause, s_crux }`. ArCo already **computes** `s_seed` per turn in `computeConvergenceSignals` (it just isn't persisted today), so the added cost in the live path is `s_crux` + the banding + writing the field. **t/3603 is where these per-turn signals first get persisted.** The action / outcome / cost columns of t/3603 do not depend on this and can land first. DebateTool owns the pipeline hook and the calibration-schema wiring; CL owns these field definitions (this document). We align on the schema shape before the hook lands.
