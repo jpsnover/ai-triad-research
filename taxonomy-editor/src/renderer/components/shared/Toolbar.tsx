@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, Fragment } from 'react';
 import {
   LayoutGrid, MessageSquare, MessageCircle,
   Ellipsis, CircleHelp, MessageSquareText, Layers,
-  RefreshCw, Settings, User, Users, Shield, LogOut, Newspaper,
+  RefreshCw, Settings, User, Users, Shield, LogOut, Newspaper, Sparkles,
 } from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { api, isElectronMode } from '@bridge';
@@ -227,6 +227,10 @@ export function Toolbar() {
   // items — it was gated on env-electron-opeds ALONE, so it stayed hidden on web even with
   // env-web-opeds ON (the Toolbar is what renders on desktop-width web). t/2641.
   const opedsVisible = visibleItems.some(i => i.id === 'opeds');
+  // t/3616: same class of bug as t/2641 (Op-Eds) — this Toolbar hardcodes primary buttons rather
+  // than mapping visibleItems, so a new primary NAV_ITEMS entry (inquiry, t/3583) never rendered
+  // here even though it's gate-free and correctly shown by the data-driven HamburgerMenu.
+  const inquiryVisible = visibleItems.some(i => i.id === 'inquiry');
   const isNavItemActive = (item: NavItem): boolean => {
     if (item.action.type === 'switchTab') return activeTab === item.action.target && toolbarPanel === null;
     if (item.action.type === 'togglePanel') return toolbarPanel === item.action.target;
@@ -243,7 +247,7 @@ export function Toolbar() {
     else if (toolbarPanel === 'attrInfo') clearAttributeInfo();
   };
 
-  const switchTab = (tab: 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'opeds' | 'summaries' | 'validation') => {
+  const switchTab = (tab: 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'opeds' | 'summaries' | 'validation' | 'inquiry') => {
     clearCurrentPanel();
     useTaxonomyStore.setState({ relatedNodeId: null, selectedEdge: null });
     setToolbarPanel(null);
@@ -272,7 +276,7 @@ export function Toolbar() {
     else if (action.type === 'togglePanel') toggle(action.target as ToolbarPanel);
   };
 
-  const isTaxonomyActive = toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'opeds', 'summaries', 'validation'].includes(activeTab);
+  const isTaxonomyActive = toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'opeds', 'summaries', 'validation', 'inquiry'].includes(activeTab);
 
   return (
     <nav className="toolbar" aria-label="Primary">
@@ -318,6 +322,16 @@ export function Toolbar() {
           >
             <Newspaper size="1.25em" />
             <span className="toolbar-nav-label">Op-Ed<br />Studies</span>
+          </button>
+        )}
+        {inquiryVisible && (
+          <button
+            className={`toolbar-nav${activeTab === 'inquiry' && toolbarPanel === null ? ' toolbar-nav-active' : ''}`}
+            onClick={() => switchTab('inquiry')}
+            aria-label="Ask a Question"
+          >
+            <Sparkles size="1.25em" />
+            <span className="toolbar-nav-label">Ask a<br />Question</span>
           </button>
         )}
       </div>
