@@ -6,6 +6,11 @@ Changing which status contexts are required on `main` silently strands every ope
 
 See also: `docs/orca-github-workflow.md` §5 (costs) and §6 item 4.
 
+> **Before you touch branch protection:** if a PR is `BLOCKED` but its required checks all read
+> **green**, this runbook is probably the WRONG tool — that's usually a duplicate in-flight CI
+> suite, not a context problem. See [merge-state-troubleshooting.md](merge-state-troubleshooting.md)
+> first (t/3605 was mis-diagnosed as a context outage and cost a HIGH ticket).
+
 ---
 
 ## When this applies
