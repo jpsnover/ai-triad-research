@@ -256,13 +256,30 @@ export class TopicPipeline {
       const toStringArray = (v: unknown): string[] =>
         Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : [];
 
+      // Demanded content arrays — the prompt explicitly asks for non-empty values.
+      // A non-array (absent/null/wrong-type) is an extraction failure silently coerced
+      // to [] by toStringArray; per-field WARNs make this visible in the flight recorder
+      // so it can be distinguished from a genuinely sparse but correctly-shaped response.
+      const demandedArray = (field: string, v: unknown): string[] => {
+        if (!Array.isArray(v)) {
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'debate-engine', level: 'warn',
+            debate_id: this.ctx.session?.id,
+            message: `Topic scope field absent or wrong type — coerced to []`,
+            data: { field, rawType: v === null ? 'null' : typeof v },
+          });
+          return [];
+        }
+        return v.filter((s): s is string => typeof s === 'string');
+      };
+
       const scope: TopicScope = {
         core_proposition: typeof parsed.core_proposition === 'string' ? parsed.core_proposition : this.ctx.session.topic.final,
-        relevant_disciplines: toStringArray(parsed.relevant_disciplines),
-        on_scope_evidence: toStringArray(parsed.on_scope_evidence),
-        key_tensions: toStringArray(parsed.key_tensions),
-        off_scope_topics: toStringArray(parsed.off_scope_topics),
-        drift_signatures: toStringArray(parsed.drift_signatures),
+        relevant_disciplines: demandedArray('relevant_disciplines', parsed.relevant_disciplines),
+        on_scope_evidence: demandedArray('on_scope_evidence', parsed.on_scope_evidence),
+        key_tensions: demandedArray('key_tensions', parsed.key_tensions),
+        off_scope_topics: demandedArray('off_scope_topics', parsed.off_scope_topics),
+        drift_signatures: demandedArray('drift_signatures', parsed.drift_signatures),
         example_ceiling: typeof parsed.example_ceiling === 'string' ? parsed.example_ceiling : '',
         risk_level: riskLevel,
         domain: typeof parsed.domain === 'string' ? parsed.domain : '',
@@ -273,8 +290,8 @@ export class TopicPipeline {
         constraint_confidence: parsed.constraint_confidence === 'explicit' ? 'explicit' : 'inferred',
       };
 
-      if (scope.off_scope_topics.length < 3 || scope.drift_signatures.length < 2) {
-        this.ctx.warn('Topic scope extraction', `Sparse output: ${scope.off_scope_topics.length} off_scope_topics, ${scope.drift_signatures.length} drift_signatures`, 'Scope stored but enforcement may be weak');
+      if (scope.off_scope_topics.length < 3 || scope.drift_signatures.length < 2 || scope.relevant_disciplines.length === 0) {
+        this.ctx.warn('Topic scope extraction', `Sparse output: ${scope.off_scope_topics.length} off_scope_topics, ${scope.drift_signatures.length} drift_signatures, ${scope.relevant_disciplines.length} disciplines`, 'Scope stored but enforcement may be weak');
       }
 
       this.ctx.session.topic.scope = scope;
