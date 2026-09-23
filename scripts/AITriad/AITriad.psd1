@@ -141,6 +141,7 @@
         'Get-ImportReport'
         'Get-CalibrationTrend'
         'Test-TaxEditorHealth'
+        'Test-TaxEditorInquiry'
         'Test-EmbeddingHealth'
         'Test-TaxEditorEndpoints'
         'Test-AnonymousDebateFlow'
