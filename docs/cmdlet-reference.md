@@ -106,6 +106,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | Cmdlet | Use when |
 |--------|----------|
 | `Invoke-AIByUsage` | Config-driven AI dispatch by UsageID (reads `ai-usages.json`, renders templates, delegates to Invoke-AIApi) |
+| `Get-AITierModel` | Resolve a model tier (`basic`=fast/cheap, `advanced`=frontier) + backend to the currently-registered id from `ai-models.json` `debateTiers` — use as a drift-proof default (`[string]$Model = (Get-AITierModel -Tier basic)`) instead of a hardcoded literal (t/3564) |
 | `Invoke-BatchSummary` | Batch-summarize documents from the queue |
 | `Invoke-POVSummary` | Summarize one document across all 3 POVs (writes `summaries/<doc-id>.json`) |
 | `Invoke-BDIWeightAssignment` | Assign BDI weights to nodes |

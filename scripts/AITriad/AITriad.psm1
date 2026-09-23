@@ -965,6 +965,8 @@ Export-ModuleMember -Function @(
     # t/1308 — cc→sit migration
     'Invoke-CcToSitMigration'
     'Test-AIApiKey'
+    # t/3564 — drift-proof model-tier resolver (reads ai-models.json debateTiers)
+    'Get-AITierModel'
     'Test-GeminiKeyPool'
     'Test-AIBackendHealth'
     'Test-AIBackendQuota'
