@@ -38,12 +38,12 @@ describe('electron-bridge inquiry delegation', () => {
     expect(getInquiry).toHaveBeenCalledWith('job-1');
   });
 
-  it('rejects gracefully when the inquiry IPC handlers are absent (desktop degrade, t/3582)', async () => {
-    (globalThis as Record<string, unknown>).window = { electronAPI: {} };
+  it('maps a null getInquiry result (unknown job) to a thrown error, matching the web bridge 404 (t/3579)', async () => {
+    const getInquiry = vi.fn().mockResolvedValue(null);
+    (globalThis as Record<string, unknown>).window = { electronAPI: { startInquiry: vi.fn(), getInquiry } };
     const mod = await import('../electron-bridge');
 
-    await expect(mod.api.startInquiry({ question: 'q', fidelity: 'quick' })).rejects.toThrow('not available in desktop mode');
-    await expect(mod.api.getInquiry('job-1')).rejects.toThrow('not available in desktop mode');
+    await expect(mod.api.getInquiry('missing-job')).rejects.toThrow();
   });
 });
 

@@ -290,12 +290,22 @@ export const api: AppAPI = {
   loadDebateComments: (id) => window.electronAPI.loadDebateComments(id),
   saveDebateComments: (id, data) => window.electronAPI.saveDebateComments(id, data),
 
-  // Inquiry (t/3582) — pending ElectronMain's IPC handler + preload exposure (p/546#50); feature-detected
-  // fallback until then, same convention as saveEdges/getEntity below.
-  startInquiry: (request, idempotencyKey) =>
-    window.electronAPI.startInquiry?.(request, idempotencyKey) ?? Promise.reject(new Error('Inquiry is not available in desktop mode yet (pending the start-inquiry IPC handler, t/3582)')),
-  getInquiry: (jobId) =>
-    window.electronAPI.getInquiry?.(jobId) ?? Promise.reject(new Error('Inquiry is not available in desktop mode yet (pending the get-inquiry IPC handler, t/3582)')),
+  // Inquiry (t/3582/t/3579) — desktop IPC handler landed (ElectronMain, PR #2345).
+  startInquiry: (request, idempotencyKey) => window.electronAPI.startInquiry(request, idempotencyKey),
+  // Main resolves null for an unknown job; map to a thrown error for AppAPI parity with the
+  // web bridge's 404 (t/3582's AppAPI.getInquiry is non-nullable in both builds).
+  getInquiry: async (jobId) => {
+    const result = await window.electronAPI.getInquiry(jobId);
+    if (result === null) {
+      throw new ActionableError({
+        goal: 'Poll inquiry status',
+        problem: `Inquiry ${jobId} not found`,
+        location: 'electron-bridge.getInquiry',
+        nextSteps: ['Check the job ID', 'Start a new inquiry'],
+      });
+    }
+    return result;
+  },
 
   // Brief Export — desktop parity via main-process IPC (t/2840). Calls the shared runBriefPipeline
   // in-process; download returns raw bytes wrapped into a Blob (Blob-returning AppAPI in both builds).
