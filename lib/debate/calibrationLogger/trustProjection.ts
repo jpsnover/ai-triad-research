@@ -5,6 +5,8 @@
 // Pure function: no I/O, no side effects.
 
 import type { CalibrationEntry, TrustState } from '../../inquiry/index.js';
+import type { DebateSession } from '../types.js';
+import { extractCalibrationData } from './extract.js';
 
 /** A scored metric before trust state is projected onto it. */
 export interface RawMetric {
@@ -89,4 +91,41 @@ export function projectTrust(
     }
     return entry;
   });
+}
+
+/**
+ * Extract scored RawMetrics from a completed DebateSession for trust projection.
+ *
+ * Wraps extractCalibrationData and maps numeric fields to the flat RawMetric shape
+ * that projectTrust consumes. Metric names follow CalibrationDataPoint field names
+ * so the convergence-family check in projectTrust fires on the right metrics.
+ *
+ * Imported directly by runInquiryPipeline (t/3585) — not injected — so trust
+ * projection is identical between Electron and server runners.
+ */
+export function getRawMetrics(session: DebateSession): RawMetric[] {
+  const data = extractCalibrationData(session, 'inquiry');
+  const metrics: RawMetric[] = [];
+
+  if (data.convergence_score_at_termination != null) {
+    metrics.push({ metric: 'convergence_score', value: data.convergence_score_at_termination });
+  }
+  if (data.argumentative_saturation_at_transition != null) {
+    metrics.push({ metric: 'argumentative_saturation', value: data.argumentative_saturation_at_transition });
+  }
+  if (data.crux_addressed_ratio != null) {
+    metrics.push({ metric: 'crux_addressed_ratio', value: data.crux_addressed_ratio });
+  }
+  if (data.engaging_real_disagreement != null) {
+    metrics.push({
+      metric: 'engaging_real_disagreement',
+      value: data.engaging_real_disagreement ? 1 : 0,
+      displayValue: data.engaging_real_disagreement ? 'true' : 'false',
+    });
+  }
+  if (data.qbaf_preference_concordance != null) {
+    metrics.push({ metric: 'qbaf_preference_concordance', value: data.qbaf_preference_concordance });
+  }
+
+  return metrics;
 }

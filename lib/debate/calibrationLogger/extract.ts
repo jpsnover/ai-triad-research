@@ -42,6 +42,17 @@ import {
   computeFrameSurvivalMetrics,
 } from './extract-metrics.js';
 
+// ── Shared types ─────────────────────────────────────────────
+
+/** Closed union of all possible debate termination reasons (t/1671, t/3502, t/3585). */
+export type TerminationReason =
+  | 'natural_conclusion'
+  | 'max_iterations'
+  | 'situation_cap'
+  | 'api_ceiling'
+  | 'first_round_exit'
+  | 'unknown';
+
 // ── Extraction logic ────────────────────────────────────────
 
 /**
@@ -147,7 +158,7 @@ export function extractCalibrationData(
     typeof e.content === 'string' && e.content.includes('API hard ceiling hit'),
   );
   const lastAsdPhase = asd?.phases && asd.phases.length > 0 ? asd.phases[asd.phases.length - 1] : undefined;
-  let terminationReason: 'natural_conclusion' | 'max_iterations' | 'situation_cap' | 'api_ceiling' | 'first_round_exit' | 'unknown' = 'unknown';
+  let terminationReason: TerminationReason = 'unknown';
   if (hitApiCeiling) {
     terminationReason = 'api_ceiling';
   } else if (lastAsdPhase !== undefined && lastAsdPhase.force_active !== undefined) {
