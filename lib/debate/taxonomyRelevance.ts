@@ -879,6 +879,8 @@ export interface TopicConstraintFilterConfig {
   boostIncrement: number;
   boostCap: number;
   minPerCategory: number;
+  /** Cosine similarity threshold for off_scope_topics embedding demotion. Default 0.35. */
+  offScopeEmbeddingThreshold: number;
 }
 
 export interface TopicConstraintFilterResult {
@@ -892,6 +894,11 @@ export function filterByTopicConstraints(
   nodes: ScoredPovNode[],
   scope: TopicScope | null | undefined,
   config?: Partial<TopicConstraintFilterConfig>,
+  /** Pre-computed embedding vectors for each off_scope_topic string (same order). When provided
+   *  alongside nodeEmbeddings, cosine similarity replaces 4-char stem matching for off-scope demotion. */
+  offScopeVectors?: number[][],
+  /** Node embeddings keyed by node ID — the same object as engine.taxonomy.embeddings. */
+  nodeEmbeddings?: Record<string, { pov: string; vector: number[] }>,
 ): TopicConstraintFilterResult {
   if (!scope) return { nodes, demoted: [], boosted: [], restorations: [] };
 
@@ -899,6 +906,8 @@ export function filterByTopicConstraints(
   const boostIncrement = config?.boostIncrement ?? 0.1;
   const boostCap = config?.boostCap ?? 1.5;
   const minPerCat = config?.minPerCategory ?? 3;
+  const embeddingThreshold = config?.offScopeEmbeddingThreshold ?? 0.35;
+  const useEmbedding = (offScopeVectors?.length ?? 0) > 0 && nodeEmbeddings != null;
 
   const isLowRisk = scope.risk_level === 'low' || scope.risk_level === 'medium';
   const excludedTerms = scope.excluded_scenarios
@@ -936,13 +945,28 @@ export function filterByTopicConstraints(
       }
     }
 
-    if (!reason && offScopeTerms.length > 0) {
-      let matches = 0;
-      for (const term of offScopeTerms) {
-        if (desc.includes(term)) matches++;
-      }
-      if (matches >= 3) {
-        reason = `off-scope: matches ${matches} off-scope topic terms`;
+    if (!reason) {
+      if (useEmbedding) {
+        const nodeVec = nodeEmbeddings![entry.node.id]?.vector;
+        if (nodeVec) {
+          let maxSim = 0;
+          for (const vec of offScopeVectors!) {
+            const sim = cosineSimilarity(nodeVec, vec);
+            if (sim > maxSim) maxSim = sim;
+          }
+          if (maxSim >= embeddingThreshold) {
+            reason = `off-scope: embedding similarity ${maxSim.toFixed(3)} exceeds threshold ${embeddingThreshold}`;
+          }
+        }
+        // No node embedding available → skip demotion for this node (conservative: don't demote on missing data)
+      } else if (offScopeTerms.length > 0) {
+        let matches = 0;
+        for (const term of offScopeTerms) {
+          if (desc.includes(term)) matches++;
+        }
+        if (matches >= 3) {
+          reason = `off-scope: matches ${matches} off-scope topic terms`;
+        }
       }
     }
 

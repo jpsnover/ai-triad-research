@@ -303,7 +303,30 @@ export async function getRelevantTaxonomyContext(engine: DebateEngineInternals, 
 
   const scoredPovRaw = selectRelevantNodes(ctx.povNodes, scores, relevanceOpts);
 
-  const constraintFilter = filterByTopicConstraints(scoredPovRaw, engine.session.topic.scope);
+  // Pre-compute off_scope_topic embedding vectors for semantic demotion (t/3608).
+  // Falls back to keyword stems inside filterByTopicConstraints when unavailable.
+  let offScopeVectors: number[][] | undefined;
+  const offScopeTopics = engine.session.topic.scope?.off_scope_topics;
+  if (offScopeTopics?.length && adapter.computeQueryEmbedding) {
+    const results = await Promise.all(
+      offScopeTopics.map(t =>
+        adapter.computeQueryEmbedding!(t).then(r => r.vector).catch(() => null),
+      ),
+    );
+    offScopeVectors = results.filter((v): v is number[] => v !== null);
+    if (offScopeVectors.length < offScopeTopics.length) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'debate-engine', level: 'warn',
+        debate_id: engine.session?.id,
+        message: `Off-scope embedding: ${offScopeTopics.length - offScopeVectors.length}/${offScopeTopics.length} topics failed — will use keyword stems for missing ones`,
+      });
+    }
+  }
+
+  const constraintFilter = filterByTopicConstraints(
+    scoredPovRaw, engine.session.topic.scope, undefined,
+    offScopeVectors, offScopeVectors?.length ? engine.taxonomy.embeddings : undefined,
+  );
   const scoredPov = constraintFilter.nodes;
 
   // Log what the exclude-well-tested mode did (t/1438 greatest-hits + well-tested + under-tested boost)
