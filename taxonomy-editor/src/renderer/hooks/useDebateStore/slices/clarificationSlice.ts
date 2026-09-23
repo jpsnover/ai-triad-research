@@ -32,7 +32,7 @@ import { critiqueTopicPrompt, parseTopicCritique } from '@lib/debate/topicCritiq
 import { decomposeResolutionPrompt, topicScopeExtractionPrompt, setTopicScope } from '@lib/debate/prompts';
 import { documentAnalysisPrompt, buildTaxonomySample } from '@lib/debate/documentAnalysis';
 import { runOpeningPipelineWithRepair, assembleOpeningPipelineResult } from '@lib/debate/turnPipeline';
-import { getModelMinTimeout } from '@lib/ai-client/index';
+import { getModelMinTimeout, getDefaultTimeout } from '@lib/ai-client/index';
 import type { ModelRegistry } from '@lib/ai-client/registry';
 import aiModelsRegistry from '../../../../../../ai-models.json';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
@@ -1001,6 +1001,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         // speaker/base model) — used below for the timeout toast/dialog.
         const resolvedBriefModel = resolveBriefModel(activeDebate, poverId, model);
 
+        const speakerModel = getSpeakerModel(activeDebate, poverId, model);
         const pipelineInput: OpeningPipelineInput = {
           label: info.label,
           pov: info.pov,
@@ -1012,7 +1013,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           sourceContent: docAnalysis ? undefined : (activeDebate.source_content || undefined),
           documentAnalysis: docAnalysis,
           audience: activeDebate.audience,
-          model: getSpeakerModel(activeDebate, poverId, model),
+          model: speakerModel,
           briefModel: activeDebate.stage_models?.brief || undefined,
           planModel: activeDebate.stage_models?.plan || undefined,
           citeModel: activeDebate.stage_models?.cite || undefined,
@@ -1027,6 +1028,16 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           // applies Math.max(DEFAULT_BRIEF_TIMEOUT_MS, getMinTimeout(model)) internally, the single
           // source of truth shared with the engine path (t/3518's escape was this floor computed
           // independently in two places and drifting).
+          // t/3612: plan/draft/cite floor. Computed HERE (not left to the pipeline's getMinTimeout
+          // callback) because on desktop that callback resolves to electronAIAdapter's stubbed
+          // getModelMinTimeout => 0 (t/3612#2/#4) — the renderer is the only desktop call site with
+          // the real registry, same reason briefTimeoutMs already works this way. Raise semantics
+          // (Math.max with the real adapter default), not a replacement — a floor below the backend
+          // base must never lower the timeout (t/3612#4).
+          stageTimeoutMs: Math.max(
+            getDefaultTimeout(speakerModel, aiModelsRegistry as unknown as ModelRegistry),
+            getModelMinTimeout(speakerModel, aiModelsRegistry as unknown as ModelRegistry),
+          ),
         };
 
         // Emit on the renderer-local brief-timeout bus (t/2307). Both builds: the
