@@ -282,6 +282,20 @@ describe('instrumentBridge — ai call metadata: model/timeoutMs/purpose/maxToke
     expect(start?.data?.purpose).toBeUndefined();
   });
 
+  it('records promptBytes on the ai.request start event, even when the call never resolves (t/3568)', async () => {
+    // Never-resolving generateText simulates a timeout — no ai.response event is ever recorded,
+    // so promptBytes must already be on the START event or a timed-out call loses prompt size
+    // entirely (the exact gap t/3568 found: extractResultMeta's prompt_chars is response-only).
+    const api = instrumentBridge({ generateText: () => new Promise(() => {}) } as unknown as AppAPI);
+    const multiByte = 'é'.repeat(10); // 2 UTF-8 bytes each -> 20 bytes, but .length is 10
+    void (api as unknown as { generateText: (p: string, m: string, t: number) => Promise<unknown> })
+      .generateText(multiByte, 'grok-4.7', 300_000);
+
+    const start = startRecord('generateText');
+    expect(start?.data?.promptBytes).toBe(20);
+    expect(start?.data?.promptBytes).not.toBe(multiByte.length);
+  });
+
   it('records model/timeoutMs/purpose on the ai.response ok event', async () => {
     const api = instrumentBridge({ generateText: () => Promise.resolve({ text: 'ok' }) } as unknown as AppAPI);
     await (api as unknown as { generateText: (p: string, m: string, t: number, temp: number, o: { purpose?: string }) => Promise<unknown> })
