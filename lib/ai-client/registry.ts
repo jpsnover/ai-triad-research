@@ -113,7 +113,9 @@ function baseTimeout(backend: string): number {
  * `getDefaultTimeout` entirely — the opening-brief stage does exactly this (the t/3518 trigger path).
  * Such sites must floor themselves: `Math.max(explicitTimeout, getModelMinTimeout(model, registry))`.
  */
-export function getModelMinTimeout(model: string, registry?: ModelRegistry): number {
+export function getModelMinTimeout(model: string, registry: ModelRegistry): number {
+  // `registry` is REQUIRED (t/3614) — a call site can no longer silently omit it and disable the floor.
+  // The guard below is a runtime backstop for any untyped/JS caller that still passes null/undefined.
   if (!registry) {
     // Fallback-path logging (root AGENTS.md): the caller omitted the registry, so NO minTimeoutMs
     // floor can be applied to ANY model on this path — strictly WORSE than the not-found branch below
@@ -144,7 +146,7 @@ export function getModelMinTimeout(model: string, registry?: ModelRegistry): num
   return entry?.minTimeoutMs ?? 0;
 }
 
-export function getDefaultTimeout(model: string, registry?: ModelRegistry): number {
+export function getDefaultTimeout(model: string, registry: ModelRegistry): number {
   const backend = resolveBackend(model);
   const base = baseTimeout(backend);
   // Tiered default: 2× base for the advanced-tier model of its backend (advanced ≠ basic); base
