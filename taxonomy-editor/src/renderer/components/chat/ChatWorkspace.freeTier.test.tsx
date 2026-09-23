@@ -118,6 +118,9 @@ vi.mock('../shared/CommunityShareBanner', () => ({
 
 vi.mock('../settings/GeminiOnboardingModal', () => ({
   GeminiOnboardingModal: ({ open }: { open: boolean }) => (open ? <div data-testid="gemini-modal" /> : null),
+}));
+
+vi.mock('../settings/geminiOnboardingState', () => ({
   shouldShowGeminiOnboarding: () => true,
   clearSessionDismiss: () => {},
 }));
