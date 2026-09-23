@@ -25,7 +25,7 @@ vi.mock('../../../../lib/flight-recorder/index.js', () => ({
 // lib/ai-client/registry.js is NOT mocked — buildModelEntryMap is a pure function
 // with no electron or network dependencies.
 
-import { resolveModelEntry, resetModelMapCache } from '../modelConfigCache.js';
+import { resolveModelEntry, resetModelMapCache, getMainRegistry } from '../modelConfigCache.js';
 
 // ── minimal valid config helpers ──
 function makeConfig(models: Array<{ id: string; apiModelId: string; label?: string; backend?: string; fixedTemperature?: number }>) {
@@ -82,5 +82,19 @@ describe('modelConfigCache — BOM + mtime-guard (t/1702, t/2022)', () => {
     const entry = resolveModelEntry(configPath, 'a');
     expect(entry?.apiModelId).toBe('A');
     expect(entry?.fixedTemperature).toBe(1);
+  });
+});
+
+describe('getMainRegistry (t/3614: cached registry for the required AIAdapter.registry member)', () => {
+  it('returns the parsed registry once loaded', () => {
+    fs.writeFileSync(configPath, makeConfig([{ id: 'a', apiModelId: 'A' }]), 'utf-8');
+    const registry = getMainRegistry(configPath);
+    expect(registry.models).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'a', apiModelId: 'A' })]));
+  });
+
+  it('falls back to an empty registry (not a throw) when the file is unreadable', () => {
+    const registry = getMainRegistry(path.join(tmpRoot, 'does-not-exist.json'));
+    expect(registry).toEqual({ backends: [], models: [] });
+    expect(mockRecord).toHaveBeenCalled();
   });
 });

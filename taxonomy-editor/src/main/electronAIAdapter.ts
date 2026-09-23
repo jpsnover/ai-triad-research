@@ -4,10 +4,13 @@
 // Wraps the Electron main-process generateText (with net.fetch + key store)
 // as the shared AIAdapter interface used by lib/oped and lib/debate cores.
 
+import path from 'path';
 import { generateText } from './embeddings.js';
 import type { AIAdapter, GenerateOptions } from '../../../lib/debate/aiAdapter.js';
 import { writeAICallLogEntry } from './aiCallLog.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { PROJECT_ROOT } from './fileIO.js';
+import { getMainRegistry } from './modelConfigCache.js';
 
 // scenario: the AI call log label for this adapter instance's caller (t/3370) — e.g.
 // 'Debate', 'OpEd Generation', 'Brief Export'. voiceTimeoutMs: caller-supplied fallback
@@ -42,6 +45,8 @@ export function makeElectronAIAdapter(scenario: string, voiceTimeoutMs?: number)
         throw err;
       }
     },
-    getModelMinTimeout: (_model) => 0,
+    // t/3614: registry is a required AIAdapter member (getModelMinTimeout removed from the
+    // interface). Cached across calls via modelConfigCache's mtime-guarded loader.
+    registry: getMainRegistry(path.join(PROJECT_ROOT, 'ai-models.json')),
   };
 }

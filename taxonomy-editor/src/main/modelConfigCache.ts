@@ -76,6 +76,21 @@ export function resolveDebateTierModel(configPath: string, tier: string, backend
   return _registryCache?.debateTiers?.[tier]?.[backend];
 }
 
+/**
+ * Cached full `ModelRegistry` for main-process floor computation (t/3614: `registry` is now a
+ * required `AIAdapter` member, and `getDefaultTimeout`/`getModelMinTimeout` require it — neither
+ * can call the uncached `loadModelRegistry` per-call without adding file I/O to hot paths like
+ * `embeddings.ts`'s per-request timeout resolution). Reuses this module's existing mtime-guarded
+ * `ensureLoaded` cache rather than adding a second one. Falls back to an empty registry (WARN
+ * already emitted by `ensureLoaded`'s catch) if the file is unreadable/unparseable — floor
+ * computation then WARNs "model not found" rather than throwing, so a transient config problem
+ * degrades a timeout floor, not the whole app.
+ */
+export function getMainRegistry(configPath: string): ModelRegistry {
+  ensureLoaded(configPath);
+  return _registryCache ?? { backends: [], models: [] };
+}
+
 /** Reset the in-memory cache. Call in test beforeEach to ensure isolation between cases. */
 export function resetModelMapCache(): void {
   _modelMapCache = null;
