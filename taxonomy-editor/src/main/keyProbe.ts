@@ -18,8 +18,14 @@ import path from 'path';
 import { PROJECT_ROOT } from './fileIO.js';
 import { resolveModelEntry, resolveDebateTierModel } from './modelConfigCache.js';
 
+// t/3600: this list previously stopped at 6 entries while ai-models.json registered 8
+// hosted backends (moonshot, xai missing) — a comment claiming "kept in sync" is not a
+// guard, and the completeness gap recurred a 4th time here after 3 prior recurrences on
+// the server side (t/1458). keyProbe.test.ts now asserts this list against ai-models.json
+// at runtime instead of pinning a literal, so the NEXT backend addition fails loudly here
+// too, not just on the server.
 /** Backends we can probe — kept in sync with KEY_VALIDATION_PROBES (server/routes/keys.ts). */
-export const SUPPORTED_PROBE_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'zai'] as const;
+export const SUPPORTED_PROBE_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'zai', 'moonshot', 'xai'] as const;
 
 export function isSupportedProbeBackend(backend: string): boolean {
   return (SUPPORTED_PROBE_BACKENDS as readonly string[]).includes(backend);
@@ -83,6 +89,14 @@ export async function probeApiKey(backend: string, key: string): Promise<boolean
       })).ok;
     case 'zai':
       return (await net.fetch('https://api.z.ai/api/paas/v4/models', {
+        headers: { Authorization: `Bearer ${key}` },
+      })).ok;
+    case 'moonshot':
+      return (await net.fetch('https://api.moonshot.ai/v1/models', {
+        headers: { Authorization: `Bearer ${key}` },
+      })).ok;
+    case 'xai':
+      return (await net.fetch('https://api.x.ai/v1/models', {
         headers: { Authorization: `Bearer ${key}` },
       })).ok;
     default:
