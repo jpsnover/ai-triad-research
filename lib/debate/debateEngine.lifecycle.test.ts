@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
@@ -38,7 +38,7 @@ describe('DebateEngine construction', () => {
     const config = createDefaultConfig();
     const plainAdapter: AIAdapter = {
       async generateText() { return '{}'; },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
     const taxonomy = createMinimalTaxonomy();
     const engine = new DebateEngine(config, plainAdapter, taxonomy);
@@ -799,7 +799,7 @@ describe('Graceful degradation in catch blocks', () => {
           brief: 'Brief', medium: 'Medium',
         });
       },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({ rounds: 1 });
@@ -838,7 +838,7 @@ describe('Graceful degradation in catch blocks', () => {
           brief: 'Brief', medium: 'Medium',
         });
       },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({ rounds: 1 });
@@ -875,7 +875,7 @@ describe('Graceful degradation in catch blocks', () => {
           brief: 'Brief', medium: 'Medium',
         });
       },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({ rounds: 1 });
@@ -1063,7 +1063,7 @@ describe('Finalization', () => {
           overall_assessment: { notes: 'test' },
         });
       },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({ rounds: 1 });
@@ -1200,7 +1200,7 @@ describe('Internal utility behavior (tested via extraction)', () => {
           overall_assessment: { notes: 'test' },
         });
       },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({ rounds: 1 });
@@ -1234,7 +1234,7 @@ describe('Internal utility behavior (tested via extraction)', () => {
           overall_assessment: { notes: 'test' },
         });
       },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({ rounds: 1 });

@@ -19,7 +19,7 @@ describe('Opening brief maxTokens cap (t/3543)', () => {
         capturedMaxTokens.push(opts?.maxTokens);
         return '{"response":"mock"}';
       },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     // Use claude-opus-5 (contains 'opus') so the 32_000 briefMaxTokens cap applies.

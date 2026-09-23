@@ -16,7 +16,8 @@ vi.mock('../fileIO.js', () => ({
 }));
 vi.mock('../embeddings.js', () => ({ computeEmbeddings: vi.fn(async () => []) }));
 vi.mock('../electronAIAdapter.js', () => ({
-  makeElectronAIAdapter: vi.fn(() => ({ generateText: vi.fn(), getModelMinTimeout: () => 0 })),
+  // t/3614: registry replaced getModelMinTimeout as the required AIAdapter member.
+  makeElectronAIAdapter: vi.fn(() => ({ generateText: vi.fn(), registry: { backends: [], models: [] } })),
 }));
 vi.mock('../../../../lib/debate/relevanceSelection.js', () => ({
   assembleNodeEmbeddings: vi.fn(async () => ({ nodeEmbeddings: {}, allNodeIds: [] })),

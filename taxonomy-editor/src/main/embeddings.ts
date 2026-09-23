@@ -48,8 +48,8 @@ import {
   DEFAULT_MODEL,
 } from '../../../lib/ai-client/index.js';
 import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn, UrlContextMetadata, GeminiContent, StopReason, ProviderCallDiagnostics } from '../../../lib/ai-client/index.js';
-import type { ModelEntry } from '../../../lib/ai-client/index.js';
-import { resolveModelEntry as resolveModelEntryFromCache } from './modelConfigCache.js';
+import type { ModelEntry, ModelRegistry } from '../../../lib/ai-client/index.js';
+import { resolveModelEntry as resolveModelEntryFromCache, getMainRegistry } from './modelConfigCache.js';
 
 // ── Electron net.fetch wrapper ──
 // Electron's net.fetch requires Buffer.from for string bodies in some cases.
@@ -670,6 +670,12 @@ function resolveModelEntry(friendlyId: string): ModelEntry | undefined {
   return resolveModelEntryFromCache(findModelsConfig(), friendlyId);
 }
 
+// t/3614: registry is now required by getDefaultTimeout/getModelMinTimeout — cached via
+// modelConfigCache's mtime-guarded loader, reusing this file's existing config-path resolution.
+function resolveRegistry(): ModelRegistry {
+  return getMainRegistry(findModelsConfig());
+}
+
 /** Return a fixedTemperature override for GenerateOptions when the entry requires one. */
 function fixedTempOverride(entry: ModelEntry | undefined): { fixedTemperature?: number } {
   return entry?.fixedTemperature != null ? { fixedTemperature: entry.fixedTemperature } : {};
@@ -737,7 +743,7 @@ export async function generateText(
 
   const providerOpts: GenerateOptions = {
     temperature: temperature ?? _debateTemperature ?? 0.7,
-    timeoutMs: timeoutMs ?? getDefaultTimeout(friendlyModel),
+    timeoutMs: timeoutMs ?? getDefaultTimeout(friendlyModel, resolveRegistry()),
     ...fixedTempOverride(entry),
     ...(signal ? { signal } : {}),
     ...(responseSchema ? { responseSchema } : {}),
@@ -810,7 +816,7 @@ export async function generateChatStream(
     ).join('\n\n') + '\n\n[Assistant]:';
     const opts: GenerateOptions = {
       temperature: temperature ?? 0.7,
-      timeoutMs: getDefaultTimeout(friendlyModel),
+      timeoutMs: getDefaultTimeout(friendlyModel, resolveRegistry()),
       ...fixedTempOverride(entry),
     };
     const providerResult = backend === 'deepseek'
@@ -823,7 +829,7 @@ export async function generateChatStream(
   const geminiContents: GeminiContent[] = messages.map(m => ({ role: m.role, parts: [{ text: m.content }] }));
   const opts: GenerateOptions = {
     temperature: temperature ?? 0.3,
-    timeoutMs: getDefaultTimeout(friendlyModel),
+    timeoutMs: getDefaultTimeout(friendlyModel, resolveRegistry()),
     systemMessage: systemInstruction,
     geminiContents,
     urlContext,

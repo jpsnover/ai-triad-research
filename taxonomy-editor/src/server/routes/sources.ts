@@ -319,7 +319,9 @@ export function registerSourcesRoutes(r: Router, _ctx: ServerCtx): void {
           const result = await ai.generateText(prompt, mdl);
           return result.text;
         },
-        getModelMinTimeout: (_model) => 0,
+        // t/3614: required AIAdapter member (host-loaded registry, cached). This evidence-qbaf adapter
+        // never runs the debate engine, but the interface requires it uniformly.
+        registry: ai.getModelRegistry(),
       };
 
       const evalModel = effectiveModel || DEFAULT_MODEL;

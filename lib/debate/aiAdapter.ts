@@ -60,8 +60,12 @@ export interface GenerateOptions extends SharedGenerateOptions {
 
 export interface AIAdapter {
   generateText(prompt: string, model: string, options?: GenerateOptions): Promise<string>;
-  /** Returns the model's minTimeoutMs floor (0 if unset). Compose with a stage constant via Math.max. */
-  getModelMinTimeout(model: string): number;
+  /** The host-loaded ai-models registry (CLI reads the file; Electron/web/server load it their own way).
+   *  REQUIRED (t/3614): consumers apply the pure, imported `getModelMinTimeout(model, adapter.registry)` —
+   *  the floor computation is one correct answer per model and stays imported; only the registry DATA is
+   *  host-provided. Required-not-optional so a stub can no longer answer 0 without conspicuously
+   *  hand-rolling an empty ModelRegistry (the t/3612 defect: 7 adapters silently returned 0). */
+  registry: ModelRegistry;
   /** Optional callback for retry progress events. Set by the engine to surface retries in the UI. */
   onRetryProgress?: (info: { attempt: number; maxRetries: number; backoffSeconds: number; message: string }) => void;
   generate?(request: GenerateRequest): Promise<GenerateResponse>;
@@ -484,7 +488,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
 
   const adapter: ExtendedAIAdapter = {
     generateText: doGenerateText,
-    getModelMinTimeout: (model) => getModelMinTimeout(model, registry),
+    registry,
     generate: process.env.DEBATE_ENVELOPE !== '0' ? doGenerate : undefined,
 
     async generateTextWithSearch(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[]; citations?: GroundingCitation[] }> {

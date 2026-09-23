@@ -7,6 +7,7 @@ import { POVER_INFO } from '../../types.js';
 import { formatVocabularyContext } from '../../vocabularyContext.js';
 import { getGlobalRecorder } from '../../../flight-recorder/index.js';
 import { runOpeningPipelineWithRepair, assembleOpeningPipelineResult, type OpeningPipelineInput } from '../../turnPipeline.js';
+import { getModelMinTimeout } from '../../../ai-client/index.js';
 import { resolveModelForSpeaker } from '../modelResolution.js';
 import { accumulateContextManifest } from '../adaptiveStaging.js';
 import { enrichTaxonomyRefs, getRelevantTaxonomyContext, formatDebaterEdgeContext } from '../taxonomyContext.js';
@@ -144,7 +145,8 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
         engine.stageGenerate.bind(engine),
         (_stage, label) => engine.progress('opening', poverId, label),
         onBriefEvent,
-        engine.adapter.getModelMinTimeout.bind(engine.adapter),
+        // t/3614: the floor fn is imported (pure); the registry is the adapter's host-loaded data.
+        (model: string) => getModelMinTimeout(model, engine.adapter.registry),
       );
     });
 

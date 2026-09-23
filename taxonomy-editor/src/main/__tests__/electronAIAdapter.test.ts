@@ -13,6 +13,10 @@ const mockWriteAICallLogEntry = vi.hoisted(() => vi.fn());
 vi.mock('../embeddings.js', () => ({ generateText: mockGenerateText }));
 vi.mock('../aiCallLog.js', () => ({ writeAICallLogEntry: mockWriteAICallLogEntry }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: vi.fn(() => null) }));
+// t/3614: electronAIAdapter now reads PROJECT_ROOT + a cached registry to satisfy AIAdapter's
+// required `registry` member — mock both so this test never touches Electron's `app` or disk.
+vi.mock('../fileIO.js', () => ({ PROJECT_ROOT: '/fake/root' }));
+vi.mock('../modelConfigCache.js', () => ({ getMainRegistry: vi.fn(() => ({ backends: [], models: [] })) }));
 
 import { makeElectronAIAdapter } from '../electronAIAdapter.js';
 

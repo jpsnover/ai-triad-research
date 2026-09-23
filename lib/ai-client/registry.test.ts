@@ -421,7 +421,7 @@ describe('moonshot backend routing (t/1945)', () => {
   });
 
   it('getDefaultTimeout uses the moonshot (240s) budget, mirroring zai', () => {
-    expect(getDefaultTimeout('moonshot-kimi-k3')).toBe(240_000);
+    expect(getDefaultTimeout('moonshot-kimi-k3', TEST_REGISTRY)).toBe(240_000);
   });
 
   // Frontier-tier 2× tests (t/2495)
@@ -455,9 +455,11 @@ describe('moonshot backend routing (t/1945)', () => {
     expect(getDefaultTimeout('zai-model',     tierRegistry)).toBe(240_000); // 1× — no frontier distinction
   });
 
-  it('getDefaultTimeout returns base when no registry is passed (back-compat)', () => {
-    expect(getDefaultTimeout('claude-sonnet-4-6')).toBe(180_000);
-    expect(getDefaultTimeout('gemini-3.1-pro-preview')).toBe(120_000);
+  it('getDefaultTimeout returns base when registry is omitted at runtime (untyped caller → backstop, t/3614)', () => {
+    // registry is now a REQUIRED param (t/3614); this exercises the runtime backstop for a JS/untyped
+    // caller that still omits it — the floor is disabled but the tiered/base value is preserved.
+    expect(getDefaultTimeout('claude-sonnet-4-6', undefined as unknown as ModelRegistry)).toBe(180_000);
+    expect(getDefaultTimeout('gemini-3.1-pro-preview', undefined as unknown as ModelRegistry)).toBe(120_000);
   });
 });
 
@@ -561,7 +563,8 @@ describe('getDefaultTimeout — minTimeoutMs floor (t/3518 Phase 2)', () => {
     });
 
     it('returns 0 + WARN when no registry is supplied (t/3612: this path was silent, dropping every floor)', () => {
-      expect(getModelMinTimeout('claude-fable-5')).toBe(0);
+      // registry is REQUIRED (t/3614); the cast reaches the runtime backstop an untyped caller would hit.
+      expect(getModelMinTimeout('claude-fable-5', undefined as unknown as ModelRegistry)).toBe(0);
       expect(record).toHaveBeenCalledTimes(1);
       expect(record.mock.calls[0][0].message).toContain('claude-fable-5');
       expect(record.mock.calls[0][0].message).toContain('no registry');

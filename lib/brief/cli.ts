@@ -149,7 +149,9 @@ const skipNarrationGuardAdapter: AIAdapter = {
       nextSteps: ['Remove --skip-narration to narrate with a model, or report this as a bug'],
     });
   },
-  getModelMinTimeout: (_model) => 0,
+  // t/3614: required AIAdapter member. This guard throws before any model/floor logic runs,
+  // so an empty registry is correct and conspicuous (never consulted on this path).
+  registry: { backends: [], models: [] },
 };
 
 /** Tool versions recorded in the manifest. Best-effort; the gate records, not validates. */

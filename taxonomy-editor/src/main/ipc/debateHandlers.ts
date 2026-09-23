@@ -19,8 +19,9 @@ import {
   saveDebateComments,
 } from '../debateIO.js';
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from '../debateExport.js';
-import { getDataRootPath, loadDataConfig, getSourcesDir } from '../fileIO.js';
+import { getDataRootPath, loadDataConfig, getSourcesDir, PROJECT_ROOT } from '../fileIO.js';
 import { generateText } from '../embeddings.js';
+import { getMainRegistry } from '../modelConfigCache.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { renameSyncWithRetry } from '../../../../lib/debate/persistence.js';
 import { recordLockHolder } from '../../../../lib/debate/lockHolder.js';
@@ -112,7 +113,8 @@ export function registerDebateHandlers(): void {
           const { text } = await generateText(prompt, mdl, undefined, { timeoutMs: opts?.timeoutMs, temperature: opts?.temperature });
           return text;
         },
-        getModelMinTimeout: (_model) => 0,
+        // t/3614: registry is a required AIAdapter member (getModelMinTimeout removed).
+        registry: getMainRegistry(path.join(PROJECT_ROOT, 'ai-models.json')),
       };
 
       const evalModel = model || DEFAULT_MODEL;

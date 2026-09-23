@@ -37,6 +37,8 @@ export function createWebOpEdAdapter(): AIAdapter {
       );
       return result.text;
     },
-    getModelMinTimeout: (_model) => 0,
+    // t/3614: required AIAdapter member — host-loaded registry data (cached via getModelRegistry).
+    // This adapter never runs the debate engine, but the interface requires it uniformly.
+    registry: ai.getModelRegistry(),
   };
 }
