@@ -15,6 +15,7 @@ import { createCLIAdapter } from './aiAdapter.js';
 import { resolveRepoRoot, resolveDataRoot, loadTaxonomy, loadSourceContent, fetchUrlContent, loadConflicts, loadVocabulary } from './taxonomyLoader.js';
 import { DebateEngine } from './debateEngine.js';
 import type { DebateConfig } from './debateEngine.js';
+import { runHeadlessDebate } from './headlessRunner.js';
 import type { DebateSourceType, SpeakerId, DebateAudience } from './types.js';
 import { POVER_INFO, DEBATE_AUDIENCES, POV_KEYS } from './types.js';
 import { formatSituationDebateContext } from './prompts.js';
@@ -525,10 +526,9 @@ async function main(): Promise<void> {
     session = result.production;
   } else {
     log(`Starting debate: "${topic.slice(0, 80)}..." with ${activePovers.join(', ')}, ${engineConfig.useAdaptiveStaging ? `adaptive (${config.pacing ?? 'moderate'})` : `${engineConfig.rounds} rounds`}`);
-    const engine = new DebateEngine(engineConfig, adapter, taxonomy);
-    session = await engine.run((p) => {
+    ({ session } = await runHeadlessDebate(engineConfig, adapter, taxonomy, (p) => {
       log(`[${p.phase}] ${p.speaker ? `${p.speaker}: ` : ''}${p.message}`);
-    });
+    }));
   }
   activeDebateId = session.id;
 
@@ -752,8 +752,7 @@ async function runCiGolden(): Promise<void> {
           : undefined,
       };
 
-      const engine = new DebateEngine(engineConfig, adapter, taxonomy);
-      const session = await engine.run((p) => {
+      const { session } = await runHeadlessDebate(engineConfig, adapter, taxonomy, (p) => {
         log(`  [${p.phase}] ${p.speaker ? `${p.speaker}: ` : ''}${p.message}`);
       });
 

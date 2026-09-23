@@ -9,7 +9,8 @@ import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { DebateEngine, type DebateConfig, type DebateProgress } from './debateEngine.js';
+import type { DebateConfig, DebateProgress } from './debateEngine.js';
+import { runHeadlessDebate } from './headlessRunner.js';
 import { createCLIAdapter } from './aiAdapter.js';
 import { loadTaxonomy, resolveRepoRoot, resolveDataRoot, type LoadedTaxonomy } from './taxonomyLoader.js';
 import type { DebateSession } from './types.js';
@@ -210,11 +211,10 @@ server.tool(
 
     const adapter = createCLIAdapter(repoRoot);
     const taxonomy = getTaxonomy();
-    const engine = new DebateEngine(config, adapter, taxonomy);
 
-    engine.run((p: DebateProgress) => {
+    runHeadlessDebate(config, adapter, taxonomy, (p: DebateProgress) => {
       state.progress = p;
-    }).then((session) => {
+    }).then(({ session }) => {
       state.result = session;
       state.status = controller.signal.aborted ? 'cancelled' : 'completed';
 

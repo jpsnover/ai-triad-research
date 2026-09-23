@@ -56,6 +56,30 @@ export type TerminationReason =
 // ── Extraction logic ────────────────────────────────────────
 
 /**
+ * Derive the termination reason from a completed debate session.
+ * Pure function — no side effects. Used by extractCalibrationData and
+ * runHeadlessDebate (t/3599) so the derivation is not duplicated.
+ */
+export function deriveTerminationReason(session: DebateSession): TerminationReason {
+  const asd = (session as any).adaptive_staging_diagnostics as {
+    phases?: { phase: string; rounds: number[]; exit_reason: string; force_active?: boolean }[];
+  } | undefined;
+  const rounds = session.transcript.filter((e: { type: string }) => e.type === 'statement').length;
+  const hitApiCeiling = session.transcript.some((e: { content: string }) =>
+    typeof e.content === 'string' && e.content.includes('API hard ceiling hit'),
+  );
+  const lastAsdPhase = asd?.phases && asd.phases.length > 0 ? asd.phases[asd.phases.length - 1] : undefined;
+  if (hitApiCeiling) return 'api_ceiling';
+  if (lastAsdPhase !== undefined && lastAsdPhase.force_active !== undefined) {
+    return lastAsdPhase.force_active
+      ? (/Max total rounds/i.test(lastAsdPhase.exit_reason) ? 'max_iterations' : 'situation_cap')
+      : 'natural_conclusion';
+  }
+  if (rounds <= 1) return 'first_round_exit';
+  return 'unknown';
+}
+
+/**
  * Extract calibration data from a completed debate session.
  * Pure function — no side effects, no file I/O.
  */
@@ -149,28 +173,14 @@ export function extractCalibrationData(
     convergenceScoreAtTermination = last.composite?.convergence_score ?? null;
     signalsAtTransition = last.signals ?? null;
   }
-  // ── Round count ── (must precede termination_reason — used in first_round_exit guard)
+  // ── Round count ── (still needed by affect signals below; also derived inside deriveTerminationReason)
   const rounds = session.transcript.filter((e: { type: string }) => e.type === 'statement').length;
-
-  // ── Termination reason (t/1671, t/3502) ──
-  // Derived from structured force_active stamped in crossRespond.ts — not prose regex.
+  // ── Termination reason (t/1671, t/3502) — delegated to shared pure function ──
+  const terminationReason = deriveTerminationReason(session);
+  // ── API ceiling flag — also needed at line hit_api_ceiling output field ──
   const hitApiCeiling = session.transcript.some((e: { content: string }) =>
     typeof e.content === 'string' && e.content.includes('API hard ceiling hit'),
   );
-  const lastAsdPhase = asd?.phases && asd.phases.length > 0 ? asd.phases[asd.phases.length - 1] : undefined;
-  let terminationReason: TerminationReason = 'unknown';
-  if (hitApiCeiling) {
-    terminationReason = 'api_ceiling';
-  } else if (lastAsdPhase !== undefined && lastAsdPhase.force_active !== undefined) {
-    terminationReason = lastAsdPhase.force_active
-      ? (/Max total rounds/i.test(lastAsdPhase.exit_reason) ? 'max_iterations' : 'situation_cap')
-      : 'natural_conclusion';
-  } else if (rounds <= 1) {
-    // No ASD phases + ≤1 round: debate exited before convergence logic ran (t/3502).
-    // Preserves 'unknown' for legacy-shape rows (phases present but force_active absent,
-    // rounds=2+) — those remain ambiguous and are handled separately.
-    terminationReason = 'first_round_exit';
-  }
 
   // ── Parameter 6: Compression window — claims forgotten rate ──
   const ledger = session.unanswered_claims_ledger ?? [];
