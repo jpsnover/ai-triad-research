@@ -967,6 +967,8 @@ Export-ModuleMember -Function @(
     'Test-AIApiKey'
     # t/3564 — drift-proof model-tier resolver (reads ai-models.json debateTiers)
     'Get-AITierModel'
+    # t/3596 — derived belief-node → source index (sidecar source_index.json)
+    'Build-NodeSourceIndex'
     'Test-GeminiKeyPool'
     'Test-AIBackendHealth'
     'Test-AIBackendQuota'
