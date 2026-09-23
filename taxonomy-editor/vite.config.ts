@@ -193,6 +193,7 @@ export default defineConfig({
       '@lib/embeddings': path.resolve(import.meta.dirname, '../lib/embeddings'),
       '@lib/chat': path.resolve(import.meta.dirname, '../lib/chat'),
       '@lib/organizations': path.resolve(import.meta.dirname, '../lib/organizations'),
+      '@lib/inquiry': path.resolve(import.meta.dirname, '../lib/inquiry'),
       '@lib/entities': path.resolve(import.meta.dirname, '../lib/entities'),
       '@lib/policy': path.resolve(import.meta.dirname, '../lib/policy'),
       '@lib/userPreferencesSchema': path.resolve(import.meta.dirname, '../lib/userPreferencesSchema.ts'),
