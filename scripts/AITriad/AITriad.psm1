@@ -903,6 +903,8 @@ Export-ModuleMember -Function @(
     'Get-ImportReport'
     'Get-CalibrationTrend'
     'Test-TaxEditorHealth'
+    # t/3584 — hosted inquiry data-presence smoke (defeats ADR-001 silent-empty)
+    'Test-TaxEditorInquiry'
     # t/2787 — smoke-test /api/embeddings/compute in production
     'Test-EmbeddingHealth'
     'Test-TaxEditorEndpoints'

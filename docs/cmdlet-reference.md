@@ -129,6 +129,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | Cmdlet | Use when |
 |--------|----------|
 | `Test-TaxEditorHealth` | Production liveness/readiness check (supports `-MaxAttempts` polling for post-deploy waits, t/1491) |
+| `Test-TaxEditorInquiry` | Verifies the hosted inquiry flow returns REAL data, not an ADR-001 graceful-empty shell — POST→poll→assert `campVerdicts`/`calibration`/`grounding` count>0; needs a `-SessionCookie` (auth-only); empty-shell = loud `New-ActionableError` (t/3584) |
 | `Test-EmbeddingHealth` | Smoke-test `POST /api/embeddings/compute` in prod (anon session + x-request-id) — reports Healthy/status/duration/vector dims + a `Get-ServerLog`-traceable requestId on failure (t/2787) |
 | `Test-TaxEditorEndpoints` | Smoke-test 16 endpoints |
 | `Test-AnonymousDebateFlow` | End-to-end smoke test of the anonymous/free-tier user journey |
