@@ -30,6 +30,7 @@ import { registerDiagnosticsRoutes } from './diagnostics.js';
 import { registerCommunityRoutes } from './community.js';
 import { registerOpedRoutes } from './oped.js';
 import { registerBriefExportsRoutes } from './briefExports.js';
+import { registerInquiryRoutes } from './inquiry.js';
 import { registerTemplatesRoutes } from './templates.js';
 import { registerSupportRoutes } from './support.js';
 import { registerHarvestRoutes } from './harvest.js';
@@ -61,6 +62,7 @@ export function registerAllRoutes(router: Router, ctx: ServerCtx): void {
   registerCommunityRoutes(router, ctx);
   registerOpedRoutes(router, ctx);
   registerBriefExportsRoutes(router, ctx);
+  registerInquiryRoutes(router, ctx); // t/3581 — POST /api/inquiry (202) + GET /api/inquiry/:jobId. Unique prefix; order-independent.
   registerTemplatesRoutes(router, ctx);
   registerSupportRoutes(router, ctx);
   registerHarvestRoutes(router, ctx);
