@@ -290,6 +290,13 @@ export const api: AppAPI = {
   loadDebateComments: (id) => window.electronAPI.loadDebateComments(id),
   saveDebateComments: (id, data) => window.electronAPI.saveDebateComments(id, data),
 
+  // Inquiry (t/3582) — pending ElectronMain's IPC handler + preload exposure (p/546#50); feature-detected
+  // fallback until then, same convention as saveEdges/getEntity below.
+  startInquiry: (request, idempotencyKey) =>
+    window.electronAPI.startInquiry?.(request, idempotencyKey) ?? Promise.reject(new Error('Inquiry is not available in desktop mode yet (pending the start-inquiry IPC handler, t/3582)')),
+  getInquiry: (jobId) =>
+    window.electronAPI.getInquiry?.(jobId) ?? Promise.reject(new Error('Inquiry is not available in desktop mode yet (pending the get-inquiry IPC handler, t/3582)')),
+
   // Brief Export — desktop parity via main-process IPC (t/2840). Calls the shared runBriefPipeline
   // in-process; download returns raw bytes wrapped into a Blob (Blob-returning AppAPI in both builds).
   createBriefExport: (debateId, body) => window.electronAPI.createBriefExport(debateId, body),

@@ -5,12 +5,18 @@ import type { Organization, OrganizationEdge } from '@lib/organizations/types';
 import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities/types';
 import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
-import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload } from '../bridge/types';
+import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload, StartInquiryRequest, InquiryStatusResponse } from '../bridge/types';
 import type { BriefArtifactName } from '@lib/brief/types';
 import type { StopReason } from '@lib/ai-client/types';
 import type { OpEdSet, OpEdSetSummary } from '@lib/oped/types';
 
 export interface ElectronAPI {
+  // Inquiry (t/3582) — optional pending ElectronMain's IPC handler + preload exposure; electron-bridge.ts
+  // falls back to a rejected promise (feature-detected `?.`, same convention as saveEdges/getEntity below)
+  // until it lands. Once implemented, these stay callable exactly as declared here — no type change needed.
+  startInquiry?: (request: StartInquiryRequest, idempotencyKey?: string) => Promise<{ jobId: string }>;
+  getInquiry?: (jobId: string) => Promise<InquiryStatusResponse>;
+
   // Brief Export — desktop parity (t/2840). download returns raw bytes (the bridge wraps a Blob).
   createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;
   getBriefExportJob: (jobId: string) => Promise<BriefExportJobView>;
