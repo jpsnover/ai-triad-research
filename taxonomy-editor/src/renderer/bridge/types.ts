@@ -165,8 +165,14 @@ export interface OpEdProgressEvent { set_id: string; voice: string; stage: strin
 
 // Inquiry (t/3582, T-inquiry) — client shapes of the T-inquiry REST API (server: routes/inquiry.ts,
 // t/3581). Field-for-field identical to the route contract (t/3582#1) so the two stay in lockstep.
-import type { InquiryResult as _InquiryResult } from '../../../../lib/inquiry';
+import type { InquiryResult as _InquiryResult, InquiryJobStatus as _InquiryJobStatus } from '../../../../lib/inquiry';
 export type InquiryResult = _InquiryResult;
+// t/3609: hoisted to lib/inquiry (single source of truth across server/main/renderer) — re-exported
+// here so existing `from '../bridge/types'` imports keep working unchanged. isInquiryTerminal
+// (a byte-identical duplicate of lib/inquiry's isTerminalStatus, confirmed by diff at e/196#9) is
+// dropped in favor of the canonical export; it had zero call sites.
+export type InquiryJobStatus = _InquiryJobStatus;
+export { isTerminalStatus } from '../../../../lib/inquiry';
 
 export interface StartInquiryRequest {
   question: string;
@@ -175,13 +181,9 @@ export interface StartInquiryRequest {
   models?: { debaters?: string; evaluator?: string };
 }
 
-export type InquiryJobStatus =
-  | 'queued' | 'grounding' | 'debating' | 'judging' | 'synthesizing'
-  | 'done' | 'done_truncated' | 'failed';
-
 /** `done_truncated` is a DISTINCT terminal state (budget/ceiling truncation, fails closed by
- *  design) — callers must treat `status !== 'queued' && ... !== 'failed'` as terminal via the
- *  explicit two-member check below, never a bare `=== 'done'` (t/3582#1). */
+ *  design) — callers must treat it as terminal via `isTerminalStatus`, never a bare `=== 'done'`
+ *  (t/3582#1). */
 export interface InquiryStatusResponse {
   jobId: string;
   status: InquiryJobStatus;
@@ -191,10 +193,6 @@ export interface InquiryStatusResponse {
   error: string | null;
   /** Present on `done` / `done_truncated` (including the cross-replica persisted-result fallback). */
   result?: InquiryResult;
-}
-
-export function isInquiryTerminal(status: InquiryJobStatus): boolean {
-  return status === 'done' || status === 'done_truncated' || status === 'failed';
 }
 
 // Brief Export (t/2805, T7) — client shapes of the T6 REST API (server: routes/briefExports.ts).
