@@ -78,7 +78,15 @@ function TopicScopeSection({ debate, effectiveOverviewTab }: { debate: DebateSes
   const scope = debate.topic.scope as TopicScope;
   return (
     <div className="ovr-topic-scope">
-      <h4 className="ovr-h4">Topic Scope <TheoryLink docPath="docs/topic-scope.md" size={12} /></h4>
+      <h4 className="ovr-h4">
+        Topic Scope <TheoryLink docPath="docs/topic-scope.md" size={12} />{' '}
+        <TheoryLink
+          docPath="docs/topic-scope-theory-of-success.md"
+          size={12}
+          label="Help: Topic Scope theory of success"
+          tooltip="Theory of Success & Operations"
+        />
+      </h4>
       <div className="ovr-mb-8">
         <span className="ovr-scope-prop">{scope.core_proposition}</span>
       </div>
