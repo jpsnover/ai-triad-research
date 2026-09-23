@@ -123,4 +123,13 @@ describe('generate-text — AbortController map lifecycle', () => {
     const optsArg = mockGenerateText.mock.calls[0][3] as { signal?: AbortSignal } | undefined;
     expect(optsArg?.signal).toBeUndefined();
   });
+
+  it('forwards diagnostics from generateText through the IPC result (t/3569)', async () => {
+    const diagnostics = { requestBytes: 42, httpStatus: 200, headersMs: 10, bodyReadMs: 5, responseBytes: 100 };
+    mockGenerateText.mockResolvedValue({ text: 'result', diagnostics });
+    const handler = getHandler('generate-text');
+    const { sender } = makeSender();
+    const result = await handler({ sender }, { prompt: 'prompt' });
+    expect(result).toEqual({ text: 'result', diagnostics });
+  });
 });

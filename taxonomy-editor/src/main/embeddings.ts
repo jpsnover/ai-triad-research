@@ -47,7 +47,7 @@ import {
   generateViaGeminiStream,
   DEFAULT_MODEL,
 } from '../../../lib/ai-client/index.js';
-import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn, UrlContextMetadata, GeminiContent, StopReason } from '../../../lib/ai-client/index.js';
+import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn, UrlContextMetadata, GeminiContent, StopReason, ProviderCallDiagnostics } from '../../../lib/ai-client/index.js';
 import type { ModelEntry } from '../../../lib/ai-client/index.js';
 import { resolveModelEntry as resolveModelEntryFromCache } from './modelConfigCache.js';
 
@@ -702,7 +702,7 @@ export async function generateText(
   model?: string,
   onRetry?: (progress: GenerateTextProgress) => void,
   opts?: GenerateTextCallOptions,
-): Promise<{ text: string; stopReason?: StopReason }> {
+): Promise<{ text: string; stopReason?: StopReason; diagnostics?: ProviderCallDiagnostics }> {
   const { timeoutMs, temperature, signal, responseSchema, maxTokens } = opts ?? {};
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
@@ -768,7 +768,7 @@ export async function generateText(
   );
 
   console.log('[generateText] Success, result length:', result.text.length);
-  return { text: result.text, stopReason: result.stopReason };
+  return { text: result.text, stopReason: result.stopReason, diagnostics: result.diagnostics };
 }
 
 export interface ChatMessage {
