@@ -100,7 +100,7 @@
       "label": "Kimi K3",
       "backend": "moonshot",
       "fixedTemperature": 1,
-      "minTimeoutMs": 300000,
+      "minTimeoutMs": 400000,
       "picker": {
         "label": "Kimi K3",
         "order": 10
@@ -111,7 +111,7 @@
       "apiModelId": "grok-4.6",
       "label": "Grok 4.6",
       "backend": "xai",
-      "minTimeoutMs": 300000,
+      "minTimeoutMs": 400000,
       "picker": {
         "label": "Grok 4.6",
         "order": 10
@@ -122,7 +122,7 @@
       "apiModelId": "grok-4.7",
       "label": "Grok 4.7",
       "backend": "xai",
-      "minTimeoutMs": 300000,
+      "minTimeoutMs": 400000,
       "picker": {
         "label": "Grok 4.7",
         "order": 5
