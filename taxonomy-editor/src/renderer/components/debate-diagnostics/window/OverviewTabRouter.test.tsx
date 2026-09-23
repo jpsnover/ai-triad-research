@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { OverviewTabRouter } from './OverviewTabRouter';
 import type { OverviewTab } from './types';
+import { usePreferencesStore } from '../../../store/preferencesStore';
+import { api } from '@bridge';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -140,6 +142,8 @@ function makeProps(overrides: Record<string, unknown> = {}) {
 describe('OverviewTabRouter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // TheoryLink gates on viewMode (t/2867); advanced view shows the doc-links these tests assert.
+    usePreferencesStore.setState({ viewMode: 'advanced' });
   });
 
   it('renders without crash with transcript overview tab', () => {
@@ -235,5 +239,42 @@ describe('OverviewTabRouter', () => {
     expect(screen.getByTitle('Statement S1')).toBeInTheDocument();
     expect(screen.getByTitle('Statement S2 — pipeline error')).toBeInTheDocument();
     expect(screen.getByTitle('Statement S2 — pipeline error').textContent).toContain('●');
+  });
+
+  // t/3593 — the Theory of Success doc-link (TheoryLink) renders beside the Topic Scope
+  // heading and opens docs/topic-scope-theory-of-success.md through the bridge.
+  it('renders the Topic Scope theory-of-success doc-link and opens it through the bridge', () => {
+    const debate = makeDebate();
+    debate.topic = {
+      scope: {
+        core_proposition: 'Test proposition',
+        relevant_disciplines: [],
+        on_scope_evidence: [],
+        key_tensions: [],
+        off_scope_topics: [],
+        drift_signatures: [],
+        example_ceiling: null,
+        risk_level: 'low',
+        domain: null,
+        product_type: null,
+        time_horizon: null,
+        excluded_scenarios: [],
+        explicit_qualifiers: [],
+        constraint_confidence: 'explicit',
+      },
+    };
+
+    render(
+      <OverviewTabRouter
+        {...makeProps({ debate, effectiveOverviewTab: 'topic-scope' })}
+      />,
+    );
+
+    const link = screen.getByRole('button', { name: /topic scope theory of success/i });
+    expect(link).toBeInTheDocument();
+    fireEvent.click(link);
+    expect(api.openExternal).toHaveBeenCalledWith(
+      'https://github.com/jpsnover/ai-triad-research/blob/main/docs/topic-scope-theory-of-success.md',
+    );
   });
 });
