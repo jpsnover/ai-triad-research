@@ -1,0 +1,117 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// t/3582 — "Ask a question" bridge methods (startInquiry / getInquiry), both builds.
+// Route contract: t/3582#1 (server: routes/inquiry.ts, t/3581).
+
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+
+const { resilientFetch } = vi.hoisted(() => ({ resilientFetch: vi.fn() }));
+
+vi.mock('../resilience', () => ({
+  resilientFetch,
+  categorizeEndpoint: () => 'mutation',
+  registerConnectionPoolProvider: vi.fn(),
+}));
+vi.mock('@lib/debate/errors', () => ({ ActionableError: class ActionableError extends Error {} }));
+vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
+vi.mock('../instrumentBridge', () => ({ instrumentBridge: (raw: unknown) => raw }));
+
+describe('electron-bridge inquiry delegation', () => {
+  const origWindow = (globalThis as Record<string, unknown>).window;
+
+  afterEach(() => {
+    (globalThis as Record<string, unknown>).window = origWindow;
+    vi.resetModules();
+  });
+
+  it('delegates startInquiry/getInquiry to window.electronAPI when present', async () => {
+    const startInquiry = vi.fn().mockResolvedValue({ jobId: 'job-1' });
+    const getInquiry = vi.fn().mockResolvedValue({ jobId: 'job-1', status: 'done', progressPct: 100, terminationReason: null, resultId: 'job-1', error: null });
+    (globalThis as Record<string, unknown>).window = { electronAPI: { startInquiry, getInquiry } };
+    const mod = await import('../electron-bridge');
+
+    await mod.api.startInquiry({ question: 'q', fidelity: 'quick' }, 'idem-key');
+    expect(startInquiry).toHaveBeenCalledWith({ question: 'q', fidelity: 'quick' }, 'idem-key');
+
+    await mod.api.getInquiry('job-1');
+    expect(getInquiry).toHaveBeenCalledWith('job-1');
+  });
+
+  it('rejects gracefully when the inquiry IPC handlers are absent (desktop degrade, t/3582)', async () => {
+    (globalThis as Record<string, unknown>).window = { electronAPI: {} };
+    const mod = await import('../electron-bridge');
+
+    await expect(mod.api.startInquiry({ question: 'q', fidelity: 'quick' })).rejects.toThrow('not available in desktop mode');
+    await expect(mod.api.getInquiry('job-1')).rejects.toThrow('not available in desktop mode');
+  });
+});
+
+describe('web-bridge inquiry REST calls', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    resilientFetch.mockReset();
+  });
+
+  function jsonResponse(body: unknown, status = 200): Response {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: () => Promise.resolve(body),
+      text: () => Promise.resolve(JSON.stringify(body)),
+      clone() { return jsonResponse(body, status); },
+    } as unknown as Response;
+  }
+
+  it('startInquiry POSTs to /api/inquiry with the Idempotency-Key header, not in the body', async () => {
+    resilientFetch.mockResolvedValue(jsonResponse({ jobId: 'job-9' }, 202));
+    const { api } = await import('../web-bridge');
+
+    const result = await api.startInquiry({ question: 'What counts as harm?', fidelity: 'standard' }, 'idem-1');
+
+    expect(result).toEqual({ jobId: 'job-9' });
+    const [path, init] = resilientFetch.mock.calls[0];
+    expect(path).toBe('/api/inquiry');
+    expect(init.headers['Idempotency-Key']).toBe('idem-1');
+    const sentBody = JSON.parse(init.body);
+    expect(sentBody).toEqual({ question: 'What counts as harm?', fidelity: 'standard' });
+    expect(sentBody['Idempotency-Key']).toBeUndefined();
+  });
+
+  it('startInquiry omits the Idempotency-Key header when none is given', async () => {
+    resilientFetch.mockResolvedValue(jsonResponse({ jobId: 'job-10' }, 202));
+    const { api } = await import('../web-bridge');
+
+    await api.startInquiry({ question: 'q', fidelity: 'quick' });
+
+    const [, init] = resilientFetch.mock.calls[0];
+    expect(init.headers['Idempotency-Key']).toBeUndefined();
+  });
+
+  it('getInquiry GETs /api/inquiry/:jobId and returns the poll view, including a terminal result', async () => {
+    const view = {
+      jobId: 'job-9', status: 'done_truncated', progressPct: 100,
+      terminationReason: 'api_ceiling', resultId: 'job-9', error: null,
+      result: { schemaVersion: 1 },
+    };
+    resilientFetch.mockResolvedValue(jsonResponse(view));
+    const { api } = await import('../web-bridge');
+
+    const result = await api.getInquiry('job-9');
+
+    expect(result).toEqual(view);
+    const [path] = resilientFetch.mock.calls[0];
+    expect(path).toBe('/api/inquiry/job-9');
+  });
+
+  it('encodeURIComponent-escapes the jobId path segment', async () => {
+    resilientFetch.mockResolvedValue(jsonResponse({ jobId: 'a/b', status: 'queued', progressPct: 0, terminationReason: null, resultId: null, error: null }));
+    const { api } = await import('../web-bridge');
+
+    await api.getInquiry('a/b');
+
+    const [path] = resilientFetch.mock.calls[0];
+    expect(path).toBe('/api/inquiry/a%2Fb');
+  });
+});

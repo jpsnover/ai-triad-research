@@ -163,6 +163,40 @@ export interface CreateOpEdPayload { topic: string; url?: string; params: Create
 /** One 3-stage progress tick from the Electron generation IPC (t/2575 `oped-progress`). */
 export interface OpEdProgressEvent { set_id: string; voice: string; stage: string; error?: string }
 
+// Inquiry (t/3582, T-inquiry) — client shapes of the T-inquiry REST API (server: routes/inquiry.ts,
+// t/3581). Field-for-field identical to the route contract (t/3582#1) so the two stay in lockstep.
+import type { InquiryResult as _InquiryResult } from '../../../../lib/inquiry';
+export type InquiryResult = _InquiryResult;
+
+export interface StartInquiryRequest {
+  question: string;
+  fidelity: 'quick' | 'standard' | 'deep';
+  situationId?: string;
+  models?: { debaters?: string; evaluator?: string };
+}
+
+export type InquiryJobStatus =
+  | 'queued' | 'grounding' | 'debating' | 'judging' | 'synthesizing'
+  | 'done' | 'done_truncated' | 'failed';
+
+/** `done_truncated` is a DISTINCT terminal state (budget/ceiling truncation, fails closed by
+ *  design) — callers must treat `status !== 'queued' && ... !== 'failed'` as terminal via the
+ *  explicit two-member check below, never a bare `=== 'done'` (t/3582#1). */
+export interface InquiryStatusResponse {
+  jobId: string;
+  status: InquiryJobStatus;
+  progressPct: number;
+  terminationReason: string | null;
+  resultId: string | null;
+  error: string | null;
+  /** Present on `done` / `done_truncated` (including the cross-replica persisted-result fallback). */
+  result?: InquiryResult;
+}
+
+export function isInquiryTerminal(status: InquiryJobStatus): boolean {
+  return status === 'done' || status === 'done_truncated' || status === 'failed';
+}
+
 // Brief Export (t/2805, T7) — client shapes of the T6 REST API (server: routes/briefExports.ts).
 // Consumes T6's frozen job-state names, artifact names, and error taxonomy verbatim.
 export interface BriefExportRequest {
@@ -450,6 +484,10 @@ export interface AppAPI {
   exportDebateToFile: (session: unknown, format?: 'json' | 'markdown' | 'text' | 'pdf' | 'package', exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }) => Promise<{ cancelled: boolean; filePath?: string }>;
   loadDebateComments: (debateId: string) => Promise<unknown>;
   saveDebateComments: (debateId: string, data: unknown) => Promise<void>;
+
+  // --- Inquiry (t/3582 — "Ask a question"; both builds) ---
+  startInquiry: (request: StartInquiryRequest, idempotencyKey?: string) => Promise<{ jobId: string }>;
+  getInquiry: (jobId: string) => Promise<InquiryStatusResponse>;
 
   // --- Brief Export (t/2805, T7 — client of the T6 REST API; web-only v1, Electron parity tracked) ---
   createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;

@@ -5,7 +5,8 @@
  * Web bridge — implements AppAPI via REST and WebSocket calls to the server.
  * Used when the app runs in a browser served by the container.
  */
-import type { AppAPI, SourceDocumentResolution, DebateDelta, UserPreferences, BriefExportJobView, BriefExportRecord } from './types';
+import type { AppAPI, SourceDocumentResolution, DebateDelta, UserPreferences, BriefExportJobView, BriefExportRecord, StartInquiryRequest, InquiryStatusResponse } from './types';
+import { pullDataUpdatesRest } from './dataUpdatesPull';
 import { instrumentBridge } from './instrumentBridge';
 import { makeCancellationError } from './cancellation';
 import { ActionableError } from '@lib/debate/errors';
@@ -808,22 +809,7 @@ const rawApi: AppAPI = {
   setDataRoot: (newRoot) => post('/api/data/set-root', { newRoot }),
   pickDirectory: () => Promise.resolve({ cancelled: true }),
   checkDataUpdates: () => post('/api/data/check-updates'),
-  pullDataUpdates: async () => {
-    // This endpoint streams heartbeats + progress lines to prevent proxy timeouts.
-    // The final non-empty line is the JSON result.
-    const res = await fetch('/api/data/pull', { method: 'POST' });
-    const text = await res.text();
-    const lines = text.split('\n').filter(l => l.trim() && !l.startsWith('progress:'));
-    if (lines.length === 0) {
-      throw new ActionableError({
-        goal: 'Pull data updates',
-        problem: 'Server returned no result',
-        location: 'web-bridge.pullDataUpdates',
-        nextSteps: ['Check the server logs', 'Try again'],
-      });
-    }
-    return JSON.parse(lines[lines.length - 1]);
-  },
+  pullDataUpdates: () => pullDataUpdatesRest(), // extracted (ADR-007) — see dataUpdatesPull.ts
 
   getChangedFiles: () => post<{ path: string; status: string }[]>('/api/data/changed-files').catch(bridgeWarn('getChangedFiles failed', [])),
   getFileDiff: (filePath) => post<string>('/api/data/file-diff', { filePath }).catch(bridgeWarn('getFileDiff failed', '')),
@@ -1016,6 +1002,10 @@ const rawApi: AppAPI = {
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
+
+  // Inquiry (t/3582) — client of routes/inquiry.ts (t/3581); idempotency key rides a header, never the body.
+  startInquiry: (request: StartInquiryRequest, idempotencyKey?: string) => post<{ jobId: string }>('/api/inquiry', request, undefined, idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined),
+  getInquiry: (jobId: string) => get<InquiryStatusResponse>(`/api/inquiry/${encodeURIComponent(jobId)}`),
 
   // Brief Export (t/2805, T7) — client of the T6 REST API (server: routes/briefExports.ts).
   createBriefExport: (debateId, body) => post<{ jobId: string }>(`/api/debates/${encodeURIComponent(debateId)}/exports`, body),
