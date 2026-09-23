@@ -1,0 +1,57 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+import { describe, it, expect } from 'vitest';
+import { isZeroResult, stageStatus, trustVerdictLabel, STAGE_ORDER } from './inquiryDisplay';
+import type { InquiryResult } from '@lib/inquiry';
+
+function makeResult(overrides: Partial<InquiryResult> = {}): InquiryResult {
+  return {
+    schemaVersion: 1,
+    request: { question: 'q', fidelity: 'standard' },
+    campVerdicts: [],
+    convergences: [],
+    evidenceLayers: [],
+    unresolvedGaps: [],
+    calibration: [],
+    derivation: { fidelity: 'standard', models: {}, rounds: 4, callBudget: 150 },
+    grounding: {},
+    singleRunCaveat: 'n=1',
+    ...overrides,
+  };
+}
+
+describe('isZeroResult (t/3583#4 point 2 — ADR-001 graceful-empty needs its own treatment)', () => {
+  it('is true when campVerdicts, convergences, and evidenceLayers are all empty', () => {
+    expect(isZeroResult(makeResult())).toBe(true);
+  });
+
+  it('is false when any of the three arrays has content', () => {
+    expect(isZeroResult(makeResult({ campVerdicts: [{ camp: 'acc', verdict: 'x', nodes: [] }] }))).toBe(false);
+    expect(isZeroResult(makeResult({ convergences: [{ claim: 'x', nodes: [] }] }))).toBe(false);
+    expect(isZeroResult(makeResult({ evidenceLayers: [{ title: 't', role: 'r', solves: 's', sources: [] }] }))).toBe(false);
+  });
+});
+
+describe('trustVerdictLabel', () => {
+  it('renders the researcher-facing label, not the internal enum value (TL t/3583#2)', () => {
+    expect(trustVerdictLabel('censored')).toBe('incomplete');
+    expect(trustVerdictLabel('trust')).toBe('trust');
+  });
+});
+
+describe('stageStatus', () => {
+  it('marks every stage waiting when queued or null', () => {
+    for (const stage of STAGE_ORDER) {
+      expect(stageStatus('queued', stage)).toBe('wait');
+      expect(stageStatus(null, stage)).toBe('wait');
+    }
+  });
+
+  it('marks earlier stages done, the current stage live, later stages waiting', () => {
+    expect(stageStatus('judging', 'grounding')).toBe('done');
+    expect(stageStatus('judging', 'debating')).toBe('done');
+    expect(stageStatus('judging', 'judging')).toBe('live');
+    expect(stageStatus('judging', 'synthesizing')).toBe('wait');
+  });
+});

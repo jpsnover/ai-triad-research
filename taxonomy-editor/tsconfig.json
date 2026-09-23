@@ -34,6 +34,8 @@
       "@lib/embeddings/*": ["../lib/embeddings/*"],
       "@lib/chat/*": ["../lib/chat/*"],
       "@lib/organizations/*": ["../lib/organizations/*"],
+      "@lib/inquiry": ["../lib/inquiry/index.ts"],
+      "@lib/inquiry/*": ["../lib/inquiry/*"],
       "@lib/entities/*": ["../lib/entities/*"],
       "@lib/policy/*": ["../lib/policy/*"],
       "@lib/userPreferencesSchema": ["../lib/userPreferencesSchema.ts"],

@@ -53,6 +53,7 @@ const SummariesTab = recordingLazy(() => import('./components/analysis/Summaries
 const CruxesTab = recordingLazy(() => import('./components/debate/CruxesTab').then(m => ({ default: m.CruxesTab })));
 const ValidationTab = recordingLazy(() => import('./components/taxonomy/ValidationTab').then(m => ({ default: m.ValidationTab })));
 const OrganizationsTab = recordingLazy(() => import('./components/organizations/OrganizationsTab').then(m => ({ default: m.OrganizationsTab })));
+const InquiryTab = recordingLazy(() => import('./components/inquiry/InquiryTab').then(m => ({ default: m.InquiryTab })));
 
 // Lazy-loaded window/panel components — separate Electron windows or hash routes
 const DiagnosticsWindow = recordingLazy(() => import('./components/debate-diagnostics').then(m => ({ default: m.DiagnosticsWindow })));
@@ -612,7 +613,7 @@ function MainApp() {
   // column (t/2857) so the left nav rail spans full window height, matching Debate/Chat/Op-Eds.
   // showPovHeader mirrors the original TabBar visibility condition exactly. Layout-only.
   const showPovHeader = toolbarPanel === null &&
-    !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'opeds', 'summaries', 'validation', 'organizations'].includes(activeTab);
+    !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'opeds', 'summaries', 'validation', 'organizations', 'inquiry'].includes(activeTab);
   const tabContent = (
     <>
       {activeTab === 'accelerationist' && <PovTab pov="accelerationist" />}
@@ -628,6 +629,7 @@ function MainApp() {
         {activeTab === 'summaries' && summariesFlag && <SummariesTab />}
         {activeTab === 'validation' && <ValidationTab />}
         {activeTab === 'organizations' && <OrganizationsTab />}
+        {activeTab === 'inquiry' && <InquiryTab />}
       </Suspense>
     </>
   );
