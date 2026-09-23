@@ -727,7 +727,7 @@ async function runCiGolden(): Promise<void> {
       );
 
       const adapter = createCLIAdapter(repoRoot, config.apiKey);
-      const model = config.model ?? 'gemini-2.0-flash-lite';
+      const model = config.model ?? 'gemini-3.5-flash-lite';
       const activePovers = (config.activePovers ?? ['accelerationist', 'safetyist', 'skeptic']) as Exclude<SpeakerId, 'user'>[];
       const qualityFloor = config.quality_floor ?? 30;
 
