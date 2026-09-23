@@ -13,6 +13,7 @@
 
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackAICall } from '../lib/analyticsEmitter';
+import { utf8ByteLength } from '@lib/ai-client/index';
 import type { AppAPI } from './types';
 
 /** Truncate an argument for logging. Keeps strings short, summarizes objects. */
@@ -95,15 +96,19 @@ type _ExpectedGenerateTextParams = [
 true satisfies _Equal<_PinnedGenerateTextParams, _ExpectedGenerateTextParams>;
 
 /**
- * `model`/`timeoutMs`/`purpose`/`maxTokens` for the ai.request/ai.response/ai.error FR events
- * (t/3519, maxTokens added t/3524). The t/3518 triage found all 20 ai.error/ai.request events for
- * a PI debate failure carried only `{method, category, _origin}` — the model had to be inferred
- * from unrelated debate.lifecycle events, and the decisive fact (60s budget vs 180s expected) only
- * surfaced because the thrown ActionableError happened to mention elapsed ms. maxTokens joins the
- * same event for the analogous reason: t/3524's Fable 5 truncation was diagnosable only via a raw
- * FR field (discarded_tail), with no first-class record of the ceiling that caused it. This is a
- * positional read of each AI method's PARAMETER LIST — pinned to the current `AppAPI`
- * (bridge/types.ts) signatures below.
+ * `model`/`timeoutMs`/`purpose`/`maxTokens`/`promptBytes` for the ai.request/ai.response/ai.error
+ * FR events (t/3519, maxTokens added t/3524, promptBytes added t/3568). The t/3518 triage found
+ * all 20 ai.error/ai.request events for a PI debate failure carried only
+ * `{method, category, _origin}` — the model had to be inferred from unrelated debate.lifecycle
+ * events, and the decisive fact (60s budget vs 180s expected) only surfaced because the thrown
+ * ActionableError happened to mention elapsed ms. maxTokens joins the same event for the analogous
+ * reason: t/3524's Fable 5 truncation was diagnosable only via a raw FR field (discarded_tail),
+ * with no first-class record of the ceiling that caused it. promptBytes closes the same gap on
+ * the REQUEST side: `extractResultMeta`'s `prompt_chars` only fires on the response path, so a
+ * timed-out call (no response) lost prompt size exactly when it mattered — t/3568 found this after
+ * t/3566's instrumentation landed in `lib/debate/aiAdapter.ts` (the Node/CLI path) while every
+ * `ai.*` FR event for a desktop debate is emitted here instead. This is a positional read of each
+ * AI method's PARAMETER LIST — pinned to the current `AppAPI` (bridge/types.ts) signatures below.
  *   generateText(prompt, model, timeoutMs, temperature, opts: GenerateTextOptions) — pinned above;
  *     a reorder or type change fails the build (t/3528).
  *   generateTextWithSearch(prompt, model)
@@ -111,7 +116,7 @@ true satisfies _Equal<_PinnedGenerateTextParams, _ExpectedGenerateTextParams>;
  * All other "ai"-category methods (computeEmbeddings, computeQueryEmbedding, updateNodeEmbeddings,
  * nliClassify) call a fixed server-side model with no per-call selection — nothing to extract.
  */
-function aiCallMeta(method: string, args: unknown[]): { model?: string; timeoutMs?: number; purpose?: string; maxTokens?: number } {
+function aiCallMeta(method: string, args: unknown[]): { model?: string; timeoutMs?: number; purpose?: string; maxTokens?: number; promptBytes?: number } {
   if (method === 'generateText') {
     const opts = args[4] as { purpose?: string; maxTokens?: number } | undefined;
     return {
@@ -119,6 +124,11 @@ function aiCallMeta(method: string, args: unknown[]): { model?: string; timeoutM
       timeoutMs: typeof args[2] === 'number' ? args[2] : undefined,
       purpose: typeof opts?.purpose === 'string' ? opts.purpose : undefined,
       maxTokens: typeof opts?.maxTokens === 'number' ? opts.maxTokens : undefined,
+      // t/3568: on the ai.request emit specifically — a timeout has no response, so
+      // prompt_chars (extractResultMeta, response-path only) is lost exactly when this is
+      // needed most. Byte length (not .length) to match the provider-side promptBytes/
+      // requestBytes fields from t/3566 and be correct for multi-byte content.
+      promptBytes: typeof args[0] === 'string' ? utf8ByteLength(args[0]) : undefined,
     };
   }
   if (method === 'generateTextWithSearch') {
