@@ -42,6 +42,11 @@ export const PROMPT_CATALOG_EXCLUDED: PromptExclusion[] = [
   { name: 'consensusSituationPrompt', reason: 'Niche convergence→enrichment sub-prompt (CL t/2835#1).' },
   { name: 'crossCuttingNodePrompt', reason: 'Niche convergence→enrichment sub-prompt (CL t/2835#1).' },
 
+  // ── Inquiry pipeline (t/3580): backend-only evaluator-model prompt, not user-inspected.
+  //    Produces a structured InquiryResult via a single LLM call in the inquiry synthesis pass;
+  //    no UX entry point in taxonomy-editor. Will get a catalog entry once the inquiry UX ships.
+  { name: 'inquirySynthesisPrompt', reason: 'Backend-only evaluator prompt for the inquiry synthesis pass (t/3580). Not exposed in taxonomy-editor UI.' },
+
   // ── CL INTERNAL (t/2859): trivial UI utility, not a user-inspected content prompt.
   //    vernacularPrompt + aphorismPrompt ruled EXPOSE (now catalogued); this is the one
   //    permanent INTERNAL exclusion replacing the provisional t/2859 block.
