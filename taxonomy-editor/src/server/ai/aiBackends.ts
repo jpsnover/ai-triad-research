@@ -339,7 +339,7 @@ function buildGenerateOptions(
   const entry = entryMap[currentModel];
   return {
     temperature: options?.temperature ?? _debateTemperature ?? 0.7,
-    timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel),
+    timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel, getModelRegistry()),
     ...(entry?.fixedTemperature != null ? { fixedTemperature: entry.fixedTemperature } : {}),
     // t/2510: caller cancellation (client disconnect) → callProvider passes this into
     // the provider fetch's init.signal (AbortSignal.any with the per-attempt timeout).

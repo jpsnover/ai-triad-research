@@ -38,7 +38,6 @@ export async function runNeutralCheckpoint(
         const result = await api.generateText(prompt, m, opts?.timeoutMs, opts?.temperature, { maxTokens: opts?.maxTokens });
         return result.text;
       },
-      getModelMinTimeout: (_model: string) => 0,
     };
 
     const evaluation = await runNeutralEvaluation(checkpoint, {

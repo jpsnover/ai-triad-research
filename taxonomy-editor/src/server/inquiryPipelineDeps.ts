@@ -108,7 +108,9 @@ function createInquiryAdapter(): AIAdapter {
       });
       return result.text;
     },
-    getModelMinTimeout: (_model) => 0,
+    // t/3614: required AIAdapter member — host-loaded registry data (cached via getModelRegistry),
+    // the same source buildInquiryRunPipeline uses for deps.registry below.
+    registry: getModelRegistry(),
   };
 }
 

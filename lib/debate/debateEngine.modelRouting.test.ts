@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
@@ -111,7 +111,7 @@ describe('Per-speaker model routing', () => {
           disagreement_type: 'empirical', position_update: null,
         });
       },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({
@@ -160,7 +160,7 @@ describe('Per-speaker model routing', () => {
           disagreement_type: 'empirical', position_update: null,
         });
       },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({
@@ -408,7 +408,7 @@ describe('maxModelId cap on failover chain (t/1164)', () => {
         attemptedModels.push(model);
         throw new Error('500 Internal Server Error');
       },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({
@@ -429,7 +429,7 @@ describe('maxModelId cap on failover chain (t/1164)', () => {
   it('without maxModelId, fallback chain escalation proceeds normally', () => {
     const adapter: ExtendedAIAdapter = {
       async generateText() { return '{}'; },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({
@@ -447,7 +447,7 @@ describe('maxModelId cap on failover chain (t/1164)', () => {
   it('maxModelId at flash tier allows flash but blocks sonnet', () => {
     const adapter: ExtendedAIAdapter = {
       async generateText() { return '{}'; },
-      getModelMinTimeout: (_model) => 0,
+      registry: { backends: [], models: [] },
     };
 
     const config = createDefaultConfig({
