@@ -100,7 +100,7 @@
       "label": "Kimi K3",
       "backend": "moonshot",
       "fixedTemperature": 1,
-      "minTimeoutMs": 300000,
+      "minTimeoutMs": 400000,
       "picker": {
         "label": "Kimi K3",
         "order": 10
@@ -111,7 +111,7 @@
       "apiModelId": "grok-4.6",
       "label": "Grok 4.6",
       "backend": "xai",
-      "minTimeoutMs": 300000,
+      "minTimeoutMs": 400000,
       "picker": {
         "label": "Grok 4.6",
         "order": 10
@@ -122,17 +122,11 @@
       "apiModelId": "grok-4.7",
       "label": "Grok 4.7",
       "backend": "xai",
-      "minTimeoutMs": 300000,
+      "minTimeoutMs": 400000,
       "picker": {
         "label": "Grok 4.7",
         "order": 5
       }
-    },
-    {
-      "id": "gemini-3.7-flash",
-      "apiModelId": "gemini-3.7-flash",
-      "label": "Gemini 3.7 Flash",
-      "backend": "gemini"
     },
     {
       "id": "gemini-3.1-pro-preview",
@@ -159,71 +153,11 @@
       "id": "gemini-3.8-flash",
       "apiModelId": "gemini-3.8-flash",
       "label": "Gemini 3.8 Flash",
+      "minTimeoutMs": 300000,
       "backend": "gemini",
       "picker": {
         "label": "3.8 Flash",
         "order": 30
-      }
-    },
-    {
-      "id": "gemini-3.6-flash",
-      "apiModelId": "gemini-3.6-flash",
-      "label": "Gemini 3.6 Flash",
-      "backend": "gemini",
-      "picker": {
-        "label": "3.6 Flash",
-        "order": 40
-      }
-    },
-    {
-      "id": "gemini-3.5-flash",
-      "apiModelId": "gemini-3.5-flash",
-      "label": "Gemini 3.5 Flash",
-      "backend": "gemini",
-      "picker": {
-        "label": "3.5 Flash",
-        "order": 50
-      }
-    },
-    {
-      "id": "gemini-3.1-flash-lite",
-      "apiModelId": "gemini-3.1-flash-lite",
-      "label": "Gemini 3.1 Flash Lite",
-      "backend": "gemini",
-      "picker": {
-        "label": "3.1 Flash Lite",
-        "order": 60
-      }
-    },
-    {
-      "id": "gemini-2.5-pro",
-      "apiModelId": "gemini-2.5-pro",
-      "label": "Gemini 2.5 Pro",
-      "backend": "gemini",
-      "minTimeoutMs": 300000,
-      "picker": {
-        "label": "2.5 Pro",
-        "order": 90
-      }
-    },
-    {
-      "id": "gemini-2.5-flash",
-      "apiModelId": "gemini-2.5-flash",
-      "label": "Gemini 2.5 Flash",
-      "backend": "gemini",
-      "picker": {
-        "label": "2.5 Flash",
-        "order": 70
-      }
-    },
-    {
-      "id": "gemini-2.5-flash-lite",
-      "apiModelId": "gemini-2.5-flash-lite",
-      "label": "Gemini 2.5 Flash-Lite",
-      "backend": "gemini",
-      "picker": {
-        "label": "2.5 Flash Lite (fastest)",
-        "order": 80
       }
     },
     {
@@ -267,40 +201,6 @@
       "minTimeoutMs": 300000
     },
     {
-      "id": "claude-opus-4-7",
-      "apiModelId": "claude-opus-4-7",
-      "label": "Claude Opus 4.7",
-      "backend": "claude",
-      "minTimeoutMs": 300000,
-      "picker": {
-        "label": "Opus 4.7",
-        "order": 10
-      }
-    },
-    {
-      "id": "claude-sonnet-4-6",
-      "apiModelId": "claude-sonnet-4-6",
-      "label": "Claude Sonnet 4.6",
-      "backend": "claude",
-      "minTimeoutMs": 300000,
-      "picker": {
-        "label": "Sonnet 4.6",
-        "order": 20
-      }
-    },
-    {
-      "id": "claude-opus-4-6",
-      "apiModelId": "claude-opus-4-6",
-      "label": "Claude Opus 4.6",
-      "backend": "claude"
-    },
-    {
-      "id": "claude-opus-4-5",
-      "apiModelId": "claude-opus-4-5-20251101",
-      "label": "Claude Opus 4.5",
-      "backend": "claude"
-    },
-    {
       "id": "claude-haiku-4-5",
       "apiModelId": "claude-haiku-4-5-20251001",
       "label": "Claude Haiku 4.5",
@@ -320,58 +220,31 @@
       "id": "groq-qwen-qwen3.6-27b",
       "apiModelId": "qwen/qwen3.6-27b",
       "label": "Qwen/Qwen3.6 27b",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-canopylabs-orpheus-v1-english",
-      "apiModelId": "canopylabs/orpheus-v1-english",
-      "label": "Canopylabs/Orpheus V1 English",
-      "backend": "groq"
+      "backend": "groq",
+      "minTimeoutMs": 300000
     },
     {
       "id": "groq-openai-gpt-oss-20b",
       "apiModelId": "openai/gpt-oss-20b",
       "label": "Openai/Gpt Oss 20b",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-groq-compound-mini",
-      "apiModelId": "groq/compound-mini",
-      "label": "Groq/Compound Mini",
-      "backend": "groq"
+      "backend": "groq",
+      "minTimeoutMs": 300000
     },
     {
       "id": "groq-openai-gpt-oss-120b",
       "apiModelId": "openai/gpt-oss-120b",
       "label": "Openai/Gpt Oss 120b",
       "backend": "groq",
+      "minTimeoutMs": 300000,
       "picker": {
         "label": "GPT-OSS 120B",
         "order": 20
       }
     },
     {
-      "id": "groq-allam-2-7b",
-      "apiModelId": "allam-2-7b",
-      "label": "Allam 2 7b",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-groq-compound",
-      "apiModelId": "groq/compound",
-      "label": "Groq/Compound",
-      "backend": "groq"
-    },
-    {
       "id": "groq-llama-3.1-8b-instant",
       "apiModelId": "llama-3.1-8b-instant",
       "label": "Llama 3.1 8b Instant",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-canopylabs-orpheus-arabic-saudi",
-      "apiModelId": "canopylabs/orpheus-arabic-saudi",
-      "label": "Canopylabs/Orpheus Arabic Saudi",
       "backend": "groq"
     },
     {
@@ -952,6 +825,7 @@
       "id": "groq-qwen-qwen3.8-27b",
       "apiModelId": "qwen/qwen3.8-27b",
       "label": "Qwen/Qwen3.8 27b",
+      "minTimeoutMs": 300000,      
       "backend": "groq"
     },
     {
@@ -962,8 +836,8 @@
     }
   ],
   "defaults": {
-    "gemini": "gemini-3.1-pro-preview",
-    "claude": "claude-sonnet-4-6",
+    "gemini": "gemini-3.8-flash",
+    "claude": "claude-sonnet-5",
     "groq": "groq-openai-gpt-oss-120b",
     "deepseek": "deepseek-deepseek-v4-flash",
     "azure": "azure-gpt-4o",
