@@ -11,3 +11,5 @@ export {
   makeRaNode,
   makeAifGraph,
 } from './graph.js';
+export type { CrossAgentOpposition, CaFnMetrics, CaExtractionResult } from './caExtraction.js';
+export { extractCrossAgentOppositions } from './caExtraction.js';
