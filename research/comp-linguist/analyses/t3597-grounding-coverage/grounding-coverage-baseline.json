@@ -1,0 +1,74 @@
+{
+  "metric": "grounding_coverage",
+  "provenance": "derived",
+  "threshold": null,
+  "source_model": "summary-inversion (v1; t/3596 will switch to graph_attributes.sources)",
+  "universe": "all live BDI nodes (Beliefs + Intentions + Desires)",
+  "coverage": {
+    "per_pov": {
+      "acc": {
+        "covered": 165,
+        "total": 217,
+        "rate": 0.7604
+      },
+      "saf": {
+        "covered": 322,
+        "total": 374,
+        "rate": 0.861
+      },
+      "skp": {
+        "covered": 301,
+        "total": 368,
+        "rate": 0.8179
+      }
+    },
+    "overall": {
+      "covered": 788,
+      "total": 959,
+      "rate": 0.8217
+    }
+  },
+  "sources_per_covered_node": {
+    "n": 788,
+    "median": 5.0,
+    "mean": 11.47,
+    "max": 150,
+    "min": 1,
+    "p25": 2,
+    "p75": 14
+  },
+  "synthetic_only": {
+    "count": 171,
+    "rate": 0.1783,
+    "truly_ungrounded": 0,
+    "note": "synthetic-only == uncovered nodes carrying >=1 synthetic grounding field"
+  },
+  "diagnostics": {
+    "summaries_scanned": 845,
+    "distinct_live_nodes_linked": 788,
+    "stale_linked_ids": 337,
+    "stale_note": "node-ids linked by summaries but absent from the live taxonomy (companion cleanup: t/3596). Excluded from coverage by construction.",
+    "sources_per_ALL_linked_id_incl_stale": {
+      "n": 1124,
+      "median": 4.0,
+      "mean": 9.66,
+      "max": 150,
+      "min": 1,
+      "p25": 2,
+      "p75": 11
+    },
+    "sources_per_ALL_linked_note": "reproduces the p/314 audit's stale-polluted distribution; the authoritative metric is sources_per_covered_node (live-only)."
+  },
+  "extraction_confidence_caveat": {
+    "n": 15178,
+    "mean": 0.96,
+    "median": 0.97,
+    "min": 0.3,
+    "frac_ge_0_9": 0.968,
+    "note": "LLM-self-reported and saturated near ceiling -- NOT a calibrated reliability signal; never present as reliability."
+  },
+  "_roots": {
+    "data_root": "C:\\Users\\jsnov\\repos\\ai-triad-data",
+    "sources_root": "C:\\Users\\jsnov\\repos\\ai-triad-sources"
+  }
+}

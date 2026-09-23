@@ -297,6 +297,21 @@ The topic-critique `structural_score` (`crux_density` / `evidence_coverage` / `b
 
 **Provenance consequence (not a metric change — a basis-conditioning note):** `structural_score` and its extracted weak-dims are **no longer a single cross-debate series** — an exclusion-on debate's score is computed over a different node set than an exclusion-off debate's. The conditioning is **recoverable from the data** (the `exclude_greatest_hits` flag is on the session), so no schema/field change is required; but any analysis comparing `structural_score` / weak-dims across debates MUST control for the flag. Degrade path: flag on but the greatest-hits list unavailable → unfiltered (today's basis) with a WARN, matching the per-turn path.
 
+## 12. Grounding-coverage metric — belief→primary-source traceability (t/3597)
+
+Corpus-level (not a `CalibrationDataPoint` field): what fraction of the belief graph is traceable to a primary source. The gap was invisible — nothing recorded it, so the p/314 provenance audit computed it ad hoc. Instrument: `research/comp-linguist/analyses/t3597-grounding-coverage/compute_grounding_coverage.py` → `grounding-coverage-baseline.json`; method + reproduced baseline in that dir's README.
+
+**Source model (v1):** inverts the summaries that already carry the links (`pov_summaries[pov].key_points[].taxonomy_node_id` + `factual_claims[].linked_taxonomy_nodes[]`), crediting each linked node to the summary `doc_id`; a source counts only if it resolves to `<sources_root>/<doc_id>/metadata.json`. Switches to reading `graph_attributes.sources[]` when t/3596 (node-side index) lands — same report shape, so the series stays comparable.
+
+| Instrument | Provenance | Evidence / notes |
+|---|---|---|
+| `grounding_coverage_rate` (% of live BDI nodes with ≥1 resolvable primary-source citation, per POV + overall) | **derived** | Computed from corpus link structure; **no threshold** (report distribution first — do not attach a pass/fail cut until chosen deliberately). Reproduced baseline 2026-09-23: acc 165/217 (76.0%), saf 322/374 (86.1%), skp 301/368 (81.8%), **overall 788/959 = 82.2%**. Universe = all 959 live BDI nodes (Beliefs+Intentions+Desires), matching the audit's 959. Evidence: `analyses/t3597-grounding-coverage/`. |
+| `sources_per_covered_node` (distribution over **live covered** nodes) | **derived** | median 5, mean 11.47, max 150. **Correction to the p/314 baseline:** the audit's median 4 / mean 9.8 was computed over *all linked ids incl. ~337 stale/dead ones* (reproduced under `diagnostics.sources_per_ALL_linked_id_incl_stale` = 4.0 / 9.66); the live-only figure is authoritative. |
+| `synthetic_only` (nodes grounded solely by `debate_grounding`/`attribution_text`/`intellectual_lineage`, zero summary links) | **derived** | 171 (17.8%) — the exact complement of coverage; **0** nodes are truly ungrounded. |
+| `extraction_confidence` (reported as a caveat, not a metric) | **stipulated (non-discriminating)** | LLM-self-reported and saturated near ceiling (mean 0.96, median 0.97, 96.8% ≥ 0.9). A saturated signal cannot discriminate reliability — **never present as reliability**; the instrument reports the saturation so the false-precision is countable. |
+
+**Excluded by design:** the node-authored `source_refs` field (379 populated) is a *different* instrument; unioning it lifts coverage to 839/87.5%. This metric measures summary-derived primary-source traceability only.
+
 ## Maintenance
 
 - Every PR adding or modifying a metric, threshold, weight, or lexicon must state its provenance class and update this register in the same PR (CL review checklist item).

@@ -65,6 +65,7 @@ Files the Computational Linguist holds **mandatory review authority** over. Chan
 | `research/comp-linguist/analyses/edge-rationale-quality/check_rationale_quality.py` | Edge-rationale mechanical quality screen — stipulated flag thresholds (t/2444 A′) | Mandatory |
 | `research/comp-linguist/analyses/edge-rationale-quality/judge-prompt.txt` | Edge-rationale LLM-judge scoring prompt (t/2444 A′) | Mandatory |
 | `research/comp-linguist/data/conflict-outcome-labels.json` | Labeled conflict-outcome set — Pollock attack-type labels + outcome labels (prevail-claim/prevail-dispute/tie/undecided) for all 19 dispute-bearing conflicts; gates Potyka-2021 pilot and attack_weights gradient validation (t/3152) | Mandatory |
+| `research/comp-linguist/analyses/t3597-grounding-coverage/compute_grounding_coverage.py` | Grounding-coverage metric — belief→primary-source traceability by summary-inversion; derived, no threshold (t/3597) | Mandatory |
 | **logical_form / prover tooling (t/3126, t/3162, t/3127, t/3239)** | | |
 | `research/comp-linguist/tools/formalize_node_lf.py` | Node `logical_form` populator — ports the formalization prompt over BDI nodes; one-identity grounding + mechanical modality; writes DOLCE-sorted frames (t/3162) | Mandatory |
 | `research/comp-linguist/tools/frame_to_tptp.py` | `logical_form` → TPTP FOF serializer + fail-safe prover harness; axiom-independent (axiom module held for TL review) (t/3127) | Mandatory |
