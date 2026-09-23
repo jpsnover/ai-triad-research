@@ -66,7 +66,7 @@ function Invoke-DebateGroundingBatch {
     [OutputType([PSCustomObject])]
     param(
         [Parameter()][string]$TaxonomyPath,
-        [Parameter()][string]$Model = 'gemini-3.5-flash-lite',
+        [Parameter()][string]$Model = (Get-AITierModel -Tier basic),
         [Parameter()][ValidateRange(1, 50)][int]$Concurrency = 10,
         [Parameter()][ValidateRange(1, [int]::MaxValue)][int]$CheckpointEvery = 50,
         [Parameter()][ValidateRange(1, 600)][int]$TimeoutSec = 60,

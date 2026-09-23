@@ -28,7 +28,7 @@ function Get-DocumentPovClassification {
         [Parameter(Mandatory)]
         [string]$QueryText,
 
-        [string]$Model = 'gemini-3.5-flash-lite',
+        [string]$Model = (Get-AITierModel -Tier basic),
 
         [string]$ApiKey = ''
     )

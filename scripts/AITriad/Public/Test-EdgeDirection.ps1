@@ -42,7 +42,7 @@ function Test-EdgeDirection {
     #>
     [CmdletBinding()]
     param(
-        [string]$Model = 'gemini-3.5-flash-lite',
+        [string]$Model = (Get-AITierModel -Tier basic),
 
         [int]$BatchSize = 20,
 

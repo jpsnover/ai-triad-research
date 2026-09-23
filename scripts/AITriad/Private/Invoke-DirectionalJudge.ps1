@@ -45,7 +45,7 @@ function Invoke-DirectionalJudge {
         [Parameter(Mandatory)][string]$Claim,
         [Parameter(Mandatory)][string]$NodeProp,
         [Parameter(Mandatory)][string]$Camp,
-        [string]$Model = 'gemini-3.1-pro-preview',
+        [string]$Model = (Get-AITierModel -Tier advanced),
         [ValidateRange(0.0, 2.0)][double]$Temperature = 0.3,
         [ValidateRange(1, 9)][int]$Draws = 3
     )

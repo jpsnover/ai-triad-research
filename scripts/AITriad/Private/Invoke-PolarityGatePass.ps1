@@ -71,7 +71,7 @@ function Invoke-PolarityGatePass {
         # confirms deberta's 'opposes' candidates before any flip; unanimous 'opposes'
         # required, fail-safe KEEP. See Invoke-DirectionalJudge.
         [Parameter()]
-        [string]$JudgeModel = 'gemini-3.1-pro-preview',
+        [string]$JudgeModel = (Get-AITierModel -Tier advanced),
 
         [Parameter()]
         [ValidateRange(0.0, 2.0)]

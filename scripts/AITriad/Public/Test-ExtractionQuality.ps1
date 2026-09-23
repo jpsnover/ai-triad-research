@@ -65,7 +65,7 @@ function Test-ExtractionQuality {
         [switch]$PassThru,
         [switch]$EntityLinkAudit,
         [ValidateRange(10, 100)][int]$EntityLinkSampleSize = 20,
-        [string]$Model = 'gemini-3.5-flash-lite'
+        [string]$Model = (Get-AITierModel -Tier basic)
     )
 
     Set-StrictMode -Version Latest
@@ -272,7 +272,7 @@ function Invoke-EntityLinkPrecisionAudit {
     [CmdletBinding()]
     param(
         [int]$SampleSize = 20,
-        [string]$Model = 'gemini-3.5-flash-lite'
+        [string]$Model = (Get-AITierModel -Tier basic)
     )
     Set-StrictMode -Version Latest
 

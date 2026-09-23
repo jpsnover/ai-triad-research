@@ -73,7 +73,7 @@ function Invoke-EdgeRationaleBackfill {
 
         [Parameter()]
         [ValidateScript({ Test-AIModelId $_ })]
-        [string]$Model = 'gemini-3.5-flash-lite',
+        [string]$Model = (Get-AITierModel -Tier basic),
 
         [Parameter()]
         [string]$ApiKey = '',

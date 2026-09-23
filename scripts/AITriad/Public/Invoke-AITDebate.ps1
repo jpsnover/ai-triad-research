@@ -236,7 +236,7 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
     # Resolve model
     if ($Model) { $ResolvedModel = $Model }
     elseif ($env:AI_MODEL) { $ResolvedModel = $env:AI_MODEL }
-    else { $ResolvedModel = 'gemini-3.5-flash-lite' }
+    else { $ResolvedModel = (Get-AITierModel -Tier basic) }
     Write-Verbose "Model resolved: $ResolvedModel (source: $(if ($Model) {'parameter'} elseif ($env:AI_MODEL) {'env:AI_MODEL'} else {'default'}))"
 
     # ── Resolve output directory ──────────────────────────

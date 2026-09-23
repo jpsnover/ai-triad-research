@@ -129,7 +129,7 @@ function Invoke-EdgeDiscovery {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-3.5-flash-lite',
+        [string]$Model = (Get-AITierModel -Tier basic),
 
         [string]$ApiKey = '',
 
@@ -403,7 +403,7 @@ function Invoke-EdgeDiscovery {
     # Two-phase: resolve screen model and load screen prompt
     if ($TwoPhase) {
         $ScreenPrompt = Get-Prompt -Name 'edge-screen'
-        if ([string]::IsNullOrWhiteSpace($ScreenModel)) { $ScreenModel = 'gemini-3.5-flash-lite' }
+        if ([string]::IsNullOrWhiteSpace($ScreenModel)) { $ScreenModel = (Get-AITierModel -Tier basic) }
         # Resolve screen model API key (may differ from main model)
         if     ($ScreenModel -match '^gemini') { $ScreenBackend = 'gemini' }
         elseif ($ScreenModel -match '^claude') { $ScreenBackend = 'claude' }

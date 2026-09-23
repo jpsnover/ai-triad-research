@@ -90,7 +90,7 @@ function Find-PossibleFallacy {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.5-flash-lite' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = (Get-AITierModel -Tier basic) }
     }
 
     # ── Validate environment ──
