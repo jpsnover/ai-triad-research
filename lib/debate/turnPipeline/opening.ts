@@ -62,6 +62,12 @@ export interface OpeningPipelineInput {
   availablePovNodeIds?: string[];
   /** Timeout per brief-stage AI call (ms). Default: 60,000. */
   briefTimeoutMs?: number;
+  /**
+   * Resolved timeout (ms) for plan/draft/cite generate calls. 0 or absent = use adapter default.
+   * Must be a Math.max(base, floor) value — not the raw floor — so the adapter default is raised,
+   * not replaced. CLI path: set by runOpeningPipelineWithRepair. Desktop: set by the renderer call site.
+   */
+  stageTimeoutMs?: number;
   /** Max brief-stage timeout retries. Default: 3. */
   briefMaxRetries?: number;
   /** Max output tokens for brief-stage AI call. Default: 16,000 for opus/fable models, undefined (provider default) for others. */
@@ -190,7 +196,9 @@ export async function runOpeningPipeline(
     const planPromptText = planOpeningStagePrompt(stageInput, briefJson);
     t0 = Date.now();
     const planRaw = await generate(
-      planPromptText, oPlanModel, { temperature: temps.plan_temperature }, `${input.label} opening plan`,
+      planPromptText, oPlanModel,
+      { temperature: temps.plan_temperature, timeoutMs: input.stageTimeoutMs || undefined },
+      `${input.label} opening plan`,
     );
     elapsed = Date.now() - t0;
     const planParsed = parseStageResponse<OpeningPlanWorkProduct>(planRaw, 'plan');
@@ -244,7 +252,9 @@ export async function runOpeningPipeline(
   }
   t0 = Date.now();
   const draftRaw = await generate(
-    draftPromptText, oDraftModel, { temperature: temps.draft_temperature }, `${input.label} opening draft`,
+    draftPromptText, oDraftModel,
+    { temperature: temps.draft_temperature, timeoutMs: input.stageTimeoutMs || undefined },
+    `${input.label} opening draft`,
   );
   elapsed = Date.now() - t0;
   const draftParsed = parseStageResponse<DraftWorkProduct>(draftRaw, 'draft');
@@ -288,7 +298,9 @@ export async function runOpeningPipeline(
   const citePromptText = citeOpeningStagePrompt(stageInput, briefJson, planJson, draftJson);
   t0 = Date.now();
   const citeRaw = await generate(
-    citePromptText, oCiteModel, { temperature: temps.cite_temperature }, `${input.label} opening cite`,
+    citePromptText, oCiteModel,
+    { temperature: temps.cite_temperature, timeoutMs: input.stageTimeoutMs || undefined },
+    `${input.label} opening cite`,
   );
   elapsed = Date.now() - t0;
   const citeParsed = parseStageResponse<OpeningCiteWorkProduct>(citeRaw, 'cite');
@@ -359,6 +371,9 @@ export async function runOpeningPipelineWithRepair(
   const floored: OpeningPipelineInput = {
     ...input,
     briefTimeoutMs: input.briefTimeoutMs ?? Math.max(DEFAULT_BRIEF_TIMEOUT_MS, getMinTimeout?.(briefModel) ?? 0),
+    // stageTimeoutMs is caller-supplied (real registry) or resolved from getMinTimeout on the CLI path.
+    // getMinTimeout returns 0 on the electron stub path → || undefined → adapter default unchanged (no regression).
+    stageTimeoutMs: input.stageTimeoutMs ?? (getMinTimeout?.(input.model) ?? 0),
   };
 
   let result = await runOpeningPipeline(floored, generate, onProgress, onBriefEvent);
