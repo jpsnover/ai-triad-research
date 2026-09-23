@@ -11,9 +11,9 @@
 // `status`/`terminationReason`/`resultId`/`error` field names and the terminal
 // done/done_truncated/failed vocabulary mirror the server's InquiryStatusResponse
 // (t/3578, ServerAPI's inquiryJobs.ts) exactly — Rosetta Stone's bridge (t/3582) polls
-// both builds through the same shape. `InquiryJobStatus` + `deriveTruncation` are
-// DUPLICATED from server/inquiryJobs.ts here (not imported — src/main cannot depend on
-// src/server) pending a hoist to lib/inquiry tracked at t/3609.
+// both builds through the same shape. `InquiryJobStatus`, `isTerminalStatus`, and
+// `deriveTruncation` are the canonical hoisted symbols from lib/inquiry (t/3609) — no
+// local duplicates.
 
 import { ipcMain } from 'electron';
 import { randomUUID } from 'crypto';
@@ -26,17 +26,14 @@ import { runInquiryPipeline, type InquiryPipelineDeps, type InquiryStage } from 
 import { runHeadlessDebate } from '../../../../lib/debate/headlessRunner.js';
 import { loadTaxonomy, type LoadedTaxonomy } from '../../../../lib/debate/taxonomyLoader.js';
 import { loadModelRegistry } from '../../../../lib/ai-client/registry.js';
-import { InquiryRequestSchema, type InquiryRequest, type InquiryResult } from '../../../../lib/inquiry/index.js';
+import {
+  InquiryRequestSchema, type InquiryRequest, type InquiryResult,
+  type InquiryJobStatus, isTerminalStatus, deriveTruncation,
+} from '../../../../lib/inquiry/index.js';
 import { errorMessage } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 const JOB_TTL_MS = 30 * 60_000; // matches server's INQUIRY_JOB_TTL_MS (t/3578#6) — deep fidelity can run ~45 min
-
-// t/3609: duplicated from server/inquiryJobs.ts pending hoist to lib/inquiry.
-const TRUNCATION_REASONS: ReadonlySet<string> = new Set(['max_iterations', 'situation_cap', 'api_ceiling']);
-
-/** Mirrors server inquiryJobs.ts's InquiryJobStatus vocabulary (t/3609: pending hoist). */
-export type InquiryJobStatus = 'queued' | 'grounding' | 'debating' | 'judging' | 'synthesizing' | 'done' | 'done_truncated' | 'failed';
 
 interface InquiryJob {
   jobId: string;
@@ -56,10 +53,6 @@ const PROGRESS: Record<InquiryJobStatus, number> = {
   done: 100, done_truncated: 100, failed: 100,
 };
 
-function isTerminal(status: InquiryJobStatus): boolean {
-  return status === 'done' || status === 'done_truncated' || status === 'failed';
-}
-
 function setStatus(job: InquiryJob, status: InquiryJobStatus): void {
   job.status = status;
   job.progressPct = PROGRESS[status];
@@ -68,19 +61,8 @@ function setStatus(job: InquiryJob, status: InquiryJobStatus): void {
 function sweepJobs(): void {
   const now = Date.now();
   for (const [id, j] of jobs) {
-    if (isTerminal(j.status) && now - j.startedAt > JOB_TTL_MS) jobs.delete(id);
+    if (isTerminalStatus(j.status) && now - j.startedAt > JOB_TTL_MS) jobs.delete(id);
   }
-}
-
-// t/3609: duplicated from server/inquiryJobs.ts's deriveTruncation pending the hoist.
-function deriveTruncation(result: InquiryResult): { truncated: boolean; terminationReason?: string } {
-  for (const entry of result.calibration) {
-    const tr = entry.trust.terminationReason;
-    if (entry.trust.verdict === 'censored' || (tr !== undefined && TRUNCATION_REASONS.has(tr))) {
-      return { truncated: true, terminationReason: tr };
-    }
-  }
-  return { truncated: false };
 }
 
 // Map the pipeline's stage vocabulary (deriving/grounding/debating/projecting/synthesizing) onto the
