@@ -114,7 +114,21 @@ function baseTimeout(backend: string): number {
  * Such sites must floor themselves: `Math.max(explicitTimeout, getModelMinTimeout(model, registry))`.
  */
 export function getModelMinTimeout(model: string, registry?: ModelRegistry): number {
-  if (!registry) return 0;
+  if (!registry) {
+    // Fallback-path logging (root AGENTS.md): the caller omitted the registry, so NO minTimeoutMs
+    // floor can be applied to ANY model on this path — strictly WORSE than the not-found branch below
+    // (which affects one model, and already WARNed). This branch was silent until t/3612: the desktop
+    // draft path resolved its timeout via `getDefaultTimeout(model)` with no registry, dropped every
+    // floor, and left no trace (four dumps to find). The structural fix — removing this optional
+    // param so a caller *cannot* omit it — is t/3614; until then, surface that the floor was skipped.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'ai-client.getModelMinTimeout',
+      level: 'warn',
+      message: `getModelMinTimeout: no registry provided for model "${model}" — minTimeoutMs floor not applied (0) on this path`,
+    });
+    return 0;
+  }
   const entry = buildModelEntryMap(registry)[model];
   if (!entry) {
     // Fallback-path logging (root AGENTS.md): a registry WAS provided but this model isn't in the
@@ -134,9 +148,12 @@ export function getDefaultTimeout(model: string, registry?: ModelRegistry): numb
   const backend = resolveBackend(model);
   const base = baseTimeout(backend);
   // Tiered default: 2× base for the advanced-tier model of its backend (advanced ≠ basic); base
-  // otherwise, and base when there is no registry / no debateTiers. The floor below is applied on
-  // EVERY path — no early return before it — so the default path and the explicit-timeout path
-  // (getModelMinTimeout) can't diverge if debateTiers is ever absent (TL e/185#8 nit).
+  // otherwise, and base when there is no registry / no debateTiers. Line below always runs (no early
+  // return), so WITHIN this function the tiered value and the floor compose. But the floor is only
+  // EFFECTIVE when a registry is passed: `getDefaultTimeout(model)` with no registry yields
+  // Math.max(base, 0) = base — the floor is silently disabled. That is exactly how t/3612 shipped the
+  // draft-timeout regression, so this is a caller-breakable invariant, NOT a guaranteed one. The
+  // structural fix (required `registry`) is t/3614; `getModelMinTimeout` now WARNs on the no-registry path.
   const advanced = registry?.debateTiers?.['advanced']?.[backend];
   const basic    = registry?.debateTiers?.['basic']?.[backend];
   const tiered = (advanced === model && advanced !== basic) ? base * 2 : base;
