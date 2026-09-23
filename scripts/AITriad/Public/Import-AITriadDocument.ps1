@@ -99,7 +99,7 @@ function Import-AITriadDocument {
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [Alias('GeminiModel')]
-        [string]$Model = 'gemini-3.5-flash-lite',
+        [string]$Model = (Get-AITierModel -Tier basic),
 
         [ValidateRange(0.0, 1.0)]
         [double]$Temperature = 0.1

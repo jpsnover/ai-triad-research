@@ -44,7 +44,7 @@ function Invoke-VernacularBatch {
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter()][string]$TaxonomyPath,
-        [Parameter()][string]$Model = 'gemini-3.5-flash-lite',
+        [Parameter()][string]$Model = (Get-AITierModel -Tier basic),
         [Parameter()][string]$Version = 'flash-lite:v1',
         [Parameter()][ValidateRange(1, 50)][int]$Concurrency = 10,
         [switch]$Force,
