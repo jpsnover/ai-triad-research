@@ -560,9 +560,11 @@ describe('getDefaultTimeout — minTimeoutMs floor (t/3518 Phase 2)', () => {
       expect(record.mock.calls[0][0].message).toContain('claude-made-up-9');
     });
 
-    it('returns 0 (no WARN) when no registry is supplied', () => {
+    it('returns 0 + WARN when no registry is supplied (t/3612: this path was silent, dropping every floor)', () => {
       expect(getModelMinTimeout('claude-fable-5')).toBe(0);
-      expect(record).not.toHaveBeenCalled();
+      expect(record).toHaveBeenCalledTimes(1);
+      expect(record.mock.calls[0][0].message).toContain('claude-fable-5');
+      expect(record.mock.calls[0][0].message).toContain('no registry');
     });
 
     it('enforces the floor on an explicit below-floor timeout via Math.max (the opening-brief pattern)', () => {
