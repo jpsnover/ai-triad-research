@@ -114,6 +114,7 @@
         'Show-OSSLicenses'
         'Get-AICostReport'
         'Get-AITierModel'
+        'Build-NodeSourceIndex'
         'Get-FlightRecorderDump'
         'Get-LatestFlightRecorderDump'
         'Get-AzureFlightRecorder'
