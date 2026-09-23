@@ -1,7 +1,8 @@
 # HLD: "Ask a Question" Inquiry UX
 
 **Ticket:** t/3571 · **Author:** Tech Lead · **Date:** 2026-09-23
-**Status:** Draft. The contract section is pending Second Opinion (shared-type-contract trigger).
+**Status:** Accepted. Second Opinion consult complete (e/186, *proceed with conditions*); all
+four conditions folded in. Decisions recorded in `docs/adr/ADR-0002-inquiry-result-contract.md`.
 
 ## Problem
 
@@ -73,28 +74,65 @@ question + fidelity
    → [Render]     answer page + raw run one click away
 ```
 
-### The contract (`lib/debate/inquiryTypes.ts`)
+### The contract (`lib/inquiry/`)
+
+Owned by Shared Lib, not DebateTool. `lib/userPreferencesSchema.ts` settled this shape already:
+it went to flat `lib/` because ServerAPI, a non-Electron consumer, needed it. The same holds
+here. An inquiry is also a product artifact that *wraps* a debate, so homing its contract inside
+`lib/debate/` would couple the artifact's identity to one pipeline stage it deliberately
+abstracts over. DebateTool's synthesis produces the type, so the dependency points from
+`lib/debate` into `lib/inquiry`.
+
+**Zod-first.** The schema is the source of truth and types are inferred from it, per the t/3535
+convention. This artifact crosses five consumers and at least two serialization boundaries (job
+store, REST, IPC); bare interfaces would mean five hand-rolled validations or five
+`as InquiryResult` casts. Retrofitting the validator after downstream tickets have imported the
+types is the expensive order.
 
 `InquiryRequest` collapses the 40-field `CLIConfig` to what a researcher actually chooses:
 
 ```ts
-interface InquiryRequest {
-  question: string;
-  fidelity: 'quick' | 'standard' | 'deep';   // → rounds, models, pacing, budget
-  situationId?: string;                       // optional explicit anchor
-}
+export const InquiryRequestSchema = z.object({
+  question: z.string(),
+  fidelity: z.enum(['quick', 'standard', 'deep']),   // → rounds, models, pacing, budget
+  situationId: z.string().optional(),                 // optional explicit anchor
+});
+export type InquiryRequest = z.infer<typeof InquiryRequestSchema>;
 ```
+
+The enum stays closed. A parameterized version re-grows the 40-field config one option at a time.
 
 `InquiryResult` is the rendered answer's data model: camp verdicts with POV node references,
 convergences, evidence layers, unresolved gaps, and calibration entries that each carry their
-own trust state. It is a **persisted, shareable artifact**, which makes its shape a one-way door:
-once inquiries are saved and linked, changing the schema breaks stored results. It therefore
-carries an explicit `schemaVersion` from day one, and the decision is recorded as an ADR
-alongside this HLD.
+own trust state. It is a **persisted, shareable artifact**, which makes its shape a one-way door.
+Three properties follow from that, all decided now rather than retrofitted.
 
-Because `InquiryResult` is a shared type contract spanning five roles, it triggers the
-**mandatory Second Opinion** class in the root `AGENTS.md`. The contract ticket does not merge
-until that recommendation lands.
+**1. `schemaVersion` plus one shared parser.** A version integer only helps if every reader
+interprets it identically, and there are five readers. `parseInquiryResult(raw)` lives in the
+contract module and owns the whole policy: a newer major refuses loudly with an `ActionableError`
+rather than best-effort rendering a shape it does not understand; the same major reads tolerantly
+with unknown-field passthrough, because this artifact will grow fields; an older version migrates
+at read time inside the parser, so migration logic exists in one place instead of five. No
+envelope/payload split. That is machinery for multi-payload formats, and a plain
+`schemaVersion: 1` with the shared parser gives the same protection here.
+
+**2. The result stamps its resolved derivation.** `deriveDebateConfig` will change as models
+retire and budgets are tuned, so `'standard'` in June will not mean what it meant in March. A
+result that records only the fidelity label has unrecoverable provenance. Every `InquiryResult`
+therefore carries the models actually used, rounds, and budget. This is also what frees the enum
+to evolve. Once results carry resolved facts, adding a fourth level or re-tuning `standard`
+touches nothing already persisted. The request stays lean; the result carries the receipt.
+
+**3. Node references carry a display snapshot.** The taxonomy is mutable, and nodes get retired
+and renamed routinely. A result opened a year later must either resolve references against a corpus
+that has moved or render from its own data. It carries both: the POV node IDs for live
+navigation, plus a minimal inline snapshot (label, camp) so an old result degrades to stale
+labels rather than broken references.
+
+Because `InquiryResult` is a shared type contract spanning five roles, it triggered the
+**mandatory Second Opinion** class in the root `AGENTS.md`. That consult is complete (e/186):
+*proceed with conditions*, all four accepted and folded into this design. Decisions are recorded
+in `docs/adr/ADR-0002-inquiry-result-contract.md`.
 
 ### Fidelity derivation (pure function)
 
@@ -144,15 +182,19 @@ directly:
 
 | Area | Files | Owner |
 |---|---|---|
-| Contract, fidelity, trust, synthesis | `lib/debate/inquiry*.ts`, `calibrationLogger/` | DebateTool |
+| **Contract + parser** | `lib/inquiry/` | **Shared Lib** |
+| Fidelity, trust, grounding, synthesis | `lib/debate/inquiry*.ts`, `calibrationLogger/` | DebateTool |
 | Job runner, REST routes | `server/inquiryJobs.ts`, `server/routes/inquiry.ts` | ServerAPI |
 | IPC + preload | `main/ipc/`, `main/preload.ts` | ElectronMain |
 | Bridge + UI | `renderer/bridge/*`, `renderer/components/inquiry/` | Rosetta Stone |
 | Hosted verification | deploy smoke | DevOps Lead |
 
-Shared Lib is **not** on the critical path: the embedding primitives the pipeline needs already
-exist server-side. The `lib/ai-client/defaults.ts` model-literal cleanup is a separate t/3564
-follow-up, not part of this feature.
+Shared Lib owns the contract, which puts it **at the head of the critical path**. Every other
+ticket blocks on `lib/inquiry/`. (An earlier draft of this HLD placed the contract in
+`lib/debate/` and said Shared Lib was uninvolved; the Second Opinion consult moved it, and this
+is the correction.) Shared Lib is not otherwise on the path. The embedding primitives the
+pipeline needs already exist server-side, and the `lib/ai-client/defaults.ts` model-literal
+cleanup is a separate t/3564 follow-up.
 
 ## Ticket DAG
 
@@ -200,3 +242,6 @@ T0 ships types only, not implementations, so T1/T2/T3/T5/T7 all start in paralle
    no, but the `anonAiRoutes.ts` precedent suggests the question is live. Routes to Server Auth.
 3. **`deep` fidelity ceiling.** What upper bound on turns and spend is acceptable before the
    run is refused rather than truncated?
+
+Resolved by the Second Opinion consult (e/186), recorded in ADR-0002: contract location,
+versioning posture, derivation stamping, and node-reference durability.
