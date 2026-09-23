@@ -166,13 +166,15 @@ calibration metrics (`taxonomy_demotion_rate`, `demoted_node_reference_rate`, `t
 **Open audit findings** (per the TL instruction that fields tracing to nothing are recorded as
 findings, not smoothed over):
 
-1. **`taxonomy_demotion_rate` is zero for most sessions.** The filter requires off-scope term overlap
-   at the keyword level. Taxonomy nodes are typically phrased in abstract academic vocabulary, and
-   the off-scope topics the LLM generates tend to be high-level labels (`"nuclear risk"`,
-   `"bioweapons"`). These rarely share four-character word stems with individual node descriptions.
-   The filter architecture (keyword overlap, not embedding distance) may be the wrong gate for this
-   vocabulary mismatch. This has not been systematically measured against a baseline of "zero scope"
-   sessions.
+1. **`taxonomy_demotion_rate` appears near zero — inferred from code reading, not yet measured.**
+   `applyTopicConstraintFilter` matches on four-character word stems between `off_scope_topics`
+   labels (e.g. `"nuclear risk"`, `"bioweapons"`) and node description text. Taxonomy nodes are
+   phrased in abstract academic vocabulary; these labels are high-level and rarely share stems with
+   individual node descriptions. The inference is: the filter probably never fires. This is an
+   inference from the matching logic — there is no measured N, no baseline comparison against
+   "zero scope" sessions, and no confirmed observed rate. **Measurement is step one before any
+   fix** (t/3594, high). If the rate is confirmed near zero across a representative session sample,
+   the filter gate (keyword overlap vs. embedding distance) is the candidate for replacement.
 
 2. **`demoted_node_reference_rate` is not independently validated.** It is computed only over
    sessions where demotions occurred; for most sessions it is `null`. The intended interpretive range
