@@ -7,6 +7,8 @@ import type { SpeakerMapping } from '@lib/debate/neutralEvaluator';
 import { runNeutralEvaluation, buildSpeakerMapping } from '@lib/debate/neutralEvaluator';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import type { ModelRegistry } from '@lib/ai-client/registry';
+import aiModelsRegistry from '../../../../../../ai-models.json';
 import { getConfiguredModel } from './modelConfig';
 import { phaseGuardedSet } from './generation';
 
@@ -38,6 +40,9 @@ export async function runNeutralCheckpoint(
         const result = await api.generateText(prompt, m, opts?.timeoutMs, opts?.temperature, { maxTokens: opts?.maxTokens });
         return result.text;
       },
+      // t/3614: required AIAdapter member. neutral evaluation runs a real model via runNeutralEvaluation,
+      // so it gets the renderer's bundled registry (same source clarificationSlice uses for the floor).
+      registry: aiModelsRegistry as unknown as ModelRegistry,
     };
 
     const evaluation = await runNeutralEvaluation(checkpoint, {
