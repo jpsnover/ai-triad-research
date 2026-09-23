@@ -9,3 +9,7 @@
 
 export * from './schema.js';
 export { parseInquiryResult } from './parse.js';
+// Job-status vocabulary + truncation derivation, hoisted from server/inquiryJobs.ts (t/3609) so the
+// server, Electron main, and renderer bridge all consume ONE definition instead of three copies.
+export { isTerminalStatus, deriveTruncation, TRUNCATION_REASONS } from './jobStatus.js';
+export type { InquiryJobStatus, InquiryPipelineStage } from './jobStatus.js';

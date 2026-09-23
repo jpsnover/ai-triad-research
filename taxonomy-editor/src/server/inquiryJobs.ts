@@ -28,40 +28,26 @@ import { log } from './logger.js';
 import type { InquiryRequest, InquiryResult } from '../../../lib/inquiry/index.js';
 import { saveInquiryResult, type InquiryResultSummary } from './storage/inquiryResultStore.js';
 
+// Status vocabulary + truncation derivation hoisted to lib/inquiry (t/3609). Imported here for this
+// module's own internal use (isTerminalStatus in the concurrency/sweep checks, deriveTruncation in
+// startInquiryJob, the types in PROGRESS / InquiryJob) AND re-exported below so existing consumers —
+// routes/inquiry.ts, inquiryPipelineDeps.ts, inquiryJobs.test.ts, inquiryRoutes.test.ts — keep
+// importing them from '../inquiryJobs.js' with zero churn.
+import { isTerminalStatus, deriveTruncation } from '../../../lib/inquiry/index.js';
+import type { InquiryJobStatus, InquiryPipelineStage } from '../../../lib/inquiry/index.js';
+export { isTerminalStatus, deriveTruncation } from '../../../lib/inquiry/index.js';
+export type { InquiryJobStatus, InquiryPipelineStage } from '../../../lib/inquiry/index.js';
+
 export const MAX_CONCURRENT_INQUIRY_JOBS = 1;        // per user — an inquiry is heavier than an export (pilot: 54 turns + 16 QBAF, minutes, real spend). TL t/3578#6.
 export const INQUIRY_JOB_TTL_MS = 30 * 60_000;       // 30 min — poll + idempotency window; > export's 10 min because an inquiry runs minutes. TL-confirmed t/3578#6.
 
-// termination_reason values that mean the run was cut short by a binding budget/ceiling (HLD /
-// calibrationLogger censor set). Anything else (e.g. 'natural') is a clean conclusion.
-const TRUNCATION_REASONS: ReadonlySet<string> = new Set(['max_iterations', 'situation_cap', 'api_ceiling']);
-
-/** Pipeline stages the injected runner reports progress through (Ground → Debate → Judge → Synthesize).
- *  Trust projection folds into synthesis; it is not a separately-surfaced job stage. */
-export type InquiryPipelineStage = 'grounding' | 'debating' | 'judging' | 'synthesizing';
-
-/** Every job status. Terminal = done | done_truncated | failed (see isTerminalStatus). The
- *  `Record<InquiryJobStatus, number>` PROGRESS map below forces every status to be accounted for. */
-export type InquiryJobStatus = 'queued' | InquiryPipelineStage | 'done' | 'done_truncated' | 'failed';
-
+// TRUNCATION_REASONS, InquiryPipelineStage, InquiryJobStatus, isTerminalStatus, and deriveTruncation
+// were hoisted to lib/inquiry (t/3609) — imported + re-exported above. PROGRESS stays host-local: it
+// is this job store's display concern, not shared vocabulary (Electron main keeps its own copy).
 const PROGRESS: Record<InquiryJobStatus, number> = {
   queued: 0, grounding: 10, debating: 40, judging: 70, synthesizing: 90,
   done: 100, done_truncated: 100, failed: 100,
 };
-
-/** Exhaustive terminal-status classifier. The `assertNever` default makes adding a new status
- *  without classifying it a COMPILE error — the fail-closed guarantee TL asked for (t/3578#6). */
-export function isTerminalStatus(status: InquiryJobStatus): boolean {
-  switch (status) {
-    case 'queued': case 'grounding': case 'debating': case 'judging': case 'synthesizing':
-      return false;
-    case 'done': case 'done_truncated': case 'failed':
-      return true;
-    default: {
-      const _exhaustive: never = status;
-      return _exhaustive;
-    }
-  }
-}
 
 export interface InquiryJob {
   jobId: string;
@@ -127,22 +113,6 @@ export function sweepInquiryJobs(): void {
   for (const [id, j] of jobs) {
     if (isTerminalStatus(j.status) && now - j.startedAt > INQUIRY_JOB_TTL_MS) jobs.delete(id);
   }
-}
-
-// ── Truncation derivation ──
-
-/** Derive the visible truncation state from the result's trust projection. Truncation is not a
- *  top-level field on InquiryResult (t/3574 contract) — it lives per-metric in the calibration
- *  trust states, where a censored verdict / a budget-binding terminationReason marks a cut-short
- *  run (TL confirmed the source is "the InquiryResult trust/derivation", t/3578#6). */
-export function deriveTruncation(result: InquiryResult): { truncated: boolean; terminationReason?: string } {
-  for (const entry of result.calibration) {
-    const tr = entry.trust.terminationReason;
-    if (entry.trust.verdict === 'censored' || (tr !== undefined && TRUNCATION_REASONS.has(tr))) {
-      return { truncated: true, terminationReason: tr };
-    }
-  }
-  return { truncated: false };
 }
 
 /** Best-effort dangle-tolerant debate reference off the (passthrough) result. The contract does not
