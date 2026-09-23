@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import { clearSessionDismiss, shouldShowGeminiOnboarding } from '../components/settings/GeminiOnboardingModal';
+import { clearSessionDismiss, shouldShowGeminiOnboarding } from '../components/settings/geminiOnboardingState';
 
 type CloseResult = 'saved' | 'later' | 'permanent-dismiss';
 

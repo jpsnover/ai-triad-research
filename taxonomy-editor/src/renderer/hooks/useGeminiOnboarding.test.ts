@@ -12,7 +12,7 @@ vi.mock('@lib/flight-recorder/index', () => ({
 }));
 
 let mockShouldShow = true;
-vi.mock('../components/settings/GeminiOnboardingModal', () => ({
+vi.mock('../components/settings/geminiOnboardingState', () => ({
   shouldShowGeminiOnboarding: () => mockShouldShow,
   clearSessionDismiss: vi.fn(),
 }));

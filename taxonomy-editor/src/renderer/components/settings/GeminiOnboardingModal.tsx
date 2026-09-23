@@ -4,11 +4,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { DISMISS_KEY } from './geminiOnboardingState';
 import './GeminiOnboardingModal.css';
 
 const isWeb = import.meta.env.VITE_TARGET === 'web';
 const AI_STUDIO_URL = 'https://aistudio.google.com/apikey';
-const DISMISS_KEY = 'gemini-onboarding-dismissed';
 
 type ModalState = 'idle' | 'validating' | 'success' | 'error';
 type CloseResult = 'saved' | 'later' | 'permanent-dismiss';
@@ -225,14 +225,4 @@ export function GeminiOnboardingModal({ open, onClose, geminiAllowlisted = false
       </div>
     </div>
   );
-}
-
-export function shouldShowGeminiOnboarding(): boolean {
-  const dismissed = localStorage.getItem(DISMISS_KEY);
-  return dismissed !== 'permanent';
-}
-
-export function clearSessionDismiss(): void {
-  const dismissed = localStorage.getItem(DISMISS_KEY);
-  if (dismissed === 'once') localStorage.removeItem(DISMISS_KEY);
 }
