@@ -39,7 +39,7 @@ function Test-InquiryDataPresence {
     Set-StrictMode -Version Latest
 
     # StrictMode-safe property read for hashtables or [pscustomobject] (fixtures use both).
-    function script:Get-InqProp($Obj, [string]$Name) {
+    function Get-InqProp($Obj, [string]$Name) {
         if ($null -eq $Obj) { return $null }
         if ($Obj -is [hashtable]) {
             if ($Obj.ContainsKey($Name)) { return $Obj[$Name] } else { return $null }
@@ -48,14 +48,14 @@ function Test-InquiryDataPresence {
         if ($p) { return $p.Value } else { return $null }
     }
 
-    $campVerdicts = @(script:Get-InqProp $Result 'campVerdicts')
-    $calibration  = @(script:Get-InqProp $Result 'calibration')
-    $grounding    = script:Get-InqProp $Result 'grounding'
-    $nodesByCamp  = script:Get-InqProp $grounding 'nodesByCamp'
+    $campVerdicts = @(Get-InqProp $Result 'campVerdicts')
+    $calibration  = @(Get-InqProp $Result 'calibration')
+    $grounding    = Get-InqProp $Result 'grounding'
+    $nodesByCamp  = Get-InqProp $grounding 'nodesByCamp'
 
     $campVerdictCount = @($campVerdicts | Where-Object { $null -ne $_ }).Count
     $calibrationCount = @($calibration | Where-Object { $null -ne $_ }).Count
-    $calibrationWithValue = @($calibration | Where-Object { $null -ne $_ -and $null -ne (script:Get-InqProp $_ 'value') }).Count
+    $calibrationWithValue = @($calibration | Where-Object { $null -ne $_ -and $null -ne (Get-InqProp $_ 'value') }).Count
 
     $groundingNodeCount = 0
     if ($null -ne $nodesByCamp) {
