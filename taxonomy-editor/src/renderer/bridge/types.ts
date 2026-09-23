@@ -11,7 +11,7 @@
  * window.electronAPI directly.
  */
 
-import type { StopReason } from '@lib/ai-client/types';
+import type { StopReason, ProviderCallDiagnostics } from '@lib/ai-client/types';
 
 export interface GroundingSegment {
   startIndex: number;
@@ -368,7 +368,10 @@ export interface AppAPI {
    *  text is truncated and callers must not attempt to parse it as complete JSON. Undefined when
    *  the backend hasn't reported one (web builds, until ServerAPI threads it through the REST
    *  response) — never fabricated. */
-  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, opts?: GenerateTextOptions) => Promise<{ text: string; stopReason?: StopReason; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } }>;
+  /** `diagnostics` (t/3568 item 2) rides the resolved value on the SUCCESS path only — providers
+   *  throw before returning a ProviderResult on a non-2xx/timeout, so there is nothing to attach
+   *  on a rejected generateText call yet (see instrumentBridge.ts's extractResultMeta). */
+  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, opts?: GenerateTextOptions) => Promise<{ text: string; stopReason?: StopReason; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number }; diagnostics?: ProviderCallDiagnostics }>;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{
     text: string;
     searchQueries?: string[];

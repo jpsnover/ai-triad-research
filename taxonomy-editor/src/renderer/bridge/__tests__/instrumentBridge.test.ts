@@ -296,6 +296,25 @@ describe('instrumentBridge — ai call metadata: model/timeoutMs/purpose/maxToke
     expect(start?.data?.promptBytes).not.toBe(multiByte.length);
   });
 
+  it('attaches provider diagnostics to the ai.response ok event when present (t/3568 item 2)', async () => {
+    const diagnostics = { requestBytes: 42, httpStatus: 200, headersMs: 120, bodyReadMs: 30, responseBytes: 900 };
+    const api = instrumentBridge({ generateText: () => Promise.resolve({ text: 'ok', diagnostics }) } as unknown as AppAPI);
+    await (api as unknown as { generateText: (p: string, m: string, t: number) => Promise<unknown> })
+      .generateText('prompt', 'grok-4.7', 300_000);
+
+    const ok = okRecord('generateText');
+    expect(ok?.data?.diagnostics).toEqual(diagnostics);
+  });
+
+  it('omits diagnostics from the ai.response event when the resolved value carries none', async () => {
+    const api = instrumentBridge({ generateText: () => Promise.resolve({ text: 'ok' }) } as unknown as AppAPI);
+    await (api as unknown as { generateText: (p: string, m: string, t: number) => Promise<unknown> })
+      .generateText('prompt', 'grok-4.7', 300_000);
+
+    const ok = okRecord('generateText');
+    expect(ok?.data?.diagnostics).toBeUndefined();
+  });
+
   it('records model/timeoutMs/purpose on the ai.response ok event', async () => {
     const api = instrumentBridge({ generateText: () => Promise.resolve({ text: 'ok' }) } as unknown as AppAPI);
     await (api as unknown as { generateText: (p: string, m: string, t: number, temp: number, o: { purpose?: string }) => Promise<unknown> })
