@@ -113,6 +113,7 @@
         'Invoke-DebateAB'
         'Show-OSSLicenses'
         'Get-AICostReport'
+        'Get-AITierModel'
         'Get-FlightRecorderDump'
         'Get-LatestFlightRecorderDump'
         'Get-AzureFlightRecorder'
