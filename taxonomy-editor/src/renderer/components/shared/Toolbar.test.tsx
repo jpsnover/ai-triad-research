@@ -160,3 +160,15 @@ describe('Toolbar — primary Op-Eds button honors both build flags (t/2641)', (
     expect(screen.getByRole('button', { name: 'Op-Ed Studies' })).toBeInTheDocument();
   });
 });
+
+// t/3616: same bug class as t/2641 — this Toolbar hardcodes primary buttons rather than mapping
+// visibleItems, so a new gate-free primary NAV_ITEMS entry (inquiry, t/3583) silently never
+// rendered here even though HamburgerMenu (data-driven) showed it correctly.
+describe('Toolbar — primary Ask a Question button (t/3583, t/3616)', () => {
+  beforeEach(() => { mockFlags.value = {}; mockPrefsState.viewMode = 'simple'; });
+
+  it('shows the Ask a Question button unconditionally (no gate, unlike Op-Eds)', () => {
+    render(<Toolbar />);
+    expect(screen.getByRole('button', { name: 'Ask a Question' })).toBeInTheDocument();
+  });
+});
