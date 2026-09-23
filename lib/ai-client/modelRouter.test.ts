@@ -155,7 +155,9 @@ describe('resolveModelForPurpose — Ollama→cloud fallback logging (t/3178)', 
 
   it('does not warn when Ollama is available (local route taken)', async () => {
     const routed = await resolveModelForPurpose('summarization');
-    expect(routed).toMatchObject({ model: 'ollama-gemma4-e4b', isLocal: true });
+    // t/3559: localModel repointed to the registered id (the old 'ollama-gemma4-e4b' resolved to no
+    // ai-models.json entry — the model-literal lint's catch). Assert the repaired, registered value.
+    expect(routed).toMatchObject({ model: 'ollama-gemma4-e4b-it-q4-k-m', isLocal: true });
     expect(mockRecord).not.toHaveBeenCalled();
   });
 

@@ -516,7 +516,7 @@ async function classifyNliBatch(pairs: NliPair[]): Promise<NliResult[]> {
 
 // ---------- Gemini API fallback ----------
 
-const GEMINI_MODEL = 'gemini-embedding-001';
+const GEMINI_MODEL = 'gemini-embedding-001'; // model-lint:allow — embedding model, not a chat models[].id (t/3559)
 // GEMINI_BASE is imported from shared lib/ai-client
 const BATCH_SIZE = 100;
 const MAX_RETRIES = 5;
