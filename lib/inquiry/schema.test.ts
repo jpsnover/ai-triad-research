@@ -1,0 +1,111 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+import { describe, it, expect } from 'vitest';
+import {
+  InquiryRequestSchema,
+  StoredInquiryRequestSchema,
+  TrustStateSchema,
+  InquiryResultSchema,
+  INQUIRY_SCHEMA_VERSION,
+} from './schema.js';
+
+// A minimal-but-complete valid InquiryResult, reused across the parse tests too.
+export function makeValidResult(): Record<string, unknown> {
+  const node = { nodeId: 'skp-beliefs-029', label: 'Precaution under uncertainty', camp: 'skp' };
+  return {
+    schemaVersion: INQUIRY_SCHEMA_VERSION,
+    request: { question: 'What counts as an AI harm?', fidelity: 'standard' },
+    campVerdicts: [{ camp: 'saf', verdict: 'Harm is any foreseeable...', nodes: [node] }],
+    convergences: [{ claim: 'All camps accept measurable downstream effects count', nodes: [node] }],
+    evidenceLayers: [
+      { title: 'Definitional', role: 'Fixes the term', solves: 'Scope disagreement', sources: ['acc-beliefs-004'] },
+    ],
+    unresolvedGaps: [{ description: 'Threshold for de-minimis harm', confidence: 'low' }],
+    calibration: [
+      {
+        metric: 'claim_acceptance',
+        value: 0.857,
+        displayValue: '72 / 84',
+        trust: { verdict: 'trust', reason: 'natural conclusion — no censoring gate fired', terminationReason: 'natural' },
+      },
+    ],
+    derivation: { fidelity: 'standard', models: { debate: 'gemini-3.1-pro-preview' }, rounds: 6, callBudget: 200 },
+    grounding: { anchorSummary: 'AI harm taxonomy', nodesByCamp: { skp: [node] } },
+    singleRunCaveat: 'One run is not a finding; the replication gate wants n >= 10.',
+  };
+}
+
+describe('InquiryRequestSchema — strict input boundary (t/3574#2)', () => {
+  it('accepts a valid request', () => {
+    expect(InquiryRequestSchema.safeParse({ question: 'q', fidelity: 'quick' }).success).toBe(true);
+  });
+
+  it('REJECTS a mistyped key rather than silently dropping it (the ungrounded-run bug)', () => {
+    // `situationID` (wrong case) must fail loudly — accepting+dropping it would run ungrounded.
+    const r = InquiryRequestSchema.safeParse({ question: 'q', fidelity: 'quick', situationID: 'sit-1' });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects an unknown fidelity (closed enum)', () => {
+    expect(InquiryRequestSchema.safeParse({ question: 'q', fidelity: 'exhaustive' }).success).toBe(false);
+  });
+});
+
+describe('InquiryRequestSchema — optional model override (t/3574#3)', () => {
+  it('accepts an explicit model override', () => {
+    const r = InquiryRequestSchema.safeParse({
+      question: 'q',
+      fidelity: 'deep',
+      models: { debaters: 'gemini-3.1-pro-preview', evaluator: 'claude-opus-4-8' },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts a partial / empty override (both sub-fields optional)', () => {
+    expect(InquiryRequestSchema.safeParse({ question: 'q', fidelity: 'deep', models: {} }).success).toBe(true);
+    expect(InquiryRequestSchema.safeParse({ question: 'q', fidelity: 'deep', models: { debaters: 'x' } }).success).toBe(true);
+  });
+
+  it('does NOT bake in a model-id enum — an arbitrary id parses here; membership is a boundary check', () => {
+    // The contract is z.string() so a not-yet-registered id is structurally valid; ai-models.json
+    // membership is validated at the ServerAPI boundary, not in this schema (t/3574#3, t/3560).
+    expect(InquiryRequestSchema.safeParse({ question: 'q', fidelity: 'deep', models: { evaluator: 'a-future-model' } }).success).toBe(true);
+  });
+});
+
+describe('StoredInquiryRequestSchema — tolerant embedded copy (t/3574#2)', () => {
+  it('keeps an unknown field (a newer build may have added it to the request)', () => {
+    const r = StoredInquiryRequestSchema.safeParse({ question: 'q', fidelity: 'deep', futureField: 42 });
+    expect(r.success).toBe(true);
+    expect(r.success && (r.data as Record<string, unknown>).futureField).toBe(42);
+  });
+});
+
+describe('TrustStateSchema — reason mandatory (ADR §6)', () => {
+  it('accepts a verdict that carries its reason', () => {
+    expect(TrustStateSchema.safeParse({ verdict: 'censored', reason: 'api_ceiling truncated convergence' }).success).toBe(true);
+  });
+
+  it('rejects a bare verdict with no reason', () => {
+    expect(TrustStateSchema.safeParse({ verdict: 'censored' }).success).toBe(false);
+    expect(TrustStateSchema.safeParse({ verdict: 'censored', reason: '' }).success).toBe(false);
+  });
+});
+
+describe('InquiryResultSchema — node snapshot + derivation stamp present (ADR §4/§5)', () => {
+  it('a fully-formed result validates and carries inline node snapshots + the resolved receipt', () => {
+    const r = InquiryResultSchema.safeParse(makeValidResult());
+    expect(r.success).toBe(true);
+    if (r.success) {
+      // §5: node ref carries an inline label+camp snapshot, not just an id
+      expect(r.data.campVerdicts[0].nodes[0].label).toBeTruthy();
+      expect(r.data.campVerdicts[0].nodes[0].camp).toBe('skp');
+      // §4: the receipt records resolved facts (models actually used, call budget), not just the label
+      expect(r.data.derivation.callBudget).toBe(200);
+      expect(r.data.derivation.models.debate).toBe('gemini-3.1-pro-preview');
+      // note c: ratio display survives as a string a bare number could not express
+      expect(r.data.calibration[0].displayValue).toBe('72 / 84');
+    }
+  });
+});

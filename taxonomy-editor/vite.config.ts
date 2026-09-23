@@ -247,6 +247,7 @@ export default defineConfig({
       '../../../lib/embeddings/**/*.test.ts', // t/2060 — mock-based (fake onnxruntime-node), no native addon/model needed
       '../../../lib/brief/**/*.test.ts',     // t/2800 — brief export pipeline (extract + schema utils)
       '../../../lib/schema/**/*.test.ts',    // t/3453 — schema-of-record drift comparator + extractors (fixture-based, no ai-triad-data)
+      '../../../lib/inquiry/**/*.test.ts',   // t/3574 — inquiry result contract (Zod schemas + parseInquiryResult), fixture-based, no ai-triad-data
       '../../../lib/*.test.ts',
       // translation tests excluded — depend on ai-triad-data dictionary not available in CI
     ],
