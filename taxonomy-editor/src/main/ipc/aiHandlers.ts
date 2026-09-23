@@ -240,12 +240,12 @@ export function registerAiHandlers(): void {
     const clampedMaxTokens = clampMaxTokens(maxTokens);
     let retryCount = 0;
     try {
-      const { text, stopReason } = await generateText(prompt, model, (progress) => {
+      const { text, stopReason, diagnostics } = await generateText(prompt, model, (progress) => {
         retryCount = progress.attempt;
         event.sender.send('generate-text-progress', progress);
       }, { timeoutMs, temperature, signal: controller?.signal, maxTokens: clampedMaxTokens });
       writeAICallLogEntry({ scenario: 'Debate', promptId: '', promptStart: prompt, retryCount, status: '200' });
-      return { text, stopReason };
+      return { text, stopReason, diagnostics };
     } catch (err) {
       if ((err as Error).name === 'AbortError' || controller?.signal.aborted) {
         getGlobalRecorder()?.record({

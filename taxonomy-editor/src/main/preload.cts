@@ -3,7 +3,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import type { OpEdSet, OpEdSetSummary } from '../../../lib/oped/types.js';
-import type { StopReason } from '../../../lib/ai-client/index.js';
+import type { StopReason, ProviderCallDiagnostics } from '../../../lib/ai-client/index.js';
 import type { ExportJobState, ExportErrorCode, BriefPreset, BriefArtifactName } from '../../../lib/brief/types.js';
 // t/3532: these mirror bridge/types.ts's re-exports, imported from their true origin
 // instead — bridge/types.ts is a real .ts (not .d.ts) using renderer-only `@lib/*`
@@ -276,7 +276,10 @@ function buildElectronApi() {
   // t/3528: single payload object, forwarded unchanged — see aiHandlers.ts's
   // GenerateTextIpcPayload (renderer's electron.d.ts mirrors this shape, Rosetta scope).
   // t/3525: return type carries the normalized stopReason.
-  generateText: (payload: { prompt: string; model?: string; timeoutMs?: number; temperature?: number; requestId?: string; maxTokens?: number }): Promise<{ text: string; stopReason?: StopReason }> =>
+  // t/3569: return type also carries ProviderCallDiagnostics (t/3566) — FR forensics
+  // only, forwarded verbatim so instrumentBridge.ts can attach it to ai.response/ai.error
+  // (the desktop half of t/3568; renderer FR-event wiring is Rosetta's).
+  generateText: (payload: { prompt: string; model?: string; timeoutMs?: number; temperature?: number; requestId?: string; maxTokens?: number }): Promise<{ text: string; stopReason?: StopReason; diagnostics?: ProviderCallDiagnostics }> =>
     ipcRenderer.invoke('generate-text', payload),
 
   cancelGenerate: (requestId: string): void =>
