@@ -130,6 +130,7 @@ let _modelEntryCache: Record<string, ModelEntry> | null = null;
 let _fallbackChainCache: Record<string, string[]> | null = null;
 let _defaultsCache: Record<string, string> | null = null;
 let _debateTiersCache: Record<string, Record<string, string>> | null = null;
+let _rawRegistryCache: ModelRegistry | null = null;
 let _modelConfigMtime = 0;
 function loadModelConfig(): { entryMap: Record<string, ModelEntry>; fallbackChains: Record<string, string[]>; defaults: Record<string, string>; debateTiers: Record<string, Record<string, string>> } {
   try {
@@ -141,6 +142,7 @@ function loadModelConfig(): { entryMap: Record<string, ModelEntry>; fallbackChai
       _fallbackChainCache = registry.fallbackChains ?? {};
       _defaultsCache = registry.defaults ?? {};
       _debateTiersCache = (registry.debateTiers ?? {}) as Record<string, Record<string, string>>;
+      _rawRegistryCache = registry;
       _modelConfigMtime = mtimeMs;
       log.api.debug({ models: Object.keys(_modelEntryCache!).length, chains: Object.keys(_fallbackChainCache!).length }, 'Reloaded model config');
     }
@@ -167,6 +169,15 @@ function loadModelConfig(): { entryMap: Record<string, ModelEntry>; fallbackChai
  *  hand-maintained literal. Returns undefined if the registry lacks the tier/backend entry. */
 export function resolveDebateTierModel(tier: string, backend: string): string | undefined {
   return loadModelConfig().debateTiers[tier]?.[backend];
+}
+
+/** t/3581: the raw parsed model registry (ai-models.json), for consumers that need the whole
+ *  ModelRegistry rather than a decomposed slice — e.g. deriveDebateConfig in the inquiry pipeline.
+ *  Same mtime-cached read as the rest of this module; returns an empty registry if the file is
+ *  unreadable (loadModelConfig already WARNs on that path). */
+export function getModelRegistry(): ModelRegistry {
+  loadModelConfig(); // ensure the cache is populated / refreshed
+  return _rawRegistryCache ?? ({ backends: [], models: [] } as unknown as ModelRegistry);
 }
 
 function loadModelMap(): Record<string, string> {

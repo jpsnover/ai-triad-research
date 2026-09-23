@@ -1,0 +1,150 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// Server-side assembly of InquiryPipelineDeps (t/3581). The inquiry job runner (t/3578)
+// takes an injected pipeline function; this module builds the real one by wiring the
+// shared runInquiryPipeline (t/3585) with the server's deps:
+//
+//   registry  → the model registry (ai-models.json), for deriveDebateConfig
+//   embed     → aiBackends.computeEmbeddings (server ONNX, vector-identical to the corpus)
+//   taxonomy  → GroundingTaxonomy, assembled from the existing per-pov corpus cache
+//               (getAssembledCorpus — the same path /api/relevant-nodes uses; TL steer,
+//               t/3581#4). NO second taxonomy loading path.
+//   runDebate → runHeadlessDebate (t/3599 shared runner) closed over the server adapter +
+//               a LoadedTaxonomy (the debate engine's taxonomy shape, distinct from
+//               GroundingTaxonomy), memoized (immutable main-branch data).
+//   adapter   → a generateText adapter over the server's key-managed provider path
+//               (mirrors createWebOpEdAdapter).
+//
+// The route (routes/inquiry.ts) is the single production wiring: it calls
+// buildInquiryRunPipeline() and hands the result to startInquiryJob's runPipeline. Kept
+// as one typed function per TL (t/3578#6).
+
+import type { InquiryRequest, InquiryResult, Camp } from '../../../lib/inquiry/index.js';
+import { runInquiryPipeline, type InquiryPipelineDeps, type InquiryStage } from '../../../lib/debate/inquiryPipeline.js';
+import type { GroundingTaxonomy } from '../../../lib/debate/inquiryGrounding.js';
+import type { NodeEmbeddingMap } from '../../../lib/debate/relevanceSelection.js';
+import { runHeadlessDebate } from '../../../lib/debate/headlessRunner.js';
+import { loadTaxonomy, type LoadedTaxonomy } from '../../../lib/debate/taxonomyLoader.js';
+import { getProjectRoot } from './config.js';
+import type { AIAdapter, GenerateOptions } from '../../../lib/debate/aiAdapter.js';
+import type { InquiryPipelineRunner, InquiryPipelineContext } from './inquiryJobs.js';
+import { getAssembledCorpus } from './routes/corpusAssemblyCache.js';
+import { getModelRegistry } from './ai/aiBackends.js';
+import * as ai from './ai/aiBackends.js';
+import { log } from './logger.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+
+// Camp code (contract) → taxonomy pov-file name (what readTaxonomyFile/getAssembledCorpus key on).
+// GroundingEnvelope.nodesByCamp is a PARTIAL record, so a camp whose file is absent is skipped with a
+// WARN (fallback-path logging) rather than failing the whole inquiry.
+const CAMP_POV_FILES: Record<Camp, string> = {
+  acc: 'accelerationist',
+  saf: 'safetyist',
+  skp: 'skeptic',
+  cc: 'cross-cutting',
+};
+
+/**
+ * Assemble the grounding taxonomy by merging the per-pov corpus (getAssembledCorpus is per-pov —
+ * it reads readTaxonomyFile(pov)). `situationNodes` are pov-independent (read from the shared
+ * `situations` file), so they are taken once; `povNodes` and `nodeEmbeddings` are merged across camps.
+ */
+async function buildGroundingTaxonomy(): Promise<GroundingTaxonomy> {
+  const povNodes: GroundingTaxonomy['povNodes'] = [];
+  const nodeEmbeddings: NodeEmbeddingMap = {};
+  let situationNodes: GroundingTaxonomy['situationNodes'] = [];
+  let anyCampLoaded = false;
+
+  for (const povFile of Object.values(CAMP_POV_FILES)) {
+    try {
+      const corpus = await getAssembledCorpus(povFile);
+      povNodes.push(...corpus.povNodes);
+      Object.assign(nodeEmbeddings, corpus.nodeEmbeddings);
+      if (situationNodes.length === 0) situationNodes = corpus.situationNodes;
+      anyCampLoaded = true;
+    } catch (err) {
+      // A missing/unreadable pov file degrades to skipping that camp's nodes — the envelope is
+      // partial over camps by design. WARN so the degradation is visible (root AGENTS.md).
+      log.server.warn({ err, povFile, cause: 'inquiry-grounding-camp-unreadable' },
+        `Skipping camp '${povFile}' in grounding taxonomy — corpus unreadable (t/3581)`);
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'inquiry', level: 'warn',
+        message: `Grounding taxonomy: camp '${povFile}' corpus unreadable — skipped`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
+  }
+  if (!anyCampLoaded) {
+    // Every camp failed — the pipeline's ADR-001 grounding stage will produce an empty-but-valid
+    // envelope from this, and buildGroundingEnvelope logs its own WARN. Surface it here too.
+    log.server.warn({ cause: 'inquiry-grounding-empty' },
+      'Grounding taxonomy is empty — no camp corpus could be read (t/3581)');
+  }
+  return { povNodes, situationNodes, nodeEmbeddings };
+}
+
+// LoadedTaxonomy (the DEBATE ENGINE's taxonomy shape — distinct from GroundingTaxonomy) is a
+// synchronous full-taxonomy filesystem read. Main-branch taxonomy is immutable at runtime (same
+// rationale as corpusAssemblyCache), so memoize it process-wide rather than re-reading per inquiry.
+let _loadedTaxonomy: LoadedTaxonomy | null = null;
+function getLoadedTaxonomy(): LoadedTaxonomy {
+  if (_loadedTaxonomy === null) _loadedTaxonomy = loadTaxonomy(getProjectRoot());
+  return _loadedTaxonomy;
+}
+
+/** The server inquiry AIAdapter — generateText over the key-managed, fallback-chained provider path,
+ *  so the container never holds a raw key (mirrors createWebOpEdAdapter). generateText is the only
+ *  method the debate engine requires for an inquiry run; native fact-check search (ExtendedAIAdapter)
+ *  is not wired for v1. */
+function createInquiryAdapter(): AIAdapter {
+  return {
+    async generateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
+      const result = await ai.generateText(prompt, model, undefined, options?.timeoutMs, undefined, {
+        temperature: options?.temperature,
+        signal: options?.signal,
+        responseSchema: options?.responseSchema,
+        maxTokens: options?.maxTokens,
+      });
+      return result.text;
+    },
+    getModelMinTimeout: (_model) => 0,
+  };
+}
+
+/** Build the single injected pipeline runner the job store (t/3578) calls. Assembles the server deps
+ *  and adapts runInquiryPipeline to the InquiryPipelineRunner signature (request + ctx → InquiryResult).
+ *  `ctx.onStage` (job progress) is mapped onto the pipeline's InquiryStage sink. */
+export function buildInquiryRunPipeline(): InquiryPipelineRunner {
+  const adapter = createInquiryAdapter();
+  return async (request: InquiryRequest, ctx: InquiryPipelineContext): Promise<InquiryResult> => {
+    const taxonomy = await buildGroundingTaxonomy();
+    const deps: InquiryPipelineDeps = {
+      registry: getModelRegistry(),
+      taxonomy,
+      embed: (texts: string[]) => ai.computeEmbeddings(texts, undefined, undefined, { requester: 'inquiry' }).then(r => r.vectors),
+      // runHeadlessDebate takes the config (which already carries the question via deriveDebateConfig)
+      // + the engine's LoadedTaxonomy; the pipeline's `question` arg is unused here.
+      runDebate: (config, _question) => runHeadlessDebate(config, adapter, getLoadedTaxonomy())
+        .then(r => ({ session: r.session, terminationReason: r.terminationReason })),
+      adapter,
+      onStage: (stage: InquiryStage) => mapStage(stage, ctx),
+    };
+    return runInquiryPipeline(request, deps);
+  };
+}
+
+/** Map the pipeline's stage vocabulary onto the job store's progress stages. The job store
+ *  (InquiryPipelineStage) uses grounding/debating/judging/synthesizing; the pipeline emits
+ *  deriving/grounding/debating/projecting/synthesizing. Fold deriving→grounding and
+ *  projecting→judging so the job's coarser progress bar advances sensibly. */
+function mapStage(stage: InquiryStage, ctx: InquiryPipelineContext): void {
+  switch (stage) {
+    case 'deriving':
+    case 'grounding': ctx.onStage('grounding'); return;
+    case 'debating': ctx.onStage('debating'); return;
+    case 'projecting': ctx.onStage('judging'); return;
+    case 'synthesizing': ctx.onStage('synthesizing'); return;
+    default: { const _x: never = stage; void _x; }
+  }
+}
