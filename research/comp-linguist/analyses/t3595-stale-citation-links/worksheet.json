@@ -1,0 +1,1709 @@
+{
+  "generated_against": "committed HEAD v3.4.0",
+  "orphans": 184,
+  "occurrences": 2053,
+  "tiers": {
+    "A": {
+      "orphans": 54,
+      "occ": 1027
+    },
+    "B": {
+      "orphans": 0,
+      "occ": 0
+    },
+    "C": {
+      "orphans": 130,
+      "occ": 1026
+    }
+  },
+  "entries": [
+    {
+      "orphan": "saf-intentions-135",
+      "occurrences": 122,
+      "n_files": 57,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-202"
+      ],
+      "lineage_edges": [
+        "saf-intentions-135->saf-intentions-202"
+      ]
+    },
+    {
+      "orphan": "saf-beliefs-041",
+      "occurrences": 93,
+      "n_files": 55,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-206"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-041->saf-beliefs-206"
+      ]
+    },
+    {
+      "orphan": "saf-beliefs-008",
+      "occurrences": 86,
+      "n_files": 48,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-201"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-008->saf-beliefs-201"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-134",
+      "occurrences": 61,
+      "n_files": 53,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-201"
+      ],
+      "lineage_edges": [
+        "saf-intentions-134->saf-intentions-201"
+      ]
+    },
+    {
+      "orphan": "acc-beliefs-001",
+      "occurrences": 58,
+      "n_files": 32,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-021",
+      "occurrences": 57,
+      "n_files": 33,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-201"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-021->saf-beliefs-201"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-005",
+      "occurrences": 38,
+      "n_files": 28,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-033",
+      "occurrences": 38,
+      "n_files": 32,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-002",
+      "occurrences": 37,
+      "n_files": 22,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-206"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-002->saf-beliefs-206"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-058",
+      "occurrences": 36,
+      "n_files": 27,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-037",
+      "occurrences": 34,
+      "n_files": 21,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-200"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-037->saf-beliefs-200"
+      ]
+    },
+    {
+      "orphan": "acc-desires-013",
+      "occurrences": 33,
+      "n_files": 26,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-030",
+      "occurrences": 33,
+      "n_files": 20,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-200"
+      ],
+      "lineage_edges": [
+        "saf-intentions-030->saf-intentions-200"
+      ]
+    },
+    {
+      "orphan": "skp-beliefs-049",
+      "occurrences": 33,
+      "n_files": 26,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-204"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-049->skp-beliefs-204"
+      ]
+    },
+    {
+      "orphan": "saf-desires-013",
+      "occurrences": 31,
+      "n_files": 18,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-009",
+      "occurrences": 31,
+      "n_files": 20,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-036",
+      "occurrences": 30,
+      "n_files": 19,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-207"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-036->saf-beliefs-207"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-011",
+      "occurrences": 28,
+      "n_files": 16,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-020",
+      "occurrences": 28,
+      "n_files": 13,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-012",
+      "occurrences": 26,
+      "n_files": 19,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-204"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-012->skp-beliefs-204"
+      ]
+    },
+    {
+      "orphan": "skp-beliefs-010",
+      "occurrences": 23,
+      "n_files": 12,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-201"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-010->skp-beliefs-201"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-060",
+      "occurrences": 23,
+      "n_files": 14,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-desires-017",
+      "occurrences": 23,
+      "n_files": 14,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-006",
+      "occurrences": 21,
+      "n_files": 14,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-200"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-006->saf-beliefs-200"
+      ]
+    },
+    {
+      "orphan": "skp-beliefs-015",
+      "occurrences": 21,
+      "n_files": 14,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-011",
+      "occurrences": 21,
+      "n_files": 17,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-200"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-011->saf-beliefs-200"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-062",
+      "occurrences": 20,
+      "n_files": 17,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-012",
+      "occurrences": 20,
+      "n_files": 16,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-201"
+      ],
+      "lineage_edges": [
+        "saf-intentions-012->saf-intentions-201"
+      ]
+    },
+    {
+      "orphan": "skp-beliefs-130",
+      "occurrences": 20,
+      "n_files": 15,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-205"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-130->skp-beliefs-205"
+      ]
+    },
+    {
+      "orphan": "saf-beliefs-024",
+      "occurrences": 20,
+      "n_files": 13,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-201"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-024->saf-beliefs-201"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-057",
+      "occurrences": 19,
+      "n_files": 14,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-053",
+      "occurrences": 19,
+      "n_files": 13,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-105",
+      "occurrences": 19,
+      "n_files": 10,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-203"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-105->saf-beliefs-203"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-075",
+      "occurrences": 19,
+      "n_files": 18,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-033",
+      "occurrences": 18,
+      "n_files": 14,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-204"
+      ],
+      "lineage_edges": [
+        "saf-intentions-033->saf-intentions-204"
+      ]
+    },
+    {
+      "orphan": "skp-beliefs-025",
+      "occurrences": 18,
+      "n_files": 14,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-202"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-025->skp-beliefs-202"
+      ]
+    },
+    {
+      "orphan": "skp-desires-012",
+      "occurrences": 18,
+      "n_files": 9,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-056",
+      "occurrences": 18,
+      "n_files": 8,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-desires-004",
+      "occurrences": 17,
+      "n_files": 13,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-067",
+      "occurrences": 17,
+      "n_files": 15,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-048",
+      "occurrences": 16,
+      "n_files": 11,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-202"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-048->saf-beliefs-202"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-048",
+      "occurrences": 16,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-015",
+      "occurrences": 15,
+      "n_files": 8,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-desires-014",
+      "occurrences": 15,
+      "n_files": 12,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-026",
+      "occurrences": 14,
+      "n_files": 10,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-200"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-026->saf-beliefs-200"
+      ]
+    },
+    {
+      "orphan": "skp-desires-004",
+      "occurrences": 14,
+      "n_files": 14,
+      "tier": "A",
+      "live_descendants": [
+        "skp-desires-083"
+      ],
+      "lineage_edges": [
+        "skp-desires-004->skp-desires-083"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-018",
+      "occurrences": 13,
+      "n_files": 8,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-201"
+      ],
+      "lineage_edges": [
+        "saf-intentions-018->saf-intentions-201"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-014",
+      "occurrences": 13,
+      "n_files": 8,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-072",
+      "occurrences": 13,
+      "n_files": 9,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-058",
+      "occurrences": 13,
+      "n_files": 9,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-202"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-058->skp-beliefs-202"
+      ]
+    },
+    {
+      "orphan": "acc-beliefs-036",
+      "occurrences": 13,
+      "n_files": 10,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-011",
+      "occurrences": 12,
+      "n_files": 10,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-desires-008",
+      "occurrences": 12,
+      "n_files": 9,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-066",
+      "occurrences": 12,
+      "n_files": 8,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-048",
+      "occurrences": 11,
+      "n_files": 10,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-046",
+      "occurrences": 11,
+      "n_files": 10,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-151",
+      "occurrences": 11,
+      "n_files": 8,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-205"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-151->skp-beliefs-205"
+      ]
+    },
+    {
+      "orphan": "acc-beliefs-062",
+      "occurrences": 11,
+      "n_files": 6,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-050",
+      "occurrences": 11,
+      "n_files": 8,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-030",
+      "occurrences": 10,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-056",
+      "occurrences": 10,
+      "n_files": 10,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-203"
+      ],
+      "lineage_edges": [
+        "saf-intentions-056->saf-intentions-203"
+      ]
+    },
+    {
+      "orphan": "saf-beliefs-047",
+      "occurrences": 10,
+      "n_files": 7,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-207"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-047->saf-beliefs-207"
+      ]
+    },
+    {
+      "orphan": "skp-beliefs-048",
+      "occurrences": 10,
+      "n_files": 8,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-201"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-048->skp-beliefs-201"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-023",
+      "occurrences": 10,
+      "n_files": 3,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-202"
+      ],
+      "lineage_edges": [
+        "saf-intentions-023->saf-intentions-202"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-085",
+      "occurrences": 9,
+      "n_files": 9,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-052",
+      "occurrences": 9,
+      "n_files": 3,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-202"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-052->saf-beliefs-202"
+      ]
+    },
+    {
+      "orphan": "saf-beliefs-061",
+      "occurrences": 9,
+      "n_files": 5,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-201"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-061->saf-beliefs-201"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-022",
+      "occurrences": 9,
+      "n_files": 7,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-108",
+      "occurrences": 9,
+      "n_files": 5,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-073",
+      "occurrences": 8,
+      "n_files": 7,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-057",
+      "occurrences": 8,
+      "n_files": 5,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-100",
+      "occurrences": 8,
+      "n_files": 7,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-067",
+      "occurrences": 8,
+      "n_files": 5,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-045",
+      "occurrences": 7,
+      "n_files": 6,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-016",
+      "occurrences": 7,
+      "n_files": 7,
+      "tier": "A",
+      "live_descendants": [
+        "skp-intentions-147"
+      ],
+      "lineage_edges": [
+        "skp-intentions-016->skp-intentions-147"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-010",
+      "occurrences": 7,
+      "n_files": 5,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-012",
+      "occurrences": 7,
+      "n_files": 6,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-204"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-012->saf-beliefs-204"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-098",
+      "occurrences": 7,
+      "n_files": 6,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-204"
+      ],
+      "lineage_edges": [
+        "saf-intentions-098->saf-intentions-204"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-071",
+      "occurrences": 7,
+      "n_files": 6,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-050",
+      "occurrences": 7,
+      "n_files": 4,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-201"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-050->skp-beliefs-201"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-099",
+      "occurrences": 7,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-063",
+      "occurrences": 7,
+      "n_files": 5,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-153",
+      "occurrences": 6,
+      "n_files": 5,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-203"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-153->skp-beliefs-203"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-064",
+      "occurrences": 6,
+      "n_files": 5,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-beliefs-032",
+      "occurrences": 6,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-desires-036",
+      "occurrences": 6,
+      "n_files": 6,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-162",
+      "occurrences": 6,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-020",
+      "occurrences": 6,
+      "n_files": 4,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-203"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-020->skp-beliefs-203"
+      ]
+    },
+    {
+      "orphan": "saf-beliefs-125",
+      "occurrences": 6,
+      "n_files": 5,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-207"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-125->saf-beliefs-207"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-019",
+      "occurrences": 6,
+      "n_files": 6,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-115",
+      "occurrences": 6,
+      "n_files": 4,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-204"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-115->saf-beliefs-204"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-075",
+      "occurrences": 6,
+      "n_files": 6,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-084",
+      "occurrences": 6,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-028",
+      "occurrences": 5,
+      "n_files": 5,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-203"
+      ],
+      "lineage_edges": [
+        "saf-intentions-028->saf-intentions-203"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-093",
+      "occurrences": 5,
+      "n_files": 4,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-204"
+      ],
+      "lineage_edges": [
+        "saf-intentions-093->saf-intentions-204"
+      ]
+    },
+    {
+      "orphan": "skp-beliefs-155",
+      "occurrences": 5,
+      "n_files": 5,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-204"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-155->skp-beliefs-204"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-026",
+      "occurrences": 5,
+      "n_files": 4,
+      "tier": "A",
+      "live_descendants": [
+        "skp-intentions-147"
+      ],
+      "lineage_edges": [
+        "skp-intentions-026->skp-intentions-147"
+      ]
+    },
+    {
+      "orphan": "skp-desires-068",
+      "occurrences": 5,
+      "n_files": 4,
+      "tier": "A",
+      "live_descendants": [
+        "skp-desires-083"
+      ],
+      "lineage_edges": [
+        "skp-desires-068->skp-desires-083"
+      ]
+    },
+    {
+      "orphan": "acc-intentions-012",
+      "occurrences": 5,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-076",
+      "occurrences": 5,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-026",
+      "occurrences": 5,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-026",
+      "occurrences": 5,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-007",
+      "occurrences": 5,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-046",
+      "occurrences": 5,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-037",
+      "occurrences": 5,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-019",
+      "occurrences": 4,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-134",
+      "occurrences": 4,
+      "n_files": 2,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-200"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-134->skp-beliefs-200"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-021",
+      "occurrences": 4,
+      "n_files": 4,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-200"
+      ],
+      "lineage_edges": [
+        "saf-intentions-021->saf-intentions-200"
+      ]
+    },
+    {
+      "orphan": "acc-desires-019",
+      "occurrences": 4,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-006",
+      "occurrences": 4,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-098",
+      "occurrences": 4,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-016",
+      "occurrences": 4,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-103",
+      "occurrences": 4,
+      "n_files": 4,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-049",
+      "occurrences": 4,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-058",
+      "occurrences": 4,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-027",
+      "occurrences": 4,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-032",
+      "occurrences": 4,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-065",
+      "occurrences": 4,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-033",
+      "occurrences": 4,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-028",
+      "occurrences": 3,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-016",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-203"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-016->skp-beliefs-203"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-061",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-037",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-018",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-046",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-029",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-desires-007",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-045",
+      "occurrences": 3,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-077",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-041",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-047",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-063",
+      "occurrences": 3,
+      "n_files": 3,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-122",
+      "occurrences": 3,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-036",
+      "occurrences": 3,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-desires-010",
+      "occurrences": 2,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-126",
+      "occurrences": 2,
+      "n_files": 1,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-200"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-126->skp-beliefs-200"
+      ]
+    },
+    {
+      "orphan": "acc-intentions-094",
+      "occurrences": 2,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-123",
+      "occurrences": 2,
+      "n_files": 2,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-205"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-123->saf-beliefs-205"
+      ]
+    },
+    {
+      "orphan": "acc-intentions-010",
+      "occurrences": 2,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-106",
+      "occurrences": 2,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-103",
+      "occurrences": 2,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-089",
+      "occurrences": 2,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-036",
+      "occurrences": 2,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-067",
+      "occurrences": 2,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-031",
+      "occurrences": 2,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-077",
+      "occurrences": 2,
+      "n_files": 2,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-062",
+      "occurrences": 2,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-066",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-desires-020",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-100",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-128",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "A",
+      "live_descendants": [
+        "skp-beliefs-204"
+      ],
+      "lineage_edges": [
+        "skp-beliefs-128->skp-beliefs-204"
+      ]
+    },
+    {
+      "orphan": "saf-beliefs-114",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-203"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-114->saf-beliefs-203"
+      ]
+    },
+    {
+      "orphan": "skp-intentions-039",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-081",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-084",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-130",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-025",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-desires-032",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-105",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-beliefs-049",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-152",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-055",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-045",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-043",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-092",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-096",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-073",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-088",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-088",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-071",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-095",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-desires-021",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-060",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-028",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-138",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "A",
+      "live_descendants": [
+        "saf-beliefs-203"
+      ],
+      "lineage_edges": [
+        "saf-beliefs-138->saf-beliefs-203"
+      ]
+    },
+    {
+      "orphan": "saf-intentions-105",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-089",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "acc-intentions-041",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-034",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "A",
+      "live_descendants": [
+        "saf-intentions-203"
+      ],
+      "lineage_edges": [
+        "saf-intentions-034->saf-intentions-203"
+      ]
+    },
+    {
+      "orphan": "saf-beliefs-079",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-beliefs-080",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-beliefs-093",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "skp-intentions-020",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    },
+    {
+      "orphan": "saf-intentions-072",
+      "occurrences": 1,
+      "n_files": 1,
+      "tier": "C",
+      "live_descendants": [],
+      "lineage_edges": []
+    }
+  ]
+}
