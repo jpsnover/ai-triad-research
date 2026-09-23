@@ -16,6 +16,7 @@ import type { ANClaimInput, RelevantTaxonomyResult } from '../../../lib/debate/r
 import type { ClaimAttributionResult } from '../../../lib/debate/argumentNetwork/attribution.js';
 import type { ClaimTaxonomyAttribution } from '../../../lib/debate/types.js';
 import type { UserPreferences } from '../../../lib/userPreferencesSchema.js';
+import type { InquiryRequest, InquiryResult } from '../../../lib/inquiry/index.js';
 
 // t/3532: mirrors bridge/types.ts's FetchRelevantNodesPayload/FetchClaimAttributionPayload/
 // ClaimAttributionResponse structurally (those are defined directly in bridge/types.ts, not
@@ -786,6 +787,22 @@ function buildElectronApi() {
     ipcRenderer.invoke('download-brief-artifact', exportId, name),
   deleteBriefExport: (exportId: string): Promise<void> =>
     ipcRenderer.invoke('delete-brief-export', exportId),
+
+  // Inquiry — desktop parity (t/3579). Response field names match the web REST contract's
+  // InquiryStatusResponse verbatim (Rosetta Stone t/3582#2) so the bridge polls both builds
+  // identically. `idempotencyKey` is accepted for signature parity with the web bridge but
+  // unused here — desktop is single-user/single-process, so there is no idempotency window
+  // to dedupe against (mirrors briefExportHandlers.ts dropping server-only concerns).
+  startInquiry: (request: InquiryRequest, _idempotencyKey?: string): Promise<{ jobId: string }> =>
+    ipcRenderer.invoke('start-inquiry', request),
+  getInquiry: (jobId: string): Promise<{
+    jobId: string;
+    status: 'queued' | 'grounding' | 'debating' | 'judging' | 'synthesizing' | 'done' | 'done_truncated' | 'failed';
+    progressPct: number;
+    terminationReason: string | null; resultId: string | null; error: string | null;
+    result?: InquiryResult;
+  } | null> =>
+    ipcRenderer.invoke('get-inquiry', jobId),
   };
 }
 

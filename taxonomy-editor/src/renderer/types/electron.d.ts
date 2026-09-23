@@ -9,11 +9,28 @@ import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExpo
 import type { BriefArtifactName } from '@lib/brief/types';
 import type { StopReason } from '@lib/ai-client/types';
 import type { OpEdSet, OpEdSetSummary } from '@lib/oped/types';
+import type { InquiryRequest, InquiryResult } from '@lib/inquiry';
+
+// t/3579/t/3582: field names/status vocabulary mirror the web REST contract's
+// InquiryStatusResponse (Rosetta Stone t/3582#2) verbatim. Defined locally rather than
+// imported from ../bridge/types (that module doesn't declare these yet as of this
+// landing) — once Rosetta lands StartInquiryRequest/InquiryStatusResponse there, this
+// should switch to importing them instead of the local duplicates below.
+type InquiryJobStatus = 'queued' | 'grounding' | 'debating' | 'judging' | 'synthesizing' | 'done' | 'done_truncated' | 'failed';
+interface InquiryStatusResponse {
+  jobId: string; status: InquiryJobStatus; progressPct: number;
+  terminationReason: string | null; resultId: string | null; error: string | null;
+  result?: InquiryResult;
+}
 
 export interface ElectronAPI {
   // Brief Export — desktop parity (t/2840). download returns raw bytes (the bridge wraps a Blob).
   createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;
   getBriefExportJob: (jobId: string) => Promise<BriefExportJobView>;
+  // Inquiry — desktop parity (t/3579). idempotencyKey accepted for signature parity with the
+  // web bridge; unused on desktop (single-process, no idempotency window to dedupe against).
+  startInquiry: (request: InquiryRequest, idempotencyKey?: string) => Promise<{ jobId: string }>;
+  getInquiry: (jobId: string) => Promise<InquiryStatusResponse | null>;
   listBriefExports: (debateId: string) => Promise<BriefExportRecord[]>;
   downloadBriefArtifact: (exportId: string, name: BriefArtifactName) => Promise<Uint8Array | null>;
   deleteBriefExport: (exportId: string) => Promise<void>;
