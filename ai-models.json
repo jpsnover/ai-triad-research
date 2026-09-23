@@ -139,6 +139,7 @@
       "apiModelId": "gemini-3.1-pro-preview",
       "label": "Gemini 3.1 Pro Preview",
       "backend": "gemini",
+      "minTimeoutMs": 300000,
       "picker": {
         "label": "3.1 Pro Preview (best quality)",
         "order": 20
@@ -199,6 +200,7 @@
       "apiModelId": "gemini-2.5-pro",
       "label": "Gemini 2.5 Pro",
       "backend": "gemini",
+      "minTimeoutMs": 300000,
       "picker": {
         "label": "2.5 Pro",
         "order": 90
@@ -261,7 +263,8 @@
       "id": "claude-opus-4-8",
       "apiModelId": "claude-opus-4-8",
       "label": "Claude Opus 4.8",
-      "backend": "claude"
+      "backend": "claude",
+      "minTimeoutMs": 300000
     },
     {
       "id": "claude-opus-4-7",
@@ -279,6 +282,7 @@
       "apiModelId": "claude-sonnet-4-6",
       "label": "Claude Sonnet 4.6",
       "backend": "claude",
+      "minTimeoutMs": 300000,
       "picker": {
         "label": "Sonnet 4.6",
         "order": 20
@@ -869,6 +873,7 @@
       "apiModelId": "gpt-5.5-pro",
       "label": "Gpt 5.5 Pro",
       "backend": "openai",
+      "minTimeoutMs": 300000,
       "picker": {
         "label": "GPT-5.5 Pro",
         "order": 20
@@ -913,6 +918,7 @@
       "apiModelId": "deepseek-v4-pro",
       "label": "Deepseek V4 Pro",
       "backend": "deepseek",
+      "minTimeoutMs": 300000,
       "picker": {
         "label": "V4 Pro (reasoning)",
         "order": 20
