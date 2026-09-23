@@ -93,6 +93,34 @@ metric family only. That binding is expected to evolve alongside the calibration
 that carries its reasoning stays interpretable across that change; one that carries only a label
 does not.
 
+### 7. Inquiry results get their own collection, not a slot beside debates
+
+Raised by ServerAPI (t/3578#1) as blocking the job store's design.
+
+Results live in their own collection, holding a reference to the debate that produced them. That
+reference is allowed to dangle.
+
+Decisions 4 and 5 already committed to a result that reads correctly without resolving anything
+against live data, carrying its own derivation stamp and its own node labels. Storing it beside
+debates would contradict that, tying a small synthesis to a 19 MB session that may be deleted on a
+different schedule. Two practical consequences follow. Listing a user's inquiries stays cheap
+instead of paging a collection dominated by debate blobs, and the eventual share surface attaches
+to the artifact people actually want to send someone, which is the answer rather than the
+transcript.
+
+### 8. v1 requires authentication; no anonymous inquiries
+
+Also raised by ServerAPI, routed from Server Auth's surface.
+
+The `anonAiRoutes.ts` precedent shows anonymous AI access is an established pattern here, but the
+cost profiles are not comparable. An anonymous chat turn is one call. An inquiry is a multi-minute
+debate plus sixteen QBAF evaluations, and the rate limiting that makes anonymous chat safe does not
+bound that.
+
+This is also the reversible direction. Opening access later is a configuration decision;
+recovering from unbounded anonymous spend is not. Server Auth owns the implementation and can
+revisit once there is per-user cost telemetry to reason from.
+
 ## Consequences
 
 Shared Lib moves to the head of the critical path, since every other inquiry ticket blocks on

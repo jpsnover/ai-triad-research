@@ -252,12 +252,10 @@ The orchestrator then gates both job stores, which is what keeps the two builds 
 
 ## Open Questions
 
-1. **Persistence location.** Do inquiry results live alongside debates in user storage, or in
-   their own collection? Affects Server Storage and the eventual share surface.
-2. **Anonymous access.** Can an unauthenticated visitor run an inquiry? The cost profile argues
-   no, but the `anonAiRoutes.ts` precedent suggests the question is live. Routes to Server Auth.
-3. **`deep` fidelity ceiling.** What upper bound on turns and spend is acceptable before the
-   run is refused rather than truncated?
+1. **`deep` fidelity ceiling.** What upper bound on turns and spend is acceptable before the
+   run is refused rather than truncated? Pending the UX review.
 
-Resolved by the Second Opinion consult (e/186), recorded in ADR-0002: contract location,
-versioning posture, derivation stamping, and node-reference durability.
+Everything else that stood open here is now decided in ADR-0002. The Second Opinion consult
+(e/186) settled contract location, versioning posture, derivation stamping, and node-reference
+durability. ServerAPI's two blockers (t/3578#1) settled persistence location, which is a separate
+collection, and anonymous access, which v1 does not allow.
