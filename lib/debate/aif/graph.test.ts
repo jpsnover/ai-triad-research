@@ -181,6 +181,18 @@ describe('makeAifGraph', () => {
     expect(() => makeAifGraph('debate-1', nodes, [], [badSupport])).toThrowError(/referential integrity/i);
   });
 
+  it('throws on raw CA-node with same-speaker attacker and target (cross-agent invariant)', () => {
+    const nodes = [acc('i-0'), acc('i-4')];
+    const sameSpkrConflict = { id: 'ca-0', type: 'conflict' as const, attacker: 'i-0', target: 'i-4' };
+    expect(() => makeAifGraph('debate-1', nodes, [sameSpkrConflict], [])).toThrowError(/cross-agent invariant/i);
+  });
+
+  it('does not throw when raw CA-node connects different speakers', () => {
+    const nodes = [acc('i-0'), saf('i-1')];
+    const crossAgentConflict = { id: 'ca-0', type: 'conflict' as const, attacker: 'i-0', target: 'i-1' };
+    expect(() => makeAifGraph('debate-1', nodes, [crossAgentConflict], [])).not.toThrow();
+  });
+
   it('includes all four speaker types as valid I-node speakers', () => {
     const nodes = [acc('i-0'), saf('i-1'), skp('i-2'), usr('i-3')];
     const g = makeAifGraph('debate-full', nodes, [], []);

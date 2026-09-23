@@ -63,6 +63,9 @@ export interface RaNode {
  *
  * All edge endpoints must reference an `id` in `nodes`. Graph-local ids only
  * (`i-<n>`, `ca-<n>`, `ra-<n>`); no global registry.
+ *
+ * ADR-0002 applies if this graph is ever persisted or crosses a process
+ * boundary — including diagnostic dumps and flight-recorder events (spec §5).
  */
 export interface AifGraph {
   debateId: string;

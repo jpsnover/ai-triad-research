@@ -103,10 +103,10 @@ export function makeAifGraph(
   conflicts: CaNode[],
   supports: RaNode[],
 ): AifGraph {
-  const nodeIds = new Set(nodes.map(n => n.id));
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
   for (const ca of conflicts) {
-    if (!nodeIds.has(ca.attacker)) {
+    if (!nodeMap.has(ca.attacker)) {
       throw new ActionableError({
         goal: 'Assemble AIF graph',
         problem: `Referential integrity violation on CA-node "${ca.id}": attacker id "${ca.attacker}" not in nodes`,
@@ -114,7 +114,7 @@ export function makeAifGraph(
         nextSteps: ['Ensure the I-node for the attacker exists before assembling the graph.'],
       });
     }
-    if (!nodeIds.has(ca.target)) {
+    if (!nodeMap.has(ca.target)) {
       throw new ActionableError({
         goal: 'Assemble AIF graph',
         problem: `Referential integrity violation on CA-node "${ca.id}": target id "${ca.target}" not in nodes`,
@@ -122,10 +122,20 @@ export function makeAifGraph(
         nextSteps: ['Ensure the I-node for the target exists before assembling the graph.'],
       });
     }
+    const attackerNode = nodeMap.get(ca.attacker)!;
+    const targetNode = nodeMap.get(ca.target)!;
+    if (attackerNode.speaker === targetNode.speaker) {
+      throw new ActionableError({
+        goal: 'Assemble AIF graph',
+        problem: `Cross-agent invariant violated on CA-node "${ca.id}": attacker "${ca.attacker}" and target "${ca.target}" have the same speaker ("${attackerNode.speaker}").`,
+        location: 'lib/debate/aif/graph.ts',
+        nextSteps: ['CA-nodes must connect claims from different speakers. Check the raw CA-nodes before assembling the graph.'],
+      });
+    }
   }
 
   for (const ra of supports) {
-    if (!nodeIds.has(ra.from)) {
+    if (!nodeMap.has(ra.from)) {
       throw new ActionableError({
         goal: 'Assemble AIF graph',
         problem: `Referential integrity violation on RA-node "${ra.id}": from id "${ra.from}" not in nodes`,
@@ -133,7 +143,7 @@ export function makeAifGraph(
         nextSteps: ['Ensure the I-node for the from endpoint exists before assembling the graph.'],
       });
     }
-    if (!nodeIds.has(ra.to)) {
+    if (!nodeMap.has(ra.to)) {
       throw new ActionableError({
         goal: 'Assemble AIF graph',
         problem: `Referential integrity violation on RA-node "${ra.id}": to id "${ra.to}" not in nodes`,
