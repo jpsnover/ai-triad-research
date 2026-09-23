@@ -14,12 +14,35 @@
 // invalid keys (parent t/1571). A minimal generateContent POST is the real auth check.
 
 import { net } from 'electron';
+import path from 'path';
+import { PROJECT_ROOT } from './fileIO.js';
+import { resolveModelEntry, resolveDebateTierModel } from './modelConfigCache.js';
 
 /** Backends we can probe — kept in sync with KEY_VALIDATION_PROBES (server/routes/keys.ts). */
 export const SUPPORTED_PROBE_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'zai'] as const;
 
 export function isSupportedProbeBackend(backend: string): boolean {
   return (SUPPORTED_PROBE_BACKENDS as readonly string[]).includes(backend);
+}
+
+// t/3556: hardcoding a specific Gemini model here caused a false "Invalid API key" the
+// moment that model was retired from the provider (valid key, but the retired model
+// resolves non-2xx, indistinguishable from a bad key). Resolved from ai-models.json's
+// `debateTiers.basic.gemini` instead — the registry's own designated "current, cheap,
+// fast" Gemini model — so a future retirement is a registry update, not a second
+// hand-maintained literal to remember. Falls back to the last-known-good literal only if
+// the registry can't be read at all (missing/corrupt file) — logged, not silent, per the
+// root AGENTS.md fallback-path-logging rule; if a future retirement lands there it would
+// reproduce this exact bug, but that's a strictly rarer failure than "file is unreadable."
+function resolveGeminiProbeModel(): string {
+  const configPath = path.join(PROJECT_ROOT, 'ai-models.json');
+  const friendlyId = resolveDebateTierModel(configPath, 'basic', 'gemini');
+  if (!friendlyId) {
+    console.warn('[keyProbe] Could not resolve debateTiers.basic.gemini from ai-models.json — falling back to a hardcoded model id, which can drift the same way t/3556 did.');
+    return 'gemini-2.5-flash-lite';
+  }
+  const entry = resolveModelEntry(configPath, friendlyId);
+  return entry?.apiModelId ?? friendlyId;
 }
 
 /**
@@ -31,8 +54,9 @@ export async function probeApiKey(backend: string, key: string): Promise<boolean
   switch (backend) {
     case 'gemini': {
       // generateContent (not list-models) — the list endpoint 200s for non-generating keys.
+      const model = resolveGeminiProbeModel();
       const r = await net.fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

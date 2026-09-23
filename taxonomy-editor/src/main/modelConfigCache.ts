@@ -7,16 +7,17 @@ import type { ModelEntry, ModelRegistry } from '../../../lib/ai-client/registry.
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 let _modelMapCache: Record<string, ModelEntry> | null = null;
+let _registryCache: ModelRegistry | null = null;
 let _modelMapMtime = 0;
 
 /**
- * Load and cache the model entry map from `configPath`.
+ * Load and cache the model entry map (and raw registry) from `configPath`.
  *
  * Uses a single file descriptor for stat + read (js/file-system-race, t/2022),
  * strips a leading UTF-8 BOM before parsing (t/1702A), and advances the mtime
  * guard on parse failure so a broken file is not re-read on every call (t/1702B).
  */
-export function resolveModelEntry(configPath: string, friendlyId: string): ModelEntry | undefined {
+function ensureLoaded(configPath: string): void {
   let statMtime = 0;
   let fd: number | undefined;
   try {
@@ -31,6 +32,7 @@ export function resolveModelEntry(configPath: string, friendlyId: string): Model
       const raw = fs.readFileSync(fd, 'utf-8').replace(/^﻿/, '');
       const config = JSON.parse(raw) as ModelRegistry;
       _modelMapCache = buildModelEntryMap(config);
+      _registryCache = config;
       _modelMapMtime = stat.mtimeMs;
       console.log(`[model-map] Loaded ${Object.keys(_modelMapCache).length} mappings from ${configPath}`);
     }
@@ -54,11 +56,29 @@ export function resolveModelEntry(configPath: string, friendlyId: string): Model
   } finally {
     if (fd !== undefined) fs.closeSync(fd);
   }
+}
+
+export function resolveModelEntry(configPath: string, friendlyId: string): ModelEntry | undefined {
+  ensureLoaded(configPath);
   return _modelMapCache?.[friendlyId];
+}
+
+/**
+ * Resolve the friendly model id the registry designates for `tier`/`backend`
+ * (e.g. `debateTiers.basic.gemini`) — the deliberate "current, cheap, fast" model
+ * for a backend, kept up to date by whoever maintains the registry. Used instead
+ * of hardcoding a specific model id at a call site so retirements can't cause
+ * silent drift (t/3556: a hardcoded probe model outlived the registry's own
+ * update and started reporting valid Gemini keys as invalid).
+ */
+export function resolveDebateTierModel(configPath: string, tier: string, backend: string): string | undefined {
+  ensureLoaded(configPath);
+  return _registryCache?.debateTiers?.[tier]?.[backend];
 }
 
 /** Reset the in-memory cache. Call in test beforeEach to ensure isolation between cases. */
 export function resetModelMapCache(): void {
   _modelMapCache = null;
+  _registryCache = null;
   _modelMapMtime = 0;
 }

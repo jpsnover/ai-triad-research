@@ -7,9 +7,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const fetchMock = vi.fn();
 vi.mock('electron', () => ({ net: { fetch: (...args: unknown[]) => fetchMock(...args) } }));
 
+// fileIO.ts pulls in Electron's `app` at module load (AGENTS.md: modules using app/
+// safeStorage can't be imported directly in vitest) — mock it and modelConfigCache.js
+// (t/3556) so the probe's registry resolution is deterministic and doesn't touch disk.
+vi.mock('../fileIO.js', () => ({ PROJECT_ROOT: '/fake/root' }));
+const resolveDebateTierModelMock = vi.fn();
+const resolveModelEntryMock = vi.fn();
+vi.mock('../modelConfigCache.js', () => ({
+  resolveDebateTierModel: (...args: unknown[]) => resolveDebateTierModelMock(...args),
+  resolveModelEntry: (...args: unknown[]) => resolveModelEntryMock(...args),
+}));
+
 import { probeApiKey, isSupportedProbeBackend, SUPPORTED_PROBE_BACKENDS } from '../keyProbe.js';
 
-beforeEach(() => fetchMock.mockReset());
+beforeEach(() => {
+  fetchMock.mockReset();
+  resolveDebateTierModelMock.mockReset().mockReturnValue('gemini-3.5-flash-lite');
+  resolveModelEntryMock.mockReset().mockReturnValue({ apiModelId: 'gemini-3.5-flash-lite' });
+});
 
 describe('keyProbe (t/1573)', () => {
   it('gemini probes generateContent — NOT list-models — and reflects r.ok (false-green fix)', async () => {
@@ -28,6 +43,31 @@ describe('keyProbe (t/1573)', () => {
   it('gemini returns true when generateContent 200s', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true });
     expect(await probeApiKey('gemini', 'good')).toBe(true);
+  });
+
+  it('gemini probe model is resolved from the registry, not hardcoded (t/3556 regression)', async () => {
+    resolveDebateTierModelMock.mockReturnValue('gemini-9.9-future');
+    resolveModelEntryMock.mockReturnValue({ apiModelId: 'gemini-9.9-future-api-id' });
+    fetchMock.mockResolvedValueOnce({ ok: true });
+
+    await probeApiKey('gemini', 'k');
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain('gemini-9.9-future-api-id');
+    expect(url).not.toContain('gemini-2.0-flash'); // the retired model that caused t/3556
+    expect(resolveDebateTierModelMock).toHaveBeenCalledWith(expect.any(String), 'basic', 'gemini');
+  });
+
+  it('gemini probe falls back to a literal (with a warning) when the registry cannot resolve a model — never throws', async () => {
+    resolveDebateTierModelMock.mockReturnValue(undefined);
+    fetchMock.mockResolvedValueOnce({ ok: true });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const valid = await probeApiKey('gemini', 'k');
+
+    expect(valid).toBe(true);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('ai-models.json'));
+    warnSpy.mockRestore();
   });
 
   it('zai and deepseek are supported (not falling through to Unsupported) and hit the right endpoints', async () => {
