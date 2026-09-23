@@ -336,9 +336,9 @@ export async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]
 
 export function getKnownClaudeModels(): ModelEntry[] {
   return [
-    { id: 'claude-opus-4',     apiModelId: 'claude-opus-4-20250514',     label: 'Opus 4',              backend: 'claude' },
+    { id: 'claude-opus-4',     apiModelId: 'claude-opus-4-20250514',     label: 'Opus 4',              backend: 'claude' }, // model-lint:allow — discovery fallback wire-id, not a chat selection (t/3559)
     { id: 'claude-sonnet-4-5', apiModelId: 'claude-sonnet-4-5-20250514', label: 'Sonnet 4.5',          backend: 'claude' },
-    { id: 'claude-haiku-3.5',  apiModelId: 'claude-3-5-haiku-20241022',  label: 'Haiku 3.5 (fastest)', backend: 'claude' },
+    { id: 'claude-haiku-3.5',  apiModelId: 'claude-3-5-haiku-20241022',  label: 'Haiku 3.5 (fastest)', backend: 'claude' }, // model-lint:allow — discovery fallback wire-id, not a chat selection (t/3559)
   ];
 }
 

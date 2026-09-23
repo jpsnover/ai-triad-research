@@ -61,6 +61,7 @@ $VitestGates = [ordered]@{
     'configInvariant'       = 'lib/debate/__tests__/configInvariant.test.ts'
     'modelDiscovery'        = 'lib/electron-shared/modelDiscovery.test.ts'
     'registryCompleteness'  = 'hooks/useTaxonomyStore/slices/__tests__/registryCompleteness.test.ts'
+    'modelLiteralLint'      = 'lib/ai-config/modelLiteralLint.test.ts'
 }
 $PesterGates = @(
     (Join-Path $RepoRoot 'tests/Test-AIModelsConfig.Tests.ps1')
@@ -125,7 +126,7 @@ if (-not (Test-Path (Join-Path $TaxEditor 'node_modules'))) {
     Write-Host '  FAIL vitest — taxonomy-editor/node_modules is missing.' -ForegroundColor Red
     Write-Host '        Goal:  run the vitest registry gates' -ForegroundColor DarkYellow
     Write-Host "        Fix:   run 'pnpm install' in $TaxEditor, then re-run verify:config" -ForegroundColor DarkYellow
-    $Results['vitest:collection (5 files)'] = $false
+    $Results['vitest:collection (6 files)'] = $false
     $Results['vitest:run'] = $false
 }
 else {
@@ -152,16 +153,16 @@ else {
             $collectionOk = $false
         }
     }
-    $Results['vitest:collection (5 files)'] = $collectionOk
+    $Results['vitest:collection (6 files)'] = $collectionOk
 
     if ($collectionOk) {
         Write-Host "  PASS collection — all $($VitestGates.Count) gate files collected" -ForegroundColor Green
 
-        # Step 2 — RUN the five collected files.
+        # Step 2 — RUN the six collected files.
         & npm exec --silent -- vitest run @Filters
         $runOk = ($LASTEXITCODE -eq 0)
         if ($runOk) {
-            Write-Host "  PASS vitest run — all 5 gate suites green" -ForegroundColor Green
+            Write-Host "  PASS vitest run — all 6 gate suites green" -ForegroundColor Green
         } else {
             Write-Host "  FAIL vitest run — one or more suites failed (exit $LASTEXITCODE, see output above)" -ForegroundColor Red
         }
@@ -195,5 +196,5 @@ if ($failed.Count -gt 0) {
 }
 
 Write-Host ''
-Write-Host 'verify:config PASSED — all 7 registry gates green.' -ForegroundColor Green
+Write-Host 'verify:config PASSED — all 8 registry gates green.' -ForegroundColor Green
 exit 0
