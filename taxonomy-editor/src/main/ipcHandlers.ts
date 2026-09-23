@@ -27,6 +27,7 @@ import { registerSystemHandlers } from './ipc/systemHandlers.js';
 import { registerPrefsHandlers } from './ipc/prefsHandlers.js';
 import { registerOpEdHandlers } from './ipc/opedHandlers.js';
 import { registerBriefExportHandlers } from './ipc/briefExportHandlers.js';
+import { registerInquiryHandlers } from './ipc/inquiryHandlers.js';
 
 export function registerIpcHandlers(): void {
   registerPrefsHandlers();
@@ -45,4 +46,5 @@ export function registerIpcHandlers(): void {
   registerSystemHandlers();
   registerOpEdHandlers();
   registerBriefExportHandlers();
+  registerInquiryHandlers();
 }
