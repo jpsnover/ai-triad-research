@@ -82,6 +82,17 @@ jobs:
             exit 1
           fi
 
+          # Shape assertion (SO e/202#9, TL p/331#1295 — COMPLEMENT to set -euo pipefail, not a
+          # substitute): a malformed-but-200 payload ({}, partial JSON) makes the jq parses below
+          # fail. set -e already reds the job (fail-closed, correct), but the only diagnostic would
+          # be jq's raw "Cannot iterate over null" on a step whose legible errors all name auto-merge
+          # / API failure — a THIRD indistinguishable red among {violation, infra, malformed}, each
+          # with a different remedy. Name this cause explicitly so the red is triageable.
+          if ! echo "$PR_JSON" | jq -e 'has("labels") and has("autoMergeRequest")' >/dev/null 2>&1; then
+            echo "::error::joint-gv-guard: PR state read succeeded but the payload is MALFORMED (missing labels/autoMergeRequest) — NOT a joint-gv violation, NOT an API-unreachable failure. Re-run; if it persists, the gh JSON contract changed. (Failing closed — required gate.)"
+            exit 1
+          fi
+
           HAS_JOINT_GV=$(echo "$PR_JSON" | jq -r '[.labels[].name] | contains(["joint-gv"]) | tostring')
           HAS_AUTO_MERGE=$(echo "$PR_JSON" | jq -r '(.autoMergeRequest != null) | tostring')
 
