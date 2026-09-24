@@ -14,12 +14,18 @@ import path from 'path';
 import { getConfig } from '../runtimeConfig.js';
 import { mintCommunityOpedShare, getCommunityOpedShareEntry } from './communityOpedShares.js';
 import { writePublicCommunityOpEd, type CommunityOpEdItem } from '../storage/communityOpedShareStore.js';
+import {
+  loadInquiryResult, listInquiryResults, saveInquiryResult, type InquiryResultSummary,
+} from '../storage/inquiryResultStore.js';
+import { deriveTruncation } from '../../../../lib/inquiry/index.js';
+import type { InquiryResult } from '../../../../lib/inquiry/index.js';
 
 // ── Paths ──
 
 function communityChatsDir(): string { return resolveDataPath('community/chats'); }
 function communityDebatesDir(): string { return resolveDataPath('community/debates'); }
 function communityOpedsDir(): string { return resolveDataPath('community/opeds'); }
+function communityInquiriesDir(): string { return resolveDataPath('community/inquiries'); }
 function submissionsDir(): string { return resolveDataPath('community/_submissions'); }
 function removalsDir(): string { return resolveDataPath('community/_removals'); }
 
@@ -57,6 +63,7 @@ const COMMUNITY_INDEX_FILE = '_index.json';
 const CHAT_INDEX_VERSION = 'chat-v2'; // v2: added model (t/2779)
 const DEBATE_INDEX_VERSION = 'debate-v2'; // v2: added model + turn_count (t/2362/t/2384)
 const OPED_INDEX_VERSION = 'oped-v2'; // v2: added outlet (t/2993)
+const INQUIRY_INDEX_VERSION = 'inquiry-v1'; // t/3621
 
 interface ListingIndexSpec<T> {
   dir: string;
@@ -166,6 +173,13 @@ interface CommunityOpEdEntry {
   voice_count: number;
 }
 
+interface CommunityInquiryEntry {
+  id: unknown; question: string; created_at: string; updated_at: string;
+  community_metadata: unknown;
+  camps: string[];
+  verdict_count: number;
+}
+
 export async function listCommunityChats(): Promise<unknown[]> {
   const items = await listViaIndex<CommunityChatEntry>({
     dir: communityChatsDir(),
@@ -229,13 +243,35 @@ export async function listCommunityOpEds(): Promise<unknown[]> {
   return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
 }
 
-export async function loadCommunityItem(type: 'chats' | 'debates' | 'opeds', id: string): Promise<unknown | null> {
+export async function listCommunityInquiries(): Promise<unknown[]> {
+  const items = await listViaIndex<CommunityInquiryEntry>({
+    dir: communityInquiriesDir(),
+    prefix: 'inquiry-',
+    version: INQUIRY_INDEX_VERSION,
+    malformedMessage: 'Skipping malformed community inquiry file',
+    toEntry: (parsed) => ({
+      id: parsed.id,
+      question: typeof parsed.request?.question === 'string' ? parsed.request.question || 'Untitled' : 'Untitled',
+      created_at: parsed.created_at || '',
+      updated_at: parsed.updated_at || parsed.created_at || '',
+      community_metadata: stripOriginalId(parsed.community_metadata || null),
+      camps: Array.isArray(parsed.campVerdicts)
+        ? [...new Set<string>((parsed.campVerdicts as { camp?: string }[]).map(v => v.camp).filter((c): c is string => Boolean(c)))]
+        : [],
+      verdict_count: Array.isArray(parsed.campVerdicts) ? (parsed.campVerdicts as unknown[]).length : 0,
+    }),
+  });
+  return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+}
+
+export async function loadCommunityItem(type: 'chats' | 'debates' | 'opeds' | 'inquiries', id: string): Promise<unknown | null> {
   assertSafeId(id, 'community id'); // block path traversal (M2)
   const backend = getUserContentBackend();
   const dir = type === 'chats' ? communityChatsDir()
     : type === 'debates' ? communityDebatesDir()
+    : type === 'inquiries' ? communityInquiriesDir()
     : communityOpedsDir();
-  const prefix = type === 'chats' ? 'chat-' : type === 'debates' ? 'debate-' : 'oped-';
+  const prefix = type === 'chats' ? 'chat-' : type === 'debates' ? 'debate-' : type === 'inquiries' ? 'inquiry-' : 'oped-';
   const raw = await backend.readFile(path.join(dir, `${prefix}${id}.json`));
   if (!raw) return null;
   const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -333,7 +369,7 @@ export async function backfillCommunityOpedShares(): Promise<{
 
 interface Submission {
   id: string;
-  type: 'chat' | 'debate' | 'oped';
+  type: 'chat' | 'debate' | 'oped' | 'inquiry';
   originalId: string;
   submittedBy: string;
   submittedAt: string;
@@ -343,7 +379,7 @@ interface Submission {
   data: unknown;
 }
 
-export async function submitToCommunity(type: 'chat' | 'debate' | 'oped', itemData: unknown, note?: string): Promise<{ submissionId: string }> {
+export async function submitToCommunity(type: 'chat' | 'debate' | 'oped' | 'inquiry', itemData: unknown, note?: string): Promise<{ submissionId: string }> {
   const userId = getStorageUserId();
   const backend = getUserContentBackend();
   const dir = submissionsDir();
@@ -364,7 +400,26 @@ export async function submitToCommunity(type: 'chat' | 'debate' | 'oped', itemDa
     throw Object.assign(new Error('Community submission queue is full; please try again later.'), { statusCode: 503 });
   }
 
-  const item = itemData as { id: string };
+  // t/3621: an inquiry submission carries only { id: jobId } — the server loads the stored result
+  // itself rather than trusting a client-supplied body. loadInquiryResult is auth-scoped to the
+  // calling session's own user (t/3574/ADR-0002 §8), so this also structurally prevents publishing
+  // another user's inquiry even if a client sends someone else's jobId. An InquiryResult carries
+  // TrustState/calibration/convergence fields the UI renders as platform-generated authority claims
+  // (t/3576 generated-not-hand-applied) — never accept those from the client (TL, t/3621#3).
+  let dataToStore = itemData;
+  if (type === 'inquiry') {
+    const jobId = (itemData as { id?: unknown })?.id;
+    if (typeof jobId !== 'string' || !jobId) {
+      throw Object.assign(new Error('inquiry submission requires { id: jobId }'), { statusCode: 400 });
+    }
+    const result = await loadInquiryResult(jobId);
+    if (!result) throw Object.assign(new Error('Inquiry result not found'), { statusCode: 404 });
+    const summaries = await listInquiryResults();
+    const createdAt = summaries.find(s => s.jobId === jobId)?.createdAt ?? new Date().toISOString();
+    dataToStore = { ...result, id: jobId, created_at: createdAt };
+  }
+
+  const item = dataToStore as { id: string };
   const submissionId = crypto.randomUUID();
   const submission: Submission = {
     id: submissionId,
@@ -374,7 +429,7 @@ export async function submitToCommunity(type: 'chat' | 'debate' | 'oped', itemDa
     submittedAt: new Date().toISOString(),
     status: 'pending',
     note,
-    data: itemData,
+    data: dataToStore,
   };
 
   // t/700: community submissions live in Azure Blob (no git branches), so the
@@ -534,9 +589,11 @@ export async function approveSubmission(
   const sanitized = sanitizeForCommunity(dataToPublish, submission.submittedBy) as { id: string };
   const dir = submission.type === 'chat' ? communityChatsDir()
     : submission.type === 'debate' ? communityDebatesDir()
+    : submission.type === 'inquiry' ? communityInquiriesDir()
     : communityOpedsDir();
   const prefix = submission.type === 'chat' ? 'chat-'
     : submission.type === 'debate' ? 'debate-'
+    : submission.type === 'inquiry' ? 'inquiry-'
     : 'oped-';
 
   await backend.writeFile(
@@ -575,7 +632,7 @@ export async function rejectSubmission(submissionId: string, reason?: string): P
   log.server.info({ submissionId, type: submission.type }, 'Community submission rejected');
 }
 
-export async function copyFromCommunity(type: 'chats' | 'debates' | 'opeds', communityId: string): Promise<{ newId: string }> {
+export async function copyFromCommunity(type: 'chats' | 'debates' | 'opeds' | 'inquiries', communityId: string): Promise<{ newId: string }> {
   if (isAnonymousUser()) throw Object.assign(new Error('Anonymous users cannot copy community items'), { statusCode: 403 });
 
   const item = await loadCommunityItem(type, communityId);
@@ -594,6 +651,22 @@ export async function copyFromCommunity(type: 'chats' | 'debates' | 'opeds', com
   } else if (type === 'debates') {
     const { saveDebateSession } = await import('../storage/fileIO.js');
     await saveDebateSession(copy, 'community-fork');
+  } else if (type === 'inquiries') {
+    // t/3621: re-derive truncated/terminationReason from the copied result (deriveTruncation is
+    // pure over calibration trust states) rather than trusting any stale value on the community
+    // item — same "re-derive, don't trust a stored/submitted value" discipline as the submit path.
+    const result = copy as unknown as InquiryResult;
+    const { truncated, terminationReason } = deriveTruncation(result);
+    const debateIdRaw = (copy as Record<string, unknown>).debateId;
+    const summary: InquiryResultSummary = {
+      jobId: copy.id as string,
+      question: typeof result.request?.question === 'string' ? result.request.question : '',
+      debateId: typeof debateIdRaw === 'string' && debateIdRaw.length > 0 ? debateIdRaw : null,
+      truncated,
+      terminationReason,
+      createdAt: copy.created_at as string,
+    };
+    await saveInquiryResult(copy.id as string, result, summary);
   } else {
     // Draft: blocked on t/2572 (finalizeOpedSet) landing in storage/fileIO.ts
     const fileIO = await import('../storage/fileIO.js') as Record<string, unknown>;
@@ -620,7 +693,7 @@ function parseRemovalItem(raw: string): Record<string, unknown> {
 /** Build the audit record captured before a community item is hard-deleted (t/748). */
 function buildRemovalAudit(
   id: string,
-  type: 'chats' | 'debates' | 'opeds',
+  type: 'chats' | 'debates' | 'opeds' | 'inquiries',
   item: Record<string, unknown>,
   removedBy: string,
   reason?: string,
@@ -628,13 +701,15 @@ function buildRemovalAudit(
   const meta = (item.community_metadata && typeof item.community_metadata === 'object')
     ? item.community_metadata as Record<string, unknown> : {};
   const topic = item.topic as { final?: string; original?: string } | string | undefined;
-  const auditType = type === 'chats' ? 'chat' : type === 'debates' ? 'debate' : 'oped';
+  const question = (item.request as { question?: unknown } | undefined)?.question;
+  const auditType = type === 'chats' ? 'chat' : type === 'debates' ? 'debate' : type === 'inquiries' ? 'inquiry' : 'oped';
   return {
     id,
     type: auditType,
     title: (item.title as string)
       || (typeof topic === 'object' ? (topic.final || topic.original) : topic)
       || (typeof topic === 'string' ? topic : undefined)
+      || (typeof question === 'string' ? question : undefined)
       || 'Untitled',
     submitted_by: (meta.submitted_by_display as string) ?? null,
     removed_by: removedBy,
@@ -665,7 +740,7 @@ async function invalidateListingIndex(backend: StorageBackend, dir: string): Pro
  * admin gate; callers must already be authorized.
  */
 export async function removeCommunityItem(
-  type: 'chats' | 'debates' | 'opeds',
+  type: 'chats' | 'debates' | 'opeds' | 'inquiries',
   id: string,
   reason?: string,
 ): Promise<void> {
@@ -673,8 +748,9 @@ export async function removeCommunityItem(
   const backend = getUserContentBackend();
   const dir = type === 'chats' ? communityChatsDir()
     : type === 'debates' ? communityDebatesDir()
+    : type === 'inquiries' ? communityInquiriesDir()
     : communityOpedsDir();
-  const prefix = type === 'chats' ? 'chat-' : type === 'debates' ? 'debate-' : 'oped-';
+  const prefix = type === 'chats' ? 'chat-' : type === 'debates' ? 'debate-' : type === 'inquiries' ? 'inquiry-' : 'oped-';
   const filePath = path.join(dir, `${prefix}${id}.json`);
 
   const raw = await backend.readFile(filePath);
