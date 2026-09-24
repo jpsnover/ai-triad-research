@@ -146,6 +146,50 @@ describe('community inquiry submission (t/3621)', () => {
     expect(published).not.toHaveProperty('debateId');
   });
 
+  // t/3651: proves the matrix-driven projector, not just the debateId case it was built to fix.
+  // derivation.costUsd is a field the OLD denylist (COMMUNITY_DENYLIST_BLIND_SPOTS) never knew
+  // about — it only excludes on the matrix's classification (t/3648), never seen by name here.
+  it('approveSubmission excludes derivation.costUsd per the field-classification matrix (t/3651)', async () => {
+    const resultWithCost = makeResult('Does this leak the run cost?');
+    resultWithCost.derivation = { ...resultWithCost.derivation, callsUsed: 8, costUsd: 4.2 };
+    await userContext.runWithUser(alice, () => saveInquiryResult(
+      'job-cost',
+      resultWithCost,
+      { jobId: 'job-cost', question: 'Does this leak the run cost?', debateId: null, truncated: false, createdAt: '2026-08-01T00:00:00.000Z' },
+    ));
+    const { submissionId } = await userContext.runWithUser(alice, () => community.submitToCommunity('inquiry', { id: 'job-cost' }));
+    const { communityId } = await userContext.runWithUser(admin, () => community.approveSubmission(submissionId));
+
+    const published = await community.loadCommunityItem('inquiries', communityId) as { derivation: Record<string, unknown> };
+    expect(published.derivation).not.toHaveProperty('costUsd');
+    expect(published.derivation.callsUsed).toBe(8); // sibling field stays included
+  });
+
+  // Structural round-trip: the projector must preserve nested included content, not just exclude
+  // the two known-bad fields. If this degenerated to "return {}", the debateId/costUsd tests above
+  // would still pass — this is the arm that catches over-exclusion.
+  it('approveSubmission preserves nested community-included content through the projector', async () => {
+    const rich = makeResult('What does convergence look like across camps?');
+    rich.campVerdicts = [{ camp: 'acc', verdict: 'accelerate', nodes: [{ nodeId: 'acc-beliefs-001', label: 'Speed matters', camp: 'acc' }] }];
+    rich.calibration = [{ metric: 'claim_acceptance', value: 0.8, trust: { verdict: 'trust', reason: 'consistent replication' } }];
+    await userContext.runWithUser(alice, () => saveInquiryResult(
+      'job-rich',
+      rich,
+      { jobId: 'job-rich', question: rich.request.question, debateId: null, truncated: false, createdAt: '2026-09-01T00:00:00.000Z' },
+    ));
+    const { submissionId } = await userContext.runWithUser(alice, () => community.submitToCommunity('inquiry', { id: 'job-rich' }));
+    const { communityId } = await userContext.runWithUser(admin, () => community.approveSubmission(submissionId));
+
+    const published = await community.loadCommunityItem('inquiries', communityId) as {
+      campVerdicts: { camp: string; verdict: string; nodes: { nodeId: string; label: string }[] }[];
+      calibration: { metric: string; trust: { verdict: string; reason: string } }[];
+    };
+    expect(published.campVerdicts[0].nodes[0].nodeId).toBe('acc-beliefs-001'); // included for community, unlike public-share
+    expect(published.campVerdicts[0].nodes[0].label).toBe('Speed matters');
+    expect(published.calibration[0].trust.verdict).toBe('trust');
+    expect(published.calibration[0].trust.reason).toBe('consistent replication');
+  });
+
   it('approveSubmission publishes to community/inquiries/ and does not attempt an auto-share', async () => {
     await userContext.runWithUser(alice, () => saveInquiryResult(
       'job-2',
