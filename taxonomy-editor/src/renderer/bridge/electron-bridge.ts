@@ -306,6 +306,18 @@ export const api: AppAPI = {
     }
     return result;
   },
+  // "My Questions" history (t/3620) — no ElectronMain IPC leg yet (desktop's in-memory job Map
+  // is swept 30 min after terminal state, t/3579; it isn't a durable history store). Rejects
+  // rather than faking an empty list, mirroring rejectOpEdIpc's desktop-unsupported pattern.
+  listInquiries: () => Promise.reject(new ActionableError({
+    goal: 'List "My Questions" history',
+    problem: 'The desktop inquiry history backend is not installed in this build.',
+    location: 'electron-bridge.listInquiries',
+    nextSteps: [
+      'Update to a desktop build that includes the inquiry history IPC handler.',
+      'Until then, use the web app to browse past questions.',
+    ],
+  })),
 
   // Brief Export — desktop parity via main-process IPC (t/2840). Calls the shared runBriefPipeline
   // in-process; download returns raw bytes wrapped into a Blob (Blob-returning AppAPI in both builds).

@@ -5,7 +5,7 @@
  * Web bridge — implements AppAPI via REST and WebSocket calls to the server.
  * Used when the app runs in a browser served by the container.
  */
-import type { AppAPI, SourceDocumentResolution, DebateDelta, UserPreferences, BriefExportJobView, BriefExportRecord, StartInquiryRequest, InquiryStatusResponse } from './types';
+import type { AppAPI, SourceDocumentResolution, DebateDelta, UserPreferences, BriefExportJobView, BriefExportRecord, StartInquiryRequest, InquiryStatusResponse, InquiryResultSummary } from './types';
 import { pullDataUpdatesRest } from './dataUpdatesPull';
 import { instrumentBridge } from './instrumentBridge';
 import { makeCancellationError } from './cancellation';
@@ -1006,6 +1006,7 @@ const rawApi: AppAPI = {
   // Inquiry (t/3582) — client of routes/inquiry.ts (t/3581); idempotency key rides a header, never the body.
   startInquiry: (request: StartInquiryRequest, idempotencyKey?: string) => post<{ jobId: string }>('/api/inquiry', request, undefined, idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined),
   getInquiry: (jobId: string) => get<InquiryStatusResponse>(`/api/inquiry/${encodeURIComponent(jobId)}`),
+  listInquiries: () => get<InquiryResultSummary[]>('/api/inquiry'),
 
   // Brief Export (t/2805, T7) — client of the T6 REST API (server: routes/briefExports.ts).
   createBriefExport: (debateId, body) => post<{ jobId: string }>(`/api/debates/${encodeURIComponent(debateId)}/exports`, body),

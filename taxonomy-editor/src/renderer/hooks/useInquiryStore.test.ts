@@ -10,6 +10,7 @@ const { mockApi } = vi.hoisted(() => ({
   mockApi: {
     startInquiry: vi.fn(),
     getInquiry: vi.fn(),
+    listInquiries: vi.fn(),
   },
 }));
 
@@ -130,5 +131,62 @@ describe('useInquiryStore', () => {
     // resurrect it.
     expect(useInquiryStore.getState().jobId).toBeNull();
     expect(useInquiryStore.getState().screen()).toBe('ask');
+  });
+
+  describe('"My Questions" history (t/3620)', () => {
+    function summary(overrides: Record<string, unknown> = {}) {
+      return {
+        jobId: 'job-h1', question: 'What counts as an AI harm?', debateId: null,
+        truncated: false, createdAt: '2026-09-01T00:00:00.000Z',
+        ...overrides,
+      };
+    }
+
+    it('openList() switches to the list screen and fetches history', async () => {
+      mockApi.listInquiries.mockResolvedValue([summary()]);
+
+      useInquiryStore.getState().openList();
+      expect(useInquiryStore.getState().screen()).toBe('list');
+      expect(useInquiryStore.getState().historyLoading).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(useInquiryStore.getState().historyLoading).toBe(false);
+      expect(useInquiryStore.getState().history).toEqual([summary()]);
+    });
+
+    it('fetchHistory() records a listInquiries failure without crashing', async () => {
+      mockApi.listInquiries.mockRejectedValue(new Error('server unreachable'));
+
+      await useInquiryStore.getState().fetchHistory();
+      expect(useInquiryStore.getState().historyError).toBe('server unreachable');
+      expect(useInquiryStore.getState().historyLoading).toBe(false);
+    });
+
+    it('closeList() leaves the list screen without disturbing ask/poll state', () => {
+      useInquiryStore.getState().openList();
+      useInquiryStore.getState().closeList();
+      expect(useInquiryStore.getState().screen()).toBe('ask');
+    });
+
+    it('openFromHistory() loads a past result straight onto the Answer screen', async () => {
+      const result = { schemaVersion: 1, request: { question: 'q', fidelity: 'standard' }, campVerdicts: [], convergences: [], evidenceLayers: [], unresolvedGaps: [], calibration: [], derivation: { fidelity: 'standard', models: {}, rounds: 4, callBudget: 150 }, grounding: {}, singleRunCaveat: 'n=1' };
+      mockApi.getInquiry.mockResolvedValue(pollView({ jobId: 'job-h1', status: 'done', progressPct: 100, result }));
+
+      useInquiryStore.getState().openList();
+      await useInquiryStore.getState().openFromHistory('job-h1');
+
+      expect(useInquiryStore.getState().viewingList).toBe(false);
+      expect(useInquiryStore.getState().screen()).toBe('answer');
+      expect(useInquiryStore.getState().result).toEqual(result);
+    });
+
+    it('openFromHistory() surfaces a fetch failure as a failed job rather than crashing', async () => {
+      mockApi.getInquiry.mockRejectedValue(new Error('not found'));
+
+      await useInquiryStore.getState().openFromHistory('job-missing');
+
+      expect(useInquiryStore.getState().status).toBe('failed');
+      expect(useInquiryStore.getState().error).toBe('not found');
+    });
   });
 });

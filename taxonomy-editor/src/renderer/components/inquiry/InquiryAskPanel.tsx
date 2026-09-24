@@ -17,7 +17,7 @@ const ALL_MODEL_OPTIONS = Object.entries(MODELS_BY_BACKEND)
   .sort((a, b) => a.label.localeCompare(b.label));
 
 export function InquiryAskPanel() {
-  const { question, fidelity, debaterModel, evaluatorModel, error, setQuestion, setFidelity, setDebaterModel, setEvaluatorModel, resolvedModels, startInquiry } = useInquiryStore();
+  const { question, fidelity, debaterModel, evaluatorModel, error, setQuestion, setFidelity, setDebaterModel, setEvaluatorModel, resolvedModels, startInquiry, openList } = useInquiryStore();
   const [submitting, setSubmitting] = useState(false);
 
   const resolved = resolvedModels();
@@ -34,6 +34,9 @@ export function InquiryAskPanel() {
 
   return (
     <div className="inquiry-ask">
+      <div className="inquiry-rawrow">
+        <button className="inquiry-ghost" onClick={openList}>My Questions</button>
+      </div>
       <label className="inquiry-asklab" htmlFor="inquiry-question">Research question</label>
       <textarea
         id="inquiry-question"
