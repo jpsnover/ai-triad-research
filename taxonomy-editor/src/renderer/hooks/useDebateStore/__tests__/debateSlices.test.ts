@@ -173,6 +173,34 @@ describe('createSituationDebate', () => {
       useDebateStore.getState().createSituationDebate('cc-nonexistent'),
     ).rejects.toThrow('not found');
   });
+
+  // t/3629: createSituationDebate always creates with user_is_pover=false (watch-only), so
+  // it must reach opening directly rather than parking in clarification. Asserts the
+  // TERMINAL phase, not that a function was called (a stalled flow could still "call"
+  // beginDebate and hang).
+  it('reaches opening directly for a watch-only situation debate (t/3629)', async () => {
+    mockTaxonomyState.situations = {
+      nodes: [{
+        id: 'sit-001',
+        label: 'Test Situation',
+        description: 'A test situation',
+        interpretations: {
+          accelerationist: { text: 'acc view' },
+          safetyist: { text: 'saf view' },
+          skeptic: { text: 'skp view' },
+        },
+        linked_nodes: [],
+        conflict_ids: [],
+      }],
+    } as unknown as typeof mockTaxonomyState.situations;
+
+    const id = await useDebateStore.getState().createSituationDebate('sit-001');
+
+    expect(id).toBeTruthy();
+    const state = useDebateStore.getState();
+    expect(state.activeDebate).not.toBeNull();
+    expect(state.activeDebate!.phase).toBe('opening');
+  });
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -360,7 +388,12 @@ describe('Session slice: createConflictDebate', () => {
     ).rejects.toThrow('not found');
   });
 
-  it('creates a debate from a conflict with all povers', async () => {
+  // t/3629: createConflictDebate always creates with user_is_pover=false (watch-only —
+  // there is no participating-user variant of this entry point), so it must reach
+  // opening directly rather than parking in clarification (which would wait forever
+  // for a user event nothing will ever supply). Asserts the TERMINAL phase, not that
+  // a function was called — a stalled flow could still "call" beginDebate and hang.
+  it('creates a debate from a conflict with all povers and reaches opening directly (watch-only, t/3629)', async () => {
     mockTaxonomyState.conflicts = [{
       claim_id: 'conflict-001',
       claim_label: 'Test Conflict',
@@ -376,7 +409,7 @@ describe('Session slice: createConflictDebate', () => {
     expect(id).toBeTruthy();
     const state = useDebateStore.getState();
     expect(state.activeDebate).not.toBeNull();
-    expect(state.activeDebate!.phase).toBe('clarification');
+    expect(state.activeDebate!.phase).toBe('opening');
     expect(mockApi.saveDebateSession).toHaveBeenCalled();
   });
 });

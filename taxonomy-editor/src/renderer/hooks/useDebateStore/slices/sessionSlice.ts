@@ -17,6 +17,7 @@ import { api, setActiveDebateId, isElectronMode } from '@bridge';
 import { isCircuitOpenError, getCircuitCooldownMs } from '../../../bridge/resilience';
 import { buildDebateDelta } from './buildDebateDelta';
 import { getDocTitles } from '../shared/docTitles';
+import { enterClarificationOrBegin } from '../shared/clarificationGuard';
 import type { DocMetaMap } from '@lib/debate/evidenceFromSummaries';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackDebateAbandon, trackDebateStart } from '../../../lib/analyticsEmitter';
@@ -573,7 +574,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
 
     const id = await get().createDebate(topic, allPovers, false, 'situations', ccNodeId, sourceContent);
     await get().loadDebate(id);
-    get().updatePhase('clarification');
+    await enterClarificationOrBegin(get);
     await get().saveDebate('createSituationDebate');
     return id;
   },
@@ -627,7 +628,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     const allPovers = [...AI_POVERS] as SpeakerId[];
 
     const id = await get().createDebate(topic, allPovers, false, 'topic', claimId, sourceContent);
-    get().updatePhase('clarification');
+    await enterClarificationOrBegin(get);
     await get().saveDebate('createConflictDebate');
     return id;
   },
