@@ -44,10 +44,10 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
     if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
     try {
       const type = param(req, 'type', '/api/community/:type/:id');
-      if (type !== 'chats' && type !== 'debates' && type !== 'opeds') { error(res, 'type must be "chats", "debates", or "opeds"', 400); return; }
+      if (type !== 'chats' && type !== 'debates' && type !== 'opeds' && type !== 'inquiries') { error(res, 'type must be "chats", "debates", "opeds", or "inquiries"', 400); return; }
       const id = param(req, 'id', '/api/community/:type/:id');
       const reason = (body as { reason?: string } | undefined)?.reason;
-      await community.removeCommunityItem(type as 'chats' | 'debates' | 'opeds', id, typeof reason === 'string' ? reason : undefined);
+      await community.removeCommunityItem(type as 'chats' | 'debates' | 'opeds' | 'inquiries', id, typeof reason === 'string' ? reason : undefined);
       json(res, { ok: true });
     } catch (err) {
       getGlobalRecorder()?.record({
@@ -166,6 +166,44 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
     }
   });
 
+  // t/3621: community inquiry reader surface (the module funcs landed with t/3621).
+  // Mirrors the opeds listing/detail handlers verbatim; `source: 'community'`
+  // tags rows the same way the oped/debate listings do.
+  get('/api/community/inquiries', async (_req, res) => {
+    try {
+      const entries = await community.listCommunityInquiries() as Record<string, unknown>[];
+      json(res, entries.map(e => ({ ...e, source: 'community' })));
+    }
+    catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Failed to list community inquiries',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), (err as { statusCode?: number }).statusCode ?? 500);
+    }
+  });
+
+  get('/api/community/inquiries/:id', async (req, res) => {
+    try {
+      const id = param(req, 'id', '/api/community/inquiries/:id');
+      const item = await community.loadCommunityItem('inquiries', id);
+      if (!item) { json(res, { found: false }, 200); return; }
+      json(res, item);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Failed to load community inquiry item',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 404);
+    }
+  });
+
   // ── t/3315: public no-login share link for a COMMUNITY op-ed (Pattern-A publish-on-share). ──
   // Any authed user may mint (rate-limited); a community-scoped registry returns ONE stable shareId
   // per item to all callers. The public copy is the anonymous positive-allowlist projection served by
@@ -257,7 +295,7 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
 
   post('/api/community/submit', async (_req, res, body) => {
     try {
-      const { type, data, note } = body as { type: 'chat' | 'debate' | 'oped'; data: unknown; note?: string };
+      const { type, data, note } = body as { type: 'chat' | 'debate' | 'oped' | 'inquiry'; data: unknown; note?: string };
       if (!type || !data) { json(res, { error: 'type and data required' }, 400); return; }
 
       // Pre-flight: a community submission must reach GitHub (it's shared data on
@@ -301,7 +339,7 @@ export function registerCommunityRoutes(r: Router, ctx: ServerCtx): void {
 
   post('/api/community/copy', async (_req, res, body) => {
     try {
-      const { type, communityId } = body as { type: 'chats' | 'debates' | 'opeds'; communityId: string };
+      const { type, communityId } = body as { type: 'chats' | 'debates' | 'opeds' | 'inquiries'; communityId: string };
       if (!type || !communityId) { json(res, { error: 'type and communityId required' }, 400); return; }
       json(res, await community.copyFromCommunity(type, communityId));
     } catch (err) {
