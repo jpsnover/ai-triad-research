@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useState, useRef } from 'react';
-import { useCommunityStore, type CommunityChat, type CommunityDebate } from '../../hooks/useCommunityStore';
+import { useCommunityStore, type CommunityChat, type CommunityDebate, type CommunityInquiry } from '../../hooks/useCommunityStore';
 import type { OpEdCommunityEntry } from '../../../../../lib/oped/types';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -10,19 +10,22 @@ import { TOAST_DURATION_INFO, TOAST_DURATION_ERROR } from '../../constants';
 import { mapErrorToUserMessage } from '../../utils/errorMessages';
 import './CommunityLibrary.css';
 
-type Tab = 'chats' | 'debates' | 'opeds';
+type Tab = 'chats' | 'debates' | 'opeds' | 'inquiries';
 
 /** Owner-facing tab labels (t/2891) — the raw key 'opeds' must never surface in UI copy. */
-const TAB_LABELS: Record<Tab, string> = { debates: 'Debates', chats: 'Chats', opeds: 'Op-Ed Studies' };
+const TAB_LABELS: Record<Tab, string> = { debates: 'Debates', chats: 'Chats', opeds: 'Op-Ed Studies', inquiries: 'Questions' };
 
-/** A community card renders any of the three shared item types. Op-eds carry `topic` (not
- *  `title`) and an `unknown`-typed community_metadata, so title/submitter go through helpers. */
-type CommunityItem = CommunityChat | CommunityDebate | OpEdCommunityEntry;
+/** A community card renders any of the four shared item types. Op-eds carry `topic` and
+ *  inquiries carry `question` (neither is `title`), with `unknown`-typed community_metadata,
+ *  so title/submitter go through helpers. */
+type CommunityItem = CommunityChat | CommunityDebate | OpEdCommunityEntry | CommunityInquiry;
 
 function cardTitle(item: CommunityItem): string {
-  // Op-eds title from `topic`; the store warns on a missing topic, so guard the UI too
-  // rather than render a blank card title (Design note, t/2891#2).
-  return 'title' in item ? item.title : (item.topic || 'Untitled study');
+  // Op-eds title from `topic`, inquiries from `question`; the store warns on either being
+  // missing, so guard the UI too rather than render a blank card title (Design note, t/2891#2).
+  if ('title' in item) return item.title;
+  if ('question' in item) return item.question || 'Untitled question';
+  return item.topic || 'Untitled study';
 }
 
 function formatDate(iso: string): string {
@@ -144,19 +147,19 @@ function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
 }
 
 export function CommunityLibrary() {
-  const { chats, debates, opeds, loading, error, fetchChats, fetchDebates, fetchOpeds, copyItem, removeItem } = useCommunityStore();
+  const { chats, debates, opeds, inquiries, loading, error, fetchChats, fetchDebates, fetchOpeds, fetchInquiries, copyItem, removeItem } = useCommunityStore();
   const [tab, setTab] = useState<Tab>('debates');
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'info' | 'error' } | null>(null);
   const isAdmin = useFlag('permission-admin-features');
 
-  useEffect(() => { void fetchChats(); void fetchDebates(); void fetchOpeds(); }, []);
+  useEffect(() => { void fetchChats(); void fetchDebates(); void fetchOpeds(); void fetchInquiries(); }, []);
 
   const showToast = (text: string, type: 'info' | 'error' = 'info', durationMs = TOAST_DURATION_INFO) => {
     setToastMsg({ text, type });
     setTimeout(() => setToastMsg(null), durationMs);
   };
 
-  const handleCopy = async (type: 'chats' | 'debates' | 'opeds', id: string) => {
+  const handleCopy = async (type: 'chats' | 'debates' | 'opeds' | 'inquiries', id: string) => {
     try {
       await copyItem(type, id);
       showToast('Copied to your library!');
@@ -166,7 +169,7 @@ export function CommunityLibrary() {
     }
   };
 
-  const handleRemove = async (type: 'chats' | 'debates' | 'opeds', id: string, reason: string) => {
+  const handleRemove = async (type: 'chats' | 'debates' | 'opeds' | 'inquiries', id: string, reason: string) => {
     try {
       await removeItem(type, id, reason || undefined);
       showToast('Removed from community library.');
@@ -178,7 +181,8 @@ export function CommunityLibrary() {
 
   const handleBack = () => { window.location.hash = ''; window.location.reload(); };
 
-  const items: CommunityItem[] = tab === 'opeds' ? opeds : tab === 'chats' ? chats : debates;
+  const itemsByTab: Record<Tab, CommunityItem[]> = { chats, debates, opeds, inquiries };
+  const items = itemsByTab[tab];
 
   return (
     <div className="community-library">
@@ -213,6 +217,12 @@ export function CommunityLibrary() {
           onClick={() => setTab('opeds')}
         >
           Op-Ed Studies ({opeds.length})
+        </button>
+        <button
+          className={`community-tab ${tab === 'inquiries' ? 'active' : ''}`}
+          onClick={() => setTab('inquiries')}
+        >
+          Questions ({inquiries.length})
         </button>
       </div>
 

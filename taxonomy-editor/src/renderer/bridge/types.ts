@@ -748,5 +748,5 @@ export interface AppAPI {
   adminReviewStats: () => Promise<{ total: number; byDomain: Record<string, number> }>;
   adminReviewDetail: (groupId: string) => Promise<unknown>;
   adminReviewAction: (action: { domain: string; groupId: string; action: string; itemIds: string[]; reason?: string; edits?: Record<string, unknown> }) => Promise<void>;
-  adminRemoveCommunityItem: (type: 'chats' | 'debates' | 'opeds', id: string, reason?: string) => Promise<void>;
+  adminRemoveCommunityItem: (type: 'chats' | 'debates' | 'opeds' | 'inquiries', id: string, reason?: string) => Promise<void>;
 }
