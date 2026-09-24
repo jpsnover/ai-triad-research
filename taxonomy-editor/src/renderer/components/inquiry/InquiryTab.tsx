@@ -6,6 +6,7 @@ import { useInquiryStore } from '../../hooks/useInquiryStore';
 import { InquiryAskPanel } from './InquiryAskPanel';
 import { InquiryRunningPanel } from './InquiryRunningPanel';
 import { InquiryAnswerPanel } from './InquiryAnswerPanel';
+import { InquiryHistoryTable } from './InquiryHistoryTable';
 import './InquiryTab.css';
 
 export function InquiryTab() {
@@ -21,6 +22,7 @@ export function InquiryTab() {
       {screen === 'ask' && <InquiryAskPanel />}
       {screen === 'running' && <InquiryRunningPanel />}
       {screen === 'answer' && <InquiryAnswerPanel />}
+      {screen === 'list' && <InquiryHistoryTable />}
     </div>
   );
 }

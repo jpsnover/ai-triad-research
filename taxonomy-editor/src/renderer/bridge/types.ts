@@ -195,6 +195,17 @@ export interface InquiryStatusResponse {
   result?: InquiryResult;
 }
 
+/** Cheap listing row for the "My Questions" history (t/3620). Field-for-field identical to the
+ *  server's `InquiryResultSummary` (storage/inquiryResultStore.ts) so the two stay in lockstep. */
+export interface InquiryResultSummary {
+  jobId: string;
+  question: string;
+  debateId: string | null;
+  truncated: boolean;
+  terminationReason?: string;
+  createdAt: string;
+}
+
 // Brief Export (t/2805, T7) — client shapes of the T6 REST API (server: routes/briefExports.ts).
 // Consumes T6's frozen job-state names, artifact names, and error taxonomy verbatim.
 export interface BriefExportRequest {
@@ -486,6 +497,9 @@ export interface AppAPI {
   // --- Inquiry (t/3582 — "Ask a question"; both builds) ---
   startInquiry: (request: StartInquiryRequest, idempotencyKey?: string) => Promise<{ jobId: string }>;
   getInquiry: (jobId: string) => Promise<InquiryStatusResponse>;
+  /** "My Questions" history list (t/3620). Desktop may reject until the ElectronMain IPC leg
+   *  lands (t/3582 precedent — see electron-bridge.ts's rejectOpEdIpc pattern). */
+  listInquiries: () => Promise<InquiryResultSummary[]>;
 
   // --- Brief Export (t/2805, T7 — client of the T6 REST API; web-only v1, Electron parity tracked) ---
   createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;
