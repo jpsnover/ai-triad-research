@@ -156,13 +156,38 @@ export function getDefaultTimeout(model: string, registry: ModelRegistry): numbe
   // Math.max(base, 0) = base — the floor is silently disabled. That is exactly how t/3612 shipped the
   // draft-timeout regression, so this is a caller-breakable invariant, NOT a guaranteed one. The
   // structural fix (required `registry`) is t/3614; `getModelMinTimeout` now WARNs on the no-registry path.
+  // NOTE: `registry?.` is load-bearing, NOT dead-defensive (t/3644): getModelMinTimeout keeps a runtime
+  // backstop for untyped/JS callers passing null/undefined, and getDefaultTimeout is reached on those same
+  // paths — dropping the `?.` here makes it THROW instead of degrading to base. (SO e/194#3 cond.4 suggested
+  // tidying this to a plain access; a registry.test backstop case proved that regresses the fail-safe.)
   const advanced = registry?.debateTiers?.['advanced']?.[backend];
   const basic    = registry?.debateTiers?.['basic']?.[backend];
   const tiered = (advanced === model && advanced !== basic) ? base * 2 : base;
-  // Apply the per-model floor via the shared primitive (single source of truth). NOTE: this only
-  // covers callers that DON'T pass an explicit timeout — a `?? explicit` upstream short-circuits
-  // this function, so explicit-timeout sites must call getModelMinTimeout themselves (t/3518 P2).
+  // Apply the per-model floor via the shared primitive (single source of truth). Explicit-timeout sites
+  // bypass this function entirely — they must floor via resolveTimeout below (t/3644).
   return Math.max(tiered, getModelMinTimeout(model, registry));
+}
+
+/**
+ * Resolve the effective request timeout for a call, applying the per-model floor as a HARD minimum.
+ *
+ * `minTimeoutMs` is a *minimum* — a caller may raise the timeout but must never undercut it. The naive
+ * `explicitMs ?? getDefaultTimeout(model, registry)` pattern silently bypassed the floor: an explicit
+ * value short-circuited `getDefaultTimeout` (the only place the floor was applied), so a floored model
+ * could run below its floor with no signal — the same failure shape as t/3612, one layer up (t/3644).
+ * Route every explicit-timeout site through this.
+ *
+ * Semantics (t/3644 option A): `Math.max(explicit ?? default, floor)`.
+ * - No explicit timeout → the (already-floored) tiered default.
+ * - Explicit timeout → honoured, so a caller can still tune DOWN toward the default for a fast op — but
+ *   never below the model's `minTimeoutMs` floor. Flooring against `getModelMinTimeout` (the true
+ *   minimum) rather than `getDefaultTimeout` deliberately preserves legitimate sub-default explicit
+ *   timeouts on fast/unfloored paths, while making the floor unbypassable on slow ones (grok-4.7,
+ *   claude-*-5, …). No path is shortened below its floor; `Math.max` can only raise.
+ */
+export function resolveTimeout(explicitMs: number | undefined, model: string, registry: ModelRegistry): number {
+  const base = explicitMs ?? getDefaultTimeout(model, registry);
+  return Math.max(base, getModelMinTimeout(model, registry));
 }
 
 function parseVersionedModelId(id: string): { family: string; version: number } | null {

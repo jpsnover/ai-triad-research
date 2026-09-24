@@ -38,6 +38,7 @@ import {
   withTimeout,
   resolveBackend,
   getDefaultTimeout,
+  resolveTimeout,
   GEMINI_BASE,
   GEMINI_SAFETY_SETTINGS,
   callProvider,
@@ -743,7 +744,7 @@ export async function generateText(
 
   const providerOpts: GenerateOptions = {
     temperature: temperature ?? _debateTemperature ?? 0.7,
-    timeoutMs: timeoutMs ?? getDefaultTimeout(friendlyModel, resolveRegistry()),
+    timeoutMs: resolveTimeout(timeoutMs, friendlyModel, resolveRegistry()), // t/3644: floor-enforced
     ...fixedTempOverride(entry),
     ...(signal ? { signal } : {}),
     ...(responseSchema ? { responseSchema } : {}),

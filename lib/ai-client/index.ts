@@ -4,7 +4,7 @@
 export type { GenerateOptions, ProviderResult, ProviderCallDiagnostics, StopReason, TokenUsage, RateLimitType, RateLimitHeaders, RetryProgress, BackendId, ApiKeyBackend, FetchFn, ToolDefinition, ToolCall, ToolResult, ModelCapabilities, UrlContextEntry, UrlContextMetadata, GeminiContentPart, GeminiContent } from './types.js';
 export type { ModelEntry, ModelRegistry, ModelPricing } from './registry.js';
 export { ALL_API_KEY_BACKENDS } from './types.js';
-export { resolveBackend, resolveModel, buildModelIdMap, buildModelEntryMap, getApiModelId, getDefaultTimeout, getModelMinTimeout, getModelCapabilities, filterByCapabilities, estimateCost } from './registry.js';
+export { resolveBackend, resolveModel, buildModelIdMap, buildModelEntryMap, getApiModelId, getDefaultTimeout, getModelMinTimeout, resolveTimeout, getModelCapabilities, filterByCapabilities, estimateCost } from './registry.js';
 export { withTimeout, withRetry, retryableFetch, parseRateLimitType, parseRateLimitHeaders, CLI_RETRY_CONFIG, SERVER_RETRY_CONFIG } from './retry.js';
 export { fetchWithDiagnostics, readMetricsHeaders, utf8ByteLength } from './instrumentation.js';
 export type { RetryConfig } from './retry.js';
