@@ -34,13 +34,24 @@ Orca config (`.orca.yaml`, nested `AGENTS.md`, `.orca/`) lives in a **separate o
 2. `sh .githooks/agent-file-owner.sh --audit` → expect clean.
 3. Commit normally. **Never `--no-verify` past the audit** (strands an unbacked orphan — Pattern #146). If the audit flags a `.worktrees/<name>/AGENTS.md`, that's a worktree checkout of a main-tracked file — do **not** ogit-add it (t/2205).
 
+### Workflow Mode — `.orca/workflow-mode` (t/3632)
+
+**Read the mode before assuming the rules below.** A single overlay-tracked file, `.orca/workflow-mode`, selects the fleet's branching discipline. Line 1 is the mode; everything from `#` is provenance (who set it, when, why). Check it with `sh .githooks/read-workflow-mode.sh`.
+
+- **`worktree`** (strict) — feature work happens in a worktree off a branch; the shared checkout stays on `main`; `pre-commit` refuses commits on `main`.
+- **`direct`** — worktrees and branches are not required; commits on `main` in the shared checkout are permitted.
+
+**Fail-safe:** anything other than exactly `direct` on line 1 — missing file, empty, `Direct`, `direct foo` — resolves to `worktree`. A deleted or corrupt file tightens, never loosens. The canonical parse (trimmed line 1, case-sensitive `== "direct"`) lives in `.githooks/read-workflow-mode.sh`; the two feedback-rule scripts mirror it.
+
+**Changing the mode is a deliberate act, not a preference.** `direct` removes a protection born from an incident (t/1926): the fleet shares one `main` checkout, so a commit there sits in every other agent's tree. That is low-cost when one person works alone and hazardous at high parallelism — **the dangerous transition is leaving `direct` on when the fleet spins back up.** Record set-by/set-at/reason in the file when you change it.
+
 ### Shared-Checkout Commit Guard (pre-commit hook)
 
-The fleet shares one `main` checkout, so committing **directly on `main`** strands work local-only (t/1926). `.githooks/pre-commit` refuses commits on `main` and on a detached HEAD inside a worktree (t/2009). Commits on named/non-`main` branches and `--no-verify` are allowed, so landing is never blocked. Enable once per checkout: `git config core.hooksPath .githooks`. Emergency override: `git commit --no-verify`.
+**Applies in `worktree` mode.** `.githooks/pre-commit` refuses commits on `main` (t/1926); in `direct` mode it permits them. **Both modes** still refuse a commit on a detached HEAD inside a worktree (t/2009) — that guards a different failure and the switch does not govern it. `--no-verify` remains the emergency override. Enable once per checkout: `git config core.hooksPath .githooks`.
 
-**Feature work is worktree-only; shared checkout stays on `main`.** `/land-from-worktree` is branch-first (`git worktree add -b <branch>`). A `.githooks/post-checkout` hook warns (advisory) when the shared tree leaves `main` (t/2209).
+**In `worktree` mode, feature work is worktree-only and the shared checkout stays on `main`.** `/land-from-worktree` is branch-first (`git worktree add -b <branch>`). `.githooks/post-checkout` warns (advisory) when the shared tree leaves `main` (t/2209); silent in `direct`.
 
-**Confirm you're in a worktree before your FIRST edit (t/3207).** Before editing any tracked file for feature work, confirm your cwd/target is under `.worktrees/<name>`, not the shared checkout. Editing tracked files on the shared `main` tree leaks uncommitted WIP (and risks a `git add -A` sweep spraying 0-byte junk) — the PreToolUse Edit/Write hook warns, but the discipline is: worktree first, then edit.
+**Confirm you're in a worktree before your FIRST edit (t/3207) — in `worktree` mode.** Editing tracked files on the shared `main` tree leaks uncommitted WIP and risks a `git add -A` sweep spraying 0-byte junk. The PreToolUse Edit/Write hook warns, but the discipline is: worktree first, then edit. **Known gap:** the two feedback rules do not yet honour `direct` and will warn regardless — noise, not obstruction (t/3632).
 
 **Shell cwd resets to the shared checkout between tool calls (t/2222).** Creating a worktree isn't enough — always `cd` into it **in the same command**: `cd .worktrees/<name> && <cmd>`. A stray `cd`-reliant command combined with a mis-quote sprays 0-byte junk files across every scope. Prevention: same-command `cd`; never paste multi-line code into the shell (see Shell Quoting Rule).
 
