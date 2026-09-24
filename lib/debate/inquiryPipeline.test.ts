@@ -223,6 +223,7 @@ describe('runInquiryPipeline — truncated run', () => {
       expect.anything(),
       expect.anything(),
       expect.anything(),
+      'sess-001',
     );
   });
 });
@@ -243,6 +244,7 @@ describe('runInquiryPipeline — empty grounding (ADR-001)', () => {
       expect.anything(),
       expect.anything(),
       expect.anything(),
+      'sess-001',
     );
   });
 });

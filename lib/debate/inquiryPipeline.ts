@@ -121,5 +121,5 @@ export async function runInquiryPipeline(
 
   // ── Stage 5: synthesize ────────────────────────────────────────────────────
   deps.onStage?.('synthesizing');
-  return synthesizeInquiry(session, grounding, calibration, derivation, request, deps.adapter);
+  return synthesizeInquiry(session, grounding, calibration, derivation, request, deps.adapter, session.id ?? null);
 }
