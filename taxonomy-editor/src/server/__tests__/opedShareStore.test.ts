@@ -236,4 +236,62 @@ describe('projectPublicOpEd — positive allowlist (info-leak guard, t/2727 + t/
     expect(typeof pub.grounded_at).toBe('string');
     expect(() => new Date(pub.grounded_at).toISOString()).not.toThrow();
   });
+
+  // ─── t/3645 (SO parity retrofit, e/201): free-text/array sanitization ────────
+
+  it('(t/3645) caps an oversized `how_reflected` at 280 chars with an ellipsis', async () => {
+    const oversized = 'x'.repeat(500);
+    const set = makeSet({
+      opeds: [{ ...makeSet().opeds[0], grounding: [
+        { node_id: 'acc-beliefs-095', label: 'internal', category: 'beliefs', pov: 'accelerationist', relevance: '0.9', how_reflected: oversized },
+      ] }],
+    } as unknown as Partial<OpEdSet>);
+    const pub = await projectPublicOpEd(set, 'share-xyz');
+    const g = pub.opeds[0].grounding[0];
+    expect(g.how_reflected.length).toBeLessThan(400);
+    expect(g.how_reflected.endsWith('…')).toBe(true);
+  });
+
+  it('(t/3645) caps an oversized `relevance` string the same way', async () => {
+    const oversized = 'y'.repeat(500);
+    const set = makeSet({
+      opeds: [{ ...makeSet().opeds[0], grounding: [
+        { node_id: 'acc-beliefs-095', label: 'internal', category: 'beliefs', pov: 'accelerationist', relevance: oversized, how_reflected: 'short' },
+      ] }],
+    } as unknown as Partial<OpEdSet>);
+    const pub = await projectPublicOpEd(set, 'share-xyz');
+    expect(pub.opeds[0].grounding[0].relevance.length).toBeLessThan(400);
+    expect(pub.opeds[0].grounding[0].relevance.endsWith('…')).toBe(true);
+  });
+
+  it('(t/3645) caps each `document_claims` entry at 280 chars AND the array at 10 entries', async () => {
+    const claims = Array.from({ length: 15 }, (_, i) => `claim ${i}: ${'z'.repeat(300)}`);
+    const set = makeSet({
+      opeds: [{ ...makeSet().opeds[0], grounding: [
+        { node_id: 'acc-beliefs-095', label: 'internal', category: 'beliefs', pov: 'accelerationist', relevance: '0.9', how_reflected: 'note', document_claims: claims },
+      ] }],
+    } as unknown as Partial<OpEdSet>);
+    const pub = await projectPublicOpEd(set, 'share-xyz');
+    const out = pub.opeds[0].grounding[0].document_claims;
+    expect(out).toHaveLength(10); // array-length cap, not just 15 truncated items
+    for (const c of out!) {
+      expect(c.length).toBeLessThan(400);
+      expect(c.endsWith('…')).toBe(true);
+    }
+    // The first 10 (not a random/reordered subset) survive the cap.
+    expect(out![0]).toContain('claim 0:');
+    expect(out![9]).toContain('claim 9:');
+  });
+
+  it('(t/3645) short free-text fields pass through unchanged (no over-truncation of normal content)', async () => {
+    const pub = await projectPublicOpEd(makeSet(), 'share-xyz');
+    const g = pub.opeds[0].grounding[0];
+    expect(g.relevance).toBe('0.9');
+    expect(g.how_reflected).toBe('internal note');
+  });
+
+  it('(t/3645) an absent `document_claims` stays absent (not coerced to an empty array)', async () => {
+    const pub = await projectPublicOpEd(makeSet(), 'share-xyz');
+    expect(pub.opeds[0].grounding[0]).not.toHaveProperty('document_claims');
+  });
 });
