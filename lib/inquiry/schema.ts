@@ -201,6 +201,12 @@ export const InquiryResultSchema = z
     /** The single-run caveat (n ≥ 10 replication gate). Generated into every result, never hand-written,
      *  so the UX cannot systematically overclaim from one run (HLD). */
     singleRunCaveat: z.string(),
+    /** Id of the debate run that produced this answer, for raw-run disclosure (t/3617): the UI opens it
+     *  via the existing `api.loadDebateSession(debateId)`. Stamped by the pipeline from `session.id`
+     *  (t/3641, DebateTool half). Declared instead of relying on `.passthrough()` so it is a real contract,
+     *  not a hoped-for field. **optional-nullable, additive → no schemaVersion bump** (schema.ts:19-22):
+     *  absence keeps old debateId-less records parsing; `null` marks a genuinely debate-less result. */
+    debateId: z.string().nullable().optional(),
   })
   .passthrough();
 export type InquiryResult = z.infer<typeof InquiryResultSchema>;

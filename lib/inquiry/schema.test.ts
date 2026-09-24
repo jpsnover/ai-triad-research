@@ -109,3 +109,30 @@ describe('InquiryResultSchema — node snapshot + derivation stamp present (ADR 
     }
   });
 });
+
+describe('InquiryResultSchema — debateId raw-run reference (t/3641)', () => {
+  it('accepts a stamped string debateId and exposes it typed', () => {
+    const r = InquiryResultSchema.safeParse({ ...makeValidResult(), debateId: 'debate-abc123' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.debateId).toBe('debate-abc123');
+  });
+
+  it('accepts an explicit null (genuinely debate-less result)', () => {
+    const r = InquiryResultSchema.safeParse({ ...makeValidResult(), debateId: null });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.debateId).toBeNull();
+  });
+
+  it('accepts absence — old debateId-less records still parse (optional → no schemaVersion bump)', () => {
+    const base = makeValidResult();
+    expect('debateId' in base).toBe(false); // fixture has none, mirroring a pre-t/3641 persisted result
+    const r = InquiryResultSchema.safeParse(base);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.debateId).toBeUndefined();
+  });
+
+  it('rejects a non-string, non-null debateId', () => {
+    const r = InquiryResultSchema.safeParse({ ...makeValidResult(), debateId: 42 });
+    expect(r.success).toBe(false);
+  });
+});
