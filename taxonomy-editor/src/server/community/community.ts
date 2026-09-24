@@ -414,6 +414,11 @@ export async function submitToCommunity(type: 'chat' | 'debate' | 'oped' | 'inqu
     }
     const result = await loadInquiryResult(jobId);
     if (!result) throw Object.assign(new Error('Inquiry result not found'), { statusCode: 404 });
+    // t/3621 SO review (e/198#3 condition 4): `created_at` is deliberately the RUN date (when the
+    // inquiry was executed, from InquiryResultSummary.createdAt) — NOT the community-submission
+    // date, which is separately stamped as community_metadata.submitted_at in sanitizeForCommunity.
+    // For a research artifact, when the answer was produced is the meaningful sort/display date;
+    // when it happened to be shared to Community is not. The two are expected to diverge.
     const summaries = await listInquiryResults();
     const createdAt = summaries.find(s => s.jobId === jobId)?.createdAt ?? new Date().toISOString();
     dataToStore = { ...result, id: jobId, created_at: createdAt };
@@ -520,7 +525,20 @@ function stripOriginalId(meta: unknown): unknown {
   return rest;
 }
 
-function sanitizeForCommunity(data: unknown, submittedBy: string): unknown {
+// t/3621 SO review (e/198#3): `stripSensitiveKeys` is a DENYLIST — it strips known-sensitive
+// key names/secret-prefixed values, but has no knowledge of a field that is sensitive purely
+// by CONTEXT. `debateId` is exactly that case: an ordinary-looking string field that
+// InquiryResultSchema's `.passthrough()` lets ride unexamined, and TL explicitly ruled it must
+// never reach a non-authenticated/cross-user surface (t/3641, e/203#4) — a viewer holding a
+// debateId could reach a second, un-threat-modelled read path via loadDebateSession. Community
+// is exactly such a cross-user surface. A full positive-allowlist redesign (shared with Server
+// Auth's t/3623 public-share allowlist) is tracked separately (t/3644) — this is the narrow,
+// urgent fix: explicitly strip the field the denylist structurally cannot catch.
+const COMMUNITY_DENYLIST_BLIND_SPOTS: Partial<Record<Submission['type'], string[]>> = {
+  inquiry: ['debateId'],
+};
+
+function sanitizeForCommunity(data: unknown, submittedBy: string, type: Submission['type']): unknown {
   // t/2031: bound the ENTIRE recursive strip/sanitize walk under one wall-time
   // budget so a many-field crafted submission can't amplify per-field sanitize cost
   // into a multi-minute event-loop block (Server Community sign-off e/53#3; the
@@ -529,6 +547,7 @@ function sanitizeForCommunity(data: unknown, submittedBy: string): unknown {
   const d = withSanitizeBudget(
     () => stripSensitiveKeys(JSON.parse(JSON.stringify(data))),
   ) as Record<string, unknown>;
+  for (const key of COMMUNITY_DENYLIST_BLIND_SPOTS[type] ?? []) delete d[key];
   d.community_metadata = {
     submitted_by_display: submittedBy,
     submitted_at: new Date().toISOString(),
@@ -586,7 +605,7 @@ export async function approveSubmission(
   const dataToPublish = (edits && typeof edits === 'object' && submission.data && typeof submission.data === 'object')
     ? { ...(submission.data as Record<string, unknown>), ...edits }
     : submission.data;
-  const sanitized = sanitizeForCommunity(dataToPublish, submission.submittedBy) as { id: string };
+  const sanitized = sanitizeForCommunity(dataToPublish, submission.submittedBy, submission.type) as { id: string };
   const dir = submission.type === 'chat' ? communityChatsDir()
     : submission.type === 'debate' ? communityDebatesDir()
     : submission.type === 'inquiry' ? communityInquiriesDir()
