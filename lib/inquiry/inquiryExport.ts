@@ -282,6 +282,11 @@ export function inquiryToJson(result: InquiryResult, opts?: InquiryExportOptions
       title: resolvedTitle(result, opts),
       question: result.request?.question,
       exportedAt: opts?.exportedAt ?? resolvedDate(opts).toISOString(),
+      // Export is owner-initiated, owner-scoped, FULL FIDELITY — every field is classified `include` for
+      // the `export` surface in fieldClassification.ts (t/3648), BY DECISION, not by pass-through luck.
+      // The embed is safe precisely because the export column excludes nothing; `inquiryExport.test.ts`
+      // asserts that invariant against the matrix and FAILS if a field is ever classified export-EXCLUDE
+      // — the signal to replace this wholesale embed with a matrix-derived projection at that point.
       result,
     },
     null,
