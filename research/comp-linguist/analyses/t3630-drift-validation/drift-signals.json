@@ -1,0 +1,619 @@
+{
+ "meta": {
+  "ticket": "t/3630",
+  "total_turns_scored": 1569,
+  "debates": 148,
+  "stratum_populations": {
+   "core_control": 521,
+   "drift_candidate": 330,
+   "deepening_candidate": 718
+  },
+  "sampled": 120,
+  "per_cell_target": 40,
+  "seed_lo": 0.5,
+  "crux_hi": 0.5,
+  "sampling": "deterministic sha256(debate|turn) sort + stride per stratum; annotators DO NOT see cosines"
+ },
+ "signals": {
+  "d-045": {
+   "s_seed": 0.3175,
+   "s_crux": 0.6414,
+   "stratum": "deepening_candidate"
+  },
+  "d-040": {
+   "s_seed": 0.025,
+   "s_crux": 0.677,
+   "stratum": "deepening_candidate"
+  },
+  "d-062": {
+   "s_seed": 0.407,
+   "s_crux": 0.5588,
+   "stratum": "deepening_candidate"
+  },
+  "d-078": {
+   "s_seed": 0.1994,
+   "s_crux": 0.659,
+   "stratum": "deepening_candidate"
+  },
+  "d-064": {
+   "s_seed": 0.2858,
+   "s_crux": 0.5041,
+   "stratum": "deepening_candidate"
+  },
+  "d-056": {
+   "s_seed": 0.1169,
+   "s_crux": 0.6897,
+   "stratum": "deepening_candidate"
+  },
+  "d-048": {
+   "s_seed": 0.3975,
+   "s_crux": 0.6871,
+   "stratum": "deepening_candidate"
+  },
+  "d-057": {
+   "s_seed": 0.2629,
+   "s_crux": 0.5127,
+   "stratum": "deepening_candidate"
+  },
+  "d-077": {
+   "s_seed": 0.3395,
+   "s_crux": 0.698,
+   "stratum": "deepening_candidate"
+  },
+  "d-059": {
+   "s_seed": 0.2485,
+   "s_crux": 0.6143,
+   "stratum": "deepening_candidate"
+  },
+  "d-075": {
+   "s_seed": 0.3182,
+   "s_crux": 0.5674,
+   "stratum": "deepening_candidate"
+  },
+  "d-043": {
+   "s_seed": 0.2272,
+   "s_crux": 0.6845,
+   "stratum": "deepening_candidate"
+  },
+  "d-046": {
+   "s_seed": 0.2324,
+   "s_crux": 0.6229,
+   "stratum": "deepening_candidate"
+  },
+  "d-042": {
+   "s_seed": 0.2607,
+   "s_crux": 0.789,
+   "stratum": "deepening_candidate"
+  },
+  "d-054": {
+   "s_seed": 0.1707,
+   "s_crux": 0.6113,
+   "stratum": "deepening_candidate"
+  },
+  "d-051": {
+   "s_seed": 0.3395,
+   "s_crux": 0.5397,
+   "stratum": "deepening_candidate"
+  },
+  "d-063": {
+   "s_seed": 0.309,
+   "s_crux": 0.5078,
+   "stratum": "deepening_candidate"
+  },
+  "d-076": {
+   "s_seed": 0.3845,
+   "s_crux": 0.5599,
+   "stratum": "deepening_candidate"
+  },
+  "d-074": {
+   "s_seed": 0.4393,
+   "s_crux": 0.668,
+   "stratum": "deepening_candidate"
+  },
+  "d-068": {
+   "s_seed": 0.2994,
+   "s_crux": 0.7053,
+   "stratum": "deepening_candidate"
+  },
+  "d-052": {
+   "s_seed": 0.2765,
+   "s_crux": 0.6295,
+   "stratum": "deepening_candidate"
+  },
+  "d-060": {
+   "s_seed": 0.3313,
+   "s_crux": 0.516,
+   "stratum": "deepening_candidate"
+  },
+  "d-049": {
+   "s_seed": 0.4502,
+   "s_crux": 0.5853,
+   "stratum": "deepening_candidate"
+  },
+  "d-070": {
+   "s_seed": 0.3628,
+   "s_crux": 0.6068,
+   "stratum": "deepening_candidate"
+  },
+  "d-067": {
+   "s_seed": 0.2265,
+   "s_crux": 0.7771,
+   "stratum": "deepening_candidate"
+  },
+  "d-071": {
+   "s_seed": 0.0985,
+   "s_crux": 0.6847,
+   "stratum": "deepening_candidate"
+  },
+  "d-073": {
+   "s_seed": 0.3647,
+   "s_crux": 0.5474,
+   "stratum": "deepening_candidate"
+  },
+  "d-047": {
+   "s_seed": 0.4567,
+   "s_crux": 0.7152,
+   "stratum": "deepening_candidate"
+  },
+  "d-061": {
+   "s_seed": 0.4638,
+   "s_crux": 0.6975,
+   "stratum": "deepening_candidate"
+  },
+  "d-066": {
+   "s_seed": 0.4511,
+   "s_crux": 0.6916,
+   "stratum": "deepening_candidate"
+  },
+  "d-041": {
+   "s_seed": 0.3351,
+   "s_crux": 0.7873,
+   "stratum": "deepening_candidate"
+  },
+  "d-072": {
+   "s_seed": 0.3012,
+   "s_crux": 0.5026,
+   "stratum": "deepening_candidate"
+  },
+  "d-044": {
+   "s_seed": 0.1415,
+   "s_crux": 0.662,
+   "stratum": "deepening_candidate"
+  },
+  "d-065": {
+   "s_seed": 0.4295,
+   "s_crux": 0.6032,
+   "stratum": "deepening_candidate"
+  },
+  "d-079": {
+   "s_seed": 0.445,
+   "s_crux": 0.6929,
+   "stratum": "deepening_candidate"
+  },
+  "d-058": {
+   "s_seed": 0.3409,
+   "s_crux": 0.5788,
+   "stratum": "deepening_candidate"
+  },
+  "d-069": {
+   "s_seed": 0.3101,
+   "s_crux": 0.6822,
+   "stratum": "deepening_candidate"
+  },
+  "d-050": {
+   "s_seed": 0.4487,
+   "s_crux": 0.591,
+   "stratum": "deepening_candidate"
+  },
+  "d-053": {
+   "s_seed": 0.0855,
+   "s_crux": 0.634,
+   "stratum": "deepening_candidate"
+  },
+  "d-055": {
+   "s_seed": 0.093,
+   "s_crux": 0.54,
+   "stratum": "deepening_candidate"
+  },
+  "d-090": {
+   "s_seed": 0.0343,
+   "s_crux": 0.4689,
+   "stratum": "drift_candidate"
+  },
+  "d-096": {
+   "s_seed": 0.2577,
+   "s_crux": 0.4987,
+   "stratum": "drift_candidate"
+  },
+  "d-105": {
+   "s_seed": 0.3262,
+   "s_crux": 0.443,
+   "stratum": "drift_candidate"
+  },
+  "d-115": {
+   "s_seed": 0.1319,
+   "s_crux": 0.321,
+   "stratum": "drift_candidate"
+  },
+  "d-099": {
+   "s_seed": 0.1506,
+   "s_crux": 0.4103,
+   "stratum": "drift_candidate"
+  },
+  "d-118": {
+   "s_seed": 0.2599,
+   "s_crux": 0.472,
+   "stratum": "drift_candidate"
+  },
+  "d-111": {
+   "s_seed": 0.0906,
+   "s_crux": 0.4629,
+   "stratum": "drift_candidate"
+  },
+  "d-104": {
+   "s_seed": 0.4507,
+   "s_crux": 0.469,
+   "stratum": "drift_candidate"
+  },
+  "d-080": {
+   "s_seed": 0.3099,
+   "s_crux": 0.3805,
+   "stratum": "drift_candidate"
+  },
+  "d-083": {
+   "s_seed": 0.3326,
+   "s_crux": 0.4495,
+   "stratum": "drift_candidate"
+  },
+  "d-112": {
+   "s_seed": 0.3718,
+   "s_crux": 0.3717,
+   "stratum": "drift_candidate"
+  },
+  "d-093": {
+   "s_seed": 0.2362,
+   "s_crux": 0.4952,
+   "stratum": "drift_candidate"
+  },
+  "d-107": {
+   "s_seed": 0.3348,
+   "s_crux": 0.4201,
+   "stratum": "drift_candidate"
+  },
+  "d-097": {
+   "s_seed": 0.1606,
+   "s_crux": 0.3203,
+   "stratum": "drift_candidate"
+  },
+  "d-098": {
+   "s_seed": 0.4053,
+   "s_crux": 0.4794,
+   "stratum": "drift_candidate"
+  },
+  "d-106": {
+   "s_seed": 0.3775,
+   "s_crux": 0.4762,
+   "stratum": "drift_candidate"
+  },
+  "d-103": {
+   "s_seed": 0.2929,
+   "s_crux": 0.3628,
+   "stratum": "drift_candidate"
+  },
+  "d-091": {
+   "s_seed": 0.3111,
+   "s_crux": 0.3201,
+   "stratum": "drift_candidate"
+  },
+  "d-081": {
+   "s_seed": 0.3959,
+   "s_crux": 0.4664,
+   "stratum": "drift_candidate"
+  },
+  "d-114": {
+   "s_seed": 0.2662,
+   "s_crux": 0.3246,
+   "stratum": "drift_candidate"
+  },
+  "d-095": {
+   "s_seed": 0.4261,
+   "s_crux": 0.4348,
+   "stratum": "drift_candidate"
+  },
+  "d-102": {
+   "s_seed": 0.3288,
+   "s_crux": 0.4825,
+   "stratum": "drift_candidate"
+  },
+  "d-085": {
+   "s_seed": 0.3723,
+   "s_crux": 0.4946,
+   "stratum": "drift_candidate"
+  },
+  "d-101": {
+   "s_seed": 0.4229,
+   "s_crux": 0.4543,
+   "stratum": "drift_candidate"
+  },
+  "d-089": {
+   "s_seed": 0.3785,
+   "s_crux": 0.4746,
+   "stratum": "drift_candidate"
+  },
+  "d-119": {
+   "s_seed": 0.3451,
+   "s_crux": 0.4259,
+   "stratum": "drift_candidate"
+  },
+  "d-117": {
+   "s_seed": 0.4331,
+   "s_crux": 0.4083,
+   "stratum": "drift_candidate"
+  },
+  "d-092": {
+   "s_seed": 0.3522,
+   "s_crux": 0.4105,
+   "stratum": "drift_candidate"
+  },
+  "d-110": {
+   "s_seed": 0.3296,
+   "s_crux": 0.4267,
+   "stratum": "drift_candidate"
+  },
+  "d-088": {
+   "s_seed": 0.4366,
+   "s_crux": 0.3482,
+   "stratum": "drift_candidate"
+  },
+  "d-116": {
+   "s_seed": 0.3411,
+   "s_crux": 0.4473,
+   "stratum": "drift_candidate"
+  },
+  "d-108": {
+   "s_seed": 0.3139,
+   "s_crux": 0.4131,
+   "stratum": "drift_candidate"
+  },
+  "d-082": {
+   "s_seed": 0.4408,
+   "s_crux": 0.3652,
+   "stratum": "drift_candidate"
+  },
+  "d-094": {
+   "s_seed": 0.1933,
+   "s_crux": 0.3566,
+   "stratum": "drift_candidate"
+  },
+  "d-084": {
+   "s_seed": 0.0669,
+   "s_crux": 0.3661,
+   "stratum": "drift_candidate"
+  },
+  "d-109": {
+   "s_seed": 0.3566,
+   "s_crux": 0.3961,
+   "stratum": "drift_candidate"
+  },
+  "d-113": {
+   "s_seed": 0.3717,
+   "s_crux": 0.489,
+   "stratum": "drift_candidate"
+  },
+  "d-100": {
+   "s_seed": 0.3822,
+   "s_crux": 0.4723,
+   "stratum": "drift_candidate"
+  },
+  "d-087": {
+   "s_seed": 0.4076,
+   "s_crux": 0.4667,
+   "stratum": "drift_candidate"
+  },
+  "d-086": {
+   "s_seed": 0.2139,
+   "s_crux": 0.4895,
+   "stratum": "drift_candidate"
+  },
+  "d-031": {
+   "s_seed": 0.5979,
+   "s_crux": 0.6833,
+   "stratum": "core_control"
+  },
+  "d-011": {
+   "s_seed": 0.5561,
+   "s_crux": 0.5689,
+   "stratum": "core_control"
+  },
+  "d-010": {
+   "s_seed": 0.5533,
+   "s_crux": 0.473,
+   "stratum": "core_control"
+  },
+  "d-034": {
+   "s_seed": 0.6018,
+   "s_crux": 0.3505,
+   "stratum": "core_control"
+  },
+  "d-017": {
+   "s_seed": 0.5751,
+   "s_crux": 0.8312,
+   "stratum": "core_control"
+  },
+  "d-039": {
+   "s_seed": 0.6887,
+   "s_crux": 0.673,
+   "stratum": "core_control"
+  },
+  "d-000": {
+   "s_seed": 0.5184,
+   "s_crux": 0.4626,
+   "stratum": "core_control"
+  },
+  "d-013": {
+   "s_seed": 0.6914,
+   "s_crux": 0.5811,
+   "stratum": "core_control"
+  },
+  "d-037": {
+   "s_seed": 0.5231,
+   "s_crux": 0.5552,
+   "stratum": "core_control"
+  },
+  "d-020": {
+   "s_seed": 0.5803,
+   "s_crux": 0.6001,
+   "stratum": "core_control"
+  },
+  "d-015": {
+   "s_seed": 0.5423,
+   "s_crux": 0.6191,
+   "stratum": "core_control"
+  },
+  "d-021": {
+   "s_seed": 0.5867,
+   "s_crux": 0.5379,
+   "stratum": "core_control"
+  },
+  "d-016": {
+   "s_seed": 0.6032,
+   "s_crux": 0.3018,
+   "stratum": "core_control"
+  },
+  "d-024": {
+   "s_seed": 0.6189,
+   "s_crux": 0.6118,
+   "stratum": "core_control"
+  },
+  "d-027": {
+   "s_seed": 0.5273,
+   "s_crux": 0.4459,
+   "stratum": "core_control"
+  },
+  "d-005": {
+   "s_seed": 0.5155,
+   "s_crux": 0.4703,
+   "stratum": "core_control"
+  },
+  "d-018": {
+   "s_seed": 0.7609,
+   "s_crux": 0.7034,
+   "stratum": "core_control"
+  },
+  "d-002": {
+   "s_seed": 0.6672,
+   "s_crux": 0.5401,
+   "stratum": "core_control"
+  },
+  "d-028": {
+   "s_seed": 0.667,
+   "s_crux": 0.6134,
+   "stratum": "core_control"
+  },
+  "d-001": {
+   "s_seed": 0.5919,
+   "s_crux": 0.9179,
+   "stratum": "core_control"
+  },
+  "d-030": {
+   "s_seed": 0.5284,
+   "s_crux": 0.712,
+   "stratum": "core_control"
+  },
+  "d-014": {
+   "s_seed": 0.7091,
+   "s_crux": 0.6803,
+   "stratum": "core_control"
+  },
+  "d-025": {
+   "s_seed": 0.5349,
+   "s_crux": 0.706,
+   "stratum": "core_control"
+  },
+  "d-026": {
+   "s_seed": 0.5643,
+   "s_crux": 0.53,
+   "stratum": "core_control"
+  },
+  "d-035": {
+   "s_seed": 0.5623,
+   "s_crux": 0.5958,
+   "stratum": "core_control"
+  },
+  "d-029": {
+   "s_seed": 0.6589,
+   "s_crux": 0.6272,
+   "stratum": "core_control"
+  },
+  "d-012": {
+   "s_seed": 0.5517,
+   "s_crux": 0.4885,
+   "stratum": "core_control"
+  },
+  "d-022": {
+   "s_seed": 0.6192,
+   "s_crux": 0.6289,
+   "stratum": "core_control"
+  },
+  "d-004": {
+   "s_seed": 0.7628,
+   "s_crux": 0.6066,
+   "stratum": "core_control"
+  },
+  "d-009": {
+   "s_seed": 0.5481,
+   "s_crux": 0.72,
+   "stratum": "core_control"
+  },
+  "d-036": {
+   "s_seed": 0.5122,
+   "s_crux": 0.5013,
+   "stratum": "core_control"
+  },
+  "d-032": {
+   "s_seed": 0.6056,
+   "s_crux": 0.6214,
+   "stratum": "core_control"
+  },
+  "d-023": {
+   "s_seed": 0.5259,
+   "s_crux": 0.5866,
+   "stratum": "core_control"
+  },
+  "d-008": {
+   "s_seed": 0.5917,
+   "s_crux": 0.6574,
+   "stratum": "core_control"
+  },
+  "d-033": {
+   "s_seed": 0.5622,
+   "s_crux": 0.6034,
+   "stratum": "core_control"
+  },
+  "d-007": {
+   "s_seed": 0.6741,
+   "s_crux": 0.6356,
+   "stratum": "core_control"
+  },
+  "d-003": {
+   "s_seed": 0.5982,
+   "s_crux": 0.7384,
+   "stratum": "core_control"
+  },
+  "d-006": {
+   "s_seed": 0.5114,
+   "s_crux": 0.7925,
+   "stratum": "core_control"
+  },
+  "d-038": {
+   "s_seed": 0.5804,
+   "s_crux": 0.7106,
+   "stratum": "core_control"
+  },
+  "d-019": {
+   "s_seed": 0.5135,
+   "s_crux": 0.6068,
+   "stratum": "core_control"
+  }
+ }
+}
