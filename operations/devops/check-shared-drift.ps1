@@ -83,6 +83,7 @@ $result = [PSCustomObject]@{
     DirtyFiles       = @()
     HasRealDiff      = $false
     JunkPaths        = @()
+    ShellFragmentPaths = @()
     SuspiciousPaths  = @()
     NestedWorktrees  = @()
     AutoRemoved      = @()
@@ -119,7 +120,15 @@ try {
     #    JunkPaths:       0-byte files anywhere in the tree
     #    SuspiciousPaths: non-0-byte, extension-less files inside source directories
     #                     (shell-quoting debris like src/server/community/22)
-    $untracked = @(Invoke-Git @('-C', $RepoRoot, 'ls-files', '--others', '--exclude-standard') | Where-Object { $_ })
+    # t/3634: enumerate NUL-delimited with core.quotePath=false so names containing shell
+    # metacharacters or control bytes (e.g. the ESC in `lib/<ESC>[22m…`) come back LITERAL,
+    # not octal-quoted. The previous plain enum + non-`-LiteralPath` Get-Item silently DROPPED
+    # such names (they parsed as non-matching PowerShell wildcards → Get-Item errored → caught),
+    # which is why 0-byte shell-fragment junk with these names accumulated unseen.
+    $untrackedRaw = Invoke-Git @('-C', $RepoRoot, '-c', 'core.quotePath=false', 'ls-files', '--others', '--exclude-standard', '-z')
+    $untracked = @((($untrackedRaw -join '') -split "`0") | Where-Object { $_ })
+    # Shell-metacharacter set (t/3634 TL spec) + control chars — used to name the ShellFragmentPaths finding.
+    $shellMetaChars = [char[]]('`', '{', '}', '[', ']', '(', ')', '$', '|', [char]39, [char]34)
     $sourceDirs = @('taxonomy-editor/src/', 'taxonomy-editor/lib/', 'lib/', 'engineering/', 'operations/', 'research/')
     # OS-locked files confirmed as junk but un-deletable until host restart.
     # Entries here suppress SuspiciousPaths alarm. Remove when the file clears.
@@ -127,15 +136,24 @@ try {
         'engineering/tech-lead/fail-open'   # vim TUI artifact, OS handle lock — clears on host restart
     )
     $junkPaths = @()
+    $shellFragmentPaths = @()
     $suspiciousPaths = @()
     foreach ($f in $untracked) {
         # Skip anything under .worktrees/ — other agents' in-worktree files are not shared-tree drift
         if ($f -match '^\.worktrees[\\/]') { continue }
         $fullPath = Join-Path $RepoRoot $f
         try {
-            $item = Get-Item $fullPath -ErrorAction Stop
+            # t/3634: -LiteralPath so `[`, `]`, backtick etc. in the name are NOT treated as
+            # PowerShell wildcards (the old non-literal Get-Item silently errored on these).
+            $item = Get-Item -LiteralPath $fullPath -ErrorAction Stop
             if ($item.Length -eq 0) {
                 $junkPaths += $f
+                # t/3634: a 0-byte untracked file whose NAME carries a shell metacharacter/control
+                # char is the t/2112 word-split signature — surface it as a distinct named finding
+                # (it still feeds the auto-remove below; this just makes the class explicit).
+                $leaf = [System.IO.Path]::GetFileName($f)
+                $hasControl = @($leaf.ToCharArray() | Where-Object { [int]$_ -lt 32 }).Count -gt 0
+                if ($leaf.IndexOfAny($shellMetaChars) -ge 0 -or $hasControl) { $shellFragmentPaths += $f }
             } else {
                 # Non-0-byte: flag if extension-less file found under a source directory
                 $normalizedF = $f -replace '\\', '/'
@@ -146,6 +164,7 @@ try {
         } catch { continue }
     }
     $result.SuspiciousPaths = $suspiciousPaths
+    $result.ShellFragmentPaths = $shellFragmentPaths   # t/3634: detected this run (also auto-removed below)
 
     # 5c. NESTED .worktrees directories outside repo root (t/3145; t/2222 cwd-reset class).
     #     A `git worktree add` run with the shell cwd reset into a subdir drops .worktrees UNDER a
@@ -204,20 +223,23 @@ try {
     foreach ($f in $junkPaths) {
         $fullPath = Join-Path $RepoRoot $f
         try {
-            # Guard (b1): not tracked in main repo
-            if (Invoke-Git @('-C', $RepoRoot, 'ls-files', $f)) { $remainingJunk += $f; continue }
+            # Guard (b1): not tracked in main repo. `:(literal)` pathspec magic (t/3634) so a name
+            # containing `[` `]` `*` `?` is matched literally, not as a git pathspec glob.
+            if (Invoke-Git @('-C', $RepoRoot, 'ls-files', '--', ":(literal)$f")) { $remainingJunk += $f; continue }
             # Guard (b2): not tracked in overlay (skip check when no overlay present)
             # -C $RepoRoot anchors path resolution to repo root regardless of script CWD (t/2477)
-            if ((Test-Path $overlayGitDir) -and (Invoke-Git @('-C', $RepoRoot, '--git-dir', $overlayGitDir, 'ls-files', $f))) {
+            if ((Test-Path $overlayGitDir) -and (Invoke-Git @('-C', $RepoRoot, '--git-dir', $overlayGitDir, 'ls-files', '--', ":(literal)$f"))) {
                 $remainingJunk += $f; continue
             }
             # Guard (c): re-stat — file must still be 0 bytes at deletion time (TOCTOU).
             # Capture mtime here (t/3058) so attribution survives the delete.
-            $item = Get-Item $fullPath -ErrorAction Stop
+            # -LiteralPath (t/3634): stat + remove metachar names literally (the old non-literal
+            # form silently errored on `[`/backtick names, leaving fragments unremoved).
+            $item = Get-Item -LiteralPath $fullPath -ErrorAction Stop
             if ($item.Length -ne 0) { $remainingJunk += $f; continue }
             $mtime = $item.LastWriteTime.ToString('o')
 
-            Remove-Item $fullPath -Force -ErrorAction Stop
+            Remove-Item -LiteralPath $fullPath -Force -ErrorAction Stop
             $autoRemoved += $fullPath  # full path per t/2476#1 observability requirement
 
             # t/3058: attribute the removed fragment to the scope-owning role (path-derived).
@@ -233,7 +255,7 @@ try {
     # tally covers every fragment, not just the auto-cleaned ones. mtime best-effort (may be gone).
     foreach ($f in @($remainingJunk + $suspiciousPaths)) {   # nestedWorktrees carry their own (Owner) annotation + hint; not re-attributed here
         $mtime = $null
-        try { $mtime = (Get-Item (Join-Path $RepoRoot $f) -ErrorAction Stop).LastWriteTime.ToString('o') } catch { }
+        try { $mtime = (Get-Item -LiteralPath (Join-Path $RepoRoot $f) -ErrorAction Stop).LastWriteTime.ToString('o') } catch { }
         $owner = Get-OwningScope -Path $f
         $attribution[$owner.Role] = ([int]($attribution[$owner.Role]) + 1)
         $attributionDetail += [PSCustomObject]@{ Path = $f; Role = $owner.Role; Scope = $owner.Scope; Mtime = $mtime; Removed = $false }
@@ -256,7 +278,10 @@ try {
     }
 
     # 6. Determine alarm + remediation hint
-    $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $remainingJunk.Count -gt 0 -or $suspiciousPaths.Count -gt 0 -or $nestedWorktrees.Count -gt 0
+    # t/3634: shell-fragment 0-byte files ALARM even when auto-removed — the t/2112 word-split
+    # signature is a named finding worth surfacing (converts silent accumulation into a visible
+    # event), unlike generic 0-byte junk which is swept quietly.
+    $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $remainingJunk.Count -gt 0 -or $suspiciousPaths.Count -gt 0 -or $nestedWorktrees.Count -gt 0 -or $shellFragmentPaths.Count -gt 0
     $result.Alarm = $alarm
 
     if ($alarm) {
@@ -267,6 +292,10 @@ try {
         if ($autoRemoved.Count -gt 0) {
             $listed = $autoRemoved -join ', '
             $hints += "auto-removed 0-byte junk [$listed]"
+        }
+        if ($shellFragmentPaths.Count -gt 0) {
+            $listed = $shellFragmentPaths -join ', '
+            $hints += "shell-fragment 0-byte file(s) detected — t/2112 mis-quote word-split signature [$listed]: auto-removed if guards passed; prefer explicit paths over 'git add -A' and avoid pasting multi-line code into the shell (Shell Quoting Rule)"
         }
         if ($remainingJunk.Count -gt 0) {
             $listed = $remainingJunk -join ', '
