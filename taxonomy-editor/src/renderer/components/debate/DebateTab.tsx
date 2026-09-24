@@ -121,7 +121,7 @@ interface DebateRightPaneProps {
 
 const PHASE_LABELS: Record<string, string> = {
   setup: 'Setup',
-  clarification: 'Refining',
+  clarification: 'Awaiting input',
   'edit-claims': 'Editing',
   opening: 'Opening',
   debate: 'Active',
