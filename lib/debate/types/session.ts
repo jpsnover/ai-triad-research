@@ -433,6 +433,8 @@ export interface DebateSession {
   convergence_signals?: ConvergenceSignals[];
   /** Per-turn process reward scores — continuous quality signal computed after convergence signals + turn validation. */
   process_rewards?: ProcessRewardEntry[];
+  /** Per-turn drift telemetry shadow log (t/3603). Observations only — no behaviour change. */
+  drift_telemetry?: DriftTelemetryEntry[];
   /** Cached turn embeddings for semantic recycling detection. Keyed by transcript entry id. */
   turn_embeddings?: Record<string, number[]>;
   /** Frame embeddings indexed by speaker, computed at opening finalization (t/2045). */
@@ -527,6 +529,64 @@ export interface DebateSession {
    * falls back to config-supplied docMeta (or leaves source_authority null).
    */
   doc_meta?: DocMetaMap;
+}
+
+// ── Drift telemetry entry (t/3603) ──────────────────────────
+
+/**
+ * One per completed debater turn. Observations only — all fields are direct reads,
+ * no new computation. Provenance: t/3603#2 (CL-reviewed).
+ */
+export interface DriftTelemetryEntry {
+  round: number;
+  speaker: string;
+  /**
+   * Fixed-rule action taken on this turn's draft.
+   * 'accepted'          — draft passed quality gate on first try (no repair path taken).
+   * 'repair_fixed'      — repair triggered, post-repair gate passed fully.
+   * 'repair_partial'    — repair triggered, post-repair gate improved but not fully fixed.
+   * 'repair_unchanged'  — repair triggered, no gate improvement.
+   * 'no_gate'           — quality gate was not run (skipped or stage not reached).
+   * Source: runTurn.ts qualityGateResult.repair_outcome.
+   */
+  quality_action: 'accepted' | 'repair_fixed' | 'repair_partial' | 'repair_unchanged' | 'no_gate';
+  /**
+   * Whether the draft passed the topic alignment check. Null when no TopicScope was extracted.
+   * Source: runTurn.ts topicAlignmentResult.topic_aligned.
+   */
+  topic_aligned: boolean | null;
+  /**
+   * Whether the alignment-repair path was triggered for this turn.
+   * Source: runTurn.ts topicAlignmentResult.repaired.
+   */
+  alignment_repair_triggered: boolean;
+  /**
+   * Whether this turn engaged a tracked crux. Null when no convergence signal is available.
+   * Source: session.convergence_signals[-1].crux_engagement_rate.used_this_turn (convergenceSignals.ts:254).
+   * Observation (direct read) — no new computation.
+   */
+  crux_engaged: boolean | null;
+  /**
+   * Total tokens consumed across all pipeline stages for this turn (sum of inputTokens +
+   * outputTokens per stage). Null only when ZERO stages reported usage — a silently partial
+   * sum is never emitted as complete (see t/3603#2 q5). Source: stage_diagnostics per-stage
+   * usage fields (ProviderResult.usage.inputTokens + outputTokens).
+   */
+  tokens_total: number | null;
+  /** Wall-clock latency for the full turn pipeline (ms). Source: runTurn.ts total_time_ms. */
+  latency_ms_total: number;
+  /**
+   * Topical state estimate from CL's t/3630 estimator. Null until that estimator ships.
+   * Vocabulary confirmed at t/3603#2: 'core' = on topic, 'adjacent' = related but drifting,
+   * 'drifted' = off-topic. CL owns this field's population via t/3630.
+   */
+  topical_state: 'core' | 'adjacent' | 'drifted' | null;
+  /**
+   * Continuous (threshold-free) topical drift score from CL's t/3630 estimator.
+   * Null until that estimator ships. Lets shadow logging start before t/3630 tunes bands.
+   * Added per CL review t/3603#2 q4.
+   */
+  topical_drift_score: number | null;
 }
 
 // ── Delta / incremental debate save (t/1470; HLD docs/hld-delta-debate-save.md) ──
