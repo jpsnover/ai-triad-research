@@ -13,3 +13,6 @@ export { parseInquiryResult } from './parse.js';
 // server, Electron main, and renderer bridge all consume ONE definition instead of three copies.
 export { isTerminalStatus, deriveTruncation, TRUNCATION_REASONS } from './jobStatus.js';
 export type { InquiryJobStatus, InquiryPipelineStage } from './jobStatus.js';
+// Answer export formatters (t/3624, epic t/3618) — JSON/MD/print-HTML, mirroring @lib/chat + @lib/debate.
+export { inquiryToJson, inquiryToMarkdown, inquiryToPrintHtml, inquiryExportFilename } from './inquiryExport.js';
+export type { InquiryExportOptions } from './inquiryExport.js';
