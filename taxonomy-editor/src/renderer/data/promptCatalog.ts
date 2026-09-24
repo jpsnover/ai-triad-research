@@ -196,6 +196,18 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['situationNodes'],
   },
   {
+    id: 'debate-situation-topic-synthesis',
+    title: 'Debate: Situation Topic Synthesis',
+    description: 'Synthesises a situation node\'s BDI disagreement structure into a contestable debate resolution.',
+    source: 'lib/debate/prompts/synthesis.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-setup',
+    purpose: 'Fires during situation debate setup. Produces proposition, framing_rationale, and cruxes from BDI interpretations + disagreement type.',
+    phase: 'clarification',
+    applicableDataSources: ['situationNodes'],
+    builders: ['situationTopicSynthesisPrompt'],
+  },
+  {
     id: 'debate-document-clarification',
     title: 'Debate: Document Clarification',
     description: 'Generates clarifying questions for a debate grounded in a specific document or URL.',
