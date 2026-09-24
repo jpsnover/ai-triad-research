@@ -690,6 +690,18 @@ function parseRemovalItem(raw: string): Record<string, unknown> {
   }
 }
 
+/** Best-effort human-readable title for a removal audit record, across all four
+ *  community item shapes (chat/debate title, oped/debate topic, inquiry question). */
+function removalAuditTitle(item: Record<string, unknown>): string {
+  const topic = item.topic as { final?: string; original?: string } | string | undefined;
+  const question = (item.request as { question?: unknown } | undefined)?.question;
+  return (item.title as string)
+    || (typeof topic === 'object' ? (topic.final || topic.original) : topic)
+    || (typeof topic === 'string' ? topic : undefined)
+    || (typeof question === 'string' ? question : undefined)
+    || 'Untitled';
+}
+
 /** Build the audit record captured before a community item is hard-deleted (t/748). */
 function buildRemovalAudit(
   id: string,
@@ -700,17 +712,11 @@ function buildRemovalAudit(
 ): Record<string, unknown> {
   const meta = (item.community_metadata && typeof item.community_metadata === 'object')
     ? item.community_metadata as Record<string, unknown> : {};
-  const topic = item.topic as { final?: string; original?: string } | string | undefined;
-  const question = (item.request as { question?: unknown } | undefined)?.question;
   const auditType = type === 'chats' ? 'chat' : type === 'debates' ? 'debate' : type === 'inquiries' ? 'inquiry' : 'oped';
   return {
     id,
     type: auditType,
-    title: (item.title as string)
-      || (typeof topic === 'object' ? (topic.final || topic.original) : topic)
-      || (typeof topic === 'string' ? topic : undefined)
-      || (typeof question === 'string' ? question : undefined)
-      || 'Untitled',
+    title: removalAuditTitle(item),
     submitted_by: (meta.submitted_by_display as string) ?? null,
     removed_by: removedBy,
     removed_at: new Date().toISOString(),
