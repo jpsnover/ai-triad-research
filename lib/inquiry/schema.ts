@@ -201,6 +201,19 @@ export const InquiryResultSchema = z
     /** The single-run caveat (n ≥ 10 replication gate). Generated into every result, never hand-written,
      *  so the UX cannot systematically overclaim from one run (HLD). */
     singleRunCaveat: z.string(),
+    /** Id of the debate run that produced this answer, for raw-run disclosure (t/3617): the OWNER-side UI
+     *  opens it via the authenticated `api.loadDebateSession(debateId)`. Stamped by the pipeline from
+     *  `session.id` (t/3641, DebateTool half). Declared (not `.passthrough()`-hoped) so it is a real contract.
+     *  **`.optional()`, NOT nullable (TL ruling e/203#4):** every InquiryResult is produced from a real
+     *  debate (`inquiryPipeline.ts` runDebate is unconditional), so a `null` debateId is unreachable — it
+     *  would be indistinguishable from "producer didn't stamp it" (the absent case), a third state that buys
+     *  nothing. Producers must stamp the string or omit it, never `null`. Additive optional → **no
+     *  schemaVersion bump** (schema.ts:19-22): absence keeps old debateId-less records parsing (and a bump
+     *  would trip parse.ts's refuse-newer arm — a read outage across all five consumers, SO e/203#3).
+     *  **PUBLIC-SHARE: EXCLUDED (TL ruling e/203#4).** This internal run id must NOT appear in a public
+     *  share projection — following it to the raw run would open a second, un-threat-modelled anonymous-read
+     *  surface. The e/201 public allowlist omits it; raw-run disclosure stays owner-side / authenticated. */
+    debateId: z.string().optional(),
   })
   .passthrough();
 export type InquiryResult = z.infer<typeof InquiryResultSchema>;
