@@ -4,7 +4,7 @@
 import { ActionableError } from '../debate/errors.js';
 import type { FetchFn, GenerateOptions, ProviderResult, BackendId } from './types.js';
 import type { ModelRegistry } from './registry.js';
-import { resolveModel, getDefaultTimeout, estimateCost } from './registry.js';
+import { resolveModel, resolveTimeout, estimateCost } from './registry.js';
 import { withRetry, type RetryConfig, CLI_RETRY_CONFIG } from './retry.js';
 import { generateViaGemini } from './providers/gemini.js';
 import { generateViaClaude } from './providers/claude.js';
@@ -72,7 +72,7 @@ export function createAIClient(
       // fixedTemperature (if any) overrides the caller's temperature so providers send it.
       const effectiveOpts = {
         ...opts,
-        timeoutMs: opts?.timeoutMs ?? getDefaultTimeout(model, registry),
+        timeoutMs: resolveTimeout(opts?.timeoutMs, model, registry), // t/3644: floor-enforced, not bypassable
         ...(fixedTemperature != null ? { fixedTemperature } : {}),
       };
       const t0 = performance.now();

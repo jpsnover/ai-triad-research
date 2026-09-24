@@ -12,6 +12,7 @@ import {
   resolveModel,
   getDefaultTimeout,
   getModelMinTimeout,
+  resolveTimeout,
   buildModelEntryMap,
   buildModelIdMap,
 } from './registry.js';
@@ -575,5 +576,48 @@ describe('getDefaultTimeout — minTimeoutMs floor (t/3518 Phase 2)', () => {
       const explicit = 60_000;
       expect(Math.max(explicit, getModelMinTimeout('claude-fable-5', floorRegistry))).toBe(300_000);
     });
+  });
+});
+
+// t/3644: resolveTimeout makes the per-model floor UNBYPASSABLE — closes the `explicit ?? getDefaultTimeout`
+// bypass where an explicit value skipped the floor entirely (same failure shape as t/3612, one layer up).
+describe('resolveTimeout — floor is unbypassable (t/3644)', () => {
+  const floorRegistry: ModelRegistry = {
+    backends: [],
+    models: [
+      { id: 'claude-fable-5', apiModelId: 'claude-fable-5', label: 'Fable 5', backend: 'claude', minTimeoutMs: 300_000 },
+      { id: 'claude-haiku-4-5', apiModelId: 'claude-haiku-4-5', label: 'Haiku', backend: 'claude' }, // no floor
+    ],
+  };
+  const record = vi.fn<(e: RecordInput) => void>();
+  beforeEach(() => { record.mockClear(); setGlobalRecorder({ record } as unknown as FlightRecorder); });
+  afterEach(() => { clearGlobalRecorder(); });
+
+  it('raises an explicit timeout BELOW a model floor up to the floor (the bypass, closed)', () => {
+    // fable-5 floor = 300s; a caller passing 60s is raised to 300s, not run at 60s. This is the AC.
+    expect(resolveTimeout(60_000, 'claude-fable-5', floorRegistry)).toBe(300_000);
+  });
+
+  it('honours an explicit timeout ABOVE the floor (a caller can still raise)', () => {
+    expect(resolveTimeout(500_000, 'claude-fable-5', floorRegistry)).toBe(500_000);
+  });
+
+  it('preserves a legitimate sub-default explicit timeout on an UNFLOORED model (why we floor against getModelMinTimeout, not getDefaultTimeout)', () => {
+    // haiku has no floor; base 180s. An explicit 60s is honoured as-is — the floor doesn't over-reach to
+    // force the default. Flooring against getDefaultTimeout (per the ticket's literal snippet) would wrongly raise this to 180s.
+    expect(resolveTimeout(60_000, 'claude-haiku-4-5', floorRegistry)).toBe(60_000);
+  });
+
+  it('no explicit timeout → the (already-floored) default', () => {
+    expect(resolveTimeout(undefined, 'claude-fable-5', floorRegistry)).toBe(300_000); // base 180s → floor 300s
+  });
+
+  it('empty-but-typed registry: a floored model emits the not-found WARN, not a silent 0 (SO observability AC)', () => {
+    // {} models[] has no entry, so the floor is unknown → getModelMinTimeout WARNs + returns 0, and the
+    // timeout falls back to the (unfloored) base rather than a silent 0. Pins the observability the type can't give.
+    const empty: ModelRegistry = { backends: [], models: [] };
+    expect(resolveTimeout(undefined, 'claude-fable-5', empty)).toBe(180_000); // claude base; floor not applied (empty)
+    expect(record).toHaveBeenCalled();
+    expect(record.mock.calls.some(c => String((c[0] as RecordInput).message).includes('no registry entry'))).toBe(true);
   });
 });

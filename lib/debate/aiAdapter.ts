@@ -27,6 +27,7 @@ import {
   CLI_RETRY_CONFIG,
   resolveModel,
   getDefaultTimeout,
+  resolveTimeout,
   getModelMinTimeout,
   GEMINI_BASE,
   geminiGroundedSearch,
@@ -181,7 +182,7 @@ function callEnvelopeProvider(
   const sysText = envelopeSystemText(req.envelope);
   return callProvider(fetch, backend, req.envelope.layer4_variable, req.model, apiKey, {
     ...req.options,
-    timeoutMs: req.options?.timeoutMs ?? getDefaultTimeout(req.model, registry),
+    timeoutMs: resolveTimeout(req.options?.timeoutMs, req.model, registry), // t/3644: floor-enforced
     systemMessage: sysText || undefined,
   });
 }
