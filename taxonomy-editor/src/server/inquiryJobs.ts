@@ -61,8 +61,8 @@ export interface InquiryJob {
   /** The persisted result's id (== jobId) once stored; the cross-replica fallback loads by it. */
   resultId: string | null;
   error: string | null;
-  /** A short label for the source debate, if the pipeline surfaced one (dangle-tolerant; the
-   *  contract does not declare debateId, so this is a best-effort passthrough read). */
+  /** The source debate's id (`session.id`), normalized to `null` when absent — see readDebateRef.
+   *  The `resultId` opens the persisted answer; this opens the underlying debate run (t/3617). */
   debateId: string | null;
   startedAt: number;
 }
@@ -115,10 +115,13 @@ export function sweepInquiryJobs(): void {
   }
 }
 
-/** Best-effort dangle-tolerant debate reference off the (passthrough) result. The contract does not
- *  declare `debateId`; if the pipeline carries one as a passthrough field it is captured, else null. */
+/** The single normalizer for the result's debate reference (t/3641/t/3647). `InquiryResultSchema`
+ *  declares `debateId: z.string().optional()` (so the type is `string | undefined`); the pipeline
+ *  stamps `session.id`. Absent (old pre-t/3641 records) or empty → `null`. No other consumer reads
+ *  `result.debateId` directly — normalize here so `job.debateId`/`InquiryResultSummary.debateId` are
+ *  the single source of a debate link. */
 function readDebateRef(result: InquiryResult): string | null {
-  const v = (result as unknown as Record<string, unknown>).debateId;
+  const v = result.debateId;
   return typeof v === 'string' && v.length > 0 ? v : null;
 }
 

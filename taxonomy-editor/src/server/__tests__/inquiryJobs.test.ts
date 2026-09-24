@@ -84,6 +84,28 @@ describe('t/3578 — inquiry job lifecycle', () => {
   });
 });
 
+describe('t/3647 — debateId normalizer (single reader of result.debateId)', () => {
+  it('stamps a real debateId onto the job when the result declares one', async () => {
+    const result = { ...cleanResult(), debateId: 'debate-abc123' } as unknown as InquiryResult;
+    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(result) });
+    await waitTerminal(job);
+    expect(job.debateId).toBe('debate-abc123');
+  });
+
+  it('normalizes an absent debateId (old pre-t/3641 records) to null', async () => {
+    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
+    await waitTerminal(job);
+    expect(job.debateId).toBeNull();
+  });
+
+  it('normalizes an empty-string debateId to null', async () => {
+    const result = { ...cleanResult(), debateId: '' } as unknown as InquiryResult;
+    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(result) });
+    await waitTerminal(job);
+    expect(job.debateId).toBeNull();
+  });
+});
+
 describe('t/3578 — truncation derivation (both arms)', () => {
   it('natural conclusion → not truncated', () => {
     expect(deriveTruncation(cleanResult())).toEqual({ truncated: false });
