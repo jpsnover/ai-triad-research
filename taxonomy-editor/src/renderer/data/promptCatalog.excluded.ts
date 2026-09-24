@@ -51,4 +51,8 @@ export const PROMPT_CATALOG_EXCLUDED: PromptExclusion[] = [
   //    vernacularPrompt + aphorismPrompt ruled EXPOSE (now catalogued); this is the one
   //    permanent INTERNAL exclusion replacing the provisional t/2859 block.
   { name: 'generateDebateTitlePrompt', reason: 'Trivial UI utility — distils a debate topic into a <60-char title; no tunable substance, no data sources, no version. Utility micro-prompt class (CL ruling t/2859).' },
+
+  // ── Situation debate setup (t/3636): backend-only synthesis prompt, not yet wired to a
+  //    user-facing turn — pending t/3640 (Rosetta) wiring createSituationDebate to use it.
+  { name: 'situationTopicSynthesisPrompt', reason: 'Debate setup synthesis — pending wiring in t/3640 (Rosetta).' },
 ];
