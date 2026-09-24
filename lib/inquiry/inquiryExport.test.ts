@@ -9,6 +9,7 @@ import {
   inquiryExportFilename,
 } from './inquiryExport.js';
 import type { InquiryResult } from './schema.js';
+import { CLASSIFICATION, dispositionFor, includedFields } from './fieldClassification.js';
 
 const EXPORTED_AT = '2026-07-10T14:30:00.000Z';
 const FIXED_DATE = new Date(EXPORTED_AT);
@@ -153,6 +154,29 @@ describe('inquiryExport', () => {
       expect(inquiryExportFilename('Hello! World? <test>', 'pdf')).toBe('inquiry-hello-world-test-20260710.pdf');
       const slug = inquiryExportFilename('A'.repeat(100), 'md').replace('inquiry-', '').replace('-20260710.md', '');
       expect(slug.length).toBeLessThanOrEqual(60);
+    });
+  });
+
+  describe('export is by-decision, not pass-through (t/3648 part 3 / t/3624)', () => {
+    it('the export surface includes EVERY classified leaf — inquiryToJson\'s full-fidelity embed is safe by decision', () => {
+      // LIVE-DERIVED from CLASSIFICATION (TL condition 1, p/342#397) — NOT a frozen "no excludes" list,
+      // which would stop catching matrix growth, the exact failure part 1's exhaustiveness gate prevents.
+      // inquiryToJson embeds the whole InquiryResult; that is correct ONLY while export includes everything.
+      const allClassified = Object.keys(CLASSIFICATION).sort();
+      const exportIncluded = includedFields('export').sort();
+      // The failure message CARRIES THE FIX (TL condition 2) — whoever trips this just marked a field
+      // export-EXCLUDE and doesn't know this test exists; a bare "40 !== 39" gets "fixed" by editing a number.
+      const nowExcluded = allClassified.filter((p) => !exportIncluded.includes(p));
+      const instruction =
+        `export is no longer all-include (newly excluded: ${nowExcluded.join(', ')}) — inquiryToJson must ` +
+        'switch from its wholesale `result` embed to a matrix-derived constructive projector ' +
+        '(build it the way toPublicInquiryShare in publicShare.ts constructs the public projection).';
+      expect(exportIncluded, instruction).toEqual(allClassified);
+    });
+
+    it('a sanity spot-check: known fields are export-included (debateId INCLUDE — the worked example)', () => {
+      expect(dispositionFor('debateId', 'export').include).toBe(true);
+      expect(dispositionFor('derivation.costUsd', 'export').include).toBe(true);
     });
   });
 });
