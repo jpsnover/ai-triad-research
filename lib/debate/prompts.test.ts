@@ -47,8 +47,10 @@ import {
   topicScopeExtractionPrompt,
   improveDebateTopicPrompt,
   draftQualityCheckPrompt,
+  situationTopicSynthesisPrompt,
 } from './prompts.js';
-import type { OpeningStagePromptInput, StagePromptInput, SituationDebateInput } from './prompts.js';
+import type { OpeningStagePromptInput, StagePromptInput, SituationDebateInput, SituationTopicSynthesisInput } from './prompts.js';
+import type { BdiInterpretation } from './taxonomyTypes.js';
 import type { TopicScope } from './types.js';
 import type { TopicStructure } from './topicStructure.js';
 
@@ -97,6 +99,31 @@ function makeSituationInput(): SituationDebateInput {
       safetyist: 'Workers need protection during transition.',
       skeptic: 'Displacement estimates are overblown.',
     },
+  };
+}
+
+const BDI_ACC: BdiInterpretation = {
+  belief: 'AI displaces routine tasks, not overall employment.',
+  desire: 'Accelerate productivity gains across all sectors.',
+  intention: 'Resist retraining mandates that slow adoption.',
+};
+const BDI_SAF: BdiInterpretation = {
+  belief: 'Structural unemployment risk is empirically underestimated.',
+  desire: 'Guarantee income security during economic transitions.',
+  intention: 'Enact federal retraining and safety-net programs.',
+};
+const BDI_SKP: BdiInterpretation = {
+  belief: 'Historical automation panics overstate displacement rates.',
+  desire: 'Preserve market flexibility without pre-emptive intervention.',
+  intention: 'Await evidence before committing to expensive policy.',
+};
+
+function makeSynthesisInput(overrides: Partial<SituationTopicSynthesisInput> = {}): SituationTopicSynthesisInput {
+  return {
+    label: 'AI Labor Displacement',
+    description: 'AI systems replacing human jobs at scale.',
+    interpretations: { accelerationist: BDI_ACC, safetyist: BDI_SAF, skeptic: BDI_SKP },
+    ...overrides,
   };
 }
 
@@ -1556,5 +1583,97 @@ describe('draftQualityCheckPrompt — planned moves', () => {
     const result = draftQualityCheckPrompt(DRAFT, undefined, SPEAKER, POV, 'cross', 3);
     expect(result).not.toContain('PLANNED MOVES');
     expect(result).not.toContain('Do NOT flag');
+  });
+});
+
+// ── situationTopicSynthesisPrompt (t/3636) ───────────────────────
+
+describe('situationTopicSynthesisPrompt', () => {
+  it('emits belief/desire/intention lines for BDI interpretations', () => {
+    const result = situationTopicSynthesisPrompt(makeSynthesisInput());
+    expectContains(result, 'belief:', 'desire:', 'intention:');
+    expectContains(result, BDI_ACC.belief, BDI_SAF.desire, BDI_SKP.intention);
+  });
+
+  it('falls back to summary: for legacy string interpretations', () => {
+    const result = situationTopicSynthesisPrompt(makeSynthesisInput({
+      interpretations: {
+        accelerationist: 'Creative destruction.',
+        safetyist: 'Worker protection.',
+        skeptic: 'Overblown.',
+      },
+    }));
+    expectContains(result, 'summary: Creative destruction.', 'summary: Worker protection.');
+    expect(result).not.toContain('belief:');
+  });
+
+  it('typeHint switches by disagreementType', () => {
+    const def = situationTopicSynthesisPrompt(makeSynthesisInput({ disagreementType: 'definitional' }));
+    const str = situationTopicSynthesisPrompt(makeSynthesisInput({ disagreementType: 'structural' }));
+    const interp = situationTopicSynthesisPrompt(makeSynthesisInput({ disagreementType: 'interpretive' }));
+    expect(def).toContain('DEFINITIONAL');
+    expect(str).toContain('STRUCTURAL');
+    expect(interp).toContain('INTERPRETIVE');
+  });
+
+  it('includes assumes block only when non-empty', () => {
+    const with_ = situationTopicSynthesisPrompt(makeSynthesisInput({ assumes: ['AI replaces, not augments'] }));
+    const without = situationTopicSynthesisPrompt(makeSynthesisInput({ assumes: [] }));
+    expect(with_).toContain('CONTESTED ASSUMPTIONS');
+    expect(with_).toContain('AI replaces, not augments');
+    expect(without).not.toContain('CONTESTED ASSUMPTIONS');
+  });
+
+  it('includes conflictSummaries block only when non-empty', () => {
+    const with_ = situationTopicSynthesisPrompt(makeSynthesisInput({ conflictSummaries: ['2025 UAW strike over automation'] }));
+    const without = situationTopicSynthesisPrompt(makeSynthesisInput({ conflictSummaries: [] }));
+    expect(with_).toContain('DOCUMENTED REAL-WORLD CONFLICTS');
+    expect(without).not.toContain('DOCUMENTED REAL-WORLD CONFLICTS');
+  });
+
+  it('output-contract line is present', () => {
+    const result = situationTopicSynthesisPrompt(makeSynthesisInput());
+    expect(result).toContain('Respond ONLY with JSON');
+  });
+});
+
+// ── formatSituationDebateContext — BDI enrichment (t/3636) ───────
+
+describe('formatSituationDebateContext — BDI enrichment', () => {
+  it('emits full BDI lines when interpretations are BdiInterpretation', () => {
+    const result = formatSituationDebateContext({
+      id: 'sit-201',
+      label: 'AI Labor Displacement',
+      description: 'AI replacing jobs.',
+      interpretations: { accelerationist: BDI_ACC, safetyist: BDI_SAF, skeptic: BDI_SKP },
+    });
+    expectContains(result, 'belief:', 'desire:', 'intention:');
+    expectContains(result, BDI_ACC.belief, BDI_SAF.desire, BDI_SKP.intention);
+  });
+
+  it('falls back to flat line for legacy string interpretations', () => {
+    const input = makeSituationInput();
+    const result = formatSituationDebateContext(input);
+    expect(result).toContain('Accelerationist: Creative destruction drives new markets.');
+    expect(result).not.toContain('belief:');
+  });
+
+  it('emits DISAGREEMENT TYPE block when disagreementType set', () => {
+    const result = formatSituationDebateContext({
+      id: 'sit-201',
+      label: 'AI Labor Displacement',
+      description: 'AI replacing jobs.',
+      interpretations: { accelerationist: BDI_ACC, safetyist: BDI_SAF, skeptic: BDI_SKP },
+      disagreementType: 'structural',
+      interpretationDivergence: 0.72,
+    });
+    expect(result).toContain('DISAGREEMENT TYPE');
+    expect(result).toContain('structural');
+    expect(result).toContain('0.72');
+  });
+
+  it('omits DISAGREEMENT TYPE block when disagreementType absent', () => {
+    const result = formatSituationDebateContext(makeSituationInput());
+    expect(result).not.toContain('DISAGREEMENT TYPE');
   });
 });

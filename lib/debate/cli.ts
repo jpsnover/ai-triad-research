@@ -297,7 +297,7 @@ async function main(): Promise<void> {
       id: sitNode.id,
       label: sitNode.label,
       description: sitNode.description,
-      interpretations: sitNode.interpretations as { accelerationist: string; safetyist: string; skeptic: string },
+      interpretations: sitNode.interpretations,
       assumes: sitNode.graph_attributes?.assumes,
       steelmanVulnerability: typeof sitNode.graph_attributes?.steelman_vulnerability === 'string'
         ? sitNode.graph_attributes.steelman_vulnerability : undefined,
