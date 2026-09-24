@@ -9,20 +9,32 @@
 # drop the label events entirely (no re-run, no matrix waste), while the guard still fires
 # on them here.
 #
-# CRITICAL — ALWAYS REPORTS (TL condition, p/331#1271): this is a REQUIRED status context.
-# A required check that NEVER runs blocks a PR just as hard as a false green clears one
-# (the mirror of the Arm E bug — same class, opposite sign). So it triggers on the normal
-# PR events (opened/synchronize/reopened) too, not only the guard events, and it SELF-GATES:
-# it reports SUCCESS whenever the guard does not apply, and FAILURE only when a joint-gv PR
-# has auto-merge armed. Every PR therefore always gets a terminal joint-gv-guard result.
+# CRITICAL — MUST ALWAYS REPORT (mirror of the Arm E bug: a required check that never runs
+# blocks a PR as hard as a false green clears one — same class, opposite sign). This is only
+# TRUE IF `types` below covers EVERY PR event that can change the gated condition (base,
+# labels, auto-merge state). It is NOT a free invariant — it is exactly as complete as that
+# list. The list was audited against the failure modes at SO consult e/202#2:
+#   • opened/synchronize/reopened — a PR opened or updated against main always gets a result.
+#   • labeled/unlabeled          — the joint-gv label being added/removed.
+#   • auto_merge_enabled/disabled— auto-merge armed OR disarmed. `auto_merge_disabled` is
+#     LOAD-BEARING: it is the guard's own prescribed remediation (line ~"Disable auto-merge").
+#     Without it, a compliant author who disables auto-merge would leave the context stuck RED.
+#   • edited                     — fires on BASE-BRANCH RETARGET. A PR opened against a feature
+#     branch (GitHub silently suggests the parent; pre-self-merge step 0 exists for this) does
+#     not run here until its base becomes `main`; retargeting fires `edited`, so the context
+#     appears and reports. Without it, a retargeted PR would have NO joint-gv-guard check at
+#     all → permanently blocked once this is required.
+# The job SELF-GATES: SUCCESS whenever the guard does not apply, FAILURE only when a joint-gv
+# PR has auto-merge armed. (Parity note for anyone editing this: adding a new dimension to the
+# gated condition means adding its event here, or the "always reports" property silently breaks.)
 name: joint-gv-guard
 
 on:
   pull_request:
     branches: [main]
-    # opened/synchronize/reopened → always report on every PR (never-labelled PRs included).
-    # labeled/unlabeled/auto_merge_enabled → the guard's actual trigger events (t/3332).
-    types: [opened, synchronize, reopened, labeled, unlabeled, auto_merge_enabled]
+    # See the audited list above. auto_merge_disabled + edited added at e/202#2 (SO conditions
+    # 1 & 2) to close the two never-reports gaps in the remediation + base-retarget paths.
+    types: [opened, synchronize, reopened, labeled, unlabeled, auto_merge_enabled, auto_merge_disabled, edited]
 
 # The job id below (joint-gv-guard) is the check-run name GitHub reports — the exact string
 # to add to branch protection as a required status context.
@@ -36,10 +48,51 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Make fail-closed EXPLICIT (SO residual 2, e/202#7): GitHub's default run shell is
+          # `bash -eo pipefail`, so a malformed-but-200 API response makes jq error → the
+          # HAS_* assignment inherits non-zero → job reds. That is the behaviour we want, but it
+          # currently rests on an IMPLICIT flag — a future `shell:` override would silently flip
+          # it to fail-OPEN (report success on garbage = the Arm E class). State it in-script so
+          # it survives a shell change.
+          set -euo pipefail
           PR_NUMBER="${{ github.event.pull_request.number }}"
           REPO="${{ github.repository }}"
 
-          PR_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json autoMergeRequest,labels)
+          # Retry the API read (SO condition 4, e/202#2): once this is a REQUIRED context, a
+          # transient gh/API error would block EVERY PR. Retry 3x with short backoff; on
+          # exhaustion FAIL CLOSED (right default for a guard) but with a LEGIBLE message that
+          # says the API query failed — NOT that a joint-gv violation exists. Fallback-Path
+          # Logging rule (e/202#7 residual 1): CAPTURE the stderr and surface it, because the
+          # causes have OPPOSITE remedies — a transient 5xx wants a re-run; a token/permission
+          # error wants a workflow fix and will never recover on re-run.
+          PR_JSON=""
+          last_err=""
+          errfile="${RUNNER_TEMP:-/tmp}/joint-gv-guard.err"
+          for attempt in 1 2 3; do
+            if PR_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json autoMergeRequest,labels 2>"$errfile"); then
+              break
+            fi
+            PR_JSON=""
+            last_err=$(head -c 400 "$errfile" 2>/dev/null | tr '\n' ' ')
+            echo "::warning::joint-gv-guard: gh pr view attempt ${attempt}/3 failed — ${last_err} — retrying in $((attempt * 3))s"
+            sleep $((attempt * 3))
+          done
+          if [ -z "$PR_JSON" ]; then
+            echo "::error::joint-gv-guard: could NOT read PR state after 3 attempts — API/INFRA failure, NOT a joint-gv violation. Last error: ${last_err}. A transient 5xx → re-run this job; a token/permission error → fix the workflow (will NOT recover on re-run). (Failing closed — required gate.)"
+            exit 1
+          fi
+
+          # Shape assertion (SO e/202#9, TL p/331#1295 — COMPLEMENT to set -euo pipefail, not a
+          # substitute): a malformed-but-200 payload ({}, partial JSON) makes the jq parses below
+          # fail. set -e already reds the job (fail-closed, correct), but the only diagnostic would
+          # be jq's raw "Cannot iterate over null" on a step whose legible errors all name auto-merge
+          # / API failure — a THIRD indistinguishable red among {violation, infra, malformed}, each
+          # with a different remedy. Name this cause explicitly so the red is triageable.
+          if ! echo "$PR_JSON" | jq -e 'has("labels") and has("autoMergeRequest")' >/dev/null 2>&1; then
+            echo "::error::joint-gv-guard: PR state read succeeded but the payload is MALFORMED (missing labels/autoMergeRequest) — NOT a joint-gv violation, NOT an API-unreachable failure. Re-run; if it persists, the gh JSON contract changed. (Failing closed — required gate.)"
+            exit 1
+          fi
+
           HAS_JOINT_GV=$(echo "$PR_JSON" | jq -r '[.labels[].name] | contains(["joint-gv"]) | tostring')
           HAS_AUTO_MERGE=$(echo "$PR_JSON" | jq -r '(.autoMergeRequest != null) | tostring')
 

@@ -43,7 +43,7 @@ import {
   withRetry,
   buildModelEntryMap,
   getApiModelId as getApiModelIdFromMap,
-  getDefaultTimeout,
+  resolveTimeout,
   withTimeout,
   SERVER_RETRY_CONFIG,
   geminiGroundedSearch,
@@ -339,7 +339,7 @@ function buildGenerateOptions(
   const entry = entryMap[currentModel];
   return {
     temperature: options?.temperature ?? _debateTemperature ?? 0.7,
-    timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel, getModelRegistry()),
+    timeoutMs: resolveTimeout(timeoutMs, currentModel, getModelRegistry()), // t/3644: floor-enforced
     ...(entry?.fixedTemperature != null ? { fixedTemperature: entry.fixedTemperature } : {}),
     // t/2510: caller cancellation (client disconnect) → callProvider passes this into
     // the provider fetch's init.signal (AbortSignal.any with the per-attempt timeout).

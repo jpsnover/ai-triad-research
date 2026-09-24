@@ -500,4 +500,25 @@ export interface CalibrationDataPoint {
    * Null when all speakers have null persistence. Stipulated.
    */
   frame_survival?: number | null;
+
+  // ── Drift telemetry shadow log (t/3603) ──
+  /**
+   * Per-turn drift telemetry series. Shadow mode — NO behaviour change. Additive-optional.
+   * Three reachable, distinct states (TL ruling t/3603#3):
+   *   - `undefined` (absent) — pre-t/3603 entry; NO instrumentation ran. Do NOT treat as
+   *     zero drift — using `series ?? []` collapses this with null and silently biases any
+   *     aggregate computed over historical entries.
+   *   - `null` — t/3603+ session where instrumentation ran but zero turns were recorded
+   *     (e.g. debate ended before any cross-responses). Distinct from absent: this entry
+   *     WAS produced by instrumented code.
+   *   - `DriftTelemetryEntry[]` — one entry per completed debater turn.
+   * CL field definitions confirmed at t/3603#2.
+   */
+  drift_telemetry_series?: DriftTelemetryEntry[] | null;
 }
+
+// DriftTelemetryEntry lives in types/session.ts (session-side type; avoids the
+// calibrationLogger → neutralEvaluator → aiAdapter transitive import into the
+// renderer-safe comments.ts graph — importGraph test guard t/2550).
+import type { DriftTelemetryEntry } from '../types/session.js';
+export type { DriftTelemetryEntry } from '../types/session.js';

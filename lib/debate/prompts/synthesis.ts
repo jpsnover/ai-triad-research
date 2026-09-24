@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { DebateAudience } from '../types.js';
-import { interpretationText } from '../taxonomyTypes.js';
+import { interpretationText, isBdiInterpretation } from '../taxonomyTypes.js';
+import type { Interpretation } from '../taxonomyTypes.js';
 import { stripExcludes } from '../helpers.js';
 import { DOC_TRUNCATION_LIMIT } from '../constants.js';
 import { getReadingLevel } from './shared-helpers.js';
@@ -458,7 +459,9 @@ export interface SituationDebateInput {
   id: string;
   label: string;
   description: string;
-  interpretations: { accelerationist: string; safetyist: string; skeptic: string };
+  interpretations: { accelerationist: Interpretation; safetyist: Interpretation; skeptic: Interpretation };
+  disagreementType?: 'definitional' | 'interpretive' | 'structural';
+  interpretationDivergence?: number;
   assumes?: string[];
   steelmanVulnerability?: string;
   possibleFallacies?: { fallacy: string; confidence: string; explanation: string }[];
@@ -466,20 +469,109 @@ export interface SituationDebateInput {
   conflictSummaries?: string[];
 }
 
+export interface SituationTopicSynthesisInput {
+  label: string;
+  description: string;
+  interpretations: { accelerationist: Interpretation; safetyist: Interpretation; skeptic: Interpretation };
+  disagreementType?: 'definitional' | 'interpretive' | 'structural';
+  assumes?: string[];
+  conflictSummaries?: string[];
+}
+
+export interface SituationTopicSynthesisResult {
+  proposition: string;
+  framing_rationale?: string;
+  cruxes?: { question: string; type: 'empirical' | 'normative' | 'definitional'; accelerationist: string; safetyist: string; skeptic: string }[];
+}
+
+/**
+ * Synthesize a contestable debate resolution from a situation's disagreement structure.
+ * Replaces the old `topic = situation.label` (a noun phrase) with a proposition the three
+ * POVs genuinely split on, plus the cruxes that make the split real.
+ */
+export function situationTopicSynthesisPrompt(
+  cc: SituationTopicSynthesisInput,
+  audience?: DebateAudience,
+): string {
+  const bdi = (i: Interpretation) => isBdiInterpretation(i)
+    ? `belief: ${i.belief}\n  desire: ${i.desire}\n  intention: ${i.intention}`
+    : `summary: ${interpretationText(i)}`;
+
+  const typeHint = {
+    definitional: 'The core split is DEFINITIONAL — the camps use a key term to mean different things. Frame a resolution that forces the definitional fight into the open.',
+    interpretive: 'The core split is INTERPRETIVE — the camps read the same evidence differently. Frame a resolution about what the evidence actually implies.',
+    structural: 'The core split is STRUCTURAL — the camps disagree about the underlying causal mechanism. Frame a resolution about that mechanism.',
+  }[cc.disagreementType ?? 'interpretive'];
+
+  return `You are a neutral debate architect. Turn the situation below into ONE sharply contestable resolution for a three-way debate between an Accelerationist, a Safetyist, and a Skeptic.
+${getReadingLevel(audience)}
+
+=== SITUATION ===
+${cc.label}: ${stripExcludes(cc.description)}
+
+=== HOW EACH CAMP READS IT (belief = empirical, desire = normative, intention = strategic) ===
+Accelerationist:
+  ${bdi(cc.interpretations.accelerationist)}
+Safetyist:
+  ${bdi(cc.interpretations.safetyist)}
+Skeptic:
+  ${bdi(cc.interpretations.skeptic)}
+${cc.assumes?.length ? `\n=== CONTESTED ASSUMPTIONS ===\n${cc.assumes.map(a => `- ${a}`).join('\n')}` : ''}${cc.conflictSummaries?.length ? `\n=== DOCUMENTED REAL-WORLD CONFLICTS ===\n${cc.conflictSummaries.join('\n')}` : ''}
+
+${typeHint}
+
+Produce a RESOLUTION, not a topic heading. Requirements:
+- A single declarative sentence that can be affirmed or denied (not a question, not a noun phrase).
+- Framed so at least one camp affirms and at least one denies — NONE trivially right. If all three would agree, you have picked the wrong axis; find the one where the belief/desire/intention layers above actually diverge.
+- Specific to THIS situation and tractable — no "Is AI good?" abstractions.
+- Steelman-fair: a proposition each camp takes seriously, not a strawman of any side.
+
+Then list the 2-4 cruxes — the sub-disagreements that decide the resolution. For each, say whether it is empirical (a fact question), normative (a values question), or definitional (a meaning question), and give each camp's one-line stance.
+
+Respond ONLY with JSON (no markdown, no code fences):
+{
+  "proposition": "the resolution as one declarative sentence",
+  "framing_rationale": "one sentence: which layer the camps split on and why this proposition surfaces it",
+  "cruxes": [
+    {"question": "the sub-disagreement", "type": "empirical | normative | definitional",
+     "accelerationist": "...", "safetyist": "...", "skeptic": "..."}
+  ]
+}`;
+}
+
 /** Build a rich source-content block from a situation node for prompt injection */
 export function formatSituationDebateContext(cc: SituationDebateInput): string {
+  const bdiBlock = (label: string, i: Interpretation): string[] => {
+    if (isBdiInterpretation(i)) {
+      return [
+        `${label}:`,
+        `  belief: ${i.belief}`,
+        `  desire: ${i.desire}`,
+        `  intention: ${i.intention}`,
+      ];
+    }
+    return [`${label}: ${interpretationText(i)}`];
+  };
+
   const lines: string[] = [
     `=== SITUATION: ${cc.id} ===`,
     `Label: ${cc.label}`,
     `Description: ${stripExcludes(cc.description)}`,
     '',
     '=== POV INTERPRETATIONS ===',
-    `Accelerationist: ${interpretationText(cc.interpretations.accelerationist)}`,
+    ...bdiBlock('Accelerationist', cc.interpretations.accelerationist),
     '',
-    `Safetyist: ${interpretationText(cc.interpretations.safetyist)}`,
+    ...bdiBlock('Safetyist', cc.interpretations.safetyist),
     '',
-    `Skeptic: ${interpretationText(cc.interpretations.skeptic)}`,
+    ...bdiBlock('Skeptic', cc.interpretations.skeptic),
   ];
+
+  if (cc.disagreementType) {
+    const divergenceNote = cc.interpretationDivergence !== undefined
+      ? ` (interpretation divergence: ${cc.interpretationDivergence.toFixed(2)})`
+      : '';
+    lines.push('', '=== DISAGREEMENT TYPE ===', `${cc.disagreementType}${divergenceNote}`);
+  }
 
   if (cc.assumes && cc.assumes.length > 0) {
     lines.push('', '=== UNDERLYING ASSUMPTIONS ===');

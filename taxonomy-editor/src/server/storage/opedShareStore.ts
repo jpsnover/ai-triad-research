@@ -23,6 +23,17 @@ import { log } from '../logger.js';
 // length cap, defined at the pick site per SO condition 1.
 const GROUNDING_EXCERPT_MAX_CHARS = 280;
 
+// t/3645 (SO parity retrofit, e/201 — the same class of gap flagged for the inquiry
+// share's `evidenceLayers.sources`): `relevance`/`how_reflected`/`document_claims`
+// are unconstrained free text at the type + zod-schema level (lib/oped/types.ts,
+// lib/oped/schemas.ts) — LLM- or source-document-derived, no length/count cap ever
+// enforced upstream. Capped here at the public-projection boundary, same silent-
+// truncation precedent as GROUNDING_EXCERPT_MAX_CHARS (routine sanitization, not a
+// failure path — no WARN on truncation, consistent with description_excerpt above).
+const GROUNDING_FREE_TEXT_MAX_CHARS = 280;
+const DOCUMENT_CLAIM_MAX_CHARS = 280;
+const DOCUMENT_CLAIMS_MAX_COUNT = 10;
+
 // Public copies live under a fixed, user-agnostic prefix — NEVER under users/{id}/.
 const PUBLIC_OPEDS_DIR = 'public/opeds';
 // Owner-scoped registry mapping setId → shareId, so un-share/re-share can find the
@@ -158,9 +169,12 @@ export async function projectPublicOpEd(set: OpEdSet, shareId: string): Promise<
         label: g.label,
         category: g.category,
         pov: g.pov,
-        relevance: g.relevance,
-        how_reflected: g.how_reflected,
-        ...(g.document_claims ? { document_claims: g.document_claims } : {}),
+        relevance: truncateExcerpt(String(g.relevance ?? ''), GROUNDING_FREE_TEXT_MAX_CHARS),
+        how_reflected: truncateExcerpt(String(g.how_reflected ?? ''), GROUNDING_FREE_TEXT_MAX_CHARS),
+        ...(g.document_claims?.length
+          ? { document_claims: g.document_claims.slice(0, DOCUMENT_CLAIMS_MAX_COUNT)
+            .map(c => truncateExcerpt(String(c ?? ''), DOCUMENT_CLAIM_MAX_CHARS)) }
+          : {}),
       })),
     })),
     grounding_nodes: await buildGroundingNodes(members),

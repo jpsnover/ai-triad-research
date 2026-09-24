@@ -896,5 +896,10 @@ export function extractCalibrationData(
         frame_survival: fs.frameSurvival,
       };
     })(),
+
+    // ── Drift telemetry shadow log (t/3603) ──────────────────
+    drift_telemetry_series: session.drift_telemetry && session.drift_telemetry.length > 0
+      ? session.drift_telemetry
+      : null,
   };
 }

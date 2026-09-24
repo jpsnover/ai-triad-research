@@ -128,6 +128,7 @@ export async function synthesizeInquiry(
   derivation: ResolvedDerivation,
   request: StoredInquiryRequest,
   adapter: AIAdapter,
+  debateId?: string,
 ): Promise<InquiryResult> {
   // TL t/3580#3 note (1): evaluatorModel must come from derivation, not independently selected.
   const evaluatorModel =
@@ -197,6 +198,7 @@ export async function synthesizeInquiry(
     calibration,
     derivation,
     grounding,
+    debateId,
   };
 
   // 6. Validate through the contract schema — producers go through the same validated

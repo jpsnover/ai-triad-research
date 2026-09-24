@@ -1,0 +1,979 @@
+{
+ "meta": {
+  "ticket": "t/3630",
+  "total_turns_scored": 1569,
+  "debates": 148,
+  "stratum_populations": {
+   "core_control": 521,
+   "drift_candidate": 330,
+   "deepening_candidate": 718
+  },
+  "sampled": 120,
+  "per_cell_target": 40,
+  "seed_lo": 0.5,
+  "crux_hi": 0.5,
+  "sampling": "deterministic sha256(debate|turn) sort + stride per stratum; annotators DO NOT see cosines"
+ },
+ "sample": [
+  {
+   "sample_id": "d-045",
+   "debate_id": "5e7245b7-4452-4402-b979-5e2bd335e0cd",
+   "turn_id": "6fcec3f6-6960-46f0-a22b-a837789d1520",
+   "round": 3,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-040",
+   "debate_id": "0776d9ff-95e5-40ef-9e01-eb93853fbbfb",
+   "turn_id": "2dc93aee-e20a-4da5-a751-581c4547cdc5",
+   "round": 5,
+   "speaker": "Accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-062",
+   "debate_id": "b45f82f7-6c68-43a6-866c-86590264d8e5",
+   "turn_id": "76f6d392-108e-44d6-9a14-e3927891c790",
+   "round": 3,
+   "speaker": "skeptic",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-078",
+   "debate_id": "f9c54c70-dfc3-4255-b125-0c49da39c519",
+   "turn_id": "a96121f0-dac5-4815-bac8-e194b11008e3",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-064",
+   "debate_id": "c0a633bb-4dcb-4495-bf44-ee7eb990d318",
+   "turn_id": "4186b41a-e87f-49e8-8d84-e9c97f8a0663",
+   "round": 3,
+   "speaker": "safetyist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-056",
+   "debate_id": "8afd5747-9df7-4229-8fa0-b110e8815d27",
+   "turn_id": "eba76e99-ce47-419e-bf90-44e787f5894f",
+   "round": 6,
+   "speaker": "Accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-048",
+   "debate_id": "67c7d42d-7222-465f-bfac-0f5eb5bfc766",
+   "turn_id": "402032ff-e49b-4e86-9dc6-682f36a717d9",
+   "round": 4,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-057",
+   "debate_id": "8fc49ef7-edc0-46ba-b9d6-c594798f913e",
+   "turn_id": "818952e5-c2a1-49a2-a4ca-869006e122e3",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-077",
+   "debate_id": "f94f7cf6-575e-4597-95df-3567eac59ec6",
+   "turn_id": "21b70514-2b2a-481d-a059-1842dcda3b9a",
+   "round": 2,
+   "speaker": "skeptic",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-059",
+   "debate_id": "aa493447-2b1a-42b8-93cd-5f64f982e86b",
+   "turn_id": "b9972d95-6adf-4479-ac47-36c65770db3e",
+   "round": 3,
+   "speaker": "Safetyist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-075",
+   "debate_id": "f6febb1f-2b37-4c39-a693-b95711ae2b74",
+   "turn_id": "d7fee8ad-e82a-483c-be67-eb1930c0501b",
+   "round": 3,
+   "speaker": "skeptic",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-043",
+   "debate_id": "2306fafc-6d5e-4387-beee-f1ecc900b7ce",
+   "turn_id": "a8b36f33-3c1d-4539-806f-c7e6df2e51c6",
+   "round": 2,
+   "speaker": "skeptic",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-046",
+   "debate_id": "6281dfba-2e55-42b7-bd2e-36104aa82624",
+   "turn_id": "1fe8479c-d418-4f7f-9088-45d683d1d1cf",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-042",
+   "debate_id": "1418ee11-5641-4033-a400-c26c9f5e4f45",
+   "turn_id": "c778313c-3b5a-4c18-b10c-4a2f755a66bc",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-054",
+   "debate_id": "8afd5747-9df7-4229-8fa0-b110e8815d27",
+   "turn_id": "619c369e-cfab-4bd4-983a-1c314632a177",
+   "round": 5,
+   "speaker": "Accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-051",
+   "debate_id": "87b685da-0957-4995-99c3-2b0e05ff4e31",
+   "turn_id": "5e69acde-7557-49ad-bd1e-0e0f523d8e9f",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-063",
+   "debate_id": "c0a633bb-4dcb-4495-bf44-ee7eb990d318",
+   "turn_id": "391461d4-9947-42b0-a77a-0d99b52c181c",
+   "round": 1,
+   "speaker": "safetyist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-076",
+   "debate_id": "f94f7cf6-575e-4597-95df-3567eac59ec6",
+   "turn_id": "05ee392d-d975-49fa-b58f-38827fadea57",
+   "round": 4,
+   "speaker": "safetyist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-074",
+   "debate_id": "f1274123-becd-4c66-afeb-2aa44856599c",
+   "turn_id": "08b6e69e-972b-43d4-a86f-c821f24d0869",
+   "round": 3,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-068",
+   "debate_id": "cdc384d6-2f6a-4ce1-a29f-69509d578049",
+   "turn_id": "6a197695-0063-4889-adf5-b78eb95d44fa",
+   "round": 3,
+   "speaker": "Accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-052",
+   "debate_id": "87b685da-0957-4995-99c3-2b0e05ff4e31",
+   "turn_id": "8925fcf6-0a78-4d7b-b0a4-d393aa316f3a",
+   "round": 3,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-060",
+   "debate_id": "aac6f142-8662-401e-b48c-9d0f9e84cc46",
+   "turn_id": "f8277b0d-e145-4d8d-8754-fcfac20c4076",
+   "round": 1,
+   "speaker": "skeptic",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-049",
+   "debate_id": "7dd088cd-4c54-4a3a-9a19-386eaa678ff9",
+   "turn_id": "9cb0a3b9-ebf8-4a72-ad8c-465d2c9265ec",
+   "round": 4,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-070",
+   "debate_id": "d26dabcf-e754-4aaa-b57d-1127f4681408",
+   "turn_id": "33d99d96-2ea8-4776-ad22-ff42d5ff8bde",
+   "round": 1,
+   "speaker": "safetyist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-067",
+   "debate_id": "cdb1a6b9-c9f0-406d-8539-b77b38409bc5",
+   "turn_id": "78549481-02f2-4303-b221-7e61366d60b8",
+   "round": 3,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-071",
+   "debate_id": "d6a1b446-8e05-4873-8422-3a16763a3b7d",
+   "turn_id": "85e18ad1-2d34-48fc-8ee1-e6074070ef81",
+   "round": 3,
+   "speaker": "skeptic",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-073",
+   "debate_id": "eb21ef39-614d-43f9-91c0-be2ed00a5df8",
+   "turn_id": "d2197f9f-e001-46d2-b6c0-037709ba977c",
+   "round": 4,
+   "speaker": "skeptic",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-047",
+   "debate_id": "629d78c9-e26e-4995-ac7d-55bca11cae6f",
+   "turn_id": "7a030ec9-4f31-406a-9ac8-09ba3767d963",
+   "round": 5,
+   "speaker": "Safetyist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-061",
+   "debate_id": "b45f82f7-6c68-43a6-866c-86590264d8e5",
+   "turn_id": "05eed973-767b-429a-9565-51393b343a8b",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-066",
+   "debate_id": "cdb1a6b9-c9f0-406d-8539-b77b38409bc5",
+   "turn_id": "47c9aad0-702a-49df-b001-ecceea52f011",
+   "round": 2,
+   "speaker": "safetyist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-041",
+   "debate_id": "1418ee11-5641-4033-a400-c26c9f5e4f45",
+   "turn_id": "1ca0c40a-5285-4dcf-8b92-887778c2da29",
+   "round": 3,
+   "speaker": "safetyist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-072",
+   "debate_id": "e9af2f30-c8b7-4030-9992-bf5c9e8dd26b",
+   "turn_id": "fd5881ef-b5e2-4e38-9903-7d4ca8ab40df",
+   "round": 3,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-044",
+   "debate_id": "3ba7f96a-85b5-4daa-8670-39544b4c5d35",
+   "turn_id": "84010413-50c2-4747-891b-a61a17ca761d",
+   "round": 3,
+   "speaker": "accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-065",
+   "debate_id": "cbf5bb79-b02b-47af-9e4a-d1baa79373b0",
+   "turn_id": "420846a6-dc98-499b-b955-7bf7349c0853",
+   "round": 2,
+   "speaker": "skeptic",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-079",
+   "debate_id": "ff1310c8-9a5b-415c-aa3a-eb076e12efc7",
+   "turn_id": "547fe0de-f6e1-4d92-b6d6-ed38bd0372f4",
+   "round": 2,
+   "speaker": "safetyist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-058",
+   "debate_id": "9ee89249-8e77-45b9-9589-b08c126e0060",
+   "turn_id": "f17e7e4d-e539-4c69-90ec-5a89e9ed6835",
+   "round": 1,
+   "speaker": "skeptic",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-069",
+   "debate_id": "cdc384d6-2f6a-4ce1-a29f-69509d578049",
+   "turn_id": "8337fb11-4b5c-40dd-baac-791939e7a7e4",
+   "round": 3,
+   "speaker": "Accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-050",
+   "debate_id": "7fd662b5-d3ce-4b83-8397-2d52b4eb3cee",
+   "turn_id": "e5906265-1e82-4cb2-b4a5-d4083d628f92",
+   "round": 2,
+   "speaker": "Safetyist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-053",
+   "debate_id": "8afd5747-9df7-4229-8fa0-b110e8815d27",
+   "turn_id": "189056fb-56f4-4e9d-986e-7a64e5aa9d30",
+   "round": 2,
+   "speaker": "Accelerationist",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-055",
+   "debate_id": "8afd5747-9df7-4229-8fa0-b110e8815d27",
+   "turn_id": "e38f271e-1d0f-4734-80f5-43b240507839",
+   "round": 1,
+   "speaker": "Skeptic",
+   "stratum": "deepening_candidate"
+  },
+  {
+   "sample_id": "d-090",
+   "debate_id": "3ba7f96a-85b5-4daa-8670-39544b4c5d35",
+   "turn_id": "111d4da4-bcfc-4bbd-85fb-1c9525c7c787",
+   "round": 4,
+   "speaker": "skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-096",
+   "debate_id": "5ff58b8b-8097-402c-bd32-6e0573f7e022",
+   "turn_id": "614c879a-fdac-4291-af20-89f9881cf596",
+   "round": 1,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-105",
+   "debate_id": "973d8a67-50cb-453d-9fbc-b96ae304c054",
+   "turn_id": "6520441e-2db5-4e6b-923a-95c1745873d0",
+   "round": 4,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-115",
+   "debate_id": "cfbe347f-81cb-41cf-9891-95c0edd63380",
+   "turn_id": "67342e89-bf7d-4b3c-b1ac-30c32f7d7235",
+   "round": 4,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-099",
+   "debate_id": "7a75e42f-4ea1-4a02-b815-86c44b60fde4",
+   "turn_id": "2e31c6e9-9ce2-49cb-a6a1-9942149a2c4d",
+   "round": 4,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-118",
+   "debate_id": "f1274123-becd-4c66-afeb-2aa44856599c",
+   "turn_id": "3e7ad691-d0ba-48e8-b4e1-ff0045ada553",
+   "round": 4,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-111",
+   "debate_id": "c0a633bb-4dcb-4495-bf44-ee7eb990d318",
+   "turn_id": "116517ca-7940-4d04-97e6-e465f43bb7f8",
+   "round": 3,
+   "speaker": "skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-104",
+   "debate_id": "973d8a67-50cb-453d-9fbc-b96ae304c054",
+   "turn_id": "0af2bd29-f695-40c2-ab61-5e04c5cbc872",
+   "round": 4,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-080",
+   "debate_id": "00f290a3-71e0-4498-b461-d42b2e22c115",
+   "turn_id": "184f9cb6-2e44-4c70-9371-743a4005b994",
+   "round": 3,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-083",
+   "debate_id": "24f6d028-0221-41ad-a04e-79d2a1813095",
+   "turn_id": "11fb5d83-2fd5-42e6-a5f9-0257906648d0",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-112",
+   "debate_id": "c6062671-824a-4636-81f5-c488c5a09b1e",
+   "turn_id": "7208bf13-0e4f-4bcb-bfd2-c025e80e1382",
+   "round": 1,
+   "speaker": "skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-093",
+   "debate_id": "5320ce33-5543-4ce2-8f0f-64d0310bec46",
+   "turn_id": "03b06edb-c6d3-4188-9f08-5e80e1b5d916",
+   "round": 2,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-107",
+   "debate_id": "a4821a34-1efb-4f90-bb88-32e9e57ff060",
+   "turn_id": "bac37e01-b9da-44f9-a2e2-16256d37dbd3",
+   "round": 3,
+   "speaker": "skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-097",
+   "debate_id": "61424059-3ebf-4c10-9f08-48cfe593546b",
+   "turn_id": "01b4a388-6a22-48c0-ab18-6b662a580c53",
+   "round": 2,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-098",
+   "debate_id": "71cbbe69-bed1-43d6-89a4-8e13491a31f3",
+   "turn_id": "2a6bee7b-e1b4-4f2f-9914-908326f52dd4",
+   "round": 2,
+   "speaker": "skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-106",
+   "debate_id": "a4821a34-1efb-4f90-bb88-32e9e57ff060",
+   "turn_id": "5380d12e-45df-4c76-befd-0f923b2eb3ef",
+   "round": 4,
+   "speaker": "skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-103",
+   "debate_id": "8fc49ef7-edc0-46ba-b9d6-c594798f913e",
+   "turn_id": "4f2f769b-2399-4181-98ec-8f0f27804c8f",
+   "round": 2,
+   "speaker": "skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-091",
+   "debate_id": "49647cac-31c6-48f6-bd13-ddc7d7857c6a",
+   "turn_id": "22caa12e-5ce5-459f-ab10-01dfd102d810",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-081",
+   "debate_id": "04167ebc-7c5d-489e-b82f-c1b5dd4a5dd5",
+   "turn_id": "02eace29-5c4a-44c7-bc34-2214a4d76d1c",
+   "round": 4,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-114",
+   "debate_id": "cfbe347f-81cb-41cf-9891-95c0edd63380",
+   "turn_id": "36765b50-e529-4874-b15b-c48eb6aad9de",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-095",
+   "debate_id": "55447f02-2ba7-4e01-8728-73337bc724eb",
+   "turn_id": "3a502cca-0208-449d-9223-b7f31fd4baba",
+   "round": 4,
+   "speaker": "skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-102",
+   "debate_id": "87b685da-0957-4995-99c3-2b0e05ff4e31",
+   "turn_id": "5fa97fb4-4ef1-45c9-ab38-d29532ae5227",
+   "round": 5,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-085",
+   "debate_id": "2b3248de-7bb5-44ec-be9f-13fb81f28e5b",
+   "turn_id": "70e7c6c9-883f-4cc4-b9b1-38c2f7924b8b",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-101",
+   "debate_id": "7c076c28-6860-472d-9890-2ba0b47114b8",
+   "turn_id": "94c10914-b7e0-4f78-819d-1770304e18cd",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-089",
+   "debate_id": "3b713c18-f4ac-4a11-b797-1c3880b7eac4",
+   "turn_id": "da9d8bd2-4412-49a1-9762-692cd0ad89eb",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-119",
+   "debate_id": "f59339a3-2422-4c89-98e8-4897f859e8de",
+   "turn_id": "0ae26d6b-e749-47ad-9720-d6c486805ef4",
+   "round": 3,
+   "speaker": "skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-117",
+   "debate_id": "cff6b797-64fb-447c-b738-b5b67b0ede37",
+   "turn_id": "ad108606-418d-4985-8449-18b1436c5bb7",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-092",
+   "debate_id": "49647cac-31c6-48f6-bd13-ddc7d7857c6a",
+   "turn_id": "8b8820a7-53dc-43bd-b8bc-6026469b8bb6",
+   "round": 3,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-110",
+   "debate_id": "be7de04b-a292-48d9-845b-4b1911d04f1a",
+   "turn_id": "d7138ee4-a734-4686-955d-bf187944248b",
+   "round": 4,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-088",
+   "debate_id": "371e78fa-8a48-4ee8-9bfb-94a71c44c17a",
+   "turn_id": "9803a709-e32d-4c4c-b03d-a3a133ed5a95",
+   "round": 3,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-116",
+   "debate_id": "cfbe347f-81cb-41cf-9891-95c0edd63380",
+   "turn_id": "68539a15-cba1-4608-91f3-aab7bb176554",
+   "round": 2,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-108",
+   "debate_id": "a8d04afa-5c2f-47d4-952d-fda422224101",
+   "turn_id": "658dcb9e-7b6f-4458-80f9-48bdce632b92",
+   "round": 4,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-082",
+   "debate_id": "0988d971-d5e5-459d-8472-cfef91e64eff",
+   "turn_id": "b7aefe6e-dcd5-49f8-845c-52f412f880e2",
+   "round": 5,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-094",
+   "debate_id": "5320ce33-5543-4ce2-8f0f-64d0310bec46",
+   "turn_id": "548f5f4e-f1f4-4c39-bc03-8a1d1083d83b",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-084",
+   "debate_id": "24f6d028-0221-41ad-a04e-79d2a1813095",
+   "turn_id": "e8ff58a7-9694-437f-8b61-eb745d515f92",
+   "round": 3,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-109",
+   "debate_id": "b45f82f7-6c68-43a6-866c-86590264d8e5",
+   "turn_id": "82b05562-44e2-49e8-8a4f-663f9b921dc8",
+   "round": 3,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-113",
+   "debate_id": "c72fe2aa-c6d9-4fad-ac28-2187abcf9ca1",
+   "turn_id": "b5eac663-4c77-4303-9362-88b2d1ad24f8",
+   "round": 3,
+   "speaker": "Skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-100",
+   "debate_id": "7a75e42f-4ea1-4a02-b815-86c44b60fde4",
+   "turn_id": "75adcf2f-8c74-4b45-8a5b-e0a8b477c49f",
+   "round": 3,
+   "speaker": "safetyist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-087",
+   "debate_id": "2bd7f8d1-00b6-4adc-835e-ce77673b86c1",
+   "turn_id": "a6ffd1cb-a072-4d7a-9ed8-328bc7324e9c",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-086",
+   "debate_id": "2bd7f8d1-00b6-4adc-835e-ce77673b86c1",
+   "turn_id": "14bb475a-ab50-49a2-a5a7-3508159785de",
+   "round": 3,
+   "speaker": "skeptic",
+   "stratum": "drift_candidate"
+  },
+  {
+   "sample_id": "d-031",
+   "debate_id": "cba97edb-0201-4e9e-a121-56f5497bb2ea",
+   "turn_id": "a19aa569-769a-42b5-9763-aeb545e33b82",
+   "round": 4,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-011",
+   "debate_id": "3faddbc7-9be2-431c-b9ce-3ca6424f1e18",
+   "turn_id": "f7cac01e-cfa6-4f19-af36-a34716b73300",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-010",
+   "debate_id": "3b713c18-f4ac-4a11-b797-1c3880b7eac4",
+   "turn_id": "d46daa08-37aa-4ee1-a2e0-f90f3c107b29",
+   "round": 1,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-034",
+   "debate_id": "d9c128ec-2a5c-4bae-a49e-9274a6d5cdb3",
+   "turn_id": "172666c9-c8e1-46eb-bc2d-163d2da62818",
+   "round": 1,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-017",
+   "debate_id": "629d78c9-e26e-4995-ac7d-55bca11cae6f",
+   "turn_id": "18ea2e3c-6d83-426d-9ec4-e0471f8cbcf8",
+   "round": 1,
+   "speaker": "Safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-039",
+   "debate_id": "ff1310c8-9a5b-415c-aa3a-eb076e12efc7",
+   "turn_id": "c65bdedc-fb47-4129-afad-42b93bebbd8b",
+   "round": 3,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-000",
+   "debate_id": "00f290a3-71e0-4498-b461-d42b2e22c115",
+   "turn_id": "ea71e78d-6df4-40da-a523-07d4134f16f6",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-013",
+   "debate_id": "5a69c019-6fcd-4210-8bd7-2b8cb3eb390e",
+   "turn_id": "6983b262-06b9-4f7d-a4d3-f75b92de7adb",
+   "round": 1,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-037",
+   "debate_id": "fae3e35a-01d1-4e56-a49a-736094e8d72e",
+   "turn_id": "ebd60186-79d2-4218-9d69-79f7886ad9c5",
+   "round": 1,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-020",
+   "debate_id": "7dd088cd-4c54-4a3a-9a19-386eaa678ff9",
+   "turn_id": "cd5fb944-a480-4cf1-998b-a69aa042499f",
+   "round": 1,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-015",
+   "debate_id": "5cf84d60-bfc3-4361-a157-ad80ceec97c3",
+   "turn_id": "a425b23c-0765-45b8-a4e9-f9738a083ece",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-021",
+   "debate_id": "8d9c6a59-92cf-430a-9a0a-52541dbcddf5",
+   "turn_id": "08284ef6-eaad-4eb4-bf53-6ebe86733a19",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-016",
+   "debate_id": "61424059-3ebf-4c10-9f08-48cfe593546b",
+   "turn_id": "dc3e02a2-8b22-46c6-9960-eea3e1f33eae",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-024",
+   "debate_id": "a1ff3179-e4f4-4296-87cd-3fafd29a4230",
+   "turn_id": "765c567a-285c-4f06-8f09-09cdbe04dad6",
+   "round": 1,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-027",
+   "debate_id": "bca9dba7-2ce0-4d19-8f78-ebdc34f6e62f",
+   "turn_id": "8117af5f-b654-48c8-9225-aa800e072454",
+   "round": 2,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-005",
+   "debate_id": "1aa27450-ab76-44d6-a9d7-25d7b136cd6a",
+   "turn_id": "81378312-bc2b-4545-bd4b-4f92eb1be279",
+   "round": 1,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-018",
+   "debate_id": "68739781-1a15-44ef-8771-ce5f88bbce92",
+   "turn_id": "ed248978-f205-428e-b4c4-d7c7c76db757",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-002",
+   "debate_id": "047fae06-275b-41b3-9f8c-cd22c2050178",
+   "turn_id": "aef12a47-97e4-48d3-8fa5-0f098d3bc0ce",
+   "round": 1,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-028",
+   "debate_id": "c5a78955-cc24-4c5b-aa05-5f2771b86548",
+   "turn_id": "5d681902-2acf-4de9-bbbe-e8e7978d1c16",
+   "round": 2,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-001",
+   "debate_id": "04167ebc-7c5d-489e-b82f-c1b5dd4a5dd5",
+   "turn_id": "6c41e6ed-39b3-4fdc-ae94-62e17c0cc818",
+   "round": 4,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-030",
+   "debate_id": "cb5c96e3-87d2-41bf-8bcf-25e537240d3c",
+   "turn_id": "0562d57e-b3d3-42db-ac48-b54a9dbb1725",
+   "round": 3,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-014",
+   "debate_id": "5bfe5623-20d9-4769-8e69-e2f473ecb96c",
+   "turn_id": "ce2df2ea-31db-423e-88f8-f9611d9862df",
+   "round": 3,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-025",
+   "debate_id": "aa493447-2b1a-42b8-93cd-5f64f982e86b",
+   "turn_id": "5b755453-40fb-4088-a81a-d42356826dc5",
+   "round": 1,
+   "speaker": "Safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-026",
+   "debate_id": "b45f82f7-6c68-43a6-866c-86590264d8e5",
+   "turn_id": "681c3734-2853-4361-9dbb-6e3c7b59fa58",
+   "round": 1,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-035",
+   "debate_id": "f283bbff-6a3d-471f-aebb-b215c13afd3f",
+   "turn_id": "004e65eb-6199-41d4-85d5-5d7cf9ca7562",
+   "round": 1,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-029",
+   "debate_id": "c5a78955-cc24-4c5b-aa05-5f2771b86548",
+   "turn_id": "d39ede65-1bf2-4243-9a8f-18423402b47c",
+   "round": 1,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-012",
+   "debate_id": "488de8a5-8547-4bce-bfac-0b79b129ec3b",
+   "turn_id": "aad8e2cb-498d-4fff-ae7b-2dc136ae0a5f",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-022",
+   "debate_id": "9266a5ff-de7c-4f0d-8b5e-85e1b505b387",
+   "turn_id": "25f4cd1b-b388-4933-a381-1acef543a28d",
+   "round": 2,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-004",
+   "debate_id": "14ae53bc-9360-4aea-9694-a21a5647c3de",
+   "turn_id": "00c199d6-d5df-4534-97e1-b1e83536ba21",
+   "round": 1,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-009",
+   "debate_id": "3b066483-3cf9-483e-a141-953d6fa231e5",
+   "turn_id": "6c468d76-9378-4bb0-b034-cbc45674276a",
+   "round": 4,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-036",
+   "debate_id": "f283bbff-6a3d-471f-aebb-b215c13afd3f",
+   "turn_id": "db6fb232-7dd2-41e0-8145-1897461a04f5",
+   "round": 2,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-032",
+   "debate_id": "cba97edb-0201-4e9e-a121-56f5497bb2ea",
+   "turn_id": "d0fe8a63-accf-493b-b71f-db0701861ded",
+   "round": 2,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-023",
+   "debate_id": "93782977-fdcf-467b-8089-4b445b8fb833",
+   "turn_id": "202ca76b-d693-40aa-a7c1-1ebe1cce0d0b",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-008",
+   "debate_id": "396208e0-60d6-4d60-a9e4-3af6b4cf9501",
+   "turn_id": "d0728d18-bfbc-4b00-9853-5c0f019f2c72",
+   "round": 4,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-033",
+   "debate_id": "cdb1a6b9-c9f0-406d-8539-b77b38409bc5",
+   "turn_id": "b9e036f3-bed8-4173-9208-ef3be65a1218",
+   "round": 1,
+   "speaker": "skeptic",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-007",
+   "debate_id": "3210eb8a-e4a4-4421-8150-56a06fc4aaed",
+   "turn_id": "4f641fd5-1239-40b3-87aa-942b48bdb9f1",
+   "round": 1,
+   "speaker": "Accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-003",
+   "debate_id": "0ea49b5b-139a-4fbf-a6a3-4fa8d1c34d07",
+   "turn_id": "f46f5d23-ae74-4f2d-b81d-9da078c3cd0e",
+   "round": 1,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-006",
+   "debate_id": "1af1e435-17ef-4f8f-94c2-34dad9b915b9",
+   "turn_id": "d3a505d1-b8c3-4c1c-91af-3730f385015d",
+   "round": 2,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-038",
+   "debate_id": "ff1310c8-9a5b-415c-aa3a-eb076e12efc7",
+   "turn_id": "3dc6b5f2-83ca-46de-bc88-cedb1d0326a3",
+   "round": 1,
+   "speaker": "accelerationist",
+   "stratum": "core_control"
+  },
+  {
+   "sample_id": "d-019",
+   "debate_id": "76d42c6e-d0c4-4393-b9a8-8030459bd66c",
+   "turn_id": "29db9af9-0e27-41b0-8f34-23bfcfa83d63",
+   "round": 2,
+   "speaker": "safetyist",
+   "stratum": "core_control"
+  }
+ ]
+}
