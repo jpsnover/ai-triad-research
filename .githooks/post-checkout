@@ -49,6 +49,15 @@ branch=$(git symbolic-ref -q --short HEAD 2>/dev/null) || exit 0
 # On `main` → the shared checkout is where it belongs. Silent.
 [ "$branch" = "main" ] && exit 0
 
+# ── Workflow-mode switch (t/3638) ────────────────────────────────────────────
+# In `direct` mode the shared tree is allowed to sit on a feature branch, so skip this
+# advisory. FAIL-SAFE: force `worktree` unless the helper printed exactly `direct`, so a
+# missing/broken helper keeps the nudge (tightens, never loosens).
+_top=$(git rev-parse --show-toplevel 2>/dev/null) || _top="."
+mode=$(sh "$_top/.githooks/read-workflow-mode.sh" 2>/dev/null)
+[ "$mode" = "direct" ] || mode=worktree
+[ "$mode" = "direct" ] && exit 0
+
 # Shared checkout is now on a feature branch. Nudge toward a worktree.
 cat >&2 <<MSG
 

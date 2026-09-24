@@ -9,6 +9,7 @@ import {
   InquiryResultSchema,
   INQUIRY_SCHEMA_VERSION,
 } from './schema.js';
+import { parseInquiryResult } from './parse.js';
 
 // A minimal-but-complete valid InquiryResult, reused across the parse tests too.
 export function makeValidResult(): Record<string, unknown> {
@@ -107,5 +108,40 @@ describe('InquiryResultSchema — node snapshot + derivation stamp present (ADR 
       // note c: ratio display survives as a string a bare number could not express
       expect(r.data.calibration[0].displayValue).toBe('72 / 84');
     }
+  });
+});
+
+describe('InquiryResultSchema — debateId raw-run reference (t/3641)', () => {
+  it('accepts a stamped string debateId and exposes it typed', () => {
+    const r = InquiryResultSchema.safeParse({ ...makeValidResult(), debateId: 'debate-abc123' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.debateId).toBe('debate-abc123');
+  });
+
+  it('accepts absence — old debateId-less records still parse (optional → no schemaVersion bump)', () => {
+    const base = makeValidResult();
+    expect('debateId' in base).toBe(false); // fixture has none, mirroring a pre-t/3641 persisted result
+    const r = InquiryResultSchema.safeParse(base);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.debateId).toBeUndefined();
+  });
+
+  it('REJECTS an explicit null — .optional() admits undefined, not null (TL e/203#4, SO e/203#5)', () => {
+    // Ruling: null is unreachable (every result has a session), so a producer must OMIT the key, never
+    // stamp null. Pinning that null FAILS validation catches a null-emitting producer loudly at the
+    // boundary rather than letting it silently poison a persisted, shareable artifact.
+    const r = InquiryResultSchema.safeParse({ ...makeValidResult(), debateId: null });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects a non-string debateId', () => {
+    const r = InquiryResultSchema.safeParse({ ...makeValidResult(), debateId: 42 });
+    expect(r.success).toBe(false);
+  });
+
+  it('parseInquiryResult round-trips a present id, tolerates absence, and refuses null', () => {
+    expect(parseInquiryResult({ ...makeValidResult(), debateId: 'debate-x' }).debateId).toBe('debate-x');
+    expect(parseInquiryResult(makeValidResult()).debateId).toBeUndefined();
+    expect(() => parseInquiryResult({ ...makeValidResult(), debateId: null })).toThrow();
   });
 });
