@@ -19,6 +19,7 @@ import {
 } from '../storage/inquiryResultStore.js';
 import { deriveTruncation } from '../../../../lib/inquiry/index.js';
 import type { InquiryResult } from '../../../../lib/inquiry/index.js';
+import { CLASSIFICATION, dispositionFor, type Surface } from '../../../../lib/inquiry/fieldClassification.js';
 
 // ── Paths ──
 
@@ -558,18 +559,37 @@ function stripOriginalId(meta: unknown): unknown {
   return rest;
 }
 
-// t/3621 SO review (e/198#3): `stripSensitiveKeys` is a DENYLIST — it strips known-sensitive
-// key names/secret-prefixed values, but has no knowledge of a field that is sensitive purely
-// by CONTEXT. `debateId` is exactly that case: an ordinary-looking string field that
-// InquiryResultSchema's `.passthrough()` lets ride unexamined, and TL explicitly ruled it must
-// never reach a non-authenticated/cross-user surface (t/3641, e/203#4) — a viewer holding a
-// debateId could reach a second, un-threat-modelled read path via loadDebateSession. Community
-// is exactly such a cross-user surface. A full positive-allowlist redesign (shared with Server
-// Auth's t/3623 public-share allowlist) is tracked separately (t/3644) — this is the narrow,
-// urgent fix: explicitly strip the field the denylist structurally cannot catch.
-const COMMUNITY_DENYLIST_BLIND_SPOTS: Partial<Record<Submission['type'], string[]>> = {
-  inquiry: ['debateId'],
-};
+/**
+ * t/3651: constructive positive-allowlist projector for an `InquiryResult`-shaped value onto one
+ * `fieldClassification` surface (t/3648). A path is a LEAF the instant it appears in `CLASSIFICATION`
+ * — matching the matrix's own dotted-path granularity (e.g. `derivation.models` is one atomic leaf
+ * while `request.models.debaters`/`.evaluator` are two) — so this needs no independent schema
+ * knowledge and stays correct as the matrix's own field boundaries evolve. Replaces
+ * `COMMUNITY_DENYLIST_BLIND_SPOTS` (t/3621/e/198#3): a denylist can silently miss a context-sensitive
+ * field (`debateId` did); a positive projection derived from the SO-blessed, CI-enforced matrix
+ * structurally cannot — an unclassified leaf throws via `dispositionFor` rather than passing through.
+ */
+function projectInquiryFields(value: unknown, surface: Surface, path: string): unknown {
+  if (path in CLASSIFICATION) {
+    return dispositionFor(path, surface).include ? value : undefined;
+  }
+  if (Array.isArray(value)) {
+    return value.map((el) => projectInquiryFields(el, surface, path));
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const childPath = path ? `${path}.${k}` : k;
+      const projected = projectInquiryFields(v, surface, childPath);
+      if (projected !== undefined) out[k] = projected;
+    }
+    return out;
+  }
+  // A primitive with no classified path above it. fieldClassification.test.ts's exhaustiveness gate
+  // guarantees this can't happen for a real InquiryResult (every schema leaf is classified on all
+  // three surfaces) — unreachable in practice, not a silent pass-through default.
+  return undefined;
+}
 
 function sanitizeForCommunity(data: unknown, submittedBy: string, type: Submission['type']): unknown {
   // t/2031: bound the ENTIRE recursive strip/sanitize walk under one wall-time
@@ -577,10 +597,17 @@ function sanitizeForCommunity(data: unknown, submittedBy: string, type: Submissi
   // into a multi-minute event-loop block (Server Community sign-off e/53#3; the
   // budget is re-entrant-safe, so any nested sanitizeDeep composes rather than
   // reseeding). Behavior-preserving: legit submissions finish in ~ms, far under budget.
-  const d = withSanitizeBudget(
+  let d = withSanitizeBudget(
     () => stripSensitiveKeys(JSON.parse(JSON.stringify(data))),
   ) as Record<string, unknown>;
-  for (const key of COMMUNITY_DENYLIST_BLIND_SPOTS[type] ?? []) delete d[key];
+  if (type === 'inquiry') {
+    // t/3651: `id`/`created_at` are community-projection-owned bridging fields stamped by
+    // submitToCommunity (t/3621), not part of InquiryResultSchema — the matrix classifies only
+    // contract fields (t/3651#7's "not part of this matrix" note), so they're preserved explicitly
+    // rather than dropped as unclassified. `id` is re-minted below regardless.
+    const { id, created_at, ...contractFields } = d;
+    d = { ...projectInquiryFields(contractFields, 'community', '') as Record<string, unknown>, id, created_at };
+  }
   d.community_metadata = {
     submitted_by_display: submittedBy,
     submitted_at: new Date().toISOString(),
