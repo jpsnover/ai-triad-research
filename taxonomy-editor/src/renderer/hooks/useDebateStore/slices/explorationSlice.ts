@@ -7,6 +7,7 @@ import type { ExplorationSummary } from '@lib/debate/explorationSummary';
 import { extractExplorationSummary } from '@lib/debate/explorationSummary';
 import { EXPLORATION_PRESET } from '@lib/debate/explorationPresetConfig';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { enterClarificationOrBegin } from '../shared/clarificationGuard';
 
 export interface ExplorationSlice {
   explorationSummary: ExplorationSummary | null;
@@ -143,7 +144,7 @@ export const createExplorationSlice: StateCreator<DebateStore, [], [], Explorati
 
       set({ explorationSummary: null, explorationSourceId: null });
       await loadDebate(id);
-      get().updatePhase('clarification');
+      await enterClarificationOrBegin(get);
       await get().saveDebate('seeded-debate-setup');
 
       getGlobalRecorder()?.record({
