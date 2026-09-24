@@ -128,7 +128,7 @@ export async function synthesizeInquiry(
   derivation: ResolvedDerivation,
   request: StoredInquiryRequest,
   adapter: AIAdapter,
-  debateId: string | null = null,
+  debateId?: string,
 ): Promise<InquiryResult> {
   // TL t/3580#3 note (1): evaluatorModel must come from derivation, not independently selected.
   const evaluatorModel =

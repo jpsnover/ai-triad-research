@@ -121,5 +121,12 @@ export async function runInquiryPipeline(
 
   // ── Stage 5: synthesize ────────────────────────────────────────────────────
   deps.onStage?.('synthesizing');
-  return synthesizeInquiry(session, grounding, calibration, derivation, request, deps.adapter, session.id ?? null);
+  const debateId = session.id || undefined;
+  if (!debateId) {
+    warn(
+      'runInquiryPipeline: session.id is missing — debateId omitted from InquiryResult ' +
+      `(terminationReason: ${terminationReason ?? 'none'})`,
+    );
+  }
+  return synthesizeInquiry(session, grounding, calibration, derivation, request, deps.adapter, debateId);
 }
