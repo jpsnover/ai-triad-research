@@ -48,6 +48,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Make fail-closed EXPLICIT (SO residual 2, e/202#7): GitHub's default run shell is
+          # `bash -eo pipefail`, so a malformed-but-200 API response makes jq error → the
+          # HAS_* assignment inherits non-zero → job reds. That is the behaviour we want, but it
+          # currently rests on an IMPLICIT flag — a future `shell:` override would silently flip
+          # it to fail-OPEN (report success on garbage = the Arm E class). State it in-script so
+          # it survives a shell change.
+          set -euo pipefail
           PR_NUMBER="${{ github.event.pull_request.number }}"
           REPO="${{ github.repository }}"
 
@@ -55,18 +62,23 @@ jobs:
           # transient gh/API error would block EVERY PR. Retry 3x with short backoff; on
           # exhaustion FAIL CLOSED (right default for a guard) but with a LEGIBLE message that
           # says the API query failed — NOT that a joint-gv violation exists. Fallback-Path
-          # Logging rule: name WHICH condition fired so a red is triageable, never ambiguous.
+          # Logging rule (e/202#7 residual 1): CAPTURE the stderr and surface it, because the
+          # causes have OPPOSITE remedies — a transient 5xx wants a re-run; a token/permission
+          # error wants a workflow fix and will never recover on re-run.
           PR_JSON=""
+          last_err=""
+          errfile="${RUNNER_TEMP:-/tmp}/joint-gv-guard.err"
           for attempt in 1 2 3; do
-            if PR_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json autoMergeRequest,labels 2>/dev/null); then
+            if PR_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json autoMergeRequest,labels 2>"$errfile"); then
               break
             fi
             PR_JSON=""
-            echo "::warning::joint-gv-guard: gh pr view attempt ${attempt}/3 failed (transient API/infra) — retrying in $((attempt * 3))s"
+            last_err=$(head -c 400 "$errfile" 2>/dev/null | tr '\n' ' ')
+            echo "::warning::joint-gv-guard: gh pr view attempt ${attempt}/3 failed — ${last_err} — retrying in $((attempt * 3))s"
             sleep $((attempt * 3))
           done
           if [ -z "$PR_JSON" ]; then
-            echo "::error::joint-gv-guard: could NOT read PR state after 3 attempts. This is an API/INFRA failure, NOT a joint-gv violation — re-run this job once the GitHub API recovers. (Failing closed because this is a required gate.)"
+            echo "::error::joint-gv-guard: could NOT read PR state after 3 attempts — API/INFRA failure, NOT a joint-gv violation. Last error: ${last_err}. A transient 5xx → re-run this job; a token/permission error → fix the workflow (will NOT recover on re-run). (Failing closed — required gate.)"
             exit 1
           fi
 
