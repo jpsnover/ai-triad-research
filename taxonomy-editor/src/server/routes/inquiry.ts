@@ -29,7 +29,7 @@ import {
   startInquiryJob, getInquiryJob, hasInquiryJob, countRunningInquiryJobs,
   findIdempotentInquiryJob, deriveTruncation, MAX_CONCURRENT_INQUIRY_JOBS, type InquiryJob,
 } from '../inquiryJobs.js';
-import { loadInquiryResult } from '../storage/inquiryResultStore.js';
+import { loadInquiryResult, listInquiryResults } from '../storage/inquiryResultStore.js';
 import { buildInquiryRunPipeline } from '../inquiryPipelineDeps.js';
 
 /** The ephemeral poll view of a job — no internals leaked. */
@@ -110,6 +110,26 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'inquiry', level: 'error', message: 'POST /api/inquiry failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  // GET /api/inquiry — list the authenticated user's past inquiries (the "My Questions" surface, t/3619).
+  // Bare `InquiryResultSummary[]`, mirroring the /api/debates + /api/chats list shape (t/3619 asks to mirror
+  // those; they return a bare array, not an envelope). Registered before /api/inquiry/:jobId — the bare path
+  // and the one-segment :jobId path don't unify, but list-before-detail matches the debates.ts convention.
+  // Authenticated-only like the rest of this group (ADR-0002 #8): we fail closed at the gate even though
+  // listInquiryResults is already per-user (anon → []) as defense in depth.
+  get('/api/inquiry', async (_req, res) => {
+    const user = getCurrentUser();
+    if (!user || user.isAnonymous) { error(res, 'Authentication required', 401); return; }
+    try {
+      json(res, await listInquiryResults());
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'inquiry', level: 'error', message: 'GET /api/inquiry failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       error(res, String(err), 500, err);

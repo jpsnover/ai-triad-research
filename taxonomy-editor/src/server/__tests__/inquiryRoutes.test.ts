@@ -19,6 +19,7 @@ const h = vi.hoisted(() => ({
   jobById: new Map<string, Record<string, unknown>>(),
   hasById: new Set<string>(),
   persisted: new Map<string, unknown>(),
+  summaries: [] as unknown[],
 }));
 
 vi.mock('../security/userContext.js', () => ({
@@ -43,7 +44,7 @@ vi.mock('../inquiryJobs.js', () => ({
   findIdempotentInquiryJob: () => h.idempotent,
   deriveTruncation: (r: { truncated?: boolean }) => ({ truncated: !!r.truncated, terminationReason: r.truncated ? 'api_ceiling' : undefined }),
 }));
-vi.mock('../storage/inquiryResultStore.js', () => ({ loadInquiryResult: async (jobId: string) => h.persisted.get(jobId) ?? null }));
+vi.mock('../storage/inquiryResultStore.js', () => ({ loadInquiryResult: async (jobId: string) => h.persisted.get(jobId) ?? null, listInquiryResults: async () => h.summaries }));
 vi.mock('../inquiryPipelineDeps.js', () => ({ buildInquiryRunPipeline: () => vi.fn() }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
 
@@ -71,7 +72,7 @@ const VALID = { question: 'What counts as an AI harm?', fidelity: 'standard' };
 beforeEach(() => {
   h.user = AUTHED; h.storageUserId = 'alice'; h.rpmAllowed = true; h.backendBlocked = false;
   h.registered = true; h.running = 0; h.idempotent = null;
-  h.jobById.clear(); h.hasById.clear(); h.persisted.clear();
+  h.jobById.clear(); h.hasById.clear(); h.persisted.clear(); h.summaries = [];
   startInquiryJob.mockClear();
 });
 
@@ -170,5 +171,40 @@ describe('t/3581 — GET /api/inquiry/:jobId', () => {
   it('404 when neither a job nor a persisted result exists', async () => {
     const r = res(); await get()(req('/api/inquiry/nope'), r, undefined);
     expect(r.statusCode).toBe(404);
+  });
+});
+
+describe('t/3619 — GET /api/inquiry (My Questions list)', () => {
+  const get = () => handler('GET', '/api/inquiry');
+
+  it('401 when anonymous (authenticated-only, ADR-0002 #8)', async () => {
+    h.user = { ...AUTHED, isAnonymous: true };
+    const r = res(); await get()(req('/api/inquiry'), r, undefined);
+    expect(r.statusCode).toBe(401);
+  });
+
+  it('401 when no user context at all', async () => {
+    h.user = null;
+    const r = res(); await get()(req('/api/inquiry'), r, undefined);
+    expect(r.statusCode).toBe(401);
+  });
+
+  it('returns the caller\'s inquiry summaries as a bare array (mirrors /api/debates shape)', async () => {
+    h.summaries = [
+      { jobId: 'job-1', question: 'What counts as an AI harm?', debateId: 'deb-1', truncated: false, createdAt: '2026-02-01T00:00:00.000Z' },
+      { jobId: 'job-2', question: 'Is alignment tractable?', debateId: null, truncated: true, terminationReason: 'api_ceiling', createdAt: '2026-01-01T00:00:00.000Z' },
+    ];
+    const r = res(); await get()(req('/api/inquiry'), r, undefined);
+    expect(r.statusCode).toBe(200);
+    const parsed = JSON.parse(r.body);
+    expect(Array.isArray(parsed)).toBe(true); // bare array, not an { items } envelope
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0]).toMatchObject({ jobId: 'job-1', question: 'What counts as an AI harm?' });
+  });
+
+  it('returns an empty array when the caller has no inquiries', async () => {
+    const r = res(); await get()(req('/api/inquiry'), r, undefined);
+    expect(r.statusCode).toBe(200);
+    expect(JSON.parse(r.body)).toEqual([]);
   });
 });
