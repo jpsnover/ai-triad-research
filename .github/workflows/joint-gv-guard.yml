@@ -1,0 +1,53 @@
+# joint-gv-guard — dedicated required status context for the joint-gv auto-merge guard.
+#
+# WHY THIS IS ITS OWN WORKFLOW (t/3607): the guard was a job inside ci.yml, and the
+# label/auto-merge PR events (labeled/unlabeled/auto_merge_enabled) that it needs were
+# added to ci.yml's `pull_request` types (t/3332). That made a label toggle re-run the
+# ENTIRE CI matrix, which (a) re-opened a transient BLOCKED window on an already-green PR
+# (t/3605) and (b) — as Arm E proved (t/3607#3) — a filter-skip "fix" let a label flip
+# ci-gate GREEN on a red SHA. Extracting the guard into a lightweight workflow lets ci.yml
+# drop the label events entirely (no re-run, no matrix waste), while the guard still fires
+# on them here.
+#
+# CRITICAL — ALWAYS REPORTS (TL condition, p/331#1271): this is a REQUIRED status context.
+# A required check that NEVER runs blocks a PR just as hard as a false green clears one
+# (the mirror of the Arm E bug — same class, opposite sign). So it triggers on the normal
+# PR events (opened/synchronize/reopened) too, not only the guard events, and it SELF-GATES:
+# it reports SUCCESS whenever the guard does not apply, and FAILURE only when a joint-gv PR
+# has auto-merge armed. Every PR therefore always gets a terminal joint-gv-guard result.
+name: joint-gv-guard
+
+on:
+  pull_request:
+    branches: [main]
+    # opened/synchronize/reopened → always report on every PR (never-labelled PRs included).
+    # labeled/unlabeled/auto_merge_enabled → the guard's actual trigger events (t/3332).
+    types: [opened, synchronize, reopened, labeled, unlabeled, auto_merge_enabled]
+
+# The job id below (joint-gv-guard) is the check-run name GitHub reports — the exact string
+# to add to branch protection as a required status context.
+jobs:
+  joint-gv-guard:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Check joint-gv label + auto-merge state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+
+          PR_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json autoMergeRequest,labels)
+          HAS_JOINT_GV=$(echo "$PR_JSON" | jq -r '[.labels[].name] | contains(["joint-gv"]) | tostring')
+          HAS_AUTO_MERGE=$(echo "$PR_JSON" | jq -r '(.autoMergeRequest != null) | tostring')
+
+          echo "joint-gv label: $HAS_JOINT_GV"
+          echo "auto-merge armed: $HAS_AUTO_MERGE"
+
+          if [ "$HAS_JOINT_GV" = "true" ] && [ "$HAS_AUTO_MERGE" = "true" ]; then
+            echo "::error::joint-gv PR has auto-merge enabled. Disable auto-merge; a joint-gv PR must be manually merged with --match-head-commit after the GV."
+            exit 1
+          fi
+          echo "guard OK — not a joint-gv PR with auto-merge armed; reporting success."
