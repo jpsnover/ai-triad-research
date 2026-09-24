@@ -23,6 +23,7 @@ import { resolveTurnValidationConfig } from '../../turnValidator.js';
 import { updateModeratorState, computeDebateHealthScore, buildInterventionBriefInjection, MOVE_RESPONSE_CONFIG, DIRECT_RESPONSE_PATTERNS, updateCruxEngagement } from '../../moderator.js';
 import { runModeratorSelection, executeTurnWithRetry, type ModeratorSelectionCallbacks, type ModeratorSelectionInput, type TurnRetryCallbacks, type TurnRetryInput } from '../../orchestration.js';
 import { pruneSessionData, pruneModeratorState } from '../../sessionPruning.js';
+import type { DriftTelemetryEntry } from '../../calibrationLogger/schema.js';
 import { getGlobalRecorder } from '../../../flight-recorder/index.js';
 import { runTurnPipeline, assemblePipelineResult, type TurnPipelineInput } from '../../turnPipeline.js';
 import { DEFAULT_TEMPERATURE } from '../../../ai-client/defaults.js';
@@ -1104,6 +1105,53 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
     scope_drift_check: scopeDriftCheck,
     overgen: overgenDiagnostics,
   });
+
+  // Drift telemetry shadow log (t/3603) — observations only, no behaviour change
+  {
+    const qr = pipelineResult.qualityGateResult;
+    let quality_action: DriftTelemetryEntry['quality_action'];
+    if (!qr) {
+      quality_action = 'no_gate';
+    } else if (!qr.post_repair) {
+      quality_action = 'accepted';
+    } else {
+      quality_action =
+        qr.repair_outcome === 'fixed' ? 'repair_fixed' :
+        qr.repair_outcome === 'partial' ? 'repair_partial' :
+        'repair_unchanged';
+    }
+
+    // Token sum: add input+output per stage; null only when zero stages have usage data
+    let tokenSum = 0;
+    let stagesWithUsage = 0;
+    for (const d of pipelineResult.stage_diagnostics) {
+      const diag = d as Record<string, unknown>;
+      const inp = typeof diag.input_tokens === 'number' ? diag.input_tokens : 0;
+      const out = typeof diag.output_tokens === 'number' ? diag.output_tokens : 0;
+      if (typeof diag.input_tokens === 'number' || typeof diag.output_tokens === 'number') {
+        stagesWithUsage++;
+      }
+      tokenSum += inp + out;
+    }
+
+    // crux_engaged: last convergence signal for this speaker (pushed by claimExtractionPipeline)
+    const lastConvSig = engine.session.convergence_signals?.slice(-1)[0];
+    const crux_engaged = lastConvSig?.crux_engagement_rate.used_this_turn ?? null;
+
+    const entry: DriftTelemetryEntry = {
+      round,
+      speaker: responder,
+      quality_action,
+      topic_aligned: pipelineResult.topicAlignmentResult?.topic_aligned ?? null,
+      alignment_repair_triggered: pipelineResult.topicAlignmentResult?.repaired ?? false,
+      crux_engaged,
+      tokens_total: stagesWithUsage > 0 ? tokenSum : null,
+      latency_ms_total: pipelineResult.total_time_ms,
+      topical_state: null,   // populated by CL's t/3630 estimator when it ships
+      topical_drift_score: null,
+    };
+    (engine.session.drift_telemetry ??= []).push(entry);
+  }
 
   // Track move types and disagreement types
   if (meta.move_types) {
