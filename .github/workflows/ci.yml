@@ -82,6 +82,12 @@ jobs:
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4.0.3
         id: filter
+        # t/3607: skip the paths-filter on guard-only PR actions (labeled/unlabeled/
+        # auto_merge_enabled, added in t/3332 for joint-gv-automerge-guard). When skipped,
+        # steps.filter.outputs.* are empty → every heavy `needs.changes.outputs.X == 'true'`
+        # job skips → ci-gate passes fast (skips tolerated) → no re-opened BLOCKED window
+        # (t/3605). joint-gv-automerge-guard is independent of `changes` and still fires.
+        if: ${{ !contains(fromJSON('["labeled","unlabeled","auto_merge_enabled"]'), github.event.action) }}
         with:
           filters: |
             # 'ai-models.json' is in powershell/electron/debate because the AI
