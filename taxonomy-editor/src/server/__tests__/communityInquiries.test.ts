@@ -128,6 +128,24 @@ describe('community inquiry submission (t/3621)', () => {
     ).rejects.toThrow(/requires/i);
   });
 
+  // t/3621 SO review (e/198#3 condition 3): debateId is an ordinary-looking passthrough field
+  // stripSensitiveKeys' denylist cannot catch, and TL ruled (t/3641, e/203#4) it must never reach
+  // a cross-user surface — community is exactly that. Proves the explicit strip actually fires,
+  // not just that the field happens to be absent from the fixture.
+  it('approveSubmission strips debateId from a published inquiry (never reaches a cross-user surface)', async () => {
+    const resultWithDebateId = { ...makeResult('Does this leak the debate id?'), debateId: 'debate-should-not-leak' };
+    await userContext.runWithUser(alice, () => saveInquiryResult(
+      'job-debateid',
+      resultWithDebateId,
+      { jobId: 'job-debateid', question: 'Does this leak the debate id?', debateId: 'debate-should-not-leak', truncated: false, createdAt: '2026-07-01T00:00:00.000Z' },
+    ));
+    const { submissionId } = await userContext.runWithUser(alice, () => community.submitToCommunity('inquiry', { id: 'job-debateid' }));
+    const { communityId } = await userContext.runWithUser(admin, () => community.approveSubmission(submissionId));
+
+    const published = await community.loadCommunityItem('inquiries', communityId) as Record<string, unknown>;
+    expect(published).not.toHaveProperty('debateId');
+  });
+
   it('approveSubmission publishes to community/inquiries/ and does not attempt an auto-share', async () => {
     await userContext.runWithUser(alice, () => saveInquiryResult(
       'job-2',
