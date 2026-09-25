@@ -23,7 +23,11 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # `epic/**` (t/3642): an epic integration branch must run CI on each merge so
+    # the INTEGRATED state of several roles' children is tested — a PR-only fix
+    # would let integration breakage accumulate silently (t/3618 exposed this:
+    # 4 individually-green children, zero runs against the epic head).
+    branches: [main, 'epic/**']
     # Skip the post-merge re-run for docs-only pushes. All code PRs already
     # ran CI before merging (branch protection). A push where every changed
     # file matches this list cannot affect any compiled artifact, so re-running
@@ -36,7 +40,10 @@ on:
       - 'docs/**'
       - 'deploy/azure/runbooks/**'
   pull_request:
-    branches: [main]
+    # `epic/**` (t/3642): a child PR opened directly against an epic base branch
+    # must be tested BEFORE it merges into the epic. `branches: [main]` alone
+    # matched nothing for such PRs → GitHub fired zero CI runs (t/3618).
+    branches: [main, 'epic/**']
     # Label/auto-merge event types (labeled/unlabeled/auto_merge_enabled) were
     # dropped here (t/3607 PR B): the joint-gv auto-merge guard now lives in its
     # own lightweight required workflow (.github/workflows/joint-gv-guard.yml)
