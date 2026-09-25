@@ -231,6 +231,41 @@ describe('refreshAIModels — merge, not replace + write on clean (t/1711 / t/20
   });
 });
 
+// ── refreshAIModels: claude offline fallback is registry-derived, not hardcoded (t/3661) ────────
+describe('refreshAIModels — claude fallback derives from ai-models.json (t/3661)', () => {
+  beforeEach(() => {
+    // no network → claude probe fails → the no-key/error fallback path is exercised
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('no network in test'); }));
+  });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('a claude model added to the registry appears in the offline fallback (proves future additions work)', async () => {
+    const cfg = clone(VALID_CONFIG);
+    cfg.backends.push({ id: 'claude', label: 'Claude' });
+    // an id that was never in any hardcoded catalog — it can ONLY appear if the fallback derives from the registry
+    cfg.models.push({ id: 'claude-future-99', apiModelId: 'claude-future-99', label: 'Claude Future 99', backend: 'claude' });
+    fileContent = JSON.stringify(cfg);
+
+    await refreshAIModels({ loadApiKey: () => null, repoRoot: '/fake' });
+    const savedClaude = JSON.parse(fileContent).models
+      .filter((m: { backend: string }) => m.backend === 'claude')
+      .map((m: { id: string }) => m.id);
+    expect(savedClaude).toContain('claude-future-99');
+    expect(savedClaude).not.toContain('claude-opus-4-8'); // a former hardcoded id, absent from this fixture
+  });
+
+  it('a registry with NO claude models yields an EMPTY claude fallback — the removed hardcoded catalog does not resurface', async () => {
+    const cfg = clone(VALID_CONFIG); // no claude models
+    cfg.backends.push({ id: 'claude', label: 'Claude' });
+    fileContent = JSON.stringify(cfg);
+
+    await refreshAIModels({ loadApiKey: () => null, repoRoot: '/fake' });
+    const savedClaude = JSON.parse(fileContent).models.filter((m: { backend: string }) => m.backend === 'claude');
+    // pre-t/3661 getKnownClaudeModels() returned [claude-opus-4-8, claude-sonnet-4-5, claude-haiku-4-5] here.
+    expect(savedClaude).toEqual([]);
+  });
+});
+
 // ── refreshAIModels: repair pass + validate-before-write guard (t/2039) ─────────────
 describe('refreshAIModels — repair + guard (t/2039)', () => {
   beforeEach(() => {

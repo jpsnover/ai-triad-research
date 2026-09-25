@@ -334,20 +334,12 @@ export async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]
   return probeClaudeCandidates(apiKey);
 }
 
-// Offline fallback menu, presented when live Claude discovery fails. A user PICKS from this list and the
-// id goes on to a real request, so every entry must be a model our own ai-models.json actually carries —
-// the model-literal lint (t/3657) now enforces that each id resolves. The pre-t/3657 entries (base Opus 4
-// and Haiku 3.5) were absent from the registry (they carried bare exemption markers that hid the
-// drift for months, t/3657#7); refreshed to registered ids so nothing downstream — floors, tiers, pricing,
-// discovery metadata — is missing for a model a user selects here. Sourcing this from ai-models.json
-// directly is the real fix (t/3661).
-export function getKnownClaudeModels(): ModelEntry[] {
-  return [
-    { id: 'claude-opus-4-8',   apiModelId: 'claude-opus-4-8',            label: 'Opus 4.8',            backend: 'claude' },
-    { id: 'claude-sonnet-4-5', apiModelId: 'claude-sonnet-4-5-20250514', label: 'Sonnet 4.5',          backend: 'claude' },
-    { id: 'claude-haiku-4-5',  apiModelId: 'claude-haiku-4-5-20251001',  label: 'Haiku 4.5 (fastest)', backend: 'claude' },
-  ];
-}
+// Claude's offline fallback (when live discovery fails) is DERIVED from ai-models.json, not a hardcoded
+// catalog (t/3661): the call sites below use `config.models.filter(m => m.backend === 'claude')`, the
+// same filter every other backend already uses for its fallback. No hand-maintained copy to drift from
+// the registry — a Claude model added to ai-models.json appears here automatically, and a retired one
+// can't linger in a user-facing menu. (Removed getKnownClaudeModels(); t/3657 had refreshed its stale
+// entries, but a resolution-checked duplicate is still a duplicate — the registry is the single source.)
 
 // ── OpenAI: MANUALLY CURATED (t/3552 decision b) ───────────────────────────────
 // OpenAI is NOT auto-discovered. GET /v1/models returns the whole catalog (~93 ids: dated snapshots,
@@ -446,7 +438,6 @@ async function discoverBackend(
   backendId: string,
   config: AIModelsConfig,
   deps: ModelDiscoveryDeps,
-  existingClaude: ModelEntry[],
 ): Promise<{ models: ModelEntry[]; result: BackendResult }> {
   if (backendId === 'ollama') {
     try {
@@ -466,9 +457,7 @@ async function discoverBackend(
 
   const apiKey = deps.loadApiKey(backendId);
   if (!apiKey) {
-    const fallback = backendId === 'claude'
-      ? (existingClaude.length > 0 ? existingClaude : getKnownClaudeModels())
-      : config.models.filter(m => m.backend === backendId);
+    const fallback = config.models.filter(m => m.backend === backendId);
     return { models: fallback, result: { ok: false, count: 0, error: 'No API key configured' } };
   }
 
@@ -487,7 +476,7 @@ async function discoverBackend(
   try {
     const models = await discover(apiKey);
     if (backendId === 'claude' && models.length === 0) {
-      const fallback = existingClaude.length > 0 ? existingClaude : getKnownClaudeModels();
+      const fallback = config.models.filter(m => m.backend === 'claude');
       return { models: fallback, result: { ok: false, count: 0, error: 'No valid models found via probing — kept existing' } };
     }
     console.log(`[ModelDiscovery] ${backendId}: discovered ${models.length} models`);
@@ -496,9 +485,7 @@ async function discoverBackend(
     recordError(err);
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[ModelDiscovery] ${backendId} error:`, msg);
-    const fallback = backendId === 'claude'
-      ? (existingClaude.length > 0 ? existingClaude : getKnownClaudeModels())
-      : config.models.filter(m => m.backend === backendId);
+    const fallback = config.models.filter(m => m.backend === backendId);
     return { models: fallback, result: { ok: false, count: 0, error: msg } };
   }
 }
@@ -573,7 +560,6 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps, opts: RefreshOpt
     written: false,
   };
 
-  const existingClaude = config.models.filter(m => m.backend === 'claude');
   const newModels: ModelEntry[] = [];
 
   for (const backendId of ALL_BACKENDS) {
@@ -582,7 +568,7 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps, opts: RefreshOpt
       result[backendId] = { ok: false, count: 0, error: 'skipped this run' };
       continue;
     }
-    const discovery = await discoverBackend(backendId, config, deps, existingClaude);
+    const discovery = await discoverBackend(backendId, config, deps);
     newModels.push(...discovery.models);
     result[backendId] = discovery.result;
   }
