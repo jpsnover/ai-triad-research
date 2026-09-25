@@ -17,8 +17,9 @@ const TAB_LABELS: Record<Tab, string> = { debates: 'Debates', chats: 'Chats', op
 
 /** A community card renders any of the four shared item types. Op-eds carry `topic` and
  *  inquiries carry `question` (neither is `title`), with `unknown`-typed community_metadata,
- *  so title/submitter go through helpers. */
-type CommunityItem = CommunityChat | CommunityDebate | OpEdCommunityEntry | CommunityInquiry;
+ *  so title/submitter go through helpers. Exported so InquiryCommunityList (t/3678) can render
+ *  community inquiries with the identical card, rather than a second, divergent implementation. */
+export type CommunityItem = CommunityChat | CommunityDebate | OpEdCommunityEntry | CommunityInquiry;
 
 function cardTitle(item: CommunityItem): string {
   // Op-eds title from `topic`, inquiries from `question`; the store warns on either being
@@ -89,7 +90,7 @@ function RemoveConfirmPopover({ item, onConfirm, onCancel }: {
   );
 }
 
-function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
+export function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
   item: CommunityItem;
   isAdmin: boolean;
   onCopy: () => void;
