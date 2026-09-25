@@ -12,9 +12,9 @@ import { describe, it, expect } from 'vitest';
 import { computeIsPublicPath, PUBLIC_EXACT_PATHS, PUBLIC_PATH_PREFIXES } from '../publicPaths.js';
 
 describe('computeIsPublicPath — auth-exempt allowlist (t/1910)', () => {
-  it('has exactly 18 exact + 8 prefix terms (guards accidental add/drop)', () => {
+  it('has exactly 18 exact + 9 prefix terms (guards accidental add/drop)', () => {
     expect(PUBLIC_EXACT_PATHS.size).toBe(18); // +/readyz (t/3112)
-    expect(PUBLIC_PATH_PREFIXES.length).toBe(8); // +/opeds/ (t/3507)
+    expect(PUBLIC_PATH_PREFIXES.length).toBe(9); // +/opeds/ (t/3507), +/inquiries/ (t/3626/t/3653)
   });
 
   it('t/3507: the op-ed deep-link SPA shell is public', () => {
@@ -35,7 +35,7 @@ describe('computeIsPublicPath — auth-exempt allowlist (t/1910)', () => {
   it('the full allowlist resolves public', () => {
     const samples = [...PUBLIC_EXACT_PATHS, ...PUBLIC_PATH_PREFIXES.map(p => `${p}anything`)];
     expect(samples.every(computeIsPublicPath)).toBe(true);
-    expect(samples.length).toBe(26); // 18 exact + 8 prefix (t/3507: +/opeds/)
+    expect(samples.length).toBe(27); // 18 exact + 9 prefix (t/3507: +/opeds/, t/3626/t/3653: +/inquiries/)
   });
 
   // Near-miss NEGATIVES (Server Auth p/135#9): each proves an EXACT term did not become
