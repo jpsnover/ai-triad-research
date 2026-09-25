@@ -18,7 +18,27 @@ import {
   buildMergeGuardSinkRecord,
   baseRefStaleVerdict,
   parseBaseRefRecords,
+  classifyGhError,
 } from './merge-guard-predicate.mjs';
+
+// ── t/3687: classifyGhError — shim fail-policy (fast-fail 4xx; retry 5xx/408/429/network) ──
+test('t/3687 classifyGhError: 4xx auth/perm/not-found → NOT retryable (fast-fail)', () => {
+  assert.deepEqual(classifyGhError('gh: Not Found (HTTP 404)'), { retryable: false, reason: 'http-404' });
+  assert.deepEqual(classifyGhError('HTTP 403: Resource not accessible'), { retryable: false, reason: 'http-403' });
+  assert.deepEqual(classifyGhError('bad (HTTP 401)'), { retryable: false, reason: 'http-401' });
+});
+test('t/3687 classifyGhError: 5xx / 408 / 429 → retryable (transient)', () => {
+  assert.equal(classifyGhError('boom (HTTP 500)').retryable, true);
+  assert.equal(classifyGhError('gateway (HTTP 502)').retryable, true);
+  assert.equal(classifyGhError('unavailable (HTTP 503)').retryable, true);
+  assert.equal(classifyGhError('timeout (HTTP 408)').retryable, true); // request-timeout: retry, not a 4xx fast-fail
+  assert.equal(classifyGhError('rate limited (HTTP 429)').retryable, true); // rate-limit: retry, not fast-fail
+});
+test('t/3687 classifyGhError: no HTTP code (network/DNS/timeout) → retryable', () => {
+  assert.deepEqual(classifyGhError('dial tcp: lookup api.github.com: no such host'), { retryable: true, reason: 'no-http-code' });
+  assert.equal(classifyGhError('').retryable, true);
+  assert.equal(classifyGhError(null).retryable, true);
+});
 
 // ── t/3687: retarget stale-green guard — baseRefStaleVerdict (base-ref-NAME identity) ──
 // Design of record: t/3687#2 (locked via the e/212 SO+TL review). Block iff the LATEST record from any
@@ -277,6 +297,19 @@ test('CLI --jointgv: no gh call + no fire on a MANUAL merge (not --auto)', () =>
 
 test('CLI --jointgv: no gh call + no fire on a non-merge command', () => {
   assert.equal(runShimJointGv('gh pr view 1947 --json labels'), '');
+});
+
+// CLI --base-ref-stale mode: gh-free early-exits (no PR fetch performed) are deterministic. A MANUAL
+// merge WOULD fetch (needs a real PR), so only the --auto-exempt and non-merge arms are unit-testable —
+// the fetch+verdict path is proven by the pure baseRefStaleVerdict/parseBaseRefRecords/classifyGhError arms.
+function runShimBaseRef(command) {
+  return execFileSync(process.execPath, [MODULE, '--base-ref-stale', command], { encoding: 'utf8' });
+}
+test('CLI --base-ref-stale: no gh call + no fire on an --auto merge (auto-exempt)', () => {
+  assert.equal(runShimBaseRef('gh pr merge 1947 --auto'), '');
+});
+test('CLI --base-ref-stale: no gh call + no fire on a non-merge command', () => {
+  assert.equal(runShimBaseRef('gh pr view 1947 --json baseRefName'), '');
 });
 
 // ── buildMergeGuardSinkRecord: durable telemetry record shape (t/3395) ──
