@@ -306,29 +306,11 @@ export const api: AppAPI = {
     }
     return result;
   },
-  // "My Questions" history (t/3620) — no ElectronMain IPC leg yet (desktop's in-memory job Map
-  // is swept 30 min after terminal state, t/3579; it isn't a durable history store). Rejects
-  // rather than faking an empty list, mirroring rejectOpEdIpc's desktop-unsupported pattern.
-  listInquiries: () => Promise.reject(new ActionableError({
-    goal: 'List "My Questions" history',
-    problem: 'The desktop inquiry history backend is not installed in this build.',
-    location: 'electron-bridge.listInquiries',
-    nextSteps: [
-      'Update to a desktop build that includes the inquiry history IPC handler.',
-      'Until then, use the web app to browse past questions.',
-    ],
-  })),
-  // Inquiry export (t/3624) — no ElectronMain IPC leg yet. Rejects rather than faking success,
-  // mirroring listInquiries above / rejectOpEdIpc's desktop-unsupported pattern.
-  exportInquiryToFile: () => Promise.reject(new ActionableError({
-    goal: 'Export inquiry answer',
-    problem: 'The desktop inquiry export backend is not installed in this build.',
-    location: 'electron-bridge.exportInquiryToFile',
-    nextSteps: [
-      'Update to a desktop build that includes the inquiry export IPC handler.',
-      'Until then, use the web app to export questions.',
-    ],
-  })),
+  // "My Questions" history + export (t/3683) — ElectronMain IPC leg landed: desktop-local
+  // persistence in userData/inquiry-results (survives the in-memory job Map's 30-min TTL sweep
+  // and app restarts, t/3579's Map alone was not a durable history store).
+  listInquiries: () => window.electronAPI.listInquiries(),
+  exportInquiryToFile: (result, title, format) => window.electronAPI.exportInquiryToFile(result, title, format),
   // Public share (t/3654) — web-only, mirrors shareOpEdSet/unshareOpEdSet's desktop posture
   // exactly. The renderer hides the Share control entirely on Electron (isElectronMode()
   // check in InquiryShareControl) rather than exposing a button that always errors — these
