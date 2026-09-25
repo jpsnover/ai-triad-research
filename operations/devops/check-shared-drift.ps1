@@ -46,11 +46,43 @@ function Invoke-Git {
     } catch { return $null }
 }
 
+function Get-GitDiffExitCode {
+    # t/3669: phantom-vs-real discriminator via git-diff EXIT CODE, never stdout. A CRLF-only /
+    # normalized file still emits the `diff --git`/`index` header with ZERO hunks, so the old
+    # stdout-capture read it as a real diff and mis-escalated (p/331#1363-1367). `--quiet` implies
+    # `--exit-code` and prints nothing; `--ignore-cr-at-eol` makes a CRLF-only change exit 0
+    # (phantom) even where autocrlf is not configured (e.g. the Linux CI runner). Returns:
+    #   0  identical to origin/main modulo CRLF  -> PHANTOM
+    #   1  genuine content diff                  -> REAL WIP
+    #  -1  query failed / timeout / bad ref      -> caller buckets conservatively as REAL
+    # Mirrors Invoke-Git's Start-Job pattern (timeout-bounded; does not touch parent $LASTEXITCODE).
+    param([string]$RepoRoot, [string]$File, [int]$TimeoutMs = 5000)
+    try {
+        $job = Start-Job {
+            & git -C $using:RepoRoot diff --quiet --ignore-cr-at-eol origin/main -- $using:File 2>$null
+            $LASTEXITCODE
+        }
+        $completed = Wait-Job $job -Timeout ([int]($TimeoutMs / 1000))
+        if (-not $completed) { Remove-Job $job -Force; return -1 }
+        $out = @(Receive-Job $job)
+        Remove-Job $job
+        $code = if ($out.Count) { $out[-1] } else { $null }
+        if ($code -eq 0) { return 0 }
+        elseif ($code -eq 1) { return 1 }
+        else { return -1 }
+    } catch { return -1 }
+}
+
 # t/3652: pure branch-strand classifier (CLEAN/STRANDED/DIVERGED/UNKNOWN), split into its own
 # dot-sourceable file (mirrors FlakeVerdict.ps1) so its three arms are unit-testable without
 # running the whole drift check. Best-effort dot-source; if absent, the 5d block below no-ops.
 $strandVerdictScript = Join-Path $PSScriptRoot 'BranchStrandVerdict.ps1'
 if (Test-Path $strandVerdictScript) { . $strandVerdictScript }
+
+# t/3669: pure phantom-vs-real WIP classifier (maps file->exit-code to Phantom/RealWip buckets),
+# same dot-sourceable pattern so both arms are unit-testable without a git fixture.
+$phantomVerdictScript = Join-Path $PSScriptRoot 'DriftPhantomVerdict.ps1'
+if (Test-Path $phantomVerdictScript) { . $phantomVerdictScript }
 
 # t/3652: bounded gh invocation. Returns combined output + exit code + timeout flag so the caller
 # can distinguish gh-absent / unauth / rate-limited / timeout — different causes, different fixes
@@ -106,7 +138,9 @@ $result = [PSCustomObject]@{
     Alarm            = $false
     BehindCount      = 0
     DirtyFiles       = @()
-    HasRealDiff      = $false
+    HasRealDiff      = $false           # t/3669: = RealWipFiles.Count -gt 0 (the t/2452 reminder branches on this)
+    PhantomFiles     = @()              # t/3669: dirty but byte-identical to origin/main modulo CRLF — safe to restore, no owner-claim
+    RealWipFiles     = @()              # t/3669: dirty with a genuine content diff — owner-claim required
     JunkPaths        = @()
     ShellFragmentPaths = @()
     SuspiciousPaths  = @()
@@ -134,16 +168,31 @@ try {
     $dirtyFiles = @($statusOut | Where-Object { $_ } | ForEach-Object { $_.Substring(3).Trim() })
     $result.DirtyFiles = $dirtyFiles
 
-    # 4. Classify each dirty file: 0-diff vs real WIP
-    $hasRealDiff = $false
+    # 4. Classify each dirty file: PHANTOM (byte-identical to origin/main modulo CRLF) vs REAL WIP.
+    #    t/3669: discriminate on the git-diff EXIT CODE, never stdout. The prior stdout-capture
+    #    (`--ignore-cr-at-eol` + capture) mis-read a CRLF-only file as real WIP — `git diff` still
+    #    prints the `diff --git`/`index` HEADER (zero hunks) for a blob-hash-differing file, so the
+    #    captured string was non-empty and every CRLF-only file mis-escalated to an owner-claim
+    #    (p/331#1363-1367). Exit-code can't be fooled by header text. Query-failure (-1) buckets as
+    #    REAL — a failed diff must never read as a safe phantom (same "don't infer safe from silence").
+    $fileExitCodes = [ordered]@{}
     foreach ($f in $dirtyFiles) {
-        # --ignore-cr-at-eol suppresses CRLF-only differences (e.g. snapshot files on
-        # Windows) — a file whose diff is empty under this flag is CRLF-only, not real WIP
-        # (TL-approved fix for recurring routeTable.test.ts.snap false-positive, p/331#1175).
-        $diff = Invoke-Git @('-C', $RepoRoot, 'diff', '--ignore-cr-at-eol', 'origin/main', '--', $f)
-        if ($diff) { $hasRealDiff = $true; break }
+        $fileExitCodes[$f] = Get-GitDiffExitCode -RepoRoot $RepoRoot -File $f
     }
-    $result.HasRealDiff = $hasRealDiff
+    if (Get-Command Get-DriftPhantomVerdict -ErrorAction SilentlyContinue) {
+        $verdict = Get-DriftPhantomVerdict -FileExitCodes $fileExitCodes
+        $result.PhantomFiles = $verdict.PhantomFiles
+        $result.RealWipFiles = $verdict.RealWipFiles
+        $result.HasRealDiff  = $verdict.HasRealDiff
+    }
+    else {
+        # Fail-safe if the verdict file is missing: treat every dirty file as REAL (conservative).
+        $result.RealWipFiles = $dirtyFiles
+        $result.HasRealDiff  = $dirtyFiles.Count -gt 0
+    }
+    $hasRealDiff  = $result.HasRealDiff
+    $phantomFiles = $result.PhantomFiles
+    $realWipFiles = $result.RealWipFiles
 
     # 5. Junk untracked — two classes (t/2222 + t/2473), excluding linked worktrees (.worktrees/):
     #    JunkPaths:       0-byte files anywhere in the tree
@@ -451,14 +500,15 @@ try {
             $listed = $nestedWorktrees -join '; '
             $hints += "INERT nested .worktrees dir(s) outside <root>/.worktrees/ (t/3145; t/2222 cwd-reset drift) — routed to owning role [$listed]: orphaned copies (no .git safety net). OWNER: confirm inert (no .git, no unpushed/unique content) then 'Remove-Item -Recurse -Force <path>'. Active registered worktrees are EXEMPT (never listed)."
         }
-        if ($dirtyFiles.Count -gt 0) {
-            if (-not $hasRealDiff) {
-                $listed = $dirtyFiles -join ', '
-                $hints += "dirty tracked (0-diff, safe to drop) [$listed]: git checkout -- <files>"
-            } else {
-                $listed = $dirtyFiles -join ', '
-                $hints += "dirty tracked with REAL DIFF (WIP) [$listed]: snapshot-first + owner-claim required — do NOT stash or auto-merge; escalate to TL | POST-CLAIM pull: git restore <files> THEN git pull --ff-only (dirty tracked file silently blocks ff-merge even on byte-identical incoming content — restore first; p/331#98)"
-            }
+        # t/3669: report phantom and real WIP as SEPARATE hints so a mixed dirty set names each
+        # correctly — the old single-boolean lumped all dirty files under one verdict.
+        if ($realWipFiles.Count -gt 0) {
+            $listed = $realWipFiles -join ', '
+            $hints += "dirty tracked with REAL DIFF (WIP) [$listed]: snapshot-first + owner-claim required — do NOT stash or auto-merge; escalate to TL | POST-CLAIM pull: git restore <files> THEN git pull --ff-only (dirty tracked file silently blocks ff-merge even on byte-identical incoming content — restore first; p/331#98)"
+        }
+        if ($phantomFiles.Count -gt 0) {
+            $listed = $phantomFiles -join ', '
+            $hints += "PHANTOM dirty tracked (byte-identical to origin/main modulo CRLF — NOT real WIP, no owner-claim) [$listed]: safe to restore unilaterally — git restore <files> THEN git pull --ff-only (a phantom silently blocks ff-merge even on byte-identical incoming; t/2066, p/331#98)"
         }
         $result.RemediationHint = $hints -join ' | '
     }
