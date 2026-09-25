@@ -14,9 +14,19 @@
 // both builds through the same shape. `InquiryJobStatus`, `isTerminalStatus`, and
 // `deriveTruncation` are the canonical hoisted symbols from lib/inquiry (t/3609) — no
 // local duplicates.
+//
+// t/3683: persistence + history/export leg. Completed results are also written to
+// userData/inquiry-results (mirrors briefExportHandlers.ts's filesystem + _index.json
+// pattern, t/2840) — the in-memory `jobs` Map alone isn't durable enough for "My
+// Questions" history to survive the 30-min TTL sweep or an app restart. `get-inquiry`
+// falls back to the persisted result when the in-memory job is gone (mirrors the
+// server's cross-replica fallback, routes/inquiry.ts) because useInquiryStore.ts opens
+// history rows via getInquiry, not a separate "view" call.
 
-import { ipcMain } from 'electron';
+import { ipcMain, app, dialog, BrowserWindow } from 'electron';
 import { randomUUID } from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { PROJECT_ROOT, readTaxonomyFile } from '../fileIO.js';
 import { computeEmbeddings } from '../embeddings.js';
 import { makeElectronAIAdapter } from '../electronAIAdapter.js';
@@ -30,6 +40,7 @@ import {
   InquiryRequestSchema, type InquiryRequest, type InquiryResult,
   type InquiryJobStatus, isTerminalStatus, deriveTruncation,
 } from '../../../../lib/inquiry/index.js';
+import { inquiryToJson, inquiryToMarkdown, inquiryToPrintHtml, inquiryExportFilename } from '../../../../lib/inquiry/inquiryExport.js';
 import { errorMessage } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
@@ -47,6 +58,74 @@ interface InquiryJob {
 }
 
 const jobs = new Map<string, InquiryJob>();
+
+// ── Local persistence (t/3683) — mirrors briefExportHandlers.ts's filesystem + _index.json
+// pattern (t/2840): userData/inquiry-results/inquiry-<jobId>.json + a listing index. Desktop
+// has no auth/multi-user concept, so this is a flat single-user store (no per-user subdir,
+// unlike server/storage/inquiryResultStore.ts). ──
+
+/** Cheap listing row for "My Questions" history. Field-for-field identical to the server's
+ *  InquiryResultSummary (storage/inquiryResultStore.ts) and the renderer bridge's copy
+ *  (bridge/types.ts) — a third hand-kept copy of the same shape. Flagged, not blocked on:
+ *  worth a t/3609-style hoist to lib/inquiry next time all three are touched. */
+interface InquiryResultSummary {
+  jobId: string;
+  question: string;
+  debateId: string | null;
+  truncated: boolean;
+  terminationReason?: string;
+  createdAt: string;
+}
+
+const INQUIRY_INDEX_FILE = '_index.json';
+function inquiryResultsDir(): string { return path.join(app.getPath('userData'), 'inquiry-results'); }
+
+// jobId reaches `inquiryResultFile` from the renderer-supplied `get-inquiry` IPC param (untrusted —
+// TS types are erased at runtime, per the Electron IPC boundary rule) as well as from our own
+// randomUUID() jobs. Mirrors server storage/fileIO.ts's assertSafeId: reject anything outside
+// alphanumeric/hyphen/underscore BEFORE it reaches a file path, closing the `../../etc/passwd`-style
+// traversal a raw template-string join would otherwise allow.
+const SAFE_JOB_ID_RE = /^[a-zA-Z0-9_-]+$/;
+function isSafeJobId(jobId: string): boolean { return SAFE_JOB_ID_RE.test(jobId); }
+function inquiryResultFile(jobId: string): string { return path.join(inquiryResultsDir(), `inquiry-${jobId}.json`); }
+
+function readInquiryIndex(): InquiryResultSummary[] {
+  try { return JSON.parse(fs.readFileSync(path.join(inquiryResultsDir(), INQUIRY_INDEX_FILE), 'utf-8')) as InquiryResultSummary[]; }
+  // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- ENOENT on first run is normal new-user state; [] is the correct baseline, not a degraded fallback
+  catch { /* no index yet / unreadable → empty list — silent by design (ADR-003) */ return []; }
+}
+function writeInquiryIndex(entries: InquiryResultSummary[]): void {
+  fs.mkdirSync(inquiryResultsDir(), { recursive: true });
+  fs.writeFileSync(path.join(inquiryResultsDir(), INQUIRY_INDEX_FILE), JSON.stringify(entries, null, 2), 'utf-8');
+}
+function upsertInquiryIndex(row: InquiryResultSummary): void {
+  const entries = readInquiryIndex();
+  const i = entries.findIndex(e => e.jobId === row.jobId);
+  if (i >= 0) entries[i] = row; else entries.push(row);
+  writeInquiryIndex(entries);
+}
+
+/** Persist a completed result BEFORE the caller flips the job to a terminal status — a poll
+ *  observing `done`/`done_truncated` is then guaranteed the result is loadable (mirrors the
+ *  server's ordering, inquiryJobs.ts). */
+function persistInquiryResult(jobId: string, result: InquiryResult, summary: InquiryResultSummary): void {
+  fs.mkdirSync(inquiryResultsDir(), { recursive: true });
+  fs.writeFileSync(inquiryResultFile(jobId), JSON.stringify(result, null, 2), 'utf-8');
+  upsertInquiryIndex(summary);
+}
+
+function loadPersistedInquiryResult(jobId: string): InquiryResult | null {
+  try { return JSON.parse(fs.readFileSync(inquiryResultFile(jobId), 'utf-8')) as InquiryResult; }
+  // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- ENOENT means the result is absent (never run, swept before this feature landed, or unknown id); null is the correct "not found" outcome
+  catch { /* result absent → null (get-inquiry surfaces "not found") — silent by design (ADR-003) */ return null; }
+}
+
+/** Best-effort dangle-tolerant debate reference off the (passthrough) result — mirrors
+ *  server's readDebateRef (inquiryJobs.ts). The contract does not declare `debateId`. */
+function readDebateRef(result: InquiryResult): string | null {
+  const v = (result as unknown as Record<string, unknown>).debateId;
+  return typeof v === 'string' && v.length > 0 ? v : null;
+}
 
 const PROGRESS: Record<InquiryJobStatus, number> = {
   queued: 0, grounding: 10, debating: 40, judging: 70, synthesizing: 90,
@@ -160,6 +239,29 @@ async function runJob(job: InquiryJob, request: InquiryRequest): Promise<void> {
     job.result = result;
     job.resultId = job.jobId;
     job.terminationReason = terminationReason ?? null;
+
+    // Persist BEFORE flipping to a terminal state (t/3683) — a poll observing done/done_truncated
+    // is then guaranteed the result is loadable, and "My Questions" history survives the TTL
+    // sweep / an app restart even though the in-memory job does not.
+    try {
+      persistInquiryResult(job.jobId, result, {
+        jobId: job.jobId,
+        question: request.question,
+        debateId: readDebateRef(result),
+        truncated,
+        terminationReason,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (persistErr) {
+      // A failed persist must not fail the inquiry itself — the user still sees their answer this
+      // session, they just lose history durability for it. WARN so the degradation is visible.
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'inquiry-desktop', level: 'warn',
+        message: `Failed to persist inquiry result ${job.jobId} — answer is shown but will not survive an app restart`,
+        error: { name: (persistErr as Error).name ?? 'Error', message: errorMessage(persistErr) },
+      });
+    }
+
     setStatus(job, truncated ? 'done_truncated' : 'done');
   } catch (err) {
     job.error = errorMessage(err);
@@ -187,6 +289,40 @@ function jobView(job: InquiryJob): Record<string, unknown> {
   return job.result ? { ...base, result: job.result } : base;
 }
 
+/** Cross-restart / post-TTL fallback view (t/3683) — mirrors the server's cross-replica fallback
+ *  (routes/inquiry.ts). `useInquiryStore.ts` opens a "My Questions" history row by calling
+ *  get-inquiry, so once the in-memory job is gone the persisted result must still resolve. */
+function diskFallbackView(jobId: string): Record<string, unknown> | null {
+  if (!isSafeJobId(jobId)) return null; // reject before it ever reaches a file path (t/3683)
+  const result = loadPersistedInquiryResult(jobId);
+  if (!result) return null;
+  const { truncated, terminationReason } = deriveTruncation(result);
+  return {
+    jobId,
+    status: truncated ? 'done_truncated' : 'done',
+    progressPct: 100,
+    terminationReason: terminationReason ?? null,
+    resultId: jobId,
+    error: null,
+    result,
+  };
+}
+
+// ── Export ──
+
+/** Render `html` to a PDF buffer via an offscreen BrowserWindow — mirrors debateExport.ts's
+ *  debateToPdf pattern exactly. */
+async function renderHtmlToPdf(html: string): Promise<Buffer> {
+  const pdfWindow = new BrowserWindow({ show: false, width: 800, height: 600, webPreferences: { offscreen: true } });
+  try {
+    await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    const pdfBuffer = await pdfWindow.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true });
+    return Buffer.from(pdfBuffer);
+  } finally {
+    pdfWindow.destroy();
+  }
+}
+
 // ── IPC registration ──
 
 export function registerInquiryHandlers(): void {
@@ -201,6 +337,46 @@ export function registerInquiryHandlers(): void {
 
   ipcMain.handle('get-inquiry', (_event, jobId: string): Record<string, unknown> | null => {
     const job = jobs.get(jobId);
-    return job ? jobView(job) : null;
+    if (job) return jobView(job);
+    return diskFallbackView(jobId); // job swept from memory / app restarted — try the disk (t/3683)
+  });
+
+  ipcMain.handle('list-inquiries', (): InquiryResultSummary[] => readInquiryIndex());
+
+  ipcMain.handle('export-inquiry-to-file', async (
+    event, result: InquiryResult, title: string, format: 'json' | 'markdown' | 'pdf',
+  ): Promise<{ cancelled: boolean; filePath?: string }> => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { cancelled: true };
+
+    const extMap: Record<typeof format, string> = { json: 'json', markdown: 'md', pdf: 'pdf' };
+    const ext = extMap[format];
+    const filterMap: Record<typeof format, { name: string; extensions: string[] }> = {
+      json: { name: 'JSON', extensions: ['json'] },
+      markdown: { name: 'Markdown', extensions: ['md'] },
+      pdf: { name: 'PDF', extensions: ['pdf'] },
+    };
+
+    const dialogResult = await dialog.showSaveDialog(win, {
+      title: 'Export Inquiry',
+      defaultPath: inquiryExportFilename(title, ext),
+      filters: [filterMap[format]],
+    });
+    if (dialogResult.canceled || !dialogResult.filePath) return { cancelled: true };
+    const filePath = dialogResult.filePath;
+
+    switch (format) {
+      case 'json':
+        fs.writeFileSync(filePath, inquiryToJson(result), 'utf-8');
+        break;
+      case 'markdown':
+        fs.writeFileSync(filePath, inquiryToMarkdown(result), 'utf-8');
+        break;
+      case 'pdf':
+        fs.writeFileSync(filePath, await renderHtmlToPdf(inquiryToPrintHtml(result)));
+        break;
+      default: { const _x: never = format; return _x; }
+    }
+    return { cancelled: false, filePath };
   });
 }

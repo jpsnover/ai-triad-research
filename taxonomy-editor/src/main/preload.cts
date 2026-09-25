@@ -803,6 +803,18 @@ function buildElectronApi() {
     result?: InquiryResult;
   } | null> =>
     ipcRenderer.invoke('get-inquiry', jobId),
+  // "My Questions" history + export (t/3683). listInquiries reads the local persisted index
+  // (survives the get-inquiry job's TTL sweep / an app restart); exportInquiryToFile shows a
+  // native save dialog and writes the requested format (PDF rendered via printToPDF).
+  listInquiries: (): Promise<{
+    jobId: string; question: string; debateId: string | null;
+    truncated: boolean; terminationReason?: string; createdAt: string;
+  }[]> =>
+    ipcRenderer.invoke('list-inquiries'),
+  exportInquiryToFile: (
+    result: InquiryResult, title: string, format: 'json' | 'markdown' | 'pdf',
+  ): Promise<{ cancelled: boolean; filePath?: string }> =>
+    ipcRenderer.invoke('export-inquiry-to-file', result, title, format),
   };
 }
 

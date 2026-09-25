@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useCallback, useEffect, Fragment } from 'react';
-import { Shield, X } from 'lucide-react';
+import { Shield, Users, X, type LucideIcon } from 'lucide-react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { isElectronMode } from '@bridge';
 import { HelpDialog } from '../settings/HelpDialog';
@@ -54,6 +54,25 @@ function AuthSection() {
   );
 }
 
+/** Hash-route nav button (Community Library, Admin Review) — extracted so adding a second one
+ *  (t/3678) doesn't push HamburgerMenu's own branch count over the complexity ceiling. */
+function HashNavButton({ hash, icon: Icon, label, act }: {
+  hash: string;
+  icon: LucideIcon;
+  label: string;
+  act: (action: () => void) => void;
+}) {
+  return (
+    <button
+      className={`hamburger-item${window.location.hash === hash ? ' active' : ''}`}
+      onClick={() => act(() => { window.location.hash = hash; window.location.reload(); })}
+    >
+      <Icon size="1.25em" />
+      <span>{label}</span>
+    </button>
+  );
+}
+
 interface HamburgerMenuProps {
   isOpen: boolean;
   onClose: () => void;
@@ -78,6 +97,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
   } = useTaxonomyStore();
   const breakpoint = useBreakpoint();
   const adminFeatures = useFlag('permission-admin-features');
+  const communityFlag = useFlag('env-web-community-library');
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -256,15 +276,8 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
 
           <div className="hamburger-divider" />
 
-          {showAdminReview && (
-            <button
-              className={`hamburger-item${window.location.hash === '#admin' ? ' active' : ''}`}
-              onClick={() => act(() => { window.location.hash = '#admin'; window.location.reload(); })}
-            >
-              <Shield size="1.25em" />
-              <span>Admin Review</span>
-            </button>
-          )}
+          {communityFlag && <HashNavButton hash="#community" icon={Users} label="Community Library" act={act} />}
+          {showAdminReview && <HashNavButton hash="#admin" icon={Shield} label="Admin Review" act={act} />}
 
           <div className="hamburger-divider" />
           {systemNavItems.map(item => (

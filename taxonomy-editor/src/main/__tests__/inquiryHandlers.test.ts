@@ -1,14 +1,35 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// Inquiry — Electron main-process handler tests (t/3579). Mocks the shared runInquiryPipeline
-// and every host-specific dep it's wired with, exercising the three load-bearing cases:
-// lifecycle (start returns immediately, poll observes queued → terminal), the error path, and
-// truncation classification (done_truncated vs done).
+// Inquiry — Electron main-process handler tests (t/3579, t/3683). Mocks the shared
+// runInquiryPipeline and every host-specific dep it's wired with, exercising the load-bearing
+// cases: lifecycle (start returns immediately, poll observes queued → terminal), the error
+// path, truncation classification (done_truncated vs done), and (t/3683) persistence — history
+// listing, the disk fallback for a job unknown to the in-memory Map, and file export.
+//
+// Persistence assertions are real file round-trips against a temp userData dir (mirrors
+// briefExportHandlers.test.ts), not a mocked fs — the whole point of t/3683 is the disk store.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
-vi.mock('electron', () => ({ ipcMain: { handle: vi.fn() } }));
+const TMP = path.join(os.tmpdir(), `inquiry-handlers-test-${process.pid}`);
+
+const mockShowSaveDialog = vi.hoisted(() => vi.fn());
+const mockPrintToPDF = vi.hoisted(() => vi.fn(async () => new Uint8Array([1, 2, 3])));
+vi.mock('electron', () => ({
+  ipcMain: { handle: vi.fn() },
+  app: { getPath: vi.fn(() => TMP) },
+  dialog: { showSaveDialog: mockShowSaveDialog },
+  BrowserWindow: Object.assign(
+    vi.fn(function BrowserWindow() {
+      return { loadURL: vi.fn(async () => {}), webContents: { printToPDF: mockPrintToPDF }, destroy: vi.fn() };
+    }),
+    { fromWebContents: vi.fn(() => ({})) },
+  ),
+}));
 
 vi.mock('../fileIO.js', () => ({
   PROJECT_ROOT: '/fake/root',
@@ -73,8 +94,13 @@ describe('inquiryHandlers — Electron parity (t/3579)', () => {
   beforeEach(() => {
     (ipcMain.handle as unknown as { mockReset: () => void }).mockReset();
     runInquiryPipeline.mockReset();
+    mockShowSaveDialog.mockReset();
+    mockPrintToPDF.mockClear();
+    fs.rmSync(TMP, { recursive: true, force: true });
+    fs.mkdirSync(TMP, { recursive: true });
     registerInquiryHandlers();
   });
+  afterEach(() => { fs.rmSync(TMP, { recursive: true, force: true }); });
 
   it('start-inquiry returns { jobId } immediately, without waiting on the pipeline', async () => {
     let resolvePipeline: (r: InquiryResult) => void = () => {};
@@ -127,5 +153,111 @@ describe('inquiryHandlers — Electron parity (t/3579)', () => {
     const h = handlers();
     const result = await h['get-inquiry'](null, 'nonexistent');
     expect(result).toBeNull();
+  });
+});
+
+describe('inquiryHandlers — persistence, history, export (t/3683)', () => {
+  beforeEach(() => {
+    (ipcMain.handle as unknown as { mockReset: () => void }).mockReset();
+    runInquiryPipeline.mockReset();
+    mockShowSaveDialog.mockReset();
+    mockPrintToPDF.mockClear();
+    fs.rmSync(TMP, { recursive: true, force: true });
+    fs.mkdirSync(TMP, { recursive: true });
+    registerInquiryHandlers();
+  });
+  afterEach(() => { fs.rmSync(TMP, { recursive: true, force: true }); });
+
+  it('list-inquiries returns [] when nothing has ever been persisted (ADR-001 graceful-empty)', async () => {
+    const h = handlers();
+    expect(await h['list-inquiries'](null)).toEqual([]);
+  });
+
+  it('a completed job is persisted to disk and appears in list-inquiries', async () => {
+    runInquiryPipeline.mockResolvedValue(fakeResult());
+    const h = handlers();
+    const { jobId } = await createAndWait(h);
+    const list = (await h['list-inquiries'](null)) as { jobId: string; question: string }[];
+    expect(list).toHaveLength(1);
+    expect(list[0].jobId).toBe(jobId);
+    expect(list[0].question).toBe(VALID_REQUEST.question);
+  });
+
+  it('a failed job is NOT persisted (only completed results are history)', async () => {
+    runInquiryPipeline.mockRejectedValue(new Error('provider 503'));
+    const h = handlers();
+    await createAndWait(h);
+    expect(await h['list-inquiries'](null)).toEqual([]);
+  });
+
+  it('get-inquiry falls back to the persisted result for a job unknown to the in-memory Map — the "My Questions" reopen path (useInquiryStore.ts)', async () => {
+    // Simulates a job swept by the 30-min TTL or an app restart: never started via
+    // start-inquiry (so `jobs` has no entry for it), but a result was previously persisted.
+    const jobId = 'swept-job-id';
+    const result = fakeResult();
+    const dir = path.join(TMP, 'inquiry-results');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, `inquiry-${jobId}.json`), JSON.stringify(result), 'utf-8');
+    fs.writeFileSync(path.join(dir, '_index.json'), JSON.stringify([
+      { jobId, question: VALID_REQUEST.question, debateId: null, truncated: false, createdAt: new Date(0).toISOString() },
+    ]), 'utf-8');
+
+    const h = handlers();
+    const view = (await h['get-inquiry'](null, jobId)) as { status: string; result?: unknown; resultId: string } | null;
+    expect(view).not.toBeNull();
+    expect(view!.status).toBe('done');
+    expect(view!.resultId).toBe(jobId);
+    expect(view!.result).toBeTruthy();
+  });
+
+  it('get-inquiry on a jobId with no memory entry AND no persisted file returns null', async () => {
+    const h = handlers();
+    expect(await h['get-inquiry'](null, 'never-existed')).toBeNull();
+  });
+
+  it('get-inquiry rejects a path-traversal jobId instead of reading outside inquiry-results/ (t/3683 security)', async () => {
+    // A file that genuinely exists on disk, just outside the intended inquiry-results/ directory —
+    // if the traversal guard were missing, `inquiry-${jobId}.json` would resolve to it.
+    const secretPath = path.join(TMP, 'inquiry-secret.json');
+    fs.writeFileSync(secretPath, JSON.stringify(fakeResult()), 'utf-8');
+    const h = handlers();
+    const traversalJobId = '../secret';
+    expect(await h['get-inquiry'](null, traversalJobId)).toBeNull();
+  });
+
+  it('export-inquiry-to-file: json format writes via the shared inquiryToJson converter and returns the chosen path', async () => {
+    const filePath = path.join(TMP, 'answer.json');
+    mockShowSaveDialog.mockResolvedValue({ canceled: false, filePath });
+    const h = handlers();
+    const result = fakeResult();
+    const outcome = (await h['export-inquiry-to-file']({ sender: {} }, result, 'My question', 'json')) as { cancelled: boolean; filePath?: string };
+    expect(outcome).toEqual({ cancelled: false, filePath });
+    const written = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    expect(written.result.schemaVersion).toBe(1);
+    expect(written.question).toBe(VALID_REQUEST.question);
+  });
+
+  it('export-inquiry-to-file: markdown format writes readable text', async () => {
+    const filePath = path.join(TMP, 'answer.md');
+    mockShowSaveDialog.mockResolvedValue({ canceled: false, filePath });
+    const h = handlers();
+    await h['export-inquiry-to-file']({ sender: {} }, fakeResult(), 'My question', 'markdown');
+    expect(fs.readFileSync(filePath, 'utf-8').length).toBeGreaterThan(0);
+  });
+
+  it('export-inquiry-to-file: pdf format renders via printToPDF (offscreen BrowserWindow)', async () => {
+    const filePath = path.join(TMP, 'answer.pdf');
+    mockShowSaveDialog.mockResolvedValue({ canceled: false, filePath });
+    const h = handlers();
+    await h['export-inquiry-to-file']({ sender: {} }, fakeResult(), 'My question', 'pdf');
+    expect(mockPrintToPDF).toHaveBeenCalledTimes(1);
+    expect(fs.readFileSync(filePath).length).toBeGreaterThan(0);
+  });
+
+  it('export-inquiry-to-file: cancelling the save dialog returns { cancelled: true } and writes nothing', async () => {
+    mockShowSaveDialog.mockResolvedValue({ canceled: true, filePath: undefined });
+    const h = handlers();
+    const outcome = await h['export-inquiry-to-file']({ sender: {} }, fakeResult(), 'My question', 'json');
+    expect(outcome).toEqual({ cancelled: true });
   });
 });
