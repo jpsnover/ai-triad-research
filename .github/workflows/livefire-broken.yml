@@ -1,0 +1,20 @@
+# THROWAWAY — t/3646 live-fire RED arm. NEVER MERGE. Deliberately violates R1 (a `paths:`
+# filter under pull_request on a required-context workflow) so the workflow-lint required-context
+# rule, under REQUIRED_CONTEXT_BLOCKING=True, reds the REAL workflow-lint job in CI — proving the
+# rule is live at platform-execution, not just in self_test (TL flip-gate t/3646#5). The
+# never-matching paths also keep this throwaway from actually running.
+name: livefire-broken
+on:
+  pull_request:
+    branches: [main]
+    paths: ['this-path-never-matches-anything/**']
+    # lint:gated-events: opened,synchronize,reopened
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  livefire-broken:
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo livefire

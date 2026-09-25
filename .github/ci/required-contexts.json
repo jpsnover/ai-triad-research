@@ -13,6 +13,7 @@
   "required_contexts": [
     { "context": "ci-gate", "workflow": ".github/workflows/ci.yml" },
     { "context": "joint-gv-guard", "workflow": ".github/workflows/joint-gv-guard.yml" },
-    { "context": "CodeQL", "workflow": null }
+    { "context": "CodeQL", "workflow": null },
+    { "context": "livefire-broken", "workflow": ".github/workflows/livefire-broken.yml" }
   ]
 }
