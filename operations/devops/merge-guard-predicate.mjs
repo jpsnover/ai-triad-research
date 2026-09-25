@@ -117,6 +117,70 @@ export function buildMergeGuardSinkRecord({ nowIso, mode, command, verdict, fail
   };
 }
 
+/**
+ * Retarget stale-green guard — base-ref-NAME identity (t/3687; supersedes t/3684's rejected timestamp
+ * design). Design of record locked via the e/212 Second-Opinion + TL review (t/3687#2).
+ *
+ * FAILURE CLASS: a PR's base branch is retargeted (GitHub auto-retargets on epic-base deletion; base
+ * correction) AFTER the CI that validated it, so the green required checks ran against the OLD base —
+ * stale for the new base — and with branch protection strict=false the PR can self-merge. The t/3270
+ * head-guard (`--match-head-commit`) misses this: the HEAD is unchanged, the BASE moved.
+ *
+ * MECHANISM — base-ref NAME identity. Each instrumented required workflow records the base ref NAME it
+ * ran against (`github.base_ref`). Block iff the LATEST record from any required recorder names a base
+ * ref different from the PR's CURRENT `baseRefName`. Why the name, and not:
+ *   - timestamps (t/3684): the created/finished axis produced FOUR wrong boundaries in one review.
+ *   - the merge-ref SHA: `potentialMergeCommit = merge(current_main_tip, head)` recomputes whenever main
+ *     ADVANCES (verified e/212#13/#14: its first parent IS the live main tip), so comparing it is
+ *     `strict=true` by side-effect — t/3686's scope, deliberately separate.
+ *   The base ref NAME is invariant under base advancement and changes ONLY on retarget — exactly this
+ *   ticket's question and nothing more.
+ *
+ * SELECTION survives identity (e/212#14/#15 — identity dissolves the COMPARISON boundary, NOT selection):
+ *   - WITHIN a recorder: take the LATEST record by `createdAt`. A post-retarget `synchronize` mints a
+ *     fresh record naming the NEW base; old records are IMMUTABLE and keep the old name. "ANY record
+ *     mismatches" would block a correctly-retargeted PR FOREVER (no operator remedy → override pressure).
+ *     Latest-per-recorder is what makes the guard CLEARABLE: push → synchronize → fresh record names the
+ *     new base → matches → allow. That re-run IS the remedy, obtained by making staleness unmergeable
+ *     rather than by widening triggers (the block-forces-a-push rationale, t/3687).
+ *   - ACROSS recorders: ANY latest-record mismatch blocks (all required, one stale suffices).
+ * Ordering is by `createdAt` — one instant, no created/finished split. Duplicate records per recorder are
+ * UNBOUNDED (t/3646 added `edited`/`auto_merge_disabled` triggers → more runs), so this maxes over a set;
+ * ties at the max resolve to the SAFE side (any base ≠ current at the max instant → block).
+ *
+ * MISSING record → BLOCK, never allow (e/212#5): an expected recorder with no record means the set was
+ * only partially evaluated; degrading to allow is the "verdict narrower than it reads" failure. Distinct
+ * per-recorder reason so the shim's message can name the remedy.
+ *
+ * PURE: the impure shim fetches `currentBaseRefName` + `records` (with fail-closed I/O) and calls this.
+ *
+ * @param currentBaseRefName  the PR's current base ref name (e.g. 'main').
+ * @param expectedRecorders   recorder ids that MUST have a record — the enumerated instrumented
+ *                            workflows (ci.yml, joint-gv-guard, codeql.yml).
+ * @param records             array of { recorder, baseRef, createdAt }; may hold multiple per recorder
+ *                            (latest wins). `createdAt` is an ISO-8601 UTC string.
+ */
+export function baseRefStaleVerdict({ currentBaseRefName, expectedRecorders, records } = {}) {
+  if (!currentBaseRefName) return { block: true, reason: 'no-current-base-ref' };
+  const recs = Array.isArray(records) ? records : [];
+  const expected = Array.isArray(expectedRecorders) ? expectedRecorders : [];
+  if (expected.length === 0) return { block: true, reason: 'no-expected-recorders' };
+  for (const recorder of expected) {
+    const mine = recs.filter((r) => r && r.recorder === recorder && r.baseRef && r.createdAt);
+    if (mine.length === 0) return { block: true, reason: `missing-record:${recorder}` };
+    const times = mine.map((r) => new Date(r.createdAt).getTime());
+    const maxT = Math.max(...times);
+    if (!Number.isFinite(maxT)) return { block: true, reason: `unorderable-records:${recorder}` };
+    // Latest record(s) for this recorder; a tie at second-granularity resolves to the SAFE side —
+    // if ANY record at the max createdAt names a base other than current, the ordering is unknown → block.
+    const latestMismatch = mine.some(
+      (r) => new Date(r.createdAt).getTime() === maxT && r.baseRef !== currentBaseRefName,
+    );
+    if (latestMismatch) return { block: true, reason: `base-ref-mismatch:${recorder}` };
+  }
+  return { block: false, reason: 'all-recorders-match-current-base' };
+}
+
 // CLI shim (t/3270#4 / t/3318, TL GV): the feedback rules invoke THIS module directly so the rule
 // runs the exact logic the both-arms test proves — test == runtime. (A hand-copied inline node -e
 // would let a typo in the un-tested copy brick every merge or silently negate the gate; TL's

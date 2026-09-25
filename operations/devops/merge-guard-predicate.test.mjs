@@ -16,7 +16,88 @@ import {
   isAutoMergeCommand,
   parsePrRef,
   buildMergeGuardSinkRecord,
+  baseRefStaleVerdict,
 } from './merge-guard-predicate.mjs';
+
+// ── t/3687: retarget stale-green guard — baseRefStaleVerdict (base-ref-NAME identity) ──
+// Design of record: t/3687#2 (locked via the e/212 SO+TL review). Block iff the LATEST record from any
+// required recorder names a base ref != the PR's current baseRefName. Selection (latest-per-recorder by
+// createdAt) survives identity; "any record differs" would permanently block a correctly-retargeted PR.
+// Recorder ids and base names are realistic (the 3 enumerated recorders; epic/main retargets seen in this
+// repo). createdAt is ISO-8601 UTC; ordering is single-instant (no created/finished split).
+const RECORDERS = ['ci.yml', 'joint-gv-guard', 'codeql.yml'];
+const rec = (recorder, baseRef, createdAt) => ({ recorder, baseRef, createdAt });
+// all three recorders' latest record names `base`, all at time `t`.
+const allMatching = (base, t) => RECORDERS.map((r) => rec(r, base, t));
+
+test('t/3687 ALLOW: every required recorder\'s latest record names the current base', () => {
+  const v = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: RECORDERS, records: allMatching('main', '2026-09-25T17:00:00Z') });
+  assert.equal(v.block, false);
+  assert.equal(v.reason, 'all-recorders-match-current-base');
+});
+test('t/3687 BLOCK: one recorder\'s latest record names the OLD base (retarget stale-green)', () => {
+  const records = [rec('ci.yml', 'main', '2026-09-25T17:00:00Z'), rec('joint-gv-guard', 'main', '2026-09-25T17:00:00Z'), rec('codeql.yml', 'epic/x', '2026-09-25T17:00:00Z')];
+  const v = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: RECORDERS, records });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'base-ref-mismatch:codeql.yml');
+});
+test('t/3687 ALLOW: retargeted-then-fresh-run — old epic record + newer main record → latest wins (the permanent-block regression)', () => {
+  // Opened against epic/x (17:00), retargeted to main, synchronize minted a fresh record naming main
+  // (17:30). The OLD epic records are immutable but SUPERSEDED. "Any record differs" would block forever;
+  // latest-per-recorder correctly allows.
+  const records = RECORDERS.flatMap((r) => [rec(r, 'epic/x', '2026-09-25T17:00:00Z'), rec(r, 'main', '2026-09-25T17:30:00Z')]);
+  const v = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: RECORDERS, records });
+  assert.equal(v.block, false);
+  assert.equal(v.reason, 'all-recorders-match-current-base');
+});
+test('t/3687 ALLOW: 3+ records for one recorder (unbounded, t/3646 triggers) — latest names current → allow', () => {
+  // t/3646 added edited/auto_merge_disabled triggers → a PR with edits carries several records per
+  // recorder; the count is unbounded, so selection maxes over a set. Latest (18:10) names main.
+  const many = [
+    rec('ci.yml', 'main', '2026-09-25T17:00:00Z'),
+    rec('ci.yml', 'main', '2026-09-25T17:40:00Z'),
+    rec('ci.yml', 'epic/x', '2026-09-25T16:00:00Z'),
+    rec('ci.yml', 'main', '2026-09-25T18:10:00Z'),
+  ];
+  const records = [...many, rec('joint-gv-guard', 'main', '2026-09-25T18:00:00Z'), rec('codeql.yml', 'main', '2026-09-25T18:00:00Z')];
+  const v = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: RECORDERS, records });
+  assert.equal(v.block, false);
+  assert.equal(v.reason, 'all-recorders-match-current-base');
+});
+test('t/3687 BLOCK: a required recorder has NO record → block, naming it (never allow on a partial set)', () => {
+  const records = [rec('ci.yml', 'main', '2026-09-25T17:00:00Z'), rec('joint-gv-guard', 'main', '2026-09-25T17:00:00Z')]; // codeql.yml absent
+  const v = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: RECORDERS, records });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'missing-record:codeql.yml');
+});
+test('t/3687 BLOCK: no records at all → block', () => {
+  const v = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: RECORDERS, records: [] });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'missing-record:ci.yml');
+});
+test('t/3687 BLOCK: no expected recorders → block (nothing evaluated)', () => {
+  const v = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: [], records: allMatching('main', '2026-09-25T17:00:00Z') });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'no-expected-recorders');
+});
+test('t/3687 BLOCK: no current base ref → block (can\'t verify)', () => {
+  const v = baseRefStaleVerdict({ currentBaseRefName: '', expectedRecorders: RECORDERS, records: allMatching('main', '2026-09-25T17:00:00Z') });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'no-current-base-ref');
+});
+test('t/3687 BLOCK: tie at max createdAt with a mismatch → safe side (unknown ordering → block)', () => {
+  // Two ci.yml records at the SAME instant, one naming main and one epic/x. Ordering is unknown at
+  // second-granularity; the safe resolution is to block.
+  const records = [
+    rec('ci.yml', 'main', '2026-09-25T17:00:00Z'),
+    rec('ci.yml', 'epic/x', '2026-09-25T17:00:00Z'),
+    rec('joint-gv-guard', 'main', '2026-09-25T17:00:00Z'),
+    rec('codeql.yml', 'main', '2026-09-25T17:00:00Z'),
+  ];
+  const v = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: RECORDERS, records });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'base-ref-mismatch:ci.yml');
+});
 
 const MODULE = fileURLToPath(new URL('./merge-guard-predicate.mjs', import.meta.url));
 // Invoke the module the SAME way the feedback rule does — proves runtime (CLI shim) == the tested
