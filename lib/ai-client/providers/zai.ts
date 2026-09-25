@@ -62,6 +62,7 @@ export async function generateViaZai(
   }
 
   let json: {
+    model?: string; // provider-reported served identity (t/3677)
     choices?: { finish_reason?: string; message: { content: string; reasoning_content?: string } }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
@@ -106,5 +107,5 @@ export async function generateViaZai(
     totalTokens: u.total_tokens,
   } : undefined;
   const rawStopReason = choice.finish_reason ?? undefined;
-  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics };
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics, providerReportedModel: json.model };
 }

@@ -184,6 +184,7 @@ function callEnvelopeProvider(
     ...req.options,
     timeoutMs: resolveTimeout(req.options?.timeoutMs, req.model, registry), // t/3644: floor-enforced
     systemMessage: sysText || undefined,
+    requestedModelId: req.model, // t/3677: served-identity record
   });
 }
 
@@ -310,7 +311,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     const baseTimeoutMs = options?.timeoutMs ?? getDefaultTimeout(model, registry);
     const floorMs = getModelMinTimeout(model, registry);
     const timeoutMs = Math.max(baseTimeoutMs, floorMs);
-    const opts = { ...options, timeoutMs, fixedTemperature };
+    const opts = { ...options, timeoutMs, fixedTemperature, requestedModelId: model }; // t/3677: served-identity record
 
     const t0 = performance.now();
     getGlobalRecorder()?.record({

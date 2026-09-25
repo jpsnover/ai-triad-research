@@ -79,6 +79,7 @@ export async function generateViaAzure(
   }
 
   let json: {
+    model?: string; // provider-reported served identity (t/3677)
     choices?: { message: { content: string }; finish_reason?: string }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
@@ -108,5 +109,5 @@ export async function generateViaAzure(
     totalTokens: u.total_tokens,
   } : undefined;
   const rawStopReason = json.choices[0].finish_reason ?? undefined;
-  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics };
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics, providerReportedModel: json.model };
 }

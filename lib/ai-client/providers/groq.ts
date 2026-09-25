@@ -63,6 +63,7 @@ export async function generateViaGroq(
 
   let json: {
     choices?: { message: { content: string }; finish_reason?: string }[];
+    model?: string; // provider-reported served identity (t/3677)
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
   try {
@@ -91,5 +92,5 @@ export async function generateViaGroq(
     totalTokens: u.total_tokens,
   } : undefined;
   const rawStopReason = json.choices[0].finish_reason ?? undefined;
-  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics };
+  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics, providerReportedModel: json.model };
 }

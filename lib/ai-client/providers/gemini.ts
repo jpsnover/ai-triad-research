@@ -129,6 +129,7 @@ export async function generateViaGemini(
   let json: {
     candidates?: (Record<string, unknown> & { content: { parts: { text?: string; functionCall?: { name: string; args: Record<string, unknown> } }[] } })[];
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; cachedContentTokenCount?: number; totalTokenCount?: number };
+    modelVersion?: string; // provider-reported served identity (t/3677)
   };
   try {
     json = JSON.parse(bodyText);
@@ -169,7 +170,7 @@ export async function generateViaGemini(
   const urlContextMetadata = parseUrlContextMetadata(candidate);
   // finishReason lives on the candidate (e.g. "STOP", "MAX_TOKENS", "SAFETY"); typed unknown here.
   const rawStopReason = typeof candidate.finishReason === 'string' ? candidate.finishReason : undefined;
-  return { text, usage, toolCalls, urlContextMetadata, stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics };
+  return { text, usage, toolCalls, urlContextMetadata, stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics, providerReportedModel: json.modelVersion };
 }
 
 export async function generateViaGeminiStream(
