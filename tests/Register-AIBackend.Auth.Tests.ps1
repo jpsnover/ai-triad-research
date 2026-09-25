@@ -34,9 +34,14 @@ BeforeAll {
         Register-AIBackend -NoBrowser -Port $Port
     } -ArgumentList $ModulePath, $script:TestPort
 
-    # Wait up to 4 s for the listener to accept connections (expect 401 on unauth GET /)
+    # Wait for the listener to accept connections (expect 401 on unauth GET /). Poll 100ms,
+    # early-exit on first response. Timeout widened 4s -> 30s (t/3665): the Start-Job runspace
+    # first does `Import-Module AITriad -Force` (~4.6s COLD) before Register-AIBackend even binds,
+    # so under CI load import+start exceeds 4s and the whole suite flaked red on server-not-ready
+    # (t/3547 was the port half of this flake; this is the startup-time half). 30s is well clear
+    # of cold-import+bind even on a starved runner; the early-exit keeps the fast path ~instant.
     $script:ServerReady = $false
-    for ($i = 0; $i -lt 40; $i++) {
+    for ($i = 0; $i -lt 300; $i++) {
         Start-Sleep -Milliseconds 100
         try {
             $null = Invoke-WebRequest -Uri "http://127.0.0.1:$($script:TestPort)/" -UseBasicParsing -ErrorAction Stop
