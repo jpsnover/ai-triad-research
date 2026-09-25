@@ -72,7 +72,7 @@ function New-EmptyEntityEmbeddingsStore {
     return [PSCustomObject]@{
         _schema_version = '2.0.0'
         _doc            = 'Entity vectors for linking and dedup ONLY. Never an input to debate relevance.'
-        model           = 'all-MiniLM-L6-v2'  # model-lint:allow embedding model (sentence-transformers), not an ai-models.json LLM backend
+        model           = 'all-MiniLM-L6-v2'  # model-lint:allow-pin embedding model (sentence-transformers), not an ai-models.json LLM backend
         dim             = 384
         last_modified   = (Get-Date).ToString('yyyy-MM-dd')
         vectors         = [PSCustomObject]@{}

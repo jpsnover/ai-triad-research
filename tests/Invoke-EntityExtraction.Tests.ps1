@@ -101,7 +101,7 @@ Describe 'Invoke-EntityExtraction (t/1806 Phase 1)' -Tag 'unit' {
         }
 
         It 'Rejects an unregistered -Model at parameter binding (Test-AIModelId validation)' {
-            { Invoke-EntityExtraction -Model 'totally-unregistered-model-zzz' -Confirm:$false } | # model-lint:allow (negative test: id is deliberately unregistered)
+            { Invoke-EntityExtraction -Model 'totally-unregistered-model-zzz' -Confirm:$false } | # model-lint:allow-nonselect (negative test: id is deliberately unregistered)
                 Should -Throw -ExpectedMessage '*totally-unregistered-model-zzz*'
         }
     }

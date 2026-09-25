@@ -20,7 +20,7 @@ function Compare-EmbeddingModel {
         Compare-EmbeddingModel
         # Compares default models (MiniLM, mpnet, BGE) on golden test set.
     .EXAMPLE
-        Compare-EmbeddingModel -Models 'all-MiniLM-L6-v2', 'all-mpnet-base-v2'  # model-lint:allow embedding models (sentence-transformers), not ai-models.json LLM backends
+        Compare-EmbeddingModel -Models 'all-MiniLM-L6-v2', 'all-mpnet-base-v2'  # model-lint:allow-pin embedding models (sentence-transformers), not ai-models.json LLM backends
         # Compares two specific models.
     .LINK
         Show-AITriadHelp

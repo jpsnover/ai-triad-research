@@ -10,26 +10,30 @@
     the tests/ Pester suite). An agent editing the root config gets no local
     signal that those suites gate it — which is how a registry edit can go green
     locally and red in CI (t/1933). This script gives that edit a single local
-    command that runs all seven gates and exits non-zero if any fails.
+    command that runs all nine gates and exits non-zero if any fails.
 
-    Seven gates (see t/1950#1 for the original inventory; t/2486 adds gate 7):
+    Nine gates (t/1950#1 original inventory; t/2486 adds registryCompleteness;
+    t/3560 adds the model-literal-lint pair; t/3657 splits the ai-config vitest
+    gate into its unit + conformance suites):
       Pester (run directly):
         - tests/Test-AIModelsConfig.Tests.ps1   config gate
-        - tests/ModelLiteralLint.Tests.ps1      -Model literals name registered models
+        - tests/ModelLiteralLint.Tests.ps1      model-id literals name registered models
       vitest (delegated to taxonomy-editor's suite):
         - taxonomy-editor/src/server/__tests__/keysValidation.test.ts   KEY_VALIDATION_PROBES completeness
         - taxonomy-editor/src/main/__tests__/modelConfigCache.test.ts   id->apiId map
         - lib/debate/__tests__/configInvariant.test.ts                  fallbackChain / default invariants
         - lib/electron-shared/modelDiscovery.test.ts                    model discovery
         - taxonomy-editor/src/renderer/hooks/useTaxonomyStore/slices/__tests__/registryCompleteness.test.ts   renderer accessor-chain completeness
+        - lib/ai-config/modelLiteralLint.test.ts                        TS model-literal lint unit suite
+        - lib/ai-config/modelLiteralLint.conformance.test.ts            shared cross-toolchain conformance corpus
 
     The vitest half is the fiddly part. taxonomy-editor's vitest include-globs
     are relative to taxonomy-editor/src/renderer, so passing repo-root-relative
     paths as filters silently matches ZERO tests and exits 0 — a false green that
     looks exactly like success (t/1950#1). This script defends against that by:
       1. filtering with bare basenames (CWD-independent substring match), and
-      2. verifying `vitest list` collects EXACTLY the five expected files before
-         running — a collected count other than five is a FAILURE, not success.
+      2. verifying `vitest list` collects EXACTLY the seven expected files before
+         running — a collected count other than seven is a FAILURE, not success.
 .EXAMPLE
     npm run verify:config
 .EXAMPLE
@@ -61,7 +65,8 @@ $VitestGates = [ordered]@{
     'configInvariant'       = 'lib/debate/__tests__/configInvariant.test.ts'
     'modelDiscovery'        = 'lib/electron-shared/modelDiscovery.test.ts'
     'registryCompleteness'  = 'hooks/useTaxonomyStore/slices/__tests__/registryCompleteness.test.ts'
-    'modelLiteralLint'      = 'lib/ai-config/modelLiteralLint.test.ts'
+    'modelLiteralLint.test' = 'lib/ai-config/modelLiteralLint.test.ts'
+    'modelLiteralLint.conformance.test' = 'lib/ai-config/modelLiteralLint.conformance.test.ts'
 }
 $PesterGates = @(
     (Join-Path $RepoRoot 'tests/Test-AIModelsConfig.Tests.ps1')
@@ -126,7 +131,7 @@ if (-not (Test-Path (Join-Path $TaxEditor 'node_modules'))) {
     Write-Host '  FAIL vitest — taxonomy-editor/node_modules is missing.' -ForegroundColor Red
     Write-Host '        Goal:  run the vitest registry gates' -ForegroundColor DarkYellow
     Write-Host "        Fix:   run 'pnpm install' in $TaxEditor, then re-run verify:config" -ForegroundColor DarkYellow
-    $Results['vitest:collection (6 files)'] = $false
+    $Results['vitest:collection (7 files)'] = $false
     $Results['vitest:run'] = $false
 }
 else {
@@ -153,16 +158,16 @@ else {
             $collectionOk = $false
         }
     }
-    $Results['vitest:collection (6 files)'] = $collectionOk
+    $Results['vitest:collection (7 files)'] = $collectionOk
 
     if ($collectionOk) {
         Write-Host "  PASS collection — all $($VitestGates.Count) gate files collected" -ForegroundColor Green
 
-        # Step 2 — RUN the six collected files.
+        # Step 2 — RUN the seven collected files.
         & npm exec --silent -- vitest run @Filters
         $runOk = ($LASTEXITCODE -eq 0)
         if ($runOk) {
-            Write-Host "  PASS vitest run — all 6 gate suites green" -ForegroundColor Green
+            Write-Host "  PASS vitest run — all 7 gate suites green" -ForegroundColor Green
         } else {
             Write-Host "  FAIL vitest run — one or more suites failed (exit $LASTEXITCODE, see output above)" -ForegroundColor Red
         }
@@ -196,5 +201,5 @@ if ($failed.Count -gt 0) {
 }
 
 Write-Host ''
-Write-Host 'verify:config PASSED — all 8 registry gates green.' -ForegroundColor Green
+Write-Host 'verify:config PASSED — all 9 registry gates green.' -ForegroundColor Green
 exit 0
