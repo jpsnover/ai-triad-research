@@ -1,0 +1,143 @@
+{
+  "_doc": {
+    "purpose": "Shared conformance corpus for the model-literal lint (t/3656, SO condition 4 of t/3557). Both implementations consume it and must agree: lib/ai-config/modelLiteralLint.ts (TS) and tests/ModelLiteralLint.Tests.ps1 (PS). Turns 'same predicate' from a claim into a test.",
+    "scope": "Tests the RESOLUTION predicate + MARKER-parsing, NOT extraction. The two extraction regexes differ by design (TS scans all backend-prefixed literals; PS scans -Model/$*Model*= binding positions only — t/3560) and are deliberately NOT forced to agree. What both CLAIM is identical — given an extracted id + its co-located marker + the registry, is it an offender? — is what this corpus pins.",
+    "layers": {
+      "resolution": "Wireable today. Drives the pure set-membership predicate (TS lintModelLiterals / PS Get-ModelLintOffenders): id in registeredIds -> pass, else fail. Cases assume an already-extractable id.",
+      "marker": "PROVISIONAL — the t/3557 condition-1 future contract. Neither impl parses the typed marker grammar yet (both do plain line-contains today). Consumers MUST visibly SKIP these rows (Set-ItResult -Skipped / it.skip) with reason 'pending t/3557 cond-1', not silently pass, so staging is visible. Flip Skipped->asserted as cond-1 lands.",
+      "registry": "Guard/loader-level, NOT the pure predicate. expect:'error' means the registry-load guard fires (PS: the @(ValidIds).Count -gt 0 false-green guard; TS: the caller's equivalent), distinct from 'unregistered literal'. Do NOT wire these into the pure predicate on either side."
+    },
+    "markerGrammar": {
+      "status": "PROVISIONAL — ratified by t/3557 condition 1 (not yet landed). Until locked there, the marker rows below are provisional data. Both impls must parse this grammar IDENTICALLY or the corpus cannot arbitrate; that identical parse is cond-1's deliverable.",
+      "forms": {
+        "model-lint:allow-pin <reason>": "PASS — deliberate pin of an intentionally-unregistered id (raw provider id, embedding/reranker/TTS model). Reason required.",
+        "model-lint:allow-external <reason>": "PASS — external/BYOK id legitimately absent from the curated registry (e.g. azure deployment). Reason required.",
+        "model-lint:allow (bare)": "FAIL — deprecated ambiguous form; cond-1 requires a typed marker + reason.",
+        "allow-pin on a registered id": "FAIL — contradiction: a pin claiming to pin something that IS in the registry (never a pin)."
+      }
+    },
+    "fields": {
+      "name": "unique case id",
+      "layer": "resolution | marker | registry",
+      "id": "the model-id literal under test (already extracted)",
+      "marker": "null, or the full co-located marker comment text",
+      "registeredIds": "the registered model-id set for this case (self-contained; not the live ai-models.json)",
+      "registryState": "ok | empty | unreadable",
+      "expect": "pass | fail | error",
+      "reason": "one-line rationale so a failure is self-explaining"
+    }
+  },
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "resolution-registered-passes",
+      "layer": "resolution",
+      "id": "claude-sonnet-4-6",
+      "marker": null,
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "pass",
+      "reason": "literal resolves to a registered models[].id"
+    },
+    {
+      "name": "resolution-registered-passes-other-backend",
+      "layer": "resolution",
+      "id": "gemini-3.1-pro-preview",
+      "marker": null,
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "pass",
+      "reason": "a second registered id on a different backend — the predicate is backend-agnostic set membership"
+    },
+    {
+      "name": "resolution-unregistered-fails",
+      "layer": "resolution",
+      "id": "claude-opus-9-9",
+      "marker": null,
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "fail",
+      "reason": "well-formed but unregistered id — the core drift this gate exists to catch"
+    },
+    {
+      "name": "resolution-near-miss-dated-variant-fails",
+      "layer": "resolution",
+      "id": "ollama-gemma4-e4b",
+      "marker": null,
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "fail",
+      "reason": "near-miss of the registered ollama-gemma4-e4b-it-q4-k-m — close but not registered; the modelRouter.ts:105 class the gate actually caught"
+    },
+    {
+      "name": "resolution-retired-model-fails",
+      "layer": "resolution",
+      "id": "claude-3-opus",
+      "marker": null,
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "fail",
+      "reason": "a once-valid id dropped by a registry migration — passes locally, latent P0 (Invoke-AIApi returns null before the parser runs)"
+    },
+    {
+      "name": "marker-allow-pin-suppresses",
+      "layer": "marker",
+      "id": "openai-text-embedding-3",
+      "marker": "model-lint:allow-pin embedding model, not an LLM selection",
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "pass",
+      "reason": "deliberate pin of an intentionally-unregistered id with a reason — the legitimate exemption"
+    },
+    {
+      "name": "marker-allow-external-suppresses",
+      "layer": "marker",
+      "id": "azure-gpt-4o",
+      "marker": "model-lint:allow-external BYOK azure deployment id, not in the curated registry",
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "pass",
+      "reason": "external/BYOK id legitimately absent from the curated set, exempted with a reason"
+    },
+    {
+      "name": "marker-bare-allow-deprecated-fails",
+      "layer": "marker",
+      "id": "groq-mixtral-8x7b",
+      "marker": "model-lint:allow",
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "fail",
+      "reason": "bare allow with no typed sub-form and no reason — cond-1 deprecates the ambiguous form; it must not survive"
+    },
+    {
+      "name": "marker-pin-on-registered-contradiction-fails",
+      "layer": "marker",
+      "id": "claude-sonnet-4-6",
+      "marker": "model-lint:allow-pin pinning a model that is actually registered",
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "fail",
+      "reason": "contradiction — a pin marker on an id that IS registered; the pin is spurious/misleading and must be flagged, not silently honoured"
+    },
+    {
+      "name": "registry-empty-is-error-not-unregistered",
+      "layer": "registry",
+      "id": "claude-sonnet-4-6",
+      "marker": null,
+      "registeredIds": [],
+      "registryState": "empty",
+      "expect": "error",
+      "reason": "an empty registered set means the registry failed to load — the guard must fire (distinct outcome), NOT treat every literal as unregistered and flood offenders"
+    },
+    {
+      "name": "registry-unreadable-is-error-not-unregistered",
+      "layer": "registry",
+      "id": "claude-sonnet-4-6",
+      "marker": null,
+      "registeredIds": [],
+      "registryState": "unreadable",
+      "expect": "error",
+      "reason": "the registry file could not be read — the loader/guard must fail loudly, distinct from 'unregistered literal'"
+    }
+  ]
+}
