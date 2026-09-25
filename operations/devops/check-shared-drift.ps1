@@ -46,6 +46,31 @@ function Invoke-Git {
     } catch { return $null }
 }
 
+# t/3652: pure branch-strand classifier (CLEAN/STRANDED/DIVERGED/UNKNOWN), split into its own
+# dot-sourceable file (mirrors FlakeVerdict.ps1) so its three arms are unit-testable without
+# running the whole drift check. Best-effort dot-source; if absent, the 5d block below no-ops.
+$strandVerdictScript = Join-Path $PSScriptRoot 'BranchStrandVerdict.ps1'
+if (Test-Path $strandVerdictScript) { . $strandVerdictScript }
+
+# t/3652: bounded gh invocation. Returns combined output + exit code + timeout flag so the caller
+# can distinguish gh-absent / unauth / rate-limited / timeout — different causes, different fixes
+# (TL t/3652#3 condition 2). Never throws.
+function Invoke-Gh {
+    param([string[]]$GhArgs, [int]$TimeoutMs = 15000)
+    try {
+        $job = Start-Job {
+            $ErrorActionPreference = 'Continue'
+            $out = & gh @using:GhArgs 2>&1
+            [PSCustomObject]@{ Out = @($out | ForEach-Object { "$_" }); Code = $LASTEXITCODE }
+        }
+        $completed = Wait-Job $job -Timeout ([int]($TimeoutMs / 1000))
+        if (-not $completed) { Remove-Job $job -Force; return [PSCustomObject]@{ Output = @(); ExitCode = -1; TimedOut = $true } }
+        $res = Receive-Job $job
+        Remove-Job $job
+        return [PSCustomObject]@{ Output = @($res.Out); ExitCode = ([int]$res.Code); TimedOut = $false }
+    } catch { return [PSCustomObject]@{ Output = @(); ExitCode = -1; TimedOut = $false } }
+}
+
 # t/3058: attribute shell-word-split junk to the scope-owning role by path prefix.
 # Each Orca agent's shell cwd is its own scope dir, so a word-split fragment lands in
 # the CREATING role's directory — the junk file's path IS the attribution. Ordered
@@ -86,6 +111,10 @@ $result = [PSCustomObject]@{
     ShellFragmentPaths = @()
     SuspiciousPaths  = @()
     NestedWorktrees  = @()
+    StrandedBranches = @()            # t/3652: AT-RISK branches (STRANDED / DIVERGED-UNLANDED) — these ALARM
+    StrandedBranchesInfo = @()        # t/3652: DIVERGED-STALE — informational only (stale reset branch, 0 unlanded), does NOT alarm (TL p/331#1324)
+    StrandedBranchesStatus = 'OK'     # t/3652: OK | PARTIAL | SKIPPED-NO-NETWORK — degraded state lives in the RETURN VALUE, not just a WARN (TL t/3652#3: WARN+success reads as clean = invisible degradation)
+    StrandedBranchesReason = ''       # t/3652: WHY degraded (gh-absent / gh-unauth / gh-rate-limited / N-unresolved) — different causes need different fixes
     AutoRemoved      = @()
     Attribution      = @{}
     RemediationHint  = ''
@@ -210,6 +239,104 @@ try {
     $nestedWorktrees = @($nestedWorktrees | Select-Object -Unique)
     $result.NestedWorktrees = $nestedWorktrees
 
+    # 5d. STRANDED-BRANCH DETECTION (t/3652): commits pushed to a branch whose PR already MERGED/CLOSED.
+    #     Silent failure class — the branch looks healthy, CI may go green, but no PR will ever land
+    #     the commits (near-miss: two security fixes sat on a dead branch for hours while the epic
+    #     carried the unfixed code — e/203#4). Detection-only; a human decides. Needs gh to map
+    #     branch->PR, so it degrades EXPLICITLY into the return value (StrandedBranchesStatus/Reason),
+    #     never a silent WARN+success (TL t/3652#3). Signal = Get-BranchStrandVerdict (squash-safe).
+    # Own try/catch so a failure here can NEVER skip section 6 (alarm) — degrade into the status field.
+    try {
+    if (-not (Get-Command Get-BranchStrandVerdict -ErrorAction SilentlyContinue)) {
+        $result.StrandedBranchesStatus = 'SKIPPED-NO-NETWORK'
+        $result.StrandedBranchesReason = 'classifier-unavailable: BranchStrandVerdict.ps1 not dot-sourced'
+    }
+    $strandedBranches = @()
+    $strandedInfo = @()
+    # Only meaningful against a real GitHub repo. A temp/test repo or non-GitHub mirror has no PRs
+    # to map — running gh there just errors → a spurious SKIPPED alarm (this exact case broke the
+    # ShellFragment clean-tree test). No github origin => detection N/A: leave status OK, no alarm.
+    $originUrl = (Invoke-Git @('-C', $RepoRoot, 'remote', 'get-url', 'origin'))
+    $originUrl = if ($originUrl) { ($originUrl | Select-Object -First 1).Trim() } else { '' }
+    $noGithubRemote = ($originUrl -notmatch 'github\.com')
+    # Dismissal allowlist: `branch  # reason` — reason mandatory (t/3557 exemption-ratchet). Blank / full-line `#` ignored.
+    $dismissed = @{}
+    $dismissFile = Join-Path $RepoRoot 'operations/devops/stranded-branch-dismissals.txt'
+    if (Test-Path $dismissFile) {
+        foreach ($line in @(Get-Content -LiteralPath $dismissFile -ErrorAction SilentlyContinue)) {
+            $t = "$line".Trim()
+            if (-not $t -or $t.StartsWith('#')) { continue }
+            $name = (($t -split '#', 2)[0]).Trim()
+            if ($name) { $dismissed[$name] = $true }
+        }
+    }
+    if ($noGithubRemote) {
+        # No GitHub origin (temp/test repo or non-GitHub mirror) — stranded detection is N/A;
+        # no PRs to map. Leave StrandedBranchesStatus='OK', no findings, no alarm.
+    } elseif ($result.StrandedBranchesStatus -ne 'OK') {
+        # classifier-unavailable already recorded above — skip the gh/network work entirely
+    } elseif (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        $result.StrandedBranchesStatus = 'SKIPPED-NO-NETWORK'
+        $result.StrandedBranchesReason = 'gh-absent: GitHub CLI not on PATH — branch->PR mapping unavailable'
+    } else {
+        $gh = Invoke-Gh @('pr', 'list', '--state', 'all', '--limit', '200', '--json', 'number,state,headRefName,headRefOid') -TimeoutMs 15000
+        $ghFail = Resolve-GhFailureReason -TimedOut $gh.TimedOut -ExitCode $gh.ExitCode -OutputText ($gh.Output -join ' ')
+        if ($ghFail) {
+            $errText = ($gh.Output -join ' ')
+            $snip = if ($errText.Length -gt 180) { $errText.Substring(0, 180) } else { $errText }
+            $result.StrandedBranchesStatus = 'SKIPPED-NO-NETWORK'
+            $result.StrandedBranchesReason = if ($snip) { "${ghFail}: $snip" } else { $ghFail }
+        } else {
+            $prs = $null
+            try { $prs = ($gh.Output -join '') | ConvertFrom-Json } catch { }
+            if ($null -eq $prs) {
+                $result.StrandedBranchesStatus = 'SKIPPED-NO-NETWORK'; $result.StrandedBranchesReason = 'gh-parse: could not parse `gh pr list` JSON output'
+            } else {
+                # Live remote branch tips (one call). name -> tip SHA.
+                $remoteRefs = @{}
+                foreach ($r in @(Invoke-Git @('-C', $RepoRoot, 'ls-remote', '--heads', 'origin') -TimeoutMs 15000)) {
+                    if ("$r" -match '^([0-9a-f]{40})\s+refs/heads/(.+)$') { $remoteRefs[$matches[2]] = $matches[1] }
+                }
+                # Most-recent closed/merged PR per branch (a branch may have had several).
+                $latestByBranch = @{}
+                foreach ($p in @($prs | Where-Object { $_.state -in @('MERGED', 'CLOSED') })) {
+                    $b = $p.headRefName
+                    if (-not $latestByBranch.ContainsKey($b) -or $p.number -gt $latestByBranch[$b].number) { $latestByBranch[$b] = $p }
+                }
+                $unresolved = 0
+                foreach ($b in $latestByBranch.Keys) {
+                    if ($dismissed[$b]) { continue }
+                    if (-not $remoteRefs.ContainsKey($b)) { continue }          # branch deleted after merge — the clean, common case
+                    $tip = $remoteRefs[$b]
+                    $mergedHead = $latestByBranch[$b].headRefOid
+                    if ($tip -eq $mergedHead) { continue }                      # unchanged since merge — fast path, no fetch
+                    # Bring the branch's objects local so merge-base can run (best-effort).
+                    Invoke-Git @('-C', $RepoRoot, 'fetch', '--quiet', 'origin', $b) -TimeoutMs 20000 | Out-Null
+                    $v = Get-BranchStrandVerdict -RepoRoot $RepoRoot -Tip $tip -MergedHead $mergedHead -MainRef 'origin/main'
+                    $pn = $latestByBranch[$b].number
+                    switch ($v.Verdict) {
+                        'STRANDED'         { $strandedBranches += "$b ($($v.Ahead) commit(s) after PR #$pn merged)" }
+                        'DIVERGED-UNLANDED' { $strandedBranches += "$b (DIVERGED — $($v.Ahead) unlanded commit(s) force-pushed off merged PR #$pn head)" }
+                        'DIVERGED-STALE'   { $strandedInfo += "$b (stale reset off merged PR #$pn head — 0 unlanded, nothing at risk)" }
+                        'UNKNOWN'          { $unresolved++ }
+                        default            { }
+                    }
+                }
+                if ($unresolved -gt 0 -and $result.StrandedBranchesStatus -eq 'OK') {
+                    $result.StrandedBranchesStatus = 'PARTIAL'
+                    $result.StrandedBranchesReason = "$unresolved branch(es) unresolved: a required commit SHA was not fetchable (deleted/gc'd) — could not classify"
+                }
+            }
+        }
+    }
+    $result.StrandedBranches = @($strandedBranches)
+    $result.StrandedBranchesInfo = @($strandedInfo)
+    } catch {
+        # 5d must never break the rest of the guard — degrade into the status field, never throw.
+        $result.StrandedBranchesStatus = 'SKIPPED-NO-NETWORK'
+        $result.StrandedBranchesReason = "strand-check-error: $($_.Exception.Message)"
+    }
+
     # 5b. Auto-remediate 0-byte junk — triple guard per t/2476#1:
     #     (a) path is in $junkPaths (already classified as 0-byte untracked)
     #     (b1) not tracked in main repo (git ls-files returns empty at delete time)
@@ -281,7 +408,11 @@ try {
     # t/3634: shell-fragment 0-byte files ALARM even when auto-removed — the t/2112 word-split
     # signature is a named finding worth surfacing (converts silent accumulation into a visible
     # event), unlike generic 0-byte junk which is swept quietly.
-    $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $remainingJunk.Count -gt 0 -or $suspiciousPaths.Count -gt 0 -or $nestedWorktrees.Count -gt 0 -or $shellFragmentPaths.Count -gt 0
+    # t/3652: stranded/diverged branches ALARM (a silent, dangerous class). A DEGRADED stranded-check
+    # (StrandedBranchesStatus != OK) ALSO alarms — the whole point (TL t/3652#3) is that "couldn't
+    # check" must not read as "clean"; surfacing it via the alarm/ping path is how it stays visible.
+    $strandedAlarm = ($result.StrandedBranches.Count -gt 0) -or ($result.StrandedBranchesStatus -ne 'OK')
+    $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $remainingJunk.Count -gt 0 -or $suspiciousPaths.Count -gt 0 -or $nestedWorktrees.Count -gt 0 -or $shellFragmentPaths.Count -gt 0 -or $strandedAlarm
     $result.Alarm = $alarm
 
     if ($alarm) {
@@ -305,6 +436,17 @@ try {
             $listed = $suspiciousPaths -join ', '
             $hints += "suspicious extension-less file(s) in source dir [$listed]: verify untracked, then Remove-Item <paths>"
         }
+        if ($result.StrandedBranches.Count -gt 0) {
+            $listed = $result.StrandedBranches -join '; '
+            $hints += "AT-RISK branch(es) — unlanded commits no PR will land: STRANDED (pushed after merge) or DIVERGED-UNLANDED (force-pushed off the merged head) (t/3652) [$listed]: verify with the branch owner, then cherry-pick the unlanded commits onto the live target and delete/dismiss the branch (add to operations/devops/stranded-branch-dismissals.txt WITH a reason if intentionally kept). Detection-only — a human decides; do NOT auto-merge."
+        }
+        if ($result.StrandedBranchesInfo.Count -gt 0) {
+            $listed = $result.StrandedBranchesInfo -join '; '
+            $hints += "(info) DIVERGED-STALE branch(es) — diverged from a merged PR head but 0 unlanded commits (stale reset, nothing at risk) [$listed]: no action needed; delete when convenient."
+        }
+        if ($result.StrandedBranchesStatus -ne 'OK') {
+            $hints += "stranded-branch check DEGRADED [$($result.StrandedBranchesStatus)]: $($result.StrandedBranchesReason). This is 'could-not-check', NOT 'clean' — re-run once gh is reachable/authed; a persistent gh-unauth/gh-absent is a host-config fix, a rate-limit/timeout is transient."
+        }
         if ($nestedWorktrees.Count -gt 0) {
             $listed = $nestedWorktrees -join '; '
             $hints += "INERT nested .worktrees dir(s) outside <root>/.worktrees/ (t/3145; t/2222 cwd-reset drift) — routed to owning role [$listed]: orphaned copies (no .git safety net). OWNER: confirm inert (no .git, no unpushed/unique content) then 'Remove-Item -Recurse -Force <path>'. Active registered worktrees are EXEMPT (never listed)."
@@ -324,4 +466,10 @@ try {
     # Catch-all — never let the guard throw to the calling agent session
 }
 
-return $result
+# Emit the object, then FORCE exit 0 to honor the contract ("Always exits 0", line 14). t/3652's
+# classifier uses direct `& git merge-base --is-ancestor`, which leaves $LASTEXITCODE=1 on the
+# DIVERGED/UNKNOWN paths; without an explicit exit that would leak as a non-zero script exit code
+# (the pre-t/3652 script stayed 0 only because every git call went through Start-Job, which does
+# not touch the parent's $LASTEXITCODE). Callers read the returned object, not the exit code.
+$result
+exit 0
