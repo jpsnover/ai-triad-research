@@ -34,6 +34,9 @@ on:
     branches: [main]
     # See the audited list above. auto_merge_disabled + edited added at e/202#2 (SO conditions
     # 1 & 2) to close the two never-reports gaps in the remediation + base-retarget paths.
+    # lint:gated-events: opened,synchronize,reopened,labeled,unlabeled,auto_merge_enabled,auto_merge_disabled,edited
+    # ^ machine-readable declaration (t/3646): every event that can change the joint-gv label /
+    #   auto-merge state this guard evaluates. workflow-lint asserts pull_request.types ⊇ this set.
     types: [opened, synchronize, reopened, labeled, unlabeled, auto_merge_enabled, auto_merge_disabled, edited]
 
 # The job id below (joint-gv-guard) is the check-run name GitHub reports — the exact string

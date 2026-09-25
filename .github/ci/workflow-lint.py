@@ -110,6 +110,158 @@ def lint_file(path, content):
     return errs
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# t/3646: a workflow that PROVIDES a REQUIRED status context must never be able to
+# fail-to-report or report a stale verdict. Applied ONLY to the files named in the
+# SSOT (.github/ci/required-contexts.json). These are the invariants — a reader can
+# DIFF this list against the code below, not just trust a prose claim (TL t/3646#1):
+#   R1  no `paths:`/`paths-ignore:` UNDER `pull_request:` — a path filter means the
+#       check may not run, which is incompatible with "required".
+#   R2  the reporting job (job id == context name) `if:` must be ABSENT or EXACTLY
+#       `always()`. NOT "starts with always()": `always() && github.event_name==push`
+#       starts with always() yet skips on pull_request → the required context hangs
+#       forever (TL t/3646#2). A genuine `always() && X` must carry a co-located
+#       `# lint:allow-if: <reason>` exemption.
+#   R3  EXACTLY ONE `# lint:gated-events: <csv>` declaration per file, PRESENT and
+#       NON-EMPTY, and `on.pull_request.types` must be a SUPERSET of it. Empty/missing
+#       => failure ("empty/malformed declaration"), never a vacuous pass on `types ⊇ {}`
+#       (TL t/3646#3). >1 declaration => failure — the scan is first-match-wins, so a
+#       second would be silently ignored (TL t/3646#1333).
+#   R4  no `concurrency:` with `cancel-in-progress: true` — a `cancelled` conclusion
+#       does not satisfy a required check.
+RC_SSOT_PATH = '.github/ci/required-contexts.json'
+# Warn-only until the blocking flip (a separate PR: ≥1 green warn-cycle + drift-guard
+# green on main + live-fire in real CI + Second Opinion). Flip this to True then.
+REQUIRED_CONTEXT_BLOCKING = False
+GATED_EVENTS_RE = re.compile(r'#\s*lint:gated-events:\s*(.*)$')
+ALLOW_IF_RE = re.compile(r'#\s*lint:allow-if:\s*\S')
+
+
+def _block_end(lines, header_idx, header_indent):
+    """Index one past the last line of the block whose header is at lines[header_idx]
+    (column header_indent). Body = lines after the header until the next non-blank,
+    non-comment line whose indent <= header_indent."""
+    j = header_idx + 1
+    while j < len(lines):
+        stripped = lines[j].strip()
+        if stripped == '' or stripped.startswith('#'):
+            j += 1
+            continue
+        indent = len(lines[j]) - len(lines[j].lstrip())
+        if indent <= header_indent:
+            break
+        j += 1
+    return j
+
+
+def _find_key(lines, key, indent, start=0, end=None):
+    """Return the index of the first `<indent spaces>key:` line in [start, end), else -1."""
+    if end is None:
+        end = len(lines)
+    pat = re.compile(r'^' + (' ' * indent) + re.escape(key) + r'\s*:')
+    for i in range(start, end):
+        if pat.match(lines[i]):
+            return i
+    return -1
+
+
+def _parse_inline_list(value):
+    """`[a, b, c]` -> ['a','b','c']; returns None if not an inline [..] list."""
+    v = value.strip()
+    if not (v.startswith('[') and v.endswith(']')):
+        return None
+    inner = v[1:-1].strip()
+    if inner == '':
+        return []
+    return [x.strip() for x in inner.split(',') if x.strip()]
+
+
+def load_required_contexts(root='.'):
+    """Load the SSOT. Returns (entries, error_or_None). Missing/malformed SSOT is a hard
+    error (a required-context lint with no list is itself the silent-no-op failure)."""
+    import json, os
+    p = os.path.join(root, RC_SSOT_PATH)
+    if not os.path.exists(p):
+        return [], f'{RC_SSOT_PATH}: SSOT missing — cannot lint required-context workflows'
+    try:
+        with open(p, encoding='utf-8') as f:
+            data = json.load(f)
+    except Exception as e:  # noqa: BLE001
+        return [], f'{RC_SSOT_PATH}: malformed JSON ({e})'
+    entries = data.get('required_contexts')
+    if not isinstance(entries, list) or not entries:
+        return [], f'{RC_SSOT_PATH}: required_contexts must be a non-empty array'
+    return entries, None
+
+
+def check_required_context(path, content, context_name):
+    """Return violation strings for a required-context workflow file (R1–R4)."""
+    errs = []
+    lines = content.splitlines()
+
+    # Locate on.pull_request block (indent 2 under `on:`).
+    pr_idx = _find_key(lines, 'pull_request', 2)
+    if pr_idx == -1:
+        errs.append(f'{path}: required context "{context_name}" — no `pull_request:` trigger; a required PR check must run on pull_request')
+        pr_end = 0
+    else:
+        pr_end = _block_end(lines, pr_idx, 2)
+        # R1: no paths / paths-ignore inside pull_request
+        for i in range(pr_idx + 1, pr_end):
+            if re.match(r'^\s{4}paths(-ignore)?\s*:', lines[i]):
+                errs.append(f'{path}:{i + 1}: R1 required context "{context_name}" — `paths:`/`paths-ignore:` under pull_request can skip the check → a required context that may never report')
+
+        # R3: types superset of a present+non-empty gated-events declaration
+        types_idx = _find_key(lines, 'types', 4, pr_idx + 1, pr_end)
+        types_list = None
+        if types_idx != -1:
+            val = lines[types_idx].split(':', 1)[1]
+            types_list = _parse_inline_list(val)
+        # Exactly ONE declaration per file. The scan is first-match-wins, so a second
+        # declaration would be SILENTLY ignored (TL t/3646#1333) — flag >1 explicitly.
+        gated_matches = [m for m in (GATED_EVENTS_RE.search(ln) for ln in lines) if m]
+        if len(gated_matches) > 1:
+            errs.append(f'{path}: R3 required context "{context_name}" — {len(gated_matches)} `# lint:gated-events:` declarations found; exactly ONE per file (a second would be silently ignored)')
+        else:
+            gated_decl = [x.strip() for x in gated_matches[0].group(1).split(',') if x.strip()] if gated_matches else None
+            if gated_decl is None:
+                errs.append(f'{path}: R3 required context "{context_name}" — missing `# lint:gated-events:` declaration (name every event that can change the gated condition)')
+            elif len(gated_decl) == 0:
+                errs.append(f'{path}: R3 required context "{context_name}" — EMPTY `# lint:gated-events:` declaration (asserts nothing; `types ⊇ {{}}` is vacuously true) — list the events explicitly')
+            elif types_list is None:
+                errs.append(f'{path}: R3 required context "{context_name}" — `on.pull_request.types` missing or not an inline [..] list; cannot verify it covers the declared gated-events {gated_decl}')
+            else:
+                missing = [e for e in gated_decl if e not in types_list]
+                if missing:
+                    errs.append(f'{path}: R3 required context "{context_name}" — pull_request.types is missing declared gated-event(s) {missing} (declared: {gated_decl}, types: {types_list})')
+
+    # R4: no concurrency cancel-in-progress: true (workflow- or job-level)
+    for i, ln in enumerate(lines):
+        if re.match(r'^\s*cancel-in-progress\s*:\s*true\b', ln):
+            errs.append(f'{path}:{i + 1}: R4 required context "{context_name}" — `cancel-in-progress: true`; a cancelled run does not satisfy a required check')
+
+    # R2: reporting job (id == context_name) `if:` must be absent or exactly always()
+    jobs_idx = _find_key(lines, 'jobs', 0)
+    if jobs_idx == -1:
+        errs.append(f'{path}: required context "{context_name}" — no `jobs:` block')
+    else:
+        job_idx = _find_key(lines, context_name, 2, jobs_idx + 1)
+        if job_idx == -1:
+            errs.append(f'{path}: R2 required context "{context_name}" — no job with id "{context_name}" (the check-run name must be a job in this workflow)')
+        else:
+            job_end = _block_end(lines, job_idx, 2)
+            if_idx = _find_key(lines, 'if', 4, job_idx + 1, job_end)
+            if if_idx != -1:
+                if_val = lines[if_idx].split(':', 1)[1].strip()
+                # strip surrounding quotes / yaml block markers
+                normalized = re.sub(r'\s+', ' ', if_val.strip('\'"').replace('${{', '').replace('}}', '')).strip()
+                has_exemption = any(ALLOW_IF_RE.search(lines[k]) for k in range(job_idx + 1, job_end))
+                if normalized != 'always()' and not has_exemption:
+                    errs.append(f'{path}:{if_idx + 1}: R2 required context "{context_name}" — reporting-job `if:` must be absent or EXACTLY `always()` (got `{if_val}`); `always() && X` still skips on the excluded event → context hangs. Add `# lint:allow-if: <reason>` in the job to exempt a deliberate case.')
+
+    return errs
+
+
 def self_test():
     """Verify that both uses: syntax forms and run: forms are correctly detected."""
     print('=== workflow-lint self-test ===')
@@ -210,6 +362,74 @@ jobs:
     else:
         print('  PASS: Check 2 ignores conditional ${{ inputs.X == ... }} expressions')
 
+    # ── t/3646: required-context rule (R1–R4) — both arms per rule ────────────
+    # These prove the DETECTION logic. NOTE (TL t/3646#5): passing here does NOT prove
+    # the rule is live in real CI — fixtures exercise layers below platform execution
+    # and can be silently dead. A live-fire in a real run is a separate flip-gate.
+    rc_ok = (
+        "permissions:\n  contents: read\n"
+        "on:\n  pull_request:\n    branches: [main]\n"
+        "    # lint:gated-events: opened,synchronize,reopened\n"
+        "    types: [opened, synchronize, reopened]\n"
+        "jobs:\n  ci-gate:\n    if: always()\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n"
+    )
+    if check_required_context('rc_ok', rc_ok, 'ci-gate'):
+        failures.append(f'RC compliant fixture unexpectedly flagged: {check_required_context("rc_ok", rc_ok, "ci-gate")!r}')
+    else:
+        print('  PASS: RC compliant required-context workflow → 0 findings')
+
+    rc_r1 = rc_ok.replace('    types: [opened, synchronize, reopened]\n',
+                          "    paths: ['src/**']\n    types: [opened, synchronize, reopened]\n")
+    if not any('R1' in e for e in check_required_context('rc_r1', rc_r1, 'ci-gate')):
+        failures.append('R1 MISSED `paths:` under pull_request')
+    else:
+        print('  PASS: R1 flags paths: under pull_request')
+
+    rc_r2 = rc_ok.replace('    if: always()\n', "    if: always() && github.event_name == 'push'\n")
+    if not any('R2' in e for e in check_required_context('rc_r2', rc_r2, 'ci-gate')):
+        failures.append('R2 MISSED `always() && X` reporting-job if: (the starts-with hole)')
+    else:
+        print('  PASS: R2 flags `always() && X` reporting-job if:')
+
+    rc_noif = rc_ok.replace('    if: always()\n', '')
+    if any('R2' in e for e in check_required_context('rc_noif', rc_noif, 'ci-gate')):
+        failures.append('R2 false-flagged an ABSENT reporting-job if:')
+    else:
+        print('  PASS: R2 allows an absent reporting-job if:')
+
+    rc_r3m = rc_ok.replace('    # lint:gated-events: opened,synchronize,reopened\n', '')
+    if not any('R3' in e and 'missing' in e for e in check_required_context('rc_r3m', rc_r3m, 'ci-gate')):
+        failures.append('R3 MISSED a missing lint:gated-events declaration')
+    else:
+        print('  PASS: R3 flags a missing gated-events declaration')
+
+    rc_r3e = rc_ok.replace('    # lint:gated-events: opened,synchronize,reopened\n',
+                           '    # lint:gated-events:\n')
+    if not any('EMPTY' in e for e in check_required_context('rc_r3e', rc_r3e, 'ci-gate')):
+        failures.append('R3 MISSED an EMPTY gated-events declaration (vacuous-pass guard)')
+    else:
+        print('  PASS: R3 flags an EMPTY gated-events declaration (closes the vacuous arm)')
+
+    rc_r3g = rc_ok.replace('    # lint:gated-events: opened,synchronize,reopened\n',
+                           '    # lint:gated-events: opened,synchronize,reopened,labeled\n')
+    if not any('R3' in e and 'labeled' in e for e in check_required_context('rc_r3g', rc_r3g, 'ci-gate')):
+        failures.append('R3 MISSED a declared gated-event absent from types')
+    else:
+        print('  PASS: R3 flags a declared event missing from types')
+
+    rc_r3dup = rc_ok.replace('    # lint:gated-events: opened,synchronize,reopened\n',
+                             '    # lint:gated-events: opened,synchronize,reopened\n    # lint:gated-events: opened\n')
+    if not any('declarations' in e for e in check_required_context('rc_r3dup', rc_r3dup, 'ci-gate')):
+        failures.append('R3 MISSED >1 lint:gated-events declarations (silent-second-declaration gap)')
+    else:
+        print('  PASS: R3 flags >1 gated-events declaration (closes the silent-second-decl gap)')
+
+    rc_r4 = rc_ok.replace('on:\n', 'concurrency:\n  group: g\n  cancel-in-progress: true\non:\n')
+    if not any('R4' in e for e in check_required_context('rc_r4', rc_r4, 'ci-gate')):
+        failures.append('R4 MISSED cancel-in-progress: true')
+    else:
+        print('  PASS: R4 flags cancel-in-progress: true')
+
     if failures:
         for f in failures:
             print(f'  FAIL: {f}')
@@ -234,12 +454,43 @@ for path in workflows:
         content = f.read()
     errors.extend(lint_file(path, content))
 
+# ── t/3646: required-context checks ──────────────────────────────────────────
+# Rule findings are WARN-ONLY until REQUIRED_CONTEXT_BLOCKING flips (a deliberate
+# promotion PR). But an ABSENT/MALFORMED SSOT, or an SSOT naming a nonexistent
+# workflow, is ALWAYS a hard error even in warn-only mode: that means the check is
+# silently NOT running — the exact "silently dead" failure this rule exists to
+# prevent (it must fail loud, never no-op green).
+import os as _os
+rc_warnings = []
+rc_entries, rc_ssot_err = load_required_contexts()
+if rc_ssot_err:
+    errors.append(rc_ssot_err)
+else:
+    for _e in rc_entries:
+        _wf = _e.get('workflow')
+        _ctx = _e.get('context')
+        if not _wf:
+            continue  # api-only required context (GitHub-managed, e.g. CodeQL) — no workflow file to lint
+        if not _os.path.exists(_wf):
+            errors.append(f'{_wf}: required context "{_ctx}" (SSOT {RC_SSOT_PATH}) names a workflow file that does not exist')
+            continue
+        with open(_wf, encoding='utf-8') as _f:
+            _findings = check_required_context(_wf, _f.read(), _ctx)
+        if REQUIRED_CONTEXT_BLOCKING:
+            errors.extend(_findings)
+        else:
+            rc_warnings.extend(_findings)
+
 print(f'=== workflow-lint: {len(workflows)} workflows checked ===')
 for e in errors:
     print(f'FAIL: {e}')
+for w in rc_warnings:
+    print(f'::warning::workflow-lint[required-context warn-only, t/3646]: {w}')
 
 if errors:
     print(f'\n::error::workflow-lint: {len(errors)} violation(s) — see output above')
     sys.exit(1)
 
-print('OK — 0 violations')
+if rc_warnings:
+    print(f'\nworkflow-lint: {len(rc_warnings)} required-context WARNING(s) — warn-only (t/3646), not blocking yet')
+print('OK — 0 blocking violations')
