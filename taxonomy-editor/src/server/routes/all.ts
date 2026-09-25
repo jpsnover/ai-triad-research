@@ -19,6 +19,7 @@ import { registerEntityRoutes } from './entity.js';
 import { registerMentionsRoutes } from './mentions.js';
 import { registerPublicShareRoutes } from './publicShare.js';
 import { registerOpedShareRoutes } from './opedShare.js';
+import { registerInquiryShareRoutes } from './inquiryShare.js';
 import { registerEdgesRoutes } from './edges.js';
 import { registerAdminRoutes } from './admin.js';
 import { registerDataRoutes } from './data.js';
@@ -51,6 +52,7 @@ export function registerAllRoutes(router: Router, ctx: ServerCtx): void {
   registerMentionsRoutes(router, ctx);
   registerPublicShareRoutes(router, ctx);
   registerOpedShareRoutes(router, ctx);
+  registerInquiryShareRoutes(router, ctx); // t/3653 — GET /api/public/inquiry/:shareId (anon public read)
   registerEdgesRoutes(router, ctx);
   registerAdminRoutes(router, ctx);
   registerDataRoutes(router, ctx);

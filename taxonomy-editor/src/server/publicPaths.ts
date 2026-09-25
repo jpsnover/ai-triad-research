@@ -48,6 +48,7 @@ export const PUBLIC_PATH_PREFIXES: readonly string[] = [
   '/api/public/',           // t/1788: reserved auth-exempt namespace — Server Auth sign-off to extend
   '/share/',                // t/1789: public POV-share SPA shell — Server Auth sign-off to extend
   '/opeds/',                // t/3507: public op-ed deep-link SPA shell (renderer OPED_PATH_RE); all its API calls are GETs already anon-allowed via isAnonAllowedRoute
+  '/inquiries/',            // t/3626/t/3653: public inquiry-share deep-link SPA shell (PublicInquiryView, t/3628); the public read is GET /api/public/inquiry/:shareId (anon via /api/public/ prefix)
   '/.auth/',
   '/assets/',
   '/workbox-',              // PREFIX — Workbox precache asset filenames
