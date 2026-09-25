@@ -43,3 +43,12 @@ Per the reusable operator manual (`validation-study-operator-manual.md` / t/3611
 
 - **Second independent blind annotator** for the applicability pass (a peer CL instance or a blind sub-agent, clearly labeled LLM-applicability).
 - **Human annotator (AC 2)**, the reliability ground; the study cannot produce a trustworthy reliability claim or tune thresholds without it. Surface to the PI once the applicability pass produces the disagreement set. This milestone delivers AC 1 (frame + codebook); AC 2–5 are the execution phase.
+
+## Human-adjudication tooling (turnkey; t/3630)
+
+The 19-item human step (4 LLM disagreements + 15 agreed-`core` spot-checks) is one-command turnkey, mirroring the t/3611 machinery:
+1. `python make_drift_worksheet.py` -> `drift-worksheet.md` (readable: seeded question + active cruxes + prior context + target turn + codebook) and blank `drift-answers.csv`.
+2. Human reads the worksheet, sets `GOLD_topical_state` (core|adjacent|drifted) per row in `drift-answers.csv`.
+3. `python import_drift_answers.py --run` -> validates the 3-class label, writes GOLD into the package, and runs `finalize_drift.py`.
+
+`finalize_drift.py` auto-resolves the pivotal verdict from the applicability finding (drift ~ 0 on the LLM pass): branch **(a)** if the human confirms ~0 drift (estimator premise fails; AC3 tuning moot), branch **(b)** if the human overturns agreed-`core` turns to drifted/adjacent (LLM core-bias; LLM-applicability does not transfer to human reliability; a fuller 120-item human label set is needed before reliability/tuning). Every reported statistic carries its N. The worksheet/answers/gold files are local-only (not committed), like the t/3611 gold set.
