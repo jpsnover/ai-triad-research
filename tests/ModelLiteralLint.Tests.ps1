@@ -368,3 +368,95 @@ Describe 'Shared conformance corpus — resolution predicate (t/3656, SO cond 4)
         }
     }
 }
+
+# ── Exemption ratchet (SO condition 2 — t/3658) ──────────────────────────────
+# Stops silent GROWTH of the production exemption set. An "exemption" is a VALID
+# `# model-lint:allow-<kind> <reason>` marker on an id that is NOT registered in
+# ai-models.json (a valid marker on a REGISTERED id is a contradiction/offender,
+# not an exemption — excluded, exactly as in Get-ModelLintOffenders). The gate
+# fails if a kind's live count RISES above the committed baseline without the
+# baseline bumped in the SAME commit; lowering is always allowed (the ratchet
+# never auto-shrinks — periodic inventory review is a separate follow-up). WARN-
+# only until the TL's condition-5 flip promotes it alongside the offender arm.
+# PRODUCTION scope only (scripts/AITriad/); test-fixture markers are bounded
+# scaffolding and deliberately NOT ratcheted (TL approval, t/3658; mirrors SL's
+# TS ratchet lib/ai-config/modelLiteralLint.exemptions.baseline.json).
+Describe 'Exemption ratchet — production model-lint exemptions do not grow silently (t/3658)' -Tag 'config' {
+
+    BeforeAll {
+        $script:ExemptionBaselinePath = Join-Path $PSScriptRoot 'modelLiteralLint.exemptions.baseline.json'
+
+        # Pure: count VALID exemptions (valid marker on an UNregistered id) by kind.
+        function script:Measure-ModelLintExemptions {
+            param([object[]]$Literals, [string[]]$ValidIds)
+            $counts = @{ pin = 0; external = 0; nonselect = 0 }
+            foreach ($lit in $Literals) {
+                $mk = if ($lit.PSObject.Properties['Marker']) { $lit.Marker } else { $null }
+                if ($mk -and $mk.Present -and $mk.Valid -and ($lit.Id -notin $ValidIds)) {
+                    if ($counts.ContainsKey($mk.Kind)) { $counts[$mk.Kind]++ }
+                }
+            }
+            $counts
+        }
+    }
+
+    It 'the baseline file exists and declares every kind (fails loudly, not silent-zero)' {
+        Test-Path -LiteralPath $script:ExemptionBaselinePath | Should -BeTrue
+        $b = Get-Content -Raw -LiteralPath $script:ExemptionBaselinePath | ConvertFrom-Json
+        foreach ($k in 'pin', 'external', 'nonselect') {
+            $b.PSObject.Properties[$k] | Should -Not -BeNullOrEmpty -Because "baseline must declare a '$k' count"
+        }
+    }
+
+    It 'no kind''s production exemption count exceeds the baseline (WARN-only — t/3560/t/3658)' {
+        $baseline = Get-Content -Raw -LiteralPath $script:ExemptionBaselinePath | ConvertFrom-Json
+        $current  = script:Measure-ModelLintExemptions -Literals $script:ProdLiterals -ValidIds $script:ValidIds
+        Write-Host "model-lint exemptions (production): pin=$($current.pin) external=$($current.external) nonselect=$($current.nonselect) | baseline: pin=$($baseline.pin) external=$($baseline.external) nonselect=$($baseline.nonselect)"
+
+        $risen = @(foreach ($k in 'pin', 'external', 'nonselect') {
+            if ($current[$k] -gt $baseline.$k) { "$k rose to $($current[$k]) (baseline $($baseline.$k))" }
+        })
+        $remedy = "bump tests/modelLiteralLint.exemptions.baseline.json for that kind in the SAME commit, or remove the exemption. A rising 'nonselect' may instead mean the extraction regex is over-broad — narrow it, don't raise the baseline."
+
+        if ($script:ProductionModelLintBlocking) {
+            # Blocking arm (TL flips the toggle after Second Opinion + GV, condition 5).
+            $risen.Count | Should -Be 0 -Because "exemption ratchet: $($risen -join '; '). $remedy"
+        } else {
+            # WARN-only arm: surface growth without reding the gate. The assertion is the
+            # non-vacuous guard (a broken prod scan would otherwise pass the ratchet on an
+            # empty set — the t/2971 clean-arm-never-exercised class).
+            if ($risen.Count -gt 0) {
+                Write-Warning "exemption ratchet (WARN-only, t/3560): $($risen -join '; '). $remedy"
+            }
+            @($script:ProdLiterals).Count | Should -BeGreaterThan 0
+        }
+    }
+
+    It 'RATCHET both-arms: seeded counts above baseline are detected; at/below are not' {
+        # Exercise the pure counter + rise-detection on seeded input, independent of the
+        # live tree, so the blocking arm's logic runs today (toggle $false) — same t/2971
+        # discipline as the offender-resolution direct tests.
+        $fakeValid = @('gemini-3.5-flash-lite')
+        $seed = @(
+            [pscustomobject]@{ Id = 'raw-embed-x'; Marker = (script:Get-ModelLintMarker -Line '# model-lint:allow-pin embedding') }
+            [pscustomobject]@{ Id = 'raw-embed-y'; Marker = (script:Get-ModelLintMarker -Line '# model-lint:allow-pin embedding') }
+            [pscustomobject]@{ Id = 'azure-dep-z'; Marker = (script:Get-ModelLintMarker -Line '# model-lint:allow-external byok deployment') }
+            # valid pin on a REGISTERED id -> contradiction, NOT an exemption -> excluded
+            [pscustomobject]@{ Id = 'gemini-3.5-flash-lite'; Marker = (script:Get-ModelLintMarker -Line '# model-lint:allow-pin bogus pin') }
+            # bare/no-kind -> invalid -> excluded
+            [pscustomobject]@{ Id = 'bare-y'; Marker = (script:Get-ModelLintMarker -Line '# model-lint:allow no kind') }
+        )
+        $c = script:Measure-ModelLintExemptions -Literals $seed -ValidIds $fakeValid
+        $c.pin        | Should -Be 2
+        $c.external   | Should -Be 1
+        $c.nonselect  | Should -Be 0
+
+        # ABOVE baseline -> flagged
+        $lo = @{ pin = 1; external = 1; nonselect = 0 }
+        @(foreach ($k in 'pin', 'external', 'nonselect') { if ($c[$k] -gt $lo[$k]) { $k } }) | Should -Be @('pin')
+
+        # AT/BELOW baseline -> not flagged (lowering/holding is always allowed)
+        $hi = @{ pin = 2; external = 5; nonselect = 3 }
+        @(foreach ($k in 'pin', 'external', 'nonselect') { if ($c[$k] -gt $hi[$k]) { $k } }).Count | Should -Be 0
+    }
+}
