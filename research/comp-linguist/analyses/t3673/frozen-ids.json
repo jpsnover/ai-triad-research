@@ -1,0 +1,6 @@
+{
+  "ticket": "t/3673",
+  "derived_from": "Test-SituationBdiCompliance full-corpus run 2026-09-25 (443/450, 7 NonDecomposed)",
+  "authorization": "p/349#424 (TL delegation)",
+  "ids": ["sit-479", "sit-480", "sit-481", "sit-482", "sit-483", "sit-484", "sit-485"]
+}
