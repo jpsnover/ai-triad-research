@@ -184,15 +184,22 @@ describe('model-literal lint — exemption ratchet (t/3657 condition 2)', () => 
     expect(countExemptionsByKind(files, valid)).toEqual({ pin: 1, external: 1, nonselect: 1 });
   });
 
-  it('RATCHET: no kind exceeds its committed baseline (bump the baseline file in the SAME commit to raise)', () => {
+  it('RATCHET: each kind EXACTLY matches its committed baseline (bump the baseline file in the SAME commit on any change)', () => {
+    // Fail-on-MISMATCH, not fail-on-rise (t/3557 condition 5): a rise (new exemption) AND a drop
+    // (removed exemption) both force a reviewed baseline bump, so the live count and the recorded
+    // baseline can never silently diverge in either direction.
     const counts = countExemptionsByKind(PRODUCTION_FILES, VALID_IDS);
     for (const kind of MARKER_KINDS as readonly MarkerKind[]) {
       expect(
         counts[kind],
-        `model-lint '${kind}' exemptions rose to ${counts[kind]}, above baseline ${baseline[kind]}. If this new ` +
-          `exemption is legitimate, bump "${kind}" in lib/ai-config/modelLiteralLint.exemptions.baseline.json in ` +
-          `this same commit (a reviewed diff). A rising 'nonselect' count instead means the extraction is over-broad.`,
-      ).toBeLessThanOrEqual(baseline[kind]);
+        `model-lint '${kind}' exemptions = ${counts[kind]}, but baseline = ${baseline[kind]}. This gate fails on ANY ` +
+          `mismatch (a new exemption OR a removed one). Update "${kind}" in ` +
+          `lib/ai-config/modelLiteralLint.exemptions.baseline.json in this SAME commit so the exemption set stays a ` +
+          `reviewed diff. A rising 'nonselect' count instead signals the extraction regex is over-broad — narrow it, ` +
+          `don't raise the baseline. NOTE: this is a blocking CI TEST SUITE — --no-verify and disable_feedback_rule do ` +
+          `NOT bypass it (those apply to the pre-commit hook / feedback rules, not vitest). The only paths are: fix ` +
+          `the literal, add/remove a valid marker, bump this baseline, or (true emergency) an admin merge.`,
+      ).toBe(baseline[kind]);
     }
   });
 });
