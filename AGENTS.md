@@ -78,6 +78,18 @@ The `pre-self-merge-verify` hook **blocks** a manual `gh pr merge` that omits `-
 
 Before implementing an assigned ticket, claim it (assign to your instance or comment you're starting). Multi-instance roles: check for a peer's claim, in-flight PR, or recent landed commit **before** choosing an approach (parallel impls of t/2514 burned two CI cycles).
 
+### Epic Branches (multi-role features on one shared PR)
+
+A large feature spanning multiple roles uses an **epic integration branch** (`epic/<name>`) with a single shared PR (epic → `main`) as the sole integration point. Rules for everyone working an epic (t/3618):
+
+- **Child PRs target the epic base, NEVER `main`.** A child that lands on `main` while the epic is live is the duplicate-parallel-land bug below.
+- **Claim before implementing** an epic child (per above), and check whether the ticket already has a PR **on any base** — an epic child and a direct-to-`main` PR for the same ticket is exactly the failure.
+- **One shared PR** is the integration point; don't open a second PR for the same ticket against a different base.
+
+**Duplicate parallel land** (t/3655, from t/3621 landing on both `main` #2385 and the epic branch): one ticket implemented twice, onto two non-ancestor bases, whose copies then co-evolve. Two variants:
+- **LOUD** — the copies touch the same files → merge conflict blocks the epic→`main` PR. Self-announcing; you'll see it (this is how t/3621 surfaced). No gate needed; this section is the prevention.
+- **QUIET** — one copy is a subset of, or disjoint from, the other → the epic PR **auto-merges clean and nobody notices** the duplicated work. "No conflict" does **not** mean "no duplicate land." This variant has no signal — the only defense is claiming + targeting the epic base up front.
+
 ### Subsystem Map
 
 Detailed conventions live in each subtree's `AGENTS.md`. Orientation only:
