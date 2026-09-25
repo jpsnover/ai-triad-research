@@ -74,3 +74,39 @@ describe('parseInquiryResult — version policy (ADR §3, t/3574)', () => {
     expect(() => parseInquiryResult(bad)).toThrow(ActionableError);
   });
 });
+
+// t/3643 (SO e/203#3): pin the schema-versioning INVARIANT, not just the parser's per-record behaviour.
+// The rule at schema.ts:19-22 — "add an optional field → NO bump; change what a v1 reader would misread
+// → bump" — is load-bearing because a WRONG bump is a self-inflicted READ OUTAGE: parseInquiryResult's
+// newer-major arm refuses loudly (pinned by the 'newer major' test above), so bumping schemaVersion for
+// a merely-additive field makes every deployed build reject every newly-written result across all five
+// consumers — and migrate() throws (pinned by the 'older version' test above), so there is no downgrade
+// path either. The rule has been hand-applied correctly twice (t/3585, t/3641); this converts "correct
+// by careful reading" into "enforced." Unit test only — deliberately NOT a CI gate (t/3643 scope).
+describe('schemaVersion invariant — additive-never-bumps (t/3643)', () => {
+  it('READ-OUTAGE TRIPWIRE: INQUIRY_SCHEMA_VERSION is 1 — a bump is a BREAKING change, not a routine tick', () => {
+    // The instruction lives in the ASSERTION MESSAGE, not just this comment: a red test shows the message,
+    // and a bare "expected 2 to be 1" just gets the number edited to make it green (TL p/342#397, the same
+    // lesson as the export guard). So whoever trips this reads WHY before touching it.
+    expect(
+      INQUIRY_SCHEMA_VERSION,
+      'schemaVersion changed. If the change that bumped it is ADDITIVE (a new OPTIONAL field), REVERT the ' +
+      'bump — additive-never-bumps (schema.ts:19-22): parse.ts refuses newer majors, so a bump makes every ' +
+      'deployed build REJECT every newly-written result across all five consumers (a self-inflicted read ' +
+      'outage), and migrate() throws so there is no downgrade path. Only bump for a change a v1 reader would ' +
+      'MISREAD, and land a parse.ts migration FIRST. If the bump is genuinely breaking, update this number ' +
+      'together with the sibling "newer major"/"older version" tests — deliberately, not to green a red test.',
+    ).toBe(1);
+  });
+
+  it('additive-optional field needs NO bump — present or absent, a record parses at the same version', () => {
+    // `debateId` is a declared OPTIONAL field (t/3641). A record omitting it and one carrying it BOTH
+    // parse at the current version — the proof that adding an optional field requires no schemaVersion bump.
+    const base = makeValidResult();
+    expect('debateId' in base).toBe(false); // fixture predates the optional field
+    expect(parseInquiryResult(base).schemaVersion).toBe(INQUIRY_SCHEMA_VERSION);
+    const withOptional = parseInquiryResult({ ...base, debateId: 'debate-xyz' }) as Record<string, unknown>;
+    expect(withOptional.schemaVersion).toBe(INQUIRY_SCHEMA_VERSION);
+    expect(withOptional.debateId).toBe('debate-xyz');
+  });
+});
