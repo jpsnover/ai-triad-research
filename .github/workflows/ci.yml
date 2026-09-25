@@ -258,6 +258,16 @@ jobs:
     # PowerShell scope) off its ~14-min edge.
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    # t/3668: shard the Pester suite across parallel matrix jobs, KEEPING -Force per-file isolation
+    # (each shard runs a DISJOINT slice — no import-once, no state bleed; t/3665 close-out chose
+    # shard-with-Force over the 84-var reset re-architecture). Halves wall-clock off the 25-min-cap
+    # edge that reds main on slow runners. ci-gate aggregates the shards via needs.test-powershell
+    # .result (all must pass); test-powershell is NOT itself a required context (only ci-gate is),
+    # so this is a ci.yml-only change — no branch-protection edit.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
@@ -310,11 +320,24 @@ jobs:
         # here is "has timed out after 25 minutes" — already unambiguous vs a test failure (t/3665).
         timeout-minutes: 25
         shell: pwsh
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARD_TOTAL: '2'
         run: |
           . ./operations/devops/Get-PesterExcludePaths.ps1  # single source of truth (t/3010)
           . ./operations/devops/FlakeVerdict.ps1            # t/3546 verdict message (content regression-guarded by tests/FlakeVerdict.Tests.ps1)
           $config = New-PesterConfiguration
-          $config.Run.Path = './tests/'
+          # t/3668: run only THIS shard's disjoint slice of the test files. Deterministic partition
+          # (sort by path, file j -> shard j % SHARD_TOTAL) so every file runs in exactly one shard
+          # and the split is stable. -Force per-file isolation is untouched (each file still imports
+          # the module fresh), so splitting across shards cannot bleed state. ExcludePath (below)
+          # still drops the decoupled data-compliance tests within the slice.
+          $shard = [int]$env:SHARD; $shardTotal = [int]$env:SHARD_TOTAL
+          $allTests = @(Get-ChildItem ./tests -Recurse -Filter *.Tests.ps1 | Sort-Object FullName)
+          $mine = @(for ($j = 0; $j -lt $allTests.Count; $j++) { if (($j % $shardTotal) -eq ($shard - 1)) { $allTests[$j].FullName } })
+          Write-Host "::notice::test-powershell shard $shard/$shardTotal — running $($mine.Count) of $($allTests.Count) test files"
+          if ($mine.Count -eq 0) { Write-Host "::error::shard $shard matched 0 test files (slicing bug) — failing safe."; exit 1 }
+          $config.Run.Path = $mine
           # Live-data SituationBDI compliance decoupled to compliance-live.yml
           # (t/2331, t/2324#1): data-corpus state must not block code PRs.
           $config.Run.ExcludePath = Get-PesterExcludePaths
