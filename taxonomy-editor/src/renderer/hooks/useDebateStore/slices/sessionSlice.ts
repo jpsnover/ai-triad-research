@@ -24,12 +24,13 @@ import { trackDebateAbandon, trackDebateStart } from '../../../lib/analyticsEmit
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { usePromptConfigStore } from '../../usePromptConfigStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
-import { formatSituationDebateContext } from '../../../prompts/debate';
+import { formatSituationDebateContext, situationTopicSynthesisPrompt } from '../../../prompts/debate';
+import type { SituationTopicSynthesisResult } from '../../../prompts/debate';
 import { normalizeBdiLayer } from '@lib/debate';
 import { interpretationText } from '@lib/debate/taxonomyTypes';
 import { generateId, nowISO } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
-import { getMoveName } from '@lib/debate/helpers';
+import { getMoveName, parseAIJson } from '@lib/debate/helpers';
 import { disambiguateTerms } from '@lib/debate/vocabularyDisambiguation';
 import type { CampOrigin, StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
 import { resetDoctrinalAnchoringCache } from '../shared/taxonomyContext';
@@ -569,10 +570,48 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       conflictSummaries,
     });
 
-    const topic = ccNode.label;
+    // Best-effort: synthesize a contestable proposition as the topic. Any failure — thrown
+    // error, unparseable response, or an empty/missing proposition — falls back to the
+    // situation label with a WARN (Fallback-Path Logging, root AGENTS.md); synthesis never
+    // blocks debate creation.
+    let proposition: string | undefined;
+    try {
+      const prompt = situationTopicSynthesisPrompt({
+        label: ccNode.label,
+        description: ccNode.description,
+        interpretations: ccNode.interpretations,
+        disagreementType: ccNode.disagreement_type,
+        assumes: attrs?.assumes as string[] | undefined,
+        conflictSummaries,
+      }, get().audience);
+      const model = useTaxonomyStore.getState().geminiModel;
+      const { text } = await api.generateText(prompt, model);
+      const parsed = parseAIJson<SituationTopicSynthesisResult>(text);
+      if (parsed?.proposition && parsed.proposition.trim().length > 0) {
+        proposition = parsed.proposition.trim();
+      } else {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Situation topic synthesis failed — falling back to situation label',
+          error: { name: 'SituationTopicSynthesisFallback', message: 'empty or malformed synthesis response', stack: undefined },
+        });
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'warn',
+        message: 'Situation topic synthesis failed — falling back to situation label',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    }
+
+    const topic = proposition ?? ccNode.label;
     const allPovers = [...AI_POVERS] as SpeakerId[];
 
-    const id = await get().createDebate(topic, allPovers, false, 'situations', ccNodeId, sourceContent);
+    const id = await get().createDebate(topic, allPovers, false, 'situations', ccNodeId, sourceContent, undefined, undefined, undefined, undefined, { title: ccNode.label });
     await get().loadDebate(id);
     await enterClarificationOrBegin(get);
     await get().saveDebate('createSituationDebate');

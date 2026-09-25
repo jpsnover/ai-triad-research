@@ -26,6 +26,15 @@ import { computeStructuralScore } from '@lib/debate/topicCritique';
 const { mockGetGreatestHits } = vi.hoisted(() => ({ mockGetGreatestHits: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../shared/getGreatestHits', () => ({ getGreatestHits: mockGetGreatestHits }));
 
+// t/3637: only this file's createSituationDebate topic-synthesis tests need to assert on
+// the fallback WARN — not mocked in the shared harness (unmocked elsewhere is a silent no-op,
+// getGlobalRecorder() returns null with nothing registered). setEventContext is stubbed too —
+// createDebate calls it unconditionally and every other test in this file exercises that path.
+const { mockRecordWarn } = vi.hoisted(() => ({ mockRecordWarn: vi.fn() }));
+vi.mock('@lib/flight-recorder/index', () => ({
+  getGlobalRecorder: () => ({ record: mockRecordWarn, setEventContext: vi.fn() }),
+}));
+
 // ── 15. loadSessions ────────────────────────────────────────
 
 describe('loadSessions', () => {
@@ -200,6 +209,67 @@ describe('createSituationDebate', () => {
     const state = useDebateStore.getState();
     expect(state.activeDebate).not.toBeNull();
     expect(state.activeDebate!.phase).toBe('opening');
+  });
+
+  // t/3637: synthesize a contestable proposition as the topic; keep the label as the title.
+  const sitNode = {
+    id: 'sit-002',
+    label: 'Test Situation',
+    description: 'A test situation',
+    interpretations: {
+      accelerationist: { text: 'acc view' },
+      safetyist: { text: 'saf view' },
+      skeptic: { text: 'skp view' },
+    },
+    linked_nodes: [],
+    conflict_ids: [],
+  };
+
+  it('uses the synthesized proposition as the topic, label as the title (t/3637)', async () => {
+    mockTaxonomyState.situations = { nodes: [sitNode] } as unknown as typeof mockTaxonomyState.situations;
+    mockApi.generateText.mockResolvedValueOnce({ text: JSON.stringify({ proposition: 'A contestable resolution.' }) });
+
+    const id = await useDebateStore.getState().createSituationDebate('sit-002');
+
+    expect(id).toBeTruthy();
+    const session = useDebateStore.getState().activeDebate!;
+    expect(session.topic.final).toBe('A contestable resolution.');
+    expect(session.title).toBe('Test Situation');
+    expect(mockRecordWarn).not.toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.stringContaining('Situation topic synthesis failed'),
+    }));
+  });
+
+  it('falls back to the situation label + WARN when synthesis throws (t/3637)', async () => {
+    mockTaxonomyState.situations = { nodes: [sitNode] } as unknown as typeof mockTaxonomyState.situations;
+    mockApi.generateText.mockRejectedValueOnce(new Error('backend unavailable'));
+
+    const id = await useDebateStore.getState().createSituationDebate('sit-002');
+
+    expect(id).toBeTruthy();
+    const session = useDebateStore.getState().activeDebate!;
+    expect(session.topic.final).toBe('Test Situation');
+    expect(session.title).toBe('Test Situation');
+    expect(mockRecordWarn).toHaveBeenCalledWith(expect.objectContaining({
+      level: 'warn',
+      message: expect.stringContaining('Situation topic synthesis failed'),
+    }));
+  });
+
+  it('falls back to the situation label + WARN when synthesis returns an empty proposition (t/3637)', async () => {
+    mockTaxonomyState.situations = { nodes: [sitNode] } as unknown as typeof mockTaxonomyState.situations;
+    mockApi.generateText.mockResolvedValueOnce({ text: 'not json' });
+
+    const id = await useDebateStore.getState().createSituationDebate('sit-002');
+
+    expect(id).toBeTruthy();
+    const session = useDebateStore.getState().activeDebate!;
+    expect(session.topic.final).toBe('Test Situation');
+    expect(session.title).toBe('Test Situation');
+    expect(mockRecordWarn).toHaveBeenCalledWith(expect.objectContaining({
+      level: 'warn',
+      message: expect.stringContaining('Situation topic synthesis failed'),
+    }));
   });
 });
 

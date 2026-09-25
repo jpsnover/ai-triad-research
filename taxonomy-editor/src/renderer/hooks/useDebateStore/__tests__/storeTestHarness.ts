@@ -108,6 +108,7 @@ vi.mock('../../../prompts/debate', () => ({
   midDebateGapPrompt: vi.fn().mockReturnValue('mock-gap-prompt'),
   crossCuttingNodePrompt: vi.fn().mockReturnValue('mock-cc-prompt'),
   formatSituationDebateContext: vi.fn().mockReturnValue('mock-situation-context'),
+  situationTopicSynthesisPrompt: vi.fn().mockReturnValue('mock-situation-topic-synthesis-prompt'),
 }));
 
 vi.mock('../../../prompts/argumentNetwork', () => ({
