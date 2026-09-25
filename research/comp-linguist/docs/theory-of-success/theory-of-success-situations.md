@@ -52,5 +52,5 @@ Failure modes, each an active concern:
 ## Success metrics and current gaps
 
 - **Primary effectiveness metric:** `situation_crux_alignment` (do injected situations shape debate substance).
-- **Interpretive integrity:** the BDI-decomposition compliance baseline (currently 442/442 non-deprecated, hardened against null-sentinels).
+- **Interpretive integrity:** the BDI-decomposition compliance baseline (currently 450/450 non-deprecated, hardened against null-sentinels).
 - **Open gaps:** empty supporting evidence pending the WS-B batch apply (not yet live on data); the recurring pipeline-un-decomposed emit (t/3011); and the standing provenance-laundering caution for any machine content fed back into generation.

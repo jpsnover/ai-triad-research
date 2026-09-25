@@ -29,6 +29,16 @@
     - 440->442 (t/3009): sit-476/477 added by pipeline sync (78c943cf) with flat-string
       interpretations; CL-authored per-POV BDI decomposition (t/3009#1). Recurring
       pipeline gap tracked as t/3011 (decompose-on-emit).
+    - 442->450 (t/3673): corpus grew by 8 non-deprecated situations, sit-478..485, all
+      added with flat-string interpretations. sit-478 was decomposed the same day
+      (e0c34cc3); the remaining SEVEN (sit-479..485, from fdf393b3 "+39 nodes ... sit 7")
+      sat non-decomposed and red-ed this trip-wire for 4 days before anyone noticed.
+      Decomposed via enrichment.situation-bdi-decomposition (CL, data ffacb957);
+      TL second-verified on the committed tree (450/450, Fail=0).
+      FOURTH occurrence of the class. The boundary gate (t/3011) DID detect it on push
+      and was not heard: job green via continue-on-error, alert idempotent onto an
+      already-open issue, scheduled check red and unwatched. Enforcement + alerting
+      fixes tracked as t/3671; scheduled-run visibility as t/3672.
     When this trip-wire fires, run the backfill on the flagged ids, then bump the count.
 #>
 
@@ -48,9 +58,9 @@ Describe 'Situation BDI-decomposition live-data baseline (t/1312, relocated t/23
         $script:BdiCheck | Should -Not -BeNullOrEmpty
     }
 
-    It 'Live-data baseline: 442 / 442 non-deprecated situations pass, 1 exempt (post-t/3009 backfill)' {
+    It 'Live-data baseline: 450 / 450 non-deprecated situations pass, 1 exempt (post-t/3673 backfill)' {
         $script:BdiCheck.Status | Should -Be 'pass'
-        $script:BdiCheck.Detail | Should -Match '442 / 442'
+        $script:BdiCheck.Detail | Should -Match '450 / 450'
         $script:BdiCheck.Detail | Should -Match '1 exempt via \[DEPRECATED\] prefix'
     }
 
