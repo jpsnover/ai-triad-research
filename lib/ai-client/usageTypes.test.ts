@@ -187,6 +187,16 @@ describe('validateUsageConfig', () => {
     expect(validateUsageConfig(registry, TEST_MODEL_REGISTRY)).toEqual([]);
   });
 
+  it('resolves a synthesized *-latest alias, not just models[].id (t/3518/t/3664 regression)', () => {
+    // gemini-3.5-flash-lite in TEST_MODEL_REGISTRY synthesizes the `gemini-flash-lite-latest`
+    // family alias. A models[].id-only check would false-flag this alias as unknown; buildModelEntryMap
+    // resolves it. This is the exact selection ai-usages.json's server.* usages make.
+    const registry = {
+      'server.latest-alias': { description: 'Uses a *-latest alias', model: 'gemini-flash-lite-latest' },
+    };
+    expect(validateUsageConfig(registry, TEST_MODEL_REGISTRY)).toEqual([]);
+  });
+
   it('reports unknown model', () => {
     const registry = {
       'test.usage': {
