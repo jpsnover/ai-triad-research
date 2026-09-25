@@ -334,11 +334,18 @@ export async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]
   return probeClaudeCandidates(apiKey);
 }
 
+// Offline fallback menu, presented when live Claude discovery fails. A user PICKS from this list and the
+// id goes on to a real request, so every entry must be a model our own ai-models.json actually carries —
+// the model-literal lint (t/3657) now enforces that each id resolves. The pre-t/3657 entries (base Opus 4
+// and Haiku 3.5) were absent from the registry (they carried bare exemption markers that hid the
+// drift for months, t/3657#7); refreshed to registered ids so nothing downstream — floors, tiers, pricing,
+// discovery metadata — is missing for a model a user selects here. Sourcing this from ai-models.json
+// directly is the real fix (t/3661).
 export function getKnownClaudeModels(): ModelEntry[] {
   return [
-    { id: 'claude-opus-4',     apiModelId: 'claude-opus-4-20250514',     label: 'Opus 4',              backend: 'claude' }, // model-lint:allow — discovery fallback wire-id, not a chat selection (t/3559)
+    { id: 'claude-opus-4-8',   apiModelId: 'claude-opus-4-8',            label: 'Opus 4.8',            backend: 'claude' },
     { id: 'claude-sonnet-4-5', apiModelId: 'claude-sonnet-4-5-20250514', label: 'Sonnet 4.5',          backend: 'claude' },
-    { id: 'claude-haiku-3.5',  apiModelId: 'claude-3-5-haiku-20241022',  label: 'Haiku 3.5 (fastest)', backend: 'claude' }, // model-lint:allow — discovery fallback wire-id, not a chat selection (t/3559)
+    { id: 'claude-haiku-4-5',  apiModelId: 'claude-haiku-4-5-20251001',  label: 'Haiku 4.5 (fastest)', backend: 'claude' },
   ];
 }
 

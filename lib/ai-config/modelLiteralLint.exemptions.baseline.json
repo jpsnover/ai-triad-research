@@ -1,0 +1,6 @@
+{
+  "_doc": "Condition-2 exemption ratchet baseline (t/3657). The active count of VALID model-lint exemptions in production TS, per kind. The gate FAILS if a kind's live count RISES above its baseline without this file being bumped in the SAME commit — that forces a reviewed diff for every new exemption and stops silent growth. Lowering is always allowed (removing an exemption is good; the ratchet never auto-shrinks — a periodic inventory review is a separate follow-up). `nonselect` is tracked separately on purpose: a rising nonselect count signals the EXTRACTION regex is over-broad and should be narrowed, NOT that more exemptions are warranted (t/3657#5).",
+  "pin": 0,
+  "external": 2,
+  "nonselect": 2
+}

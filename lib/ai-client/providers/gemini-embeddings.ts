@@ -5,7 +5,7 @@ import { withRetry, type RetryConfig, SERVER_RETRY_CONFIG } from '../retry.js';
 import type { FetchFn } from '../types.js';
 import { GEMINI_BASE } from './gemini.js';
 
-const GEMINI_EMBED_MODEL = 'gemini-embedding-001'; // model-lint:allow — embedding model, not a chat models[].id (t/3559)
+const GEMINI_EMBED_MODEL = 'gemini-embedding-001'; // model-lint:allow-external — embedding model, governed by the embeddings API not the chat registry (t/3559)
 const DEFAULT_EMBED_TIMEOUT_MS = 30_000;
 
 export async function callGeminiBatchEmbed(

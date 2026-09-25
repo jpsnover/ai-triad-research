@@ -4,16 +4,18 @@
     "scope": "Tests the RESOLUTION predicate + MARKER-parsing, NOT extraction. The two extraction regexes differ by design (TS scans all backend-prefixed literals; PS scans -Model/$*Model*= binding positions only — t/3560) and are deliberately NOT forced to agree. What both CLAIM is identical — given an extracted id + its co-located marker + the registry, is it an offender? — is what this corpus pins.",
     "layers": {
       "resolution": "Wireable today. Drives the pure set-membership predicate (TS lintModelLiterals / PS Get-ModelLintOffenders): id in registeredIds -> pass, else fail. Cases assume an already-extractable id.",
-      "marker": "PROVISIONAL — the t/3557 condition-1 future contract. Neither impl parses the typed marker grammar yet (both do plain line-contains today). Consumers MUST visibly SKIP these rows (Set-ItResult -Skipped / it.skip) with reason 'pending t/3557 cond-1', not silently pass, so staging is visible. Flip Skipped->asserted as cond-1 lands.",
+      "marker": "WIRED (t/3657 condition 1). Drives the typed-marker parser: kind ∈ pin|external|nonselect + mandatory reason; bare/no-reason → fail; valid marker on a registered id → contradiction/fail. TS: parseMarker + lintModelLiterals. PS: Get-ModelLiteralsFromLines marker parse + Get-ModelLintOffenders. Un-skipped on both sides in tandem (t/3657 co-landing).",
       "registry": "Guard/loader-level, NOT the pure predicate. expect:'error' means the registry-load guard fires (PS: the @(ValidIds).Count -gt 0 false-green guard; TS: the caller's equivalent), distinct from 'unregistered literal'. Do NOT wire these into the pure predicate on either side."
     },
     "markerGrammar": {
-      "status": "PROVISIONAL — ratified by t/3557 condition 1 (not yet landed). Until locked there, the marker rows below are provisional data. Both impls must parse this grammar IDENTICALLY or the corpus cannot arbitrate; that identical parse is cond-1's deliverable.",
+      "status": "RATIFIED by t/3657 condition 1 (landed with the split-marker grammar). Three kinds: pin, external, nonselect. Both impls parse this IDENTICALLY (TS parseMarker in lib/ai-config/modelLiteralLint.ts; PS Get-ModelLiteralsFromLines) or the corpus cannot arbitrate.",
       "forms": {
-        "model-lint:allow-pin <reason>": "PASS — deliberate pin of an intentionally-unregistered id (raw provider id, embedding/reranker/TTS model). Reason required.",
-        "model-lint:allow-external <reason>": "PASS — external/BYOK id legitimately absent from the curated registry (e.g. azure deployment). Reason required.",
-        "model-lint:allow (bare)": "FAIL — deprecated ambiguous form; cond-1 requires a typed marker + reason.",
-        "allow-pin on a registered id": "FAIL — contradiction: a pin claiming to pin something that IS in the registry (never a pin)."
+        "model-lint:allow-pin <reason>": "PASS — deliberate pin of an intentionally-unregistered SELECTION (e.g. PINNED_EVALUATOR_MODEL); absence from the registry is by design. Reason required.",
+        "model-lint:allow-external <reason>": "PASS — a real selection governed by a DIFFERENT registry (e.g. an embedding model). Reason required.",
+        "model-lint:allow-nonselect <reason>": "PASS — a model-id-shaped literal that is NOT a runtime selection (display map, normalization table). Reason MUST name the actual use, not assert the negative. Counted separately in the ratchet (over-broad-extraction signal).",
+        "model-lint:allow (bare, no kind)": "FAIL — deprecated ambiguous form; a retired id can hide behind it. A typed kind is mandatory.",
+        "model-lint:allow-<kind> (no reason)": "FAIL — reason is mandatory for every kind.",
+        "valid marker on a REGISTERED id (any kind)": "FAIL — contradiction: the id resolves on its own, so the exemption is spurious. Remove the marker."
       }
     },
     "fields": {
@@ -118,6 +120,46 @@
       "registryState": "ok",
       "expect": "fail",
       "reason": "contradiction — a pin marker on an id that IS registered; the pin is spurious/misleading and must be flagged, not silently honoured"
+    },
+    {
+      "name": "marker-allow-nonselect-suppresses",
+      "layer": "marker",
+      "id": "gemini-3.5-flash-lite-preview",
+      "marker": "model-lint:allow-nonselect display abbreviation map, not a runtime selection",
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "pass",
+      "reason": "a model-id-shaped literal that is not a runtime selection (display map), exempted with a reason naming the use — the legitimate nonselect case (t/3657)"
+    },
+    {
+      "name": "marker-nonselect-on-registered-contradiction-fails",
+      "layer": "marker",
+      "id": "gemini-3.1-pro-preview",
+      "marker": "model-lint:allow-nonselect claiming nonselect for a registered id",
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "fail",
+      "reason": "contradiction — a nonselect marker on an id that IS registered; the marker is spurious (uniform contradiction rule across all kinds)"
+    },
+    {
+      "name": "marker-pin-no-reason-fails",
+      "layer": "marker",
+      "id": "groq-llama-nonexistent-9",
+      "marker": "model-lint:allow-pin",
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "fail",
+      "reason": "a typed kind with NO reason — reason is mandatory for every kind, so the marker is invalid and cannot exempt"
+    },
+    {
+      "name": "marker-external-on-registered-contradiction-fails",
+      "layer": "marker",
+      "id": "claude-fable-5",
+      "marker": "model-lint:allow-external claiming external for a registered id",
+      "registeredIds": ["claude-sonnet-4-6", "claude-fable-5", "gemini-3.1-pro-preview", "ollama-gemma4-e4b-it-q4-k-m"],
+      "registryState": "ok",
+      "expect": "fail",
+      "reason": "contradiction — an external marker on an id that IS in the curated registry; spurious, must be flagged (uniform contradiction rule)"
     },
     {
       "name": "registry-empty-is-error-not-unregistered",
