@@ -1,0 +1,10 @@
+# Stranded-branch dismissals (t/3652). One branch per line: `<branch-name>  # <reason>`.
+# A dismissed branch is NOT flagged by check-shared-drift.ps1's stranded-branch detector even if
+# it has commits after its PR merged. The reason is MANDATORY (t/3557 exemption-ratchet lesson):
+# an exemption without a recorded reason becomes permanent invisible debt.
+#
+# Use for: intentionally-abandoned branches, or branches deliberately kept for a follow-up PR.
+# Remove the line once the branch is deleted or its commits land.
+#
+# Example:
+#   feat/spike-throwaway  # abandoned prototype, kept for reference until 2026-Q4 — jsnover
