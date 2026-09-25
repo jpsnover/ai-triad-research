@@ -23,8 +23,11 @@ function Test-CitationLinkIntegrity {
                  ^sit-            → the live situation registry (situations.json .nodes[].id)
               sit- is resolved, NOT blanket-excluded (t/3598#2), else situation dangles pass.
           (b) Source resolution — every distinct source_id in source_index.json resolves to
-              <SourcesRoot>/<id>/metadata.json AFTER stripping a trailing '-<digits>' chunk
-              suffix (the summarizer's chunk→base doc_id convention, t/3598#3).
+              <SourcesRoot>/<id>/metadata.json. CANONICAL RULE (CL-ratified, t/3598#4 /
+              p/23#440), stated verbatim so it is never re-derived: "resolve as-is; else strip
+              a trailing '-N' ONLY when it follows a '-YYYY' year" (resolve-full-first, then
+              instance-suffix-only-after-year). A naive '-\d+$' strip is WRONG — it eats the
+              year off bare 'author-YYYY' ids and mis-resolves (that was the original shorthand).
           (c) Staleness — source_index.json header inputHash == Get-SummariesInputHash over the
               current summaries, AND the index key count == the live-node count.
 
@@ -127,6 +130,7 @@ function Test-CitationLinkIntegrity {
 
     # ── Leg (b): source_index source_id → metadata.json (strip -<digits> chunk) ─
     $bOff = [System.Collections.Generic.List[object]]::new()
+    $bChecked = 0   # N distinct source_ids checked (statistic-provenance, t/3598 CL ask)
     $indexExists = Test-Path -LiteralPath $SourceIndexPath
     $ix = $null
     if ($indexExists) {
@@ -148,6 +152,7 @@ function Test-CitationLinkIntegrity {
                 }
             }
         }
+        $bChecked = $seen.Count
     }
 
     # ── Leg (c): staleness — header hash + key count vs live nodes ──────────────
@@ -171,10 +176,15 @@ function Test-CitationLinkIntegrity {
 
     $results = @(
         [pscustomobject]@{ leg = 'a'; name = 'link-resolution';   pass = ($aOff.Count -eq 0); offenders = @($aOff) }
-        [pscustomobject]@{ leg = 'b'; name = 'source-resolution'; pass = ($bOff.Count -eq 0); offenders = @($bOff) }
+        [pscustomobject]@{ leg = 'b'; name = 'source-resolution'; pass = ($bOff.Count -eq 0); offenders = @($bOff); checked = $bChecked }
         [pscustomobject]@{ leg = 'c'; name = 'staleness';         pass = ($cOff.Count -eq 0); offenders = @($cOff) }
     )
     $overall = @($results | Where-Object { -not $_.pass }).Count -eq 0
+
+    # Statistic-provenance (t/3598 CL ask): always log leg-b's N distinct source_ids + the
+    # dangle ids, pass or fail — so the advisory run records "checked N, D dangles: <ids>".
+    $bDangles = @($bOff | ForEach-Object { $_.source_id }) -join ', '
+    Write-Host "Citation-integrity leg (b): $bChecked distinct source_id(s) checked; $($bOff.Count) dangle(s)$(if ($bOff.Count) { ": $bDangles" })"
 
     foreach ($r in $results) {
         if (-not $r.pass) {
