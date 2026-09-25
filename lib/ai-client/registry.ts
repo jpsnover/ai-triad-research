@@ -24,6 +24,8 @@ export interface ModelEntry {
    *  over-broaden it to EVERY call of that model (t/3518 Phase 2, TL e/185#8). Replaces the
    *  'opus'/'fable' substring checks that lived outside the registry (t/3518). */
   minTimeoutMs?: number;
+  /** Present iff the model is user-selectable in the UI picker (t/3555 reachability signal). */
+  picker?: { label: string; order: number };
 }
 
 export interface ModelPricing {
@@ -434,6 +436,105 @@ export function assertModelConfigValid(registry: ModelRegistry): void {
       'Fix the typo in ai-models.json, or add the model to the models[] array',
       'If the id is an intentional provider passthrough, confirm the provider accepts it',
       'Run validateModelConfig(registry) to see the full issue list including info-level notes',
+    ],
+  });
+}
+
+/**
+ * t/3555 (prevention from t/3551 #24/#28) — every REACHABLE model must declare an EXPLICIT `minTimeoutMs`.
+ *
+ * A registry refresh imports newly-discovered models with no curated attributes, `minTimeoutMs` among
+ * them. For a slow flagship that floor is load-bearing (t/3518): without it `getModelMinTimeout` returns
+ * 0, `Math.max(120_000, 0)` yields the short default, and the opening brief times out in a way that reads
+ * as a flaky API rather than a config gap. The existing FR WARN at getModelMinTimeout only fires for an
+ * UNKNOWN model — a KNOWN model missing the floor is silent (invisible degradation, docs/CodeReview).
+ *
+ * PRESENCE, not `value > 0` (TL ruling, t/3555#3): an explicit `0` legitimately means "no floor needed"
+ * for a fast model and is inert everywhere — `minTimeoutMs` can only RAISE a timeout (Math.max), so `0`
+ * never lengthens a deliberate fast-fail (e.g. the crux stage's explicit 15s at extract.ts:510), whereas
+ * a bogus 120000 would. The gate checks the KEY is present, so `0` PASSES and the decision is explicit.
+ *
+ * REACHABILITY, not a family-name list (TL design note): a model is reachable — i.e. a user can actually
+ * select it — iff it carries a `picker` field, or is referenced from `defaults` / `debateTiers` /
+ * `fallbackChains`. This targets exactly what is selectable, needs no per-family maintenance (the
+ * brittleness that produced the Claude-5 picker/union drift), and extends to any future slow model.
+ * The exact section list is pinned by a tripwire test (registry.reachableFloor.test.ts) that fails if
+ * ai-models.json gains a new top-level section, so "reachable" cannot silently narrow (SO e/207#2 cond 4).
+ *
+ * PREMISE — "reachable == user-selectable" (SO e/207#2 cond 7): true while the inquiry `models` override
+ * (ModelOverrideSchema, lib/inquiry/schema.ts:42-46 — a `z.string()` validated "at the boundary", not yet
+ * wired) is unwired. If that boundary ever validates a user override against the FULL registry, then
+ * user-selectable becomes all ~130 models, not the ~34 reachable here, and this gate under-covers by the
+ * difference. Whoever wires it MUST either restrict the accepted set to reachable models, or extend this
+ * predicate to cover whatever the boundary accepts.
+ *
+ * Pure and non-throwing; unresolved references are {@link validateModelConfig}'s concern, not this gate's.
+ */
+export function findReachableModelsMissingTimeoutFloor(registry: ModelRegistry): ConfigIssue[] {
+  const byId = new Map(registry.models.map((m) => [m.id, m]));
+  const issues: ConfigIssue[] = [];
+  const seen = new Set<string>();
+  const check = (id: unknown, site: string): void => {
+    if (typeof id !== 'string' || id.length === 0 || id.startsWith('_')) return;
+    const entry = byId.get(id);
+    if (!entry) return; // unresolved refs are validateModelConfig's concern, not this gate's
+    if (seen.has(id)) return; // report each reachable model once, at its first site
+    seen.add(id);
+    if (!('minTimeoutMs' in entry)) {
+      issues.push({
+        severity: 'warning',
+        modelId: id,
+        referenceSite: site,
+        message:
+          `Reachable model "${id}" (${site}) has no minTimeoutMs. A user-selectable model must declare an ` +
+          `EXPLICIT floor: 0 if the 120s default suffices (a fast model), or the required floor (e.g. 300000 ` +
+          `for a slow flagship — t/3518) if its opening brief exceeds 120s. Absent, getModelMinTimeout returns ` +
+          `0 silently and the brief times out as a phantom flaky API rather than a visible config gap (t/3551).`,
+      });
+    }
+  };
+  // A model carrying a `picker` field is user-selectable in the UI.
+  for (const m of registry.models) if (m.picker) check(m.id, `models[].picker (${m.id})`);
+  if (registry.defaults) {
+    for (const [backend, id] of Object.entries(registry.defaults)) {
+      if (!backend.startsWith('_')) check(id, `defaults.${backend}`);
+    }
+  }
+  if (registry.debateTiers) {
+    for (const [tier, tierMap] of Object.entries(registry.debateTiers)) {
+      if (tier.startsWith('_') || typeof tierMap !== 'object' || tierMap === null) continue;
+      for (const [backend, id] of Object.entries(tierMap)) {
+        if (!backend.startsWith('_')) check(id, `debateTiers.${tier}.${backend}`);
+      }
+    }
+  }
+  if (registry.fallbackChains) {
+    for (const [primary, chain] of Object.entries(registry.fallbackChains)) {
+      if (primary.startsWith('_')) continue;
+      check(primary, `fallbackChains.${primary}`);
+      if (Array.isArray(chain)) chain.forEach((id, i) => check(id, `fallbackChains.${primary}[${i}]`));
+    }
+  }
+  return issues;
+}
+
+/**
+ * Blocking wrapper over {@link findReachableModelsMissingTimeoutFloor} — throws an {@link ActionableError}
+ * if any reachable model lacks the floor. Wire from the verify:config family / a test so a registry edit
+ * that adds a selectable model without an explicit floor fails loudly at CI, not silently at debate time.
+ */
+export function assertReachableModelsHaveTimeoutFloor(registry: ModelRegistry): void {
+  const missing = findReachableModelsMissingTimeoutFloor(registry);
+  if (missing.length === 0) return;
+  const detail = missing.map((m) => `  - ${m.referenceSite} -> "${m.modelId}"`).join('\n');
+  throw new ActionableError({
+    goal: 'Validate that every user-selectable model declares a timeout floor',
+    problem: `${missing.length} reachable model(s) in ai-models.json have no minTimeoutMs:\n${detail}`,
+    location: 'registry.assertReachableModelsHaveTimeoutFloor',
+    nextSteps: [
+      'Add "minTimeoutMs": 0 to the model in ai-models.json if the 120s default is enough (a fast model)',
+      'Or set the required floor (e.g. 300000 for a slow flagship — see t/3518) if its opening brief exceeds 120s',
+      'The value is a MINIMUM applied via Math.max, so 0 is inert and simply records "no floor needed" explicitly',
     ],
   });
 }
