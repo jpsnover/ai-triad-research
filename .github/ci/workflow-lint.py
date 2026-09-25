@@ -155,6 +155,22 @@ SKIPPED_TOL_RE = re.compile(r'#\s*lint:skipped-tolerated:\s*(yes|no)\b(.*)$')
 # across SSOT workflows. `actual != expected` fails. Baseline 0 today; the FIRST legitimate allow-if
 # must bump this in the same commit (that is the ratchet working as designed, not a bug).
 ALLOW_IF_EXPECTED = 0
+# t/3663 Half-B: `# lint:tolerated-skip: <job> <ticket-or-date> <why>` — declares that a needed job
+# which can skip WITHOUT gating on `needs.changes.outputs.*` is a deliberately-tolerated skip. The
+# ticket ref (t/NNNN) or ISO date is MANDATORY (TL cond 3) — a bare <why> is an unauditable
+# suppression list; the ref/date lets a stale exemption be found later.
+TOLERATED_SKIP_RE = re.compile(r'#\s*lint:tolerated-skip:\s*(\S+)\s+(t/\d+|\d{4}-\d{2}-\d{2})\b')
+# Loose form: detect a present-but-malformed marker (missing the ref/date) so it is FLAGGED, not
+# silently ignored — a tolerated-skip with no audit anchor must fail the rule (TL cond 3).
+TOLERATED_SKIP_ANY_RE = re.compile(r'#\s*lint:tolerated-skip:\s*(.*)$')
+
+
+def _strip_comment(line):
+    """t/3663 (TL cond 1): drop a `#` comment (whole-line or trailing) before scanning a job body,
+    so a token mentioned ONLY in a comment does NOT raise the gated-events floor. Errs toward NOT
+    matching (a `#` inside a quoted string is rare and a false negative is the safe direction for a
+    warn-only heuristic — a false positive is what gets the whole rule muted)."""
+    return re.sub(r'(^|\s)#.*$', '', line)
 
 
 def _block_end(lines, header_idx, header_indent):
@@ -218,6 +234,8 @@ def check_required_context(path, content, context_name):
     """Return violation strings for a required-context workflow file (R1–R4)."""
     errs = []
     lines = content.splitlines()
+    gated_decl = None            # t/3663: hoisted so the Half-A completeness floor (in the jobs
+    has_branches_filter = False  #   section below) can compare the declaration against the job body
 
     # Locate on.pull_request block (indent 2 under `on:`).
     pr_idx = _find_key(lines, 'pull_request', 2)
@@ -226,6 +244,10 @@ def check_required_context(path, content, context_name):
         pr_end = 0
     else:
         pr_end = _block_end(lines, pr_idx, 2)
+        # t/3663 Half-A input: a `branches:` filter under pull_request means a base-retarget (which
+        # arrives as an `edited` event) can flip whether this required context should run — so the
+        # floor will require `edited` in the declaration.
+        has_branches_filter = _find_key(lines, 'branches', 4, pr_idx + 1, pr_end) != -1
         # R1: no paths / paths-ignore inside pull_request
         for i in range(pr_idx + 1, pr_end):
             if re.match(r'^\s{4}paths(-ignore)?\s*:', lines[i]):
@@ -273,6 +295,64 @@ def check_required_context(path, content, context_name):
         else:
             job_end = _block_end(lines, job_idx, 2)
             job_body = lines[job_idx + 1:job_end]
+
+            # ── t/3663 Half A: gated-events completeness FLOOR (WARN-ONLY, tagged R3-floor) ──
+            # R3 checks types ⊇ declaration (declaration vs itself). This checks the declaration
+            # against the CODE: events the reporting job BODY reacts to must appear in
+            # `# lint:gated-events:`. Heuristic + deliberately INCOMPLETE — raises a floor, not a
+            # completeness proof (t/3646 cond 4). Only when a non-empty declaration exists (R3
+            # already flags missing/empty). Comment-stripped scan (cond 1): a token only in a `#`
+            # comment must NOT raise the floor.
+            if gated_decl:
+                body_code = ' '.join(_strip_comment(bl) for bl in job_body)
+                floor = set()
+                if 'autoMergeRequest' in body_code:
+                    floor.update(('auto_merge_enabled', 'auto_merge_disabled'))
+                if re.search(r'\.labels\b|\bevent\.label\b', body_code):
+                    floor.update(('labeled', 'unlabeled'))
+                # `edited`: a `branches:` base filter means a PR base-retarget (an `edited` event)
+                # can flip whether this required context runs, so the declaration must include it.
+                # CONSEQUENCE (cond 2): `edited` ALSO delivers title/body edits — a job obliged to
+                # add it therefore receives those; confirm it tolerates them (the two current
+                # required contexts are if:always() gates that already do).
+                if has_branches_filter:
+                    floor.add('edited')
+                floor_missing = sorted(floor - set(gated_decl))
+                if floor_missing:
+                    errs.append(f'{path}: R3-floor required context "{context_name}" — job body reacts to event(s) missing from `# lint:gated-events:` {floor_missing} (declared: {sorted(gated_decl)}). Add them AND confirm the job tolerates what they deliver (note: `edited` also fires on title/body edits). Heuristic floor — a minimum, not a completeness proof.')
+
+            # ── t/3663 Half B: `skipped` structural discriminator (WARN-ONLY, tagged R5-skip) ──
+            # Every job in the reporting job's `needs:` that can skip must either gate on
+            # `needs.changes.outputs.*` (legitimate path-filtered skip) OR be declared in a
+            # co-located `# lint:tolerated-skip: <job> <ticket-or-date> <why>`. A job that can skip
+            # with neither is the Arm-E kind (skips on an unanticipated event → gate green on a red
+            # SHA). Structural (checks each needed job's `if:` vs code); heuristic.
+            needs_idx = _find_key(lines, 'needs', 4, job_idx + 1, job_end)
+            if needs_idx != -1:
+                needed = _parse_inline_list(lines[needs_idx].split(':', 1)[1]) or []
+                tol_jobs = set()
+                for k in range(job_idx + 1, job_end):
+                    mt = TOLERATED_SKIP_RE.search(lines[k])
+                    if mt:
+                        tol_jobs.add(mt.group(1))
+                    elif TOLERATED_SKIP_ANY_RE.search(lines[k]):
+                        errs.append(f'{path}:{k + 1}: R5-skip required context "{context_name}" — `# lint:tolerated-skip:` is missing its mandatory `<job> <ticket-ref-or-date>` (an unauditable suppression). Use e.g. `# lint:tolerated-skip: my-job t/1234 <why>`.')
+                for name in needed:
+                    if name == 'changes':
+                        continue  # the paths-filter producer itself
+                    nj = _find_key(lines, name, 2, jobs_idx + 1)
+                    if nj == -1:
+                        continue
+                    nj_end = _block_end(lines, nj, 2)
+                    if _find_key(lines, 'if', 4, nj + 1, nj_end) == -1:
+                        continue  # no `if:` → runs unconditionally, cannot skip (not this hazard)
+                    nj_body = ' '.join(lines[nj + 1:nj_end])
+                    if 'needs.changes.outputs.' in nj_body:
+                        continue  # legitimate path-filtered skip
+                    if name in tol_jobs:
+                        continue  # deliberately tolerated (audited via ticket/date)
+                    errs.append(f'{path}: R5-skip required context "{context_name}" — needed job "{name}" has an `if:` that can skip but does NOT gate on `needs.changes.outputs.*` and is not in a `# lint:tolerated-skip:` list. An unanticipated skip passes the gate on a red SHA (Arm-E). Gate it on the paths filter, or add `# lint:tolerated-skip: {name} <ticket-or-date> <why>`.')
+
             # R2: `if:` must be absent or EXACTLY always().
             job_if_always = False
             if_idx = _find_key(lines, 'if', 4, job_idx + 1, job_end)
@@ -422,7 +502,7 @@ jobs:
     # and can be silently dead. A live-fire in a real run is a separate flip-gate.
     rc_ok = (
         "permissions:\n  contents: read\n"
-        "on:\n  pull_request:\n    branches: [main]\n"
+        "on:\n  pull_request:\n"  # t/3663: no branches filter here → Half-A floor requires no `edited` (the branches→edited case is tested by rc_floor_edited)
         "    # lint:gated-events: opened,synchronize,reopened\n"
         "    types: [opened, synchronize, reopened]\n"
         "jobs:\n  ci-gate:\n    if: always()\n"
@@ -434,6 +514,93 @@ jobs:
         failures.append(f'RC compliant fixture unexpectedly flagged: {check_required_context("rc_ok", rc_ok, "ci-gate")!r}')
     else:
         print('  PASS: RC compliant required-context workflow → 0 findings')
+
+    # ── t/3663 Half A: gated-events completeness FLOOR (warn-only, tagged R3-floor) ──
+    # Must-flag = the joint-gv-guard pre-t/3607 shape: job body reads autoMergeRequest but the
+    # declaration omits auto_merge_*. If the floor can't catch this, it isn't worth adding.
+    rc_floor_amr = (
+        "permissions:\n  contents: read\n"
+        "on:\n  pull_request:\n"
+        "    # lint:gated-events: opened,synchronize,reopened\n"
+        "    types: [opened, synchronize, reopened]\n"
+        "jobs:\n  ci-gate:\n    if: always()\n"
+        "    # lint:skipped-tolerated: yes — fixture\n"
+        "    runs-on: ubuntu-latest\n    steps:\n"
+        "      - name: gate\n        if: contains(needs.*.result, 'failure')\n"
+        "        run: node -e \"pr.data.autoMergeRequest\"\n"
+    )
+    _f = check_required_context('rc_floor_amr', rc_floor_amr, 'ci-gate')
+    if not any('R3-floor' in e and 'auto_merge_disabled' in e for e in _f):
+        failures.append(f'Half-A floor MISSED autoMergeRequest → auto_merge_* (joint-gv-guard pre-t/3607 case): {_f!r}')
+    else:
+        print('  PASS: Half-A floor flags an autoMergeRequest body whose declaration omits auto_merge_*')
+
+    # Cond 1 negative control: autoMergeRequest ONLY in a comment must NOT raise the floor.
+    rc_floor_cmt = rc_floor_amr.replace(
+        "        run: node -e \"pr.data.autoMergeRequest\"\n",
+        "        # note: autoMergeRequest handling lives elsewhere — comment only\n        run: echo ok\n")
+    if any('R3-floor' in e for e in check_required_context('rc_floor_cmt', rc_floor_cmt, 'ci-gate')):
+        failures.append('Half-A floor FALSE-POSITIVE on a comment-only autoMergeRequest mention (cond 1)')
+    else:
+        print('  PASS: Half-A floor ignores a comment-only autoMergeRequest mention (cond 1 negative control)')
+
+    # Complete declaration → floor silent.
+    rc_floor_ok = rc_floor_amr.replace(
+        "    # lint:gated-events: opened,synchronize,reopened\n",
+        "    # lint:gated-events: opened,synchronize,reopened,auto_merge_enabled,auto_merge_disabled\n").replace(
+        "    types: [opened, synchronize, reopened]\n",
+        "    types: [opened, synchronize, reopened, auto_merge_enabled, auto_merge_disabled]\n")
+    if any('R3-floor' in e for e in check_required_context('rc_floor_ok', rc_floor_ok, 'ci-gate')):
+        failures.append('Half-A floor FALSE-POSITIVE when the declaration already covers auto_merge_*')
+    else:
+        print('  PASS: Half-A floor silent when the declaration covers the body events')
+
+    # Cond 2: a branches: filter → floor requires `edited` (base-retarget).
+    rc_floor_edited = rc_ok.replace("on:\n  pull_request:\n", "on:\n  pull_request:\n    branches: [main]\n")
+    if not any('R3-floor' in e and 'edited' in e for e in check_required_context('rc_floor_edited', rc_floor_edited, 'ci-gate')):
+        failures.append('Half-A floor MISSED branches-filter → edited requirement (cond 2)')
+    else:
+        print('  PASS: Half-A floor requires `edited` when a branches: filter is present (cond 2)')
+
+    # ── t/3663 Half B: `skipped` structural discriminator (warn-only, tagged R5-skip) ──
+    rc_skip_flag = (
+        "permissions:\n  contents: read\n"
+        "on:\n  pull_request:\n"
+        "    # lint:gated-events: opened,synchronize,reopened\n"
+        "    types: [opened, synchronize, reopened]\n"
+        "jobs:\n"
+        "  heavy:\n    if: github.event_name == 'push'\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo heavy\n"
+        "  ci-gate:\n    needs: [heavy]\n    if: always()\n"
+        "    # lint:skipped-tolerated: yes — fixture\n"
+        "    runs-on: ubuntu-latest\n    steps:\n"
+        "      - name: gate\n        if: contains(needs.*.result, 'failure')\n        run: echo ok\n"
+    )
+    if not any('R5-skip' in e and 'heavy' in e for e in check_required_context('rc_skip_flag', rc_skip_flag, 'ci-gate')):
+        failures.append('Half-B MISSED a needed job that can skip without a needs.changes.outputs gate')
+    else:
+        print('  PASS: Half-B flags an Arm-E-style skippable need (no paths-filter gate, not tolerated)')
+
+    rc_skip_pf = rc_skip_flag.replace("    if: github.event_name == 'push'\n", "    if: needs.changes.outputs.heavy == 'true'\n")
+    if any('R5-skip' in e for e in check_required_context('rc_skip_pf', rc_skip_pf, 'ci-gate')):
+        failures.append('Half-B FALSE-POSITIVE on a legit needs.changes.outputs path-filtered skip')
+    else:
+        print('  PASS: Half-B silent on a path-filtered (needs.changes.outputs.*) skip')
+
+    rc_skip_tol = rc_skip_flag.replace(
+        "    # lint:skipped-tolerated: yes — fixture\n",
+        "    # lint:skipped-tolerated: yes — fixture\n    # lint:tolerated-skip: heavy t/9999 push-only by design\n")
+    if any('R5-skip' in e for e in check_required_context('rc_skip_tol', rc_skip_tol, 'ci-gate')):
+        failures.append('Half-B still flagged a need covered by an audited (ticket-anchored) tolerated-skip')
+    else:
+        print('  PASS: Half-B silent when the skippable need has a ticket-anchored tolerated-skip')
+
+    rc_skip_bad = rc_skip_flag.replace(
+        "    # lint:skipped-tolerated: yes — fixture\n",
+        "    # lint:skipped-tolerated: yes — fixture\n    # lint:tolerated-skip: heavy just because\n")
+    if not any('R5-skip' in e and 'unauditable' in e for e in check_required_context('rc_skip_bad', rc_skip_bad, 'ci-gate')):
+        failures.append('Half-B MISSED a tolerated-skip marker lacking a ticket ref or date (cond 3)')
+    else:
+        print('  PASS: Half-B flags a tolerated-skip marker missing its ticket-ref/date (cond 3)')
 
     rc_r1 = rc_ok.replace('    types: [opened, synchronize, reopened]\n',
                           "    paths: ['src/**']\n    types: [opened, synchronize, reopened]\n")
@@ -577,10 +744,17 @@ else:
             continue
         with open(_wf, encoding='utf-8') as _f:
             _findings = check_required_context(_wf, _f.read(), _ctx)
+        # t/3663: the completeness-floor (R3-floor) and skipped-discriminator (R5-skip) arms are
+        # WARN-ONLY heuristics — they do NOT inherit R1–R5's blocking status (a later promotion
+        # needs its own evidence + its own Second Opinion). Route them to rc_warnings REGARDLESS of
+        # REQUIRED_CONTEXT_BLOCKING; the deterministic R1–R5 keep following the flip.
+        _t3663 = [f for f in _findings if 'R3-floor' in f or 'R5-skip' in f]
+        _core = [f for f in _findings if f not in _t3663]
+        rc_warnings.extend(_t3663)
         if REQUIRED_CONTEXT_BLOCKING:
-            errors.extend(_findings)
+            errors.extend(_core)
         else:
-            rc_warnings.extend(_findings)
+            rc_warnings.extend(_core)
 
     # Condition 3 (e/209): allow-if ratchet — the committed ALLOW_IF_EXPECTED must equal the actual
     # count of `# lint:allow-if:` exemptions across required-context workflows. Baseline 0 today;
