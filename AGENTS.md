@@ -119,6 +119,13 @@ For code with special shell chars (template literals, nested quotes, apostrophes
 
 **Junk-file hygiene (t/2112).** Mis-quoted Bash commands word-split into 0-byte files named after the fragment (`0)`, `30s`, `{,+`). Before any `git add`, scan `git status --short` for bare-fragment filenames and `rm --` them. Prefer explicit paths over `git add -A`/`-u`.
 
+**Staged-index inheritance on the shared checkout (t/3670).** The fleet shares one index, so **another agent's `git add` stages files into *your* commit.** A bare `git commit` commits the **whole index**, not the path you added — `git add <file> && git commit` is not scoped, and the explicit pathspec on the `add` reads like a safeguard while providing none.
+
+- **Commit with a pathspec: `git commit -m "…" -- <paths>`.** This is the fix; it commits only those paths whatever else is staged.
+- **Scan `git status --short` UNSCOPED before committing.** A path-scoped status (`git status --short -- <your file>`) cannot show inherited staged files — it reports clean while the index is dirty outside your filter.
+
+Origin (t/3666/t/3637): a bare commit swept three of another agent's staged files into an unrelated docs PR under one author's message. It was **silent** — the commit succeeded, `git log -1` showed the expected message, and it surfaced only because the other agent read `git show --stat` on a PR that wasn't theirs. **Verify with `git show --stat HEAD` after committing on a shared checkout**; the file list is the only thing that distinguishes the two outcomes.
+
 ## Git Forensics on the Bash Tool
 
 On some Windows agents, MSYS path conversion mangles the `<path>` half of a git colon-revspec (`git show <ref>:<path>`, `cat-file`, `rev-parse`), so a **valid** ref reports a spurious `unknown revision or path`. Discriminator: valid ref + `unknown revision` = suspect MSYS, not a real absence (confirmed on ≥2 agents). Fix: prefix `MSYS_NO_PATHCONV=1` or run via PowerShell.
