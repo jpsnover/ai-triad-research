@@ -223,6 +223,30 @@ export function parseBaseRefRecords(statuses) {
   return out;
 }
 
+/**
+ * Pure classifier for a gh/API failure — the `--base-ref-stale` shim's fail-policy (SO+TL locked, e/212).
+ * 4xx client/permission errors (except 408 request-timeout and 429 rate-limit) will NOT recover on retry
+ * → fail fast; 5xx / 408 / 429 / network / no-HTTP-code are transient → bounded retry. Either way the shim
+ * ultimately FAILS CLOSED (block) if it cannot get a verdict; this only governs whether it retries first
+ * and what tag the discriminating `failclosed:<tag>` reason carries (so the block message can name an
+ * infra failure rather than a retarget that never happened).
+ *
+ * @param text  gh stderr or Error.message.
+ * @returns { retryable: boolean, reason: string }  reason = `http-<code>` or `no-http-code`.
+ */
+export function classifyGhError(text) {
+  const s = String(text == null ? '' : text);
+  const m = s.match(/HTTP (\d{3})/);
+  if (m) {
+    const code = Number(m[1]);
+    if (code >= 400 && code <= 499 && code !== 408 && code !== 429) {
+      return { retryable: false, reason: `http-${code}` }; // auth / permission / not-found — won't recover
+    }
+    return { retryable: true, reason: `http-${code}` }; // 5xx / 408 / 429 — transient
+  }
+  return { retryable: true, reason: 'no-http-code' }; // network / timeout / DNS — transient
+}
+
 // CLI shim (t/3270#4 / t/3318, TL GV): the feedback rules invoke THIS module directly so the rule
 // runs the exact logic the both-arms test proves — test == runtime. (A hand-copied inline node -e
 // would let a typo in the un-tested copy brick every merge or silently negate the gate; TL's
@@ -271,6 +295,53 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('merge-guard
         if (verdict.block) process.stdout.write('fire');
         sink('jointgv', cmd, verdict, false);
       }
+    }
+  } else if (process.argv[2] === '--base-ref-stale') {
+    // t/3687 retarget stale-green guard. Same scope as the head-guard: manual `gh pr merge` only; --auto
+    // is exempt (it re-targets on new pushes and can't carry --match-head-commit; its gatedness is the
+    // draft-discipline's job). Diagnostic recorders post `base-ref-record/*` commit statuses on the PR
+    // head; here we compare the LATEST per required recorder against the PR's CURRENT base ref name.
+    const cmd = process.argv[3] || '';
+    const isMerge = /\bgh(?:\.exe)?\s+pr\s+merge\b/.test(cmd);
+    const isAuto = /(?:^|\s)--auto(?:[=\s]|$)/.test(cmd);
+    if (isMerge && !isAuto) {
+      // Enumerated recorders = the workflows carrying the record-base-ref step (t/3687#2, TL sink ruling).
+      const EXPECTED_RECORDERS = ['ci.yml', 'joint-gv-guard', 'codeql.yml'];
+      const ref = parsePrRef(cmd);
+      // Impure fetch, FAIL CLOSED (SO+TL e/212): transient (5xx/408/429/network) → retry ≤3; 4xx → fast
+      // fail. classifyGhError decides; an unrecoverable fetch → block with a DISCRIMINATING reason
+      // (`failclosed:<tag>`) distinct from `base-ref-mismatch:*`, so the message never blames a retarget
+      // that didn't happen. Uses --paginate so the full status history reaches parseBaseRefRecords.
+      const ghJson = (args) => {
+        for (let attempt = 1; ; attempt++) {
+          try {
+            return JSON.parse(execFileSync('gh', args, { encoding: 'utf8', timeout: 10000 }));
+          } catch (e) {
+            const cls = classifyGhError((e && (e.stderr || e.message)) || '');
+            if (!cls.retryable || attempt >= 3) {
+              const err = new Error(`gh failed (${cls.reason})`);
+              err.failReason = cls.reason;
+              throw err;
+            }
+          }
+        }
+      };
+      let verdict;
+      let failClosed = false;
+      try {
+        const view = ghJson(['pr', 'view', ...(ref ? [ref] : []), '--json', 'baseRefName,headRefOid']);
+        const statuses = ghJson(['api', `repos/{owner}/{repo}/commits/${view.headRefOid}/statuses`, '--paginate']);
+        verdict = baseRefStaleVerdict({
+          currentBaseRefName: view.baseRefName,
+          expectedRecorders: EXPECTED_RECORDERS,
+          records: parseBaseRefRecords(statuses),
+        });
+      } catch (e) {
+        failClosed = true;
+        verdict = { block: true, reason: `failclosed:${(e && e.failReason) || 'unknown'}` };
+      }
+      if (verdict.block) process.stdout.write('fire');
+      sink('base-ref-stale', cmd, verdict, failClosed);
     }
   } else {
     const command = process.argv[2] || '';
