@@ -235,3 +235,53 @@ Describe 'Offender-resolution predicate — direct both-arms tests (t/3565, Guar
         @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions).Count | Should -BeGreaterThan 0
     }
 }
+
+# ── Shared cross-toolchain conformance corpus (t/3656 / SO condition 4 of t/3557) ──
+# Both lib/ai-config/modelLiteralLint.ts (TS) and this file consume the SAME corpus, so
+# "same resolution predicate" is a test, not a claim (Shared Lib owns the data; PS wires
+# the layers it implements). Only `resolution` is wired today; `marker` (typed-marker
+# grammar) is the t/3557 cond-1 future contract and `registry` is guard/loader-level —
+# both are VISIBLY skipped here (not silently passed), flipped to asserted as they land.
+# Loaded at DISCOVERY (top-level, $PSScriptRoot only) so -TestCases can see it.
+$script:ConformanceCases = @(
+    (Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '..' 'lib' 'ai-config' 'modelLiteralLint.conformance.json') |
+        ConvertFrom-Json).cases | ForEach-Object {
+            @{ name = $_.name; layer = $_.layer; id = $_.id; expect = $_.expect
+               registeredIds = @($_.registeredIds); reason = $_.reason }
+        }
+)
+
+Describe 'Shared conformance corpus — resolution predicate (t/3656, SO cond 4)' -Tag 'config' {
+
+    It 'the corpus loaded and carries resolution cases (guards against a vacuous consume)' {
+        # Re-read at run time — Pester binds -TestCases at discovery, but a Describe-scope
+        # var set at discovery is not reliably available in the run phase, so read the file.
+        $path = Join-Path $PSScriptRoot '..' 'lib' 'ai-config' 'modelLiteralLint.conformance.json'
+        Test-Path -LiteralPath $path | Should -BeTrue
+        $cases = @((Get-Content -Raw -LiteralPath $path | ConvertFrom-Json).cases)
+        $cases.Count | Should -BeGreaterThan 0
+        @($cases | Where-Object { $_.layer -eq 'resolution' }).Count | Should -BeGreaterThan 0
+    }
+
+    It '<name> [<layer>] -> <expect>' -TestCases $script:ConformanceCases {
+        # Pester injects $name/$layer/$id/$expect/$registeredIds/$reason from the case.
+        switch ($layer) {
+            'resolution' {
+                # Drive the SAME pure predicate the gate uses (id in registeredIds?).
+                $rec = [pscustomobject]@{ File = 'conformance'; Line = 0; Id = $id }
+                $off = @(script:Get-ModelLintOffenders -Literals @($rec) -ValidIds $registeredIds)
+                if ($expect -eq 'pass') { $off.Count | Should -Be 0 -Because $reason }
+                else                    { $off.Count | Should -Be 1 -Because $reason }
+            }
+            'marker' {
+                Set-ItResult -Skipped -Because "pending t/3557 cond-1 typed-marker grammar (allow-pin/allow-external/bare-deprecated) — $name"
+            }
+            'registry' {
+                Set-ItResult -Skipped -Because "registry-load is guard/loader-level (the empty-authority false-green guard), not the pure predicate — $name"
+            }
+            default {
+                Set-ItResult -Inconclusive -Because "unknown layer '$layer' in the conformance corpus — $name"
+            }
+        }
+    }
+}
