@@ -11,12 +11,16 @@ import { describe, it, expect } from 'vitest';
 import { communitySubmitPayloadSchema, COMMUNITY_SUBMISSION_TYPES } from './communitySubmitSchema';
 
 describe('community-submit payload schema (t/2986)', () => {
-  it.each(['chat', 'debate', 'oped'] as const)('accepts type=%s', (type) => {
+  it.each(['chat', 'debate', 'oped', 'inquiry'] as const)('accepts type=%s', (type) => {
     expect(communitySubmitPayloadSchema.safeParse({ type, data: {}, note: 'x' }).success).toBe(true);
   });
 
   it("accepts 'oped' — the type the op-ed share sends (regression for t/2986)", () => {
     expect(communitySubmitPayloadSchema.safeParse({ type: 'oped', data: { foo: 1 } }).success).toBe(true);
+  });
+
+  it("accepts 'inquiry' — the type the inquiry share sends (t/3659)", () => {
+    expect(communitySubmitPayloadSchema.safeParse({ type: 'inquiry', data: { id: 'job-1' } }).success).toBe(true);
   });
 
   it('rejects an unknown type', () => {
@@ -29,7 +33,7 @@ describe('community-submit payload schema (t/2986)', () => {
     expect(communitySubmitPayloadSchema.safeParse({ type: 'chat' }).success).toBe(false);
   });
 
-  it('the enum is exactly the client bridge contract (chat|debate|oped)', () => {
-    expect([...COMMUNITY_SUBMISSION_TYPES]).toEqual(['chat', 'debate', 'oped']);
+  it('the enum is exactly the client bridge contract (chat|debate|oped|inquiry)', () => {
+    expect([...COMMUNITY_SUBMISSION_TYPES]).toEqual(['chat', 'debate', 'oped', 'inquiry']);
   });
 });

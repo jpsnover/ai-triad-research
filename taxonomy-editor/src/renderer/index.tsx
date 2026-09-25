@@ -11,6 +11,7 @@ import { App } from './App';
 import { PublicPovView } from './components/PublicPovView';
 import { PublicOpEdView } from './components/PublicOpEdView';
 import { PublicOpEdIndexView } from './components/PublicOpEdIndexView';
+import { PublicInquiryView } from './components/PublicInquiryView';
 import { installVitePreloadRecovery } from './lib/vitePreloadRecovery';
 import './styles.css';
 import './responsive.css';
@@ -18,8 +19,11 @@ import './Tooltip.css';
 import './components/shared/ContextMenu.css';
 import './components/shared/DialogOverlay.css';
 
-// Public share link (t/1790, t/2728, t/3482): a fully logged-out visitor to `/share/pov/:id`,
-// `/share/oped/:shareId`, or `/share/opeds` gets the slim read-only view — NOT the main app.
+// Public share link (t/1790, t/2728, t/3482, t/3628): a fully logged-out visitor to
+// `/share/pov/:id`, `/share/oped/:shareId`, `/share/opeds`, or `/inquiries/:shareId`
+// gets the slim read-only view — NOT the main app. The inquiry share path is `/inquiries/`
+// (not `/share/inquiry/`, unlike the other three) to match ServerAPI's already-landed mint
+// route (t/3626, PR #2405: `-> { shareId, url: '/inquiries/{shareId}' }`).
 // Rendering App() here would run its feature-flag refresh (getFlags → session-
 // recovering bridge helper) and mount MainApp/loadAll (auth + `/ws`), all of which
 // would mint a session and violate the no-session invariant (TL, t/1787#2). Branch
@@ -36,7 +40,9 @@ const publicView = path.startsWith('/share/pov/')
     ? <PublicOpEdIndexView />
     : path.startsWith('/share/oped/')
       ? <PublicOpEdView />
-      : null;
+      : path.startsWith('/inquiries/')
+        ? <PublicInquiryView />
+        : null;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

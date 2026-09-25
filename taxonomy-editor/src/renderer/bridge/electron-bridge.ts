@@ -306,6 +306,45 @@ export const api: AppAPI = {
     }
     return result;
   },
+  // "My Questions" history (t/3620) — no ElectronMain IPC leg yet (desktop's in-memory job Map
+  // is swept 30 min after terminal state, t/3579; it isn't a durable history store). Rejects
+  // rather than faking an empty list, mirroring rejectOpEdIpc's desktop-unsupported pattern.
+  listInquiries: () => Promise.reject(new ActionableError({
+    goal: 'List "My Questions" history',
+    problem: 'The desktop inquiry history backend is not installed in this build.',
+    location: 'electron-bridge.listInquiries',
+    nextSteps: [
+      'Update to a desktop build that includes the inquiry history IPC handler.',
+      'Until then, use the web app to browse past questions.',
+    ],
+  })),
+  // Inquiry export (t/3624) — no ElectronMain IPC leg yet. Rejects rather than faking success,
+  // mirroring listInquiries above / rejectOpEdIpc's desktop-unsupported pattern.
+  exportInquiryToFile: () => Promise.reject(new ActionableError({
+    goal: 'Export inquiry answer',
+    problem: 'The desktop inquiry export backend is not installed in this build.',
+    location: 'electron-bridge.exportInquiryToFile',
+    nextSteps: [
+      'Update to a desktop build that includes the inquiry export IPC handler.',
+      'Until then, use the web app to export questions.',
+    ],
+  })),
+  // Public share (t/3654) — web-only, mirrors shareOpEdSet/unshareOpEdSet's desktop posture
+  // exactly. The renderer hides the Share control entirely on Electron (isElectronMode()
+  // check in InquiryShareControl) rather than exposing a button that always errors — these
+  // rejections are the type-completeness fallback, not the primary UX signal.
+  shareInquiry: () => Promise.reject(new ActionableError({
+    goal: 'Create a public share link for this question',
+    problem: 'Public sharing is not available in the desktop app.',
+    location: 'electron-bridge.shareInquiry',
+    nextSteps: ['Use the web app to share this question.'],
+  })),
+  unshareInquiry: () => Promise.reject(new ActionableError({
+    goal: 'Revoke a public share link for this question',
+    problem: 'Public sharing is not available in the desktop app.',
+    location: 'electron-bridge.unshareInquiry',
+    nextSteps: ['Use the web app to manage share links.'],
+  })),
 
   // Brief Export — desktop parity via main-process IPC (t/2840). Calls the shared runBriefPipeline
   // in-process; download returns raw bytes wrapped into a Blob (Blob-returning AppAPI in both builds).

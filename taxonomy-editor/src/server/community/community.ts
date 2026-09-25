@@ -19,6 +19,7 @@ import {
 } from '../storage/inquiryResultStore.js';
 import { deriveTruncation } from '../../../../lib/inquiry/index.js';
 import type { InquiryResult } from '../../../../lib/inquiry/index.js';
+import { CLASSIFICATION, dispositionFor, type Surface } from '../../../../lib/inquiry/fieldClassification.js';
 
 // ── Paths ──
 
@@ -264,14 +265,34 @@ export async function listCommunityInquiries(): Promise<unknown[]> {
   return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
 }
 
-export async function loadCommunityItem(type: 'chats' | 'debates' | 'opeds' | 'inquiries', id: string): Promise<unknown | null> {
+/** Community type union used by the reader/copy/removal surface (plural, matches published dir names). */
+type CommunityType = 'chats' | 'debates' | 'opeds' | 'inquiries';
+
+/**
+ * t/3650 (SO review of t/3621, e/198#3 condition 1): the dir/prefix selection used to be a ternary
+ * chain with an implicit `else` falling through to opeds — TypeScript couldn't catch a missed arm
+ * the next time a type is added to the union; it would silently misfile into community/opeds/. An
+ * exhaustive switch with an `assertNever` default converts that into a compile error. No behavior
+ * change — same dir/prefix per type, just a structure the compiler can verify.
+ */
+function communityDirAndPrefix(type: CommunityType): { dir: string; prefix: string } {
+  switch (type) {
+    case 'chats': return { dir: communityChatsDir(), prefix: 'chat-' };
+    case 'debates': return { dir: communityDebatesDir(), prefix: 'debate-' };
+    case 'opeds': return { dir: communityOpedsDir(), prefix: 'oped-' };
+    case 'inquiries': return { dir: communityInquiriesDir(), prefix: 'inquiry-' };
+    default: return assertNeverCommunityType(type);
+  }
+}
+
+function assertNeverCommunityType(type: never): never {
+  throw new Error(`Unhandled community type: ${String(type)}`);
+}
+
+export async function loadCommunityItem(type: CommunityType, id: string): Promise<unknown | null> {
   assertSafeId(id, 'community id'); // block path traversal (M2)
   const backend = getUserContentBackend();
-  const dir = type === 'chats' ? communityChatsDir()
-    : type === 'debates' ? communityDebatesDir()
-    : type === 'inquiries' ? communityInquiriesDir()
-    : communityOpedsDir();
-  const prefix = type === 'chats' ? 'chat-' : type === 'debates' ? 'debate-' : type === 'inquiries' ? 'inquiry-' : 'oped-';
+  const { dir, prefix } = communityDirAndPrefix(type);
   const raw = await backend.readFile(path.join(dir, `${prefix}${id}.json`));
   if (!raw) return null;
   const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -377,6 +398,19 @@ interface Submission {
   note?: string;
   rejectionReason?: string;
   data: unknown;
+}
+
+/** t/3650: exhaustive-switch counterpart to communityDirAndPrefix for the singular Submission.type
+ *  union (approveSubmission's only caller) — same anti-silent-misfile guard, separate helper because
+ *  it's a different union (singular 'chat'/'debate'/... vs. the reader surface's plural). */
+function submissionDirAndPrefix(type: Submission['type']): { dir: string; prefix: string } {
+  switch (type) {
+    case 'chat': return { dir: communityChatsDir(), prefix: 'chat-' };
+    case 'debate': return { dir: communityDebatesDir(), prefix: 'debate-' };
+    case 'oped': return { dir: communityOpedsDir(), prefix: 'oped-' };
+    case 'inquiry': return { dir: communityInquiriesDir(), prefix: 'inquiry-' };
+    default: return assertNeverCommunityType(type);
+  }
 }
 
 export async function submitToCommunity(type: 'chat' | 'debate' | 'oped' | 'inquiry', itemData: unknown, note?: string): Promise<{ submissionId: string }> {
@@ -525,18 +559,37 @@ function stripOriginalId(meta: unknown): unknown {
   return rest;
 }
 
-// t/3621 SO review (e/198#3): `stripSensitiveKeys` is a DENYLIST — it strips known-sensitive
-// key names/secret-prefixed values, but has no knowledge of a field that is sensitive purely
-// by CONTEXT. `debateId` is exactly that case: an ordinary-looking string field that
-// InquiryResultSchema's `.passthrough()` lets ride unexamined, and TL explicitly ruled it must
-// never reach a non-authenticated/cross-user surface (t/3641, e/203#4) — a viewer holding a
-// debateId could reach a second, un-threat-modelled read path via loadDebateSession. Community
-// is exactly such a cross-user surface. A full positive-allowlist redesign (shared with Server
-// Auth's t/3623 public-share allowlist) is tracked separately (t/3644) — this is the narrow,
-// urgent fix: explicitly strip the field the denylist structurally cannot catch.
-const COMMUNITY_DENYLIST_BLIND_SPOTS: Partial<Record<Submission['type'], string[]>> = {
-  inquiry: ['debateId'],
-};
+/**
+ * t/3651: constructive positive-allowlist projector for an `InquiryResult`-shaped value onto one
+ * `fieldClassification` surface (t/3648). A path is a LEAF the instant it appears in `CLASSIFICATION`
+ * — matching the matrix's own dotted-path granularity (e.g. `derivation.models` is one atomic leaf
+ * while `request.models.debaters`/`.evaluator` are two) — so this needs no independent schema
+ * knowledge and stays correct as the matrix's own field boundaries evolve. Replaces
+ * `COMMUNITY_DENYLIST_BLIND_SPOTS` (t/3621/e/198#3): a denylist can silently miss a context-sensitive
+ * field (`debateId` did); a positive projection derived from the SO-blessed, CI-enforced matrix
+ * structurally cannot — an unclassified leaf throws via `dispositionFor` rather than passing through.
+ */
+function projectInquiryFields(value: unknown, surface: Surface, path: string): unknown {
+  if (path in CLASSIFICATION) {
+    return dispositionFor(path, surface).include ? value : undefined;
+  }
+  if (Array.isArray(value)) {
+    return value.map((el) => projectInquiryFields(el, surface, path));
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const childPath = path ? `${path}.${k}` : k;
+      const projected = projectInquiryFields(v, surface, childPath);
+      if (projected !== undefined) out[k] = projected;
+    }
+    return out;
+  }
+  // A primitive with no classified path above it. fieldClassification.test.ts's exhaustiveness gate
+  // guarantees this can't happen for a real InquiryResult (every schema leaf is classified on all
+  // three surfaces) — unreachable in practice, not a silent pass-through default.
+  return undefined;
+}
 
 function sanitizeForCommunity(data: unknown, submittedBy: string, type: Submission['type']): unknown {
   // t/2031: bound the ENTIRE recursive strip/sanitize walk under one wall-time
@@ -544,10 +597,17 @@ function sanitizeForCommunity(data: unknown, submittedBy: string, type: Submissi
   // into a multi-minute event-loop block (Server Community sign-off e/53#3; the
   // budget is re-entrant-safe, so any nested sanitizeDeep composes rather than
   // reseeding). Behavior-preserving: legit submissions finish in ~ms, far under budget.
-  const d = withSanitizeBudget(
+  let d = withSanitizeBudget(
     () => stripSensitiveKeys(JSON.parse(JSON.stringify(data))),
   ) as Record<string, unknown>;
-  for (const key of COMMUNITY_DENYLIST_BLIND_SPOTS[type] ?? []) delete d[key];
+  if (type === 'inquiry') {
+    // t/3651: `id`/`created_at` are community-projection-owned bridging fields stamped by
+    // submitToCommunity (t/3621), not part of InquiryResultSchema — the matrix classifies only
+    // contract fields (t/3651#7's "not part of this matrix" note), so they're preserved explicitly
+    // rather than dropped as unclassified. `id` is re-minted below regardless.
+    const { id, created_at, ...contractFields } = d;
+    d = { ...projectInquiryFields(contractFields, 'community', '') as Record<string, unknown>, id, created_at };
+  }
   d.community_metadata = {
     submitted_by_display: submittedBy,
     submitted_at: new Date().toISOString(),
@@ -606,14 +666,7 @@ export async function approveSubmission(
     ? { ...(submission.data as Record<string, unknown>), ...edits }
     : submission.data;
   const sanitized = sanitizeForCommunity(dataToPublish, submission.submittedBy, submission.type) as { id: string };
-  const dir = submission.type === 'chat' ? communityChatsDir()
-    : submission.type === 'debate' ? communityDebatesDir()
-    : submission.type === 'inquiry' ? communityInquiriesDir()
-    : communityOpedsDir();
-  const prefix = submission.type === 'chat' ? 'chat-'
-    : submission.type === 'debate' ? 'debate-'
-    : submission.type === 'inquiry' ? 'inquiry-'
-    : 'oped-';
+  const { dir, prefix } = submissionDirAndPrefix(submission.type);
 
   await backend.writeFile(
     path.join(dir, `${prefix}${sanitized.id}.json`),
@@ -651,7 +704,7 @@ export async function rejectSubmission(submissionId: string, reason?: string): P
   log.server.info({ submissionId, type: submission.type }, 'Community submission rejected');
 }
 
-export async function copyFromCommunity(type: 'chats' | 'debates' | 'opeds' | 'inquiries', communityId: string): Promise<{ newId: string }> {
+export async function copyFromCommunity(type: CommunityType, communityId: string): Promise<{ newId: string }> {
   if (isAnonymousUser()) throw Object.assign(new Error('Anonymous users cannot copy community items'), { statusCode: 403 });
 
   const item = await loadCommunityItem(type, communityId);
@@ -663,33 +716,45 @@ export async function copyFromCommunity(type: 'chats' | 'debates' | 'opeds' | 'i
   copy.created_at = new Date().toISOString();
   copy.updated_at = new Date().toISOString();
 
-  // Import into user's personal store via fileIO (which routes to user dir)
-  if (type === 'chats') {
-    const { saveChatSession } = await import('../storage/fileIO.js');
-    await saveChatSession(copy);
-  } else if (type === 'debates') {
-    const { saveDebateSession } = await import('../storage/fileIO.js');
-    await saveDebateSession(copy, 'community-fork');
-  } else if (type === 'inquiries') {
-    // t/3621: re-derive truncated/terminationReason from the copied result (deriveTruncation is
-    // pure over calibration trust states) rather than trusting any stale value on the community
-    // item — same "re-derive, don't trust a stored/submitted value" discipline as the submit path.
-    const result = copy as unknown as InquiryResult;
-    const { truncated, terminationReason } = deriveTruncation(result);
-    const debateIdRaw = (copy as Record<string, unknown>).debateId;
-    const summary: InquiryResultSummary = {
-      jobId: copy.id as string,
-      question: typeof result.request?.question === 'string' ? result.request.question : '',
-      debateId: typeof debateIdRaw === 'string' && debateIdRaw.length > 0 ? debateIdRaw : null,
-      truncated,
-      terminationReason,
-      createdAt: copy.created_at as string,
-    };
-    await saveInquiryResult(copy.id as string, result, summary);
-  } else {
-    // Draft: blocked on t/2572 (finalizeOpedSet) landing in storage/fileIO.ts
-    const fileIO = await import('../storage/fileIO.js') as Record<string, unknown>;
-    await (fileIO['finalizeOpedSet'] as (set: unknown) => Promise<void>)(copy);
+  // Import into user's personal store via fileIO (which routes to user dir).
+  // t/3650: exhaustive switch — same anti-silent-misfile guard as communityDirAndPrefix (this
+  // chain's implicit `else` used to fall through to the oped/finalizeOpedSet branch).
+  switch (type) {
+    case 'chats': {
+      const { saveChatSession } = await import('../storage/fileIO.js');
+      await saveChatSession(copy);
+      break;
+    }
+    case 'debates': {
+      const { saveDebateSession } = await import('../storage/fileIO.js');
+      await saveDebateSession(copy, 'community-fork');
+      break;
+    }
+    case 'inquiries': {
+      // t/3621: re-derive truncated/terminationReason from the copied result (deriveTruncation is
+      // pure over calibration trust states) rather than trusting any stale value on the community
+      // item — same "re-derive, don't trust a stored/submitted value" discipline as the submit path.
+      const result = copy as unknown as InquiryResult;
+      const { truncated, terminationReason } = deriveTruncation(result);
+      const debateIdRaw = (copy as Record<string, unknown>).debateId;
+      const summary: InquiryResultSummary = {
+        jobId: copy.id as string,
+        question: typeof result.request?.question === 'string' ? result.request.question : '',
+        debateId: typeof debateIdRaw === 'string' && debateIdRaw.length > 0 ? debateIdRaw : null,
+        truncated,
+        terminationReason,
+        createdAt: copy.created_at as string,
+      };
+      await saveInquiryResult(copy.id as string, result, summary);
+      break;
+    }
+    case 'opeds': {
+      // Draft: blocked on t/2572 (finalizeOpedSet) landing in storage/fileIO.ts
+      const fileIO = await import('../storage/fileIO.js') as Record<string, unknown>;
+      await (fileIO['finalizeOpedSet'] as (set: unknown) => Promise<void>)(copy);
+      break;
+    }
+    default: assertNeverCommunityType(type);
   }
 
   return { newId: copy.id as string };
@@ -721,17 +786,29 @@ function removalAuditTitle(item: Record<string, unknown>): string {
     || 'Untitled';
 }
 
+/** t/3650: singular audit-type label per plural community type — exhaustive, same guard as
+ *  communityDirAndPrefix (used to be a ternary chain whose implicit else defaulted to 'oped'). */
+function communityAuditType(type: CommunityType): 'chat' | 'debate' | 'oped' | 'inquiry' {
+  switch (type) {
+    case 'chats': return 'chat';
+    case 'debates': return 'debate';
+    case 'opeds': return 'oped';
+    case 'inquiries': return 'inquiry';
+    default: return assertNeverCommunityType(type);
+  }
+}
+
 /** Build the audit record captured before a community item is hard-deleted (t/748). */
 function buildRemovalAudit(
   id: string,
-  type: 'chats' | 'debates' | 'opeds' | 'inquiries',
+  type: CommunityType,
   item: Record<string, unknown>,
   removedBy: string,
   reason?: string,
 ): Record<string, unknown> {
   const meta = (item.community_metadata && typeof item.community_metadata === 'object')
     ? item.community_metadata as Record<string, unknown> : {};
-  const auditType = type === 'chats' ? 'chat' : type === 'debates' ? 'debate' : type === 'inquiries' ? 'inquiry' : 'oped';
+  const auditType = communityAuditType(type);
   return {
     id,
     type: auditType,
@@ -765,17 +842,13 @@ async function invalidateListingIndex(backend: StorageBackend, dir: string): Pro
  * admin gate; callers must already be authorized.
  */
 export async function removeCommunityItem(
-  type: 'chats' | 'debates' | 'opeds' | 'inquiries',
+  type: CommunityType,
   id: string,
   reason?: string,
 ): Promise<void> {
   assertSafeId(id, 'community id'); // block path traversal
   const backend = getUserContentBackend();
-  const dir = type === 'chats' ? communityChatsDir()
-    : type === 'debates' ? communityDebatesDir()
-    : type === 'inquiries' ? communityInquiriesDir()
-    : communityOpedsDir();
-  const prefix = type === 'chats' ? 'chat-' : type === 'debates' ? 'debate-' : type === 'inquiries' ? 'inquiry-' : 'oped-';
+  const { dir, prefix } = communityDirAndPrefix(type);
   const filePath = path.join(dir, `${prefix}${id}.json`);
 
   const raw = await backend.readFile(filePath);

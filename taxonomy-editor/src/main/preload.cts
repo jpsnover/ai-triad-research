@@ -648,7 +648,7 @@ function buildElectronApi() {
   // level while working fine at runtime. Caught by the preload/electron.d.ts conformance check.
   communitySubmit: (
     baseUrl: string,
-    payload: { type: 'chat' | 'debate' | 'oped'; data: unknown; note?: string },
+    payload: { type: 'chat' | 'debate' | 'oped' | 'inquiry'; data: unknown; note?: string },
   ): Promise<{ submissionId: string }> =>
     ipcRenderer.invoke('community-submit', baseUrl, payload),
 

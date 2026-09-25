@@ -36,9 +36,21 @@ export interface CommunityDebate extends CommunityItem {
   turn_count?: number;
 }
 
+/** t/3622 — community inquiry entry. Mirrors OpEdCommunityEntry's shape (question ~ topic,
+ *  verdict_count ~ voice_count); server projection lives in community.ts's listCommunityInquiries. */
+export interface CommunityInquiry {
+  id: string;
+  question: string;
+  created_at: string;
+  updated_at: string;
+  camps: string[];
+  verdict_count: number;
+  community_metadata?: CommunityItem['community_metadata'];
+}
+
 export interface Submission {
   id: string;
-  type: 'chat' | 'debate' | 'oped';
+  type: 'chat' | 'debate' | 'oped' | 'inquiry';
   originalId: string;
   submittedBy: string;
   submittedAt: string;
@@ -50,6 +62,7 @@ interface CommunityStore {
   chats: CommunityChat[];
   debates: CommunityDebate[];
   opeds: OpEdCommunityEntry[];
+  inquiries: CommunityInquiry[];
   submissions: Submission[];
   loading: boolean;
   error: string | null;
@@ -57,10 +70,11 @@ interface CommunityStore {
   fetchChats: () => Promise<void>;
   fetchDebates: () => Promise<void>;
   fetchOpeds: () => Promise<void>;
+  fetchInquiries: () => Promise<void>;
   fetchSubmissions: (status?: string) => Promise<void>;
-  submitItem: (type: 'chat' | 'debate' | 'oped', data: unknown, note?: string) => Promise<string>;
-  copyItem: (type: 'chats' | 'debates' | 'opeds', communityId: string) => Promise<string>;
-  removeItem: (type: 'chats' | 'debates' | 'opeds', id: string, reason?: string) => Promise<void>;
+  submitItem: (type: 'chat' | 'debate' | 'oped' | 'inquiry', data: unknown, note?: string) => Promise<string>;
+  copyItem: (type: 'chats' | 'debates' | 'opeds' | 'inquiries', communityId: string) => Promise<string>;
+  removeItem: (type: 'chats' | 'debates' | 'opeds' | 'inquiries', id: string, reason?: string) => Promise<void>;
   approveSubmission: (id: string) => Promise<void>;
   rejectSubmission: (id: string) => Promise<void>;
 }
@@ -79,6 +93,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
   chats: [],
   debates: [],
   opeds: [],
+  inquiries: [],
   submissions: [],
   loading: false,
   error: null,
@@ -122,6 +137,19 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
       api.trackEvent('community_browse', 'community', { type: 'opeds', count: opeds.length });
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch community op-eds', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      set({ error: mapErrorToUserMessage(err), loading: false });
+    }
+  },
+
+  fetchInquiries: async () => {
+    if (isElectronMode()) { set({ inquiries: [], loading: false }); return; }
+    set({ loading: true, error: null });
+    try {
+      const inquiries = await bridgeGet<CommunityInquiry[]>('/api/community/inquiries');
+      set({ inquiries, loading: false });
+      api.trackEvent('community_browse', 'community', { type: 'inquiries', count: inquiries.length });
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch community inquiries', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ error: mapErrorToUserMessage(err), loading: false });
     }
   },

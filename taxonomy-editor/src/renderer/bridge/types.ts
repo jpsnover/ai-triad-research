@@ -195,6 +195,17 @@ export interface InquiryStatusResponse {
   result?: InquiryResult;
 }
 
+/** Cheap listing row for the "My Questions" history (t/3620). Field-for-field identical to the
+ *  server's `InquiryResultSummary` (storage/inquiryResultStore.ts) so the two stay in lockstep. */
+export interface InquiryResultSummary {
+  jobId: string;
+  question: string;
+  debateId: string | null;
+  truncated: boolean;
+  terminationReason?: string;
+  createdAt: string;
+}
+
 // Brief Export (t/2805, T7) — client shapes of the T6 REST API (server: routes/briefExports.ts).
 // Consumes T6's frozen job-state names, artifact names, and error taxonomy verbatim.
 export interface BriefExportRequest {
@@ -486,6 +497,21 @@ export interface AppAPI {
   // --- Inquiry (t/3582 — "Ask a question"; both builds) ---
   startInquiry: (request: StartInquiryRequest, idempotencyKey?: string) => Promise<{ jobId: string }>;
   getInquiry: (jobId: string) => Promise<InquiryStatusResponse>;
+  /** "My Questions" history list (t/3620). Desktop may reject until the ElectronMain IPC leg
+   *  lands (t/3582 precedent — see electron-bridge.ts's rejectOpEdIpc pattern). */
+  listInquiries: () => Promise<InquiryResultSummary[]>;
+  /** Export an inquiry answer as JSON/MD/PDF (t/3624). Desktop rejects until the ElectronMain
+   *  IPC leg lands — no fake success (same precedent as listInquiries above). */
+  exportInquiryToFile: (
+    result: InquiryResult,
+    title: string,
+    format: 'json' | 'markdown' | 'pdf',
+  ) => Promise<{ cancelled: boolean; filePath?: string }>;
+  /** Public no-login share link (t/3626/t/3653, t/3654). Mirrors shareOpEdSet/unshareOpEdSet
+   *  exactly — desktop rejects (t/3654: hide the Share control on Electron entirely, per
+   *  rejectOpEdIpc precedent — same web-only posture as op-ed sharing). */
+  shareInquiry: (jobId: string) => Promise<{ shareId: string; url: string }>;
+  unshareInquiry: (jobId: string) => Promise<{ ok: boolean }>;
 
   // --- Brief Export (t/2805, T7 — client of the T6 REST API; web-only v1, Electron parity tracked) ---
   createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;
@@ -570,14 +596,14 @@ export interface AppAPI {
   // --- Community Library ---
   listCommunityChats: () => Promise<unknown[]>;
   listCommunityDebates: () => Promise<unknown[]>;
-  submitToCommunity: (type: 'chat' | 'debate', itemData: unknown, note?: string) => Promise<{ submissionId: string }>;
+  submitToCommunity: (type: 'chat' | 'debate' | 'oped' | 'inquiry', itemData: unknown, note?: string) => Promise<{ submissionId: string }>;
   copyFromCommunity: (type: 'chats' | 'debates', communityId: string) => Promise<{ newId: string }>;
   loadCommunityDebateSession: (id: string) => Promise<unknown>;
   loadCommunityOpEd: (id: string) => Promise<OpEdSet>;
   loadCommunityChatSession: (id: string) => Promise<unknown>;
   // Submit to a remote community server. In Electron this is proxied through the main
   // process (net.fetch) so it is not blocked by browser CORS; baseUrl is the server origin.
-  communitySubmit: (baseUrl: string, payload: { type: 'chat' | 'debate' | 'oped'; data: unknown; note?: string }) => Promise<{ submissionId: string }>;
+  communitySubmit: (baseUrl: string, payload: { type: 'chat' | 'debate' | 'oped' | 'inquiry'; data: unknown; note?: string }) => Promise<{ submissionId: string }>;
 
   // --- Support cases ---
   createSupportCase: (payload: SupportCaseCreatePayload) => Promise<{ id: string }>;
@@ -734,5 +760,5 @@ export interface AppAPI {
   adminReviewStats: () => Promise<{ total: number; byDomain: Record<string, number> }>;
   adminReviewDetail: (groupId: string) => Promise<unknown>;
   adminReviewAction: (action: { domain: string; groupId: string; action: string; itemIds: string[]; reason?: string; edits?: Record<string, unknown> }) => Promise<void>;
-  adminRemoveCommunityItem: (type: 'chats' | 'debates' | 'opeds', id: string, reason?: string) => Promise<void>;
+  adminRemoveCommunityItem: (type: 'chats' | 'debates' | 'opeds' | 'inquiries', id: string, reason?: string) => Promise<void>;
 }

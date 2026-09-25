@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { deriveDebateConfig } from '@lib/debate/inquiryConfig';
-import type { InquiryJobStatus, InquiryResult, InquiryStatusResponse } from '../bridge/types';
+import type { InquiryJobStatus, InquiryResult, InquiryStatusResponse, InquiryResultSummary } from '../bridge/types';
 import type { Fidelity } from '@lib/inquiry';
 import type { ModelRegistry } from '@lib/ai-client/registry';
 import aiModelsRegistry from '../../../../ai-models.json';
@@ -21,7 +21,7 @@ const POLL_INTERVAL_MS = 3_000;
 const MAX_POLL_BACKOFF_MS = 30_000;
 const POLL_CEILING_MS = 60 * 60_000; // 1 hour — comfortably above Deep fidelity's own ~45 min estimate
 
-export type InquiryScreen = 'ask' | 'running' | 'answer';
+export type InquiryScreen = 'ask' | 'running' | 'answer' | 'list';
 
 interface InquiryStoreState {
   question: string;
@@ -44,6 +44,13 @@ interface InquiryStoreState {
   pollError: string | null;
   result: InquiryResult | null;
 
+  /** "My Questions" history list (t/3620). Explicit view flag — independent of jobId/status,
+   *  since a user can browse history while a fresh inquiry has never been started. */
+  viewingList: boolean;
+  history: InquiryResultSummary[];
+  historyLoading: boolean;
+  historyError: string | null;
+
   setQuestion: (q: string) => void;
   setFidelity: (f: Fidelity) => void;
   setDebaterModel: (m: string | undefined) => void;
@@ -56,6 +63,14 @@ interface InquiryStoreState {
   startInquiry: () => Promise<void>;
   /** Returns to the Ask screen for a fresh question. Stops any in-flight poll. */
   reset: () => void;
+
+  /** Opens the "My Questions" list screen and fetches history. */
+  openList: () => void;
+  /** Leaves the list screen without disturbing any in-flight ask/poll state. */
+  closeList: () => void;
+  fetchHistory: () => Promise<void>;
+  /** Opens a past question from history directly onto the Answer screen (t/3620). */
+  openFromHistory: (jobId: string) => Promise<void>;
 
   /** Internal — exposed for the unmount-cleanup effect in InquiryTab.tsx. */
   _stopPolling: () => void;
@@ -145,6 +160,11 @@ export const useInquiryStore = create<InquiryStoreState>((set, get) => {
     pollError: null,
     result: null,
 
+    viewingList: false,
+    history: [],
+    historyLoading: false,
+    historyError: null,
+
     setQuestion: (q) => set({ question: q }),
     setFidelity: (f) => set({ fidelity: f }),
     setDebaterModel: (m) => set({ debaterModel: m }),
@@ -160,7 +180,8 @@ export const useInquiryStore = create<InquiryStoreState>((set, get) => {
     },
 
     screen: () => {
-      const { jobId, status } = get();
+      const { jobId, status, viewingList } = get();
+      if (viewingList) return 'list';
       if (jobId === null) return 'ask';
       if (status === 'done' || status === 'done_truncated' || status === 'failed') return 'answer';
       return 'running';
@@ -203,6 +224,55 @@ export const useInquiryStore = create<InquiryStoreState>((set, get) => {
         jobId: null, status: null, progressPct: 0, terminationReason: null,
         error: null, pollError: null, result: null,
       });
+    },
+
+    openList: () => {
+      set({ viewingList: true });
+      void get().fetchHistory();
+    },
+
+    closeList: () => set({ viewingList: false }),
+
+    fetchHistory: async () => {
+      set({ historyLoading: true, historyError: null });
+      try {
+        const history = await api.listInquiries();
+        set({ history, historyLoading: false });
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'inquiry-store',
+          level: 'error',
+          message: 'fetchHistory failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        set({ historyLoading: false, historyError: err instanceof Error ? err.message : String(err) });
+      }
+    },
+
+    openFromHistory: async (jobId: string) => {
+      clearPollTimer();
+      consecutivePollFailures = 0;
+      set({ viewingList: false, error: null, pollError: null, result: null, jobId, status: 'queued', progressPct: 0, terminationReason: null });
+      try {
+        const view = await api.getInquiry(jobId);
+        set({
+          status: view.status,
+          progressPct: view.progressPct,
+          terminationReason: view.terminationReason,
+          error: view.status === 'failed' ? view.error : null,
+          result: view.result ?? null,
+        });
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'inquiry-store',
+          level: 'error',
+          message: `openFromHistory failed for ${jobId}`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        set({ status: 'failed', error: err instanceof Error ? err.message : String(err) });
+      }
     },
 
     _stopPolling: () => { clearPollTimer(); },

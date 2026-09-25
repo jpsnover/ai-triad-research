@@ -1,0 +1,38 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+   Licensed under the MIT License. See LICENSE file in the project root. */
+
+.inquiry-share-dialog {
+  max-width: 46rem;
+  width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.inquiry-share-dialog-title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.inquiry-share-dialog-desc {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.inquiry-share-dialog-preview {
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+/* The preview embeds PublicInquiryShareContent, which normally sits inside
+   PublicInquiryView's full-page .pov-inquiry-root; strip that page-level chrome here so it
+   reads as an inline preview, not a nested page. */
+.inquiry-share-dialog-preview .pov-inquiry-card {
+  border: none;
+  border-radius: 0;
+  padding: 1rem 1.25rem;
+}
