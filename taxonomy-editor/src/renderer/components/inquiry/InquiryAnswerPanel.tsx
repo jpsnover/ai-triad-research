@@ -10,25 +10,60 @@ import { InquiryExportDropdown } from './InquiryExportDropdown';
 import { mapErrorToUserMessage } from '../../utils/errorMessages';
 import './InquiryTab.css';
 
-export function InquiryAnswerPanel() {
-  const { status, result, error, terminationReason, reset } = useInquiryStore();
-  const [exportError, setExportError] = useState<string | null>(null);
+type ExportFormat = 'pdf' | 'json' | 'markdown';
 
-  const handleExport = async (format: 'pdf' | 'json' | 'markdown') => {
+/** Extracted from the component (ESLint complexity) — pure request/result, no component state. */
+async function runExport(result: import('../../bridge/types').InquiryResult, format: ExportFormat): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    await api.exportInquiryToFile(result, result.request.question, format);
+    return { ok: true };
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'InquiryAnswerPanel',
+      level: 'error',
+      message: 'Failed to export inquiry answer',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return { ok: false, message: mapErrorToUserMessage(err) };
+  }
+}
+
+/** Mirrors DebateTab.handleShare (t/3659) — the epic's req-3 submit-to-community action. */
+async function runSubmitToCommunity(jobId: string): Promise<{ ok: true; submissionId: string } | { ok: false; message: string }> {
+  try {
+    const { submissionId } = await api.submitToCommunity('inquiry', { id: jobId });
+    return { ok: true, submissionId };
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'InquiryAnswerPanel',
+      level: 'error',
+      message: 'Failed to submit inquiry to community',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return { ok: false, message: mapErrorToUserMessage(err) };
+  }
+}
+
+export function InquiryAnswerPanel() {
+  const { status, result, error, terminationReason, jobId, reset } = useInquiryStore();
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
+
+  const handleExport = async (format: ExportFormat) => {
     if (!result) return;
     setExportError(null);
-    try {
-      await api.exportInquiryToFile(result, result.request.question, format);
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        component: 'InquiryAnswerPanel',
-        level: 'error',
-        message: 'Failed to export inquiry answer',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      setExportError(mapErrorToUserMessage(err));
-    }
+    const outcome = await runExport(result, format);
+    if (!outcome.ok) setExportError(outcome.message);
+  };
+
+  const handleSubmitToCommunity = async () => {
+    if (!jobId) return;
+    setShareStatus('Submitting...');
+    const outcome = await runSubmitToCommunity(jobId);
+    setShareStatus(outcome.ok ? `Shared! (${outcome.submissionId.slice(0, 8)})` : `Failed: ${outcome.message}`);
+    setTimeout(() => setShareStatus(null), 4000);
   };
 
   if (status === 'failed') {
@@ -62,8 +97,10 @@ export function InquiryAnswerPanel() {
         </div>
         <div className="inquiry-rawrow">
           <button className="inquiry-ghost" onClick={reset}>Ask another question</button>
+          <button className="inquiry-ghost" onClick={() => void handleSubmitToCommunity()}>Share to Community</button>
           <InquiryExportDropdown onExport={(f) => void handleExport(f)} />
         </div>
+        {shareStatus && <p className="inquiry-faint">{shareStatus}</p>}
         {exportError && <p className="inquiry-error" role="alert">{exportError}</p>}
       </div>
     );
@@ -171,8 +208,10 @@ export function InquiryAnswerPanel() {
 
       <div className="inquiry-rawrow">
         <button className="inquiry-ghost" onClick={reset}>Ask another question</button>
+        <button className="inquiry-ghost" onClick={() => void handleSubmitToCommunity()}>Share to Community</button>
         <InquiryExportDropdown onExport={(f) => void handleExport(f)} />
       </div>
+      {shareStatus && <p className="inquiry-faint">{shareStatus}</p>}
       {exportError && <p className="inquiry-error" role="alert">{exportError}</p>}
     </div>
   );

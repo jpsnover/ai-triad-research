@@ -309,7 +309,7 @@ export interface ElectronAPI {
   captureScreenshot: (opts?: { width?: number; height?: number; defaultName?: string }) => Promise<{ cancelled: boolean; filePath?: string }>;
 
   // Community
-  communitySubmit: (baseUrl: string, payload: { type: 'chat' | 'debate' | 'oped'; data: unknown; note?: string }) => Promise<{ submissionId: string }>;
+  communitySubmit: (baseUrl: string, payload: { type: 'chat' | 'debate' | 'oped' | 'inquiry'; data: unknown; note?: string }) => Promise<{ submissionId: string }>;
 
   // Admin Review
   adminReviewConfigured: () => Promise<boolean>;
