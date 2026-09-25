@@ -4,7 +4,10 @@
 // Public read-only inquiry share view (t/3628, sibling of PublicOpEdView / t/2728).
 //
 // Renders a shared "Ask a Question" answer for a FULLY LOGGED-OUT visitor at
-// `/share/inquiry/:shareId` — no login prompt, no App/loadAll mount, no `/ws` socket.
+// `/inquiries/:shareId` — no login prompt, no App/loadAll mount, no `/ws` socket.
+// Path shape matches what ServerAPI's mint route already ships (t/3626, PR #2405:
+// `-> { shareId, url: '/inquiries/{shareId}' }`) — conforming to the already-landed
+// server contract rather than the ticket's original `/share/inquiry/` guess.
 //
 // Binding invariant (same as PublicPovView/PublicOpEdView, TL t/1787#2): NO session/cookie
 // is minted on this path. The fetch below is a RAW `fetch` — NOT a web-bridge helper —
@@ -32,12 +35,12 @@ type LoadState =
   | { status: 'error' };
 
 /**
- * Extract the shareId from a `/share/inquiry/<shareId>` pathname. Pure — shareIds are
+ * Extract the shareId from an `/inquiries/<shareId>` pathname. Pure — shareIds are
  * randomUUIDs (`[A-Za-z0-9-]+`), so no decode/throw is needed; anything else returns
  * null and the view shows the not-found state.
  */
 export function shareIdFromInquiryPath(pathname: string): string | null {
-  const m = pathname.match(/^\/share\/inquiry\/([A-Za-z0-9-]+)\/?$/);
+  const m = pathname.match(/^\/inquiries\/([A-Za-z0-9-]+)\/?$/);
   return m ? m[1] : null;
 }
 

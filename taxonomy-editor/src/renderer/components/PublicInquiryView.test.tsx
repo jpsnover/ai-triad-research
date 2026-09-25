@@ -60,14 +60,14 @@ function goTo(pathname: string): void {
 
 describe('shareIdFromInquiryPath', () => {
   it('extracts a valid shareId (uuid), with or without trailing slash', () => {
-    expect(shareIdFromInquiryPath(`/share/inquiry/${SHARE_ID}`)).toBe(SHARE_ID);
-    expect(shareIdFromInquiryPath(`/share/inquiry/${SHARE_ID}/`)).toBe(SHARE_ID);
+    expect(shareIdFromInquiryPath(`/inquiries/${SHARE_ID}`)).toBe(SHARE_ID);
+    expect(shareIdFromInquiryPath(`/inquiries/${SHARE_ID}/`)).toBe(SHARE_ID);
   });
   it('returns null for non-share or malformed paths', () => {
     expect(shareIdFromInquiryPath('/')).toBeNull();
-    expect(shareIdFromInquiryPath('/share/inquiry/')).toBeNull();
-    expect(shareIdFromInquiryPath('/share/inquiry/a b')).toBeNull();
-    expect(shareIdFromInquiryPath('/share/inquiry/../etc')).toBeNull();
+    expect(shareIdFromInquiryPath('/inquiries/')).toBeNull();
+    expect(shareIdFromInquiryPath('/inquiries/a b')).toBeNull();
+    expect(shareIdFromInquiryPath('/inquiries/../etc')).toBeNull();
     expect(shareIdFromInquiryPath('/share/oped/set-1')).toBeNull();
   });
 });
@@ -75,7 +75,7 @@ describe('shareIdFromInquiryPath', () => {
 describe('PublicInquiryView (t/3628)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    goTo(`/share/inquiry/${SHARE_ID}`);
+    goTo(`/inquiries/${SHARE_ID}`);
   });
   afterEach(() => {
     goTo('/');
@@ -143,7 +143,7 @@ describe('PublicInquiryView (t/3628)', () => {
   });
 
   it('does not fetch for a malformed shareId', async () => {
-    goTo('/share/inquiry/..');
+    goTo('/inquiries/..');
     render(<PublicInquiryView />);
     await screen.findByText('Not available');
     expect(mockFetch).not.toHaveBeenCalled();
