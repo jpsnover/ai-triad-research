@@ -115,6 +115,7 @@
         'Get-AICostReport'
         'Get-AITierModel'
         'Build-NodeSourceIndex'
+        'Test-CitationLinkIntegrity'
         'Get-FlightRecorderDump'
         'Get-LatestFlightRecorderDump'
         'Get-AzureFlightRecorder'

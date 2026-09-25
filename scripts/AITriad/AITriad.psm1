@@ -971,6 +971,8 @@ Export-ModuleMember -Function @(
     'Get-AITierModel'
     # t/3596 — derived belief-node → source index (sidecar source_index.json)
     'Build-NodeSourceIndex'
+    # t/3598 — referential-integrity gate on citation links + source_index (advisory)
+    'Test-CitationLinkIntegrity'
     'Test-GeminiKeyPool'
     'Test-AIBackendHealth'
     'Test-AIBackendQuota'

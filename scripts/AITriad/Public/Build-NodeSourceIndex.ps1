@@ -133,21 +133,16 @@ function Build-NodeSourceIndex {
             -NextSteps @('Confirm the POV node files are valid JSON with a nodes[] array'))
     }
 
-    # ── Collect (per node) source entries + input fingerprint ───────────────────
-    # inputHash: sha256 over the ordinal-sorted "<relname>\t<sha256>" of each summary,
-    # so it fingerprints the exact input corpus with no wall-clock (SO condition 1).
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    function script:HashBytes([byte[]]$b) { -join ($sha.ComputeHash($b) | ForEach-Object { $_.ToString('x2') }) }
-
+    # ── Collect (per node) source entries ───────────────────────────────────────
+    # inputHash (self-describing header, SO cond 1) is computed by the shared
+    # Get-SummariesInputHash so the t/3598 staleness gate can never drift from the builder.
     $byNode = @{}   # node_id -> List[entry]
     foreach ($id in $Live) { $byNode[$id] = [System.Collections.Generic.List[object]]::new() }
-    $fileprints = [System.Collections.Generic.List[string]]::new()
     $nKp = 0; $nFc = 0
 
     $files = Get-ChildItem -LiteralPath $SummariesDir -Filter '*.json' -File | Sort-Object Name
     foreach ($file in $files) {
         $raw = [System.IO.File]::ReadAllBytes($file.FullName)
-        $fileprints.Add("$($file.Name)`t$(script:HashBytes $raw)")
         $s = [System.Text.Encoding]::UTF8.GetString($raw).TrimStart([char]0xFEFF) | ConvertFrom-Json
         if (-not $s.PSObject.Properties['doc_id'] -or -not $s.doc_id) { continue }
         $sourceId = [string]$s.doc_id
@@ -189,8 +184,7 @@ function Build-NodeSourceIndex {
         }
     }
 
-    $inputHash = script:HashBytes ([System.Text.Encoding]::UTF8.GetBytes(($fileprints -join "`n")))
-    $sha.Dispose()
+    $inputHash = Get-SummariesInputHash -SummariesDir $SummariesDir
 
     # ── Dedup + ordinal sort per node ───────────────────────────────────────────
     # Dedup key: source_id | quote | link_source | doc_position (SO cond 2 / CL #4).

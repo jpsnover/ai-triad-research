@@ -108,6 +108,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Invoke-AIByUsage` | Config-driven AI dispatch by UsageID (reads `ai-usages.json`, renders templates, delegates to Invoke-AIApi) |
 | `Get-AITierModel` | Resolve a model tier (`basic`=fast/cheap, `advanced`=frontier) + backend to the currently-registered id from `ai-models.json` `debateTiers` — use as a drift-proof default (`[string]$Model = (Get-AITierModel -Tier basic)`) instead of a hardcoded literal (t/3564) |
 | `Build-NodeSourceIndex` | Build the derived belief-node→primary-source sidecar `taxonomy/Origin/source_index.json` by inverting summaries' node-citation links against live ids — deterministic, self-describing header (schemaVersion/inputHash/totals); `-WhatIf`/`-PassThru` to preview (t/3596) |
+| `Test-CitationLinkIntegrity` | Advisory referential-integrity gate (t/3598): verifies summary→node links resolve to live nodes of their class (belief/situation), every `source_index.json` `source_id` resolves to `<sources>/<id>/metadata.json` (chunk-suffix stripped), and the index isn't stale (header inputHash + key count). Returns per-leg pass/offenders; warn-only until the SO/TL blocking flip |
 | `Invoke-BatchSummary` | Batch-summarize documents from the queue |
 | `Invoke-POVSummary` | Summarize one document across all 3 POVs (writes `summaries/<doc-id>.json`) |
 | `Invoke-BDIWeightAssignment` | Assign BDI weights to nodes |
