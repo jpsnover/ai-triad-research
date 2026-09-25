@@ -166,7 +166,6 @@ function Build-NodeSourceIndex {
                         source_id = $sourceId; link_source = 'key_point'; quote = $q
                         doc_position = $null; evidence_level = $null; extraction_confidence = $ec
                     })
-                    $nKp++
                 }
             }
         }
@@ -185,7 +184,6 @@ function Build-NodeSourceIndex {
                         source_id = $sourceId; link_source = 'factual_claim'; quote = $q
                         doc_position = $dp; evidence_level = $el; extraction_confidence = $ec
                     })
-                    $nFc++
                 }
             }
         }
@@ -233,6 +231,9 @@ function Build-NodeSourceIndex {
         [System.Array]::Sort($arr, $ordinalEntry)
         $index[$id] = $arr
         $totalEntries += $arr.Count
+        # byLinkSource is counted POST-dedup (t/3596#8 fix — CL reconcile): the per-class
+        # split must match `entries`, so it counts the kept entries, not raw pre-dedup links.
+        foreach ($e in $arr) { if ($e.link_source -eq 'key_point') { $nKp++ } else { $nFc++ } }
     }
 
     $result = [ordered]@{
