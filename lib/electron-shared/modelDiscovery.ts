@@ -342,43 +342,14 @@ export function getKnownClaudeModels(): ModelEntry[] {
   ];
 }
 
-// ── OpenAI: GET /v1/models ─────────────────────────────────────────────────────
-
-interface OpenAIModelInfo {
-  id: string;
-  owned_by: string;
-}
-
-export async function discoverOpenAIModels(apiKey: string): Promise<ModelEntry[]> {
-  const resp = await fetch('https://api.openai.com/v1/models', {
-    headers: { 'Authorization': `Bearer ${apiKey}` },
-  });
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new ActionableError({
-      goal: 'Discover available OpenAI models',
-      problem: `OpenAI models API returned HTTP ${resp.status}: ${body.slice(0, 200)}`,
-      location: 'modelDiscovery.discoverOpenAIModels',
-      nextSteps: ['Check your API key is valid', 'Verify network connectivity', 'The API may be temporarily unavailable'],
-    });
-  }
-  const json = await resp.json() as { data: OpenAIModelInfo[] };
-
-  return json.data
-    .filter(m => {
-      const id = m.id.toLowerCase();
-      return id.startsWith('gpt-') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('o4');
-    })
-    .filter(m => {
-      const id = m.id.toLowerCase();
-      return !id.includes('realtime') && !id.includes('audio') && !id.includes('transcribe');
-    })
-    .map(m => {
-      const friendlyId = 'openai-' + m.id.toLowerCase();
-      const label = m.id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      return { id: friendlyId, apiModelId: m.id, label, backend: 'openai' };
-    });
-}
+// ── OpenAI: MANUALLY CURATED (t/3552 decision b) ───────────────────────────────
+// OpenAI is NOT auto-discovered. GET /v1/models returns the whole catalog (~93 ids: dated snapshots,
+// undated aliases, legacy non-chat) — and unlike gemini, OpenAI has no clean tier/version scheme to
+// curate latest-per-family without a fragile heuristic that drifts every release (t/3551 decision 3).
+// So openai joins the hand-picked set (zai/azure/moonshot/xai): its ai-models.json entries are
+// maintained by hand and survive every refresh untouched — it is absent from ALL_BACKENDS, so it is
+// never probed and is preserved as a non-probed backend by mergeDiscoveredModels. (The former
+// `discoverOpenAIModels`, which dumped the whole catalog, was removed with this ticket.)
 
 // ── DeepSeek: OpenAI-compatible GET /models ────────────────────────────────────
 
@@ -498,7 +469,6 @@ async function discoverBackend(
     gemini: discoverGeminiModels,
     claude: discoverClaudeModels,
     groq: discoverGroqModels,
-    openai: discoverOpenAIModels,
     deepseek: discoverDeepSeekModels,
   };
 
@@ -526,7 +496,10 @@ async function discoverBackend(
   }
 }
 
-const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'ollama'] as const;
+// The DISCOVERABLE backends. openai is deliberately NOT here — it is manually curated (t/3552 decision
+// b), like zai/azure/moonshot/xai; a backend absent from this set is never probed and its config entries
+// survive untouched (preserved as non-probed by mergeDiscoveredModels).
+const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'deepseek', 'ollama'] as const;
 
 /**
  * Merge a refresh's discovered models into the registry. TWO modes with DIFFERENT de-listing policy —
@@ -573,8 +546,9 @@ export function mergeDiscoveredModels(
 export interface RefreshOptions {
   /** Additive-only: add newly-discovered ids, drop nothing (t/3551 decision 2). */
   additive?: boolean;
-  /** Backends to NOT probe this run — their existing models are preserved untouched (e.g. 'openai'
-   *  while its discovery filter is a defect, t/3552). Distinct from the always-manually-curated set. */
+  /** Backends to NOT probe this run — a transient skip; their existing models are preserved untouched.
+   *  Distinct from the always-manually-curated set. (openai is no longer an example here: it moved to
+   *  the permanently-manual set — absent from ALL_BACKENDS — per t/3552 decision b.) */
   skipBackends?: readonly string[];
 }
 
@@ -606,14 +580,24 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps, opts: RefreshOpt
     result[backendId] = discovery.result;
   }
 
+  // openai is manually curated (t/3552 decision b) — absent from ALL_BACKENDS, so the loop never touches
+  // it. Report it as such for the Settings panel and count its preserved hand-maintained entries (mirrors
+  // how a skipped backend is reported: ok:false + a status note).
+  result.openai = {
+    ok: false,
+    count: config.models.filter(m => m.backend === 'openai').length,
+    error: 'manually curated — excluded from auto-discovery (t/3552)',
+  };
+
   // Merge, not replace (t/1711): only the backends probed this run are regenerated; non-probed
   // backends (zai, azure, manually-curated) survive untouched with their defaults/debateTiers/
   // fallbackChains refs (a bare replace caused the Z.AI outage: dropped zai models -> dangling
   // defaults.zai -> HTTP 1211). And attribute-preserving (t/3551): a discovered model keeps the prior
   // entry's curated extras (picker, minTimeoutMs [t/3518], fixedTemperature) — a bare replace wiped
   // them, invisibly to verify:config since they're unreferenced.
-  // Skipped backends are excluded from `probed` so the merge preserves their existing models (openai
-  // stays as-is while t/3552 fixes its filter). Additive mode (t/3551 decision 2) drops nothing.
+  // Skipped backends are excluded from `probed` so the merge preserves their existing models. openai is
+  // now permanently manually-curated (t/3552 decision b) — absent from ALL_BACKENDS, so it too is
+  // preserved as non-probed. Additive mode (t/3551 decision 2) drops nothing.
   const probedThisRun = new Set<string>(ALL_BACKENDS.filter(b => !skip.has(b)));
   config.models = mergeDiscoveredModels(config.models, newModels, probedThisRun, opts.additive ?? false);
   // ── Repair pass (t/2039) ──────────────────────────────────────────────────────
