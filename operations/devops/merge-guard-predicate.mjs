@@ -118,13 +118,18 @@ export function buildMergeGuardSinkRecord({ nowIso, mode, command, verdict, fail
 }
 
 /**
- * ⚠️ INERT — NOT WIRED, GUARDS NOTHING YET (t/3687#8, TL). This predicate currently has NO runtime
- * caller: there is no `--base-ref-stale` shim mode, no feedback-rule wiring, and nothing reads the
- * recorder statuses. It READS like a live guard (green arms, tested) but does not gate any merge until
- * the wiring lands later in t/3687 (behind TL Gate-Verification). Do NOT conclude the retarget
- * stale-green class is covered from this function's presence or its passing tests alone — that is the
- * Class-9 shape (assert-from-artifact, not from behaviour; 74d3b548) one level out. It landed on main
- * early via the premature merge of #2455 (incident t/3687#7); TL ruled leave-not-revert (t/3687#8).
+ * ⚠️ INERT — NOT WIRED, GUARDS NOTHING YET (t/3687#8, TL). The full guard mechanism now exists in this
+ * module — `baseRefStaleVerdict`, `parseBaseRefRecords`, the `--base-ref-stale` CLI shim, `classifyGhError`
+ * — AND the `record-base-ref` recorder jobs are LIVE on main (via #2456) and post `base-ref-record/*`
+ * commit statuses on every PR. But NOTHING invokes the shim: there is NO feedback rule calling
+ * `--base-ref-stale`, so nothing reads those statuses and NO merge is gated. The one remaining step —
+ * wiring a feedback rule to the shim — is the enablement, and it is held behind TL Gate-Verification.
+ * Until it lands, this reads like a live guard (green arms, posted statuses, tested) and guards nothing.
+ * Do NOT conclude the retarget stale-green class is covered from the code's presence, its passing tests,
+ * or the statuses appearing on PRs — that is the Class-9 shape (assert-from-artifact, not from behaviour;
+ * 74d3b548). The pieces landed on main early via TWO premature merges of gated drafts (#2455 → the
+ * predicate; #2456 → parser + recorders; the shim recovered separately after the same); TL ruled
+ * leave-not-revert (t/3687#8), so the inert code stays and the wiring remains the sole gated step.
  *
  * Retarget stale-green guard — base-ref-NAME identity (t/3687; supersedes t/3684's rejected timestamp
  * design). Design of record locked via the e/212 Second-Opinion + TL review (t/3687#2).
