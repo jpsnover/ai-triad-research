@@ -179,6 +179,19 @@ Fallback key: `$AI_API_KEY` works for any backend if the specific env var is uns
 
 Retry strategy: exponential backoff on HTTP 429/503/529, with delays of 15/45/90/120 seconds across up to 5 attempts.
 
+### Azure OpenAI is bring-your-own (t/3554)
+
+Unlike every other backend above, Azure has no shared endpoint — **the deployments live in *your* Azure OpenAI resource, not the project's.** The project hosts none. `$AZURE_OPENAI_ENDPOINT` points at your resource.
+
+**Name your deployment exactly after the model.** The provider builds its URL as `{endpoint}/openai/deployments/{apiModelId}/chat/completions`, so the registry's `apiModelId` **is** the deployment name it requests — there is no translation step. Every azure entry in `ai-models.json` uses the bare Azure OpenAI catalog name (`gpt-4o`, `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini`), so a deployment you named `my-gpt4o` will not be found.
+
+**A 404 selecting an azure model is almost always local, not a platform fault.** In order of likelihood:
+1. You haven't created that deployment in your resource.
+2. Your deployment has a different name than the model id (see above).
+3. The model isn't available in your resource's region, or not for your deployment type.
+
+**Adding a new azure model** to the registry: the test is *"does Azure publish it under this exact catalog name, reachable through the Azure OpenAI `/openai/deployments/` API?"* — not *"is it sold by Azure."* The Microsoft Foundry catalog is broader than the Azure OpenAI API surface, and some Foundry models are served from a different endpoint shape this provider does not speak.
+
 ## Data Flow
 
 ### Document Ingestion Pipeline
