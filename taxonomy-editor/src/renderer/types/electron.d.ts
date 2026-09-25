@@ -5,7 +5,7 @@ import type { Organization, OrganizationEdge } from '@lib/organizations/types';
 import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities/types';
 import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
-import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload, StartInquiryRequest, InquiryStatusResponse } from '../bridge/types';
+import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload, StartInquiryRequest, InquiryStatusResponse, InquiryResult, InquiryResultSummary } from '../bridge/types';
 import type { BriefArtifactName } from '@lib/brief/types';
 import type { StopReason } from '@lib/ai-client/types';
 import type { OpEdSet, OpEdSetSummary } from '@lib/oped/types';
@@ -20,6 +20,14 @@ export interface ElectronAPI {
   // drop the transient local duplicates from t/3579's initial landing.
   startInquiry: (request: StartInquiryRequest, idempotencyKey?: string) => Promise<{ jobId: string }>;
   getInquiry: (jobId: string) => Promise<InquiryStatusResponse | null>;
+  /** "My Questions" history (t/3683) — reads the desktop-local persisted index. */
+  listInquiries: () => Promise<InquiryResultSummary[]>;
+  /** Export an inquiry answer via a native save dialog (t/3683). */
+  exportInquiryToFile: (
+    result: InquiryResult,
+    title: string,
+    format: 'json' | 'markdown' | 'pdf',
+  ) => Promise<{ cancelled: boolean; filePath?: string }>;
 
   // Brief Export — desktop parity (t/2840). download returns raw bytes (the bridge wraps a Blob).
   createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;
