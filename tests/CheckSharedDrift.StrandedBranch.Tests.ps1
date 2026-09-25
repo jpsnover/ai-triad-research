@@ -41,7 +41,12 @@ Describe 'BranchStrandVerdict (t/3652)' -Tag 'devops' {
             $script:shaStranded = (git rev-parse HEAD).Trim()   # 2 commits ahead of M
             git checkout -q $script:shaA 2>$null                # fork off A (the common ancestor, not M)
             'd' | Out-File -FilePath (Join-Path $script:repo 'd.txt') -Encoding utf8; git add -A 2>$null; git commit -qm D 2>$null
-            $script:shaDiverged = (git rev-parse HEAD).Trim()   # neither equal to nor a descendant of M
+            $script:shaDiverged = (git rev-parse HEAD).Trim()   # neither equal to nor a descendant of M; D is unlanded
+            git checkout -q $script:shaA 2>$null                # a mainline off A: X then Y (Y contains X)
+            'x' | Out-File -FilePath (Join-Path $script:repo 'x.txt') -Encoding utf8; git add -A 2>$null; git commit -qm X 2>$null
+            $script:shaX = (git rev-parse HEAD).Trim()          # diverged from M, but landed on the mainline (Y)
+            'y' | Out-File -FilePath (Join-Path $script:repo 'y.txt') -Encoding utf8; git add -A 2>$null; git commit -qm Y 2>$null
+            $script:shaMain = (git rev-parse HEAD).Trim()        # mainline HEAD — contains X, not D
         } finally { Pop-Location }
     }
 
@@ -61,9 +66,22 @@ Describe 'BranchStrandVerdict (t/3652)' -Tag 'devops' {
         $v.Ahead   | Should -Be 2
     }
 
-    It 'DIVERGED — tip forked off the merged head (force-push signature `rev-list` would misreport)' {
-        $v = Get-BranchStrandVerdict -RepoRoot $script:repo -Tip $script:shaDiverged -MergedHead $script:shaM
-        $v.Verdict | Should -Be 'DIVERGED'
+    It 'DIVERGED-UNLANDED — tip forked off the merged head AND carries commits not on the mainline (real risk)' {
+        $v = Get-BranchStrandVerdict -RepoRoot $script:repo -Tip $script:shaDiverged -MergedHead $script:shaM -MainRef $script:shaMain
+        $v.Verdict | Should -Be 'DIVERGED-UNLANDED'
+        $v.Ahead   | Should -BeGreaterThan 0
+    }
+
+    It 'DIVERGED-STALE — tip diverged from the merged head but 0 unlanded (already on the mainline; nothing at risk)' {
+        # shaX is not a descendant of M (=> diverged) but IS reachable from the mainline (shaMain contains X).
+        $v = Get-BranchStrandVerdict -RepoRoot $script:repo -Tip $script:shaX -MergedHead $script:shaM -MainRef $script:shaMain
+        $v.Verdict | Should -Be 'DIVERGED-STALE'
+        $v.Ahead   | Should -Be 0
+    }
+
+    It 'DIVERGED falls back to UNLANDED (fail-loud) when the mainline ref is unresolvable' {
+        $v = Get-BranchStrandVerdict -RepoRoot $script:repo -Tip $script:shaDiverged -MergedHead $script:shaM -MainRef 'refs/heads/does-not-exist'
+        $v.Verdict | Should -Be 'DIVERGED-UNLANDED'
     }
 
     It 'UNKNOWN — a required SHA is not present locally (cannot classify)' {

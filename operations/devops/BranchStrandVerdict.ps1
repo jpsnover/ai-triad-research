@@ -29,7 +29,8 @@ function Get-BranchStrandVerdict {
     param(
         [Parameter(Mandatory)][string]$RepoRoot,
         [Parameter(Mandatory)][string]$Tip,
-        [Parameter(Mandatory)][string]$MergedHead
+        [Parameter(Mandatory)][string]$MergedHead,
+        [string]$MainRef = 'origin/main'   # mainline used to sub-discriminate DIVERGED vs DIVERGED-STALE
     )
 
     $tipFull = (& git -C $RepoRoot rev-parse --verify --quiet "$Tip^{commit}" 2>$null)
@@ -46,7 +47,23 @@ function Get-BranchStrandVerdict {
         $ahead = if ("$cntRaw".Trim() -match '^\d+$') { [int]("$cntRaw".Trim()) } else { 0 }
         return [PSCustomObject]@{ Verdict = 'STRANDED'; Ahead = $ahead }
     }
-    return [PSCustomObject]@{ Verdict = 'DIVERGED'; Ahead = 0 }
+    # DIVERGED — tip is not a descendant of the merged head (force-push over a merged PR). Sub-
+    # discriminate on UNLANDED work (TL p/331#1324): DIVERGED fires on any non-descendant tip,
+    # including a plain stale reset branch with zero unlanded commits — flagging those is the
+    # ignorable-gate noise failure. Only a tip carrying commits NOT reachable from the mainline
+    # is at risk.
+    #   DIVERGED-UNLANDED — `rev-list --count <MainRef>..<tip>` > 0: real, warrants a human.
+    #   DIVERGED-STALE    — count == 0: every commit is already on the mainline, nothing at risk.
+    $mainFull = (& git -C $RepoRoot rev-parse --verify --quiet "$MainRef^{commit}" 2>$null)
+    $mainFull = if ($mainFull) { "$mainFull".Trim() } else { '' }
+    if ($mainFull) {
+        $uRaw = (& git -C $RepoRoot rev-list --count "$mainFull..$tipFull" 2>$null)
+        $unique = if ("$uRaw".Trim() -match '^\d+$') { [int]("$uRaw".Trim()) } else { -1 }
+        if ($unique -eq 0) { return [PSCustomObject]@{ Verdict = 'DIVERGED-STALE'; Ahead = 0 } }
+        if ($unique -gt 0) { return [PSCustomObject]@{ Verdict = 'DIVERGED-UNLANDED'; Ahead = $unique } }
+    }
+    # Mainline unresolvable / count failed — cannot prove stale, so surface it (fail loud).
+    return [PSCustomObject]@{ Verdict = 'DIVERGED-UNLANDED'; Ahead = 0 }
 }
 
 # t/3652: classify a gh failure into a REASON so the degraded state names its own cause — a

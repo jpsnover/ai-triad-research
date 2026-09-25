@@ -111,7 +111,8 @@ $result = [PSCustomObject]@{
     ShellFragmentPaths = @()
     SuspiciousPaths  = @()
     NestedWorktrees  = @()
-    StrandedBranches = @()            # t/3652: branches with commits after their PR merged (STRANDED / DIVERGED)
+    StrandedBranches = @()            # t/3652: AT-RISK branches (STRANDED / DIVERGED-UNLANDED) — these ALARM
+    StrandedBranchesInfo = @()        # t/3652: DIVERGED-STALE — informational only (stale reset branch, 0 unlanded), does NOT alarm (TL p/331#1324)
     StrandedBranchesStatus = 'OK'     # t/3652: OK | PARTIAL | SKIPPED-NO-NETWORK — degraded state lives in the RETURN VALUE, not just a WARN (TL t/3652#3: WARN+success reads as clean = invisible degradation)
     StrandedBranchesReason = ''       # t/3652: WHY degraded (gh-absent / gh-unauth / gh-rate-limited / N-unresolved) — different causes need different fixes
     AutoRemoved      = @()
@@ -251,6 +252,7 @@ try {
         $result.StrandedBranchesReason = 'classifier-unavailable: BranchStrandVerdict.ps1 not dot-sourced'
     }
     $strandedBranches = @()
+    $strandedInfo = @()
     # Dismissal allowlist: `branch  # reason` — reason mandatory (t/3557 exemption-ratchet). Blank / full-line `#` ignored.
     $dismissed = @{}
     $dismissFile = Join-Path $RepoRoot 'operations/devops/stranded-branch-dismissals.txt'
@@ -301,13 +303,14 @@ try {
                     if ($tip -eq $mergedHead) { continue }                      # unchanged since merge — fast path, no fetch
                     # Bring the branch's objects local so merge-base can run (best-effort).
                     Invoke-Git @('-C', $RepoRoot, 'fetch', '--quiet', 'origin', $b) -TimeoutMs 20000 | Out-Null
-                    $v = Get-BranchStrandVerdict -RepoRoot $RepoRoot -Tip $tip -MergedHead $mergedHead
+                    $v = Get-BranchStrandVerdict -RepoRoot $RepoRoot -Tip $tip -MergedHead $mergedHead -MainRef 'origin/main'
                     $pn = $latestByBranch[$b].number
                     switch ($v.Verdict) {
-                        'STRANDED' { $strandedBranches += "$b ($($v.Ahead) commit(s) after PR #$pn merged)" }
-                        'DIVERGED' { $strandedBranches += "$b (DIVERGED — tip force-pushed off merged PR #$pn head)" }
-                        'UNKNOWN'  { $unresolved++ }
-                        default    { }
+                        'STRANDED'         { $strandedBranches += "$b ($($v.Ahead) commit(s) after PR #$pn merged)" }
+                        'DIVERGED-UNLANDED' { $strandedBranches += "$b (DIVERGED — $($v.Ahead) unlanded commit(s) force-pushed off merged PR #$pn head)" }
+                        'DIVERGED-STALE'   { $strandedInfo += "$b (stale reset off merged PR #$pn head — 0 unlanded, nothing at risk)" }
+                        'UNKNOWN'          { $unresolved++ }
+                        default            { }
                     }
                 }
                 if ($unresolved -gt 0 -and $result.StrandedBranchesStatus -eq 'OK') {
@@ -318,6 +321,7 @@ try {
         }
     }
     $result.StrandedBranches = @($strandedBranches)
+    $result.StrandedBranchesInfo = @($strandedInfo)
     } catch {
         # 5d must never break the rest of the guard — degrade into the status field, never throw.
         $result.StrandedBranchesStatus = 'SKIPPED-NO-NETWORK'
@@ -425,7 +429,11 @@ try {
         }
         if ($result.StrandedBranches.Count -gt 0) {
             $listed = $result.StrandedBranches -join '; '
-            $hints += "STRANDED branch(es) — commits pushed after the PR merged, no PR will land them (t/3652) [$listed]: verify with the branch owner, then cherry-pick the stranded commits onto the live target and delete/dismiss the branch (add to operations/devops/stranded-branch-dismissals.txt WITH a reason if intentionally kept). Detection-only — a human decides; do NOT auto-merge."
+            $hints += "AT-RISK branch(es) — unlanded commits no PR will land: STRANDED (pushed after merge) or DIVERGED-UNLANDED (force-pushed off the merged head) (t/3652) [$listed]: verify with the branch owner, then cherry-pick the unlanded commits onto the live target and delete/dismiss the branch (add to operations/devops/stranded-branch-dismissals.txt WITH a reason if intentionally kept). Detection-only — a human decides; do NOT auto-merge."
+        }
+        if ($result.StrandedBranchesInfo.Count -gt 0) {
+            $listed = $result.StrandedBranchesInfo -join '; '
+            $hints += "(info) DIVERGED-STALE branch(es) — diverged from a merged PR head but 0 unlanded commits (stale reset, nothing at risk) [$listed]: no action needed; delete when convenient."
         }
         if ($result.StrandedBranchesStatus -ne 'OK') {
             $hints += "stranded-branch check DEGRADED [$($result.StrandedBranchesStatus)]: $($result.StrandedBranchesReason). This is 'could-not-check', NOT 'clean' — re-run once gh is reachable/authed; a persistent gh-unauth/gh-absent is a host-config fix, a rate-limit/timeout is transient."
