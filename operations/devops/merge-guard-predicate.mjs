@@ -77,6 +77,34 @@ export function jointGvAutoMergeVerdict({ isAutoMerge, isJointGvLabeled } = {}) 
   return { block: false, reason: 'not-auto-merge' };
 }
 
+/**
+ * Retarget stale-green guard (t/3684, TL Option E — ruling at t/3684#2).
+ *
+ * FAILURE CLASS: a PR's base branch changed (retarget) AFTER its most recent required CI run, so the
+ * green `ci-gate` the PR carries was computed against the OLD base — it never evaluated the base it is
+ * actually merging into. Confirmed unmitigated: branch protection is `strict=false`, so nothing forces
+ * a re-run before merge. The fix does NOT belong at the trigger: adding `edited` to ci.yml reverses
+ * t/3607 (full-matrix flood on every title/body edit) AND a changes-gated no-op run reports a vacuous
+ * `skipped`→green (the Arm-E class the t/3663 R5-skip arm detects). So enforce at the MERGE point.
+ * Retarget is live independent of the retired open-then-retarget workaround: GitHub auto-retargets
+ * open children when an epic base is deleted, and wrong-base PRs get base-corrected (Pre-Self-Merge #0).
+ *
+ * PURE: compares two timestamps the caller fetches — the most-recent `base_ref_changed` timeline event
+ * vs the most-recent required-CI (`ci-gate`) completion. The impure timeline/check-run I/O is isolated
+ * in the CLI shim so both arms stay unit-testable (t/2971). Timestamps are ISO-8601 UTC ('…Z') from the
+ * GitHub API; `new Date(<fixed string>)` is a deterministic parse, not a wall-clock read.
+ *   block iff the base changed strictly AFTER the latest CI completed (CI stale for the new base),
+ *   OR the base changed but there is no CI at all (nothing evaluated the new base).
+ */
+export function baseChangedAfterCiVerdict({ baseChangedAt, latestCiCompletedAt } = {}) {
+  if (!baseChangedAt) return { block: false, reason: 'no-base-change' };
+  if (!latestCiCompletedAt) return { block: true, reason: 'base-changed-no-ci' };
+  if (new Date(baseChangedAt).getTime() > new Date(latestCiCompletedAt).getTime()) {
+    return { block: true, reason: 'base-changed-after-ci' };
+  }
+  return { block: false, reason: 'ci-after-base-change' };
+}
+
 // Is this an auto-merge enable of a `gh pr merge`? (reuses the t/3270 --auto detection verbatim)
 export function isAutoMergeCommand(command) {
   const cmd = command || '';

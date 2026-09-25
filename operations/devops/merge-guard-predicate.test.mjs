@@ -16,7 +16,35 @@ import {
   isAutoMergeCommand,
   parsePrRef,
   buildMergeGuardSinkRecord,
+  baseChangedAfterCiVerdict,
 } from './merge-guard-predicate.mjs';
+
+// ── t/3684: retarget stale-green guard — baseChangedAfterCiVerdict (both arms + edges) ──
+test('t/3684 BLOCK: base changed AFTER the latest CI run → stale green for the new base', () => {
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T18:00:00Z', latestCiCompletedAt: '2026-09-25T17:00:00Z' });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'base-changed-after-ci');
+});
+test('t/3684 ALLOW: CI completed AFTER the base change → fresh against the new base', () => {
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T17:00:00Z', latestCiCompletedAt: '2026-09-25T18:00:00Z' });
+  assert.equal(v.block, false);
+  assert.equal(v.reason, 'ci-after-base-change');
+});
+test('t/3684 ALLOW: no base change ever → never fires (the common case)', () => {
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: null, latestCiCompletedAt: '2026-09-25T18:00:00Z' });
+  assert.equal(v.block, false);
+  assert.equal(v.reason, 'no-base-change');
+});
+test('t/3684 BLOCK: base changed but NO CI at all → nothing evaluated the new base', () => {
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T18:00:00Z', latestCiCompletedAt: null });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'base-changed-no-ci');
+});
+test('t/3684 edge: equal timestamps → CI not STRICTLY after the change → allow (no false-block)', () => {
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T17:00:00Z', latestCiCompletedAt: '2026-09-25T17:00:00Z' });
+  assert.equal(v.block, false);
+  assert.equal(v.reason, 'ci-after-base-change');
+});
 
 const MODULE = fileURLToPath(new URL('./merge-guard-predicate.mjs', import.meta.url));
 // Invoke the module the SAME way the feedback rule does — proves runtime (CLI shim) == the tested
