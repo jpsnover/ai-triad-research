@@ -104,7 +104,7 @@ function speakerLabel(speaker: string): string {
 
 function abbreviateModel(model: string): string {
   return model
-    .replace('gemini-3.5-flash-lite-preview', 'gemini-3.1') // model-lint:allow — display abbreviation map, not a model selection (t/3559)
+    .replace('gemini-3.5-flash-lite-preview', 'gemini-3.1') // model-lint:allow-nonselect — display abbreviation map in abbreviateModel(), not a runtime selection (t/3559)
     .replace(DEFAULT_MODEL, 'gemini-lite')
     .replace('claude-3-5-haiku-20241022', 'haiku-3.5')
     .replace(/^models\//, '')
