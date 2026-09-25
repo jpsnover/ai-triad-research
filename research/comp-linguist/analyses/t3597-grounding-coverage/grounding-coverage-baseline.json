@@ -2,8 +2,9 @@
   "metric": "grounding_coverage",
   "provenance": "derived",
   "threshold": null,
-  "source_model": "summary-inversion (v1; t/3596 will switch to graph_attributes.sources)",
+  "source_model": "summary-inversion (coverage); source_index.json / t/3596 (strength split)",
   "universe": "all live BDI nodes (Beliefs + Intentions + Desires)",
+  "warnings": [],
   "coverage": {
     "per_pov": {
       "acc": {
@@ -28,14 +29,68 @@
       "rate": 0.8217
     }
   },
+  "grounding_strength_split": {
+    "per_pov": {
+      "acc": {
+        "factual_claim_backed": 129,
+        "key_point_only": 36,
+        "uncovered": 52,
+        "covered": 165,
+        "factual_claim_frac_of_covered": 0.7818,
+        "factual_claim_frac_of_all": 0.5945,
+        "key_point_frac_of_all": 0.1659
+      },
+      "saf": {
+        "factual_claim_backed": 230,
+        "key_point_only": 92,
+        "uncovered": 52,
+        "covered": 322,
+        "factual_claim_frac_of_covered": 0.7143,
+        "factual_claim_frac_of_all": 0.615,
+        "key_point_frac_of_all": 0.246
+      },
+      "skp": {
+        "factual_claim_backed": 190,
+        "key_point_only": 111,
+        "uncovered": 67,
+        "covered": 301,
+        "factual_claim_frac_of_covered": 0.6312,
+        "factual_claim_frac_of_all": 0.5163,
+        "key_point_frac_of_all": 0.3016
+      }
+    },
+    "overall": {
+      "factual_claim_backed": 549,
+      "key_point_only": 239,
+      "uncovered": 171,
+      "covered": 788,
+      "factual_claim_frac_of_covered": 0.6967,
+      "factual_claim_frac_of_all": 0.5725,
+      "key_point_frac_of_all": 0.2492
+    },
+    "reconciliation": {
+      "strength_source": "source_index.json (t/3596 SoT)",
+      "index_present": true,
+      "index_covered": 788,
+      "inversion_covered": 788,
+      "coverage_agrees_with_metric_1": true,
+      "n_strength_label_disagreements": 1,
+      "disagreement_breakdown": {
+        "index=factual_claim_backed|inversion=key_point_only": 1
+      },
+      "note": "index and inversion agree on covered/uncovered; any disagreement is which TIER a covered node falls in (factual_claim vs key_point), resolved to the index as SoT.",
+      "unrecognized_link_source_nodes": 0
+    },
+    "note": "Of the covered nodes: factual_claim_backed (strongest: verbatim claim + doc_position + evidence_level) vs key_point_only (weaker: topical link, no position/evidence). Strength precedence per node: factual_claim > key_point. Read from source_index.json (t/3596 SoT) unless it is absent (see warnings)."
+  },
   "sources_per_covered_node": {
     "n": 788,
-    "median": 5.0,
-    "mean": 11.47,
+    "median": 5.5,
+    "mean": 12.19,
     "max": 150,
     "min": 1,
     "p25": 2,
-    "p75": 14
+    "p75": 15
   },
   "synthetic_only": {
     "count": 171,
@@ -46,16 +101,16 @@
   "diagnostics": {
     "summaries_scanned": 845,
     "distinct_live_nodes_linked": 788,
-    "stale_linked_ids": 337,
+    "stale_linked_ids": 153,
     "stale_note": "node-ids linked by summaries but absent from the live taxonomy (companion cleanup: t/3596). Excluded from coverage by construction.",
     "sources_per_ALL_linked_id_incl_stale": {
-      "n": 1124,
+      "n": 940,
       "median": 4.0,
-      "mean": 9.66,
+      "mean": 10.72,
       "max": 150,
       "min": 1,
       "p25": 2,
-      "p75": 11
+      "p75": 12
     },
     "sources_per_ALL_linked_note": "reproduces the p/314 audit's stale-polluted distribution; the authoritative metric is sources_per_covered_node (live-only)."
   },
