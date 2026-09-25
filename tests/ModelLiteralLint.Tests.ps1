@@ -408,31 +408,34 @@ Describe 'Exemption ratchet — production model-lint exemptions do not grow sil
         }
     }
 
-    It 'no kind''s production exemption count exceeds the baseline (WARN-only — t/3560/t/3658)' {
+    It 'every kind''s production exemption count matches the baseline exactly (WARN-only — t/3560/t/3658)' {
         $baseline = Get-Content -Raw -LiteralPath $script:ExemptionBaselinePath | ConvertFrom-Json
         $current  = script:Measure-ModelLintExemptions -Literals $script:ProdLiterals -ValidIds $script:ValidIds
         Write-Host "model-lint exemptions (production): pin=$($current.pin) external=$($current.external) nonselect=$($current.nonselect) | baseline: pin=$($baseline.pin) external=$($baseline.external) nonselect=$($baseline.nonselect)"
 
-        $risen = @(foreach ($k in 'pin', 'external', 'nonselect') {
-            if ($current[$k] -gt $baseline.$k) { "$k rose to $($current[$k]) (baseline $($baseline.$k))" }
+        # Fail-on-MISMATCH (t/3658, TL pre-flip): a kind's live count must EQUAL its baseline.
+        # Adding AND removing an exemption both require the baseline bumped in the SAME commit —
+        # exact-match keeps the baseline honest so a stale-high baseline can't mask later growth.
+        $mismatched = @(foreach ($k in 'pin', 'external', 'nonselect') {
+            if ($current[$k] -ne $baseline.$k) { "$k differs: $($current[$k]) vs baseline $($baseline.$k)" }
         })
-        $remedy = "bump tests/modelLiteralLint.exemptions.baseline.json for that kind in the SAME commit, or remove the exemption. A rising 'nonselect' may instead mean the extraction regex is over-broad — narrow it, don't raise the baseline."
+        $remedy = "update tests/modelLiteralLint.exemptions.baseline.json for that kind in the SAME commit so it matches — every add OR removal requires the bump. A rising 'nonselect' may instead mean the extraction regex is over-broad — narrow it, don't raise the baseline."
 
         if ($script:ProductionModelLintBlocking) {
             # Blocking arm (TL flips the toggle after Second Opinion + GV, condition 5).
-            $risen.Count | Should -Be 0 -Because "exemption ratchet: $($risen -join '; '). $remedy"
+            $mismatched.Count | Should -Be 0 -Because "exemption ratchet: $($mismatched -join '; '). $remedy"
         } else {
-            # WARN-only arm: surface growth without reding the gate. The assertion is the
+            # WARN-only arm: surface the drift without reding the gate. The assertion is the
             # non-vacuous guard (a broken prod scan would otherwise pass the ratchet on an
             # empty set — the t/2971 clean-arm-never-exercised class).
-            if ($risen.Count -gt 0) {
-                Write-Warning "exemption ratchet (WARN-only, t/3560): $($risen -join '; '). $remedy"
+            if ($mismatched.Count -gt 0) {
+                Write-Warning "exemption ratchet (WARN-only, t/3560): $($mismatched -join '; '). $remedy"
             }
             @($script:ProdLiterals).Count | Should -BeGreaterThan 0
         }
     }
 
-    It 'RATCHET both-arms: seeded counts above baseline are detected; at/below are not' {
+    It 'RATCHET both-arms: seeded counts differing from baseline (higher OR lower) are flagged; exact match is not' {
         # Exercise the pure counter + rise-detection on seeded input, independent of the
         # live tree, so the blocking arm's logic runs today (toggle $false) — same t/2971
         # discipline as the offender-resolution direct tests.
@@ -451,12 +454,16 @@ Describe 'Exemption ratchet — production model-lint exemptions do not grow sil
         $c.external   | Should -Be 1
         $c.nonselect  | Should -Be 0
 
-        # ABOVE baseline -> flagged
+        # HIGHER than baseline -> flagged (silent growth)
         $lo = @{ pin = 1; external = 1; nonselect = 0 }
-        @(foreach ($k in 'pin', 'external', 'nonselect') { if ($c[$k] -gt $lo[$k]) { $k } }) | Should -Be @('pin')
+        @(foreach ($k in 'pin', 'external', 'nonselect') { if ($c[$k] -ne $lo[$k]) { $k } }) | Should -Be @('pin')
 
-        # AT/BELOW baseline -> not flagged (lowering/holding is always allowed)
-        $hi = @{ pin = 2; external = 5; nonselect = 3 }
-        @(foreach ($k in 'pin', 'external', 'nonselect') { if ($c[$k] -gt $hi[$k]) { $k } }).Count | Should -Be 0
+        # LOWER than baseline -> ALSO flagged (fail-on-mismatch: a removal must bump the baseline too)
+        $hi = @{ pin = 5; external = 1; nonselect = 0 }
+        @(foreach ($k in 'pin', 'external', 'nonselect') { if ($c[$k] -ne $hi[$k]) { $k } }) | Should -Be @('pin')
+
+        # EXACT match -> not flagged
+        $exact = @{ pin = 2; external = 1; nonselect = 0 }
+        @(foreach ($k in 'pin', 'external', 'nonselect') { if ($c[$k] -ne $exact[$k]) { $k } }).Count | Should -Be 0
     }
 }
