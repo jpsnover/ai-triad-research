@@ -248,6 +248,15 @@ jobs:
     if: >-
       always() && !cancelled() &&
       (github.event_name != 'pull_request' || needs.changes.outputs.powershell == 'true')
+    # Outer hang-bound for the whole job (replaces GitHub's 360-min default — a hung suite
+    # otherwise burns 6h of CI). Set 5 min above the step-level Pester timeout below so the STEP
+    # timeout fires first on the common case (the Pester run), yielding the clear "has timed out"
+    # message + the explicit TIMED-OUT annotation, instead of the job-cancel's ambiguous
+    # "operation was canceled" (t/3646 flip diagnosis burned ~20 min on exactly that). This job
+    # bound only catches a hang in a NON-Pester step. Does NOT address transient runner-preemption
+    # cancels on main (t/3663 area); the durable fix is trimming/parallelizing the suite (t/3665,
+    # PowerShell scope) off its ~14-min edge.
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -294,6 +303,12 @@ jobs:
         run: Install-Module Pester -Force -Scope CurrentUser
 
       - name: Run Pester tests with coverage
+        id: pester
+        # Step-level bound on the one long step (green ~10-14 min → 25 = ~2x headroom). A STEP
+        # timeout fails only this step (later steps still run), so the "Explain a test-powershell
+        # timeout" step below can turn the kill into an explicit annotation. GitHub's own message
+        # here is "has timed out after 25 minutes" — already unambiguous vs a test failure (t/3665).
+        timeout-minutes: 25
         shell: pwsh
         run: |
           . ./operations/devops/Get-PesterExcludePaths.ps1  # single source of truth (t/3010)
@@ -320,6 +335,12 @@ jobs:
           $config.CodeCoverage.CoveragePercentTarget = 5
 
           $r = Invoke-Pester -Configuration $config
+
+          # t/3665 timeout observability: the suite finished executing (pass OR fail). Its ABSENCE
+          # in the annotate step below => the step was killed mid-run by timeout-minutes, i.e. a
+          # TIMEOUT, not a test failure. Written after run 1 returns; a rare rerun-phase timeout is
+          # still caught by GitHub's native "has timed out" step message.
+          New-Item -ItemType File -Force -Path "$env:RUNNER_TEMP/pester-suite-ran.marker" | Out-Null
 
           # ── t/3530 manual verdict: reruns a lone flake, fails safe on everything else ──
           if ($null -eq $r) {
@@ -384,6 +405,31 @@ jobs:
             Write-Host "::error::test-powershell: rerun discovered $($r2.TotalCount) of $($failedNames.Count) failed test(s) — NOT treated as flake (fail safe)."
           }
           exit 1
+
+      - name: Explain a test-powershell mid-run kill
+        # t/3665 observability (prevention-per-incident, observability half): a mid-run kill reds
+        # main with NO assertion to point at — the silent class. Diagnosing the t/3646 flip burned
+        # ~20 min on a buried "operation was canceled". Both kill paths land here with the suite
+        # UNFINISHED (completion marker absent); they want DIFFERENT remedies, so branch on outcome:
+        #   failure   => step-level timeout-minutes killed it        => TIMED OUT  (trim the suite)
+        #   cancelled => runner preemption / external / concurrency  => CANCELLED  (just rerun)
+        # A real test failure writes the marker first, so this step stays silent then and the
+        # Pester step's own ::error:: verdict speaks. This step is diagnostic only — it never fails
+        # the job (the Pester step already drove red). Caveat: a kill that takes the RUNNER itself
+        # away leaves no runner to execute this step; it covers signalled cancels + step timeouts.
+        if: ${{ always() && steps.pester.outcome != 'success' }}
+        shell: pwsh
+        env:
+          PESTER_OUTCOME: ${{ steps.pester.outcome }}
+        run: |
+          # Marker present => the suite ran to completion (pass or fail); nothing to explain here.
+          if (Test-Path "$env:RUNNER_TEMP/pester-suite-ran.marker") { exit 0 }
+          switch ($env:PESTER_OUTCOME) {
+            'failure'   { Write-Host "::error::test-powershell: TIMED OUT after 25 minutes — not a test failure. The Pester suite was killed by timeout-minutes before finishing; durable fix is trimming/parallelizing the suite (t/3665, PowerShell scope)." }
+            'cancelled' { Write-Host "::error::test-powershell: CANCELLED mid-run (runner preemption or external cancel) — not a test failure. Rerun the job; if it recurs it is infra, not the suite (t/3665 lowers exposure by shortening the run)." }
+            default     { Write-Host "::error::test-powershell: ended abnormally (outcome=$($env:PESTER_OUTCOME)) with the suite unfinished — not a test failure. Rerun; investigate if it recurs." }
+          }
+          exit 0
 
       - name: In-memory job store scale guard (real files)
         # Runs the gate against the ACTUAL main.bicep + briefExportJobs.ts — distinct
