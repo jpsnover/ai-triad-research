@@ -118,6 +118,14 @@ export function buildMergeGuardSinkRecord({ nowIso, mode, command, verdict, fail
 }
 
 /**
+ * ⚠️ INERT — NOT WIRED, GUARDS NOTHING YET (t/3687#8, TL). This predicate currently has NO runtime
+ * caller: there is no `--base-ref-stale` shim mode, no feedback-rule wiring, and nothing reads the
+ * recorder statuses. It READS like a live guard (green arms, tested) but does not gate any merge until
+ * the wiring lands later in t/3687 (behind TL Gate-Verification). Do NOT conclude the retarget
+ * stale-green class is covered from this function's presence or its passing tests alone — that is the
+ * Class-9 shape (assert-from-artifact, not from behaviour; 74d3b548) one level out. It landed on main
+ * early via the premature merge of #2455 (incident t/3687#7); TL ruled leave-not-revert (t/3687#8).
+ *
  * Retarget stale-green guard — base-ref-NAME identity (t/3687; supersedes t/3684's rejected timestamp
  * design). Design of record locked via the e/212 Second-Opinion + TL review (t/3687#2).
  *
