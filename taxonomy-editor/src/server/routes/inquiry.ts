@@ -30,6 +30,8 @@ import {
   findIdempotentInquiryJob, deriveTruncation, MAX_CONCURRENT_INQUIRY_JOBS, type InquiryJob,
 } from '../inquiryJobs.js';
 import { loadInquiryResult, listInquiryResults } from '../storage/inquiryResultStore.js';
+import { publishInquiryShare, unpublishInquiryShare } from '../storage/inquiryShareStore.js';
+import { isSafeId } from '../storage/fileIO.js';
 import { buildInquiryRunPipeline } from '../inquiryPipelineDeps.js';
 
 /** The ephemeral poll view of a job — no internals leaked. */
@@ -73,8 +75,15 @@ function enforceInquiryRateLimit(req: IncomingMessage, res: ServerResponse, mode
   return false;
 }
 
+/** Reject a path-traversal-unsafe `:jobId` with a 400 before any store call (defense-in-depth;
+ *  the store's loadInquiryResult also asserts, but a route-level guard returns a clean 400 not a 500). */
+function rejectUnsafeJobId(res: ServerResponse, jobId: string): boolean {
+  if (!isSafeId(jobId)) { error(res, 'Invalid job id', 400); return true; }
+  return false;
+}
+
 export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
-  const { get, post } = r;
+  const { get, post, del } = r;
 
   // POST /api/inquiry — start an inquiry job. NB: string-literal path so extractRoutes.ts sees it.
   post('/api/inquiry', async (req, res, body) => {
@@ -175,6 +184,50 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'inquiry', level: 'error', message: 'GET /api/inquiry/:jobId failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  // ── t/3626: owner-authed public-share mint/revoke for an inquiry result. Mirrors the oped pair
+  // (routes/oped.ts /api/oped-sets/:setId/share POST+DELETE). publishInquiryShare is owner-scoped
+  // (reads via the caller's getStorageUserId), so a non-owner or absent job is an indistinguishable
+  // 404 — never leaks existence. The public read is GET /api/public/inquiry/:shareId
+  // (routes/inquiryShare.ts, t/3653). 4-segment paths → no collision with the :jobId wildcard. ──
+  post('/api/inquiry/:jobId/share', async (req, res) => {
+    const user = getCurrentUser();
+    if (!user || user.isAnonymous) { error(res, 'Authentication required', 401); return; }
+    const jobId = param(req, 'jobId', '/api/inquiry/:jobId/share');
+    if (rejectUnsafeJobId(res, jobId)) return;
+    // Modest per-user write rate guard — this writes to a public container.
+    if (!rateLimiter.checkRate(`inquiry-share-write:${getStorageUserId()}`, 20, 60_000).allowed) {
+      json(res, { error: 'rate_limited' }, 429); return;
+    }
+    try {
+      const result = await publishInquiryShare(jobId);
+      if (!result) { error(res, 'Inquiry not found', 404); return; }
+      json(res, { shareId: result.shareId, url: `/inquiries/${result.shareId}` });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'inquiry', level: 'error', message: 'Failed to publish inquiry share',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, String(err), 500, err);
+    }
+  });
+
+  del('/api/inquiry/:jobId/share', async (req, res) => {
+    const user = getCurrentUser();
+    if (!user || user.isAnonymous) { error(res, 'Authentication required', 401); return; }
+    const jobId = param(req, 'jobId', '/api/inquiry/:jobId/share');
+    if (rejectUnsafeJobId(res, jobId)) return;
+    try {
+      const existed = await unpublishInquiryShare(jobId);
+      json(res, { ok: existed }); // idempotent: revoking a never-shared inquiry is a no-op { ok: false }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'inquiry', level: 'error', message: 'Failed to unpublish inquiry share',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       error(res, String(err), 500, err);
