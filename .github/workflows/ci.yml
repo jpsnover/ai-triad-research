@@ -248,6 +248,11 @@ jobs:
     if: >-
       always() && !cancelled() &&
       (github.event_name != 'pull_request' || needs.changes.outputs.powershell == 'true')
+    # Bound a genuine hang: the Pester suite legitimately runs ~10-14 min (green), so 25 gives
+    # ~2x headroom while replacing GitHub's 360-min default — a hung suite otherwise burns 6h of
+    # CI. This does NOT address the transient runner-preemption cancels seen on main (t/3663 area);
+    # the durable fix is trimming/parallelizing the suite off its ~14-min edge (PowerShell scope).
+    timeout-minutes: 25
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
