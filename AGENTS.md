@@ -166,6 +166,18 @@ Every diagnosis files **two** follow-ups: **Observability** (make it diagnosable
 
 When an incident maps to a failure class that has **already recurred**, the diagnosis MUST include a **baseline-validation pass**: state what load/latency/behavior you treat as "normal," then verify it against **design intent** (docs, precomputation assets, original PR/ticket) — not just recent observations. A recurring class whose fixes keep landing at the symptom layer signals the assumed baseline is itself the bug.
 
+### Closing a prevention: name a surviving vector (t/3666)
+
+**Before closing any ticket that claims to prevent a failure class, name one concrete way that class could still occur through ordinary use of the system, without anyone bypassing or removing the mechanism you just built. If you can name one, you closed a *vector*, not the class — say so in the closing note, and file the remainder where it's worth tracking.**
+
+The bound is load-bearing. "Name any way it could still fail" is satisfiable by *a future author deletes the test* — true, useless, and it fires on every close, which trains a reflex sentence and destroys the signal. Restricting it to **ordinary use, mechanism intact** makes it discriminating: it fires on real remainders and stays silent on adversarial or self-inflicted ones.
+
+Why this needs saying at all: *vector* and *class* are indistinguishable at the moment you finish the work. You have just proven the fix, every arm is green, and "this class is closed" is the honest-feeling description. It only becomes visibly wrong when someone finds the next vector. So this is a structural blind spot, not a discipline lapse — which is why the check has to be answerable in the moment rather than a reminder to be careful.
+
+It catches **scope** gaps as well as logic gaps, and scope is the harder case: a mechanism that works correctly everywhere it looks feels closed precisely because nothing fails. The model-literal lint (t/3557) went blocking with both implementations agreeing and zero offenders — and scanned only `.ps1` and `.ts`, so a retired model id in a `.json` config passes untouched (t/3664, found by applying this rule to that ticket's own close-out).
+
+**Enforcement is TL Gate Verification, not a hook.** Gate-touching prevention tickets already route to Main (TL) per the rule above; the surviving-vector question belongs in that review. A Done-transition prompt was considered and rejected — feedback rules cannot filter on ticket type or label, so it would fire on every close including typo fixes and dep bumps, which is the decay this bound exists to avoid.
+
 ## Ticket Lifecycle
 
 - Starting work → `transition_ticket` to **In Progress** immediately.
