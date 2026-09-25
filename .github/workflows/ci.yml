@@ -50,6 +50,9 @@ on:
     # subscribed to those events. Keeping them on ci.yml re-ran the full matrix on
     # every label/auto-merge toggle, re-opening a transient BLOCKED window on an
     # already-green PR (t/3605/t/3607). Code CI only needs code-change events.
+    # lint:gated-events: opened,synchronize,reopened
+    # ^ machine-readable declaration (t/3646): every event that can change what ci-gate
+    #   aggregates. workflow-lint asserts pull_request.types ⊇ this set for the required context.
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 
