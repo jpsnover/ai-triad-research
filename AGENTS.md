@@ -82,9 +82,10 @@ Before implementing an assigned ticket, claim it (assign to your instance or com
 
 A large feature spanning multiple roles uses an **epic integration branch** (`epic/<name>`) with a single shared PR (epic → `main`) as the sole integration point. Rules for everyone working an epic (t/3618):
 
-- **Child PRs target the epic base, NEVER `main`.** A child that lands on `main` while the epic is live is the duplicate-parallel-land bug below.
+- **Child PRs target the epic base, NEVER `main`.** A child that lands on `main` while the epic is live is the duplicate-parallel-land bug below. Epic-base PRs now get **full CI** (t/3642, #2403 — `push`/`pull_request` triggers include `epic/**`), so the old "open against `main` first, then retarget" workaround (t/3623#5) is **RETIRED** — that workaround was itself the duplicate-parallel-land vector.
 - **Claim before implementing** an epic child (per above), and check whether the ticket already has a PR **on any base** — an epic child and a direct-to-`main` PR for the same ticket is exactly the failure.
-- **One shared PR** is the integration point; don't open a second PR for the same ticket against a different base.
+- **One shared PR** (epic → `main`) is the integration point; don't open a second PR for the same ticket against a different base.
+- **Review each child at merge-into-epic time**, not deferred to the final epic PR. A multi-role diff reviewed only at the end is effectively unreviewable; per-child review at integration is what keeps the shared PR landable.
 
 **Duplicate parallel land** (t/3655, from t/3621 landing on both `main` #2385 and the epic branch): one ticket implemented twice, onto two non-ancestor bases, whose copies then co-evolve. Two variants:
 - **LOUD** — the copies touch the same files → merge conflict blocks the epic→`main` PR. Self-announcing; you'll see it (this is how t/3621 surfaced). No gate needed; this section is the prevention.
