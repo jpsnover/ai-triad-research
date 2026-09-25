@@ -115,6 +115,7 @@ function parseClaudeResponse(bodyText: string, diagnostics: ProviderCallDiagnost
   let json: {
     content?: { type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }[];
     stop_reason?: string;
+    model?: string; // provider-reported served identity (t/3677)
     usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
   };
   try {
@@ -152,5 +153,5 @@ function parseClaudeResponse(bodyText: string, diagnostics: ProviderCallDiagnost
     totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0) || undefined,
   } : undefined;
   const rawStopReason = json.stop_reason ?? undefined;
-  return { text, usage, toolCalls, stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics };
+  return { text, usage, toolCalls, stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics, providerReportedModel: json.model };
 }

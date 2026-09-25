@@ -16,6 +16,7 @@ import { generateViaAzure } from './providers/azure.js';
 import { generateViaZai } from './providers/zai.js';
 import { generateViaMoonshot } from './providers/moonshot.js';
 import { generateViaXai } from './providers/xai.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 export interface AIClientDeps {
   fetch: FetchFn;
@@ -28,7 +29,7 @@ export interface AIClient {
   generateText(prompt: string, model: string, opts?: GenerateOptions): Promise<ProviderResult>;
 }
 
-export function callProvider(
+function dispatchProvider(
   fetchFn: FetchFn,
   backend: string,
   prompt: string,
@@ -48,6 +49,39 @@ export function callProvider(
     case 'xai': return generateViaXai(fetchFn, prompt, apiModelId, apiKey, opts);
     default: return generateViaGemini(fetchFn, prompt, apiModelId, apiKey, opts);
   }
+}
+
+/**
+ * The single provider-dispatch seam both runtimes traverse (CLI aiAdapter + Electron aiBackends both
+ * call this directly; neither goes through createAIClient.generateText). t/3677 Phase 1 captures the
+ * provider-reported served identity here — LOG-ONLY: one `ai.model_identity` info event per call,
+ * `{ backend, requested, apiModelIdSent, providerReported }`. NO divergence classification (the
+ * warn-on-divergence classifier is deferred to Phase 2/3, calibrated on observed data with a registry
+ * cross-check — t/3677#5). `providerReported` is `undefined` when the provider reported no served id
+ * (the 'unknown' state) — still info, never warn, never fabricated.
+ */
+export async function callProvider(
+  fetchFn: FetchFn,
+  backend: string,
+  prompt: string,
+  apiModelId: string,
+  apiKey: string,
+  opts: GenerateOptions,
+): Promise<ProviderResult> {
+  const result = await dispatchProvider(fetchFn, backend, prompt, apiModelId, apiKey, opts);
+  getGlobalRecorder()?.record({
+    type: 'ai.model_identity',
+    component: 'ai-client',
+    level: 'info',
+    message: `served-identity ${backend}/${apiModelId} -> ${result.providerReportedModel ?? '(unreported)'}`,
+    data: {
+      backend,
+      requested: opts.requestedModelId,
+      apiModelIdSent: apiModelId,
+      providerReported: result.providerReportedModel,
+    },
+  });
+  return result;
 }
 
 export function createAIClient(
@@ -73,6 +107,7 @@ export function createAIClient(
       const effectiveOpts = {
         ...opts,
         timeoutMs: resolveTimeout(opts?.timeoutMs, model, registry), // t/3644: floor-enforced, not bypassable
+        requestedModelId: model, // t/3677: caller's friendlyId for the served-identity record
         ...(fixedTemperature != null ? { fixedTemperature } : {}),
       };
       const t0 = performance.now();

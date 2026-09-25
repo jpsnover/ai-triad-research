@@ -43,6 +43,9 @@ export interface GenerateOptions {
    *  When provided, replaces the default single-turn `[{ parts: [{ text: prompt }] }]`
    *  construction so callers can pass conversation history directly. */
   geminiContents?: GeminiContent[];
+  /** The caller's requested friendlyId (t/3677) — threaded so the response-boundary identity
+   *  record can report `{requested, apiModelIdSent, providerReported}`. Optional; absent is fine. */
+  requestedModelId?: string;
 }
 
 export interface GeminiContentPart {
@@ -134,6 +137,14 @@ export interface ProviderResult {
    *  Mirrors the `rawResponsePreview` FR-diagnostic convention. The FR `ai.response` event records
    *  this so a future unmapped native reason is diagnosable behind an `'other'` normalization. */
   rawStopReason?: string;
+  /** The model id the PROVIDER reported serving (gemini `modelVersion`, claude / OpenAI-compat
+   *  response `model`) — t/3677 Phase 1. `undefined` when the provider returns none; NEVER
+   *  fabricated (never an echo of the sent id — that would invent the reading it exists to record).
+   *  Captured at `callProvider` into the `ai.model_identity` FR event. Phase 1 is log-only: NO
+   *  consumer branches on it (the warn-on-divergence classifier is deferred to Phase 2/3, calibrated
+   *  on observed data with a registry cross-check — t/3677#5). While nothing branches on it, it is
+   *  forensics, like `diagnostics`/`rawStopReason`. */
+  providerReportedModel?: string;
 }
 
 export interface TokenUsage {

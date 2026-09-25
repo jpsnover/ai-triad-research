@@ -53,6 +53,7 @@ export async function generateViaOpenAI(
   }
 
   let json: {
+    model?: string; // provider-reported served identity (t/3677)
     output?: { type: string; content?: { type: string; text: string }[] }[];
     status?: string;
     incomplete_details?: { reason?: string };
@@ -95,5 +96,6 @@ export async function generateViaOpenAI(
     stopReason: normalizeStopReason(rawStopReason),
     rawStopReason,
     diagnostics,
+    providerReportedModel: json.model,
   };
 }

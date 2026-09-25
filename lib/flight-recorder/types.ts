@@ -14,6 +14,7 @@ export type EventType =
   | 'ai.fallback'
   | 'ai.call_by_usage'
   | 'ai.cancelled' // t/2510: request cancelled by client disconnect (info, not a failure)
+  | 'ai.model_identity' // t/3677: provider-reported served model identity captured at the response boundary (log-only, Phase 1)
   // Argument network
   | 'an.extract'
   | 'an.commit'
