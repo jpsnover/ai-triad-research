@@ -9,7 +9,7 @@
 
 Describe 'Update-EntityMentionIndex (t/1894 Phase 2-B)' -Tag 'unit' {
     BeforeAll {
-        Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+        . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
         function New-Sei {
             param([hashtable]$Map, [string]$Path)

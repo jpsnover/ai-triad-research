@@ -47,7 +47,7 @@ $script:MigratedSites = @(
     )
 
 BeforeAll {
-    Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
     $script:AITriadRoot = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad'
 }
 

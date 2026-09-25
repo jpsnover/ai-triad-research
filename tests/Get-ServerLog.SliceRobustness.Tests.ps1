@@ -16,7 +16,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'Get-ServerLog slice/preamble robustness (t/2861)' -Tag 'azure' {

@@ -13,7 +13,7 @@
 #>
 
 BeforeAll {
-    Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'ConvertFrom-FetchCliOutput — frozen t/3324 contract' -Tag 'ingestion' {

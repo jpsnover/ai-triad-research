@@ -11,7 +11,7 @@
 # real end-to-end run is CL's owner-executed spot-check.
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'Invoke-DebateGroundingBatch (t/3438)' -Tag 'taxonomy' {

@@ -20,7 +20,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Synthetic taxonomy fixtures — three real nodes with ONE real edge (A -> B).
     # No edge exists between B and C, so any traced path that hops B -> C should

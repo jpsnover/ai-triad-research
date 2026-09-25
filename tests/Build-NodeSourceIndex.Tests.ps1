@@ -13,7 +13,7 @@
 #>
 
 BeforeAll {
-    Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # ── Build an isolated fixture data tree (no real corpus touched) ────────────
     $script:Fx = Join-Path ([System.IO.Path]::GetTempPath()) ("bnsi-" + [guid]::NewGuid().ToString('N'))

@@ -34,7 +34,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot '..' 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     $script:Ontology = Test-OntologyCompliance -Quiet -PassThru -ErrorAction Continue 2>$null
     $script:BdiCheck = $script:Ontology.Checks |

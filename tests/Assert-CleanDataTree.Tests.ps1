@@ -22,7 +22,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Build a throwaway git repo with one committed, clean file. Signing/identity
     # are set LOCAL to this fixture repo only (CI has no signing key) — this is a

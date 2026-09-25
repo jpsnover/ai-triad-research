@@ -26,7 +26,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Minimal values satisfying Invoke-DocumentSummary's mandatory param set so the
     # (mocked) call binds. Values are irrelevant — the mock ignores them.

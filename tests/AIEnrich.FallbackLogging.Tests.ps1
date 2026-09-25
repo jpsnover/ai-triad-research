@@ -14,7 +14,7 @@
 
 BeforeAll {
     $script:ModulePath = (Resolve-Path (Join-Path $PSScriptRoot '..' 'scripts' 'AIEnrich.psm1')).Path
-    Import-Module $script:ModulePath -Force -WarningAction SilentlyContinue
+    Import-Module $script:ModulePath -WarningAction SilentlyContinue
 }
 
 Describe 'AIEnrich fallback-path logging (t/3179)' -Tag 'unit' {
@@ -55,7 +55,7 @@ Describe 'AIEnrich fallback-path logging (t/3179)' -Tag 'unit' {
             finally {
                 Remove-Module AIEnrich -Force -ErrorAction SilentlyContinue
                 # Restore the real module for any later tests in the run.
-                Import-Module $script:ModulePath -Force -WarningAction SilentlyContinue
+                Import-Module $script:ModulePath -WarningAction SilentlyContinue
             }
         }
     }

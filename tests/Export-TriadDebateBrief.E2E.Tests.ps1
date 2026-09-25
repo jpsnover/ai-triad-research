@@ -22,7 +22,7 @@
 
 BeforeAll {
     $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-    Import-Module (Join-Path $script:RepoRoot 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # exp-1438 debates are phase='debate' (not closed) → use -AllowOpenDebate (snapshot).
     $script:Fixture = Join-Path $script:RepoRoot 'lib' 'debate' 'exp-1438-results' 'exp-1438-01-C-opensource-debate.json'

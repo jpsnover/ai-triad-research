@@ -11,7 +11,7 @@
 #>
 
 BeforeAll {
-    Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
     # Truth values read straight from the same in-memory config the cmdlet uses.
     $script:ExpectedBasicGemini    = InModuleScope AITriad { $script:AIModelConfig.debateTiers.basic.gemini }
     $script:ExpectedAdvancedClaude = InModuleScope AITriad { $script:AIModelConfig.debateTiers.advanced.claude }

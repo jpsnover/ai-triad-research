@@ -22,7 +22,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Capture pre-existing env so AfterEach can RESTORE (not clobber) it — the full
     # suite runs every test file in one process, and CI sets AI_TRIAD_DATA_ROOT.

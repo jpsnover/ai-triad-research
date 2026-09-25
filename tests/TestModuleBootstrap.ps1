@@ -16,12 +16,17 @@ function Enter-AITriadTestModule {
         Import-Module (Join-Path $repoRoot 'scripts' 'AITriad' 'AITriad.psm1') -WarningAction SilentlyContinue
     }
 
-    # Reset every module in the AITriad family that opts into the Initialize-<Name>RuntimeState
-    # convention. AIEnrich/DocConverters are NESTED modules of AITriad (imported at its scope),
-    # so they are NOT top-level Get-Module entries — derive the set from AITriad + its
-    # NestedModules (still derived from the convention, never hand-listed).
+    # Reset every module that opts into the Initialize-<Name>RuntimeState convention (set is
+    # DERIVED, never hand-listed). Two provenances must both be covered:
+    #   - NESTED: AIEnrich/DocConverters imported at AITriad's scope (not top-level entries).
+    #   - TOP-LEVEL: a few AI-API tests import AIEnrich top-level to call Invoke-AIApi directly
+    #     — that is a SEPARATE module instance from the nested one, so it must be reset too.
+    # Dedup by instance so a module reachable both ways is reset once.
     $aitriad = Get-Module AITriad
-    $family  = @($aitriad) + @($aitriad.NestedModules)
+    $family  = [System.Collections.Generic.List[object]]::new()
+    foreach ($m in (@(Get-Module) + @($aitriad) + @($aitriad.NestedModules))) {
+        if ($m -and -not ($family -contains $m)) { $family.Add($m) }
+    }
     foreach ($m in $family) {
         & $m {
             $fn = "Initialize-$($ExecutionContext.SessionState.Module.Name)RuntimeState"

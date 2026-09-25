@@ -19,7 +19,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     $script:DebatesDir = Join-Path ([System.IO.Path]::GetTempPath()) "debate-integrity-t2335-$(Get-Random)"
     New-Item -ItemType Directory -Path $script:DebatesDir -Force | Out-Null

@@ -14,7 +14,7 @@
 
 Describe 'Option C PS-to-Python parity fixture (t/3389/t/3409)' -Tag 'unit', 'fol' {
     BeforeAll {
-        Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+        . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
         $fixturePath = Join-Path $PSScriptRoot '..' 'research' 'comp-linguist' 'analyses' 't3389-option-c' 'optionc-parity-fixture.json'
         $script:Fx   = Get-Content -Raw -LiteralPath $fixturePath | ConvertFrom-Json
         $script:Prov = $script:Fx._meta.provenance_expected

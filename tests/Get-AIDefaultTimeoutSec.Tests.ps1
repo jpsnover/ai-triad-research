@@ -11,7 +11,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AIEnrich.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    Import-Module $ModulePath -WarningAction SilentlyContinue
 
     # Helper: call the private function via the module's script scope
     function Invoke-DefaultTimeout { param([string]$Model)

@@ -61,7 +61,7 @@
 BeforeAll {
     $script:RepoRoot   = Join-Path $PSScriptRoot '..'
     $ModulePath        = Join-Path $script:RepoRoot 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Registered set — the same list Test-AIModelId validates against (models[].id).
     $script:ValidIds = @(InModuleScope AITriad { $script:ValidModelIds })

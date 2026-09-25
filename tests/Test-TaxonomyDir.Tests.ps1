@@ -17,7 +17,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     function New-TaxTempDir {
         $Dir = Join-Path ([System.IO.Path]::GetTempPath()) "taxdir-test-$([guid]::NewGuid().ToString('N').Substring(0,8))"

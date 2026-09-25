@@ -5,7 +5,7 @@
 #Requires -Module Pester
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     function New-BatchConfig {
         param([string]$Path, [array]$Debates, [bool]$BatchSynthetic)

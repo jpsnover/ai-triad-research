@@ -27,7 +27,7 @@
 #>
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Shared detector (t/2916#10 hardening; t/3208 invocation-only refinement) — defined in
     # BeforeAll so it is visible to It blocks at run time. Scans REPO-WIDE (a writer can live

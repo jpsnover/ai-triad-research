@@ -35,7 +35,7 @@ BeforeAll {
     if (-not $env:AI_TRIAD_DATA_ROOT -and (Test-Path 'C:\Users\jsnov\repos\ai-triad-data')) {
         $env:AI_TRIAD_DATA_ROOT = 'C:\Users\jsnov\repos\ai-triad-data'
     }
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
     $script:NoKey = [string]::IsNullOrWhiteSpace($env:GEMINI_API_KEY) -and [string]::IsNullOrWhiteSpace($env:AI_API_KEY)
 }
 

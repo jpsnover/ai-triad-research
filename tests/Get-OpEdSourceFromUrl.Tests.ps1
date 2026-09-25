@@ -14,7 +14,7 @@
 #>
 
 BeforeAll {
-    Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'Get-OpEdSourceFromUrl — shared-fetcher migration' -Tag 'oped' {

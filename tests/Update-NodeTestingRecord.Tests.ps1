@@ -17,7 +17,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     $script:workDir = Join-Path ([System.IO.Path]::GetTempPath()) "updtestrec-$(Get-Random)"
     $null = New-Item -ItemType Directory -Path $script:workDir -Force

@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 BeforeAll {
-    Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'Request-FlightRecorderDump' -Tag 'health' {

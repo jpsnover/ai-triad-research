@@ -6,7 +6,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'Invoke-VernacularBatch' -Tag 'enrichment' {
@@ -16,7 +16,7 @@ Describe 'Invoke-VernacularBatch' -Tag 'enrichment' {
     }
 
     It 'Has Concurrency parameter with ValidateRange' {
-        Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+        Import-Module $ModulePath -WarningAction SilentlyContinue
         $cmd = Get-Command Invoke-VernacularBatch -Module AITriad
         $cmd.Parameters.ContainsKey('Concurrency') | Should -Be $true
         $validate = @($cmd.Parameters['Concurrency'].Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateRangeAttribute] })

@@ -13,7 +13,7 @@
 #>
 
 BeforeAll {
-    Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
     $script:ValidIds = @(InModuleScope AITriad { $script:ValidModelIds })
 
     # Extract picker ids via AST: hashtable literals carrying id + backend + label keys.

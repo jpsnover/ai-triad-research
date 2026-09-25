@@ -38,7 +38,7 @@ BeforeAll {
         # Try build dir
         $ModulePath = Join-Path $PSScriptRoot '..' 'build' 'AITriad' 'AITriad.psd1'
     }
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    Import-Module $ModulePath -WarningAction SilentlyContinue
 }
 
 Describe 'Module Loading' {

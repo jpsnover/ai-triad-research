@@ -22,7 +22,7 @@ $script:DEBATES_AVAILABLE = if (-not [string]::IsNullOrWhiteSpace($env:AI_TRIAD_
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Load a real sample debate ID for the happy-path tests via module-scope call
     $DebatesDir = & (Get-Module AITriad) { Get-DebatesDir }

@@ -11,7 +11,7 @@
 
 Describe 'Invoke-LogicalFormPass — helpers (t/3215)' -Tag 'unit', 'fol' {
     BeforeAll {
-        Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+        . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
     }
 
     It 'ConvertTo-EntityRefsPromptJson joins the register dolce_category into sort' {
@@ -176,7 +176,7 @@ Describe 'Invoke-LogicalFormPass — helpers (t/3215)' -Tag 'unit', 'fol' {
 
 Describe 'Invoke-LogicalFormPass — orchestrator (t/3215)' -Tag 'unit', 'fol' {
     BeforeAll {
-        Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+        Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -WarningAction SilentlyContinue
 
         function New-Entities {
             param([string]$Path)
@@ -344,7 +344,7 @@ Describe 'Invoke-LogicalFormPass — Option C topical_candidates (t/3389/t/3409)
     # about[] splits ent-* (stays) from term: concept refs (-> topical_candidates); the validator ACCEPTS
     # the field; about[] stays term:-tolerant (^ent- tightening is phase-3). Both-arms per gate discipline.
     BeforeAll {
-        Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+        Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -WarningAction SilentlyContinue
     }
 
     It 'Get-LogicalFormRefTable emits concept_refs as term: rows (sort=universal, match_level=exact)' {

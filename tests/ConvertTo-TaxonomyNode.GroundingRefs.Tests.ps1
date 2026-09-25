@@ -12,7 +12,7 @@
 #>
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'ConvertTo-TaxonomyNode grounding refs (t/3197)' -Tag 'unit' {

@@ -9,7 +9,7 @@ BeforeAll {
     $PublicDir  = Join-Path $ModulePath 'Public'
     $PsdPath    = Join-Path $ModulePath 'AITriad.psd1'
 
-    Import-Module (Join-Path $ModulePath 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Public/*.ps1 basenames == expected function names
     $script:PublicFiles   = @(Get-ChildItem $PublicDir -Filter '*.ps1' -File |

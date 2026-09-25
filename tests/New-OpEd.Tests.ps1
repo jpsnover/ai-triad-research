@@ -3,7 +3,7 @@
 
 Describe 'New-OpEd' -Tag 'oped' {
     BeforeAll {
-        Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force
+        . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
         # Essay call (has a SystemInstruction) returns this.
         $script:GoodJson = @{

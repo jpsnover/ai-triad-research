@@ -16,7 +16,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Helper to build a POV node with (or without) a debate_tested block.
     # PS 7 quirk: [PSCustomObject]@{} (empty) returns a Hashtable, not a

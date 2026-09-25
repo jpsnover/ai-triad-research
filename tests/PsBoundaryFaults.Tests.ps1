@@ -8,7 +8,7 @@ BeforeAll {
     $script:RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
     $script:ModulePath = Join-Path $script:RepoRoot 'scripts' 'AITriad' 'AITriad.psm1'
     $script:StubPath   = Join-Path $script:RepoRoot 'tests' 'fixtures' 'debate-cli-stub.ps1'
-    Import-Module $script:ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

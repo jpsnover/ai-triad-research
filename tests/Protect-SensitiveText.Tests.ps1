@@ -16,7 +16,7 @@ BeforeAll {
     # Invoke-AIApi's error path, and AIEnrich is a separate module scope, so the function
     # must be defined + exported there (was mis-homed in AITriad/Private).
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AIEnrich.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    Import-Module $ModulePath -WarningAction SilentlyContinue
 }
 
 Describe 'Protect-SensitiveText (t/2530 L14)' -Tag 'unit' {

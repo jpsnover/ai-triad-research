@@ -19,7 +19,7 @@
 #>
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'Measure-EmbeddingLatency — timed probe arms (t/3088)' -Tag 'health' {

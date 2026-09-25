@@ -22,7 +22,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AIEnrich.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    Import-Module $ModulePath -WarningAction SilentlyContinue
 }
 
 Describe '[AI] log-line doc-correlation prefix' -Tag 'enrichment' {

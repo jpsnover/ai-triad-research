@@ -23,7 +23,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Synthetic taxonomy fixture. The accelerationist file mixes three shapes:
     #   - acc-beliefs-001 : NO parent_id field at all  -> the t/1953 regression

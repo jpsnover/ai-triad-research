@@ -11,7 +11,7 @@
 #>
 
 BeforeAll {
-    Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Realistic gh `run view --log` shape: "job<TAB>step<TAB>ISO-timestamp <content>".
     $script:SampleLog = @(

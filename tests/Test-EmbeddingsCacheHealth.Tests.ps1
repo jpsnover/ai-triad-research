@@ -13,7 +13,7 @@
 #>
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Build a parsed console row in the shape Get-TaxEditorServerLogs emits. Defined in test scope;
     # the mock bodies below close over it (Mock -ModuleName routes interception to module-internal

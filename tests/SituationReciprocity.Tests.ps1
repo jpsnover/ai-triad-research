@@ -13,7 +13,7 @@
 #>
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Build a throwaway taxonomy/Origin with the given situation + POV nodes. $Sits/$Acc/$Saf/$Skp
     # are arrays of [ordered] node hashtables. Returns the repo root (parent of taxonomy/Origin).

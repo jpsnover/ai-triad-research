@@ -14,7 +14,7 @@
 
 BeforeAll {
     $script:ModulePath = (Resolve-Path (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1')).Path
-    Import-Module $script:ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'Test-EntityRelationGraph — core invariants (t/3170)' -Tag 'unit' {

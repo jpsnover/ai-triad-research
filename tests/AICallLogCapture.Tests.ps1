@@ -23,8 +23,8 @@ BeforeAll {
     # Import BOTH modules: AITriad for Invoke-AIByUsage + the private Write-AICallLogEntry, then
     # AIEnrich LAST so Invoke-AIApi is directly callable + mockable (-ModuleName AIEnrich) in the
     # test scope (AITriad's internal -Force re-import otherwise shadows the direct handle).
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AIEnrich.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
+    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AIEnrich.psm1') -WarningAction SilentlyContinue
 
     # A minimal-but-valid Gemini success envelope (survives the gemini text extraction).
     $global:AclGeminiOk = [pscustomobject]@{

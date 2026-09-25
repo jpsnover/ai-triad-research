@@ -13,7 +13,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # The literal Azure Easy Auth interstitial title. The em-dash is U+2014 and
     # must match the caller's reclassify regex `Sign In\s*—\s*AITriad Taxonomy Editor`.

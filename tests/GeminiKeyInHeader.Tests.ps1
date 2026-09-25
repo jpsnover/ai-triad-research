@@ -15,7 +15,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AIEnrich.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    Import-Module $ModulePath -WarningAction SilentlyContinue
 }
 
 Describe 'Gemini key in x-goog-api-key header, not ?key= URL (t/2530 L1)' -Tag 'enrichment' {

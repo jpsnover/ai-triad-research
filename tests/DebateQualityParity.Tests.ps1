@@ -22,7 +22,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     $script:RepoRoot   = Resolve-Path (Join-Path $PSScriptRoot '..')
     $script:Fixture    = Join-Path $PSScriptRoot 'fixtures' 'quality-parity' 'debate-fixture.json'

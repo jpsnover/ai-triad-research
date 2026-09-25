@@ -12,7 +12,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AIEnrich.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    Import-Module $ModulePath -WarningAction SilentlyContinue
 
     # Ensure the model registry is loaded so backend lookup works
     $aiModelsPath = Join-Path $PSScriptRoot '..' 'ai-models.json'

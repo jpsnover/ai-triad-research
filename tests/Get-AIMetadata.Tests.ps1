@@ -12,7 +12,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AIEnrich.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    Import-Module $ModulePath -WarningAction SilentlyContinue
 }
 
 Describe 'Get-AIMetadata date_published validation (gap 2.1)' -Tag 'ingestion' {

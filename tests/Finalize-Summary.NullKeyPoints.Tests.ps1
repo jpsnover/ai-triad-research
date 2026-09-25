@@ -17,7 +17,7 @@
 # -WarningVariable. Write-Utf8NoBom is mocked; the metadata read/write is try/caught inside the function.
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'Finalize-Summary null/absent camp key_points (t/3434)' -Tag 'summarization' {

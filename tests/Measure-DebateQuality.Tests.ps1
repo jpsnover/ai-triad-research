@@ -6,7 +6,7 @@
 
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
-    Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Synthesize a debate fixture with calibration_log so the rating is computable
     $script:TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "measure-debate-quality-$(Get-Random)"

@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '../scripts/AITriad/AITriad.psm1') -Force
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'Invoke-RetrievalConfidencePass' -Tag 'retrieval', 'confidence' {

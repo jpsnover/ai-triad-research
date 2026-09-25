@@ -5,7 +5,7 @@
 #Requires -Module Pester
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     # Build a deterministic fixture dictionary in TestDrive so filter logic is testable without
     # depending on the live data repo.

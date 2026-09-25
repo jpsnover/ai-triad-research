@@ -11,7 +11,7 @@
 #>
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 
     function New-SituationsFixture {
         $root = Join-Path ([System.IO.Path]::GetTempPath()) "getsit-$([guid]::NewGuid().ToString('N').Substring(0,8))"

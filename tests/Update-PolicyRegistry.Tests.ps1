@@ -15,7 +15,7 @@
 # pass-through (real Set-Content) so the cmdlet's post-fix re-scan still sees the persisted edits.
 
 BeforeAll {
-    Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'TestModuleBootstrap.ps1'); Enter-AITriadTestModule
 }
 
 Describe 'Update-PolicyRegistry -Fix (t/3431 batched write + idempotent MaxId)' -Tag 'taxonomy' {
