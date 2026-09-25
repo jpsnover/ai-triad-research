@@ -1,10 +1,10 @@
 # Failure-Class Taxonomy — Prospective Review Checklist
 
-**Last updated:** 2026-08-27
+**Last updated:** 2026-09-25
 **Owner:** Diagnostics (source analysis) / Tech Lead (review checklist)
-**Source:** e/84 systemic quality analysis of the 2026-08-09 Azure production bug sweep; Class 6 added from the 2026-08-15 dual-build / staging-prod-isolation sweep (t/2669); Class 7 added from the 2026-08-27 embeddings-cache incident (t/3085).
+**Source:** e/84 systemic quality analysis of the 2026-08-09 Azure production bug sweep; Class 6 added from the 2026-08-15 dual-build / staging-prod-isolation sweep (t/2669); Class 7 added from the 2026-08-27 embeddings-cache incident (t/3085); Class 8 from the 2026-09-07 silent-inert run-gate audit (t/3396); Class 9 from the 2026-09-25 model-resolution and merge-guard consults (t/3664, t/3687).
 
-Purpose: turn post-incident hindsight into foresight. Before landing a change — especially at a producer/consumer seam, on a deploy path, or touching config — ask **"which of these classes could this change introduce?"** and require the corresponding test or gate. Each incident maps to one of seven structural classes.
+Purpose: turn post-incident hindsight into foresight. Before landing a change — especially at a producer/consumer seam, on a deploy path, or touching config — ask **"which of these classes could this change introduce?"** and require the corresponding test or gate. Each incident maps to one of nine structural classes.
 
 ## The Core Gap
 
@@ -83,9 +83,28 @@ A blocking gate whose **predicate is fully verified but whose execution layer ne
   3. **Every gate carries its own durable execution telemetry** (the #2070/t/3395 sink pattern: pure record-builder + isolated append that can never affect the verdict) so "zero executions" is a queryable fact, not an unfalsifiable absence — and never cite platform counters (`fire_count_24h`, `recent_executions`) as evidence while the platform writer is unverified.
 - **Tickets:** t/3396 (incident + re-verification), t/3394 (the re-audit that surfaced it), t/3395 (sink extension), t/3270/t/3360/t/3318 (annotated flips). SO rec e/150#2.
 
+## Class 9 — Verdict narrower than its reading (the gate asserts what the system doesn't do)
+
+A gate that **runs, is exercised, has both arms proven — and whose green asserts something the system does not do.** Distinct from Class 5 (a running gate with a coverage hole), Class 6 (a code path returning success-shaped results), and Class 8 (a correct predicate never executed): here the gate is fully operational and fully verified, and its *claim* is false. Every existing gate-integrity rule asks whether the gate **works**; none asks whether what it asserts is **true**.
+
+The tell is that the true and false readings are the same sentence until you compare implementations: *"every usage resolves"* and *"every usage resolves to the model production calls"* read identically right up to the moment someone reads both resolvers.
+
+Two generators:
+
+- **Parallel implementation.** The gate reproduces the production path instead of calling it, and the copy drifts. *Does the gate resolve/parse/evaluate through the same code production uses? If not, what makes the copy faithful?*
+- **Partial evaluation reading as total.** The check covers a subset — one scanner's roots, workflow-backed contexts, present check-runs — and phrases its verdict over the whole. *What is not in this check's input set, and does its green claim anything about those?*
+
+- **Examples (2026-09-25):**
+  - **t/3664** — a resolve-only gate validated `ai-usages.json` via `buildModelEntryMap` (alias-aware); production's `resolveModel` does exact `models.find` plus a silent prefix passthrough. For six production usages the gate's green certified a binding to the pinned `gemini-3.5-flash-lite` entry while production shipped the literal string `gemini-flash-lite-latest` to the provider. Gate correct, both-armed, exercised — asserting a binding that never happens. *Parallel implementation.*
+  - **t/3687** — the same staleness comparison was specified wrongly **three times** (`completed_at`; then `ci-gate.started_at`, a 3s aggregator that starts *after* its 18 `needs`; then `CodeQL`'s 2s app-posted start, ~6 minutes after the run doing the work). Each was caught in review by someone actively hunting that failure. Three wrong answers from one design is a property of the design, not of the reviewers.
+  - **t/3688** — `required-contexts.json` records `CodeQL` with `workflow: null`, so `workflow-lint.py` skips it. R1 — the rule that mechanizes the anti-strand property — therefore never opens `codeql.yml`, the one file whose comment names that risk. The lint's green was silent about a file it never read. *Partial evaluation.*
+- **Prevention (the closing check for this class):** before approving any gate, **write a one-sentence answer to: "What does this gate's green assert, and is that what the system does?"** It must be *written*, not considered — the failure mode is that the answer feels obvious, and wrong answers only become visible on the page. Nobody reviewing t/3664 would have claimed the gate asserted the alias binding; nobody wrote down which binding it asserted either. Where the sentence is hard to write, that difficulty *is* the finding.
+- **Tickets:** t/3664 (the live defect), t/3687 (three wrong boundaries), t/3688 (unread-file green), t/3690 (this entry). SO framing: e/210#4, e/212#30.
+
 ## How to use this
 
 - **Reviewing a change:** ask which class(es) it could introduce; require the corresponding contract test, user-type coverage, prod-config check, or gate before approving.
+- **Reviewing a gate specifically:** answer Class 9's question in writing — *what does this gate's green assert, and is that what the system does?* — in addition to the Gate Signal Integrity rules (both arms, co-location, promotion, guard testability, live-fire). Those establish that it works; this establishes that its claim is true.
 - **After an incident:** classify it here, then file a **prevention** ticket (not only observability) that closes that class's gap *for the affected surface* — per the *Prevention-per-incident* rule in the root `AGENTS.md` **Incident Response** section.
 - **Gate-touching prevention** routes to **Main (TL)** for a Gate-Verification review (both arms proven, reliable enough to block, config co-located).
 
