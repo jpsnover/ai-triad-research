@@ -871,7 +871,7 @@
     },
     {
       "id": "openai-gpt-5.5",
-      "minTimeoutMs": 0,
+      "minTimeoutMs": 300000,
       "apiModelId": "gpt-5.5",
       "label": "Gpt 5.5",
       "backend": "openai",
@@ -945,7 +945,7 @@
     },
     {
       "id": "ollama-gemma4-e4b-it-q4-k-m",
-      "minTimeoutMs": 0,
+      "minTimeoutMs": 300000,
       "apiModelId": "gemma4:e4b-it-q4_K_M",
       "label": "gemma4:e4b-it-q4_K_M (8.0B) Q4_K_M",
       "backend": "ollama",

@@ -77,6 +77,25 @@ describe('findReachableModelsMissingTimeoutFloor (t/3555)', () => {
     expect(findReachableModelsMissingTimeoutFloor(r)).toHaveLength(1);
   });
 
+  it('REACHABILITY-SOURCE tripwire (SO e/207#2 cond 4): top-level sections are the known set — a new one forces a predicate review', () => {
+    // "Reachable" is exactly as complete as the section list findReachableModelsMissingTimeoutFloor walks
+    // (models[].picker + defaults + debateTiers + fallbackChains). If ai-models.json gains a NEW top-level
+    // section, this fails loudly so nobody discovers months later that "reachable" silently meant "the
+    // sections we thought of in Sept 2026." Pin the set; adding a section is then a deliberate, reviewed act.
+    const EXPECTED = [
+      'backends', 'models', 'defaults', 'fallbackChains', 'contextWindows',
+      'capabilityDefaults', 'modelCapabilities', 'debateTiers', 'pricing', 'lastRefreshed',
+    ].sort();
+    const actual = Object.keys(realRegistry).filter((k) => !k.startsWith('_')).sort();
+    expect(
+      actual,
+      'ai-models.json top-level sections changed. If the new section references model ids as a SELECTION ' +
+        'path (like defaults/debateTiers/fallbackChains/picker), add it to findReachableModelsMissingTimeoutFloor ' +
+        'AND this list. If it is metadata keyed by id but not selectable (like contextWindows/pricing/' +
+        'modelCapabilities), just add it here. Do not let "reachable" silently narrow.',
+    ).toEqual(EXPECTED);
+  });
+
   it('the committed ai-models.json passes CLEAN (t/3555 AC — no reachable model lacks a floor)', () => {
     const issues = findReachableModelsMissingTimeoutFloor(realRegistry);
     expect(issues, issues.map((i) => `${i.referenceSite} -> ${i.modelId}`).join('\n')).toEqual([]);

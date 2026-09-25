@@ -458,6 +458,15 @@ export function assertModelConfigValid(registry: ModelRegistry): void {
  * select it — iff it carries a `picker` field, or is referenced from `defaults` / `debateTiers` /
  * `fallbackChains`. This targets exactly what is selectable, needs no per-family maintenance (the
  * brittleness that produced the Claude-5 picker/union drift), and extends to any future slow model.
+ * The exact section list is pinned by a tripwire test (registry.reachableFloor.test.ts) that fails if
+ * ai-models.json gains a new top-level section, so "reachable" cannot silently narrow (SO e/207#2 cond 4).
+ *
+ * PREMISE — "reachable == user-selectable" (SO e/207#2 cond 7): true while the inquiry `models` override
+ * (ModelOverrideSchema, lib/inquiry/schema.ts:42-46 — a `z.string()` validated "at the boundary", not yet
+ * wired) is unwired. If that boundary ever validates a user override against the FULL registry, then
+ * user-selectable becomes all ~130 models, not the ~34 reachable here, and this gate under-covers by the
+ * difference. Whoever wires it MUST either restrict the accepted set to reachable models, or extend this
+ * predicate to cover whatever the boundary accepts.
  *
  * Pure and non-throwing; unresolved references are {@link validateModelConfig}'s concern, not this gate's.
  */
