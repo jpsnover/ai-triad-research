@@ -63,40 +63,97 @@ jobs:
           $config.Run.Exit = $true
           Invoke-Pester -Configuration $config
 
-      # Explicit alerting — creates/updates a GitHub issue on failure so the
-      # data/PS owner is reliably notified. Default scheduled-failure emails
-      # go to the workflow author only and are easily filtered (t/2331#3).
-      - name: Alert on regression — create GitHub issue
+      # ─── Standing asymmetry (t/3671 D2) ──────────────────────────────────
+      # ONE canonical alarm: the `data-compliance`-labelled "BDI decomposition
+      # violation" issue in ai-triad-data (currently #6). The push gate
+      # (ai-triad-data/bdi-boundary-check.yml) may OPEN it on a changed-only
+      # violation; only THIS scheduled full-corpus check may CLOSE it, because
+      # only a whole-corpus pass has standing to declare all-clear. A changed-
+      # only clean push has no standing to close (it saw one node). Two records
+      # for one condition give two contradictory answers to "is the corpus
+      # compliant?" — so we deliberately use the SINGLE data-repo issue, not a
+      # second code-repo one (t/3671#6, root cause of why #6 never closed).
+      #
+      # CLOSE-AUTHORITY INTEGRITY: a green from the Pester step above is
+      # NON-VACUOUS only because tests/data-compliance asserts `442 / 442`
+      # (the full expected count). A zero-scan would not match and would fail,
+      # so `success()` genuinely means whole-corpus-clean. If that count
+      # assertion is ever weakened, this close-authority weakens with it
+      # (t/3671#2).
+      #
+      # CROSS-REPO: the alarm lives in ai-triad-data; this workflow runs in the
+      # (busy, auto-disable-immune) code repo — Option A, t/3671#6. It reaches
+      # the data-repo issue via AI_TRIAD_DATA_ALARM_TOKEN: a least-priv,
+      # non-expiring token scoped to ai-triad-data {issues:write, actions:read},
+      # NO contents — shared with the t/3672 scheduled-heartbeat monitor. The
+      # default GITHUB_TOKEN cannot cross repos.
+      #
+      # ASSERT-SUCCESS BOTH ARMS (t/3671 cond 1): a 401/failed close would leave
+      # the alarm open — SAFE, but *silently* safe and indistinguishable from a
+      # real violation; a failed open would silently drop a real regression. So
+      # each arm re-reads the issue state and turns THIS run red with an explicit
+      # ::error:: (a distinct signal, surfaced by t/3672) rather than no-oping.
+      - name: All-clear — close the alarm on green full-corpus pass (CLOSE authority)
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.AI_TRIAD_DATA_ALARM_TOKEN }}
+          DATA_REPO: jpsnover/ai-triad-data
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          NUM=$(gh issue list --repo "$DATA_REPO" --label data-compliance --state open \
+            --search "BDI decomposition violation" --json number --jq '.[0].number // empty' 2>/dev/null || echo "QUERY_FAILED")
+          if [ "$NUM" = "QUERY_FAILED" ]; then
+            echo "::error::Could not query the data-compliance alarm in $DATA_REPO — check AI_TRIAD_DATA_ALARM_TOKEN scope/expiry. A failed query must not read as 'nothing to close' (t/3671 cond 1)."
+            exit 1
+          fi
+          if [ -z "$NUM" ]; then
+            echo "No open data-compliance alarm — corpus already clean, nothing to close."
+            exit 0
+          fi
+          echo "Corpus clean (442/442). Closing alarm #$NUM."
+          gh issue comment "$NUM" --repo "$DATA_REPO" \
+            --body "✅ All-clear: full-corpus SituationBDI check passed (442/442 decomposed). Closing per standing-asymmetry close-authority. Run: $RUN_URL" || true
+          gh issue close "$NUM" --repo "$DATA_REPO" --reason completed || true
+          STATE=$(gh issue view "$NUM" --repo "$DATA_REPO" --json state --jq '.state' 2>/dev/null || echo "VIEW_FAILED")
+          if [ "$STATE" != "CLOSED" ]; then
+            echo "::error::Close of alarm #$NUM did NOT take (state=$STATE). The corpus is CLEAN but the all-clear could not be recorded — check AI_TRIAD_DATA_ALARM_TOKEN scope/expiry. This red is a CLOSER failure, NOT a corpus violation."
+            exit 1
+          fi
+          echo "Alarm #$NUM closed."
+
+      - name: Alarm — open/reopen the alarm on regression (OPEN authority, same issue as push)
         if: failure()
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.AI_TRIAD_DATA_ALARM_TOKEN }}
+          DATA_REPO: jpsnover/ai-triad-data
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          TITLE="SituationBDI compliance regression $(date -u +%Y-%m-%d)"
-          BODY="Scheduled SituationBDI live-data compliance check failed.
+          BODY="Scheduled full-corpus SituationBDI check FAILED — the corpus has situation(s) without BDI decomposition.
 
-          A situation may have been added to ai-triad-data without BDI decomposition.
+          **Action (data/situation owner):** find the situations missing per-POV BDI nodes and decompose them, then push. This check closes the alarm automatically once the full corpus passes (442/442). Write-time prevention: t/3011.
 
-          **Action:** check ai-triad-data for situations missing per-POV BDI nodes.
-          Write-time prevention: t/2332 (PS data pipeline validation).
-
-          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
-          # Create label if absent (idempotent)
-          gh label create "data-compliance" --color "#e4e669" \
+          Run: $RUN_URL"
+          gh label create "data-compliance" --repo "$DATA_REPO" --color "e4e669" \
             --description "Data corpus compliance regression" 2>/dev/null || true
-
-          # Reopen/comment on existing open issue, or create new one
-          EXISTING=$(gh issue list --label "data-compliance" --state open \
-            --search "SituationBDI compliance regression" \
-            --json number --jq '.[0].number' 2>/dev/null || echo "")
-
-          if [ -n "$EXISTING" ]; then
-            gh issue comment "$EXISTING" --body "$BODY"
-            gh issue reopen "$EXISTING" 2>/dev/null || true
-          else
-            gh issue create \
-              --title "$TITLE" \
-              --body "$BODY" \
-              --label "data-compliance" \
-              --assignee jpsnover
+          NUM=$(gh issue list --repo "$DATA_REPO" --label data-compliance --state all \
+            --search "BDI decomposition violation" --json number --jq '.[0].number // empty' 2>/dev/null || echo "QUERY_FAILED")
+          if [ "$NUM" = "QUERY_FAILED" ]; then
+            echo "::error::Could not query the data-compliance alarm in $DATA_REPO — check AI_TRIAD_DATA_ALARM_TOKEN scope/expiry. A real corpus violation exists but the alarm state is unknown (t/3671 cond 1)."
+            exit 1
           fi
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --repo "$DATA_REPO" --body "$BODY" || true
+            gh issue reopen "$NUM" --repo "$DATA_REPO" 2>/dev/null || true
+          else
+            gh issue create --repo "$DATA_REPO" \
+              --title "Data boundary: BDI decomposition violation" \
+              --body "$BODY" --label data-compliance --assignee jpsnover || true
+            NUM=$(gh issue list --repo "$DATA_REPO" --label data-compliance --state open \
+              --search "BDI decomposition violation" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+          fi
+          STATE=$(gh issue view "$NUM" --repo "$DATA_REPO" --json state --jq '.state' 2>/dev/null || echo "VIEW_FAILED")
+          if [ "$STATE" != "OPEN" ]; then
+            echo "::error::Failed to open/reopen the data-compliance alarm in $DATA_REPO (num='$NUM' state=$STATE). A real corpus violation exists but the alarm could NOT be raised — check AI_TRIAD_DATA_ALARM_TOKEN scope/expiry."
+            exit 1
+          fi
+          echo "Alarm #$NUM open for the corpus violation."
