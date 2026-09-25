@@ -609,43 +609,16 @@ class AICallLogEntry {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Module-scoped taxonomy store
+# Module-scoped mutable state (t/3665)
 # ─────────────────────────────────────────────────────────────────────────────
-$script:TaxonomyData = @{}
-$script:TaxonomyFileTimestamps = @{}  # file path → LastWriteTime for staleness detection
-$script:CachedEmbeddings = $null         # Lazy-loaded by Get-RelevantTaxonomyNodes
-$script:EmbeddingsTimestamp = $null      # LastWriteTime of embeddings.json
-$script:CachedSyntheticVectors = $null   # Lazy-loaded (multi-vector synthetic embeddings)
-$script:SyntheticTimestamp = $null       # LastWriteTime of synthetic_embeddings.json
-$script:TaxonomyCacheLastCheck = $null  # UTC time of last staleness check (cooldown)
-$script:PillarNodeIds = $null           # Lazy-built by Get-RelevantTaxonomyNodes from taxonomy descriptions (t/2369)
-# Provisional threshold (0.45) — calibrate against SAF-167 repro case and a
-# good-vs-bad attribution distribution before treating this as a tuned gate.
-$script:RetrievalConfidenceThreshold = 0.45
-# CL-owned: veto when sim(kp, excludes_text) - sim(kp, core_text) > this margin (0.0 = any positive margin).
-$script:ExcludesVetoMargin = 0.0
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Load ai-models.json — single source of truth for backend/model lists
-# ─────────────────────────────────────────────────────────────────────────────
-$script:AIModelConfig  = $null
-$script:ValidModelIds  = @()
-
-# Try repo root first (dev), then module root (PSGallery install)
-$AIModelsPath = Join-Path $script:RepoRoot 'ai-models.json'
-if (-not (Test-Path $AIModelsPath)) {
-    $AIModelsPath = Join-Path $script:ModuleRoot 'ai-models.json'
-}
-if (Test-Path $AIModelsPath) {
-    try {
-        $script:AIModelConfig = Get-Content -Raw -Path $AIModelsPath | ConvertFrom-Json
-        $script:ValidModelIds = @($script:AIModelConfig.models | ForEach-Object { $_.id })
-        Write-Verbose "AI Models: loaded $($script:ValidModelIds.Count) models from ai-models.json"
-    }
-    catch {
-        Write-Warning "AI Models: failed to load ai-models.json — $($_.Exception.Message)"
-    }
-}
+# All mutable $script:* runtime state is (re)initialized by the single-source
+# Initialize-AITriadRuntimeState (Private/), called once below after dot-sourcing and
+# re-invoked per test file by the test bootstrap to reset state cheaply. Here we only
+# declare the PRISTINE corpus holders it populates on first call and re-points to on reset.
+$script:_PristineTaxonomyData        = $null
+$script:_PristineTaxonomyTimestamps  = $null
+$script:_PristinePolicyRegistry      = $null
+$script:_PristineCorpusHash          = $null
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Dot-source Private/ then Public/ functions
@@ -691,69 +664,13 @@ foreach ($_name in @('DocConverters', 'AIEnrich')) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Load taxonomy data at import time (same logic as standalone Taxonomy.psm1)
+# Initialize mutable runtime state — single source of truth (t/3665).
+# First call eager-loads the taxonomy/policy corpus (same logic as before) and captures
+# a pristine reference + hash; the test bootstrap re-invokes it per file to reset cheaply.
+# Must run AFTER dot-sourcing (needs Get-TaxonomyDir / Test-IsPovTaxonomyData) and after
+# companion-module import.
 # ─────────────────────────────────────────────────────────────────────────────
-$TaxonomyDir = Get-TaxonomyDir
-if (Test-Path $TaxonomyDir) {
-    $script:_TaxSkipNames = @(
-        'embeddings.json', 'edges.json', 'policy_actions.json', '_archived_edges.json',
-        'lineage_categories.json', 'interpretation_embeddings.json',
-        'source_evidence_index.json', 'similarity-cache.json'
-    )
-    foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
-        # Avoid break/continue inside the foreach body — Pester 6.1.0 wraps module init
-        # scriptblocks in flow-control traps and any escaped continue/break (even from a
-        # valid foreach) trips the guard. Use nested if/else instead.
-        $script:_TaxSkip = $File.Name -in $script:_TaxSkipNames
-        if (-not $script:_TaxSkip) {
-            # Embedding-variant files (e.g. embeddings-orgstance-6733.json, t/524) are
-            # legitimately large (50MB+) and carry no .nodes array — loaded on demand, never
-            # by this POV loop. Skip BEFORE the 10MB corruption guard (t/1645).
-            $script:_TaxSkip = $File.Name -like 'embeddings-*.json' -or $File.Name -like '*-embeddings.json'
-        }
-        if (-not $script:_TaxSkip) {
-            if ($File.Length -gt 10MB) {
-                Write-Warning "Taxonomy: skipping $($File.Name) — file is $([math]::Round($File.Length / 1MB, 1)) MB (likely corrupted, max 10 MB)."
-            } else {
-                try {
-                    $Json = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
-                    # Only register POV files that follow the taxonomy-node shape (a .nodes
-                    # array whose entries carry an 'id'). Auxiliary files (lineage_categories.json)
-                    # and sidecar logs (entity_extraction_log.json, whose nodes are keyed by
-                    # 'node_id' — t/1834) live alongside POV files but must NOT be treated as POVs.
-                    if (Test-IsPovTaxonomyData $Json) {
-                        $PovName = $File.BaseName.ToLower()
-                        $script:TaxonomyData[$PovName] = $Json
-                        $script:TaxonomyFileTimestamps[$File.FullName] = $File.LastWriteTime
-                        Write-Verbose "Taxonomy: loaded '$PovName' ($($Json.nodes.Count) nodes) from $($File.Name)"
-                    } else {
-                        Write-Verbose "Taxonomy: skipping $($File.Name) (not a POV node file — no id-shaped nodes[])"
-                    }
-                }
-                catch {
-                    Write-Warning "Taxonomy: failed to load $($File.Name): $_ — this POV will be unavailable until the file is fixed."
-                }
-            }
-        }
-    }
-}
-
-if ($script:TaxonomyData.Count -eq 0) {
-    Write-Warning "Taxonomy: no valid JSON files loaded from $TaxonomyDir — most commands will not work."
-}
-
-# Load policy registry
-$script:PolicyRegistry = $null
-$RegistryFile = Join-Path $TaxonomyDir 'policy_actions.json'
-if (Test-Path $RegistryFile) {
-    try {
-        $script:PolicyRegistry = Get-Content -Raw -Path $RegistryFile | ConvertFrom-Json
-        Write-Verbose "Policy registry: loaded $($script:PolicyRegistry.policy_count) policies"
-    }
-    catch {
-        Write-Warning "Policy registry: failed to load — $($_.Exception.Message)"
-    }
-}
+Initialize-AITriadRuntimeState
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Backward-compatibility & convenience aliases

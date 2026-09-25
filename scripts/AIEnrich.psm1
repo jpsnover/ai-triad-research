@@ -32,6 +32,42 @@ $script:AIApiLastModel = ''
 $script:AIApiCorrelationId = ''
 $script:AIApiLastCorrelationId = ''
 
+# Pristine holders for the config-built maps (t/3665) — captured on first Initialize call,
+# re-pointed on reset. ContextWindows is a constant and is never reset.
+$script:_PristineModelRegistry  = $null
+$script:_PristineFallbackChains = $null
+$script:_PristineDebateTiers    = $null
+
+function Initialize-AIEnrichRuntimeState {
+    <#
+    .SYNOPSIS
+        Single-source reset of AIEnrich's mutable $script: state (t/3665).
+    .DESCRIPTION
+        Called once at module load (after the config-built maps exist: captures a pristine
+        reference to each) and re-invoked per test file by the test bootstrap to reset cheaply:
+        session scalars → declared defaults; ModelRegistry/FallbackChains/DebateTiers →
+        re-pointed at the pristine reference (~0ms, no ai-models.json re-read). ContextWindows
+        is immutable and intentionally not reset.
+    #>
+    [CmdletBinding()]
+    param()
+    $script:LastApiKeySource       = ''
+    $script:AIApiLoggedThisSession = $false
+    $script:AIApiLastModel         = ''
+    $script:AIApiCorrelationId     = ''
+    $script:AIApiLastCorrelationId = ''
+    if ($null -eq $script:_PristineModelRegistry) {
+        $script:_PristineModelRegistry  = $script:ModelRegistry
+        $script:_PristineFallbackChains = $script:FallbackChains
+        $script:_PristineDebateTiers    = $script:DebateTiers
+    }
+    else {
+        $script:ModelRegistry  = $script:_PristineModelRegistry
+        $script:FallbackChains = $script:_PristineFallbackChains
+        $script:DebateTiers    = $script:_PristineDebateTiers
+    }
+}
+
 function Set-AIApiCorrelationId {
     <#
     .SYNOPSIS
@@ -141,6 +177,10 @@ if ($script:ModelRegistry.Count -eq 0) {
         'groq-llama-4-scout'    = @{ Backend = 'groq';    ApiModelId = 'meta-llama/llama-4-scout-17b-16e-instruct' }
     }
 }
+
+# Capture pristine references to the config-built maps + normalize session scalars (t/3665).
+# First call here at load; the test bootstrap re-invokes it per file to reset state cheaply.
+Initialize-AIEnrichRuntimeState
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Protect-SensitiveText — secret redaction for AI error logging (t/2530 L14, t/3140).
