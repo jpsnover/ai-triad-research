@@ -38,10 +38,14 @@
 
     Suppression: a deliberately-invalid or intentionally-non-registry id (negative tests,
     mock-only backends, raw provider-API ids, non-LLM model families such as embedding /
-    reranker / TTS models) is exempted by an inline trailing marker comment
-    "# model-lint:allow <reason>" on the same physical line as the literal. The marker is
-    co-located with the literal per gate-integrity (Sage #20/#46). Do not weaken the
-    predicate to make an offender disappear — fix it, repoint it, or mark it with a reason.
+    reranker / TTS models) is exempted by an inline trailing marker comment on the same
+    physical line as the literal. The typed grammar (t/3657, shared with
+    lib/ai-config/modelLiteralLint.ts) is "# model-lint:allow-<kind> <reason>", kind ∈
+    {pin, external, nonselect}, both kind and reason MANDATORY. Bare "# model-lint:allow"
+    and any typed marker with no reason are INVALID (deprecated) and do NOT exempt. A valid
+    marker on an id that IS registered is a contradiction and is flagged as an offender. The
+    marker is co-located with the literal per gate-integrity (Sage #20/#46). Do not weaken
+    the predicate to make an offender disappear — fix it, repoint it, or mark it with a reason.
 
     WARN-only vs blocking: production offenders currently WARN (they do not red the gate).
     Promotion to blocking is a deliberate step the Technical Lead sequences — both arms
@@ -57,7 +61,9 @@ BeforeAll {
     # Registered set — the same list Test-AIModelId validates against (models[].id).
     $script:ValidIds = @(InModuleScope AITriad { $script:ValidModelIds })
 
-    $script:SuppressMarker = '# model-lint:allow'
+    # Canonical valid suppression form (t/3657 typed grammar). Bare `# model-lint:allow`
+    # is now INVALID (deprecated) — a suppression must name a kind + reason.
+    $script:SuppressMarker = '# model-lint:allow-pin'
 
     # ── Blocking toggle (t/3560) ────────────────────────────────────────────────
     # Production scope is WARN-only until the TL sequences the blocking promotion
@@ -82,15 +88,31 @@ BeforeAll {
     # Without this, flipping $ProductionModelLintBlocking would run the blocking
     # assertion on main for the first time ever (t/2971 clean-arm-never-exercised class).
 
-    # Pure: parse in-memory lines -> literal records. Skips marked lines and (when
-    # -Exclusions) drops non-literal / non-single-id values. No file IO.
+    # Pure: parse a line's co-located model-lint marker (t/3657 grammar, shared with
+    # lib/ai-config/modelLiteralLint.ts). Grammar: `model-lint:allow-<kind> <reason>`,
+    # kind ∈ {pin, external, nonselect} MANDATORY, reason MANDATORY (≥1 non-ws).
+    # Bare `model-lint:allow` and `allow-<kind>` with no reason are INVALID (not exempt).
+    # Returns { Present, Valid, Kind, Reason }. Anchored at $ so a trailing comment
+    # captures its reason to EOL; callers pass line-terminator-stripped lines.
+    function script:Get-ModelLintMarker {
+        param([string]$Line)
+        $m = [regex]::Match($Line, 'model-lint:allow(?:-(pin|external|nonselect))?(?:\s+(\S.*))?$')
+        if (-not $m.Success) { return [PSCustomObject]@{ Present = $false; Valid = $false; Kind = $null; Reason = $null } }
+        $kind   = if ($m.Groups[1].Success -and $m.Groups[1].Value) { $m.Groups[1].Value } else { $null }
+        $reason = if ($m.Groups[2].Success -and -not [string]::IsNullOrWhiteSpace($m.Groups[2].Value)) { $m.Groups[2].Value.Trim() } else { $null }
+        [PSCustomObject]@{ Present = $true; Valid = ($null -ne $kind -and $null -ne $reason); Kind = $kind; Reason = $reason }
+    }
+
+    # Pure: parse in-memory lines -> literal records, each carrying its co-located Marker
+    # (t/3657 — no longer skips marked lines; the marker's validity is resolved downstream).
+    # (when -Exclusions) drops non-literal / non-single-id values. No file IO.
     function script:Get-ModelLiteralsFromLines {
         param([string[]]$Lines, [string]$Pattern, [switch]$Exclusions, [string]$FileName = '(memory)')
         $out = [System.Collections.Generic.List[object]]::new()
         $lineNo = 0
         foreach ($line in $Lines) {
             $lineNo++
-            if ($line.Contains($script:SuppressMarker)) { continue }
+            $marker = script:Get-ModelLintMarker -Line $line
             foreach ($match in [regex]::Matches($line, $Pattern)) {
                 $id = $match.Groups[2].Value
                 if ($Exclusions) {
@@ -98,17 +120,45 @@ BeforeAll {
                     if ($id.Contains('$'))                 { continue }  # interpolation, not a literal
                     if ($id.Contains(','))                 { continue }  # alias CSV, not a single id
                 }
-                $out.Add([PSCustomObject]@{ File = $FileName; Line = $lineNo; Id = $id })
+                $out.Add([PSCustomObject]@{ File = $FileName; Line = $lineNo; Id = $id; Marker = $marker })
             }
         }
         $out
     }
 
-    # Pure: offenders = literal records whose Id is not in the registered set. This is
-    # the exact predicate the blocking assertion checks; tested directly below.
+    # Pure: offenders per the t/3657 shared predicate (marker semantics + registry).
+    #   valid marker + UNregistered id  -> exempt (legitimate pin/external/nonselect)
+    #   valid marker + REGISTERED id     -> OFFENDER (contradiction — pin/etc. on a live id)
+    #   invalid / no marker              -> OFFENDER iff the id is NOT registered
+    # A record with no Marker property (e.g. seeded resolution-only cases) resolves normally.
     function script:Get-ModelLintOffenders {
         param([object[]]$Literals, [string[]]$ValidIds)
-        @($Literals | Where-Object { $_.Id -notin $ValidIds })
+        @($Literals | Where-Object {
+            $registered = ($_.Id -in $ValidIds)
+            $mk = if ($_.PSObject.Properties['Marker']) { $_.Marker } else { $null }
+            if ($mk -and $mk.Present -and $mk.Valid) { $registered }   # valid marker: offender only if it's a contradiction
+            else { -not $registered }                                  # no/invalid marker: normal resolution
+        })
+    }
+
+    # Pure: registry-usability guard (t/3657 cond 3). Empty/unreadable registry is an
+    # INFRA error, distinct from "unregistered literal" — throw a typed ActionableError
+    # so a flood of false offenders never masquerades as drift.
+    # New-ActionableError is a PRIVATE module function (not exported), so it is not in the
+    # test's script scope. Invoke it inside the module's own scope with `& (Get-Module) {}`,
+    # which reaches private functions; the module is imported by the BeforeAll above and
+    # persists for the whole run. Yields the same typed error the production guard raises.
+    function script:Assert-ModelRegistryUsable {
+        param([string[]]$ValidIds)
+        if (@($ValidIds).Count -eq 0) {
+            throw (& (Get-Module AITriad) {
+                New-ActionableError -PassThru `
+                    -Goal 'Resolve model-id literals against the registry' `
+                    -Problem 'ai-models.json unreadable/empty — infra condition, not an unregistered literal' `
+                    -Location 'ModelLiteralLint / Assert-ModelRegistryUsable' `
+                    -NextSteps @('Confirm ai-models.json loads (Import-Module AITriad; InModuleScope AITriad { $script:ValidModelIds })', 'Re-run once the registry is readable')
+            })
+        }
     }
 
     # Impure shell: read each file's lines and delegate to the pure parser above.
@@ -155,7 +205,7 @@ Describe 'Model-id literals resolve to registered models' -Tag 'config' {
     It 'every -Model literal in tests/ names a model registered in ai-models.json' {
         $offenders = @(script:Get-ModelLintOffenders -Literals $script:ModelLiterals -ValidIds $script:ValidIds)
         $report = ($offenders | ForEach-Object { "$($_.File):$($_.Line) names unregistered id '$($_.Id)'" }) -join "`n"
-        $offenders.Count | Should -Be 0 -Because "test fixtures must mock only registered models. Fix each: register the id in ai-models.json, repoint to a valid id, or (if the id is intentionally invalid) append a model-lint:allow marker comment on that line.`n$report"
+        $offenders.Count | Should -Be 0 -Because "test fixtures must mock only registered models. Fix each: register the id in ai-models.json, repoint to a valid id, or (if the id is intentionally invalid) append a typed '# model-lint:allow-<pin|external|nonselect> <reason>' marker on that line.`n$report"
     }
 
     It 'every production model-id literal names a registered model (WARN-only — t/3560)' {
@@ -201,11 +251,36 @@ Describe 'Offender-resolution predicate — direct both-arms tests (t/3565, Guar
         @(script:Get-ModelLintOffenders -Literals $lits -ValidIds $script:FakeValid).Count | Should -Be 0
     }
 
-    It 'PASS ARM: an unregistered literal carrying the marker is not collected (marker filter)' {
+    It 'MARKER: a valid typed marker on an unregistered id is collected but exempted (not an offender)' {
+        # t/3657: marked lines are now COLLECTED (carry a parsed Marker), no longer skipped
+        # at parse time — the marker validity is what exempts them from the offender set.
         $lines = @("        model = 'retired-model-999'  $($script:SuppressMarker) intentional pin")
         $lits  = @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions)
-        $lits.Count | Should -Be 0
+        $lits.Count           | Should -Be 1
+        $lits[0].Marker.Valid | Should -BeTrue
+        $lits[0].Marker.Kind  | Should -Be 'pin'
         @(script:Get-ModelLintOffenders -Literals $lits -ValidIds $script:FakeValid).Count | Should -Be 0
+    }
+
+    It 'MARKER: a valid marker on a REGISTERED id is a contradiction -> offender (t/3657)' {
+        # A pin/external/nonselect marker claims the id is intentionally-unregistered; if the
+        # id IS registered the marker is spurious and must be flagged, not silently honoured.
+        $lines = @("        model = 'gemini-3.5-flash-lite'  # model-lint:allow-pin bogus pin on a live id")
+        $lits  = @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions)
+        $off   = @(script:Get-ModelLintOffenders -Literals $lits -ValidIds $script:FakeValid)
+        $off.Count | Should -Be 1
+        $off[0].Id | Should -Be 'gemini-3.5-flash-lite'
+    }
+
+    It 'MARKER: a bare / no-reason marker is INVALID -> does not exempt an unregistered id (t/3657)' {
+        # Bare `model-lint:allow` (no kind) and typed-with-no-reason are deprecated/invalid;
+        # they fall through to normal resolution, so an unregistered id stays an offender.
+        foreach ($mk in @('# model-lint:allow intentional', '# model-lint:allow-pin')) {
+            $lines = @("        model = 'retired-model-999'  $mk")
+            $lits  = @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions)
+            $lits[0].Marker.Valid | Should -BeFalse -Because "'$mk' lacks a kind and/or a reason"
+            @(script:Get-ModelLintOffenders -Literals $lits -ValidIds $script:FakeValid).Count | Should -Be 1 -Because "'$mk' must not exempt"
+        }
     }
 
     It 'EXCLUSIONS: interpolation ($), alias CSV (,), and empty values are not literals' {
@@ -220,7 +295,7 @@ Describe 'Offender-resolution predicate — direct both-arms tests (t/3565, Guar
     It 'END-TO-END: mixed input yields exactly the unregistered, unmarked, real literals' {
         $lines = @(
             "        `$ScreenModel = 'retired-a'",                                 # offender
-            "        Find-Thing -Model 'retired-b'",                               # model-lint:allow test-fixture literal (offender, dash param), not a real pin
+            "        Find-Thing -Model 'retired-b'",                               # model-lint:allow-nonselect test-fixture literal, not a runtime selection
             "        [string]`$Model = 'gemini-3.5-flash-lite'",                   # registered -> not an offender
             "        model = 'retired-c'  $($script:SuppressMarker) pinned",       # marked -> excluded
             "        `$Models = 'a,b'"                                             # CSV -> excluded
@@ -231,7 +306,7 @@ Describe 'Offender-resolution predicate — direct both-arms tests (t/3565, Guar
     }
 
     It 'the seeded scan itself is non-vacuous (a broken pattern would surface here too)' {
-        $lines = @("        -Model 'anything-at-all'")  # model-lint:allow test-fixture literal, not a real pin
+        $lines = @("        -Model 'anything-at-all'")  # model-lint:allow-nonselect test-fixture literal, not a runtime selection
         @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions).Count | Should -BeGreaterThan 0
     }
 }
@@ -247,7 +322,7 @@ $script:ConformanceCases = @(
     (Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '..' 'lib' 'ai-config' 'modelLiteralLint.conformance.json') |
         ConvertFrom-Json).cases | ForEach-Object {
             @{ name = $_.name; layer = $_.layer; id = $_.id; expect = $_.expect
-               registeredIds = @($_.registeredIds); reason = $_.reason }
+               marker = $_.marker; registeredIds = @($_.registeredIds); reason = $_.reason }
         }
 )
 
@@ -274,10 +349,18 @@ Describe 'Shared conformance corpus — resolution predicate (t/3656, SO cond 4)
                 else                    { $off.Count | Should -Be 1 -Because $reason }
             }
             'marker' {
-                Set-ItResult -Skipped -Because "pending t/3557 cond-1 typed-marker grammar (allow-pin/allow-external/bare-deprecated) — $name"
+                # Parse the co-located marker + resolve with marker semantics (t/3657):
+                # valid marker + unregistered -> exempt; valid + registered -> contradiction;
+                # bare/no-reason -> not exempt -> normal resolution.
+                $rec = [pscustomobject]@{ File = 'conformance'; Line = 0; Id = $id; Marker = (script:Get-ModelLintMarker -Line $marker) }
+                $off = @(script:Get-ModelLintOffenders -Literals @($rec) -ValidIds $registeredIds)
+                if ($expect -eq 'pass') { $off.Count | Should -Be 0 -Because $reason }
+                else                    { $off.Count | Should -Be 1 -Because $reason }
             }
             'registry' {
-                Set-ItResult -Skipped -Because "registry-load is guard/loader-level (the empty-authority false-green guard), not the pure predicate — $name"
+                # Guard/loader-level (t/3657 cond 3): empty/unreadable registry -> typed
+                # ActionableError, distinct from 'unregistered literal'.
+                { script:Assert-ModelRegistryUsable -ValidIds $registeredIds } | Should -Throw -ExpectedMessage '*unreadable/empty*' -Because $reason
             }
             default {
                 Set-ItResult -Inconclusive -Because "unknown layer '$layer' in the conformance corpus — $name"

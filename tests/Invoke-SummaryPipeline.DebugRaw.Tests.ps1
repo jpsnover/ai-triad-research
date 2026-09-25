@@ -50,7 +50,7 @@ Describe 'Invoke-SummaryPipeline single-shot debug-raw persistence' -Tag 'ingest
                     -OutputSchema '{}' `
                     -TaxonomyJsonOverride 'x' `
                     -WarningAction SilentlyContinue `
-                    -Model 'gemini-test'  # model-lint:allow (mock-only backend id — deliberately not registered)
+                    -Model 'gemini-test'  # model-lint:allow-nonselect (mock-only backend id — deliberately not registered)
 
                 $Result.Success | Should -BeFalse
                 $Result.Error | Should -Be 'InvalidJson'
@@ -82,7 +82,7 @@ Describe 'Invoke-SummaryPipeline single-shot debug-raw persistence' -Tag 'ingest
                 -TaxonomyJsonOverride 'x' `
                 -WarningVariable WarningsSeen `
                 -WarningAction SilentlyContinue `
-                -Model 'gemini-test'  # model-lint:allow (mock-only backend id — deliberately not registered)
+                -Model 'gemini-test'  # model-lint:allow-nonselect (mock-only backend id — deliberately not registered)
 
             $Result.Success | Should -BeFalse
             $Result.Error | Should -Be 'API call returned null'

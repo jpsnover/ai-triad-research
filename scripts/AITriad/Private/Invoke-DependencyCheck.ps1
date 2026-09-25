@@ -177,7 +177,7 @@ function Invoke-DependencyCheck {
     if ($env:ANTHROPIC_API_KEY) {
         try {
             $Hdrs = @{ 'x-api-key' = $env:ANTHROPIC_API_KEY; 'anthropic-version' = '2023-06-01'; 'content-type' = 'application/json' }
-            $Body = @{ model = 'claude-3-5-haiku-20241022'; max_tokens = 10; messages = @(@{ role = 'user'; content = 'Say OK' }) } | ConvertTo-Json -Depth 5  # model-lint:allow raw Anthropic API liveness-probe id, intentionally not a registry backend
+            $Body = @{ model = 'claude-3-5-haiku-20241022'; max_tokens = 10; messages = @(@{ role = 'user'; content = 'Say OK' }) } | ConvertTo-Json -Depth 5  # model-lint:allow-pin raw Anthropic API liveness-probe id, intentionally not a registry backend
             $null = Invoke-RestMethod -Uri 'https://api.anthropic.com/v1/messages' -Method Post -Headers $Hdrs -Body $Body -TimeoutSec 15 -ErrorAction Stop
             DPass 'ANTHROPIC_API_KEY valid'
             $HasAnyKey = $true

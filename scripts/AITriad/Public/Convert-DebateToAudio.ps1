@@ -55,7 +55,7 @@ param(
     [string]$ApiKey,
 
     [ValidateSet('tts-1', 'tts-1-hd')]
-    [string]$Model = 'tts-1-hd',  # model-lint:allow OpenAI TTS model, not an ai-models.json chat backend
+    [string]$Model = 'tts-1-hd',  # model-lint:allow-pin OpenAI TTS model, not an ai-models.json chat backend
 
     [ValidateRange(0.25, 4.0)]
     [double]$Speed = 1.0,

@@ -262,7 +262,7 @@ function Add-SituationEvidenceLink {
         $provEntry = [PSCustomObject][ordered]@{
             origin       = 'machine'
             method       = 'embedding-cosine-topN'
-            model        = 'all-MiniLM-L6-v2'  # model-lint:allow embedding model (sentence-transformers), not an ai-models.json LLM backend
+            model        = 'all-MiniLM-L6-v2'  # model-lint:allow-pin embedding model (sentence-transformers), not an ai-models.json LLM backend
             score        = $link.score
             rank         = $link.rank
             batch_id     = $BatchId
