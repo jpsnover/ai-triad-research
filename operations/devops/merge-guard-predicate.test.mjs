@@ -20,30 +20,68 @@ import {
 } from './merge-guard-predicate.mjs';
 
 // ── t/3684: retarget stale-green guard — baseChangedAfterCiVerdict (both arms + edges) ──
-test('t/3684 BLOCK: base changed AFTER the latest CI run → stale green for the new base', () => {
-  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T18:00:00Z', latestCiCompletedAt: '2026-09-25T17:00:00Z' });
+// Semantics (SO must-fix 1 e/212#2, amended TL e/212#3; earliest-of-latest SO e/212#4/TL e/212#5;
+// missing-run TL e/212#5). Compare `base_ref_changed` against the WORKFLOW-RUN start `run_started_at`
+// (base pinned when the RUN starts — not at completion, not at the ~3s `ci-gate` aggregator's start).
+// "Required CI" is THREE contexts (ci-gate, joint-gv-guard, CodeQL), each its own run; take the latest
+// run per context, then the EARLIEST start across them (any one stale ⇒ block). A required context with
+// NO run → block (never allow on a partial set). Equality → BLOCK (unknown ordering; SO must-fix 2).
+//
+// gap-arm-1 (during-run) is anchored on a REAL run's `run_started_at` (TL e/212#3): `2026-09-25T17:33:44Z`
+// is `gh run list --workflow ci.yml --json startedAt` for run 36167901868 on this repo.
+const REAL_RUN_STARTED_AT = '2026-09-25T17:33:44Z'; // ci.yml run 36167901868 run_started_at (real)
+const R = (context, runStartedAt) => ({ context, runStartedAt });
+const REQUIRED = ['ci-gate', 'joint-gv-guard', 'CodeQL'];
+// A helper: all three required contexts started at the same time `t` (latest run per context).
+const allAt = (t) => REQUIRED.map((c) => R(c, t));
+
+test('t/3684 BLOCK: base changed AFTER every required run started → stale green for the new base', () => {
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T18:00:00Z', requiredRuns: allAt('2026-09-25T17:00:00Z') });
   assert.equal(v.block, true);
-  assert.equal(v.reason, 'base-changed-after-ci');
+  assert.equal(v.reason, 'base-changed-at-or-after-ci-run-start');
 });
-test('t/3684 ALLOW: CI completed AFTER the base change → fresh against the new base', () => {
-  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T17:00:00Z', latestCiCompletedAt: '2026-09-25T18:00:00Z' });
+test('t/3684 BLOCK: retarget DURING the run (after run-start, before ci-gate aggregator) → must-fix-1 race', () => {
+  // Real run_started_at 17:33:44 (base pinned). Retarget 90s later, while the 18 heavy jobs are still
+  // running — ci-gate hasn't even started yet. Comparing to completion OR to ci-gate.started_at would
+  // ALLOW this; comparing to run_started_at BLOCKS it. This is the boundary TL required.
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T17:35:14Z', requiredRuns: allAt(REAL_RUN_STARTED_AT) });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'base-changed-at-or-after-ci-run-start');
+});
+test('t/3684 BLOCK: earliest-of-latest — retarget after the EARLIEST required run but before a later one', () => {
+  // ci-gate started 17:00 (before retarget), joint-gv-guard 17:20, CodeQL 17:25 (both after). Comparing
+  // to the LATEST (17:25) would ALLOW; earliest (17:00) BLOCKS — ci-gate is stale for the new base.
+  const runs = [R('ci-gate', '2026-09-25T17:00:00Z'), R('joint-gv-guard', '2026-09-25T17:20:00Z'), R('CodeQL', '2026-09-25T17:25:00Z')];
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T17:10:00Z', requiredRuns: runs });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'base-changed-at-or-after-ci-run-start');
+});
+test('t/3684 ALLOW: every required run started AFTER the base change → all fresh against the new base', () => {
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T17:00:00Z', requiredRuns: allAt('2026-09-25T18:00:00Z') });
   assert.equal(v.block, false);
-  assert.equal(v.reason, 'ci-after-base-change');
+  assert.equal(v.reason, 'ci-run-started-after-base-change');
 });
 test('t/3684 ALLOW: no base change ever → never fires (the common case)', () => {
-  const v = baseChangedAfterCiVerdict({ baseChangedAt: null, latestCiCompletedAt: '2026-09-25T18:00:00Z' });
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: null, requiredRuns: allAt('2026-09-25T18:00:00Z') });
   assert.equal(v.block, false);
   assert.equal(v.reason, 'no-base-change');
 });
-test('t/3684 BLOCK: base changed but NO CI at all → nothing evaluated the new base', () => {
-  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T18:00:00Z', latestCiCompletedAt: null });
+test('t/3684 BLOCK: a required context has NO run (CodeQL path-filtered) → block, naming the context', () => {
+  // CodeQL absent (null start) — the #2438 case. Must NOT degrade to allow on a partially-evaluated set.
+  const runs = [R('ci-gate', '2026-09-25T18:00:00Z'), R('joint-gv-guard', '2026-09-25T18:00:00Z'), R('CodeQL', null)];
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T17:00:00Z', requiredRuns: runs });
   assert.equal(v.block, true);
-  assert.equal(v.reason, 'base-changed-no-ci');
+  assert.equal(v.reason, 'required-run-missing:CodeQL');
 });
-test('t/3684 edge: equal timestamps → CI not STRICTLY after the change → allow (no false-block)', () => {
-  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T17:00:00Z', latestCiCompletedAt: '2026-09-25T17:00:00Z' });
-  assert.equal(v.block, false);
-  assert.equal(v.reason, 'ci-after-base-change');
+test('t/3684 BLOCK: no required runs at all → nothing evaluated the new base', () => {
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: '2026-09-25T18:00:00Z', requiredRuns: [] });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'base-changed-no-required-runs');
+});
+test('t/3684 edge: equal timestamps (base change == earliest run start) → UNKNOWN ordering → BLOCK', () => {
+  const v = baseChangedAfterCiVerdict({ baseChangedAt: REAL_RUN_STARTED_AT, requiredRuns: allAt(REAL_RUN_STARTED_AT) });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'base-changed-at-or-after-ci-run-start');
 });
 
 const MODULE = fileURLToPath(new URL('./merge-guard-predicate.mjs', import.meta.url));

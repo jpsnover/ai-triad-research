@@ -89,20 +89,66 @@ export function jointGvAutoMergeVerdict({ isAutoMerge, isJointGvLabeled } = {}) 
  * Retarget is live independent of the retired open-then-retarget workaround: GitHub auto-retargets
  * open children when an epic base is deleted, and wrong-base PRs get base-corrected (Pre-Self-Merge #0).
  *
- * PURE: compares two timestamps the caller fetches — the most-recent `base_ref_changed` timeline event
- * vs the most-recent required-CI (`ci-gate`) completion. The impure timeline/check-run I/O is isolated
- * in the CLI shim so both arms stay unit-testable (t/2971). Timestamps are ISO-8601 UTC ('…Z') from the
- * GitHub API; `new Date(<fixed string>)` is a deterministic parse, not a wall-clock read.
- *   block iff the base changed strictly AFTER the latest CI completed (CI stale for the new base),
- *   OR the base changed but there is no CI at all (nothing evaluated the new base).
+ * PURE: decides from a `base_ref_changed` timestamp and the set of REQUIRED-context runs the caller
+ * fetches. All timeline/run I/O is isolated in the CLI shim so both arms stay unit-testable (t/2971).
+ * Timestamps are ISO-8601 UTC ('…Z') from the GitHub API; `new Date(<fixed string>)` is a deterministic
+ * parse, not a wall-clock read.
+ *
+ * WHY the WORKFLOW-RUN start, NOT `completed_at` and NOT the `ci-gate` check-run's `started_at`
+ * (SO must-fix 1 e/212#2, amended by TL e/212#3): a run's base — the merge ref every job checks out — is
+ * pinned when the WORKFLOW RUN starts, not when it finishes, and not when the aggregator job starts.
+ *   - `completed_at` under-blocks: retarget DURING a run (base moves 17:05, run started 17:00 vs OLD base,
+ *     completes green 17:20) gives `17:05 > 17:20` = false → ALLOW — the exact stale-green merge to stop.
+ *   - the `ci-gate` check-run's `started_at` ALSO under-blocks: `ci-gate` is a ~3s `if: always()`
+ *     aggregator over 18 `needs`, so it starts only AFTER every heavy job finishes (~17:19). `17:05 >=
+ *     17:19` = false → ALLOW. Same stale merge through a guard that reads as fixed.
+ *   - `run_started_at` (~17:00) is the moment the event + merge ref were determined and all jobs pinned
+ *     their checkout. `17:05 >= 17:00` = true → BLOCK. This is the boundary that actually exists.
+ *
+ * EARLIEST-of-latest across required contexts (SO e/212#4, TL e/212#5): "required CI" is THREE contexts
+ * today — `ci-gate`, `joint-gv-guard`, `CodeQL` — each from its OWN workflow run with its own
+ * `run_started_at`. The caller supplies, per required context, the LATEST run's start (a post-retarget
+ * `synchronize` produces fresh runs; latest-per-context lets those clear the guard instead of a stale
+ * predecessor pinning it red forever). This predicate then compares against the EARLIEST of those starts:
+ * a run that started BEFORE the retarget pinned the OLD base, so staleness exists iff ANY required run
+ * started at-or-before `baseChangedAt` — i.e. `baseChangedAt >= min(starts)`. Comparing against the LATEST
+ * would wrongly allow when only one context is stale.
+ *
+ * MISSING-run → BLOCK, never allow (TL e/212#5): a required context can have NO run (CodeQL is
+ * path-filtered — absent, not pending, on #2438). If any required context contributed no start, the set
+ * was only partially evaluated; degrading to allow there is the "verdict narrower than it reads" failure
+ * this whole thread is about. Block with a distinct per-context reason. (Branch protection also blocks an
+ * absent required check, so this is belt-and-suspenders — but the guard must not be the thing that says
+ * "fine" about a set it didn't fully see.) The shim MUST match the exact required-context NAME from branch
+ * protection (`CodeQL`, not the `CodeQL Analysis` sibling check-run).
+ *
+ * Equality resolves to BLOCK (SO must-fix 2): second-granularity timestamps mean equal = ordering UNKNOWN,
+ * and a guard resolves unknown ordering by blocking. Costs are asymmetric: a false block is a ~30s retry;
+ * a false allow is the failure class. Hence `>=`, not `>`.
+ *
+ * @param baseChangedAt  ISO string of the latest `base_ref_changed` timeline event, or null/undefined if
+ *                       the base never changed.
+ * @param requiredRuns   Array of { context, runStartedAt } — one entry PER required context (the shim's
+ *                       job: latest run per context; `runStartedAt` null/absent means no run for it).
  */
-export function baseChangedAfterCiVerdict({ baseChangedAt, latestCiCompletedAt } = {}) {
+export function baseChangedAfterCiVerdict({ baseChangedAt, requiredRuns } = {}) {
   if (!baseChangedAt) return { block: false, reason: 'no-base-change' };
-  if (!latestCiCompletedAt) return { block: true, reason: 'base-changed-no-ci' };
-  if (new Date(baseChangedAt).getTime() > new Date(latestCiCompletedAt).getTime()) {
-    return { block: true, reason: 'base-changed-after-ci' };
+  const runs = Array.isArray(requiredRuns) ? requiredRuns : [];
+  // No required runs at all → nothing evaluated the new base.
+  if (runs.length === 0) return { block: true, reason: 'base-changed-no-required-runs' };
+  // Any required context with no run → block, naming the context (never allow on a partial set).
+  const missing = runs.find((r) => !r || !r.runStartedAt);
+  if (missing) return { block: true, reason: `required-run-missing:${(missing && missing.context) || 'unknown'}` };
+  // Earliest run_started_at across the latest run per required context.
+  const changedMs = new Date(baseChangedAt).getTime();
+  const earliestMs = runs.reduce((min, r) => {
+    const t = new Date(r.runStartedAt).getTime();
+    return t < min ? t : min;
+  }, Infinity);
+  if (changedMs >= earliestMs) {
+    return { block: true, reason: 'base-changed-at-or-after-ci-run-start' };
   }
-  return { block: false, reason: 'ci-after-base-change' };
+  return { block: false, reason: 'ci-run-started-after-base-change' };
 }
 
 // Is this an auto-merge enable of a `gh pr merge`? (reuses the t/3270 --auto detection verbatim)
