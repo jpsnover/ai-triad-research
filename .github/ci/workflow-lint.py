@@ -127,14 +127,34 @@ def lint_file(path, content):
 #       => failure ("empty/malformed declaration"), never a vacuous pass on `types ⊇ {}`
 #       (TL t/3646#3). >1 declaration => failure — the scan is first-match-wins, so a
 #       second would be silently ignored (TL t/3646#1333).
-#   R4  no `concurrency:` with `cancel-in-progress: true` — a `cancelled` conclusion
-#       does not satisfy a required check.
+#       LIMIT (SO e/209#2): R3 asserts `types ⊇ declaration` — CONSISTENCY, not
+#       COMPLETENESS. A declaration that is itself incomplete (author's blind spot)
+#       passes. Catching an incomplete declaration against the code is t/3663.
+#   R4  no `concurrency: cancel-in-progress:` set to anything but the literal `false`.
+#       The old `: true` literal match missed the expression idiom
+#       `${{ github.ref != 'refs/heads/main' }}`, which evaluates true on exactly the PRs
+#       a required context protects (SO/TL e/209). Flag any value that is not `false`.
+#   R5  a reporting job with `if: always()` runs regardless of whether its `needs:` passed,
+#       so it is a false-green unless it (a) asserts over `needs.*.result` AND (b) carries a
+#       co-located `# lint:skipped-tolerated: yes|no <why>` declaration that AGREES with the
+#       gating `if:` (yes => the `if:` must not reference `skipped`; no => it must). The
+#       `skipped`-reference scan is scoped to `^if:` lines ONLY — comments mention `skipped`
+#       all over ci.yml and a body-wide search false-REDs the gate (TL e/209#14). Pairing is
+#       consistency (inherits R3's limit); the structural legit-vs-Arm-E skip discriminator
+#       is t/3663.
 RC_SSOT_PATH = '.github/ci/required-contexts.json'
-# Warn-only until the blocking flip (a separate PR: ≥1 green warn-cycle + drift-guard
-# green on main + live-fire in real CI + Second Opinion). Flip this to True then.
-REQUIRED_CONTEXT_BLOCKING = False
+# BLOCKING as of t/3646 flip (warn-cycle green + drift-guard green on main #2418 + live-fire
+# RED+GREEN in real CI #2430/#2431 + mandatory Second Opinion e/209 with TL sign-off). A
+# required-context violation now reds the workflow-lint job → ci-gate → blocks the PR.
+REQUIRED_CONTEXT_BLOCKING = True
 GATED_EVENTS_RE = re.compile(r'#\s*lint:gated-events:\s*(.*)$')
 ALLOW_IF_RE = re.compile(r'#\s*lint:allow-if:\s*\S')
+# R5(b): `# lint:skipped-tolerated: yes|no <why>` — disposition (group 1) + mandatory reason (group 2).
+SKIPPED_TOL_RE = re.compile(r'#\s*lint:skipped-tolerated:\s*(yes|no)\b(.*)$')
+# Condition 3 (SO/TL e/209) — allow-if ratchet: the committed count of `# lint:allow-if:` exemptions
+# across SSOT workflows. `actual != expected` fails. Baseline 0 today; the FIRST legitimate allow-if
+# must bump this in the same commit (that is the ratchet working as designed, not a bug).
+ALLOW_IF_EXPECTED = 0
 
 
 def _block_end(lines, header_idx, header_indent):
@@ -235,12 +255,14 @@ def check_required_context(path, content, context_name):
                 if missing:
                     errs.append(f'{path}: R3 required context "{context_name}" — pull_request.types is missing declared gated-event(s) {missing} (declared: {gated_decl}, types: {types_list})')
 
-    # R4: no concurrency cancel-in-progress: true (workflow- or job-level)
+    # R4: `cancel-in-progress:` must be the literal `false` (or omitted). The old `: true` match
+    # missed `${{ github.ref != 'refs/heads/main' }}` — true on exactly the protected PRs (e/209).
     for i, ln in enumerate(lines):
-        if re.match(r'^\s*cancel-in-progress\s*:\s*true\b', ln):
-            errs.append(f'{path}:{i + 1}: R4 required context "{context_name}" — `cancel-in-progress: true`; a cancelled run does not satisfy a required check')
+        m = re.match(r'^\s*cancel-in-progress\s*:\s*(.+?)\s*$', ln)
+        if m and m.group(1).strip().strip('\'"') != 'false':
+            errs.append(f'{path}:{i + 1}: R4 required context "{context_name}" — `cancel-in-progress: {m.group(1).strip()}` is not the literal `false`; a cancelled run does not satisfy a required check (the expression form evaluates true on exactly the PRs this protects). Use `cancel-in-progress: false` or omit it.')
 
-    # R2: reporting job (id == context_name) `if:` must be absent or exactly always()
+    # R2 + R5: the reporting job (id == context_name).
     jobs_idx = _find_key(lines, 'jobs', 0)
     if jobs_idx == -1:
         errs.append(f'{path}: required context "{context_name}" — no `jobs:` block')
@@ -250,14 +272,46 @@ def check_required_context(path, content, context_name):
             errs.append(f'{path}: R2 required context "{context_name}" — no job with id "{context_name}" (the check-run name must be a job in this workflow)')
         else:
             job_end = _block_end(lines, job_idx, 2)
+            job_body = lines[job_idx + 1:job_end]
+            # R2: `if:` must be absent or EXACTLY always().
+            job_if_always = False
             if_idx = _find_key(lines, 'if', 4, job_idx + 1, job_end)
             if if_idx != -1:
                 if_val = lines[if_idx].split(':', 1)[1].strip()
-                # strip surrounding quotes / yaml block markers
                 normalized = re.sub(r'\s+', ' ', if_val.strip('\'"').replace('${{', '').replace('}}', '')).strip()
                 has_exemption = any(ALLOW_IF_RE.search(lines[k]) for k in range(job_idx + 1, job_end))
-                if normalized != 'always()' and not has_exemption:
+                if normalized == 'always()':
+                    job_if_always = True
+                elif not has_exemption:
                     errs.append(f'{path}:{if_idx + 1}: R2 required context "{context_name}" — reporting-job `if:` must be absent or EXACTLY `always()` (got `{if_val}`); `always() && X` still skips on the excluded event → context hangs. Add `# lint:allow-if: <reason>` in the job to exempt a deliberate case.')
+
+            # R5: an `if: always()` reporting job runs regardless of `needs:` — false-green unless
+            # (a) it asserts over needs.*.result AND (b) it declares its `skipped` disposition
+            # matching the gating `if:`. (A job with no `if:` runs conditionally on its trigger and
+            # is not this hazard.)
+            if job_if_always:
+                if not any(re.search(r'needs\S*\.result', bl) for bl in job_body):
+                    errs.append(f'{path}: R5 required context "{context_name}" — reporting job is `if: always()` but has NO `needs.*.result` assertion; it reports success regardless of what failed beneath it (permanent false-green). Add a step that fails on needs.*.result.')
+                decl = decl_why = None
+                decl_ln = -1
+                for k in range(job_idx + 1, job_end):
+                    mm = SKIPPED_TOL_RE.search(lines[k])
+                    if mm:
+                        decl, decl_why, decl_ln = mm.group(1), mm.group(2).strip(), k
+                        break
+                if decl is None:
+                    errs.append(f'{path}: R5 required context "{context_name}" — `if: always()` reporting job must carry a co-located `# lint:skipped-tolerated: yes|no <why>` declaration (records + explains whether a skipped need is tolerated).')
+                elif not decl_why:
+                    errs.append(f'{path}:{decl_ln + 1}: R5 required context "{context_name}" — `# lint:skipped-tolerated: {decl}` is missing its required <why> (a disposition with no reason is a checkbox, not a decision).')
+                else:
+                    # Pairing — scope the `skipped` reference to `if:` lines ONLY. Comments mention
+                    # `skipped` throughout ci.yml; a body-wide search would false-RED a `yes` gate and
+                    # block every PR (TL e/209#14). Consistency check (inherits R3's limit).
+                    cond_refs_skipped = any('skipped' in bl for bl in job_body if re.match(r'^\s*if\s*:', bl))
+                    if decl == 'yes' and cond_refs_skipped:
+                        errs.append(f'{path}: R5 required context "{context_name}" — declares `skipped-tolerated: yes` but a gating `if:` references `skipped` (the condition blocks on skip while the declaration says it is tolerated — they disagree).')
+                    elif decl == 'no' and not cond_refs_skipped:
+                        errs.append(f'{path}: R5 required context "{context_name}" — declares `skipped-tolerated: no` but no gating `if:` references `skipped` (a skipped need would pass the gate, contradicting the declaration).')
 
     return errs
 
@@ -371,7 +425,10 @@ jobs:
         "on:\n  pull_request:\n    branches: [main]\n"
         "    # lint:gated-events: opened,synchronize,reopened\n"
         "    types: [opened, synchronize, reopened]\n"
-        "jobs:\n  ci-gate:\n    if: always()\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n"
+        "jobs:\n  ci-gate:\n    if: always()\n"
+        "    # lint:skipped-tolerated: yes — fixture: path-filtered skips are fine\n"
+        "    runs-on: ubuntu-latest\n    steps:\n"
+        "      - name: gate\n        if: contains(needs.*.result, 'failure')\n        run: echo ok\n"
     )
     if check_required_context('rc_ok', rc_ok, 'ci-gate'):
         failures.append(f'RC compliant fixture unexpectedly flagged: {check_required_context("rc_ok", rc_ok, "ci-gate")!r}')
@@ -430,6 +487,50 @@ jobs:
     else:
         print('  PASS: R4 flags cancel-in-progress: true')
 
+    rc_r4x = rc_ok.replace('on:\n', "concurrency:\n  group: g\n  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}\non:\n")
+    if not any('R4' in e for e in check_required_context('rc_r4x', rc_r4x, 'ci-gate')):
+        failures.append('R4 MISSED cancel-in-progress expression form (not literal false)')
+    else:
+        print('  PASS: R4 flags the cancel-in-progress ${{ }} expression form')
+
+    rc_r5a = rc_ok.replace("        if: contains(needs.*.result, 'failure')\n", '')
+    if not any('R5' in e for e in check_required_context('rc_r5a', rc_r5a, 'ci-gate')):
+        failures.append('R5 MISSED an if:always() job with no needs.*.result assertion (false-green)')
+    else:
+        print('  PASS: R5 flags if:always() with no needs.*.result assertion (false-green)')
+
+    rc_r5b = rc_ok.replace('    # lint:skipped-tolerated: yes — fixture: path-filtered skips are fine\n', '')
+    if not any('skipped-tolerated' in e for e in check_required_context('rc_r5b', rc_r5b, 'ci-gate')):
+        failures.append('R5 MISSED a missing skipped-tolerated declaration')
+    else:
+        print('  PASS: R5 flags a missing skipped-tolerated declaration')
+
+    rc_r5why = rc_ok.replace('yes — fixture: path-filtered skips are fine', 'yes')
+    if not any('R5' in e and 'why' in e for e in check_required_context('rc_r5why', rc_r5why, 'ci-gate')):
+        failures.append('R5 MISSED a skipped-tolerated declaration with no <why>')
+    else:
+        print('  PASS: R5 flags a skipped-tolerated declaration missing <why>')
+
+    rc_r5yp = rc_ok.replace("if: contains(needs.*.result, 'failure')", "if: contains(needs.*.result, 'skipped')")
+    if not any('R5' in e and 'disagree' in e for e in check_required_context('rc_r5yp', rc_r5yp, 'ci-gate')):
+        failures.append('R5 MISSED yes-declaration whose gating if: references skipped (pairing disagree)')
+    else:
+        print('  PASS: R5 flags yes-declaration + if:references-skipped (pairing)')
+
+    # TL/SO e/209#14/#1343 — REQUIRED both fixtures. Comments mention `skipped` all over ci.yml;
+    # a body-wide search would false-RED a `yes` gate and block every PR. The `if:`-lines-only scope fixes it.
+    rc_r5cmt = rc_ok.replace("    steps:\n", "    steps:\n      # note: skipped needs are expected here\n")
+    if any('R5' in e for e in check_required_context('rc_r5cmt', rc_r5cmt, 'ci-gate')):
+        failures.append('R5 FALSE-RED on a `skipped` comment in the job body (would block every PR)')
+    else:
+        print('  PASS: R5 ignores a `skipped` comment in the job body (no false-RED)')
+
+    rc_r5no = rc_r5cmt.replace('yes — fixture: path-filtered skips are fine', 'no — fixture: skips NOT tolerated')
+    if not any('R5' in e for e in check_required_context('rc_r5no', rc_r5no, 'ci-gate')):
+        failures.append('R5 FALSE-PASS: `no` declaration but the condition never checks skipped (comment must not satisfy it)')
+    else:
+        print('  PASS: R5 flags `no` whose condition never checks skipped (comment does not satisfy it)')
+
     if failures:
         for f in failures:
             print(f'  FAIL: {f}')
@@ -480,6 +581,26 @@ else:
             errors.extend(_findings)
         else:
             rc_warnings.extend(_findings)
+
+    # Condition 3 (e/209): allow-if ratchet — the committed ALLOW_IF_EXPECTED must equal the actual
+    # count of `# lint:allow-if:` exemptions across required-context workflows. Baseline 0 today;
+    # the first legitimate exemption bumps the constant in the same commit (the ratchet, not a bug).
+    _allow_if_actual = 0
+    for _e in rc_entries:
+        _wf = _e.get('workflow')
+        if not _wf or not _os.path.exists(_wf):
+            continue
+        with open(_wf, encoding='utf-8') as _f:
+            _allow_if_actual += sum(1 for _l in _f if ALLOW_IF_RE.search(_l))
+    if _allow_if_actual != ALLOW_IF_EXPECTED:
+        _msg = (f'{RC_SSOT_PATH}: allow-if ratchet — {_allow_if_actual} `# lint:allow-if:` exemption(s) '
+                f'across required-context workflows but ALLOW_IF_EXPECTED={ALLOW_IF_EXPECTED}. Added a '
+                f'legitimate exemption? bump ALLOW_IF_EXPECTED in the same commit (ratchet, not a bug). '
+                f'Else remove the stray marker.')
+        if REQUIRED_CONTEXT_BLOCKING:
+            errors.append(_msg)
+        else:
+            rc_warnings.append(_msg)
 
 print(f'=== workflow-lint: {len(workflows)} workflows checked ===')
 for e in errors:
