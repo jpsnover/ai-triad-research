@@ -1,12 +1,35 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { useState } from 'react';
+import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useInquiryStore } from '../../hooks/useInquiryStore';
 import { CAMP_LABELS, trustVerdictLabel, isZeroResult } from './inquiryDisplay';
+import { InquiryExportDropdown } from './InquiryExportDropdown';
+import { mapErrorToUserMessage } from '../../utils/errorMessages';
 import './InquiryTab.css';
 
 export function InquiryAnswerPanel() {
   const { status, result, error, terminationReason, reset } = useInquiryStore();
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleExport = async (format: 'pdf' | 'json' | 'markdown') => {
+    if (!result) return;
+    setExportError(null);
+    try {
+      await api.exportInquiryToFile(result, result.request.question, format);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'InquiryAnswerPanel',
+        level: 'error',
+        message: 'Failed to export inquiry answer',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setExportError(mapErrorToUserMessage(err));
+    }
+  };
 
   if (status === 'failed') {
     return (
@@ -39,7 +62,9 @@ export function InquiryAnswerPanel() {
         </div>
         <div className="inquiry-rawrow">
           <button className="inquiry-ghost" onClick={reset}>Ask another question</button>
+          <InquiryExportDropdown onExport={(f) => void handleExport(f)} />
         </div>
+        {exportError && <p className="inquiry-error" role="alert">{exportError}</p>}
       </div>
     );
   }
@@ -146,7 +171,9 @@ export function InquiryAnswerPanel() {
 
       <div className="inquiry-rawrow">
         <button className="inquiry-ghost" onClick={reset}>Ask another question</button>
+        <InquiryExportDropdown onExport={(f) => void handleExport(f)} />
       </div>
+      {exportError && <p className="inquiry-error" role="alert">{exportError}</p>}
     </div>
   );
 }

@@ -51,11 +51,14 @@
 
 .inquiry-hist-table td.col-actions {
   overflow: visible;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .inquiry-hist-table .col-created  { width: 130px; }
 .inquiry-hist-table .col-status   { width: 100px; }
-.inquiry-hist-table .col-actions  { width: 100px; }
+.inquiry-hist-table .col-actions  { width: 180px; }
 .inquiry-hist-table .col-question { /* absorbs remaining width */ }
 
 .inquiry-hist-action-btn {
