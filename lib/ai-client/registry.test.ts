@@ -405,6 +405,41 @@ describe('assertModelConfigValid', () => {
   });
 });
 
+describe('resolveModel fallback WARN (t/3675)', () => {
+  const record = vi.fn<(e: RecordInput) => void>();
+  beforeEach(() => { record.mockClear(); setGlobalRecorder({ record } as unknown as FlightRecorder); });
+  afterEach(() => { clearGlobalRecorder(); });
+
+  const empty: ModelRegistry = { backends: [], models: [] };
+
+  it('an exact registry match does NOT warn', () => {
+    const reg: ModelRegistry = { backends: [], models: [{ id: 'gemini-3.5-flash-lite', apiModelId: 'gemini-3.5-flash-lite', label: 'x', backend: 'gemini' }] };
+    expect(resolveModel(reg, 'gemini-3.5-flash-lite')).toMatchObject({ apiModelId: 'gemini-3.5-flash-lite', backend: 'gemini' });
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('unregistered gemini-prefixed id (the gemini-flash-lite-latest alias case) → prefix passthrough + WARN', () => {
+    // Behaviour is unchanged (verbatim passthrough, gemini backend); the WARN is the only addition.
+    expect(resolveModel(empty, 'gemini-flash-lite-latest')).toEqual({ apiModelId: 'gemini-flash-lite-latest', backend: 'gemini' });
+    expect(record).toHaveBeenCalledTimes(1);
+    const ev = record.mock.calls[0][0];
+    expect(ev.level).toBe('warn');
+    expect(ev.component).toBe('ai-client');
+    expect(ev.message).toContain('gemini-flash-lite-latest');
+    expect(ev.data).toMatchObject({ friendlyId: 'gemini-flash-lite-latest', branch: 'prefix', backend: 'gemini' });
+  });
+
+  it('unregistered non-gemini prefix → prefix branch with the correct backend', () => {
+    expect(resolveModel(empty, 'xai-grok-9')).toEqual({ apiModelId: 'xai-grok-9', backend: 'xai' });
+    expect(record.mock.calls[0][0].data).toMatchObject({ branch: 'prefix', backend: 'xai' });
+  });
+
+  it('unrecognized prefix → default branch, gemini backend', () => {
+    expect(resolveModel(empty, 'totally-made-up-7')).toEqual({ apiModelId: 'totally-made-up-7', backend: 'gemini' });
+    expect(record.mock.calls[0][0].data).toMatchObject({ branch: 'default', backend: 'gemini' });
+  });
+});
+
 describe('moonshot backend routing (t/1945)', () => {
   // The server path (aiBackends.ts generateText) uses the prefix-based
   // resolveBackend(model); without the moonshot branch it fell through to gemini.

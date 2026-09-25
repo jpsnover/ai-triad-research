@@ -62,17 +62,25 @@ export function resolveBackend(model: string): BackendId {
 export function resolveModel(registry: ModelRegistry, friendlyId: string): { apiModelId: string; backend: string; fixedTemperature?: number } {
   const entry = registry.models.find(m => m.id === friendlyId);
   if (entry) return { apiModelId: entry.apiModelId, backend: entry.backend, fixedTemperature: entry.fixedTemperature };
-  if (friendlyId.startsWith('gemini')) return { apiModelId: friendlyId, backend: 'gemini' };
-  if (friendlyId.startsWith('claude')) return { apiModelId: friendlyId, backend: 'claude' };
-  if (friendlyId.startsWith('groq')) return { apiModelId: friendlyId, backend: 'groq' };
-  if (friendlyId.startsWith('openai')) return { apiModelId: friendlyId, backend: 'openai' };
-  if (friendlyId.startsWith('azure')) return { apiModelId: friendlyId, backend: 'azure' };
-  if (friendlyId.startsWith('ollama')) return { apiModelId: friendlyId, backend: 'ollama' };
-  if (friendlyId.startsWith('deepseek')) return { apiModelId: friendlyId, backend: 'deepseek' };
-  if (friendlyId.startsWith('zai')) return { apiModelId: friendlyId, backend: 'zai' };
-  if (friendlyId.startsWith('moonshot')) return { apiModelId: friendlyId, backend: 'moonshot' };
-  if (friendlyId.startsWith('xai')) return { apiModelId: friendlyId, backend: 'xai' };
-  return { apiModelId: friendlyId, backend: 'gemini' };
+
+  // Fallback (t/3675): no exact ai-models.json entry. resolveBackend infers the backend from the id
+  // prefix, defaulting to gemini for an unrecognized prefix; the id is then passed to the provider
+  // VERBATIM as the wire model id. So a typo'd, retired, or vendor-alias id (e.g. `gemini-flash-lite-latest`)
+  // silently becomes a real provider call — and the model actually SERVED is not verified here (that is
+  // t/3677's job, at the response boundary; `resolveModel` runs before the call and can't see `modelVersion`).
+  // Surface that a fallback branch was taken and which one, per the Fallback-Path Logging rule (root
+  // AGENTS.md) — mirrors getModelMinTimeout's registry-miss WARN. Behaviour is unchanged: same apiModelId
+  // passthrough and same backend the explicit branches returned (resolveBackend is their exact equivalent).
+  const backend = resolveBackend(friendlyId);
+  const branch = backend !== 'gemini' || friendlyId.startsWith('gemini') ? 'prefix' : 'default';
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'ai-client',
+    level: 'warn',
+    message: `resolveModel: "${friendlyId}" has no exact ai-models.json entry — resolved by ${branch} to backend '${backend}' and passed through verbatim as the wire model id. The served model is unverified on this path (t/3675; response-boundary identity is t/3677).`,
+    data: { friendlyId, branch, backend },
+  });
+  return { apiModelId: friendlyId, backend };
 }
 
 function baseTimeout(backend: string): number {
