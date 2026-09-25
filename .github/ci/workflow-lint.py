@@ -132,7 +132,7 @@ def lint_file(path, content):
 RC_SSOT_PATH = '.github/ci/required-contexts.json'
 # Warn-only until the blocking flip (a separate PR: ≥1 green warn-cycle + drift-guard
 # green on main + live-fire in real CI + Second Opinion). Flip this to True then.
-REQUIRED_CONTEXT_BLOCKING = False
+REQUIRED_CONTEXT_BLOCKING = True  # THROWAWAY (t3646 live-fire GREEN arm) — never merge
 GATED_EVENTS_RE = re.compile(r'#\s*lint:gated-events:\s*(.*)$')
 ALLOW_IF_RE = re.compile(r'#\s*lint:allow-if:\s*\S')
 
