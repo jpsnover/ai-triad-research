@@ -63,6 +63,35 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # ── record-base-ref (t/3687): retarget stale-green guard sink ──────────────
+  # Records the base ref NAME this workflow ran against as a commit STATUS, so the
+  # pre-self-merge merge-guard can detect a base RETARGET after CI (base-ref-name
+  # identity — timestamps and merge-SHA both failed; see merge-guard-predicate.mjs).
+  # DIAGNOSTIC ONLY — this status must NEVER be added to required contexts (TL p/331):
+  # that would turn a diagnostic into a merge blocker nobody designed. Scoped token
+  # (statuses:write only, not a broadening of the heavy jobs). Posts to the PR HEAD sha,
+  # NOT github.sha — on pull_request github.sha is the merge commit, which GitHub rebuilds
+  # when main advances (the merge-SHA trap, t/3687), orphaning the status for exactly the
+  # long-lived PRs the guard protects. Gated to pull_request (on push, github.base_ref is empty).
+  record-base-ref:
+    name: Record base ref (t/3687)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Post base-ref-record commit status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          gh api --method POST "repos/${REPO}/statuses/${HEAD_SHA}" \
+            -f state=success \
+            -f context="base-ref-record/ci.yml" \
+            -f description="${BASE_REF}"
+
   # ── changes: paths-filter that gates which code jobs run per PR ────────────
   # LOAD-BEARING for branch protection (t/1962). `ci-gate` (below) treats a
   # SKIPPED gated job as satisfied — which is only sound *because this filter is
