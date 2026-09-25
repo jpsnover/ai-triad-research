@@ -7,8 +7,9 @@
 <#
 .SYNOPSIS
     Lint: every model-id literal must name a model registered in ai-models.json.
-    Covers test fixtures (tests/, blocking) and production module source
-    (scripts/AITriad/, WARN-only until the blocking flip is sequenced — t/3560).
+    Covers test fixtures (tests/) and production module source (scripts/AITriad/).
+    BOTH scopes are BLOCKING as of t/3557 condition 5 (production flipped from
+    WARN-only; see the Blocking toggle block below for the promotion evidence).
 
 .DESCRIPTION
     Guards against model-id staleness (t/1850 -> t/1858 -> t/3557): a literal that
@@ -47,10 +48,14 @@
     marker is co-located with the literal per gate-integrity (Sage #20/#46). Do not weaken
     the predicate to make an offender disappear — fix it, repoint it, or mark it with a reason.
 
-    WARN-only vs blocking: production offenders currently WARN (they do not red the gate).
-    Promotion to blocking is a deliberate step the Technical Lead sequences — both arms
-    proven, Gate Verification, and a mandatory Second Opinion (blocking-gate promotion
-    class, root AGENTS.md). Flip $script:ProductionModelLintBlocking to $true to enforce.
+    Blocking: production offenders RED the gate (t/3557 condition 5). They previously only
+    WARNed; the promotion followed the blocking-gate class in root AGENTS.md — both arms
+    proven on the pure predicate, TL Gate Verification (t/3557#8), and a mandatory Second
+    Opinion (e/195#2). Full evidence is co-located at $script:ProductionModelLintBlocking.
+
+    Taking production back to WARN-only is a gate DEMOTION, not a config tweak: record why.
+    The exemption ratchet (fail-on-mismatch, t/3658) and the typed marker grammar both
+    assume enforcement, so a silent demotion leaves them asserting against nothing.
 #>
 
 BeforeAll {
@@ -65,11 +70,24 @@ BeforeAll {
     # is now INVALID (deprecated) — a suppression must name a kind + reason.
     $script:SuppressMarker = '# model-lint:allow-pin'
 
-    # ── Blocking toggle (t/3560) ────────────────────────────────────────────────
-    # Production scope is WARN-only until the TL sequences the blocking promotion
-    # (blocking-gate class -> Second Opinion + Gate Verification, root AGENTS.md).
-    # Flip to $true to make an unregistered production literal fail the gate.
-    $script:ProductionModelLintBlocking = $false
+    # ── Blocking toggle (t/3560; FLIPPED to blocking t/3557 condition 5) ────────
+    # Production scope now BLOCKS: an unregistered production literal reds the gate.
+    #
+    # Promotion evidence (root AGENTS.md blocking-gate class), all satisfied before the flip:
+    #   - Mandatory Second Opinion: e/195#2, approve-with-conditions (6 conditions).
+    #   - Conditions 1-4 landed: typed marker grammar (t/3657/t/3658), exemption ratchet
+    #     with per-kind baseline, registry-unreadable discrimination, and the shared
+    #     conformance corpus with its marker layer WIRED (not skipped) on both sides.
+    #   - TL Gate Verification: t/3557#8.
+    #   - Both arms: the pure predicate below exercises the blocking logic directly, so
+    #     this assertion was never unproven while the toggle sat at $false (t/2971).
+    #   - Live-fire on the real tree with this toggle at $true: 32/32 green, zero
+    #     offenders, ratchet at baseline (pin=12 external=0 nonselect=0) — verified
+    #     BEFORE landing, so the flip could not red main.
+    #
+    # To take production back to WARN-only, flip to $false — but that is a gate
+    # DEMOTION: record why, because the ratchet and the typed grammar assume enforcement.
+    $script:ProductionModelLintBlocking = $true
 
     # tests/ pattern (t/1858): a -Model parameter bound to a literal. Group 2 = id.
     # Leading dash required, so it never matches a `Model = '...'` mock property.

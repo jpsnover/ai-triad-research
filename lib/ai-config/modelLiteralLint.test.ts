@@ -1,9 +1,18 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// Model-literal lint gate (t/3559 Gap B; t/3657 conditions 1-3). WARN-only for now — the blocking flip is
-// TL's separate step (condition 5, Gate-Verification + mandatory SO). Mirrors tests/ModelLiteralLint.Tests.ps1
+// Model-literal lint gate (t/3559 Gap B; t/3657 conditions 1-3). Mirrors tests/ModelLiteralLint.Tests.ps1
 // and shares the conformance corpus (modelLiteralLint.conformance.test.ts).
+//
+// BLOCKING — and it always has been. This header previously read "WARN-only for now — the blocking flip is
+// TL's separate step"; that was never true of this file. The real-tree test below asserts
+// `expect(offenders).toEqual([])` over PRODUCTION_FILES, and this file is a registered $VitestGates entry,
+// so an unresolved production literal has always red CI. There is no toggle on the TS side: unlike PS
+// (which gates on $script:ProductionModelLintBlocking) the assertion is unconditional.
+//
+// Corrected during t/3557 condition 5, found by reading the assertion rather than the comment describing it
+// (root AGENTS.md: verify against the authoritative source, not the artifact that describes it). Promotion
+// evidence for both sides: t/3557#8. Second Opinion clearance: e/195#2.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'fs';
