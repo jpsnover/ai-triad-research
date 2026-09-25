@@ -122,10 +122,11 @@ def lint_file(path, content):
 #       starts with always() yet skips on pull_request → the required context hangs
 #       forever (TL t/3646#2). A genuine `always() && X` must carry a co-located
 #       `# lint:allow-if: <reason>` exemption.
-#   R3  a `# lint:gated-events: <csv>` declaration must be PRESENT and NON-EMPTY, and
-#       `on.pull_request.types` must be a SUPERSET of it. Empty/missing => failure
-#       ("empty/malformed declaration"), never a vacuous pass on `types ⊇ {}` (TL
-#       t/3646#3).
+#   R3  EXACTLY ONE `# lint:gated-events: <csv>` declaration per file, PRESENT and
+#       NON-EMPTY, and `on.pull_request.types` must be a SUPERSET of it. Empty/missing
+#       => failure ("empty/malformed declaration"), never a vacuous pass on `types ⊇ {}`
+#       (TL t/3646#3). >1 declaration => failure — the scan is first-match-wins, so a
+#       second would be silently ignored (TL t/3646#1333).
 #   R4  no `concurrency:` with `cancel-in-progress: true` — a `cancelled` conclusion
 #       does not satisfy a required check.
 RC_SSOT_PATH = '.github/ci/required-contexts.json'
@@ -216,18 +217,18 @@ def check_required_context(path, content, context_name):
         if types_idx != -1:
             val = lines[types_idx].split(':', 1)[1]
             types_list = _parse_inline_list(val)
-        gated_decl = None
-        for ln in lines:
-            m = GATED_EVENTS_RE.search(ln)
-            if m:
-                gated_decl = [x.strip() for x in m.group(1).split(',') if x.strip()]
-                break
-        if gated_decl is None:
-            errs.append(f'{path}: R3 required context "{context_name}" — missing `# lint:gated-events:` declaration (name every event that can change the gated condition)')
-        elif len(gated_decl) == 0:
-            errs.append(f'{path}: R3 required context "{context_name}" — EMPTY `# lint:gated-events:` declaration (asserts nothing; `types ⊇ {{}}` is vacuously true) — list the events explicitly')
+        # Exactly ONE declaration per file. The scan is first-match-wins, so a second
+        # declaration would be SILENTLY ignored (TL t/3646#1333) — flag >1 explicitly.
+        gated_matches = [m for m in (GATED_EVENTS_RE.search(ln) for ln in lines) if m]
+        if len(gated_matches) > 1:
+            errs.append(f'{path}: R3 required context "{context_name}" — {len(gated_matches)} `# lint:gated-events:` declarations found; exactly ONE per file (a second would be silently ignored)')
         else:
-            if types_list is None:
+            gated_decl = [x.strip() for x in gated_matches[0].group(1).split(',') if x.strip()] if gated_matches else None
+            if gated_decl is None:
+                errs.append(f'{path}: R3 required context "{context_name}" — missing `# lint:gated-events:` declaration (name every event that can change the gated condition)')
+            elif len(gated_decl) == 0:
+                errs.append(f'{path}: R3 required context "{context_name}" — EMPTY `# lint:gated-events:` declaration (asserts nothing; `types ⊇ {{}}` is vacuously true) — list the events explicitly')
+            elif types_list is None:
                 errs.append(f'{path}: R3 required context "{context_name}" — `on.pull_request.types` missing or not an inline [..] list; cannot verify it covers the declared gated-events {gated_decl}')
             else:
                 missing = [e for e in gated_decl if e not in types_list]
@@ -415,6 +416,13 @@ jobs:
         failures.append('R3 MISSED a declared gated-event absent from types')
     else:
         print('  PASS: R3 flags a declared event missing from types')
+
+    rc_r3dup = rc_ok.replace('    # lint:gated-events: opened,synchronize,reopened\n',
+                             '    # lint:gated-events: opened,synchronize,reopened\n    # lint:gated-events: opened\n')
+    if not any('declarations' in e for e in check_required_context('rc_r3dup', rc_r3dup, 'ci-gate')):
+        failures.append('R3 MISSED >1 lint:gated-events declarations (silent-second-declaration gap)')
+    else:
+        print('  PASS: R3 flags >1 gated-events declaration (closes the silent-second-decl gap)')
 
     rc_r4 = rc_ok.replace('on:\n', 'concurrency:\n  group: g\n  cancel-in-progress: true\non:\n')
     if not any('R4' in e for e in check_required_context('rc_r4', rc_r4, 'ci-gate')):
