@@ -25,7 +25,7 @@
 import { useEffect, useState } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { PublicInquiryShare } from '@lib/inquiry';
-import { CAMP_LABELS, FIDELITY_LABELS, trustVerdictLabel } from './inquiry/inquiryDisplay';
+import { PublicInquiryShareContent } from './PublicInquiryShareContent';
 import './PublicInquiryView.css';
 
 type LoadState =
@@ -42,13 +42,6 @@ type LoadState =
 export function shareIdFromInquiryPath(pathname: string): string | null {
   const m = pathname.match(/^\/inquiries\/([A-Za-z0-9-]+)\/?$/);
   return m ? m[1] : null;
-}
-
-/** ADR-001 graceful-empty: a terminal share with no substantive content needs its own
- *  treatment, not a blank page that reads as broken (mirrors InquiryAnswerPanel's
- *  isZeroResult, adapted to the narrower public projection). */
-function isZeroShare(doc: PublicInquiryShare): boolean {
-  return doc.campVerdicts.length === 0 && doc.convergences.length === 0 && doc.evidenceLayers.length === 0;
 }
 
 export function PublicInquiryView() {
@@ -129,108 +122,7 @@ export function PublicInquiryView() {
 
   return (
     <div className="pov-inquiry-root">
-      <div className="pov-inquiry-card" aria-label="Shared question">
-        <span className="pov-inquiry-eyebrow">Question</span>
-        <h1 className="pov-inquiry-question">{doc.request.question}</h1>
-
-        {/* Provenance — must-include per SO review (t/3628#2): a reader unfamiliar with the
-            Ask screen must be able to see how this answer was produced. */}
-        <div className="pov-inquiry-prov mono">
-          <span>fidelity <b>{FIDELITY_LABELS[doc.request.fidelity]}</b></span>
-          {Object.entries(doc.derivation.models).map(([role, model]) => (
-            <span key={role}>{role} <b>{model}</b></span>
-          ))}
-          <span><b>{doc.derivation.rounds}</b> rounds</span>
-        </div>
-
-        {isZeroShare(doc) ? (
-          <div className="pov-inquiry-banner pov-inquiry-banner-zero">
-            <span className="pov-inquiry-bi">NO RESULT</span>
-            <p>This run completed without producing camp verdicts, convergences, or evidence.</p>
-          </div>
-        ) : (
-          <>
-            {doc.campVerdicts.length > 0 && (
-              <section className="pov-inquiry-sect">
-                <span className="pov-inquiry-eyebrow">How each camp draws the line</span>
-                <div className="pov-inquiry-camps">
-                  {doc.campVerdicts.map((cv) => (
-                    <div className={`pov-inquiry-camp pov-inquiry-camp-${cv.camp}`} key={cv.camp}>
-                      <div className="pov-inquiry-who">{CAMP_LABELS[cv.camp]}</div>
-                      <p>{cv.verdict}</p>
-                      {cv.nodes.length > 0 && (
-                        <div className="pov-inquiry-nodes mono">{cv.nodes.map((n) => n.label).join(' · ')}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {doc.convergences.map((conv, i) => (
-              <section className="pov-inquiry-conv" key={i}>
-                <span className="pov-inquiry-eyebrow">Where they converged</span>
-                <p>{conv.claim}</p>
-                {conv.nodes.length > 0 && <div className="pov-inquiry-nodes mono">{conv.nodes.map((n) => n.label).join(' · ')}</div>}
-              </section>
-            ))}
-
-            {doc.evidenceLayers.length > 0 && (
-              <section className="pov-inquiry-sect">
-                <span className="pov-inquiry-eyebrow">The layered answer the debate produced</span>
-                <div className="pov-inquiry-layers">
-                  {doc.evidenceLayers.map((layer, i) => (
-                    <div className="pov-inquiry-layer" key={i}>
-                      <span className="pov-inquiry-ln">L{i + 1}</span>
-                      <div>
-                        <h5>{layer.title}</h5>
-                        <p>{layer.role} — {layer.solves}</p>
-                        {layer.sources.length > 0 && <div className="pov-inquiry-src mono">{layer.sources.join(' · ')}</div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {doc.unresolvedGaps.length > 0 && (
-              <section className="pov-inquiry-sect">
-                <span className="pov-inquiry-eyebrow">Unresolved</span>
-                <ul className="pov-inquiry-gaps">
-                  {doc.unresolvedGaps.map((g, i) => <li key={i}>{g.description} <span className="pov-inquiry-faint">({g.confidence})</span></li>)}
-                </ul>
-              </section>
-            )}
-
-            {doc.calibration.length > 0 && (
-              <section className="pov-inquiry-sect">
-                <span className="pov-inquiry-eyebrow">Calibration — every badge generated from the run</span>
-                <div className="pov-inquiry-metrics">
-                  {doc.calibration.map((entry, i) => (
-                    <div className="pov-inquiry-metric" data-t={entry.trust.verdict === 'censored' ? 'bad' : 'ok'} key={i}>
-                      <div className="pov-inquiry-mt">
-                        <span className="pov-inquiry-mn mono">{entry.metric}</span>
-                        <span className={`pov-inquiry-pill ${entry.trust.verdict === 'censored' ? 'bad' : 'ok'}`}>{trustVerdictLabel(entry.trust.verdict)}</span>
-                      </div>
-                      <div className="pov-inquiry-mv mono">{entry.displayValue ?? entry.value}</div>
-                      {/* Renders TrustState.reason verbatim — must-include per SO review (t/3628#2),
-                          never re-derives whether a metric is trustworthy. */}
-                      <div className="pov-inquiry-mr">{entry.trust.reason}</div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
-        )}
-
-        {/* Must-include per SO review (t/3628#2): "one run, not a finding" caveat. */}
-        <div className="pov-inquiry-caveat"><b>One run, not a finding.</b> {doc.singleRunCaveat}</div>
-
-        <footer className="pov-inquiry-footer">
-          <span className="pov-inquiry-brand">AI Triad Research</span>
-        </footer>
-      </div>
+      <PublicInquiryShareContent doc={doc} />
     </div>
   );
 }

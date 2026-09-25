@@ -1009,6 +1009,8 @@ const rawApi: AppAPI = {
   getInquiry: (jobId: string) => get<InquiryStatusResponse>(`/api/inquiry/${encodeURIComponent(jobId)}`),
   listInquiries: () => get<InquiryResultSummary[]>('/api/inquiry'),
   exportInquiryToFile: (result: InquiryResult, title: string, format: 'json' | 'markdown' | 'pdf') => exportInquiryToFileWeb(result, title, format),
+  shareInquiry: (jobId) => post<{ shareId: string; url: string }>(`/api/inquiry/${encodeURIComponent(jobId)}/share`, {}),
+  unshareInquiry: (jobId) => del<{ ok: boolean }>(`/api/inquiry/${encodeURIComponent(jobId)}/share`),
 
   // Brief Export (t/2805, T7) — client of the T6 REST API (server: routes/briefExports.ts).
   createBriefExport: (debateId, body) => post<{ jobId: string }>(`/api/debates/${encodeURIComponent(debateId)}/exports`, body),

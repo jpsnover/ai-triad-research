@@ -507,6 +507,11 @@ export interface AppAPI {
     title: string,
     format: 'json' | 'markdown' | 'pdf',
   ) => Promise<{ cancelled: boolean; filePath?: string }>;
+  /** Public no-login share link (t/3626/t/3653, t/3654). Mirrors shareOpEdSet/unshareOpEdSet
+   *  exactly — desktop rejects (t/3654: hide the Share control on Electron entirely, per
+   *  rejectOpEdIpc precedent — same web-only posture as op-ed sharing). */
+  shareInquiry: (jobId: string) => Promise<{ shareId: string; url: string }>;
+  unshareInquiry: (jobId: string) => Promise<{ ok: boolean }>;
 
   // --- Brief Export (t/2805, T7 — client of the T6 REST API; web-only v1, Electron parity tracked) ---
   createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;
