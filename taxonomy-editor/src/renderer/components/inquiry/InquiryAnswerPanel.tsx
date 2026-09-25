@@ -7,6 +7,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useInquiryStore } from '../../hooks/useInquiryStore';
 import { CAMP_LABELS, trustVerdictLabel, isZeroResult } from './inquiryDisplay';
 import { InquiryExportDropdown } from './InquiryExportDropdown';
+import { InquiryShareControl } from './InquiryShareControl';
 import { mapErrorToUserMessage } from '../../utils/errorMessages';
 import './InquiryTab.css';
 
@@ -99,6 +100,7 @@ export function InquiryAnswerPanel() {
           <button className="inquiry-ghost" onClick={reset}>Ask another question</button>
           <button className="inquiry-ghost" onClick={() => void handleSubmitToCommunity()}>Share to Community</button>
           <InquiryExportDropdown onExport={(f) => void handleExport(f)} />
+          {jobId && <InquiryShareControl jobId={jobId} result={result} />}
         </div>
         {shareStatus && <p className="inquiry-faint">{shareStatus}</p>}
         {exportError && <p className="inquiry-error" role="alert">{exportError}</p>}
@@ -210,6 +212,7 @@ export function InquiryAnswerPanel() {
         <button className="inquiry-ghost" onClick={reset}>Ask another question</button>
         <button className="inquiry-ghost" onClick={() => void handleSubmitToCommunity()}>Share to Community</button>
         <InquiryExportDropdown onExport={(f) => void handleExport(f)} />
+        {jobId && <InquiryShareControl jobId={jobId} result={result} />}
       </div>
       {shareStatus && <p className="inquiry-faint">{shareStatus}</p>}
       {exportError && <p className="inquiry-error" role="alert">{exportError}</p>}
