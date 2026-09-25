@@ -13,7 +13,7 @@ import { z } from 'zod';
  * broke op-ed sharing (t/2986) was this enum missing 'oped' while the TS types
  * already listed it, so a `type: 'oped'` share was rejected at the IPC boundary.
  */
-export const COMMUNITY_SUBMISSION_TYPES = ['chat', 'debate', 'oped'] as const;
+export const COMMUNITY_SUBMISSION_TYPES = ['chat', 'debate', 'oped', 'inquiry'] as const;
 
 export const communitySubmitPayloadSchema = z.object({
   type: z.enum(COMMUNITY_SUBMISSION_TYPES),

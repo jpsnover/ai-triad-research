@@ -50,7 +50,7 @@ export interface CommunityInquiry {
 
 export interface Submission {
   id: string;
-  type: 'chat' | 'debate' | 'oped';
+  type: 'chat' | 'debate' | 'oped' | 'inquiry';
   originalId: string;
   submittedBy: string;
   submittedAt: string;
@@ -72,7 +72,7 @@ interface CommunityStore {
   fetchOpeds: () => Promise<void>;
   fetchInquiries: () => Promise<void>;
   fetchSubmissions: (status?: string) => Promise<void>;
-  submitItem: (type: 'chat' | 'debate' | 'oped', data: unknown, note?: string) => Promise<string>;
+  submitItem: (type: 'chat' | 'debate' | 'oped' | 'inquiry', data: unknown, note?: string) => Promise<string>;
   copyItem: (type: 'chats' | 'debates' | 'opeds' | 'inquiries', communityId: string) => Promise<string>;
   removeItem: (type: 'chats' | 'debates' | 'opeds' | 'inquiries', id: string, reason?: string) => Promise<void>;
   approveSubmission: (id: string) => Promise<void>;
