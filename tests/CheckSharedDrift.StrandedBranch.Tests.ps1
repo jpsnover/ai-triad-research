@@ -117,3 +117,31 @@ Describe 'Resolve-GhFailureReason (t/3652 degradation naming)' -Tag 'devops' {
         Resolve-GhFailureReason -TimedOut $false -ExitCode 1 -OutputText 'some other failure' | Should -Be 'gh-error'
     }
 }
+
+Describe 'check-shared-drift — stranded detection is N/A without a GitHub origin (t/3652)' -Tag 'devops' {
+    # A temp/test repo (or non-GitHub mirror) has no PRs to map — running gh there would just error
+    # into a spurious SKIPPED alarm. The github-origin gate must skip the whole detector so the
+    # status stays OK and the stranded logic never drives the alarm on such a repo.
+    It 'a temp repo with no GitHub origin → StrandedBranchesStatus OK, no findings, no stranded alarm' {
+        $repo = Join-Path ([System.IO.Path]::GetTempPath()) ("strand-nogh-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        New-Item -ItemType Directory -Path $repo -Force | Out-Null
+        Push-Location $repo
+        try {
+            git init -q 2>$null
+            git config user.email t@t 2>$null; git config user.name t 2>$null
+            git config commit.gpgsign false 2>$null
+            'seed' | Out-File -FilePath (Join-Path $repo 'seed.txt') -Encoding utf8
+            git add -A 2>$null; git commit -qm seed 2>$null
+        } finally { Pop-Location }
+        try {
+            $r = & "$PSScriptRoot/../operations/devops/check-shared-drift.ps1" -RepoRoot $repo
+            $r.StrandedBranchesStatus | Should -Be 'OK'
+            @($r.StrandedBranches).Count | Should -Be 0
+            @($r.StrandedBranchesInfo).Count | Should -Be 0
+            # A clean temp repo must not alarm from the stranded detector.
+            $r.Alarm | Should -BeFalse
+        } finally {
+            Remove-Item -LiteralPath $repo -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}

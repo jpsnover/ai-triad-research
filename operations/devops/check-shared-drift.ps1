@@ -253,6 +253,12 @@ try {
     }
     $strandedBranches = @()
     $strandedInfo = @()
+    # Only meaningful against a real GitHub repo. A temp/test repo or non-GitHub mirror has no PRs
+    # to map — running gh there just errors → a spurious SKIPPED alarm (this exact case broke the
+    # ShellFragment clean-tree test). No github origin => detection N/A: leave status OK, no alarm.
+    $originUrl = (Invoke-Git @('-C', $RepoRoot, 'remote', 'get-url', 'origin'))
+    $originUrl = if ($originUrl) { ($originUrl | Select-Object -First 1).Trim() } else { '' }
+    $noGithubRemote = ($originUrl -notmatch 'github\.com')
     # Dismissal allowlist: `branch  # reason` — reason mandatory (t/3557 exemption-ratchet). Blank / full-line `#` ignored.
     $dismissed = @{}
     $dismissFile = Join-Path $RepoRoot 'operations/devops/stranded-branch-dismissals.txt'
@@ -264,7 +270,10 @@ try {
             if ($name) { $dismissed[$name] = $true }
         }
     }
-    if ($result.StrandedBranchesStatus -ne 'OK') {
+    if ($noGithubRemote) {
+        # No GitHub origin (temp/test repo or non-GitHub mirror) — stranded detection is N/A;
+        # no PRs to map. Leave StrandedBranchesStatus='OK', no findings, no alarm.
+    } elseif ($result.StrandedBranchesStatus -ne 'OK') {
         # classifier-unavailable already recorded above — skip the gh/network work entirely
     } elseif (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
         $result.StrandedBranchesStatus = 'SKIPPED-NO-NETWORK'
