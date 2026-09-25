@@ -90,8 +90,8 @@ function isSafeJobId(jobId: string): boolean { return SAFE_JOB_ID_RE.test(jobId)
 function inquiryResultFile(jobId: string): string { return path.join(inquiryResultsDir(), `inquiry-${jobId}.json`); }
 
 function readInquiryIndex(): InquiryResultSummary[] {
-  // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- ENOENT on first run is normal new-user state; [] is the correct baseline, not a degraded fallback
   try { return JSON.parse(fs.readFileSync(path.join(inquiryResultsDir(), INQUIRY_INDEX_FILE), 'utf-8')) as InquiryResultSummary[]; }
+  // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- ENOENT on first run is normal new-user state; [] is the correct baseline, not a degraded fallback
   catch { /* no index yet / unreadable → empty list — silent by design (ADR-003) */ return []; }
 }
 function writeInquiryIndex(entries: InquiryResultSummary[]): void {
@@ -115,8 +115,8 @@ function persistInquiryResult(jobId: string, result: InquiryResult, summary: Inq
 }
 
 function loadPersistedInquiryResult(jobId: string): InquiryResult | null {
-  // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- ENOENT means the result is absent (never run, swept before this feature landed, or unknown id); null is the correct "not found" outcome
   try { return JSON.parse(fs.readFileSync(inquiryResultFile(jobId), 'utf-8')) as InquiryResult; }
+  // eslint-disable-next-line local/require-warn-on-degraded-catch-return -- ENOENT means the result is absent (never run, swept before this feature landed, or unknown id); null is the correct "not found" outcome
   catch { /* result absent → null (get-inquiry surfaces "not found") — silent by design (ADR-003) */ return null; }
 }
 
