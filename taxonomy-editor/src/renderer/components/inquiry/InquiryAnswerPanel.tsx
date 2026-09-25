@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useInquiryStore } from '../../hooks/useInquiryStore';
+import { useDebateStore } from '../../hooks/useDebateStore';
+import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { CAMP_LABELS, trustVerdictLabel, isZeroResult } from './inquiryDisplay';
 import { InquiryExportDropdown } from './InquiryExportDropdown';
 import { InquiryShareControl } from './InquiryShareControl';
@@ -51,6 +53,13 @@ export function InquiryAnswerPanel() {
   const { status, result, error, terminationReason, jobId, reset } = useInquiryStore();
   const [exportError, setExportError] = useState<string | null>(null);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const loadDebate = useDebateStore(s => s.loadDebate);
+  const setActiveTab = useTaxonomyStore(s => s.setActiveTab);
+
+  const handleViewRawRun = async (debateId: string) => {
+    await loadDebate(debateId);
+    setActiveTab('debate');
+  };
 
   const handleExport = async (format: ExportFormat) => {
     if (!result) return;
@@ -101,6 +110,7 @@ export function InquiryAnswerPanel() {
           <button className="inquiry-ghost" onClick={() => void handleSubmitToCommunity()}>Share to Community</button>
           <InquiryExportDropdown onExport={(f) => void handleExport(f)} />
           {jobId && <InquiryShareControl jobId={jobId} result={result} />}
+          {result.debateId && <button className="inquiry-ghost" onClick={() => void handleViewRawRun(result.debateId!)}>View raw run</button>}
         </div>
         {shareStatus && <p className="inquiry-faint">{shareStatus}</p>}
         {exportError && <p className="inquiry-error" role="alert">{exportError}</p>}
@@ -213,6 +223,7 @@ export function InquiryAnswerPanel() {
         <button className="inquiry-ghost" onClick={() => void handleSubmitToCommunity()}>Share to Community</button>
         <InquiryExportDropdown onExport={(f) => void handleExport(f)} />
         {jobId && <InquiryShareControl jobId={jobId} result={result} />}
+        {result.debateId && <button className="inquiry-ghost" onClick={() => void handleViewRawRun(result.debateId!)}>View raw run</button>}
       </div>
       {shareStatus && <p className="inquiry-faint">{shareStatus}</p>}
       {exportError && <p className="inquiry-error" role="alert">{exportError}</p>}
