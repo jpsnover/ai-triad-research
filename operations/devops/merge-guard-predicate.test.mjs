@@ -17,6 +17,7 @@ import {
   parsePrRef,
   buildMergeGuardSinkRecord,
   baseRefStaleVerdict,
+  parseBaseRefRecords,
 } from './merge-guard-predicate.mjs';
 
 // ── t/3687: retarget stale-green guard — baseRefStaleVerdict (base-ref-NAME identity) ──
@@ -97,6 +98,43 @@ test('t/3687 BLOCK: tie at max createdAt with a mismatch → safe side (unknown 
   const v = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: RECORDERS, records });
   assert.equal(v.block, true);
   assert.equal(v.reason, 'base-ref-mismatch:ci.yml');
+});
+
+// ── t/3687: parseBaseRefRecords — commit-statuses payload → records (storage layer, pending TL GV) ──
+// Fixture mirrors the shape of `gh api repos/{o}/{r}/commits/{sha}/statuses`: newest-first list of
+// { context, description, created_at, state }. Only `base-ref-record/<recorder>` contexts are records.
+const STATUSES = [
+  { context: 'base-ref-record/ci.yml', description: 'main', created_at: '2026-09-25T17:40:00Z', state: 'success' },
+  { context: 'ci-gate', description: 'All checks passed', created_at: '2026-09-25T17:41:00Z', state: 'success' }, // foreign — ignored
+  { context: 'base-ref-record/codeql.yml', description: 'epic/x', created_at: '2026-09-25T17:00:00Z', state: 'success' },
+  { context: 'base-ref-record/ci.yml', description: 'epic/x', created_at: '2026-09-25T16:00:00Z', state: 'success' }, // older dup — kept (history)
+];
+test('t/3687 parse: extracts base-ref-record/* statuses to {recorder,baseRef,createdAt}, ignoring foreign contexts', () => {
+  const recs = parseBaseRefRecords(STATUSES);
+  assert.equal(recs.length, 3); // the ci-gate status is not a record
+  assert.deepEqual(recs.find((r) => r.recorder === 'codeql.yml'), { recorder: 'codeql.yml', baseRef: 'epic/x', createdAt: '2026-09-25T17:00:00Z' });
+  assert.equal(recs.filter((r) => r.recorder === 'ci.yml').length, 2); // full history preserved for latest-selection
+});
+test('t/3687 parse: feeds baseRefStaleVerdict end-to-end — latest ci.yml record (main) wins over older (epic/x)', () => {
+  const records = parseBaseRefRecords(STATUSES);
+  // codeql.yml's only record names epic/x → mismatch → block on that recorder
+  const v = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: ['ci.yml', 'codeql.yml'], records });
+  assert.equal(v.block, true);
+  assert.equal(v.reason, 'base-ref-mismatch:codeql.yml');
+  // ci.yml alone: latest is main (17:40) over epic/x (16:00) → that recorder matches
+  const vCi = baseRefStaleVerdict({ currentBaseRefName: 'main', expectedRecorders: ['ci.yml'], records });
+  assert.equal(vCi.block, false);
+});
+test('t/3687 parse: skips a record missing description or created_at (→ missing-record, never silent allow)', () => {
+  const recs = parseBaseRefRecords([
+    { context: 'base-ref-record/ci.yml', description: '', created_at: '2026-09-25T17:00:00Z', state: 'success' },
+    { context: 'base-ref-record/codeql.yml', description: 'main', created_at: null, state: 'success' },
+  ]);
+  assert.equal(recs.length, 0);
+});
+test('t/3687 parse: non-array / empty input → []', () => {
+  assert.deepEqual(parseBaseRefRecords(undefined), []);
+  assert.deepEqual(parseBaseRefRecords([]), []);
 });
 
 const MODULE = fileURLToPath(new URL('./merge-guard-predicate.mjs', import.meta.url));

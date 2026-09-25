@@ -189,6 +189,40 @@ export function baseRefStaleVerdict({ currentBaseRefName, expectedRecorders, rec
   return { block: false, reason: 'all-recorders-match-current-base' };
 }
 
+/**
+ * Pure parser for the base-ref records the impure shim fetches (t/3687).
+ *
+ * RECORD STORAGE (proposed — pending TL Gate-Verification): each instrumented recorder posts a COMMIT
+ * STATUS on the PR head — context `base-ref-record/<recorder>`, description = the `github.base_ref` it ran
+ * against, state `success`. Rationale: commit statuses ACCUMULATE (the `/commits/{sha}/statuses` API
+ * returns full history, each entry carrying `created_at`), so duplicates-per-recorder and latest-by-time
+ * selection fall out for free; posting is a one-liner (`gh api .../statuses -f context=... -f
+ * description=...`); and it's not a required context, so it never gates merge on its own. Chosen over
+ * check-run output (fragile text parsing, and the CodeQL context is app-posted anyway) and job summaries
+ * (not cleanly API-retrievable per run). If TL's GV prefers a different sink, only this parser + the
+ * fetch wrapper change — `baseRefStaleVerdict` is storage-agnostic.
+ *
+ * A `base-ref-record/*` status missing its description or created_at is SKIPPED (unusable) — which
+ * degrades that recorder to `missing-record` → block in the verdict, never to a silent allow.
+ *
+ * @param statuses  array from `gh api repos/{o}/{r}/commits/{sha}/statuses` — { context, description,
+ *                  created_at, state } objects.
+ * @returns array of { recorder, baseRef, createdAt } for every well-formed `base-ref-record/*` status
+ *          (ALL history; `baseRefStaleVerdict` does the latest-per-recorder selection).
+ */
+export function parseBaseRefRecords(statuses) {
+  const arr = Array.isArray(statuses) ? statuses : [];
+  const out = [];
+  for (const s of arr) {
+    if (!s || typeof s.context !== 'string') continue;
+    const m = s.context.match(/^base-ref-record\/(.+)$/);
+    if (!m) continue;
+    if (!s.description || !s.created_at) continue; // no base-ref or no timestamp → unusable, skip (→ missing-record)
+    out.push({ recorder: m[1], baseRef: s.description, createdAt: s.created_at });
+  }
+  return out;
+}
+
 // CLI shim (t/3270#4 / t/3318, TL GV): the feedback rules invoke THIS module directly so the rule
 // runs the exact logic the both-arms test proves — test == runtime. (A hand-copied inline node -e
 // would let a typo in the un-tested copy brick every merge or silently negate the gate; TL's
