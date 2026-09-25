@@ -6,8 +6,12 @@
 // no DELETE /api/inquiry/:jobId route (confirmed against origin/epic/3618-questions-parity) —
 // per ADR-001 graceful-empty, omit the action rather than fake it or silently no-op it.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useInquiryStore } from '../../hooks/useInquiryStore';
+import { InquiryExportDropdown } from './InquiryExportDropdown';
+import { mapErrorToUserMessage } from '../../utils/errorMessages';
 import './InquiryHistoryTable.css';
 
 function formatDate(iso: string): string {
@@ -19,8 +23,30 @@ function formatDate(iso: string): string {
 
 export function InquiryHistoryTable() {
   const { history, historyLoading, historyError, fetchHistory, openFromHistory, closeList } = useInquiryStore();
+  const [rowExportError, setRowExportError] = useState<string | null>(null);
 
   useEffect(() => { void fetchHistory(); }, [fetchHistory]);
+
+  // Row export needs the full InquiryResult — the summary row only carries the list-view
+  // fields (jobId/question/createdAt/truncated), so fetch the full result first (mirrors
+  // openFromHistory's own api.getInquiry call).
+  const handleRowExport = async (jobId: string, question: string, format: 'pdf' | 'json' | 'markdown') => {
+    setRowExportError(null);
+    try {
+      const view = await api.getInquiry(jobId);
+      if (!view.result) throw new Error('This question has no exportable result.');
+      await api.exportInquiryToFile(view.result, question, format);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'InquiryHistoryTable',
+        level: 'error',
+        message: `Failed to export inquiry ${jobId}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setRowExportError(mapErrorToUserMessage(err));
+    }
+  };
 
   return (
     <div className="inquiry-hist">
@@ -28,6 +54,7 @@ export function InquiryHistoryTable() {
         <button className="inquiry-ghost" onClick={closeList}>Back</button>
       </div>
       {historyError && <p className="inquiry-error" role="alert">{historyError}</p>}
+      {rowExportError && <p className="inquiry-error" role="alert">{rowExportError}</p>}
       <div className="inquiry-hist-wrap" role="region" aria-label="My questions table">
         <table className="inquiry-hist-table" role="grid">
           <caption className="sr-only">My Questions</caption>
@@ -71,6 +98,7 @@ export function InquiryHistoryTable() {
                   >
                     Open
                   </button>
+                  <InquiryExportDropdown onExport={(f) => void handleRowExport(h.jobId, h.question, f)} />
                 </td>
               </tr>
             ))}

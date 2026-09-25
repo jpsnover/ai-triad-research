@@ -500,6 +500,13 @@ export interface AppAPI {
   /** "My Questions" history list (t/3620). Desktop may reject until the ElectronMain IPC leg
    *  lands (t/3582 precedent — see electron-bridge.ts's rejectOpEdIpc pattern). */
   listInquiries: () => Promise<InquiryResultSummary[]>;
+  /** Export an inquiry answer as JSON/MD/PDF (t/3624). Desktop rejects until the ElectronMain
+   *  IPC leg lands — no fake success (same precedent as listInquiries above). */
+  exportInquiryToFile: (
+    result: InquiryResult,
+    title: string,
+    format: 'json' | 'markdown' | 'pdf',
+  ) => Promise<{ cancelled: boolean; filePath?: string }>;
 
   // --- Brief Export (t/2805, T7 — client of the T6 REST API; web-only v1, Electron parity tracked) ---
   createBriefExport: (debateId: string, body: BriefExportRequest) => Promise<{ jobId: string }>;

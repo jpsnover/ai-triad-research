@@ -318,6 +318,17 @@ export const api: AppAPI = {
       'Until then, use the web app to browse past questions.',
     ],
   })),
+  // Inquiry export (t/3624) — no ElectronMain IPC leg yet. Rejects rather than faking success,
+  // mirroring listInquiries above / rejectOpEdIpc's desktop-unsupported pattern.
+  exportInquiryToFile: () => Promise.reject(new ActionableError({
+    goal: 'Export inquiry answer',
+    problem: 'The desktop inquiry export backend is not installed in this build.',
+    location: 'electron-bridge.exportInquiryToFile',
+    nextSteps: [
+      'Update to a desktop build that includes the inquiry export IPC handler.',
+      'Until then, use the web app to export questions.',
+    ],
+  })),
 
   // Brief Export — desktop parity via main-process IPC (t/2840). Calls the shared runBriefPipeline
   // in-process; download returns raw bytes wrapped into a Blob (Blob-returning AppAPI in both builds).
