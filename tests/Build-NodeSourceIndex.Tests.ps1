@@ -118,6 +118,21 @@ Describe 'Build-NodeSourceIndex (t/3596)' -Tag 'config' {
         $script:Ix.totals.entries | Should -Be $entryCount
     }
 
+    It 'byLinkSource is counted POST-dedup and sums to entries (t/3596#8 regression)' {
+        # The bug: byLinkSource counted raw pre-dedup links, so its sum exceeded totals.entries.
+        # The fixture has a dedup collision + a doc_position-distinct pair, so pre-dedup != post-dedup.
+        $kp = $script:Ix.totals.byLinkSource.key_point
+        $fc = $script:Ix.totals.byLinkSource.factual_claim
+        ($kp + $fc) | Should -Be $script:Ix.totals.entries
+        # cross-check against the actual emitted entries by link_source
+        $actualKp = 0; $actualFc = 0
+        foreach ($p in $script:Ix.index.PSObject.Properties) {
+            foreach ($e in @($p.Value)) { if ($e.link_source -eq 'key_point') { $actualKp++ } else { $actualFc++ } }
+        }
+        $kp | Should -Be $actualKp
+        $fc | Should -Be $actualFc
+    }
+
     It 'writes byte-identical output on re-run — SO cond 1/3 (determinism)' {
         $first = [System.IO.File]::ReadAllBytes($script:Out)
         $out2 = Join-Path $script:Fx 'source_index_2.json'
