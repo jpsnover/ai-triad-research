@@ -371,6 +371,11 @@
       "license": "MIT"
     },
     {
+      "name": "@types/node",
+      "version": "26.6.2",
+      "license": "MIT"
+    },
+    {
       "name": "@types/react",
       "version": "19.3.0",
       "license": "MIT"
@@ -882,7 +887,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.46.0",
+      "version": "1.47.0",
       "license": "ISC"
     },
     {
@@ -1996,6 +2001,10 @@
           "version": "26.6.1"
         },
         {
+          "name": "@types/node",
+          "version": "26.6.2"
+        },
+        {
           "name": "@types/react",
           "version": "19.3.0"
         },
@@ -2973,7 +2982,7 @@
       "packages": [
         {
           "name": "lucide-react",
-          "version": "1.46.0"
+          "version": "1.47.0"
         }
       ],
       "licenseType": "ISC",
