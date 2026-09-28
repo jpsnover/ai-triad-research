@@ -7,7 +7,7 @@
   "threshold": null,
   "target_fk_grade": [
     9.0,
-    12.0
+    11.0
   ],
   "n_opeds": 32,
   "n_opeds_total_slots": 42,
@@ -28,9 +28,9 @@
       "min": 6.9
     },
     "over_target_fk": {
-      "count": 20,
-      "rate": 0.625,
-      "note": "op-eds above the grade-12 op-ed ceiling"
+      "count": 21,
+      "rate": 0.656,
+      "note": "op-eds above the grade-11 op-ed ceiling"
     },
     "avg_sentence_len": {
       "n": 32,

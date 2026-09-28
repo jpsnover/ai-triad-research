@@ -55,8 +55,10 @@ import statistics
 from collections import Counter, defaultdict
 from typing import Optional
 
-# Op-ed reading-level target (guest essays: NYT/WSJ land ~9-12).
-FK_TARGET_LOW, FK_TARGET_HIGH = 9.0, 12.0
+# Op-ed reading-level target: grade ~10 (PI directive t/3696). The prompt targets
+# FK grade ~10 and no higher than 11, so "over target" counts anything above 11.
+FK_GOAL = 10.0
+FK_TARGET_LOW, FK_TARGET_HIGH = 9.0, 11.0
 
 # Bodies below this word count are empty/degenerate generations (failed or draft
 # slots), NOT op-eds. They are excluded from the readability/coherence stats
