@@ -45,8 +45,12 @@ on:
 
 # The job id below (consult-hold-guard) is the check-run name GitHub reports — the exact string
 # to add to branch protection as a required status context (Jeffrey does that wiring; agents are
-# classifier-blocked from branch-protection changes — t/3680 Constraint A). Until then this runs
-# and reports but blocks nothing (Gate Promotion: >=1 non-blocking green cycle before promotion).
+# classifier-blocked from branch-protection changes — t/3680 Constraint A).
+# STATUS-INDEPENDENT (SO e/219#4): this workflow only COMPUTES and REPORTS the verdict. Whether the
+# context is REQUIRED (i.e. actually blocks a merge) is configured in BRANCH PROTECTION, not here —
+# branch protection is the single source of truth for enforcement. This comment deliberately makes
+# no claim about the current required/not-required state, so it cannot go stale at the flip (the
+# flip is a settings change with no repo edit to prompt a comment update).
 jobs:
   consult-hold-guard:
     runs-on: ubuntu-latest
