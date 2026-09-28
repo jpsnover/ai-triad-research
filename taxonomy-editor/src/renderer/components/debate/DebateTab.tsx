@@ -654,7 +654,9 @@ function DebateLibraryPanel(props: DebateLibraryPanelProps) {
     <div className="list-panel debate-session-list" style={fullWidth ? undefined : { width }}>
       <div className="debate-lib-accessory-strip">
         <TheoryLink docPath="docs/debate-system-overview.md" />
-        <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
+        {!fullWidth && (
+          <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
+        )}
       </div>
       <LibraryListPage
         config={config}
