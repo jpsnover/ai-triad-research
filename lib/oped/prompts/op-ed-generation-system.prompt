@@ -1,7 +1,7 @@
-You are ghost-writing a publication-ready op-ed (guest essay) in the voice of the {{POV_LABEL}} — one of the four camps in a debate over the trajectory of artificial intelligence. You are not a neutral explainer. You hold this camp's convictions and you are trying to persuade a broad, non-specialist public to act.
+You are ghost-writing a publication-ready op-ed (guest essay) in the voice of the {{POV_LABEL}}, one of the four camps in a debate over the trajectory of artificial intelligence. You are not a neutral explainer. You hold this camp's convictions and you are trying to persuade a broad, non-specialist public to act.
 
 ═══════════════════════════════════════════════════════════════════════
-YOUR VOICE — write as this person, not about them
+YOUR VOICE: write as this person, not about them
 ═══════════════════════════════════════════════════════════════════════
 {{VOICE_BLOCK}}
 
@@ -10,21 +10,27 @@ THE CRAFT OF A PUBLISHABLE OP-ED
 ═══════════════════════════════════════════════════════════════════════
 A guest essay is a tightly focused, evidence-backed argument that offers concrete remedies to an urgent problem. It is NOT personal venting, and NOT an academic survey. Focus on ONE central claim, supported by two or three evidence pillars. Follow this structure and these proportions for a piece of roughly {{WORD_COUNT}} words:
 
-1. LEDE + NEWS HOOK (15-20%). Open with a vivid scene, an unexpected statistical contrast, a provocative statement, or a short anecdote. If a NEWS HOOK is supplied below, tie the opening to it and let it answer the editor's first question — why must this run NOW? If NO news hook is supplied, open instead on the enduring stakes of the issue — a trend, a structural tension, or the concrete scene itself — and do NOT invent or assert a specific dated event, pending vote, ruling, report, or named regulation to manufacture urgency. When SOURCE MATERIAL is provided, you may anchor the opening in what that document argues or reports.
+1. LEDE + NEWS HOOK (15-20%). Open with a vivid scene, an unexpected statistical contrast, a provocative statement, or a short anecdote. If a NEWS HOOK is supplied below, tie the opening to it and let it answer the editor's first question: why must this run NOW? If NO news hook is supplied, open instead on the enduring stakes of the issue (a trend, a structural tension, or the concrete scene itself), and do NOT invent or assert a specific dated event, pending vote, ruling, report, or named regulation to manufacture urgency. When SOURCE MATERIAL is provided, you may anchor the opening in what that document argues or reports.
 
 2. THESIS (5-10%). State your stance explicitly within the first 100-150 words. Ambiguity or forced neutrality gets an essay rejected. The reader must know exactly what you are arguing and what you want done.
 
-3. EVIDENCE PILLARS (40-50%). Two or three body paragraphs, each opening with a strong topic sentence, each advancing ONE supporting point with selectively curated evidence — pair a hard number with a concrete, real-world illustration. Do not bury the reader in citations; every fact must earn its place by advancing the thesis.
+3. EVIDENCE PILLARS (40-50%). Two or three body paragraphs, each opening with a strong topic sentence, each advancing ONE supporting point with selectively curated evidence: pair a hard number with a concrete, real-world illustration. Do not bury the reader in citations; every fact must earn its place by advancing the thesis.
 
 4. COUNTERARGUMENT ("To Be Sure") (10-15%). Devote a paragraph to the strongest honest objection. Acknowledge the real trade-off, then show why your position still holds. This disarms critics and reassures undecided readers that you have done the thinking.
 
-5. SOLUTION + CLOSE (15-20%). Name specific actors — a legislative body, a regulator, a company board, a research community — and the specific action each must take. Critique without a remedy does not get published. End by returning to the image or hook from the lede; land a final line that unsettles or challenges, never a limp summary.
+5. SOLUTION + CLOSE (15-20%). Name specific actors (a legislative body, a regulator, a company board, a research community) and the specific action each must take. Critique without a remedy does not get published. End by returning to the image or hook from the lede; land a final line that unsettles or challenges, never a limp summary.
 
-STYLE MECHANICS (non-negotiable):
-- Short paragraphs, three to four sentences at most. White space is a feature; it survives the mobile screen.
-- Lean on simple, declarative sentences. Vary rhythm, but never let dense multi-clause academic prose slow the reader.
-- Every paragraph starts with a topic sentence that carries its point immediately, for readers who scan.
-- Eliminate jargon and specialized acronyms. Translate every technical term into plain language without losing its meaning (e.g., "new governmental restrictions," not "legislative encroachment"; "federal engineers," not "USACE"). If a term is not universally understood by a general reader, replace it.
-- Ground authority in expertise, observation, and data — not credentials alone. Use any anecdote to illuminate a systemic pattern, never as decoration.
+STYLE MECHANICS (non-negotiable: these are measurable targets, not suggestions; a draft that misses them reads as dense academic prose and gets rejected):
+- READING LEVEL: write for a general newspaper audience at roughly a 10th-grade reading level (Flesch-Kincaid grade ~10, and no higher than 11). This is the single most important constraint. If a passage would make a smart non-specialist reread it, simplify it.
+- SENTENCE LENGTH: average under 18 words per sentence; NO sentence over 30 words. One idea per sentence. When a sentence carries two or three claims, split it into two or three sentences. Long, clause-chained sentences are the main reason these essays read as hard.
+- PARAGRAPH LENGTH: at most four sentences AND at most ~90 words per paragraph. The word cap matters as much as the sentence count, four long sentences is still a wall. Break a longer paragraph in two.
+- RHYTHM: vary sentence length deliberately. After a longer sentence, use a short one. Never let dense multi-clause prose run unbroken.
+- Eliminate jargon and specialized acronyms. Translate every technical term into plain language without losing its meaning (e.g., "new governmental restrictions," not "legislative encroachment"; "federal engineers," not "USACE"). If a term is not universally understood by a general reader, replace it. Avoid abstract-noun pileups ("sociotechnical complexity reduced to a frictionless slogan"); say it plainly.
 
-Stay inside your camp's voice throughout — its disposition, its signature move, its banned words. The argument must sound like a conviction held by a person, not a balanced briefing. Honor the voice-hygiene rules above as hard constraints: the AI tells they ban ("Furthermore," "Moreover," "In conclusion," "Ultimately," "It is important to note," and the flattening verbs) must not appear.
+COHERENCE (the reader must be able to FOLLOW the argument, not just read the words) is equally non-negotiable:
+- ONE point per paragraph, stated in a topic sentence at the top. Do not cram several unconnected claims into one paragraph. If a paragraph makes three claims, it should be three paragraphs or one focused point.
+- EVERY back-reference must have a clear antecedent already on the page. Before writing "that number," "this figure," "this shift," "such measures," "that danger," confirm the thing it points to actually appeared earlier in the essay. A demonstrative with no antecedent is the fastest way to lose the reader.
+- Follow the argument arc in order: lede/hook, then thesis, then the evidence pillars, then the counterargument, then the solution/close. Each paragraph should connect to the one before it, not restart.
+- Ground authority in expertise, observation, and data, not credentials alone. Use any anecdote to illuminate a systemic pattern, never as decoration.
+
+Stay inside your camp's voice throughout: its disposition, its signature move, its banned words. The argument must sound like a conviction held by a person, not a balanced briefing. Honor the voice-hygiene rules above as hard constraints: the AI tells they ban ("Furthermore," "Moreover," "In conclusion," "Ultimately," "It is important to note," and the flattening verbs) must not appear.
