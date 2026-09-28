@@ -2,13 +2,12 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 // Debates' config object for the shared LibraryListPage (t/3705, parent t/3702). Pure config +
-// pure helper functions only — DebateTab.tsx wires this into <LibraryListPage> once the shared
-// component itself lands (t/3703 has shipped only LibraryListPage.types.ts so far).
+// pure helper functions only — DebateTab.tsx wires this into <LibraryListPage>.
 //
 // Status-token mapping and column set are per TL/Design rulings on t/3705 (#2, #3, #4):
-// 7 DebateTable phases collapse to 5 status tokens; `cancelled` is a distinct token (hollow ring
-// + literal "CANCELLED" label text, not a struck-through "CLOSED" — strikethrough decoration
-// alone isn't reliably announced by screen readers, so the accessible name must carry it).
+// the old DebateTable's 7 phases collapse to 5 status tokens; `cancelled` is a distinct token
+// (hollow ring + literal "CANCELLED" label text, not a struck-through "CLOSED" — strikethrough
+// decoration alone isn't reliably announced by screen readers, so the accessible name must carry it).
 
 import type {
   LibraryColumn,
@@ -17,7 +16,7 @@ import type {
   LibraryRowEditAction,
   LibraryVariant,
 } from '../shared/LibraryListPage.types';
-import type { SessionRowData } from './DebateTable';
+import type { SessionRowData } from './debateSessionTypes';
 import type { CommunityDebate } from '../../hooks/useCommunityStore';
 import { filterCommunityDebates } from './communityFilter';
 import './debateLibraryConfig.css';

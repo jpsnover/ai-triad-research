@@ -10,7 +10,7 @@ import {
   formatDebateDate,
   DEBATE_COLUMNS,
 } from './debateLibraryConfig';
-import type { SessionRowData } from './DebateTable';
+import type { SessionRowData } from './debateSessionTypes';
 import type { CommunityDebate } from '../../hooks/useCommunityStore';
 
 describe('debatePhaseToStatusToken', () => {
