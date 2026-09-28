@@ -88,7 +88,7 @@ import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead, type LookaheadDiagnostics } from './lookaheadGate.js';
 import { runOvergenPipeline, type OvergenDiagnostics } from './overgenPipeline.js';
 import { classifyTopicComplexity, extractTopicStructure } from './topicStructure.js';
-import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir, loadSituationStatements } from './taxonomyLoader.js';
+import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir, loadSituationStatements, loadConflicts } from './taxonomyLoader.js';
 import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux, finalizeUndecidedCruxes } from './cruxResolution.js';
 import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
 import { findAndEnrichPromotionCandidates, computeWeightAdjustments, weightAdjustmentsToProposals } from './cruxTaxonomyFeedback.js';
@@ -641,6 +641,8 @@ export class DebateEngine {
       }
 
       const weights = loadProvisionalWeights();
+      const repoRoot = resolveRepoRoot(path.dirname(fileURLToPath(import.meta.url)));
+      const dataRoot = resolveDataRoot(repoRoot), conflicts = loadConflicts(repoRoot);
       const dataPoint = extractCalibrationData(this.session, 'local', {
         argumentationExitThreshold: weights.thresholds.argumentation_exit,
         relevanceThreshold: DEFAULT_RELEVANCE_THRESHOLD,
@@ -650,13 +652,11 @@ export class DebateEngine {
         explorationSummary: this.config.explorationSummary,
         docMeta: this.docTitles,
         insularityInterventions: this._insularityInterventions.length > 0 ? this._insularityInterventions : undefined,
+        conflicts,
       });
       if (this._overgenCoherenceGateMiss) {
         dataPoint.coherence_gate_miss = true;
       }
-      const __engineDir = path.dirname(fileURLToPath(import.meta.url));
-      const repoRoot = resolveRepoRoot(__engineDir);
-      const dataRoot = resolveDataRoot(repoRoot);
       appendCalibrationLog(dataPoint, this.config.calibrationDataRoot ?? dataRoot);
 
       // Post-debate adaptive threshold write-back

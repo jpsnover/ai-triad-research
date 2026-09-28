@@ -20,6 +20,10 @@ import { meanSentenceLength, lexicalDiversity, jargonDensity } from '../clarityM
 import { computeAffectIntensity, computeAffectProfile, computeAffectAppropriateness, AFFECT_CATEGORIES } from '../affectSignals.js';
 import type { AffectProfile } from '../affectSignals.js';
 import { computeCampInsularityRate } from '../schemeStagnation.js';
+import type { ConflictFile } from '../taxonomyLoader.js';
+import type { ConvergenceSignals } from '../types/convergence.js';
+import { extractCrossAgentOppositions } from '../aif/caExtraction.js';
+import type { AifB5Metrics } from './schema.js';
 
 type ArgNetwork = DebateSession['argument_network'];
 
@@ -987,5 +991,67 @@ export function computeFrameSurvivalMetrics(
     frameCruxAlignment,
     frameReframeTargetedCount,
     frameSurvival,
+  };
+}
+
+// ── AIF B5 metrics (t/3715) ────────────────────────────────────────────────
+
+/** Version string — bump when the metric definition changes (AC5). */
+export const AIF_B5_METRIC_DEF_VERSION = 'aif-b5-v1';
+
+/**
+ * Compute AIF B5 metrics: crux-from-AIF (spec §1) + 2-signal convergence_score (spec §2).
+ * Provisional / shadow only — AC6, gates nothing.
+ *
+ * crux_count / crux_set: sustained cross-agent CA-nodes (opposition recurring across ≥2 rounds).
+ * convergence_score: 0.5 * Signal_A + 0.5 * Signal_B — stipulated equal weighting (no empirical
+ * basis; declared stipulated in register per AC5). Null when total_turns = 0 (no valid denominator).
+ */
+export function computeAifB5Metrics(
+  nodes: ArgumentNetworkNode[],
+  conflicts: readonly ConflictFile[],
+  convergenceSignals: ConvergenceSignals[] | undefined,
+): AifB5Metrics {
+  // ── crux-from-AIF ──────────────────────────────────────────
+  const { oppositions } = extractCrossAgentOppositions(nodes, conflicts);
+
+  // Build nodeId → round (turn_number) lookup.
+  const nodeRound = new Map<string, number>(nodes.map(n => [n.id, n.turn_number]));
+
+  // Group oppositions by conflictClaimId; collect distinct rounds from both endpoints.
+  const roundsByConflict = new Map<string, Set<number>>();
+  for (const opp of oppositions) {
+    let rounds = roundsByConflict.get(opp.conflictClaimId);
+    if (!rounds) { rounds = new Set(); roundsByConflict.set(opp.conflictClaimId, rounds); }
+    const ra = nodeRound.get(opp.attackerNodeId);
+    const rt = nodeRound.get(opp.targetNodeId);
+    if (ra != null) rounds.add(ra);
+    if (rt != null) rounds.add(rt);
+  }
+
+  // A CA-node is a crux iff its opposition spans ≥2 distinct rounds (sustained).
+  const cruxSet: string[] = [];
+  for (const [conflictId, rounds] of roundsByConflict) {
+    if (rounds.size >= 2) cruxSet.push(conflictId);
+  }
+
+  // ── 2-signal convergence_score ─────────────────────────────
+  // Guard: null when no signals (total_turns = 0 → no valid denominator; never NaN).
+  const totalTurns = convergenceSignals?.length ?? 0;
+  let convergenceScore: number | null = null;
+  if (totalTurns > 0) {
+    const signals = convergenceSignals!;
+    const taken = signals.filter(s => s.concession_opportunity.outcome === 'taken').length;
+    const missed = signals.filter(s => s.concession_opportunity.outcome === 'missed').length;
+    const signalA = taken / totalTurns;          // concession accumulation (rising)
+    const signalB = 1 - missed / totalTurns;     // retained-hold reduction (falling)
+    convergenceScore = Math.round((0.5 * signalA + 0.5 * signalB) * 1000) / 1000;
+  }
+
+  return {
+    metric_def_version: AIF_B5_METRIC_DEF_VERSION,
+    crux_count: cruxSet.length,
+    crux_set: cruxSet,
+    convergence_score: convergenceScore,
   };
 }

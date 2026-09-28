@@ -16,6 +16,7 @@ import type { NeutralEvaluation } from '../neutralEvaluator.js';
 import { classifyClaimOutcomes, summarizeOutcomes } from '../claimOutcomes.js';
 import { computeSourceAuthority } from '../sourceAuthority.js';
 import type { DocMetaMap } from '../evidenceFromSummaries.js';
+import type { ConflictFile } from '../taxonomyLoader.js';
 import { PROMPT_VERSION } from '../prompts.js';
 import { DEFAULT_ATTACK_WEIGHTS } from '../qbaf.js';
 import { POLARITY_RESOLVED_THRESHOLD, SEMANTIC_RECYCLING_THRESHOLD, ATTACK_DEDUP_THRESHOLD } from '../constants.js';
@@ -40,6 +41,7 @@ import {
   computeLocalSufficiency,
   computeCruxSemanticDivergence,
   computeFrameSurvivalMetrics,
+  computeAifB5Metrics,
 } from './extract-metrics.js';
 
 // ── Shared types ─────────────────────────────────────────────
@@ -107,6 +109,7 @@ export function extractCalibrationData(
     explorationSummary?: import('../explorationSummary.js').ExplorationSummary;
     docMeta?: DocMetaMap;
     insularityInterventions?: { speaker: string; round: number; injected_node_id: string; target_camp: string }[];
+    conflicts?: readonly ConflictFile[];
   } = {},
 ): CalibrationDataPoint {
   const now = new Date().toISOString();
@@ -901,5 +904,12 @@ export function extractCalibrationData(
     drift_telemetry_series: session.drift_telemetry && session.drift_telemetry.length > 0
       ? session.drift_telemetry
       : null,
+
+    // ── AIF B5 metrics (t/3715) ─────────────────────────────
+    aif_b5_metrics: (() => {
+      const nodes = an?.nodes ?? [];
+      if (nodes.length === 0 || !config.conflicts) return null;
+      return computeAifB5Metrics(nodes, config.conflicts, session.convergence_signals);
+    })(),
   };
 }
