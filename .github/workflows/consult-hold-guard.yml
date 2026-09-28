@@ -1,9 +1,17 @@
 # consult-hold-guard — dedicated required status context that BLOCKS a merge while a
 # `consult-hold` label is present (t/3680). This is the ENFORCEMENT half of the consult/
 # review-hold discipline: a hold recorded in a PR comment (the landed 89b26d41 practice) is
-# ADVISORY and stops nothing. This makes the hold block at the merge button REGARDLESS of who
-# or what initiates the merge — human, agent, or the server-side auto-merge automation (t/3716)
-# — because the refusal is GitHub's, not an agent-side hook's.
+# ADVISORY and stops nothing. This makes the hold block at the merge button for every merge path
+# SUBJECT TO BRANCH PROTECTION — human, agent, and GitHub's server-side auto-merge alike (t/3716;
+# auto-merge honors required contexts by construction) — because the refusal is GitHub's, not an
+# agent-side hook's. HONEST SCOPE (SO e/219#2, risk 2): it does NOT bind an admin-token DIRECT
+# merge (`PUT /pulls/{n}/merge`). `enforce_admins` is deliberately `false` so a sustained-outage
+# fail-closed keeps a human escape hatch — and that same setting means an admin-token direct merge
+# bypasses EVERY required context, this one included, exactly as it bypasses ci-gate. You cannot
+# have both the escape and the admin-bind; keeping the escape is the deliberate choice. Whether the
+# gap matters for t/3716 turns on the automation's merge method — GitHub auto-merge (honored → this
+# guard blocks it) vs admin-token direct merge (bypassed) — which the condition-1 end-to-end
+# merge-refusal proof settles empirically (t/3680).
 #
 # WHY NOT A FEEDBACK RULE (t/3680#3): a PreToolUse feedback rule intercepts an AGENT'S tool
 # call. The automation merges SERVER-SIDE through the GitHub API and never passes through
@@ -37,8 +45,12 @@ on:
 
 # The job id below (consult-hold-guard) is the check-run name GitHub reports — the exact string
 # to add to branch protection as a required status context (Jeffrey does that wiring; agents are
-# classifier-blocked from branch-protection changes — t/3680 Constraint A). Until then this runs
-# and reports but blocks nothing (Gate Promotion: >=1 non-blocking green cycle before promotion).
+# classifier-blocked from branch-protection changes — t/3680 Constraint A).
+# STATUS-INDEPENDENT (SO e/219#4): this workflow only COMPUTES and REPORTS the verdict. Whether the
+# context is REQUIRED (i.e. actually blocks a merge) is configured in BRANCH PROTECTION, not here —
+# branch protection is the single source of truth for enforcement. This comment deliberately makes
+# no claim about the current required/not-required state, so it cannot go stale at the flip (the
+# flip is a settings change with no repo edit to prompt a comment update).
 jobs:
   consult-hold-guard:
     runs-on: ubuntu-latest
