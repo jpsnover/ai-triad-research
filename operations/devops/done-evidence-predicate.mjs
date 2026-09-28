@@ -60,8 +60,9 @@ export function normalizeTicketKey(raw) {
 /**
  * PURE aggregation of committed evidence across the fleet's two git repos (t/3360#5).
  * Injectable seams keep it unit-testable without real git (test == runtime):
- *   - runGit(dir)   → number of origin/main commits in `dir` whose message references the key,
- *                     AFTER refreshing the remote ref (see the shim: fetch-before-grep, SO cond 1);
+ *   - runGit(dir)   → number of origin/main commits in `dir` whose message references the key. The shim
+ *                     greps the existing ref FIRST and only fetches when that grep is empty — i.e. only
+ *                     on the about-to-block path (grep-first / fetch-only-before-block, SO e/217#46);
  *                     throws on a real git error (fetch OR log).
  *   - existsDir(dir)→ whether the repo path is present.
  *   - warn(info)    → observability sink for every FAIL-OPEN pass (SO cond 3 + the project's
@@ -142,20 +143,30 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('done-eviden
         }
       },
       runGit: (d) => {
-        // Ref freshness (SO cond 1, e/146#2): refresh origin/main BEFORE grepping, else the most common
-        // happy path — merge PR then transition Done immediately — false-blocks on a local origin/main
-        // ref that predates the just-merged commit. Surgical single-ref fetch (not a full `fetch origin`)
-        // with a short timeout; a fetch failure THROWS → the leg fails-open (SO: fetch → fail-open),
+        // Grep-first, fetch-only-before-block (SO e/217#46 — supersedes the fetch-before-grep of e/146#2).
+        // Check the EXISTING origin/main ref first with NO network: if a referencing commit is already
+        // visible, allow immediately (sub-second). Only when the grep finds nothing — i.e. the predicate
+        // is about to BLOCK — refresh origin/main and re-grep, because that is the only path where ref-
+        // staleness causes a FALSE BLOCK (the modal merge-PR-then-mark-Done flow lands the commit
+        // server-side with no local fetch, so origin/main provably lags at the instant of the transition).
+        // Preserves the fetch-before-block guarantee; stops paying ~5.6s of network on the common
+        // evidence-present path. A fetch OR log failure THROWS → the leg fails-open (SO: fetch → fail-open),
         // which countEvidenceAcrossRepos records via warn().
+        const grep = () =>
+          execFileSync('git', ['-C', d, 'log', 'origin/main', `--grep=${key}`, '--oneline'], {
+            encoding: 'utf8',
+            timeout: 10000,
+          })
+            .split(/\r?\n/)
+            .filter((l) => l.trim()).length;
+        const local = grep();
+        if (local > 0) return local; // evidence already visible → allow, no network, no fetch
+        // No local evidence → the only path that risks a false block. Refresh origin/main, then re-grep.
         execFileSync('git', ['-C', d, 'fetch', 'origin', '+refs/heads/main:refs/remotes/origin/main', '--quiet'], {
-          timeout: 8000,
+          timeout: 15000,
           stdio: 'ignore',
         });
-        const out = execFileSync('git', ['-C', d, 'log', 'origin/main', `--grep=${key}`, '--oneline'], {
-          encoding: 'utf8',
-          timeout: 8000,
-        });
-        return out.split(/\r?\n/).filter((l) => l.trim()).length;
+        return grep();
       },
       // Fallback-Path Logging (SO cond 3): make every fail-open VISIBLE. NOTE (t/3394): the platform
       // execution-telemetry writer is DEAD since the late-May Orca update — stderr lands nowhere
