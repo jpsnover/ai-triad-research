@@ -14,7 +14,7 @@ import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef, EditingMeta } f
 import { resolveOutletBand } from './outletBands.js';
 import { loadAndAssemblePrompt, assembleReflectionPrompt, assembleSourceBriefPrompt, assembleReadabilityEditPrompt, type SourceBrief } from './promptLoader.js';
 import { FABRICATED_LEDE_GUARD } from './opedGuards.js';
-import { measureReadability, needsEdit, buildViolationsText, findIntroducedTells } from './readabilityMeasure.js';
+import { measureReadability, needsEdit, buildViolationsText, findIntroducedTells, splitLongParagraphs } from './readabilityMeasure.js';
 
 // ── Public request / deps types ───────────────────────────────────────────────
 
@@ -371,11 +371,22 @@ async function runVoiceGeneration(
             }
 
             finalBody = chosenBody;
-            const afterChecks = measureReadability(chosenBody);
+            let afterChecks = measureReadability(chosenBody);
             const failedChecks: string[] = [];
             if (afterChecks.fkGrade > 11) failedChecks.push(`fk_grade=${afterChecks.fkGrade.toFixed(1)}`);
             if (afterChecks.maxParaWords > 90) failedChecks.push(`max_para_words=${afterChecks.maxParaWords}`);
             if (afterChecks.maxSentWords > 30) failedChecks.push(`max_sent_words=${afterChecks.maxSentWords}`);
+
+            // Deterministic post-split backstop (t/3710): if the LLM edit pass still leaves an
+            // over-long paragraph, split it at sentence boundaries and re-measure.
+            if (afterChecks.maxParaWords > 90) {
+              finalBody = splitLongParagraphs(finalBody);
+              afterChecks = measureReadability(finalBody);
+              failedChecks.length = 0;
+              if (afterChecks.fkGrade > 11) failedChecks.push(`fk_grade=${afterChecks.fkGrade.toFixed(1)}`);
+              if (afterChecks.maxParaWords > 90) failedChecks.push(`max_para_words=${afterChecks.maxParaWords}`);
+              if (afterChecks.maxSentWords > 30) failedChecks.push(`max_sent_words=${afterChecks.maxSentWords}`);
+            }
 
             if (failedChecks.length > 0) {
               deps.recorder?.record({
