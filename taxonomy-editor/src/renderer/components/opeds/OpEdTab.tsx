@@ -13,17 +13,38 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api, isElectronMode } from '@bridge';
-import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { useOpEdStore } from '../../hooks/useOpEdStore';
 import { useCommunityStore } from '../../hooks/useCommunityStore';
 import type { OpEdSet, OpEdSetSummary, OpEdCommunityEntry } from '../../../../../lib/oped/types';
 import { mapErrorToUserMessage } from '../../utils/errorMessages';
-import { OpEdTable } from './OpEdTable';
+import { LibraryListPage } from '../shared/LibraryListPage';
+import type { LibraryListPageConfig, LibraryVariant } from '../shared/LibraryListPage.types';
+import { OpEdCampTags } from './OpEdCampTags';
 import { OpEdReader } from './OpEdReader';
 import { NewOpEdDialog } from './NewOpEdDialog';
 import { opedRoutePath, navigateTo, replaceRoute } from '../../routing/appRoutes';
 import './OpEdTab.css';
+
+// LibraryListPage requires `{ id: string }`; OpEdSetSummary's own key is `set_id`. Adapter, not
+// a new domain type — every field beyond `id` is still the real OpEdSetSummary.
+type OpEdMyLibRow = OpEdSetSummary & { id: string };
+type OpEdCommunityLibRow = OpEdCommunityEntry;
+
+// Exported for unit testing (t/3703 LibraryListPage adoption).
+export function opEdLibDate(row: OpEdMyLibRow | OpEdCommunityLibRow, variant: LibraryVariant): string {
+  return variant === 'my' ? row.created_at : ((row as OpEdCommunityLibRow).updated_at ?? row.created_at);
+}
+
+export function formatLibDate(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+}
+
+export function opEdCommunityAuthor(entry: OpEdCommunityEntry): string | undefined {
+  return (entry.community_metadata as { submitted_by_display?: string } | undefined)?.submitted_by_display;
+}
 
 function recordError(component: string, message: string, err: unknown): void {
   getGlobalRecorder()?.record({
@@ -98,64 +119,6 @@ export function exportOpEdSet(set: OpEdSet, format: string): void {
   if (format === 'json') downloadFile(`${slugify(set.topic)}.json`, JSON.stringify(set, null, 2), 'application/json');
   else if (format === 'text') downloadFile(`${slugify(set.topic)}.txt`, buildOpEdText(set), 'text/plain');
   else downloadFile(`${slugify(set.topic)}.md`, buildOpEdMarkdown(set), 'text/markdown');
-}
-
-function filterSets(sets: OpEdSetSummary[], q: string): OpEdSetSummary[] {
-  if (!q) return sets;
-  // Index rows carry no bodies/headlines — filter on topic only (t/2605).
-  return sets.filter(s => !q || (s.topic?.toLowerCase().includes(q) ?? false));
-}
-
-function filterCommunity(entries: OpEdCommunityEntry[], q: string): OpEdCommunityEntry[] {
-  if (!q) return entries;
-  return entries.filter(c => !q || (c.topic?.toLowerCase().includes(q) ?? false));
-}
-
-// ── Header actions (Edit / bulk-delete / disabled + New) ──────────────────────
-
-function OpEdHeaderActions({
-  listView, editMode, hasSets, selectedCount, hasCustomOrder,
-  onBulkDelete, onClearSelected, onResetOrder, onExitEdit, onEnterEdit, onNew,
-}: {
-  listView: 'my' | 'community';
-  editMode: boolean;
-  hasSets: boolean;
-  selectedCount: number;
-  hasCustomOrder: boolean;
-  onBulkDelete: () => void;
-  onClearSelected: () => void;
-  onResetOrder: () => void;
-  onExitEdit: () => void;
-  onEnterEdit: () => void;
-  onNew: () => void;
-}) {
-  if (listView !== 'my') return null;
-  if (editMode) {
-    return (
-      <div className="list-panel-header-actions">
-        {selectedCount > 0 && (
-          <button className="btn btn-sm btn-danger" onClick={onBulkDelete}>Delete {selectedCount}</button>
-        )}
-        <button className="btn btn-sm btn-ghost" onClick={onClearSelected}>None</button>
-        {hasCustomOrder && (
-          <button className="btn btn-sm btn-ghost" onClick={onResetOrder} title="Reset to default sort order">Reset Order</button>
-        )}
-        <button className="btn btn-sm btn-ghost" onClick={onExitEdit}>Done</button>
-      </div>
-    );
-  }
-  return (
-    <div className="list-panel-header-actions">
-      {hasSets && (
-        <button className="btn btn-sm btn-ghost" onClick={onEnterEdit} title="Rename, reorder, or delete op-eds">Edit</button>
-      )}
-      {/* Create — both builds (t/2614). Desktop runs the in-process core; web streams the
-          shared lib/oped core via POST /api/oped-sets (topic-only; URL toggle hidden on web). */}
-      <button className="btn btn-sm" onClick={onNew} aria-label="New op-ed">
-        + New Op-Ed
-      </button>
-    </div>
-  );
 }
 
 // ── Share control (web-only; electron-bridge rejects share — t/2728) ──────────
@@ -332,15 +295,9 @@ export function OpEdTab() {
   })));
 
   const auth = useAuthStatus();
-  const breakpoint = useBreakpoint();
-  const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
   const isElectron = isElectronMode();
 
-  const [listView, setListView] = useState<'my' | 'community'>('my');
-  const [searchQuery, setSearchQuery] = useState('');
   const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
-  const [copyingId, setCopyingId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
 
@@ -474,9 +431,11 @@ export function OpEdTab() {
     navigateTo('/'); // t/3486: back to the table view — the address bar should match.
   }, [selectSet]);
 
-  // A fresh create (PR#2) — reload the library, then open the new set in the reader.
+  // A fresh create (PR#2) — reload the library, then open the new set in the reader. LibraryListPage
+  // owns tab state internally now (t/3703) — a create from the Community tab opens straight into
+  // the reader same as before; closing the reader returns to whichever tab was active, not forced
+  // back to My. Minor UX simplification, not covered by the redesign's own ACs.
   const handleCreated = useCallback(async (setId: string) => {
-    setListView('my');
     await loadSets();
     // loadSets returns index summaries (no body) — load the full doc for the reader.
     selectSet(setId);
@@ -533,11 +492,10 @@ export function OpEdTab() {
   }, [flash]);
 
   const handleCopy = useCallback((entry: OpEdCommunityEntry) => {
-    setCopyingId(entry.id);
     copyItem('opeds', entry.id).then(() => { void loadSets(); flash('Copied to My op-eds.'); }).catch(err => {
       recordError('oped-tab', 'Failed to copy community op-ed', err);
       flash(`Copy failed: ${err}`);
-    }).finally(() => setCopyingId(null));
+    });
   }, [copyItem, loadSets, flash]);
 
   const handleBulkDelete = useCallback(() => {
@@ -547,13 +505,77 @@ export function OpEdTab() {
     });
   }, [deleteSelected, flash]);
 
-  // ── Filtering ──
+  // ── LibraryListPage adoption (t/3703) — id adapter + config ──
 
-  const q = searchQuery.trim().toLowerCase();
-  const filteredSets = filterSets(orderedSets, q);
-  const filteredCommunity = filterCommunity(communityOpeds, q);
+  const myLibRows = useMemo<OpEdMyLibRow[]>(() => orderedSets.map(s => ({ ...s, id: s.set_id })), [orderedSets]);
 
-  const isTableMode = !isPhone;
+  const libConfig: LibraryListPageConfig<OpEdMyLibRow, OpEdCommunityLibRow> = useMemo(() => ({
+    title: 'Op-Ed Studies',
+    newLabel: '+ New Op-Ed',
+    onNew: () => setShowNewDialog(true),
+    showEdit: true,
+    // t/3703#8: unlike Debates, an anonymous session has real (temporary) op-eds — NewOpEdDialog
+    // only gates URL-source creation for anonymous, not topic-only creation, and the temp anon
+    // session backs My here. So the My tab must stay visible for anonymous users on this page.
+    anonymousHasMyContent: true,
+    editMode: {
+      active: editMode,
+      onEnter: () => setEditMode(true),
+      onExit: exitEditMode,
+      actions: [
+        ...(selectedIds.size > 0 ? [{ label: `Delete ${selectedIds.size}`, onClick: handleBulkDelete, variant: 'danger' as const }] : []),
+        { label: 'None', onClick: clearSelected },
+        ...(customOrder.length > 0 ? [{ label: 'Reset Order', onClick: () => saveCustomOrder([]) }] : []),
+        { label: 'Done', onClick: exitEditMode },
+      ],
+      selectedIds,
+      onToggleSelect: toggleSelected,
+      rowActions: (row: OpEdMyLibRow) => {
+        const idx = myLibRows.findIndex(r => r.id === row.id);
+        return [
+          { icon: 'moveUp' as const, label: `Move "${row.topic || 'Untitled op-ed'}" up`, onClick: () => moveSet(row.set_id, 'up'), disabled: idx <= 0 },
+          { icon: 'moveDown' as const, label: `Move "${row.topic || 'Untitled op-ed'}" down`, onClick: () => moveSet(row.set_id, 'down'), disabled: idx === -1 || idx === myLibRows.length - 1 },
+        ];
+      },
+    },
+    titleHeader: 'Headline',
+    titleSortable: true,
+    columns: [
+      { key: 'camps', header: 'Camps', width: '150px', render: row => <OpEdCampTags camps={row.camps} /> },
+      { key: 'outlet', header: 'Outlet', width: '90px', sortable: true, compare: (a, b) => (a.outlet ?? '').localeCompare(b.outlet ?? ''), render: row => row.outlet ?? <span className="lib-empty-value">—</span> },
+      {
+        key: 'date', header: 'Date', width: '110px', sortable: true,
+        compare: (a, b, variant) => new Date(opEdLibDate(a, variant)).getTime() - new Date(opEdLibDate(b, variant)).getTime(),
+        render: (row, variant) => <span className="lib-date">{formatLibDate(opEdLibDate(row, variant))}</span>,
+      },
+    ],
+    getTitle: row => row.topic || 'Untitled op-ed',
+    onRename: handleRename,
+    renamingId,
+    setRenamingId,
+    secondaryLine: (row, variant) => {
+      const parts: string[] = [];
+      if (row.voice_count > 0) parts.push(`${row.voice_count} voices`);
+      if (variant === 'community') {
+        const author = opEdCommunityAuthor(row as OpEdCommunityLibRow);
+        if (author) parts.push(`by ${author}`);
+      }
+      return parts.length > 0 ? parts.join(' · ') : null;
+    },
+    searchPlaceholderMy: 'Search op-eds…',
+    searchPlaceholderCommunity: 'Search op-eds from the community…',
+    filter: (rows, q) => rows.filter(r => !q || (r.topic?.toLowerCase().includes(q) ?? false)),
+    exportFormats: [{ key: 'markdown', label: 'Markdown' }, { key: 'text', label: 'Plain text' }, { key: 'json', label: 'JSON' }],
+    onExportMy: handleExportMy,
+    onExportCommunity: handleExportCommunity,
+    onShare: handleShare,
+    onCopy: handleCopy,
+    showCopy: () => !auth?.anonymous,
+  }), [
+    editMode, selectedIds, customOrder, exitEditMode, handleBulkDelete, clearSelected, saveCustomOrder,
+    toggleSelected, myLibRows, moveSet, handleRename, renamingId, handleExportMy, handleExportCommunity,
+    handleShare, handleCopy, auth?.anonymous,
+  ]);
 
   // ── Reader view ──
 
@@ -577,94 +599,22 @@ export function OpEdTab() {
     );
   }
 
-  // ── Table view ──
+  // ── Table view (t/3703) ──
 
   return (
-    <div className={['two-column', isTableMode ? 'oped-tab-table-mode' : ''].filter(Boolean).join(' ')}>
-      <div className="list-panel oped-list-panel">
-        <div className="list-panel-header">
-          <h2>Op-Ed Studies</h2>
-          <OpEdHeaderActions
-            listView={listView}
-            editMode={editMode}
-            hasSets={sets.length > 0}
-            selectedCount={selectedIds.size}
-            hasCustomOrder={customOrder.length > 0}
-            onBulkDelete={handleBulkDelete}
-            onClearSelected={clearSelected}
-            onResetOrder={() => saveCustomOrder([])}
-            onExitEdit={exitEditMode}
-            onEnterEdit={() => setEditMode(true)}
-            onNew={() => setShowNewDialog(true)}
-          />
-        </div>
-
-        <div className="list-view-tabs">
-          <button
-            className={`list-view-tab${listView === 'my' ? ' active' : ''}`}
-            onClick={() => { setListView('my'); exitEditMode(); }}
-          >
-            My ({sets.length})
-          </button>
-          <button
-            className={`list-view-tab${listView === 'community' ? ' active' : ''}`}
-            onClick={() => { setListView('community'); exitEditMode(); }}
-          >
-            Community ({communityOpeds.length})
-          </button>
-        </div>
-
-        <div className="oped-search-wrap">
-          <input
-            type="text"
-            className="oped-search-input"
-            placeholder={listView === 'my' ? 'Search op-eds…' : 'Search community op-eds…'}
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        {status && listView && <div className="oped-status oped-status-inline">{status}</div>}
-
-        {listView === 'my' ? (
-          <OpEdTable
-            variant="my"
-            rows={filteredSets}
-            loading={loading}
-            searchQuery={searchQuery}
-            editMode={editMode}
-            selectedIds={selectedIds}
-            onToggleSelect={toggleSelected}
-            renamingId={renamingId}
-            setRenamingId={setRenamingId}
-            renameValue={renameValue}
-            setRenameValue={setRenameValue}
-            onRename={handleRename}
-            onMoveSet={moveSet}
-            onOpen={openMy}
-            onExport={handleExportMy}
-            onShare={handleShare}
-            onNew={() => setShowNewDialog(true)}
-            selectedSetId={selectedSetId}
-            totalCount={sets.length}
-          />
-        ) : (
-          <OpEdTable
-            variant="community"
-            rows={filteredCommunity}
-            loading={communityLoading}
-            searchQuery={searchQuery}
-            onOpen={openCommunity}
-            onExport={handleExportCommunity}
-            onCopy={handleCopy}
-            copyingId={copyingId}
-            auth={auth}
-            isElectron={isElectron}
-            selectedId={selectedSetId}
-            totalCount={communityOpeds.length}
-          />
-        )}
-      </div>
+    <>
+      {/* flash()'d failure messages (rename/share/export/copy/delete) — LibraryListPage's own
+          toast only covers its own triggered actions' happy path, not page-level async errors. */}
+      {status && <div className="oped-status oped-status-inline" role="status">{status}</div>}
+      <LibraryListPage
+        config={libConfig}
+        myRows={myLibRows}
+        myLoading={loading}
+        communityRows={communityOpeds}
+        communityLoading={communityLoading}
+        onOpenMy={openMy}
+        onOpenCommunity={openCommunity}
+      />
 
       {/* Create dialog — both builds (t/2614). URL/source create is desktop-only in v1
           (server rejects it), so the web build hides the URL toggle → topic-only. */}
@@ -674,6 +624,6 @@ export function OpEdTab() {
         onCreated={setId => { void handleCreated(setId); }}
         allowUrlSource={isElectron}
       />
-    </div>
+    </>
   );
 }

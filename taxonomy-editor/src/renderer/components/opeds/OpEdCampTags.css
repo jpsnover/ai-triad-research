@@ -1,0 +1,32 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+   Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Camp tag colours — literal oklch values from the redesign spec (§2), not theme-reactive. */
+
+.oped-camptags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.oped-camptag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.oped-camptag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.oped-camptag-acc { color: oklch(0.55 0.13 45); background: oklch(0.94 0.035 45); }
+.oped-camptag-saf { color: oklch(0.5 0.12 250); background: oklch(0.94 0.03 250); }
+.oped-camptag-skp { color: oklch(0.5 0.12 310); background: oklch(0.94 0.03 310); }

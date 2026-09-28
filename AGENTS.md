@@ -45,6 +45,14 @@ Orca config (`.orca.yaml`, nested `AGENTS.md`, `.orca/`) lives in a **separate o
 
 **Changing the mode is a deliberate act, not a preference.** `direct` removes a protection born from an incident (t/1926): the fleet shares one `main` checkout, so a commit there sits in every other agent's tree. That is low-cost when one person works alone and hazardous at high parallelism — **the dangerous transition is leaving `direct` on when the fleet spins back up.** Record set-by/set-at/reason in the file when you change it.
 
+**In `direct` mode the shared checkout still stays on `main`. `direct` licenses *committing* there — never *checking out a branch* there.** Three collisions in one session (2026-09-28), one cause: a `git checkout <branch>` + rebase in the shared tree mutates every file in a tree other agents are actively reading. One agent's file vanished from disk mid-edit; another's working tree was swapped out from under an in-flight task (t/3704#8); a third's uncommitted WIP compiled into a peer's `npm run verify`, producing a red that belonged to neither of them.
+
+This is not `direct` failing at what it is chosen for — one agent committing small changes straight to `main` is exactly what it makes cheap, and that still works. The failure is that *"branches are not required"* reads as *"branches are safe here."* So:
+
+- **Commit to `main` in the shared checkout — fine, that is the point of the mode.**
+- **Never `git checkout <branch>` in the shared checkout.** Branch work — a rebase, or landing an existing PR branch — goes in a worktree in `direct` mode exactly as in `worktree` mode. `git worktree add` costs seconds; the collision costs a colleague's uncommitted work.
+- **Scan `git status --short` UNSCOPED before any tree-wide build.** A peer's uncommitted file compiles into your `npm run verify`, so a red may not be yours. Your branch's CI sees only committed files and is the authoritative signal.
+
 ### Shared-Checkout Commit Guard (pre-commit hook)
 
 **Applies in `worktree` mode.** `.githooks/pre-commit` refuses commits on `main` (t/1926); in `direct` mode it permits them. **Both modes** still refuse a commit on a detached HEAD inside a worktree (t/2009) — that guards a different failure and the switch does not govern it. `--no-verify` remains the emergency override. Enable once per checkout: `git config core.hooksPath .githooks`.
@@ -65,7 +73,11 @@ Before `gh pr merge`, confirm all four (prevents stranded/stale-head merges — 
 2. **CI ran on that exact OID** — `gh run list --commit <headRefOid>` is green, not a predecessor's.
 3. **No open decision/hold** you haven't cleared.
 
-> **⚠️ INERT as of 2026-09-25 — this hook does not currently exist (t/3695).** No feedback rule invokes `operations/devops/merge-guard-predicate.mjs`; verified against the live rule list and by `git grep`. **Nothing blocks a bare `gh pr merge`.** Pass `--match-head-commit` yourself — the four checks above are discipline right now, not enforcement. Note the paragraph below says "both arms proven," which was true of the *predicate* and never of the execution layer: the Class-8 shape from t/3396, recurring. Restoration is tracked at **t/3695** (High).
+> **⚠️ INERT as of 2026-09-28 — the rule EXISTS and is ENABLED, but does not EXECUTE (t/3695).** `get_feedback_rule pre-self-merge-verify` returns it: `enabled: true`, `type: block`, `scope: workspace`, with a valid `run:` invoking `operations/devops/merge-guard-predicate.mjs`. It still does not fire. Proven by cross-agent probe: `gh pr merge 99999 --squash` — no `--match-head-commit`, exactly what the rule blocks — reached GitHub and returned a GraphQL error, with no block and no hook output. **Nothing blocks a bare `gh pr merge`.** Pass `--match-head-commit` yourself; the four checks above are discipline right now, not enforcement.
+>
+> Two cautions for whoever picks this up. **Do NOT re-author the rule** — the definition is correct and an identical new one would likely be just as dead; this is a platform escalation (Orca Support). And **no tool here tells you a rule is live — only a live fire does.** `get_feedback_rule <name>` reports the *definition* (this one says `enabled: true` while provably not running, so "enabled" is not "executing"). `list_feedback_rules` reports a *shorter* set — 22 against 33 on-disk definitions — and the unlisted ones are the ones observed not to fire, so the working hypothesis is that the list reflects what the runtime actually loaded. Under that hypothesis the list is the better signal for *liveness* and `get_feedback_rule` the better one for *content*; neither substitutes for firing a deliberately-triggering no-op and watching what happens. Reading the wrong one of these produced the earlier, wrong "the rule does not exist" text in this very annotation.
+>
+> Note the paragraph below says "both arms proven," which was true of the *predicate* and never of the execution layer: the Class-8 shape from t/3396, recurring. Restoration is tracked at **t/3695** (High).
 
 The `pre-self-merge-verify` hook **blocks** a manual `gh pr merge` that omits `--match-head-commit` (t/3270; pure-predicate `operations/devops/merge-guard-predicate.mjs`, both arms proven). `--auto` is exempt — it can't carry the flag and is stale-head-safe by GitHub re-targeting; its gated-PR risk is the draft-discipline's job. **Emergency override** (broken tooling / P1 hotfix), same spirit as the commit-guard's `--no-verify`: `disable_feedback_rule pre-self-merge-verify`, merge, then re-enable.
 

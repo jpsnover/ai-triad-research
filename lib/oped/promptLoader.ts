@@ -106,3 +106,14 @@ export function assembleReflectionPrompt(
     SOURCE_CLAIMS: sourceClaims,
   });
 }
+
+export function assembleReadabilityEditPrompt(
+  promptsDir: string,
+  body: string,
+  violations: string,
+): string {
+  return interpolate(loadPromptTemplate(promptsDir, 'op-ed-readability-edit'), {
+    BODY: body,
+    VIOLATIONS: violations,
+  });
+}

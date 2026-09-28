@@ -22,6 +22,14 @@ def trunc(t, n):
     t = (t or '').strip()
     return t if len(t) <= n else t[:n] + " [...truncated; full text in package...]"
 
+def blockquote(t):
+    """Prefix EVERY line (incl. blank lines between paragraphs) with '> ' so a
+    multi-paragraph turn renders as ONE continuous quote block. Prefixing only
+    the first line leaves later paragraphs un-quoted, which looks like two
+    separate sections (the target turn is a single unit to judge)."""
+    lines = (t or '').strip().split("\n")
+    return "\n".join(("> " + ln) if ln.strip() else ">" for ln in lines)
+
 L = ["# B1.5 drift-state adjudication worksheet (t/3630)\n",
      "Read each item; set `topical_state` (core/adjacent/drifted) in `drift-answers.csv`, then run `python import_drift_answers.py --run`.\n",
      "```\n" + CODEBOOK + "\n```\n",
@@ -40,9 +48,11 @@ def block(r, kind, agreed=None):
     for c in cx[:12]: o.append(f"  - {trunc(c, 200)}")
     ctx = r.get('context_prior_turns', [])
     if ctx:
-        o.append("\n**Prior context:**")
-        for c in ctx: o.append(f"> _{c.get('speaker')}:_ {trunc(c.get('text'), 500)}")
-    o.append(f"\n**TARGET turn (judge this):**\n> {r.get('target_text','')}")
+        o.append("\n**Prior context (background only — do NOT label this):**")
+        for c in ctx:
+            o.append(f"_{c.get('speaker')}:_")
+            o.append(blockquote(trunc(c.get('text'), 500)))
+    o.append(f"\n**TARGET turn — judge THIS entire turn as one unit:**\n{blockquote(r.get('target_text',''))}")
     o.append(f"\n**YOUR CALL -> {r['sample_id']}: topical_state = ______**")
     return "\n".join(o)
 

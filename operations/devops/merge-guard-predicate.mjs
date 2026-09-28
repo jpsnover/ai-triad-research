@@ -66,10 +66,19 @@ export function mergeGuardVerdict(command) {
  * predicate is POINT-IN-TIME: it only sees the label state at the `gh pr merge --auto` call, so
  * enabling --auto BEFORE the `joint-gv` label is applied does not trip it. That is a cosmetic
  * early-feedback gap, NOT a correctness hole. The ORDER-INDEPENDENT enforcer is the
- * `joint-gv-automerge-guard` CI CHECK (ci.yml, t/3332) — required via ci-gate, re-fired on
- * labeled/unlabeled/auto_merge_enabled events, it fails whenever joint-gv + auto-merge coexist
- * regardless of which came first and so blocks the merge. This predicate is convenience UX layered
- * ON TOP of that check; the check is what actually protects the t/3307 co-merge hazard.
+ * `joint-gv-guard` REQUIRED STATUS CONTEXT (`.github/workflows/joint-gv-guard.yml`, t/3318/t/3607 PR B) —
+ * an INDEPENDENT required context (authoritative check: branch-protection `required_status_checks` =
+ * [ci-gate, CodeQL, joint-gv-guard], confirmed 2026-09-28 t/3700), re-fired on
+ * labeled/unlabeled/auto_merge_enabled/auto_merge_disabled/edited events; it fails whenever joint-gv +
+ * auto-merge coexist regardless of which came first and so blocks the merge. This predicate is
+ * convenience UX layered ON TOP of that context; the context is what actually protects the t/3307 hazard.
+ *
+ * ROUTING HISTORY — do NOT re-assert the old form. This was the `joint-gv-automerge-guard` CI check
+ * gated *via ci-gate* (t/3332) until t/3607 PR B moved the enforcement out to its own workflow + its own
+ * required status context (`ci.yml:~1735` records the removal). A prior version of this header still
+ * said "required via ci-gate" after the move; t/3607 changed the routing without updating this comment
+ * (t/3700). Verify "where enforcement lives" against branch protection / the workflow files — NOT this
+ * comment; comments drift, the required-contexts API does not.
  */
 export function jointGvAutoMergeVerdict({ isAutoMerge, isJointGvLabeled } = {}) {
   if (isAutoMerge && isJointGvLabeled) return { block: true, reason: 'auto-merge-on-joint-gv' };

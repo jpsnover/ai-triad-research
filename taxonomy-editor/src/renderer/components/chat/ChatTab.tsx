@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useChatStore } from '../../hooks/useChatStore';
@@ -11,7 +11,7 @@ import type { CommunityChat } from '../../hooks/useCommunityStore';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { NewChatDialog } from './NewChatDialog';
-import { ChatTable } from './ChatTable';
+import { buildChatLibraryListConfig } from './chatLibraryListConfig';
 import { ChatWorkspace } from './ChatWorkspace';
 import { SearchPreview } from '../edge-browser/SearchPreview';
 import { PromptDetailPanel } from './PromptsPanel';
@@ -20,6 +20,7 @@ import { PROMPT_CATALOG } from '../../data/promptCatalog';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
 import { CopyLinkButton } from '../shared/CopyLinkButton';
 import { LineageDetailView } from '../shared/LineageDetailView';
+import { LibraryListPage } from '../shared/LibraryListPage';
 import { POVER_INFO } from '../../types/debate';
 import type { ChatSessionSummary, ChatMode, ChatSession } from '../../types/chat';
 import { api } from '@bridge';
@@ -439,14 +440,12 @@ export function ChatTab() {
   const [listCollapsed, setListCollapsed] = useState(false);
   const [listView, setListView] = useState<'my' | 'community' | null>(null);
   const { chats: communityChats, loading: communityLoading, fetchChats: fetchCommunityChats, copyItem } = useCommunityStore();
+  // Used by the phone/split-view CommunityChatsList only — the table-mode Copy action goes
+  // through LibraryListPage's shared actions column (handleCopyChat) instead.
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [selectedCommunityChat, setSelectedCommunityChat] = useState<CommunityChat | null>(null);
   const isTableMode = !toolbarPanel && !isPhone;
-  const [mySearchQuery, setMySearchQuery] = useState('');
-  const [communitySearchQuery, setCommunitySearchQuery] = useState('');
   const [capNotice, setCapNotice] = useState<string | null>(null);
-  // t/2790#6: Edit-mode parity with Debates/Op-Eds — discoverable rename affordance.
-  const [editMode, setEditMode] = useState(false);
 
   // t/2790 UAT: tables fill the tab; opening a chat launches a popout window
   // (max 5 concurrent, deduped per chatId in chatWindowHandlers).
@@ -478,6 +477,25 @@ export function ChatTab() {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-tab', level: 'error', message: 'Share failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     });
   }, []);
+
+  const handleCopyChat = useCallback((cc: CommunityChat) => {
+    void copyItem('chats', cc.id).then(() => {
+      void loadSessions();
+    }).catch((err: unknown) => {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-tab', level: 'error', message: 'Failed to copy community chat', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    });
+  }, [copyItem, loadSessions]);
+
+  const chatLibraryConfig = useMemo(() => buildChatLibraryListConfig({
+    onRename: (id, newTitle) => { void renameChat(id, newTitle); },
+    renamingId,
+    setRenamingId,
+    onNew: () => setShowNewDialog(true),
+    onExportMy: handleExportChat,
+    onExportCommunity: handleExportChat,
+    onShare: handleShareChat,
+    onCopy: handleCopyChat,
+  }), [renameChat, renamingId, handleExportChat, handleShareChat, handleCopyChat]);
 
   useEffect(() => {
     void loadSessions();
@@ -536,83 +554,17 @@ export function ChatTab() {
         />
       ) : isTableMode ? (
         // eslint-disable-next-line local/no-inline-style -- table mode fills the tab width
-        <div className="list-panel chat-session-list" style={{ flex: 1, width: '100%' }}>
-          <div className="list-panel-header">
-            <h2>Chats</h2>
-            <div className="list-panel-header-actions">
-              {listView === 'my' && (editMode ? (
-                <button className="btn btn-sm btn-ghost" onClick={() => setEditMode(false)}>Done</button>
-              ) : (
-                <button className="btn btn-sm btn-ghost" title="Rename chats" onClick={() => setEditMode(true)}>Edit</button>
-              ))}
-              <button className="btn btn-sm" onClick={() => { setShowNewDialog(true); setListView('my'); }}>+ New</button>
-            </div>
-          </div>
-          <div className="list-view-tabs">
-            <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => setListView('my')}>My ({sessions.length})</button>
-            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => { setListView('community'); setEditMode(false); }}>Community ({communityChats.length})</button>
-          </div>
+        <div className="chat-tab-table-shell" style={{ flex: 1, width: '100%' }}>
           {capNotice && <div className="chat-tab-cap-notice" role="status">{capNotice}</div>}
-          {listView === 'my' ? (
-            <>
-              <div className="chat-tab-search-wrap">
-                <input
-                  className="chat-tab-search-input"
-                  placeholder="Search chats…"
-                  value={mySearchQuery}
-                  onChange={e => setMySearchQuery(e.target.value)}
-                />
-              </div>
-              <ChatTable
-                variant="my"
-                rows={mySearchQuery ? sessions.filter(s => (s.title ?? '').toLowerCase().includes(mySearchQuery.toLowerCase())) : sessions}
-                loading={sessionsLoading}
-                searchQuery={mySearchQuery}
-                renamingId={renamingId}
-                setRenamingId={setRenamingId}
-                renameValue={renameValue}
-                setRenameValue={setRenameValue}
-                onRename={renameChat}
-                selectedId={activeChatId ?? undefined}
-                editMode={editMode}
-                onOpen={id => openChatPopout(id, 'my')}
-                onExport={handleExportChat}
-                onShare={handleShareChat}
-              />
-            </>
-          ) : (
-            <>
-              <div className="chat-tab-search-wrap">
-                <input
-                  className="chat-tab-search-input"
-                  placeholder="Search community chats…"
-                  value={communitySearchQuery}
-                  onChange={e => setCommunitySearchQuery(e.target.value)}
-                />
-              </div>
-              <ChatTable
-                variant="community"
-                rows={communitySearchQuery ? communityChats.filter(c => (c.title ?? '').toLowerCase().includes(communitySearchQuery.toLowerCase())) : communityChats}
-                loading={communityLoading}
-                searchQuery={communitySearchQuery}
-                selectedId={selectedCommunityChat?.id}
-                onOpen={id => openChatPopout(id, 'community')}
-                onExport={handleExportChat}
-                onCopy={async cc => {
-                  setCopyingId(cc.id);
-                  try {
-                    await copyItem('chats', cc.id);
-                    void loadSessions();
-                  } catch (err) {
-                    getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-tab', level: 'error', message: 'Failed to copy community chat', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
-                  } finally {
-                    setCopyingId(null);
-                  }
-                }}
-                copyingId={copyingId}
-              />
-            </>
-          )}
+          <LibraryListPage
+            config={chatLibraryConfig}
+            myRows={sessions}
+            myLoading={sessionsLoading}
+            communityRows={communityChats}
+            communityLoading={communityLoading}
+            onOpenMy={id => openChatPopout(id, 'my')}
+            onOpenCommunity={id => openChatPopout(id, 'community')}
+          />
         </div>
       ) : listCollapsed ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">

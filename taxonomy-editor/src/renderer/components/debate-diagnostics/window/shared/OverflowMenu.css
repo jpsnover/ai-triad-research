@@ -60,8 +60,8 @@
   white-space: nowrap;
 }
 
-.overflow-menu__item:hover:not(:disabled),
-.overflow-menu__item:focus-visible:not(:disabled) {
+.overflow-menu__item:hover:not(.overflow-menu__item--disabled),
+.overflow-menu__item:focus-visible:not(.overflow-menu__item--disabled) {
   background: var(--bg-hover, color-mix(in srgb, var(--text-primary) 8%, transparent));
 }
 

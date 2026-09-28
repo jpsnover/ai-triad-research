@@ -1,0 +1,412 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+   Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* LibraryListPage (t/3703, parent t/3702) — shared list-page shell for Op-Ed Studies / Chats /
+   Debates. Spec: C:\tmp\HANDOFF-library-pages.md. Tokens are literal per the spec (not theme
+   CSS vars) — this is a fixed redesign look, not theme-reactive. */
+
+.library-list-page {
+  --lib-bg: #f4f0ea;
+  --lib-text: #2b2622;
+  --lib-text-secondary: #5d554f;
+  --lib-text-faded: #8a8079;
+  --lib-dash: #b3aaa2;
+  --lib-accent: #9e2236;
+  --lib-accent-hover: #861b2d;
+  --lib-border-header: #e0d8cd;
+  --lib-border-row: #e6dfd5;
+  --lib-border-control: #ddd5ca;
+  --lib-active-bg: #f3dde1;
+  --lib-inactive-badge-bg: #e8e1d7;
+  --lib-row-hover: #ece6dd;
+
+  background: var(--lib-bg);
+  color: var(--lib-text);
+  padding: 28px 32px;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* ── §1 header ── */
+
+.lib-header-row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lib-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.lib-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lib-btn-primary, .lib-btn-secondary {
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 13px;
+  border-radius: 5px;
+  padding: 7px 14px;
+  cursor: pointer;
+  appearance: none;
+}
+
+.lib-btn-primary {
+  background: var(--lib-accent);
+  border: 1px solid var(--lib-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.lib-btn-primary:hover { background: var(--lib-accent-hover); border-color: var(--lib-accent-hover); }
+.lib-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.lib-btn-secondary {
+  background: #faf8f4;
+  border: 1px solid #d9d1c6;
+  color: var(--lib-text);
+}
+.lib-btn-secondary:hover { background: #fff; border-color: #c9bfb2; }
+.lib-btn-secondary.lib-btn-danger { color: var(--lib-accent); border-color: var(--lib-accent); }
+.lib-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.lib-editmode-actions { display: flex; align-items: center; gap: 8px; }
+
+.lib-header-row2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--lib-border-header);
+}
+
+/* ── tabs ── */
+
+.lib-tabs {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.lib-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 12px;
+  margin-bottom: -13px; /* sits the 2px active border on the row's 1px border */
+  border-bottom: 2px solid transparent;
+  color: var(--lib-text-faded);
+  font-weight: 400;
+  font-size: 14px;
+}
+
+.lib-tab.active {
+  color: var(--lib-accent);
+  font-weight: 600;
+  border-bottom-color: var(--lib-accent);
+}
+
+.lib-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--lib-inactive-badge-bg);
+  color: var(--lib-text-faded);
+}
+
+.lib-tab.active .lib-tab-badge {
+  background: var(--lib-active-bg);
+  color: var(--lib-accent);
+}
+
+/* ── search ── */
+
+.lib-search {
+  width: 300px;
+  max-width: 100%;
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--lib-border-control);
+  background: #fbf9f6;
+  color: var(--lib-text);
+}
+.lib-search:focus {
+  outline: none;
+  border-color: var(--lib-accent);
+  background: #fff;
+}
+
+/* ── §2 table (CSS grid) ── */
+
+.lib-table-wrap {
+  margin-top: 4px;
+  overflow-x: auto;
+}
+
+.lib-grid {
+  display: grid;
+  /* --lib-cols supplied inline per page config: '1fr 150px 90px 110px 150px' etc. */
+  grid-template-columns: var(--lib-cols);
+  column-gap: 16px;
+  min-width: 820px;
+}
+
+.lib-header-cell {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--lib-text-faded);
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--lib-border-header);
+  display: flex;
+  align-items: center;
+}
+.lib-header-cell.lib-align-right { justify-content: flex-end; }
+
+.lib-header-sort-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lib-header-sort-btn.sortable { cursor: pointer; }
+.lib-header-cell.sorted .lib-header-sort-btn { color: var(--lib-text-secondary); }
+
+/* Tri-state caret (Design ruling, t/3702#4): no glyph at rest; a faint single caret on
+   hover/focus signals sortability; a persistent accent caret marks the active sort direction. */
+.lib-sort-caret {
+  font-size: 9px;
+  line-height: 1;
+  color: var(--lib-dash);
+  opacity: 0;
+}
+.lib-header-sort-btn.sortable:hover .lib-sort-caret,
+.lib-header-sort-btn.sortable:focus-visible .lib-sort-caret {
+  opacity: 1;
+}
+.lib-header-sort-btn.sorted .lib-sort-caret {
+  opacity: 1;
+  color: var(--lib-accent);
+}
+
+.lib-row {
+  display: contents;
+}
+
+.lib-body-row {
+  display: contents;
+  cursor: pointer;
+}
+
+.lib-cell {
+  padding: 12px 0;
+  border-top: 1px solid var(--lib-border-row);
+  font-size: 13px;
+  color: var(--lib-text-secondary);
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+.lib-cell.lib-align-right { justify-content: flex-end; }
+.lib-cell.lib-col-title { flex-direction: column; align-items: flex-start; }
+
+.lib-body-row:hover .lib-cell,
+.lib-body-row:focus-visible .lib-cell {
+  background: var(--lib-row-hover);
+}
+.lib-body-row:hover .lib-title-text,
+.lib-body-row:focus-visible .lib-title-text {
+  color: var(--lib-accent);
+}
+/* First/last cell get rounded outer corners + left/right padding so the hover background
+   reads as one rounded row, not a strip per cell. */
+.lib-body-row .lib-cell:first-child { border-radius: 6px 0 0 6px; padding-left: 4px; }
+.lib-body-row .lib-cell:last-child { border-radius: 0 6px 6px 0; padding-right: 4px; }
+
+.lib-empty-value { color: var(--lib-dash); }
+
+/* ── title cell ── */
+
+.lib-title-text {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--lib-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-wrap: pretty;
+}
+
+.lib-title-webaddr {
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
+}
+.lib-title-webaddr .lib-title-site { font-weight: 600; color: var(--lib-text); }
+.lib-title-webaddr .lib-title-rest { color: var(--lib-text-faded); }
+
+.lib-title-secondary {
+  font-size: 12px;
+  color: var(--lib-text-faded);
+  margin-top: 2px;
+}
+
+.lib-rename-input {
+  font-size: 14px;
+  font-weight: 500;
+  width: 100%;
+  border: 1px solid var(--lib-accent);
+  border-radius: 4px;
+  padding: 3px 6px;
+  background: #fff;
+  color: var(--lib-text);
+}
+
+/* ── dates: never truncated, tabular ── */
+.lib-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ── empty state ── */
+
+.lib-empty-row { grid-column: 1 / -1; padding: 32px 0; text-align: center; color: var(--lib-text-faded); }
+
+/* ── §3 row interaction / actions column ── */
+
+.lib-actions-cell { justify-content: flex-end; gap: 4px; }
+
+.lib-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+}
+.lib-body-row:hover .lib-actions,
+.lib-body-row:focus-within .lib-actions,
+.lib-actions.lib-menu-open,
+.library-list-page[data-action-visibility="always"] .lib-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .lib-actions { opacity: 1; }
+}
+
+.lib-action-btn {
+  appearance: none;
+  font-size: 12px;
+  padding: 3px 9px;
+  border: 1px solid var(--lib-border-control);
+  background: #fbf9f6;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--lib-text);
+  white-space: nowrap;
+}
+.lib-action-btn:hover { background: #fff; border-color: #c9bfb2; }
+.lib-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.lib-row-icon-btn {
+  appearance: none;
+  border: 1px solid var(--lib-border-control);
+  background: #fbf9f6;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--lib-text);
+}
+.lib-row-icon-btn:hover { background: #fff; border-color: #c9bfb2; }
+.lib-row-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.lib-export-menu-wrap { position: relative; }
+
+.lib-export-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid var(--lib-border-control);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(43, 38, 34, 0.12);
+  z-index: 20;
+  padding: 4px;
+}
+
+.lib-export-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  appearance: none;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--lib-text);
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.lib-export-menu-item:hover { background: var(--lib-bg); }
+
+/* ── checkbox column (edit mode) ── */
+.lib-cell.lib-col-cb { align-items: center; }
+
+/* ── toast ── */
+
+.lib-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  background: #2b2622;
+  color: #fbf9f6;
+  font-size: 13px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(43, 38, 34, 0.2);
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* ── responsive ── */
+
+@media (max-width: 700px) {
+  .lib-header-row2 { flex-wrap: wrap; }
+  .lib-search { width: 100%; }
+}
