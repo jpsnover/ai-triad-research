@@ -55,6 +55,7 @@ jobs:
         run: Install-Module Pester -Force -Scope CurrentUser
 
       - name: Run SituationBDI live-data compliance check
+        id: compliance
         shell: pwsh
         run: |
           $config = New-PesterConfiguration
@@ -94,7 +95,11 @@ jobs:
       # each arm re-reads the issue state and turns THIS run red with an explicit
       # ::error:: (a distinct signal, surfaced by t/3672) rather than no-oping.
       - name: All-clear — close the alarm on green full-corpus pass (CLOSE authority)
-        if: success()
+        # Gate on the COMPLIANCE STEP's outcome, not job success() (t/3671#8): an earlier
+        # infra/token/checkout failure would skip the compliance step → outcome is neither
+        # 'success' nor 'failure' → NEITHER arm fires (no false all-clear, no false alarm) while
+        # the job still reds loudly on the infra fault. Job-level if: would fire the wrong arm.
+        if: steps.compliance.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.AI_TRIAD_DATA_ALARM_TOKEN }}
           DATA_REPO: jpsnover/ai-triad-data
@@ -122,7 +127,9 @@ jobs:
           echo "Alarm #$NUM closed."
 
       - name: Alarm — open/reopen the alarm on regression (OPEN authority, same issue as push)
-        if: failure()
+        # Gate on the compliance STEP's failure, not job failure() (t/3671#8) — so a token/infra
+        # failure (which skips the compliance step) does NOT manufacture a data-violation alarm.
+        if: steps.compliance.outcome == 'failure'
         env:
           GH_TOKEN: ${{ secrets.AI_TRIAD_DATA_ALARM_TOKEN }}
           DATA_REPO: jpsnover/ai-triad-data
