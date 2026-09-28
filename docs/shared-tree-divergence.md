@@ -18,6 +18,14 @@ Same git commands, different acts, opposite risk profiles. The incidental one in
 
 **DevOps** performs the sync. They run the hourly drift check and own shared-tree health. Anyone else who finds a diverged tree reports it and stops — a second actor mid-sync is how you get two agents rewriting one tree.
 
+**Fallback (DevOps unavailable):** if DevOps is asleep or unreachable and the tree is diverged, the **Technical Lead** may sync under the *identical* preconditions below, and MUST include an explicit "DevOps unavailable — TL syncing" line in the announcement. This exists because the procedure must not deadlock on one agent's availability — a permanently-stale tree is itself the hazard (it caused two of the six 2026-09-28 collisions). Still single-owner-at-a-time: never two syncers.
+
+## Cadence — sync promptly, not rarely
+
+Blast radius is a function of **M** (how many commits the tree moves at once), not of how often you sync. Rarity *maximises* M: defer a sync an afternoon and the reset rewrites dozens of commits under everyone; sync on detection and M is 1–2, close to harmless. So **sync promptly whenever divergence appears — the hourly drift check is the natural trigger — precisely so no individual sync is large.** Frequency is the safety property once the preconditions are mechanical, and it keeps the operation routine rather than an event: a procedure run hourly gets followed; one run monthly gets improvised.
+
+> **The first sync after this procedure is adopted is the largest one you will ever run** — it clears whatever accumulated before the cadence existed. It is the least-representative sample there is: a rough first sync does not discredit the cadence, and a smooth one does not validate it.
+
 ## Step 1 — Classify the local commits
 
 Diverged trees differ only in whether the local commits carry content that exists nowhere else.
@@ -60,28 +68,45 @@ git fetch origin && git diff <local-sha> origin/main -- <paths>   # must be empt
 
 ## Step 3 — Verify the preconditions
 
-All three must hold. If any fails, **stop** — a sync into a dirty tree destroys a colleague's uncommitted work, which is the incident this whole rule set exists to prevent.
+Every check here must be **adjacent to the reset** — re-run immediately before Step 4, not minutes earlier. A clean result at classification time is not a clean result now; the window between them is long enough for a colleague to begin work the reset would destroy. (This is the *verify at the point of use* discipline: a stale check is itself the failure mode this procedure exists to prevent.)
 
-1. **No uncommitted work by anyone.** Scan **unscoped** — a path-filtered status reports clean while a peer's file sits outside your filter.
+**1. No uncommitted TRACKED work by anyone.** `reset --hard` destroys uncommitted modifications to *tracked* files; it does **not** touch untracked files — so the two are not equal and must not be treated equally.
    ```sh
-   git status --short                        # tracked + untracked, whole tree
-   git status --short --untracked-files=no   # tracked only
+   git status --short --untracked-files=no   # TRACKED mods — these BLOCK absolutely
+   git status --short                         # full picture, including untracked
    ```
-   Distinguish **real WIP** (needs an owner claim — `resolve_owner` the path, ping them, wait) from **phantoms** (byte-identical-modulo-CRLF snapshots, generated files). Restore phantoms; never assume a real modification is abandoned.
+   - **Any tracked modification → STOP.** Classify real WIP vs phantom **mechanically, never by inspection** — a judgment call about a colleague's file, made by the one person whose next command destroys it, is exactly incident #6. A path is a phantom **only** if `git diff --ignore-cr-at-eol --ignore-all-space -- <path>` is empty, or it matches a declared generated-file glob. Restore phantoms; anything that needs the diff eyeballed to decide is real WIP by definition → `resolve_owner` the path, ping the owner, wait.
+   - **Untracked files do NOT block.** `reset --hard` will not delete them, and this tree permanently carries `.cache/`, `.fol-eval-corr*/`, `scripts/batch-configs-t3411/`, etc. — blocking on untracked makes this precondition unsatisfiable, and an unsatisfiable precondition gets waived on first use. **Exception:** an untracked path that *collides* with a path the incoming commits add can be clobbered — check explicitly and STOP on any overlap:
+     ```sh
+     comm -12 <(git diff --name-only main origin/main | sort) <(git ls-files --others --exclude-standard | sort)
+     ```
 
-2. **Step 1 says REDUNDANT**, or Step 2 completed and was verified.
+**2. No agent actively READING the tree.** `git status` detects writers, not readers — an agent with a perfectly clean tree can be mid-build or mid-test, about to act on file contents it read seconds ago, and the reset moves the ground under it (incident #4's shape, delivered by the sync itself). Check the fleet, adjacent to the reset:
+   ```
+   list_instances / get_agent_status  →  no instance in `working` state with an active task on this tree
+   ```
 
-3. **Announced.** Say you are syncing, in the channel the fleet reads, before you start.
+**3. REDUNDANT confirmed** (Step 1), or Step 2 completed and object-level verified.
 
-## Step 4 — Record the escape hatch, then sync
+**4. Announced, then WAIT.** Announcing and resetting in the same second is a formality — nobody has read it. Announce in the channel the fleet reads, then wait a quiet interval (**≥60s**) or collect explicit acks from any instance showing active work. The announcement names the owner ("DevOps syncing" / "DevOps unavailable — TL syncing").
+
+## Step 4 — Record the rollback, then sync (in one command)
 
 ```sh
-git log --oneline -5 main > /tmp/pre-sync-main.txt   # recoverable via reflog if Step 1 was wrong
-git fetch origin
-git reset --hard origin/main
+git log --oneline -8 main > "$SCRATCH/pre-sync-main.txt"   # SHAs for rollback; session scratchpad, NOT /tmp (unstable under Git Bash on this fleet)
 ```
 
-`reset --hard` is correct here and there is no gentler option — `merge --ff-only` fails by definition on a diverged branch. The file changes that land on disk are the M commits the tree was behind by, which is the tree arriving at the state every agent already expects `main` to be in.
+Then couple precondition-1's tracked check to the reset **in a single command**, so the TOCTOU gap is milliseconds, not the minutes that two tool calls allow (shell state does not persist between calls, and they can be arbitrarily far apart):
+
+```sh
+git status --short --untracked-files=no && git fetch origin && git reset --hard origin/main
+```
+
+If the status check surfaces any tracked modification, the `&&` chain stops before the reset. Apply the same adjacency to precondition-2's fleet check — re-confirm readers in the same breath if the tooling allows.
+
+`reset --hard` is correct here and there is no gentler option — `merge --ff-only` fails by definition on a diverged branch. **The reset moves files on disk under anyone currently reading them** — which is exactly why precondition 1 must clear the tracked index and precondition 2 must clear the fleet, *adjacent to this command*, not minutes before. (An agent mid-task does not expect the tree at `origin/main`; it expects the tree where it last read it. The reassuring-sounding opposite is the belief that makes an operator stop thinking about readers.)
+
+**Rollback if Step 1 misjudged and unique content was lost:** do NOT `git reset --hard <old-sha>` from the reflog — that re-diverges the tree, the exact state you just cleaned. Recovery is Step 2 after the fact: take the lost SHA from `pre-sync-main.txt`, cherry-pick it onto a fresh worktree branch off `origin/main`, PR, merge.
 
 ## Step 5 — Verify, and say what you verified
 
@@ -109,9 +134,11 @@ Every precondition maps to an observed failure on 2026-09-28 (anchor: t/3714, si
 |---|---|
 | 1 — content, not ancestry | A `reset` that discards work which squash-merge made *look* unmerged |
 | 2 — rescue before reset | Destroying unique local commits; the incident-#6 shape (a local commit invisible to origin) |
-| 3.1 — unscoped status | A sync over a peer's uncommitted WIP; and a peer's WIP compiling into your build |
-| 3.3 — announce | Two actors rewriting one tree concurrently |
-| 4 — record before reset | An irreversible reset taken on a wrong Step-1 call |
+| 3.1 — tracked blocks, untracked doesn't, phantom-by-diff-only | A sync over a peer's uncommitted WIP; an unsatisfiable precondition waived on first use; the incident-#6 eyeball-judgment about a colleague's file |
+| 3.2 — fleet/readers check | A tree swapped under an agent mid-build/test whose index is clean (incident #4, via the sync) |
+| 3.4 — announce **then wait** | Two actors rewriting one tree; an announcement nobody has read yet |
+| 4 — adjacent single-command check + written rollback | A stale precondition (TOCTOU); an irreversible reset on a wrong Step-1 call with no recovery |
 | 5 — verify with a SHA | "Done" reported for an operation that did not complete |
+| Cadence — prompt, not rare | A large-M sync (wide blast radius); a procedure run so seldom it gets improvised |
 
 The through-line: **every step is a check that the thing you believe about the tree is actually true of the tree.** The session that produced these six incidents produced them mostly through careful work on an untrue belief about what was on disk.
