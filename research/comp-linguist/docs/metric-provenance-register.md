@@ -313,6 +313,14 @@ Corpus-level (not a `CalibrationDataPoint` field): what fraction of the belief g
 
 **Excluded by design:** the node-authored `source_refs` field (379 populated) is a *different* instrument; unioning it lifts coverage to 839/87.5%. This metric measures summary-derived primary-source traceability only.
 
+## 13. Drift-state estimator: per-turn topical state (t/3602 / t/3603 / t/3630)
+
+Per-turn topical-state estimate classifying a debate turn relative to the seeded question + active cruxes: `core` / `adjacent` / `drifted` (+ continuous `topical_drift_score`), on three signals s_seed / s_clause / s_crux, extending ArCo turn-similarity. Distinct from `position_drift` / `per_claim_drift`. Definition + design: `analyses/t3602-drift-state-estimator/design.md`. Shipped as shadow telemetry only (t/3603), **gates nothing**.
+
+| Instrument | Provenance | Evidence / notes |
+|---|---|---|
+| `topical_state` (core/adjacent/drifted) + `topical_drift_score` | **stipulated** | Bands `tau_core`/`tau_adj`/`tau_drift` are **stipulated, NOT human-validated** (shadow-only, gating nothing). The human validation study (t/3630) that would move these to **human-validated** was **waived by PI (2026-09-28, t/3630#5)**: "implement without the human input." **Standing caveat (do not drop):** the two-blind LLM applicability pass (t/3630, N=120) found **~0 drift** and that **cosine strata do not predict the topical label** (drift_candidate cell labeled `core` 37/40): the only evidence, and it leans toward drift being near-absent. So the shadow signal may be low-value; it is building-and-watching, not validate-first. **The exemption from human-validation lapses the moment any consumer branches on `topical_state` to change behavior** (a drift-aware turn policy): that crosses the in-loop line and re-triggers validation + the t/3361 Second Opinion. Today it is write-only telemetry (t/3603). Evidence: `analyses/t3630-drift-validation/` (applicability-findings.md, drift-b15-package.json; the 19-item human package is on disk if validation is ever revived). |
+
 ## Maintenance
 
 - Every PR adding or modifying a metric, threshold, weight, or lexicon must state its provenance class and update this register in the same PR (CL review checklist item).
