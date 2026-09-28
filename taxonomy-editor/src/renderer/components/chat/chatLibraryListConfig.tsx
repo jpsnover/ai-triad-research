@@ -9,6 +9,7 @@
 import type { LibraryListPageConfig, LibraryVariant } from '../shared/LibraryListPage.types';
 import type { ChatSessionSummary, ChatMode } from '../../types/chat';
 import type { CommunityChat } from '../../hooks/useCommunityStore';
+import './chatLibraryListConfig.css';
 
 const MODE_LABELS: Record<ChatMode, string> = {
   brainstorm: 'Brainstorm',
@@ -33,9 +34,12 @@ function rowMode(row: ChatSessionSummary | CommunityChat, variant: LibraryVarian
   return mode ? (MODE_LABELS[mode as ChatMode] ?? mode) : '—';
 }
 
-function rowModel(row: ChatSessionSummary | CommunityChat, variant: LibraryVariant): string {
+function rowModel(row: ChatSessionSummary | CommunityChat, variant: LibraryVariant) {
   const model = variant === 'my' ? (row as ChatSessionSummary).chat_model : (row as CommunityChat).model;
-  return model || '—';
+  if (!model) return <span className="chat-lib-empty">—</span>;
+  // One line, ellipsis only on overflow (spec §2) — mirrors Debates' .debate-lib-model,
+  // flagged to Rosetta as a shared-cell candidate (t/3702#11 F2).
+  return <span className="chat-lib-model" title={model}>{model}</span>;
 }
 
 export interface ChatLibraryListDeps {

@@ -1,0 +1,17 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Model cell: one line, ellipsis only on overflow (spec §2) — mirrors Debates'
+   .debate-lib-model (t/3702#11 F2). Not yet promoted to a shared LibraryListPage.css
+   utility; flagged to Rosetta to fold both into one class. */
+.chat-lib-model {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Spec: empty values show — in #b3aaa2. Matches Debates' .debate-lib-empty. */
+.chat-lib-empty {
+  color: #b3aaa2;
+}
