@@ -514,6 +514,10 @@ export function OpEdTab() {
     newLabel: '+ New Op-Ed',
     onNew: () => setShowNewDialog(true),
     showEdit: true,
+    // t/3703#8: unlike Debates, an anonymous session has real (temporary) op-eds — NewOpEdDialog
+    // only gates URL-source creation for anonymous, not topic-only creation, and the temp anon
+    // session backs My here. So the My tab must stay visible for anonymous users on this page.
+    anonymousHasMyContent: true,
     editMode: {
       active: editMode,
       onEnter: () => setEditMode(true),

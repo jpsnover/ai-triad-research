@@ -94,6 +94,19 @@ export interface LibraryListPageConfig<TMy extends { id: string }, TCommunity ex
   showEdit: boolean;
   editMode?: LibraryEditModeConfig<TMy>;
 
+  /**
+   * Whether an anonymous session has real content in My on this page (t/3703#8, reversing an
+   * earlier ruling that assumed the answer was uniformly false). It isn't: Debates has nothing
+   * for anonymous users, but Op-Eds' temp anon session does. So this is genuinely per-page, not
+   * a mechanism LibraryListPage can decide on its own — but it's REQUIRED, not optional, so a
+   * page can't silently inherit a wrong default the way `actionVisibility` could have. When
+   * `false` and the session is anonymous, LibraryListPage hides the My tab entirely (no
+   * single-item tablist), defaults to the Community view, and uses the Community search
+   * placeholder — never a dead tab showing an empty list. Named for the semantic (does anon have
+   * content here), not the mechanism (auth read).
+   */
+  anonymousHasMyContent: boolean;
+
   columns: LibraryColumn<TMy, TCommunity>[];
 
   /** Header label for the title column — "Headline" / "Title" / "Motion". The title column
@@ -145,7 +158,9 @@ export interface LibraryListPageConfig<TMy extends { id: string }, TCommunity ex
   /** Community-tab action — copies the item into My; the page owns the actual call. */
   onCopy: (row: TCommunity) => void;
   /** Default true. Op-Eds hides Copy for anonymous auth today — pages needing an equivalent
-   *  gate pass this; LibraryListPage has no auth awareness of its own. */
+   *  gate pass this. (LibraryListPage does read auth for the My-tab-visibility rule below, but
+   *  that's the one deliberate exception — see `anonymousHasMyContent`; it still has no general
+   *  auth-driven per-row logic of its own, which is what this predicate is for.) */
   showCopy?: (row: TCommunity) => boolean;
 }
 
@@ -168,11 +183,4 @@ export interface LibraryListPageProps<TMy extends { id: string }, TCommunity ext
    * for the settings-store wiring before either happens.
    */
   actionVisibility?: 'always' | 'hover'; // default 'hover'
-  /** Hide the My tab entirely — e.g. anonymous users, who have nothing in it (t/3705#7,
-   *  DebateUI). Default false. Forces the view to 'community' if the page mounts (or transitions
-   *  into) hideMyTab=true while 'my' was active — e.g. auth resolving to anonymous after an
-   *  optimistic 'my' default. Community-only pages are out of scope for this ticket; this exists
-   *  for a session-state gate, not a page that structurally has no My tab (that's `showEdit`-style
-   *  page config, not a runtime prop). */
-  hideMyTab?: boolean;
 }

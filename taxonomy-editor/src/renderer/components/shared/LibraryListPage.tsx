@@ -9,6 +9,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useAuthStatus } from '../../hooks/useAuthStatus';
 import type {
   LibraryVariant, LibraryListPageProps, LibraryColumn, LibraryRowEditAction,
 } from './LibraryListPage.types';
@@ -473,8 +474,17 @@ export function LibraryListPage<TMy extends { id: string }, TCommunity extends {
 ) {
   const {
     config, myRows, myLoading, communityRows, communityLoading, onOpenMy, onOpenCommunity,
-    actionVisibility = 'hover', hideMyTab = false,
+    actionVisibility = 'hover',
   } = props;
+
+  // t/3703#8: My-tab visibility is auth-driven, read here rather than taken as a prop — the
+  // value (does THIS session have My content) is the same wherever it's computed, but making it
+  // a prop would be three chances for a page to forget to pass it, producing a dead My tab on
+  // whichever page slips. `config.anonymousHasMyContent` is the one thing that genuinely differs
+  // per page (Op-Eds' temp anon session vs. Debates having nothing for anon) and is required, not
+  // optional, so a page can't silently inherit a wrong default either.
+  const auth = useAuthStatus();
+  const hideMyTab = !!auth?.anonymous && !config.anonymousHasMyContent;
 
   const [listView, setListView] = useState<LibraryVariant>(hideMyTab ? 'community' : 'my');
   const [searchQuery, setSearchQuery] = useState('');

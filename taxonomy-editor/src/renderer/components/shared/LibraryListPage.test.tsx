@@ -13,6 +13,9 @@ import type { LibraryListPageConfig } from './LibraryListPage.types';
 
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
 
+let mockAuth: { anonymous?: boolean } | null = { anonymous: false };
+vi.mock('../../hooks/useAuthStatus', () => ({ useAuthStatus: () => mockAuth }));
+
 interface Row { id: string; title: string; date: string; }
 
 const MY_ROWS: Row[] = [
@@ -29,6 +32,7 @@ function baseConfig(overrides: Partial<LibraryListPageConfig<Row, Row>> = {}): L
     newLabel: '+ New Thing',
     onNew: vi.fn(),
     showEdit: false,
+    anonymousHasMyContent: true,
     titleHeader: 'Title',
     columns: [
       { key: 'date', header: 'Date', width: '110px', render: (r: Row) => r.date },
@@ -85,18 +89,34 @@ describe('LibraryListPage — tabs', () => {
   });
 });
 
-describe('LibraryListPage — hideMyTab (t/3705#7)', () => {
-  it('hides the My tab button and shows only Community rows', () => {
-    renderPage({}, { hideMyTab: true });
+describe('LibraryListPage — My-tab visibility is auth-driven, not a prop (t/3703#8)', () => {
+  beforeEach(() => { mockAuth = { anonymous: false }; });
+
+  it('anonymous + anonymousHasMyContent=false hides the My tab and shows only Community', () => {
+    mockAuth = { anonymous: true };
+    renderPage({ anonymousHasMyContent: false });
     expect(screen.queryByRole('tab', { name: /^My/ })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Community/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Community item')).toBeInTheDocument();
   });
 
-  it('forces the view to Community if hideMyTab flips true after mount', () => {
+  it('anonymous + anonymousHasMyContent=true (e.g. Op-Eds\' temp session) still shows My', () => {
+    mockAuth = { anonymous: true };
+    renderPage({ anonymousHasMyContent: true });
+    expect(screen.getByRole('tab', { name: /My/ })).toBeInTheDocument();
+  });
+
+  it('non-anonymous session always shows My regardless of anonymousHasMyContent', () => {
+    mockAuth = { anonymous: false };
+    renderPage({ anonymousHasMyContent: false });
+    expect(screen.getByRole('tab', { name: /My/ })).toBeInTheDocument();
+  });
+
+  it('forces the view to Community if auth resolves to anonymous (no content) after an optimistic My mount', () => {
+    mockAuth = { anonymous: false };
     const { rerender } = render(
       <LibraryListPage
-        config={baseConfig()}
+        config={baseConfig({ anonymousHasMyContent: false })}
         myRows={MY_ROWS}
         myLoading={false}
         communityRows={COMMUNITY_ROWS}
@@ -106,16 +126,16 @@ describe('LibraryListPage — hideMyTab (t/3705#7)', () => {
       />,
     );
     expect(screen.getByRole('tab', { name: /My/ })).toHaveAttribute('aria-selected', 'true');
+    mockAuth = { anonymous: true };
     rerender(
       <LibraryListPage
-        config={baseConfig()}
+        config={baseConfig({ anonymousHasMyContent: false })}
         myRows={MY_ROWS}
         myLoading={false}
         communityRows={COMMUNITY_ROWS}
         communityLoading={false}
         onOpenMy={vi.fn()}
         onOpenCommunity={vi.fn()}
-        hideMyTab
       />,
     );
     expect(screen.queryByRole('tab', { name: /^My/ })).not.toBeInTheDocument();
