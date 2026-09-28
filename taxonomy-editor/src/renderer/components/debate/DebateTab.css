@@ -601,3 +601,30 @@
   gap: 8px;
   cursor: pointer;
 }
+
+/* ──────────────────────────────────────────────
+   Full-width list panel (table mode — no inline detail)
+   Ported from the now-deleted DebateTable.css (t/3705, Gate 2 F1, t/3702#11) — DebateTab.tsx no
+   longer imports DebateTable.tsx, so its CSS silently stopped loading, and the shared
+   LibraryListPage was left trapped in the legacy 600px master-detail .list-panel at desktop
+   width. These rules make the list panel fill .two-column in table mode, same as before.
+────────────────────────────────────────────── */
+.debate-tab-table-mode .list-panel {
+  width: 100% !important;
+  max-width: 100%;
+}
+
+.debate-tab-table-mode .list-panel.debate-session-list {
+  /* Override the inline `style.width` set by useResizablePanel */
+  flex: 1;
+}
+
+/* Tablet band (768–1023px): tablet-mode sets width:30%/max-width:320px on the list panel
+   which overrides flex:1 via specificity. When table-mode is also active, release
+   that cap so the panel fills the full two-column container. */
+.two-column.tablet-mode.debate-tab-table-mode .list-panel.debate-session-list {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: 1;
+}
