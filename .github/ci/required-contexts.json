@@ -7,18 +7,18 @@
     "operations/devops/Test-RequiredContextsListDrift.ps1 validates this list against the live",
     "API; that drift-guard MUST be green on main BEFORE the workflow-lint required-context rule",
     "is promoted from warn-only to blocking (a lint enforcing a stale mirror is worse than none).",
-    "'workflow: null' is DELIBERATE and load-bearing for CodeQL — do NOT 'correct' it to point at",
-    ".github/workflows/codeql.yml (that HARD-FAILS the lint; verified t/3688 AC-2). Rules R2/R5 key on",
-    "a job whose id equals the context name; codeql.yml's only job id is 'analyze', and the 'CodeQL'",
-    "required context is posted by the GitHub app as an aggregate — so a non-null entry makes R2 fail",
-    "with 'no job with id CodeQL'. COST of the null, stated so it is not rediscovered: R1/R4 do NOT",
-    "lint codeql.yml, so R1's anti-strand guard (no trigger-level PR paths) — which codeql.yml's own",
-    "t/2025 comment relies on — is protected by that comment ALONE, not mechanized. Closing that gap",
-    "needs the schema to separate 'file backing a context' (R1/R4) from 'job posting it' (R2/R5): t/3691."
+    "CodeQL (t/3691): the 'CodeQL' required check is posted by the GitHub CodeQL App as an AGGREGATE,",
+    "not by a job in codeql.yml (whose jobs are 'analyze' + 'record-base-ref'). So its entry names the",
+    "file AND carries \"posts\": \"app-aggregate\": the FILE-level rules (R1/R3/R4) DO lint codeql.yml",
+    "(closing the t/2025 anti-strand gap that was previously protected by a comment alone), while the",
+    "JOB-level rules (R2/R5 — look up a job whose posted name == the context) are N/A and skipped.",
+    "'posts' is a VERIFIABLE claim, not a bare opt-out (app-posted = a bare /runs/<id> status; a workflow",
+    "job = /actions/runs/.../job/); an UNMARKED context with no matching job still HARD-FAILS R2 (typo",
+    "catch preserved). The R2/R5 job lookup is name-then-id (workflow-lint _find_reporting_job, t/3691)."
   ],
   "required_contexts": [
     { "context": "ci-gate", "workflow": ".github/workflows/ci.yml" },
     { "context": "joint-gv-guard", "workflow": ".github/workflows/joint-gv-guard.yml" },
-    { "context": "CodeQL", "workflow": null }
+    { "context": "CodeQL", "workflow": ".github/workflows/codeql.yml", "posts": "app-aggregate" }
   ]
 }

@@ -212,6 +212,48 @@ def _parse_inline_list(value):
     return [x.strip() for x in inner.split(',') if x.strip()]
 
 
+def _find_reporting_job(lines, jobs_idx, context_name):
+    """Return the index of the job that POSTS the required check-run named `context_name`, else -1.
+
+    INVARIANT (t/3691, TL e/215#6): the posted check-run name is the job's `name:` if set, else its
+    id — and a matrix expands it to `name (value)`. `needs:` references the job id and is unaffected.
+    Both the SSOT<->API and SSOT<->job comparisons are exact string equality, so a gated job must not
+    be matrixed (live example: `test-powershell` was matrixed by t/3668 and could not become a
+    required context as-is), and no normalization — case-folding, trim — may be introduced on either
+    side without breaking the transitivity that closes the seam.
+
+    Return the job whose POSTED name equals context_name, where posted name = the job's `name:` if
+    set, ELSE its id. This is NOT "name-first then id-fallback across all jobs": a job that sets
+    `name: X` posts its check-run as "X" and must NOT match a context equal to its id Y — matching it
+    by id would be the SO's "misleading green" (e/215#2), a context that never reports while the lint
+    passes. `ci-gate` sets `name: ci-gate` == its id (resolves by the name route); `joint-gv-guard`
+    sets no `name:` (resolves by id) — both correct, by different routes.
+    """
+    jobs_end = _block_end(lines, jobs_idx, 0)
+    j = jobs_idx + 1
+    while j < jobs_end:
+        m = re.match(r'^ {2}([\w-]+):\s*(#.*)?$', lines[j])  # an indent-2 job-id header
+        if m:
+            job_id = m.group(1)
+            job_end = _block_end(lines, j, 2)
+            # A matrixed job posts `name (value)` check-runs — NEVER the bare name/id — so it cannot
+            # satisfy a bare required context. Skip it, so a matrixed reporting job yields R2 "no job
+            # posts X" (mechanizing the "a gated job must not be matrixed" invariant, t/3691 / TL
+            # e/215#6; live near-instance: `test-powershell` sharded by t/3668, posts `... (1)`/`(2)`).
+            strat_idx = _find_key(lines, 'strategy', 4, j + 1, job_end)
+            if strat_idx != -1 and _find_key(lines, 'matrix', 6, strat_idx + 1, job_end) != -1:
+                j = job_end
+                continue
+            name_idx = _find_key(lines, 'name', 4, j + 1, job_end)
+            posted = lines[name_idx].split(':', 1)[1].strip().strip('\'"') if name_idx != -1 else job_id
+            if posted == context_name:
+                return j
+            j = job_end
+        else:
+            j += 1
+    return -1
+
+
 def load_required_contexts(root='.'):
     """Load the SSOT. Returns (entries, error_or_None). Missing/malformed SSOT is a hard
     error (a required-context lint with no list is itself the silent-no-op failure)."""
@@ -230,8 +272,14 @@ def load_required_contexts(root='.'):
     return entries, None
 
 
-def check_required_context(path, content, context_name):
-    """Return violation strings for a required-context workflow file (R1–R4)."""
+def check_required_context(path, content, context_name, posts=None):
+    """Return violation strings for a required-context workflow file (R1–R5).
+
+    `posts` (t/3691): the SSOT entry's optional `posts` marker. `posts == 'app-aggregate'` means the
+    check-run is posted by a GitHub App as an aggregate (e.g. CodeQL), NOT by a job in this file — so
+    the FILE-level rules (R1/R3/R4) still apply, but the JOB-level rules (R2/R5, which look up a job
+    whose posted name == context_name) are N/A and skipped. A verifiable claim, not a bare opt-out
+    (app-posted = bare `/runs/<id>` status; a workflow job = `/actions/runs/.../job/`) — SO e/215#2."""
     errs = []
     lines = content.splitlines()
     gated_decl = None            # t/3663: hoisted so the Half-A completeness floor (in the jobs
@@ -289,9 +337,12 @@ def check_required_context(path, content, context_name):
     if jobs_idx == -1:
         errs.append(f'{path}: required context "{context_name}" — no `jobs:` block')
     else:
-        job_idx = _find_key(lines, context_name, 2, jobs_idx + 1)
+        job_idx = _find_reporting_job(lines, jobs_idx, context_name)
         if job_idx == -1:
-            errs.append(f'{path}: R2 required context "{context_name}" — no job with id "{context_name}" (the check-run name must be a job in this workflow)')
+            if posts == 'app-aggregate':
+                pass  # app-posted aggregate (e.g. CodeQL): R1/R3/R4 linted the file above; R2/R5 N/A
+            else:
+                errs.append(f'{path}: R2 required context "{context_name}" — no job whose posted name (`name:` if set, else id) is "{context_name}" (a required check-run must be posted by a job in this workflow). If this is a genuinely GitHub-App-posted aggregate (like CodeQL), mark the SSOT entry `"posts": "app-aggregate"` to exempt R2/R5; otherwise this is a typo or missing job.')
         else:
             job_end = _block_end(lines, job_idx, 2)
             job_body = lines[job_idx + 1:job_end]
@@ -698,6 +749,63 @@ jobs:
     else:
         print('  PASS: R5 flags `no` whose condition never checks skipped (comment does not satisfy it)')
 
+    # ── t/3691: file-vs-job separation (posts marker) + name-then-id lookup + matrix guard ──
+    # Arm A: an app-posted aggregate (posts='app-aggregate') with NO matching job → R2/R5 N/A
+    # (skipped); the FILE rules (R1/R3/R4) still ran on it. rc_ok's job id is 'ci-gate'; ask 'CodeQL'.
+    if any('R2' in e for e in check_required_context('rc_appagg', rc_ok, 'CodeQL', 'app-aggregate')):
+        failures.append('t/3691 Arm A: app-aggregate context wrongly R2-failed (should skip job-level rules)')
+    else:
+        print('  PASS: t/3691 A — app-aggregate context skips R2/R5 (no matching job is expected there)')
+
+    # Arm B: the SAME shape UNMARKED (posts=None) → R2 FAILS. The marker is the ONLY thing that
+    # distinguishes a genuine app-posted aggregate from a typo/missing job — typo catch preserved.
+    if not any('R2' in e for e in check_required_context('rc_unmarked', rc_ok, 'CodeQL')):
+        failures.append('t/3691 Arm B: unmarked context with no matching job did NOT R2-fail (typo catch lost)')
+    else:
+        print('  PASS: t/3691 B — unmarked context with no matching job still R2-fails (typo catch preserved)')
+
+    # Fixture: job id 'analyze' but `name: report-ctx`. GitHub posts the check-run under the NAME, so
+    # the reporting context is 'report-ctx', NOT 'analyze'.
+    rc_nameid = (
+        "permissions:\n  contents: read\n"
+        "on:\n  pull_request:\n"
+        "    # lint:gated-events: opened,synchronize,reopened\n"
+        "    types: [opened, synchronize, reopened]\n"
+        "jobs:\n  analyze:\n    name: report-ctx\n    if: always()\n"
+        "    runs-on: ubuntu-latest\n    steps:\n"
+        "      - name: gate\n        if: contains(needs.*.result, 'failure')\n        run: echo ok\n"
+    )
+    # Arm C: context == the NAME ('report-ctx') → found via the name route (name≠id), no R2 failure.
+    if any('R2' in e for e in check_required_context('rc_nameid_ok', rc_nameid, 'report-ctx')):
+        failures.append('t/3691 Arm C: name-match (report-ctx) wrongly R2-failed (name-then-id lookup broken)')
+    else:
+        print('  PASS: t/3691 C — a job whose name==context is found by the name route (name≠id)')
+
+    # Arm D: context == the ID ('analyze') while name:'report-ctx' is set → the check-run posts as
+    # 'report-ctx', so a required 'analyze' would HANG → R2 must FAIL (SO "misleading green", e/215#2).
+    # An id-only fallback would wrongly find job id 'analyze' and pass — the bug this arm guards.
+    if not any('R2' in e for e in check_required_context('rc_nameid_stale', rc_nameid, 'analyze')):
+        failures.append('t/3691 Arm D: stale context==id while name:X set did NOT R2-fail (misleading green)')
+    else:
+        print('  PASS: t/3691 D — context==id while a different name is set R2-fails (no misleading green)')
+
+    # Arm E: a MATRIXED reporting job posts `name (value)`, never the bare name → cannot satisfy a
+    # bare required context; context=='shard' must R2-fail (mechanizes "a gated job must not be
+    # matrixed", TL e/215#6). Without the matrix-skip the lint would false-PASS on `name: shard`.
+    rc_matrix = (
+        "permissions:\n  contents: read\n"
+        "on:\n  pull_request:\n"
+        "    # lint:gated-events: opened,synchronize,reopened\n"
+        "    types: [opened, synchronize, reopened]\n"
+        "jobs:\n  shard:\n    name: shard\n    strategy:\n      matrix:\n        n: [1, 2]\n    if: always()\n"
+        "    runs-on: ubuntu-latest\n    steps:\n"
+        "      - name: gate\n        if: contains(needs.*.result, 'failure')\n        run: echo ok\n"
+    )
+    if not any('R2' in e for e in check_required_context('rc_matrix', rc_matrix, 'shard')):
+        failures.append("t/3691 Arm E: a matrixed reporting job (posts 'shard (n)') did NOT R2-fail for bare context 'shard'")
+    else:
+        print('  PASS: t/3691 E — a matrixed reporting job R2-fails a bare context (name (value) != name)')
+
     if failures:
         for f in failures:
             print(f'  FAIL: {f}')
@@ -737,13 +845,14 @@ else:
     for _e in rc_entries:
         _wf = _e.get('workflow')
         _ctx = _e.get('context')
+        _posts = _e.get('posts')  # t/3691: 'app-aggregate' => app-posted (CodeQL); R2/R5 N/A, file rules still apply
         if not _wf:
-            continue  # api-only required context (GitHub-managed, e.g. CodeQL) — no workflow file to lint
+            continue  # entry with no workflow file to lint (none today — CodeQL now names codeql.yml + posts:app-aggregate)
         if not _os.path.exists(_wf):
             errors.append(f'{_wf}: required context "{_ctx}" (SSOT {RC_SSOT_PATH}) names a workflow file that does not exist')
             continue
         with open(_wf, encoding='utf-8') as _f:
-            _findings = check_required_context(_wf, _f.read(), _ctx)
+            _findings = check_required_context(_wf, _f.read(), _ctx, _posts)
         # t/3663: the completeness-floor (R3-floor) and skipped-discriminator (R5-skip) arms are
         # WARN-ONLY heuristics — they do NOT inherit R1–R5's blocking status (a later promotion
         # needs its own evidence + its own Second Opinion). Route them to rc_warnings REGARDLESS of
