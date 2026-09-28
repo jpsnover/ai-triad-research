@@ -342,7 +342,7 @@ def check_required_context(path, content, context_name, posts=None):
             if posts == 'app-aggregate':
                 pass  # app-posted aggregate (e.g. CodeQL): R1/R3/R4 linted the file above; R2/R5 N/A
             else:
-                errs.append(f'{path}: R2 required context "{context_name}" — no job whose posted name (`name:` if set, else id) is "{context_name}" (a required check-run must be posted by a job in this workflow). If this is a genuinely GitHub-App-posted aggregate (like CodeQL), mark the SSOT entry `"posts": "app-aggregate"` to exempt R2/R5; otherwise this is a typo or missing job.')
+                errs.append(f'{path}: R2 required context "{context_name}" — no job whose posted name (`name:` if set, else id) is "{context_name}" (a required check-run must be posted by a job in this workflow). Causes: (a) the reporting job is MATRIXED — it posts `name (value)`, never the bare name, so a gated job must not be matrixed (the likeliest real trigger, e.g. `test-powershell` t/3668); (b) a genuinely GitHub-App-posted aggregate (like CodeQL) — mark the SSOT entry `"posts": "app-aggregate"` to exempt R2/R5; (c) a typo or missing job.')
         else:
             job_end = _block_end(lines, job_idx, 2)
             job_body = lines[job_idx + 1:job_end]
