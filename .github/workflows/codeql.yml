@@ -23,6 +23,15 @@ on:
     # REQUIRED status context, a path-filtered PR that never triggered CodeQL
     # would strand — the required check would sit pending forever (t/1962 genus).
     branches: [main]
+    # lint:gated-events: opened,synchronize,reopened
+    # ^ (t/3691) the events that change the code CodeQL scans. This is exactly GitHub's DEFAULT
+    #   pull_request activity set, made EXPLICIT so workflow-lint R3 can verify `types ⊇ declared`
+    #   now that codeql.yml is a linted required-context file (SSOT `posts: app-aggregate`) —
+    #   behavior-neutral (the default was already these three). NOT `edited`: CodeQL does not run on
+    #   title/body edits today either, so this changes nothing; the base-retarget-via-`edited` wedge
+    #   is a pre-existing property of EVERY required context here (CodeQL is already required) and is
+    #   tracked as its own follow-up, not silently changed under this ticket.
+    types: [opened, synchronize, reopened]
   schedule:
     # Weekly scan — catches new CVE patterns even without code changes
     - cron: '0 6 * * 1'
