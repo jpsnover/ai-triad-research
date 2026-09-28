@@ -144,7 +144,7 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
   });
 
   // GET /api/inquiry/:jobId — poll job state; include the InquiryResult on a terminal job, and fall
-  // back to the persisted result when the in-memory job is gone (cross-replica / post-sweep).
+  // back to the persisted result when the in-memory job is gone (cross-restart / post-sweep).
   get('/api/inquiry/:jobId', async (req, res) => {
     const user = getCurrentUser();
     if (!user || user.isAnonymous) { error(res, 'Authentication required', 401); return; }

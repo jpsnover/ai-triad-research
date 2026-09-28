@@ -98,7 +98,7 @@ export interface InquiryJob {
   /** Set on `done_truncated` — the binding termination reason (e.g. `api_ceiling`), for the UI
    *  to render (t/3583 must not re-derive it). Undefined on a clean `done`. */
   terminationReason?: string;
-  /** The persisted result's id (== jobId) once stored; the cross-replica fallback loads by it. */
+  /** The persisted result's id (== jobId) once stored; the cross-restart fallback loads by it. */
   resultId: string | null;
   error: string | null;
   /** The source debate's id (`session.id`), normalized to `null` when absent — see readDebateRef.
@@ -255,7 +255,7 @@ async function runInquiryJob(job: InquiryJob, args: CreateInquiryJobArgs): Promi
       createdAt: new Date().toISOString(),
     };
     // Persist BEFORE flipping to a terminal state, so a poll that observes `done`/`done_truncated`
-    // is guaranteed the result is loadable (the cross-replica fallback can't race ahead of the write).
+    // is guaranteed the result is loadable (the cross-restart fallback can't race ahead of the write).
     await saveInquiryResult(job.jobId, result, summary);
     job.resultId = job.jobId;
     setStatus(job, truncated ? 'done_truncated' : 'done');

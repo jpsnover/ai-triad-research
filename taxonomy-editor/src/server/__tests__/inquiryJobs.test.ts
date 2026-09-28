@@ -3,7 +3,7 @@
 // t/3578 — inquiry async job runner (POST-202 + poll, mirroring briefExportJobs).
 // The pipeline is INJECTED (a fake here), so the bookkeeping is tested without running a real
 // debate. The store is mocked by an in-memory map that survives a job-registry reset — that's what
-// lets the cross-replica fallback test (TL t/3578#6 addition) be exercised deterministically.
+// lets the cross-restart fallback test (TL t/3578#6 addition) be exercised deterministically.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { InquiryResult, InquiryRequest } from '../../../../lib/inquiry/index.js';
@@ -163,7 +163,7 @@ describe('t/3578 — TTL sweep', () => {
   });
 });
 
-describe('t/3578 — cross-replica fallback', () => {
+describe('t/3578 — cross-restart fallback', () => {
   it('a job absent from the in-memory map still resolves via the persisted result', async () => {
     const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
     await waitTerminal(job);

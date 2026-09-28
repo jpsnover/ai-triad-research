@@ -27,7 +27,10 @@
 //  enumeration is infeasible — same problem that ruled out the boot-scan). Records accumulate for
 //  jobs where the process crashed AND the user never polls again (closed tab, different device).
 //  This is bounded by *abandoned* runs, not all runs or all failures — a small, event-driven set.
-//  'failed' records from mechanism 2/3 also persist; no terminal TTL sweep exists today.
+//  'failed' records from mechanism 2/3 are bounded on-read by the retention window (mechanism 4
+//  below): any terminal record polled past INQUIRY_JOB_RECORD_FAILED_WINDOW_MS is deleted at that
+//  poll. There is no background sweep — accumulation is for abandoned runs only (user never polls
+//  again after the crash), which are bounded by the window on first poll.
 //  Future option (not yet built): a per-user registry file (cf. inquiryShareStore.shareRegistryPath)
 //  would enable lazy enumeration within a user context at their next authenticated request — avoids
 //  global enumeration and boot-scan. Don't build until volume warrants it.
