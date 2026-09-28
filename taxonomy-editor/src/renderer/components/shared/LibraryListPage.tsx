@@ -341,7 +341,7 @@ function HeaderRow1<TMy extends { id: string }, TCommunity extends { id: string 
 // ── Header row 2: tabs + search ──
 
 function HeaderRow2({
-  listView, myCount, communityCount, onSwitch, searchQuery, onSearchChange, placeholderMy, placeholderCommunity,
+  listView, myCount, communityCount, onSwitch, searchQuery, onSearchChange, placeholderMy, placeholderCommunity, hideMyTab,
 }: {
   listView: LibraryVariant;
   myCount: number;
@@ -351,13 +351,16 @@ function HeaderRow2({
   onSearchChange: (v: string) => void;
   placeholderMy: string;
   placeholderCommunity: string;
+  hideMyTab: boolean;
 }) {
   return (
     <div className="lib-header-row2">
       <div className="lib-tabs" role="tablist">
-        <button role="tab" aria-selected={listView === 'my'} className={`lib-tab${listView === 'my' ? ' active' : ''}`} onClick={() => onSwitch('my')}>
-          My <span className="lib-tab-badge">{myCount}</span>
-        </button>
+        {!hideMyTab && (
+          <button role="tab" aria-selected={listView === 'my'} className={`lib-tab${listView === 'my' ? ' active' : ''}`} onClick={() => onSwitch('my')}>
+            My <span className="lib-tab-badge">{myCount}</span>
+          </button>
+        )}
         <button role="tab" aria-selected={listView === 'community'} className={`lib-tab${listView === 'community' ? ' active' : ''}`} onClick={() => onSwitch('community')}>
           Community <span className="lib-tab-badge">{communityCount}</span>
         </button>
@@ -470,10 +473,10 @@ export function LibraryListPage<TMy extends { id: string }, TCommunity extends {
 ) {
   const {
     config, myRows, myLoading, communityRows, communityLoading, onOpenMy, onOpenCommunity,
-    actionVisibility = 'hover',
+    actionVisibility = 'hover', hideMyTab = false,
   } = props;
 
-  const [listView, setListView] = useState<LibraryVariant>('my');
+  const [listView, setListView] = useState<LibraryVariant>(hideMyTab ? 'community' : 'my');
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState<SortState>({ key: null, dir: 'none' });
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -482,6 +485,13 @@ export function LibraryListPage<TMy extends { id: string }, TCommunity extends {
     setListView(v);
     setSearchQuery('');
   }, []);
+
+  // hideMyTab can flip true after mount (e.g. auth resolves anonymous after an optimistic 'my'
+  // default) — force off 'my' rather than leave the view stuck on a tab whose button just
+  // disappeared from the strip.
+  useEffect(() => {
+    if (hideMyTab && listView === 'my') setListView('community');
+  }, [hideMyTab, listView]);
 
   const showToast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -534,6 +544,7 @@ export function LibraryListPage<TMy extends { id: string }, TCommunity extends {
         onSearchChange={setSearchQuery}
         placeholderMy={config.searchPlaceholderMy}
         placeholderCommunity={config.searchPlaceholderCommunity}
+        hideMyTab={hideMyTab}
       />
 
       <div className="lib-table-wrap">

@@ -168,4 +168,11 @@ export interface LibraryListPageProps<TMy extends { id: string }, TCommunity ext
    * for the settings-store wiring before either happens.
    */
   actionVisibility?: 'always' | 'hover'; // default 'hover'
+  /** Hide the My tab entirely — e.g. anonymous users, who have nothing in it (t/3705#7,
+   *  DebateUI). Default false. Forces the view to 'community' if the page mounts (or transitions
+   *  into) hideMyTab=true while 'my' was active — e.g. auth resolving to anonymous after an
+   *  optimistic 'my' default. Community-only pages are out of scope for this ticket; this exists
+   *  for a session-state gate, not a page that structurally has no My tab (that's `showEdit`-style
+   *  page config, not a runtime prop). */
+  hideMyTab?: boolean;
 }
