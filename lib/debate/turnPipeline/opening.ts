@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { TurnStageConfig, StageDiagnostics, DraftWorkProduct, OpeningBriefWorkProduct, OpeningPlanWorkProduct, OpeningCiteWorkProduct, OpeningPipelineResult, TaxonomyRef, DocumentAnalysis } from '../types.js';
+import type { TurnStageConfig, StageDiagnostics, DraftWorkProduct, OpeningBriefWorkProduct, OpeningPlanWorkProduct, OpeningCiteWorkProduct, OpeningPipelineResult, TaxonomyRef, DocumentAnalysis, EditingMeta } from '../types.js';
 import { ActionableError } from '../errors.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
 import { validateDraftStage, validateCiteStage } from '../turnValidator.js';
@@ -15,6 +15,7 @@ import { buildRepairBlock } from './microFix.js';
 import { stripLeadingHeadings, deduplicateStatement } from './assemble.js';
 import { DEFAULT_STAGE_TEMPERATURES } from './types.js';
 import type { StageGenerateFn, StageProgressFn } from './types.js';
+import { runReadabilityEditPass } from './readabilityEditPass.js';
 
 // ── Opening pipeline ──────────────────────────────────
 
@@ -293,6 +294,14 @@ export async function runOpeningPipeline(
     };
   }
 
+  // ── Post-draft readability edit pass ──
+  let editingMeta: OpeningPipelineResult['editing_meta'];
+  if (draft?.statement) {
+    const editResult = await runReadabilityEditPass(draft.statement, input.audience, generate, input.model, input.label);
+    (draft as Record<string, unknown>).statement = editResult.statement;
+    editingMeta = editResult.editing_meta;
+  }
+
   // ── Stage 4: CITE ──
   onProgress?.('cite', `${input.label} is citing...`);
   const citePromptText = citeOpeningStagePrompt(stageInput, briefJson, planJson, draftJson);
@@ -336,6 +345,7 @@ export async function runOpeningPipeline(
     cite,
     stage_diagnostics: stageDiags,
     total_time_ms: Date.now() - pipelineStart,
+    editing_meta: editingMeta,
   };
 }
 

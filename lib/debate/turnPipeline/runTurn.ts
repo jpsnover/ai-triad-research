@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { StageDiagnostics, BriefWorkProduct, PlanWorkProduct, DraftWorkProduct, CiteWorkProduct, TurnPipelineResult, PromptComponentChars, DraftQualityGateResult } from '../types.js';
+import type { StageDiagnostics, BriefWorkProduct, PlanWorkProduct, DraftWorkProduct, CiteWorkProduct, TurnPipelineResult, PromptComponentChars, DraftQualityGateResult, EditingMeta } from '../types.js';
 import { ActionableError } from '../errors.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
 import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelevance, parseDraftQualityResult, resolveMoveName } from '../turnValidator.js';
@@ -23,6 +23,7 @@ import { buildRepairBlock, trySpecificityMicroFix, tryInterventionMicroFix, tryD
 import { extractDraftMeta } from './assemble.js';
 import { DEFAULT_STAGE_TEMPERATURES } from './types.js';
 import type { TurnPipelineInput, StageGenerateFn, StageProgressFn, EnvelopeGenerateFn } from './types.js';
+import { runReadabilityEditPass } from './readabilityEditPass.js';
 
 export async function runTurnPipeline(
   input: TurnPipelineInput,
@@ -333,6 +334,7 @@ export async function runTurnPipeline(
 
   let topicAlignmentResult: { topic_aligned: boolean; repaired: boolean; draft_attempt: number } | undefined;
   let qualityGateResult: { pre_repair: DraftQualityGateResult; post_repair?: DraftQualityGateResult; repair_outcome?: 'fixed' | 'partial' | 'unchanged' } | undefined;
+  let editingMeta: TurnPipelineResult['editing_meta'];
 
   if (input.frozenDraft) {
     draft = input.frozenDraft;
@@ -740,6 +742,14 @@ export async function runTurnPipeline(
     draftRepairHints = [];
     break;
   }
+
+  // ── Post-draft readability edit pass ──
+  if (draft?.statement) {
+    const editResult = await runReadabilityEditPass(draft.statement, input.audience, generate, input.model, `${input.label}`);
+    (draft as Record<string, unknown>).statement = editResult.statement;
+    editingMeta = editResult.editing_meta;
+  }
+
   // ── Post-Draft assumptions extraction (lightweight LLM call) ──
   // Deferred from Draft to reduce cognitive load during generation (t/298).
   // Opening turns already produce key_assumptions — only extract for non-opening turns.
@@ -1415,6 +1425,7 @@ export async function runTurnPipeline(
     ignoredEvidenceDocIds: ignoredEvidenceDocIds.length > 0 ? ignoredEvidenceDocIds : undefined,
     stage_diagnostics: stageDiags,
     total_time_ms: Date.now() - pipelineStart,
+    editing_meta: editingMeta,
     topicAlignmentResult,
     qualityGateResult,
     degraded_turn: degradedTurn || undefined,
