@@ -9,7 +9,8 @@
 // POST → 202 { jobId }, GET polls the evolving state, per-user concurrency cap, TTL sweep,
 // idempotency window, progress percentage. Durable truth is the persisted InquiryResult
 // (inquiryResultStore, keyed by jobId); the in-memory job is an ephemeral progress view —
-// a "job not found" GET falls back to loadInquiryResult(jobId) (cross-replica durability).
+// a "job not found" GET falls back to loadInquiryResult(jobId) (cross-restart durability —
+// not cross-replica; maxReplicas: 1).
 //
 // TWO DELIBERATE IMPROVEMENTS on the brief precedent (TL t/3578#6):
 //  1. The pipeline is INJECTED, not imported. briefExportJobs imports runBriefPipeline directly,
@@ -22,6 +23,15 @@
 //     status union is exhaustiveness-checked by tsc (see assertNever in isTerminalStatus).
 
 import { randomUUID } from 'crypto';
+
+/** Unique id for this process boot — forensic only per SO e/221#2. Must NOT gate the tier-3
+ *  transition (that job is done by `lastHeartbeatAt` staleness, not boot identity — `bootId`
+ *  misfires during deploy overlap where the old replica is still healthy).
+ *  Must be process-generated (a UUID), never derived from `CONTAINER_APP_REVISION` or any env
+ *  var: a revision id is stable across scale-to-zero restarts within a revision, so a
+ *  revision-derived id would silently disable tier-3 in the dominant restart mode (SO condition 2).
+ *  Coordinate with t/3724: `server.started` must emit this same id for unified boot forensics. */
+export const INQUIRY_BOOT_ID: string = randomUUID();
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { errorMessage } from '../../../lib/debate/errors.js';
 import { log } from './logger.js';
@@ -83,7 +93,7 @@ export function getInquiryJob(jobId: string, userId: string): InquiryJob | null 
 }
 
 /** Raw membership (any user) — lets the GET handler distinguish "not in this process's Map at all"
- *  (the cross-replica-fallback signal → load the persisted result) from "present but wrong user". */
+ *  (cross-restart fallback signal → load persisted result / job record) from "present but wrong user". */
 export function hasInquiryJob(jobId: string): boolean {
   return jobs.has(jobId);
 }

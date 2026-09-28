@@ -20,6 +20,8 @@ const h = vi.hoisted(() => ({
   hasById: new Set<string>(),
   persisted: new Map<string, unknown>(),
   summaries: [] as unknown[],
+  /** Controls the markJobFailedIfStale mock (t/3728 tier-3). false = record absent/same-boot; true = stale record marked failed. */
+  markStaleReturn: false,
 }));
 
 vi.mock('../security/userContext.js', () => ({
@@ -37,12 +39,15 @@ vi.mock('../ai/aiBackends.js', () => ({ isRegisteredModel: () => h.registered })
 const startInquiryJob = vi.fn((args: { userId: string }) => { const jobId = 'job-new'; h.jobById.set(jobId, { jobId, status: 'queued' }); return { jobId, userId: args.userId, status: 'queued', progressPct: 0, resultId: null, error: null }; });
 vi.mock('../inquiryJobs.js', () => ({
   MAX_CONCURRENT_INQUIRY_JOBS: 1,
+  INQUIRY_BOOT_ID: 'boot-test',
   startInquiryJob: (args: { userId: string }) => startInquiryJob(args),
   getInquiryJob: (jobId: string, userId: string) => { const j = h.jobById.get(jobId); return j && (j.userId === userId || j.userId === undefined) ? j : null; },
   hasInquiryJob: (jobId: string) => h.hasById.has(jobId) || h.jobById.has(jobId),
   countRunningInquiryJobs: () => h.running,
   findIdempotentInquiryJob: () => h.idempotent,
   deriveTruncation: (r: { truncated?: boolean }) => ({ truncated: !!r.truncated, terminationReason: r.truncated ? 'api_ceiling' : undefined }),
+  // t/3728 tier-3: stub present so the route can import it; h.markStaleReturn controls the return.
+  markJobFailedIfStale: async (_jobId: string) => h.markStaleReturn,
 }));
 vi.mock('../storage/inquiryResultStore.js', () => ({ loadInquiryResult: async (jobId: string) => h.persisted.get(jobId) ?? null, listInquiryResults: async () => h.summaries }));
 vi.mock('../inquiryPipelineDeps.js', () => ({ buildInquiryRunPipeline: () => vi.fn() }));
@@ -71,7 +76,7 @@ const VALID = { question: 'What counts as an AI harm?', fidelity: 'standard' };
 
 beforeEach(() => {
   h.user = AUTHED; h.storageUserId = 'alice'; h.rpmAllowed = true; h.backendBlocked = false;
-  h.registered = true; h.running = 0; h.idempotent = null;
+  h.registered = true; h.running = 0; h.idempotent = null; h.markStaleReturn = false;
   h.jobById.clear(); h.hasById.clear(); h.persisted.clear(); h.summaries = [];
   startInquiryJob.mockClear();
 });
@@ -158,7 +163,7 @@ describe('t/3581 — GET /api/inquiry/:jobId', () => {
     expect(JSON.parse(r.body).result).toMatchObject({ schemaVersion: 1 });
   });
 
-  it('cross-replica fallback: job absent from map → serves the persisted result', async () => {
+  it('cross-restart fallback: job absent from map → serves the persisted result', async () => {
     h.persisted.set('job-gone', { truncated: true, schemaVersion: 1 });
     const r = res(); await get()(req('/api/inquiry/job-gone'), r, undefined);
     expect(r.statusCode).toBe(200);
@@ -206,5 +211,50 @@ describe('t/3619 — GET /api/inquiry (My Questions list)', () => {
     const r = res(); await get()(req('/api/inquiry'), r, undefined);
     expect(r.statusCode).toBe(200);
     expect(JSON.parse(r.body)).toEqual([]);
+  });
+});
+
+describe('t/3728 — tier-3 fallback ordering (AC arms)', () => {
+  const get = () => handler('GET', '/api/inquiry/:jobId');
+
+  // Arms 1 & 2 exercise tier-3 route code that requires storage/inquiryJobStore.ts, pending the
+  // Second Opinion conditions (e/221#2). Un-skip when the route adds the tier-3 markJobFailedIfStale
+  // call. The mock (h.markStaleReturn) is already wired; only the route path is missing.
+
+  it.skip('arm 1 — stale heartbeat: absent from map + no result → fails with restart error, NOT 404', async () => {
+    h.markStaleReturn = true;   // markJobFailedIfStale returns true (heartbeat expired → stale)
+    const r = res(); await get()(req('/api/inquiry/job-stale'), r, undefined);
+    expect(r.statusCode).toBe(200);
+    const parsed = JSON.parse(r.body);
+    expect(parsed.status).toBe('failed');
+    expect(typeof parsed.error).toBe('string');
+    expect(parsed.debateId).toBe(null);   // shape-compatible with jobView (SO condition 5)
+  });
+
+  it.skip('arm 2 — fresh heartbeat: absent from map + no result → 404 (must NOT fabricate a failed state)', async () => {
+    h.markStaleReturn = false;  // markJobFailedIfStale returns false (heartbeat still fresh / same process)
+    const r = res(); await get()(req('/api/inquiry/job-fresh'), r, undefined);
+    expect(r.statusCode).toBe(404);   // different defect — must not be papered over with false failed
+  });
+
+  it('arm 3 — unknown jobId → 404 (no in-map entry, no persisted result, no job record)', async () => {
+    const r = res(); await get()(req('/api/inquiry/no-such-job'), r, undefined);
+    expect(r.statusCode).toBe(404);
+  });
+
+  // This is the critical regression: if tier 3 ever ran before tier 2, a completed job would report
+  // `failed` and this arm would catch it. h.markStaleReturn=true ensures tier 3 would fire if reached.
+  it('arm 4 — completed job (tier 2 precedence): serves the persisted result, tier 3 never consulted', async () => {
+    h.persisted.set('job-done', { schemaVersion: 1, truncated: false });
+    h.markStaleReturn = true;   // would fire if tier ordering were wrong
+    const r = res(); await get()(req('/api/inquiry/job-done'), r, undefined);
+    expect(r.statusCode).toBe(200);
+    expect(JSON.parse(r.body).status).toBe('done');   // NOT 'failed' — tier 2 wins
+  });
+
+  it("arm 5 — cross-user: another user's jobId → 404, tiers 2/3 never entered", async () => {
+    h.jobById.set('job-bob', { jobId: 'job-bob', userId: 'bob', status: 'debating', progressPct: 40 });
+    const r = res(); await get()(req('/api/inquiry/job-bob'), r, undefined);
+    expect(r.statusCode).toBe(404);   // hasInquiryJob=true → !hasInquiryJob block skipped → straight 404
   });
 });

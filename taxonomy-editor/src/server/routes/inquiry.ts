@@ -168,7 +168,9 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
 
       // Not in this process's map. If it's genuinely absent here (not just owned by another user),
       // serve the durable result — loadInquiryResult is scoped to the caller's own collection, so a
-      // result owned by a different user returns null (no cross-user leak). Cross-replica durability.
+      // result owned by a different user returns null (no cross-user leak). Cross-restart durability
+      // (not cross-replica — maxReplicas: 1). Tier 2: completed result. Tier 3 (t/3728): in-flight
+      // jobs lost to restart → honest failed state via inquiryJobStore, pending Second Opinion.
       if (!hasInquiryJob(jobId)) {
         const result: InquiryResult | null = await loadInquiryResult(jobId);
         if (result) {
