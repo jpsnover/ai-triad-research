@@ -128,6 +128,14 @@ export interface CiteWorkProduct {
   grounding_confidence: number;
 }
 
+export interface EditingMeta {
+  edited: boolean;
+  fk_before: number;
+  fk_after: number;
+  checks_failed_after: boolean;
+  edit_notes?: string;
+}
+
 export interface TurnPipelineResult {
   brief: BriefWorkProduct;
   plan: PlanWorkProduct;
@@ -139,6 +147,7 @@ export interface TurnPipelineResult {
   ignoredEvidenceDocIds?: string[];
   stage_diagnostics: StageDiagnostics[];
   total_time_ms: number;
+  editing_meta?: EditingMeta;
   /** Topic alignment result from draft quality gate (t/341). */
   topicAlignmentResult?: {
     topic_aligned: boolean;
@@ -197,4 +206,5 @@ export interface OpeningPipelineResult {
     post_repair?: DraftQualityGateResult;
     repair_outcome?: 'fixed' | 'partial' | 'unchanged';
   };
+  editing_meta?: EditingMeta;
 }
