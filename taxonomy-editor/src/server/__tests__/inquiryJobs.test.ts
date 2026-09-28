@@ -20,6 +20,7 @@ vi.mock('../storage/inquiryJobStore.js', () => ({
   saveInquiryJobRecord: vi.fn(async () => undefined),
   deleteInquiryJobRecord: vi.fn(async () => undefined),
   markJobFailedIfStale: vi.fn(async () => null),
+  INQUIRY_HEARTBEAT_WORST_SYNC_BLOCK_MS: 8_000,
   INQUIRY_HEARTBEAT_INTERVAL_MS: 5_000,
   INQUIRY_HEARTBEAT_STALE_MS: 30_000,
 }));
@@ -162,7 +163,7 @@ describe('t/3578 — TTL sweep', () => {
   });
 });
 
-describe('t/3578 — cross-replica fallback (TL addition)', () => {
+describe('t/3578 — cross-replica fallback', () => {
   it('a job absent from the in-memory map still resolves via the persisted result', async () => {
     const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
     await waitTerminal(job);

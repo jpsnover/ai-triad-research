@@ -20,8 +20,9 @@ const h = vi.hoisted(() => ({
   hasById: new Set<string>(),
   persisted: new Map<string, unknown>(),
   summaries: [] as unknown[],
-  /** Controls the markJobFailedIfStale mock (t/3728 tier-3). false = record absent/same-boot; true = stale record marked failed. */
-  markStaleReturn: false,
+  /** Controls the markJobFailedIfStale mock (t/3728 tier-3).
+   *  false = null (no record / past window); 'stale' = failed verdict; 'live' = live verdict. */
+  markStaleReturn: false as false | 'stale' | 'live',
 }));
 
 vi.mock('../security/userContext.js', () => ({
@@ -46,9 +47,15 @@ vi.mock('../inquiryJobs.js', () => ({
   countRunningInquiryJobs: () => h.running,
   findIdempotentInquiryJob: () => h.idempotent,
   deriveTruncation: (r: { truncated?: boolean }) => ({ truncated: !!r.truncated, terminationReason: r.truncated ? 'api_ceiling' : undefined }),
-  // t/3728 tier-3: h.markStaleReturn=true → return descriptor (stale); false → null (fresh/absent).
-  markJobFailedIfStale: async (_jobId: string) =>
-    h.markStaleReturn ? { code: 'restart', message: 'Server restarted while this inquiry was in progress.' } : null,
+  buildPollView: (p: { jobId: string; status: string; resultId: string | null; error: string | null; debateId: string | null; terminationReason: string | null }) => ({
+    jobId: p.jobId, status: p.status, progressPct: 0, terminationReason: p.terminationReason, resultId: p.resultId, error: p.error, debateId: p.debateId,
+  }),
+  // t/3728 tier-3: three-state mock matching InquiryTier3Result discriminated union.
+  markJobFailedIfStale: async (_jobId: string) => {
+    if (h.markStaleReturn === 'stale') return { verdict: 'failed' as const, error: { code: 'restart', message: 'Server restarted while this inquiry was in progress.' } };
+    if (h.markStaleReturn === 'live') return { verdict: 'live' as const, record: { jobId: _jobId, userId: 'alice', bootId: 'boot-x', status: 'debating', lastHeartbeatAt: new Date().toISOString(), resultId: null, error: null, debateId: null, startedAt: Date.now() - 5_000 } };
+    return null;
+  },
 }));
 vi.mock('../storage/inquiryResultStore.js', () => ({ loadInquiryResult: async (jobId: string) => h.persisted.get(jobId) ?? null, listInquiryResults: async () => h.summaries }));
 vi.mock('../inquiryPipelineDeps.js', () => ({ buildInquiryRunPipeline: () => vi.fn() }));
@@ -218,24 +225,23 @@ describe('t/3619 — GET /api/inquiry (My Questions list)', () => {
 describe('t/3728 — tier-3 fallback ordering (AC arms)', () => {
   const get = () => handler('GET', '/api/inquiry/:jobId');
 
-  // Arms 1 & 2 exercise tier-3 route code that requires storage/inquiryJobStore.ts, pending the
-  // Second Opinion conditions (e/221#2). Un-skip when the route adds the tier-3 markJobFailedIfStale
-  // call. The mock (h.markStaleReturn) is already wired; only the route path is missing.
-
   it('arm 1 — stale heartbeat: absent from map + no result → fails with restart error, NOT 404', async () => {
-    h.markStaleReturn = true;   // markJobFailedIfStale returns descriptor (heartbeat expired → stale)
+    h.markStaleReturn = 'stale';  // markJobFailedIfStale returns failed verdict (heartbeat expired)
     const r = res(); await get()(req('/api/inquiry/job-stale'), r, undefined);
     expect(r.statusCode).toBe(200);
     const parsed = JSON.parse(r.body);
     expect(parsed.status).toBe('failed');
     expect(typeof parsed.error).toBe('string');
-    expect(parsed.debateId).toBe(null);   // shape-compatible with jobView (SO condition 5)
+    expect(parsed.debateId).toBe(null);   // shape-compatible with buildPollView (SO condition 5)
   });
 
-  it('arm 2 — fresh heartbeat: absent from map + no result → 404 (must NOT fabricate a failed state)', async () => {
-    h.markStaleReturn = false;  // markJobFailedIfStale returns null (heartbeat still fresh / record absent)
+  it('arm 2 — fresh heartbeat: absent from map + no result → 200 in-progress (deploy overlap — must NOT 404)', async () => {
+    h.markStaleReturn = 'live';  // markJobFailedIfStale returns live verdict (another process owns the job)
     const r = res(); await get()(req('/api/inquiry/job-fresh'), r, undefined);
-    expect(r.statusCode).toBe(404);   // different defect — must not be papered over with false failed
+    expect(r.statusCode).toBe(200);
+    const parsed = JSON.parse(r.body);
+    expect(parsed.status).toBe('debating');   // live record's own status — honest "still running"
+    expect(parsed.error).toBe(null);
   });
 
   it('arm 3 — unknown jobId → 404 (no in-map entry, no persisted result, no job record)', async () => {
@@ -247,7 +253,7 @@ describe('t/3728 — tier-3 fallback ordering (AC arms)', () => {
   // `failed` and this arm would catch it. h.markStaleReturn=true ensures tier 3 would fire if reached.
   it('arm 4 — completed job (tier 2 precedence): serves the persisted result, tier 3 never consulted', async () => {
     h.persisted.set('job-done', { schemaVersion: 1, truncated: false });
-    h.markStaleReturn = true;   // would fire if tier ordering were wrong
+    h.markStaleReturn = 'stale';  // would fire if tier ordering were wrong
     const r = res(); await get()(req('/api/inquiry/job-done'), r, undefined);
     expect(r.statusCode).toBe(200);
     expect(JSON.parse(r.body).status).toBe('done');   // NOT 'failed' — tier 2 wins

@@ -41,7 +41,7 @@ import {
   saveInquiryJobRecord, deleteInquiryJobRecord,
   INQUIRY_HEARTBEAT_INTERVAL_MS, type InquiryJobRecord,
 } from './storage/inquiryJobStore.js';
-export { markJobFailedIfStale } from './storage/inquiryJobStore.js';
+export { markJobFailedIfStale, type InquiryTier3Result } from './storage/inquiryJobStore.js';
 
 // Status vocabulary + truncation derivation hoisted to lib/inquiry (t/3609). Imported here for this
 // module's own internal use (isTerminalStatus in the concurrency/sweep checks, deriveTruncation in
@@ -57,12 +57,37 @@ export const MAX_CONCURRENT_INQUIRY_JOBS = 1;        // per user — an inquiry 
 export const INQUIRY_JOB_TTL_MS = 30 * 60_000;       // 30 min — poll + idempotency window; > export's 10 min because an inquiry runs minutes. TL-confirmed t/3578#6.
 
 // TRUNCATION_REASONS, InquiryPipelineStage, InquiryJobStatus, isTerminalStatus, and deriveTruncation
-// were hoisted to lib/inquiry (t/3609) — imported + re-exported above. PROGRESS stays host-local: it
-// is this job store's display concern, not shared vocabulary (Electron main keeps its own copy).
+// were hoisted to lib/inquiry (t/3609) — imported + re-exported above. PROGRESS stays host-local (not
+// hoisted to lib): it is this server's display concern, not shared vocabulary (Electron main keeps its
+// own copy). It IS shared within the host because all three GET tiers render through buildPollView.
 const PROGRESS: Record<InquiryJobStatus, number> = {
   queued: 0, grounding: 10, debating: 40, judging: 70, synthesizing: 90,
   done: 100, done_truncated: 100, failed: 100,
 };
+
+/** Fields each GET tier constructs independently — the shared contract for buildPollView (e/221#13/14).
+ *  Having each tier construct this type ensures identical response shape at the type level. */
+export interface InquiryPollProjection {
+  jobId: string;
+  status: InquiryJobStatus;
+  resultId: string | null;
+  error: string | null;
+  debateId: string | null;
+  terminationReason: string | null;
+}
+
+/** Build a poll-response record from a shared projection, deriving progressPct from PROGRESS.
+ *  All three GET tiers route through this — "identical shape" is a type-level fact (e/221#13/14).
+ *  Note: tier-3 live path derives progress from the durable record's status, which may lag the
+ *  in-memory value (transition writes are fire-and-forget) — lagging bar, never backward (e/221#16). */
+export function buildPollView(p: InquiryPollProjection): Record<string, unknown> {
+  return {
+    jobId: p.jobId, status: p.status,
+    progressPct: PROGRESS[p.status],
+    terminationReason: p.terminationReason,
+    resultId: p.resultId, error: p.error, debateId: p.debateId,
+  };
+}
 
 export interface InquiryJob {
   jobId: string;
@@ -185,7 +210,7 @@ export async function startInquiryJob(args: CreateInquiryJobArgs): Promise<Inqui
     userId: args.userId,
     idempotencyKey: args.idempotencyKey,
     status: 'queued',
-    progressPct: 0,
+    progressPct: PROGRESS['queued'],
     resultId: null,
     error: null,
     debateId: null,
@@ -234,8 +259,10 @@ async function runInquiryJob(job: InquiryJob, args: CreateInquiryJobArgs): Promi
     await saveInquiryResult(job.jobId, result, summary);
     job.resultId = job.jobId;
     setStatus(job, truncated ? 'done_truncated' : 'done');
-    // Delete the durable job record now that the result is persisted (retention mechanism 1 —
-    // the InquiryResult is the source of truth for completed jobs, so the record is redundant).
+    // Delete the durable job record after the await saveInquiryResult() resolves (retention
+    // mechanism 1 — e/221#12: "after the await resolves" is critical; parallelising these writes
+    // would create a window where the record is gone but the result is not yet readable → 404 on a
+    // *successful* run, which t/3723's client treats as terminal).
     void deleteInquiryJobRecord(job.jobId).catch((err) => {
       log.server.warn({ err, jobId: job.jobId }, 'Job record delete after completion failed (best-effort)');
     });

@@ -27,7 +27,7 @@ import { isRegisteredModel } from '../ai/aiBackends.js';
 import { InquiryRequestSchema, type InquiryRequest, type InquiryResult } from '../../../../lib/inquiry/index.js';
 import {
   startInquiryJob, getInquiryJob, hasInquiryJob, countRunningInquiryJobs,
-  findIdempotentInquiryJob, deriveTruncation, markJobFailedIfStale,
+  findIdempotentInquiryJob, deriveTruncation, markJobFailedIfStale, buildPollView,
   MAX_CONCURRENT_INQUIRY_JOBS, type InquiryJob,
 } from '../inquiryJobs.js';
 import { loadInquiryResult, listInquiryResults } from '../storage/inquiryResultStore.js';
@@ -35,15 +35,12 @@ import { publishInquiryShare, unpublishInquiryShare } from '../storage/inquirySh
 import { isSafeId } from '../storage/fileIO.js';
 import { buildInquiryRunPipeline } from '../inquiryPipelineDeps.js';
 
-/** The ephemeral poll view of a job — no internals leaked. */
-function jobView(job: InquiryJob): Record<string, unknown> {
+/** Map an in-memory job to the shared poll projection (tier-1 path for buildPollView). */
+function jobProjection(job: InquiryJob) {
   return {
-    jobId: job.jobId,
-    status: job.status,
-    progressPct: job.progressPct,
+    jobId: job.jobId, status: job.status, resultId: job.resultId,
+    error: job.error, debateId: job.debateId,
     terminationReason: job.terminationReason ?? null,
-    resultId: job.resultId,
-    error: job.error,
   };
 }
 
@@ -157,7 +154,8 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
 
       const job = getInquiryJob(jobId, userId);
       if (job) {
-        const view = jobView(job);
+        // Tier 1: in-memory job (this process).
+        const view = buildPollView(jobProjection(job));
         if ((job.status === 'done' || job.status === 'done_truncated') && job.resultId) {
           const result = await loadInquiryResult(job.resultId);
           json(res, { ...view, result });
@@ -171,28 +169,31 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
       // serve the durable result — loadInquiryResult is scoped to the caller's own collection, so a
       // result owned by a different user returns null (no cross-user leak). Cross-restart durability
       // (not cross-replica — maxReplicas: 1). Tier 2: completed result. Tier 3 (t/3728): in-flight
-      // jobs lost to restart → honest failed state via inquiryJobStore, pending Second Opinion.
+      // jobs lost to restart → honest failed or live state via inquiryJobStore.
       if (!hasInquiryJob(jobId)) {
         // Tier 2: completed result (cross-restart durability — result was persisted before the terminal flip).
         const result: InquiryResult | null = await loadInquiryResult(jobId);
         if (result) {
           const { truncated, terminationReason } = deriveTruncation(result);
           json(res, {
-            jobId, status: truncated ? 'done_truncated' : 'done', progressPct: 100,
-            terminationReason: terminationReason ?? null, resultId: jobId, error: null, result,
+            ...buildPollView({ jobId, status: truncated ? 'done_truncated' : 'done', resultId: jobId, error: null, debateId: null, terminationReason: terminationReason ?? null }),
+            result,
           });
           return;
         }
-        // Tier 3 (t/3728): check for a durable job record whose heartbeat has gone stale.
-        // Returns a { code, message } descriptor if stale (self-reaps the record); null otherwise.
+        // Tier 3 (t/3728): check for a durable job record. Three verdicts from markJobFailedIfStale:
+        //   failed  → serve the stored error descriptor (CAS write made it durable — second poll gets same desc).
+        //   live    → fresh heartbeat: another process owns this job (deploy overlap); serve "still running".
+        //   null    → no record or past retention window → fall through to 404.
         // Response is independent of write outcome per SO condition 4.
-        const errorDescriptor = await markJobFailedIfStale(jobId);
-        if (errorDescriptor) {
-          json(res, {
-            jobId, status: 'failed', progressPct: 100,
-            terminationReason: null, resultId: null,
-            error: errorDescriptor.message, debateId: null,
-          });
+        const tier3 = await markJobFailedIfStale(jobId);
+        if (tier3?.verdict === 'failed') {
+          json(res, buildPollView({ jobId, status: 'failed', resultId: null, error: tier3.error.message, debateId: null, terminationReason: null }));
+          return;
+        }
+        if (tier3?.verdict === 'live') {
+          // Fresh heartbeat — another process is still running this job (e.g. deploy overlap).
+          json(res, buildPollView({ jobId, status: tier3.record.status, resultId: tier3.record.resultId, error: null, debateId: tier3.record.debateId, terminationReason: null }));
           return;
         }
       }
