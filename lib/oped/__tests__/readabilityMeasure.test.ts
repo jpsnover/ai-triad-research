@@ -6,6 +6,7 @@ import {
   needsEdit,
   findIntroducedTells,
   buildViolationsText,
+  splitLongParagraphs,
 } from '../readabilityMeasure.js';
 
 describe('fkGrade', () => {
@@ -114,5 +115,42 @@ describe('buildViolationsText', () => {
     expect(text).not.toContain('9.5');
     expect(text).toContain('128');
     expect(text).not.toContain('25');
+  });
+});
+
+describe('splitLongParagraphs', () => {
+  it('leaves short paragraphs untouched', () => {
+    const text = 'Short paragraph. Only a few words.';
+    expect(splitLongParagraphs(text)).toBe(text);
+  });
+
+  it('splits a single over-limit paragraph into ≤90-word chunks', () => {
+    // Build a paragraph of 5 sentences × 20 words each = 100 words
+    const sent = Array(20).fill('word').join(' ');
+    const para = `${sent}. ${sent}. ${sent}. ${sent}. ${sent}.`;
+    const result = splitLongParagraphs(para, 90);
+    const chunks = result.split('\n\n');
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const chunk of chunks) {
+      expect((chunk.match(/\b\S+\b/g) ?? []).length).toBeLessThanOrEqual(90);
+    }
+  });
+
+  it('only splits over-limit paragraphs, leaving short ones intact', () => {
+    const shortPara = 'This paragraph is short and under the limit.';
+    const longSent = Array(20).fill('word').join(' ');
+    const longPara = `${longSent}. ${longSent}. ${longSent}. ${longSent}. ${longSent}.`;
+    const text = `${shortPara}\n\n${longPara}`;
+    const result = splitLongParagraphs(text, 90);
+    expect(result.startsWith(shortPara)).toBe(true);
+    expect(result.split('\n\n').length).toBeGreaterThan(2);
+  });
+
+  it('leaves a single oversized sentence intact (LLM must rewrite, not us)', () => {
+    // One sentence, 120 words — no sentence boundary to split at
+    const giant = Array(120).fill('word').join(' ') + '.';
+    const result = splitLongParagraphs(giant, 90);
+    expect(result.split('\n\n').length).toBe(1);
+    expect(result.trim()).toBe(giant.trim());
   });
 });
