@@ -10,10 +10,11 @@ import type { ScoredPovNode, ScoredSituationNode } from '../debate/taxonomyRelev
 import { scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes } from '../debate/taxonomyRelevance.js';
 import { loadTaxonomy } from '../debate/taxonomyLoader.js';
 import { computeEmbedding } from '../embeddings/onnxEmbedding.js';
-import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef } from './types.js';
+import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef, EditingMeta } from './types.js';
 import { resolveOutletBand } from './outletBands.js';
-import { loadAndAssemblePrompt, assembleReflectionPrompt, assembleSourceBriefPrompt, type SourceBrief } from './promptLoader.js';
+import { loadAndAssemblePrompt, assembleReflectionPrompt, assembleSourceBriefPrompt, assembleReadabilityEditPrompt, type SourceBrief } from './promptLoader.js';
 import { FABRICATED_LEDE_GUARD } from './opedGuards.js';
+import { measureReadability, needsEdit, buildViolationsText, findIntroducedTells } from './readabilityMeasure.js';
 
 // ── Public request / deps types ───────────────────────────────────────────────
 
@@ -207,6 +208,16 @@ const REFLECTION_SCHEMA = {
   required: ['grounding_usage'],
 } as const;
 
+const EDIT_SCHEMA = {
+  type: 'object',
+  properties: {
+    body_markdown: { type: 'string' },
+    changed: { type: 'boolean' },
+    edit_notes: { type: 'string' },
+  },
+  required: ['body_markdown', 'changed', 'edit_notes'],
+} as const;
+
 // ── Per-voice generation ──────────────────────────────────────────────────────
 
 interface EssayResponse {
@@ -221,6 +232,12 @@ interface EssayResponse {
 interface ReflectionResponse {
   grounding_usage: { id: string; reflection: string; document_claim_refs?: number[]; document_claims?: string[] }[];
   claims?: { text: string; paragraph: number }[];
+}
+
+interface EditResponse {
+  body_markdown: string;
+  changed: boolean;
+  edit_notes?: string;
 }
 
 async function runVoiceGeneration(
@@ -285,7 +302,108 @@ async function runVoiceGeneration(
   }
 
   const body = parsed.body_markdown ?? '';
-  const actualWordCount = body.trim() ? body.trim().split(/\s+/).length : 0;
+
+  // ── Readability edit pass (t/3707) ────────────────────────────────────────
+  // Measure -> conditional targeted edit -> re-verify. Runs ONLY when the draft
+  // misses target (FK>11 || any paragraph>90w || any sentence>30w). Non-fatal:
+  // any error degrades to the original body + WARN, never blocking generation.
+  // Wired BEFORE the reflection pass so reflection maps grounding on the final body.
+  let finalBody = body;
+  let editingMeta: EditingMeta | undefined;
+
+  if (body.trim()) {
+    const beforeChecks = measureReadability(body);
+    if (needsEdit(beforeChecks)) {
+      const origWordCount = (body.match(/\b\S+\b/g) ?? []).length;
+
+      const attemptEdit = async (temperature: number): Promise<string | null> => {
+        const violations = buildViolationsText(beforeChecks);
+        const editPrompt = assembleReadabilityEditPrompt(deps.promptsDir, body, violations);
+        const editRaw = await deps.adapter.generateText(editPrompt, request.params.model, {
+          maxTokens,
+          temperature,
+          responseSchema: EDIT_SCHEMA as Record<string, unknown>,
+          signal: request.signal,
+        });
+        const editParsed = JSON.parse(stripCodeFences(editRaw)) as EditResponse;
+        const candidate = editParsed.body_markdown ?? '';
+        // Word-count collapse guard: discard if >40% shorter than original
+        const candidateWords = (candidate.match(/\b\S+\b/g) ?? []).length;
+        if (!candidate.trim() || candidateWords < origWordCount * 0.6) return null;
+        return candidate;
+      };
+
+      try {
+        const firstCandidate = await attemptEdit(0.3);
+        if (firstCandidate === null) {
+          // Collapsed — fallback to original
+          deps.recorder?.record({
+            type: 'system.error', component: 'opedGenerate', level: 'warn',
+            message: `Op-ed edit pass discarded (word-count collapse) for pov=${pov} set=${request.set_id} — using original body`,
+          });
+          editingMeta = { edited: false, fk_before: beforeChecks.fkGrade, fk_after: beforeChecks.fkGrade, checks_failed_after: [], reverted_reason: 'word-count-collapse' };
+        } else {
+          // Voice preservation: revert if the edit introduced banned tells absent from original
+          const introducedTells = findIntroducedTells(body, firstCandidate);
+          if (introducedTells.length > 0) {
+            deps.recorder?.record({
+              type: 'system.error', component: 'opedGenerate', level: 'warn',
+              message: `Op-ed edit pass introduced banned tells [${introducedTells.join(', ')}] — reverting to original (pov=${pov} set=${request.set_id})`,
+            });
+            editingMeta = { edited: false, fk_before: beforeChecks.fkGrade, fk_after: beforeChecks.fkGrade, checks_failed_after: [], reverted_reason: `introduced-banned-tells: ${introducedTells.join(', ')}` };
+          } else {
+            // Retry if first attempt made FK strictly worse — keep the better of the two
+            let chosenBody = firstCandidate;
+            const firstChecks = measureReadability(firstCandidate);
+            if (firstChecks.fkGrade > beforeChecks.fkGrade) {
+              try {
+                const retryCandidate = await attemptEdit(0.2);
+                if (retryCandidate !== null) {
+                  const retryTells = findIntroducedTells(body, retryCandidate);
+                  const retryChecks = measureReadability(retryCandidate);
+                  if (retryTells.length === 0 && retryChecks.fkGrade <= firstChecks.fkGrade) {
+                    chosenBody = retryCandidate;
+                  }
+                }
+              } catch {
+                // retry failed — keep first attempt
+              }
+            }
+
+            finalBody = chosenBody;
+            const afterChecks = measureReadability(chosenBody);
+            const failedChecks: string[] = [];
+            if (afterChecks.fkGrade > 11) failedChecks.push(`fk_grade=${afterChecks.fkGrade.toFixed(1)}`);
+            if (afterChecks.maxParaWords > 90) failedChecks.push(`max_para_words=${afterChecks.maxParaWords}`);
+            if (afterChecks.maxSentWords > 30) failedChecks.push(`max_sent_words=${afterChecks.maxSentWords}`);
+
+            if (failedChecks.length > 0) {
+              deps.recorder?.record({
+                type: 'system.error', component: 'opedGenerate', level: 'warn',
+                message: `Op-ed edit pass still misses target for pov=${pov} set=${request.set_id}: ${failedChecks.join(', ')} (FK before=${beforeChecks.fkGrade.toFixed(1)} after=${afterChecks.fkGrade.toFixed(1)})`,
+              });
+            }
+
+            editingMeta = {
+              edited: true,
+              fk_before: parseFloat(beforeChecks.fkGrade.toFixed(2)),
+              fk_after: parseFloat(afterChecks.fkGrade.toFixed(2)),
+              checks_failed_after: failedChecks,
+            };
+          }
+        }
+      } catch (err) {
+        // Non-fatal fallback — degrade to original body (mirrors runReflection)
+        deps.recorder?.record({
+          type: 'system.error', component: 'opedGenerate', level: 'warn',
+          message: `Op-ed edit pass failed for pov=${pov} set=${request.set_id}: ${String(err)} — using original body`,
+        });
+        editingMeta = { edited: false, fk_before: beforeChecks.fkGrade, fk_after: beforeChecks.fkGrade, checks_failed_after: [], reverted_reason: `error: ${String(err).slice(0, 120)}` };
+      }
+    }
+  }
+
+  const actualWordCount = finalBody.trim() ? finalBody.trim().split(/\s+/).length : 0;
 
   // Build initial grounding refs (reflection populated below if grounding was used)
   const allGroundingRefs: OpEdGroundingRef[] = [
@@ -308,8 +426,9 @@ async function runVoiceGeneration(
   ];
 
   // Reflection pass — best-effort, maps grounding elements to where they appear.
+  // Uses finalBody (post-edit) so grounding maps to the text the user will see.
   let reflClaims: { text: string; paragraph: number }[] | undefined;
-  if (allGroundingRefs.length > 0 && body) {
+  if (allGroundingRefs.length > 0 && finalBody) {
     const groundingList = buildGroundingList(groundingNodes, sitNodes);
     const keyClaims = sourceBrief?.key_claims ?? [];
     const keyClaimsCount = keyClaims.length;
@@ -337,7 +456,7 @@ async function runVoiceGeneration(
     const sourceClaims = keyClaimsCount > 0
       ? keyClaims.map((c, i) => `  ${i + 1}. ${c}`).join('\n')
       : '(none)';
-    const reflPrompt = assembleReflectionPrompt(deps.promptsDir, body, groundingList, sourceClaims);
+    const reflPrompt = assembleReflectionPrompt(deps.promptsDir, finalBody, groundingList, sourceClaims);
     const reflMaxTokens = Math.max(4000, allGroundingRefs.length * 150 + 3000);
 
     // One reflection attempt. Applies how_reflected + document_claims onto allGroundingRefs
@@ -416,7 +535,7 @@ async function runVoiceGeneration(
   // Guard scan: when newsHook was empty, check the lede (first 500 chars) for
   // fabricated dated-event markers. Flag without mutating the body (t/2730).
   const emptyHook = !request.params.newsHook?.trim();
-  const fabricatedLede = emptyHook && FABRICATED_LEDE_GUARD.test(body.slice(0, 500));
+  const fabricatedLede = emptyHook && FABRICATED_LEDE_GUARD.test(finalBody.slice(0, 500));
   if (fabricatedLede) {
     deps.recorder?.record({
       // 'system.error'+level:'warn' — 'system.warning' is not in the EventType union
@@ -431,7 +550,7 @@ async function runVoiceGeneration(
     status: 'complete',
     headline: parsed.headline ?? '',
     subtitle: parsed.subtitle ?? '',
-    body,
+    body: finalBody,
     byline: `By the ${soul.label} Camp, as modeled in AI Rosetta Stone`,
     disclosure: `Generated by AI Rosetta Stone to illustrate the ${soul.label} perspective. Not authored by any person; not for submission or publication.`,
     rhetorical_meta: parsed.rhetorical_meta ?? '',
@@ -439,6 +558,7 @@ async function runVoiceGeneration(
     grounding: allGroundingRefs,
     ...(reflClaims && { claims: reflClaims }),
     ...(fabricatedLede && { fabricated_lede: true as const }),
+    ...(editingMeta && { editing_meta: editingMeta }),
   };
 }
 

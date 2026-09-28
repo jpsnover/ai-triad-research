@@ -122,7 +122,7 @@ export function OverflowMenu({ items, activeId, onSelect }: OverflowMenuProps) {
               ref={el => { itemRefs.current[idx] = el; }}
               role="menuitem"
               className={`overflow-menu__item${item.id === activeId ? ' overflow-menu__item--active' : ''}${!item.enabled ? ' overflow-menu__item--disabled' : ''}`}
-              disabled={!item.enabled}
+              aria-disabled={!item.enabled}
               tabIndex={focusIdx === idx ? 0 : -1}
               title={item.tooltip}
               onClick={() => {

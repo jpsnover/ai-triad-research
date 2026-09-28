@@ -286,7 +286,7 @@
   },
   "server.chat-response": {
     "description": "Server-side AI text generation (/api/ai/generate)",
-    "model": "gemini-flash-lite-latest",
+    "model": "gemini-3.5-flash-lite",
     "temperature": 0.7,
     "timeoutMs": 120000,
     "messageTemplate": "{{prompt}}",
@@ -301,7 +301,7 @@
   },
   "server.chat-stream": {
     "description": "Server-side multi-turn SSE streaming chat (/api/ai/chat-stream, t/2457)",
-    "model": "gemini-flash-lite-latest",
+    "model": "gemini-3.5-flash-lite",
     "temperature": 0.7,
     "timeoutMs": 120000,
     "tags": [
@@ -312,7 +312,7 @@
   },
   "server.search": {
     "description": "Server-side AI search via Gemini grounding or Tavily augmentation",
-    "model": "gemini-flash-lite-latest",
+    "model": "gemini-3.5-flash-lite",
     "messageTemplate": "{{prompt}}",
     "tags": [
       "server",
@@ -321,7 +321,7 @@
   },
   "server.news-report": {
     "description": "Generate a news article from a completed debate synthesis",
-    "model": "gemini-flash-lite-latest",
+    "model": "gemini-3.5-flash-lite",
     "temperature": 0.7,
     "messageTemplate": "{{prompt}}",
     "tags": [
@@ -331,7 +331,7 @@
   },
   "server.nli-classify-fallback": {
     "description": "Hosted-LLM fallback for NLI pair classification when the local Python cross-encoder is unavailable (t/1641); preserves the 384-dim MiniLM path's 3-label + score contract",
-    "model": "gemini-flash-lite-latest",
+    "model": "gemini-3.5-flash-lite",
     "temperature": 0,
     "timeoutMs": 60000,
     "messageTemplate": "You are a natural-language-inference (NLI) classifier. For each pair, treat text_a as the premise and text_b as the hypothesis, and decide the relationship of the hypothesis to the premise:\n- \"entailment\": the premise supports or implies the hypothesis.\n- \"contradiction\": the premise contradicts or is inconsistent with the hypothesis.\n- \"neutral\": neither — the hypothesis is unrelated to, or not determinable from, the premise.\n\nFor each pair output three probabilities in [0,1] that sum to ~1 (nli_entailment, nli_neutral, nli_contradiction) and the winning label as nli_label.\n\nRespond with ONLY a JSON object of the form {\"results\": [ ... ]} — no prose, no markdown fences. Each element must be {\"index\": <the pair's index>, \"nli_label\": \"entailment\"|\"neutral\"|\"contradiction\", \"nli_entailment\": <number>, \"nli_neutral\": <number>, \"nli_contradiction\": <number>}. Return exactly one element per input pair, preserving each pair's index.\n\nPairs:\n{{pairs}}",
@@ -500,7 +500,7 @@
   },
   "po.analysis-segmentation": {
     "description": "POViewer stage-1: segment source text into key points",
-    "model": "gemini-flash-lite-latest",
+    "model": "gemini-3.5-flash-lite",
     "temperature": 0.1,
     "timeoutMs": 60000,
     "jsonMode": true,

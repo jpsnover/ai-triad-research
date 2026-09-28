@@ -51,6 +51,21 @@ export interface OpEdMember {
   claims?: { text: string; paragraph: number }[];
   /** Set when FABRICATED_LEDE_GUARD matched the lede on an empty-newsHook run (t/2730). */
   fabricated_lede?: true;
+  /** Observability for the readability edit pass (t/3707). Absent when the edit pass was skipped
+   *  (body already met targets). NO consumer should branch on this field; exemption lapses if one does. */
+  editing_meta?: EditingMeta;
+}
+
+/** Outcome record for the readability edit pass (t/3707). Written for CL validation tooling; log-only. */
+export interface EditingMeta {
+  /** Whether the body was actually replaced by the edit (false = skipped / reverted / error). */
+  edited: boolean;
+  fk_before: number;
+  fk_after: number;
+  /** Names of checks that still failed after the edit (empty = all passed). */
+  checks_failed_after: string[];
+  /** Populated when the edit was reverted: reason string. */
+  reverted_reason?: string;
 }
 
 // ── Set wrapper (e/91#2 conditions 2 & 4) ────────────────────────────────────

@@ -10,14 +10,14 @@
 // surface it never looks at. Because every literal on a pure selection surface MUST resolve, resolve-or-
 // exempt collapses to resolve-only: no marker grammar, no ratchet, no conformance corpus (TL t/3664#2).
 //
-// Resolution is via buildModelEntryMap (inside validateUsageConfig), NOT a models[].id Set — the real
-// config's server.* usages select `gemini-flash-lite-latest`, a synthesized *-latest alias. A models.find
-// check would false-flag it and re-open t/3518; the GREEN arm below would go red if the resolver ever
-// regressed to that.
+// Resolution is via exact models[].id match (inside validateUsageConfig) — the production-faithful
+// predicate (SO e/210#5 condition 1). The six `gemini-flash-lite-latest` usages were repointed to
+// `gemini-3.5-flash-lite` in the same PR, so the GREEN arm confirms clean resolution without aliases.
+// The FIXTURE arm guards the "recruit" case: a future *-latest alias must be caught at authoring time.
 
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
-import { loadModelRegistry, buildModelEntryMap } from './registry.js';
+import { loadModelRegistry } from './registry.js';
 import { loadUsageRegistry, validateUsageConfig } from './usageTypes.js';
 
 // lib/ai-client → lib → repo root.
@@ -43,21 +43,14 @@ describe('ai-usages.json model-selection resolution gate (t/3664)', () => {
     expect(modelErrors[0].message).toContain('gemini-9.9-nonexistent');
   });
 
-  it('FAIL-FIRST: the OLD alias-blind predicate (models[].id Set) rejects the real config — the arm never exercised before (t/3664)', () => {
-    // Reproduce the pre-fix resolver verbatim: a bare models[].id Set, no synthesized *-latest aliases.
-    // This is the arm that was NEVER exercised — every prior validateUsageConfig test used a hand-built
-    // fixture, so the predicate never met the real ai-usages.json, and its alias-blindness stayed latent.
-    const preFixIdSet = new Set(models.models.map((m) => m.id));
-    const aliasBlindMisses = Object.entries(usages)
-      .filter(([, cfg]) => cfg.model != null && !preFixIdSet.has(cfg.model))
-      .map(([id]) => id);
-    // The real server.* usages select `gemini-flash-lite-latest` — a *-latest alias absent from models[].
-    // The old predicate WOULD have flagged them, so the GREEN arm above is meaningfully exercising the
-    // alias path (not vacuously passing), and this documents the exact false-flag the fix removes (t/3518).
-    expect(aliasBlindMisses.length).toBeGreaterThan(0);
-    // …and every one of those misses is a FALSE-FLAG: it resolves under the alias-aware map the fix uses.
-    // So the old predicate's misses were never real drift — exactly the t/3518 false-flag class removed.
-    const entryMap = buildModelEntryMap(models);
-    expect(aliasBlindMisses.every((id) => Object.hasOwn(entryMap, usages[id].model))).toBe(true);
+  it('FIXTURE: exact-match rejects a *-latest alias — guards the "recruit" case (t/3664#14)', () => {
+    // A future author adds a *-latest alias to ai-usages.json. The exact-match predicate must catch it
+    // at authoring time, before it reaches production's resolveModel. This fixture confirms that property
+    // is not vacuous: the alias resolves in the alias-aware map but is correctly flagged here.
+    const aliasUsage = { __fixture: { description: 'alias recruit fixture', model: 'gemini-flash-lite-latest' } };
+    const modelErrors = validateUsageConfig(aliasUsage, models).filter((e) => e.field === 'model');
+    expect(modelErrors).toHaveLength(1);
+    expect(modelErrors[0].usageId).toBe('__fixture');
+    expect(modelErrors[0].message).toContain('gemini-flash-lite-latest');
   });
 });

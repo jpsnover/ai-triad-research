@@ -39,7 +39,9 @@ describe('OverflowMenu', () => {
   it('disables items that are not enabled', async () => {
     render(<OverflowMenu items={makeItems()} activeId={null} onSelect={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: /More ▾/ }));
-    expect(screen.getByRole('menuitem', { name: /Gamma/ })).toBeDisabled();
+    // aria-disabled, not native disabled — disabled items must stay focusable so
+    // arrow-key/Home/End navigation can still land on them (t/3709).
+    expect(screen.getByRole('menuitem', { name: /Gamma/ })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('calls onSelect and closes dropdown when an enabled item is clicked', async () => {

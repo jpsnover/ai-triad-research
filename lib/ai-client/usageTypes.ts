@@ -6,7 +6,6 @@ import * as path from 'node:path';
 import { ActionableError } from '../debate/errors.js';
 import type { ToolDefinition } from './types.js';
 import type { ModelRegistry } from './registry.js';
-import { buildModelEntryMap } from './registry.js';
 
 export interface UsageConfig {
   description: string;
@@ -134,22 +133,20 @@ export function validateUsageConfig(
   modelRegistry: ModelRegistry,
 ): UsageValidationError[] {
   const errors: UsageValidationError[] = [];
-  // Resolve model refs via buildModelEntryMap (NOT a `models[].id` Set / `models.find`): the map also
-  // carries the synthesized `*-latest` aliases (highest-versioned entry per family) that `models[]`
-  // lacks. ai-usages.json legitimately selects such an alias — `gemini-flash-lite-latest` on the
-  // `server.*` usages — which resolves at runtime; a bare id-Set check would false-flag it as unknown
-  // and re-open t/3518. Same alias-aware resolution the timeout floor uses (getModelMinTimeout,
-  // registry.ts). This is a pure SELECTION surface, so resolve-or-exempt collapses to resolve-only —
-  // no marker grammar (t/3664).
-  const resolvableModels = buildModelEntryMap(modelRegistry);
+  // Production-faithful exact-match predicate (SO e/210#5 condition 1, t/3664#13 fold).
+  // ai-usages.json had six `gemini-flash-lite-latest` entries repointed to `gemini-3.5-flash-lite`
+  // in the same PR. Any future `*-latest` alias must be rejected here — the same way production's
+  // resolveModel rejects it on the exact-`models.find` branch — so the gate and production stay in
+  // lockstep. The realGate FIXTURE arm confirms this (t/3664#14).
+  const validModelIds = new Set(modelRegistry.models.map((m) => m.id));
 
   for (const [usageId, config] of Object.entries(registry)) {
     if (!config.description || typeof config.description !== 'string' || config.description.trim() === '') {
       errors.push({ usageId, field: 'description', message: 'description is required and must be a non-empty string' });
     }
 
-    if (!Object.hasOwn(resolvableModels, config.model)) {
-      errors.push({ usageId, field: 'model', message: `Unknown model "${config.model}" — resolves to no ai-models.json entry or synthesized *-latest alias` });
+    if (!validModelIds.has(config.model)) {
+      errors.push({ usageId, field: 'model', message: `Unknown model "${config.model}" in usage "${usageId}" — add a registry entry to ai-models.json or update ai-usages.json (key: ${usageId}.model) to a registered id` });
     }
 
     if (config.temperature != null && (config.temperature < 0 || config.temperature > 2)) {

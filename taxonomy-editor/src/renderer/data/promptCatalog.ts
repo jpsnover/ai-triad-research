@@ -1254,6 +1254,18 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['sourceDocument'],
     promptFiles: ['op-ed-source-brief'],
   },
+  {
+    id: 'ps-oped-readability-edit',
+    title: 'Op-Ed Readability Edit Pass',
+    description: 'Copy-editor prompt that rewrites a finished op-ed for readability — sentence and paragraph length, reading grade — without touching the argument, facts, or voice.',
+    source: 'lib/oped/prompts/op-ed-readability-edit.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'Conditional post-generation pass (t/3707). Fires only when the measured draft trips a threshold (FK grade > 11, any paragraph > 90 words, or any sentence > 30 words), so a clean draft costs no extra call. Runs after body generation and BEFORE the grounding reflection, since reflection maps grounding nodes to positions in the final body. Accepts {{BODY}} and {{VIOLATIONS}}; returns JSON { body_markdown, changed, edit_notes } and may return the draft unchanged.',
+    applicableDataSources: [],
+    promptFiles: ['op-ed-readability-edit'],
+  },
 
   // === Opening narrative voicing (h3) ===
   {
