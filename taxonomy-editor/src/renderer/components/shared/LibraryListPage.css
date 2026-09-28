@@ -309,6 +309,17 @@
 /* ── dates: never truncated, tabular ── */
 .lib-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+/* Model column: one line, ellipsis only on overflow (t/3702#11 F2) — Chats and Debates each
+   hand-rolled their own Model cell treatment and diverged (wrap vs. ellipsis). A shared class
+   pages opt a span into, same pattern as .lib-date above, so the two can't diverge again. */
+.lib-model {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 /* ── empty state ── */
 
 .lib-empty-row { grid-column: 1 / -1; padding: 32px 0; text-align: center; color: var(--lib-text-faded); }
