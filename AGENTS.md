@@ -34,7 +34,20 @@ Orca config (`.orca.yaml`, nested `AGENTS.md`, `.orca/`) lives in a **separate o
 2. `sh .githooks/agent-file-owner.sh --audit` → expect clean.
 3. Commit normally. **Never `--no-verify` past the audit** (strands an unbacked orphan — Pattern #146). If the audit flags a `.worktrees/<name>/AGENTS.md`, that's a worktree checkout of a main-tracked file — do **not** ogit-add it (t/2205).
 
-### Workflow Mode — `.orca/workflow-mode` (t/3632)
+### Feedback Rules — author via MCP only (t/3698)
+
+**Create feedback rules only through `create_feedback_rule` — never hand-edit `.orca/feedback-rules/*.yaml`.** Hand-writing bypasses validation *and* registration: the file lands on disk, `get_feedback_rule` reports it `enabled: true`, and the rule never loads or fires. Invisible-dead. Same discipline as `SKILL.md` → `manage_skill`, for the same reason.
+
+This is how **13 rules sat dead fleet-wide**, including the workspace secret scanner — invalid parameter `source:` prefixes (`input.`, `toolInput.`, bare `tool_name`) that `create_feedback_rule` rejects at authoring but a direct file-write admits silently.
+
+**Repairing an already-invalid rule: `update_feedback_rule` will refuse it.** It validates the *stored* definition first, so it rejects exactly the rules that need fixing. **Delete-then-create is the only repair route** — back the definition up first; the delete is irreversible, and per-rule `scope`/`scope_path` is easy to drop on re-creation (that would silently widen a profile-scoped guard fleet-wide).
+
+**Three separate facts, and only the third means the rule works:**
+- **Listed** in `list_feedback_rules` → the runtime *loaded* it.
+- **`fire_count_24h > 0`** → it *executed*.
+- **An injection you have read, with correct content** → it *works*.
+
+A parameter referenced only in the `template` (not the `condition`) can resolve to empty while the rule fires normally — which is how the secret scanner ran telling agents to scan and handing them nothing. Where a parameter is used in the `condition`, a fire *does* prove resolution, because the condition cannot evaluate true on an empty value.
 
 **Read the mode before assuming the rules below.** A single overlay-tracked file, `.orca/workflow-mode`, selects the fleet's branching discipline. Line 1 is the mode; everything from `#` is provenance (who set it, when, why). Check it with `sh .githooks/read-workflow-mode.sh`.
 
