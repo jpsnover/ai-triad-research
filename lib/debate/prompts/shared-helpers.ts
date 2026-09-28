@@ -226,8 +226,9 @@ export const AUDIENCE_GRADE_TARGET: Record<DebateAudience, { target: number; cei
   general_public:        { target: 10, ceiling: 11 },
 };
 
-function gradeTargetPreamble(audience: DebateAudience): string {
-  if (audience === 'policymakers') {
+export function gradeTargetPreamble(audience?: DebateAudience): string {
+  const key = audience ?? 'policymakers';
+  if (key === 'policymakers') {
     return 'READING LEVEL (measurable): target Flesch-Kincaid grade ~12, no higher than 13, a senior congressional staffer reads it once and can quote it. The density comes from SUBSTANCE, not vocabulary: prefer plain words; use a technical term only when it is load-bearing, and define it in the same sentence on first use. One idea per sentence; no sentence over 30 words.\n\n';
   }
   return 'READING LEVEL (measurable): target Flesch-Kincaid grade ~10, no higher than 11, an informed general reader follows it without rereading. No jargon without a plain-English equivalent in the same sentence. Prefer short, plain words over abstract/polysyllabic ones. One idea per sentence; no sentence over 30 words.\n\n';

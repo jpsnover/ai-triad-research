@@ -11,6 +11,7 @@ import {
   getStyleReinforcement,
   getPolicymakerFraming,
   formatDoctrinalBoundaries,
+  gradeTargetPreamble,
 } from './shared-helpers.js';
 import { sourceContext, MUST_CORE_BEHAVIORS, STEELMAN_INSTRUCTION } from './shared-instructions.js';
 import { NARRATIVE_CHECK_INSTRUCTION } from './narrative.js';
@@ -45,7 +46,7 @@ export function briefOpeningStagePrompt(input: OpeningStagePromptInput): string 
 
 Your task is to analyze the debate topic and identify the strongest framing strategy for ${input.label}'s opening statement. This is pure analysis — do not write any debate statement or adopt the debater's voice.
 
-${input.taxonomyContext}
+${gradeTargetPreamble(input.audience)}${input.taxonomyContext}
 ${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}
 === DEBATE TOPIC ===
 "${input.topic}"${input.background ? `\n\n=== BACKGROUND CONTEXT ===\nThe user provided the following supporting context. Use it to inform your analysis, but keep it separate from the debate question itself.\n${input.background}` : ''}${documentBlock}
@@ -97,7 +98,7 @@ export function planOpeningStagePrompt(input: OpeningStagePromptInput, brief: st
 ${getCharacterBlock(input.pov)}
 Your perspective: ${input.pov}.
 ${formatDoctrinalBoundaries(input.pov)}
-=== SITUATION BRIEF ===
+${gradeTargetPreamble(input.audience)}=== SITUATION BRIEF ===
 ${brief}
 
 Plan your opening statement strategy. This is your first appearance — you need to:

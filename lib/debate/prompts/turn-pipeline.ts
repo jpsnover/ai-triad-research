@@ -13,6 +13,7 @@ import {
   getStyleReinforcement,
   getPolicymakerFraming,
   formatDoctrinalBoundaries,
+  gradeTargetPreamble,
 } from './shared-helpers.js';
 import {
   sourceReminder,
@@ -122,7 +123,7 @@ export function briefStagePrompt(input: StagePromptInput): string {
 
 Your task is to comprehend the current state of the debate and identify what matters most for ${input.label}'s next response. This is pure analysis — do not write any debate statement or adopt the debater's voice.
 
-${input.explorationPriming ? `${input.explorationPriming}\n` : ''}${input.taxonomyContext}
+${gradeTargetPreamble(input.audience)}${input.explorationPriming ? `${input.explorationPriming}\n` : ''}${input.taxonomyContext}
 ${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}${input.topicScope ? `\n${formatDebateScopeBlock(input.topicScope)}\n` : ''}${input.priorCruxContext ? `\n${input.priorCruxContext}\n` : ''}${input.currentCruxContext ? `\n=== IDENTIFIED CRUXES (THIS DEBATE) ===\n${input.currentCruxContext}\n\n` : ''}${formatTopicBlock(input.topic, input.topicStructure)}${input.background ? `\n\n=== BACKGROUND CONTEXT ===\nThe user provided the following supporting context. Use it to inform your analysis, but keep it separate from the debate question itself.\n${input.background}` : ''}
 
 === RECENT DEBATE HISTORY ===
@@ -179,7 +180,7 @@ You are an analytical assistant preparing a situation brief for ${input.label}, 
 
 Your task is to comprehend the current state of the debate and identify what matters most for ${input.label}'s next response. This is pure analysis — do not write any debate statement or adopt the debater's voice.
 
-${input.phase ? PHASE_INSTRUCTIONS[input.phase] : ''}
+${gradeTargetPreamble(input.audience)}${input.phase ? PHASE_INSTRUCTIONS[input.phase] : ''}
 
 ATTRIBUTION FIDELITY: Your analysis of other speakers' positions must be grounded in what they actually said in the RECENT DEBATE HISTORY below. Do not infer, extrapolate, or construct positions that a speaker did not explicitly state. If a speaker did not address a topic, note the absence — do not fill it with assumptions about what they "probably" believe.
 
@@ -305,7 +306,7 @@ Consider how the moderator's point relates to your own position and plan a brief
 ${getCharacterBlock(input.pov)}
 Your perspective: ${input.pov}.
 ${formatDoctrinalBoundaries(input.pov)}
-=== SITUATION BRIEF ===
+${gradeTargetPreamble(input.audience)}=== SITUATION BRIEF ===
 ${brief}
 ${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}${strongFoundationsBlock}${avoidClaimsBlock}${preserveConcessionsBlock}${cruxBlock}
 === AVAILABLE DIALECTICAL MOVES ===
