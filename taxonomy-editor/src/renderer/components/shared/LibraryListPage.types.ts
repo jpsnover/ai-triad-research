@@ -96,6 +96,12 @@ export interface LibraryListPageConfig<TMy extends { id: string }, TCommunity ex
 
   columns: LibraryColumn<TMy, TCommunity>[];
 
+  /** Header label for the title column — "Headline" / "Title" / "Motion". The title column
+   *  itself (always first, always flex) is not in `columns`, so this is its own field. */
+  titleHeader: string;
+  /** Whether the title column participates in sort — same intent-only contract as
+   *  `LibraryColumn.sortable`. Comparator defaults to a locale compare on `getTitle`'s result. */
+  titleSortable?: boolean;
   /** Raw title/headline text for the shared title cell. LibraryListPage owns clamping (2-line,
    *  text-wrap:pretty) and web-address detection/rendering (protocol + www. stripped, site name
    *  weight 600, remainder #8a8079, one line + ellipsis) — this is spec-generic logic, not
