@@ -186,11 +186,21 @@
 .lib-header-cell.lib-align-right { justify-content: flex-end; }
 
 .lib-header-sort-btn {
+  /* t/3702#11 F3: the visible text lives on this <button>, not .lib-header-cell — `font: inherit`
+     does not carry text-transform/letter-spacing (they're outside the `font` shorthand), and a
+     button's `color` is not reliably inherited past the UA stylesheet in every browser. Setting
+     the spec's values directly here, rather than depending on inheriting them from the parent
+     cell, is what actually renders 11px/UPPERCASE/#8a8079/.07em instead of silently falling back
+     to the app's default button typography. */
   appearance: none;
   border: none;
   background: transparent;
-  font: inherit;
-  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--lib-text-faded);
   padding: 0;
   cursor: default;
   display: inline-flex;
