@@ -128,6 +128,7 @@
         'Get-TaxonomyProcess'
         'Request-FlightRecorderDump'
         'Get-FlightRecorderReport'
+        'Read-FlightRecorderDump'
         'Get-AITClaim'
         'Compare-EmbeddingModel'
         'Test-RerankerBaseline'

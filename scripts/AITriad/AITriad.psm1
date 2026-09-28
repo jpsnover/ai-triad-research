@@ -891,6 +891,8 @@ Export-ModuleMember -Function @(
     'Get-TaxonomyProcess'
     'Request-FlightRecorderDump'
     'Get-FlightRecorderReport'
+    # t/3726 — structured error/retry summary from a flight recorder JSONL dump
+    'Read-FlightRecorderDump'
     'Get-AITClaim'
     'Compare-EmbeddingModel'
     'Test-RerankerBaseline'
