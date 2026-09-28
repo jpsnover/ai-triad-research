@@ -217,8 +217,25 @@ const AUDIENCE_DIRECTIVES: Record<DebateAudience, { readingLevel: string; detail
   },
 };
 
+// Grade targets: policymakers → FK ~12 (ceiling 13); all others → FK ~10 (ceiling 11). PI decision; stipulated.
+export const AUDIENCE_GRADE_TARGET: Record<DebateAudience, { target: number; ceiling: number }> = {
+  policymakers:          { target: 12, ceiling: 13 },
+  technical_researchers: { target: 10, ceiling: 11 },
+  industry_leaders:      { target: 10, ceiling: 11 },
+  academic_community:    { target: 10, ceiling: 11 },
+  general_public:        { target: 10, ceiling: 11 },
+};
+
+function gradeTargetPreamble(audience: DebateAudience): string {
+  if (audience === 'policymakers') {
+    return 'READING LEVEL (measurable): target Flesch-Kincaid grade ~12, no higher than 13, a senior congressional staffer reads it once and can quote it. The density comes from SUBSTANCE, not vocabulary: prefer plain words; use a technical term only when it is load-bearing, and define it in the same sentence on first use. One idea per sentence; no sentence over 30 words.\n\n';
+  }
+  return 'READING LEVEL (measurable): target Flesch-Kincaid grade ~10, no higher than 11, an informed general reader follows it without rereading. No jargon without a plain-English equivalent in the same sentence. Prefer short, plain words over abstract/polysyllabic ones. One idea per sentence; no sentence over 30 words.\n\n';
+}
+
 export function getReadingLevel(audience?: DebateAudience): string {
-  return AUDIENCE_DIRECTIVES[audience ?? 'policymakers'].readingLevel;
+  const key = audience ?? 'policymakers';
+  return gradeTargetPreamble(key) + AUDIENCE_DIRECTIVES[key].readingLevel;
 }
 
 export function getDetailInstruction(audience?: DebateAudience): string {
