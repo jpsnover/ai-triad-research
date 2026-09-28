@@ -94,6 +94,23 @@ describe('useInquiryStore', () => {
     expect(useInquiryStore.getState().status).toBe('debating');
   });
 
+  it('stops polling immediately on a persistent HTTP 404, instead of retrying forever (t/3723)', async () => {
+    mockApi.startInquiry.mockResolvedValue({ jobId: 'job-404' });
+    mockApi.getInquiry.mockRejectedValue(Object.assign(new Error('HTTP 404: Inquiry not found'), { httpStatus: 404 }));
+
+    await useInquiryStore.getState().startInquiry();
+    expect(mockApi.getInquiry).toHaveBeenCalledTimes(1);
+
+    expect(useInquiryStore.getState().status).toBe('failed');
+    expect(useInquiryStore.getState().error).toMatch(/no longer available/);
+    expect(useInquiryStore.getState().pollError).toBeNull();
+    // Terminal on the first 404 — no retries, unlike a transient poll error.
+    expect(useInquiryStore.getState().screen()).toBe('answer');
+
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(mockApi.getInquiry).toHaveBeenCalledTimes(1);
+  });
+
   it('gives up after the poll ceiling and reports a failure, not an infinite spin', async () => {
     mockApi.startInquiry.mockResolvedValue({ jobId: 'job-3' });
     mockApi.getInquiry.mockResolvedValue(pollView({ status: 'debating', progressPct: 10 }));
