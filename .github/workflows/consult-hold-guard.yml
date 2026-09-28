@@ -97,3 +97,8 @@ jobs:
             exit 1
           fi
           echo "guard OK — no consult-hold label present; reporting success."
+
+# ARM-PROOF PROVENANCE (t/3680): the three required arms were exercised on the PR that
+# introduced this comment — (1) green with no label, (2) red after adding `consult-hold`,
+# (3) green again after removing the label with NO push (the `unlabeled` re-trigger, AC2).
+# Evidence links live on t/3680; this comment is the harmless diff that opened that proof PR.
