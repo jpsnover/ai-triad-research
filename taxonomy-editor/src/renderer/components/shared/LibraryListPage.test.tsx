@@ -85,6 +85,44 @@ describe('LibraryListPage — tabs', () => {
   });
 });
 
+describe('LibraryListPage — hideMyTab (t/3705#7)', () => {
+  it('hides the My tab button and shows only Community rows', () => {
+    renderPage({}, { hideMyTab: true });
+    expect(screen.queryByRole('tab', { name: /^My/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Community/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Community item')).toBeInTheDocument();
+  });
+
+  it('forces the view to Community if hideMyTab flips true after mount', () => {
+    const { rerender } = render(
+      <LibraryListPage
+        config={baseConfig()}
+        myRows={MY_ROWS}
+        myLoading={false}
+        communityRows={COMMUNITY_ROWS}
+        communityLoading={false}
+        onOpenMy={vi.fn()}
+        onOpenCommunity={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('tab', { name: /My/ })).toHaveAttribute('aria-selected', 'true');
+    rerender(
+      <LibraryListPage
+        config={baseConfig()}
+        myRows={MY_ROWS}
+        myLoading={false}
+        communityRows={COMMUNITY_ROWS}
+        communityLoading={false}
+        onOpenMy={vi.fn()}
+        onOpenCommunity={vi.fn()}
+        hideMyTab
+      />,
+    );
+    expect(screen.queryByRole('tab', { name: /^My/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Community/ })).toHaveAttribute('aria-selected', 'true');
+  });
+});
+
 describe('LibraryListPage — search + empty state', () => {
   it('filters rows by the configured filter function', () => {
     renderPage();
