@@ -45,6 +45,14 @@ Orca config (`.orca.yaml`, nested `AGENTS.md`, `.orca/`) lives in a **separate o
 
 **Changing the mode is a deliberate act, not a preference.** `direct` removes a protection born from an incident (t/1926): the fleet shares one `main` checkout, so a commit there sits in every other agent's tree. That is low-cost when one person works alone and hazardous at high parallelism — **the dangerous transition is leaving `direct` on when the fleet spins back up.** Record set-by/set-at/reason in the file when you change it.
 
+**In `direct` mode the shared checkout still stays on `main`. `direct` licenses *committing* there — never *checking out a branch* there.** Three collisions in one session (2026-09-28), one cause: a `git checkout <branch>` + rebase in the shared tree mutates every file in a tree other agents are actively reading. One agent's file vanished from disk mid-edit; another's working tree was swapped out from under an in-flight task (t/3704#8); a third's uncommitted WIP compiled into a peer's `npm run verify`, producing a red that belonged to neither of them.
+
+This is not `direct` failing at what it is chosen for — one agent committing small changes straight to `main` is exactly what it makes cheap, and that still works. The failure is that *"branches are not required"* reads as *"branches are safe here."* So:
+
+- **Commit to `main` in the shared checkout — fine, that is the point of the mode.**
+- **Never `git checkout <branch>` in the shared checkout.** Branch work — a rebase, or landing an existing PR branch — goes in a worktree in `direct` mode exactly as in `worktree` mode. `git worktree add` costs seconds; the collision costs a colleague's uncommitted work.
+- **Scan `git status --short` UNSCOPED before any tree-wide build.** A peer's uncommitted file compiles into your `npm run verify`, so a red may not be yours. Your branch's CI sees only committed files and is the authoritative signal.
+
 ### Shared-Checkout Commit Guard (pre-commit hook)
 
 **Applies in `worktree` mode.** `.githooks/pre-commit` refuses commits on `main` (t/1926); in `direct` mode it permits them. **Both modes** still refuse a commit on a detached HEAD inside a worktree (t/2009) — that guards a different failure and the switch does not govern it. `--no-verify` remains the emergency override. Enable once per checkout: `git config core.hooksPath .githooks`.
