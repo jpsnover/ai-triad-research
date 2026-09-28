@@ -515,6 +515,39 @@ export interface CalibrationDataPoint {
    * CL field definitions confirmed at t/3603#2.
    */
   drift_telemetry_series?: DriftTelemetryEntry[] | null;
+
+  // ── AIF B5 metrics (t/3715) ──────────────────────────────
+  /**
+   * AIF-derived B5 metrics: crux-from-AIF (§1) + 2-signal convergence_score (§2).
+   * Provisional / shadow only — gates nothing (AC6, b5-build-spec.md).
+   * Additive-optional:
+   *   - `undefined` (absent) — pre-t/3715 entry; B5 did not run.
+   *   - `null` — B5 ran but no argument-network nodes were available.
+   *   - `AifB5Metrics` — computed values with metric_def_version (AC5).
+   */
+  aif_b5_metrics?: AifB5Metrics | null;
+}
+
+/**
+ * AIF B5 metric bundle (t/3715, b5-build-spec.md). Provisional / shadow (AC6).
+ */
+export interface AifB5Metrics {
+  /** Definition version for cross-time comparison (AC5). Change when metric definition changes. */
+  metric_def_version: string;
+  /**
+   * Count of sustained cross-agent CA-nodes (crux-from-AIF, spec §1).
+   * A crux = a cross-agent opposition (conflict_claim_id) that recurs across ≥2 distinct rounds.
+   * Aggregate only — t/3587 over-determination constraint: per-crux claims are unreliable.
+   */
+  crux_count: number;
+  /** conflict_claim_ids of the crux set (one per sustained CA opposition). */
+  crux_set: string[];
+  /**
+   * 2-signal convergence score (spec §2). Signal A = concession accumulation (rising);
+   * Signal B = retained-hold reduction (falling). Stipulated equal 0.5/0.5 weighting.
+   * Null when convergence_signals is absent or empty (total_turns = 0 → no valid denominator).
+   */
+  convergence_score: number | null;
 }
 
 // DriftTelemetryEntry lives in types/session.ts (session-side type; avoids the
