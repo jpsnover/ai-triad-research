@@ -62,6 +62,9 @@ export const PublicInquiryShareSchema = z.object({
   derivation: PublicDerivationSchema,
   grounding: PublicGroundingSchema,
   singleRunCaveat: z.string(),
+  /** Present only when the pipeline produced a characterization on a healthy run. Absent for degraded runs
+   *  by construction — Condition A: if `result.synthesizedHeadline` is undefined, the key is not written. */
+  synthesizedHeadline: z.string().optional(),
 }).strict();
 export type PublicInquiryShare = z.infer<typeof PublicInquiryShareSchema>;
 
@@ -142,6 +145,9 @@ export function toPublicInquiryShare(result: InquiryResult): PublicInquiryShare 
       ),
     },
     singleRunCaveat: result.singleRunCaveat,
+    // Condition A: omit at construction for degraded runs — if the pipeline didn't produce the field, the
+    // key is simply not written. Construction is the ONLY enforcement point (no read-side Zod validation).
+    ...(result.synthesizedHeadline !== undefined ? { synthesizedHeadline: result.synthesizedHeadline } : {}),
   };
   return PublicInquiryShareSchema.parse(share);
 }

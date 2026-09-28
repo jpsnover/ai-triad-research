@@ -214,6 +214,36 @@ export const InquiryResultSchema = z
      *  share projection — following it to the raw run would open a second, un-threat-modelled anonymous-read
      *  surface. The e/201 public allowlist omits it; raw-run disclosure stays owner-side / authenticated. */
     debateId: z.string().optional(),
+    /** One-sentence characterization of the *shape* of the disagreement across camps — NOT a verdict, a
+     *  conclusion, or a summary of what the answer says. Describes the structure (e.g. "Three camps split on
+     *  timing but shared the same uncertainty framing"), letting the reader understand what the answer reveals
+     *  before reading it. Must not take a side, imply consensus, or substitute for the full answer.
+     *
+     *  **`.optional()`, NOT nullable:** absence means no characterization was produced (degraded run or
+     *  generation failure). `null` would add a third state — "producer declined" vs "producer omitted" —
+     *  indistinguishable from absence and buying nothing. Omit or supply a string; never `null`.
+     *
+     *  **Omit for degraded runs at `toPublicInquiryShare` construction — NOT include-and-hide in the
+     *  renderer.** Construction is the ONLY enforcement point: `loadPublicInquiryShare` uses `JSON.parse … as T`
+     *  with no Zod validation on read, so a field written at construction reaches the reader regardless of
+     *  renderer logic (TL condition A, confirmed e/222#3).
+     *
+     *  **Omit, never truncate** (TL condition B): if the characterization cannot be produced in full, omit
+     *  entirely. A truncated characterization misleads; an absent field signals incompleteness cleanly.
+     *
+     *  **Always adjacent to `singleRunCaveat`, never standalone** (SO e/222#3): the single-run caveat
+     *  provides the epistemic context that makes a disagreement characterization honest; separating them
+     *  removes that framing.
+     *
+     *  **No schemaVersion bump** (schema.ts:19-22): additive optional field. The load-bearing reason is that
+     *  no read-side Zod contract exists — `loadPublicInquiryShare` is `JSON.parse … as T` — so the version
+     *  integer is write-side bookkeeping only. (TL's original stated reasons were both wrong per SO e/222#3;
+     *  the conclusion is right.) Old readers ignore unknown fields via `.passthrough()`; a bump would trip
+     *  parse.ts's refuse-newer arm — a read outage across all five consumers.
+     *
+     *  **PUBLIC-SHARE: INCLUDED** (TL ruling p/342#456). Condition A governs suppression for degraded runs
+     *  at construction; a characterization from a healthy run belongs in the public share. */
+    synthesizedHeadline: z.string().optional(),
   })
   .passthrough();
 export type InquiryResult = z.infer<typeof InquiryResultSchema>;
