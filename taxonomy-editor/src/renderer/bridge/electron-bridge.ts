@@ -297,12 +297,16 @@ export const api: AppAPI = {
   getInquiry: async (jobId) => {
     const result = await window.electronAPI.getInquiry(jobId);
     if (result === null) {
-      throw new ActionableError({
+      const err = new ActionableError({
         goal: 'Poll inquiry status',
         problem: `Inquiry ${jobId} not found`,
         location: 'electron-bridge.getInquiry',
         nextSteps: ['Check the job ID', 'Start a new inquiry'],
       });
+      // Parity with the web bridge's 404 (t/3723) so the poll loop can detect "not found" the
+      // same way regardless of build.
+      (err as ActionableError & { httpStatus: number }).httpStatus = 404;
+      throw err;
     }
     return result;
   },

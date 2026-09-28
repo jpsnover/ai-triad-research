@@ -114,6 +114,30 @@ export const useInquiryStore = create<InquiryStoreState>((set, get) => {
     try {
       view = await api.getInquiry(jobId);
     } catch (err) {
+      // A 404 means the job definitively does not exist (e.g. the server process was replaced
+      // while the inquiry was in flight, t/3723) — not a transient error. Retrying it can never
+      // succeed, so unlike other poll failures this terminates the loop on first occurrence
+      // instead of backing off and retrying.
+      const httpStatus = (err as { httpStatus?: number }).httpStatus;
+      if (httpStatus === 404) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'inquiry-store',
+          level: 'warn',
+          message: `Inquiry ${jobId} not found (HTTP 404) — stopping poll`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        clearPollTimer();
+        if (get().jobId === jobId) {
+          set({
+            status: 'failed',
+            error: 'This inquiry is no longer available. The server restarted while it was running, so the run was lost. Starting a new inquiry will re-run it.',
+            pollError: null,
+          });
+        }
+        return;
+      }
+
       consecutivePollFailures++;
       getGlobalRecorder()?.record({
         type: 'system.error',
