@@ -1,0 +1,92 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Debates' per-page cell rendering for the shared LibraryListPage (t/3705). Status-token colours
+   are authoritative per t/3705 (superseding the handoff's `opening` typo) and t/3705#3/#4
+   (the `cancelled` 5th token, ruled by Design). */
+
+.debate-lib-empty {
+  color: #b3aaa2;
+}
+
+.debate-lib-date {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.debate-lib-model {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debate-lib-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.debate-lib-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* closed — filled dot, upright (concluded) */
+.debate-lib-status--closed {
+  color: #6f6760;
+  background: #ebe5dd;
+}
+.debate-lib-status--closed .debate-lib-status-dot {
+  background: #6f6760;
+}
+
+/* active */
+.debate-lib-status--active {
+  color: oklch(0.48 0.11 150);
+  background: oklch(0.93 0.04 150);
+}
+.debate-lib-status--active .debate-lib-status-dot {
+  background: oklch(0.48 0.11 150);
+}
+
+/* opening — hue 70, not the handoff's 80 (typo, ruled t/3702#2 / t/3705) */
+.debate-lib-status--opening {
+  color: oklch(0.52 0.11 70);
+  background: oklch(0.94 0.05 70);
+}
+.debate-lib-status--opening .debate-lib-status-dot {
+  background: oklch(0.52 0.11 70);
+}
+
+/* setup */
+.debate-lib-status--setup {
+  color: oklch(0.5 0.08 240);
+  background: oklch(0.93 0.025 240);
+}
+.debate-lib-status--setup .debate-lib-status-dot {
+  background: oklch(0.5 0.08 240);
+}
+
+/* cancelled — hollow ring + strikethrough, neutral grey family, no new hue (Design ruling
+   t/3705#3): a terminal state that was aborted, not one that concluded. The dot is unfilled
+   (border only); the label text itself reads "Cancelled" (t/3705#4) so the distinction survives
+   in the accessible name — strikethrough here is decorative reinforcement only. */
+.debate-lib-status--cancelled {
+  color: #8a8079;
+  background: #ebe5dd;
+  text-decoration: line-through;
+}
+.debate-lib-status--cancelled .debate-lib-status-dot {
+  background: transparent;
+  border: 1px solid #8a8079;
+}

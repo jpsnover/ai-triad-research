@@ -14,7 +14,6 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useMobileNav } from '../../hooks/useMobileNav';
 import { NewDebateDialog } from './NewDebateDialog';
 import { DebateWorkspace } from '../debate-workspace';
-import { filterCommunityDebates } from './communityFilter';
 import { ExportDropdown } from './ExportDropdown';
 import { useDebateBriefExports, useRowBriefExport, type BriefTarget } from './DebateBriefExports';
 import { useFlag } from '../../hooks/useFeatureFlags';
@@ -36,8 +35,10 @@ import { trackExport } from '../../lib/analyticsEmitter';
 // DebatePopoutWindow already mounts its own useBriefTimeoutEvents — the correct home.
 // activeDebateId is never set in table mode (no loadDebate on row click) → events
 // would match every debate (guard always falsy), producing orphan toasts here.
-import { DebateTable } from './DebateTable';
 import type { SessionRowData } from './DebateTable';
+import { LibraryListPage } from '../shared/LibraryListPage';
+import type { LibraryEditModeAction, LibraryRowEditAction } from '../shared/LibraryListPage.types';
+import { buildDebateLibraryConfig, debateSafeTitle } from './debateLibraryConfig';
 import './DebateTab.css';
 
 // Prop-type aliases derived from the hooks/stores so the extracted presentational
@@ -48,54 +49,19 @@ type AuthStatus = ReturnType<typeof useAuthStatus>;
 type ResizablePanel = ReturnType<typeof useResizablePanel>;
 type CopyDebateFn = (type: 'chats' | 'debates', communityId: string) => Promise<string>;
 
-// Shared prop bag for the left list-panel subtree. One interface, forwarded via
-// spread so the presentational children stay in sync without re-declaring props.
-interface DebateListProps {
+// Props for the library-list left panel — thin now that header/tabs/search/table/actions all
+// live inside <LibraryListPage> (t/3705). Just the resizable-panel chrome + the config it needs.
+interface DebateLibraryPanelProps {
   width: number;
-  listView: 'my' | 'community' | null;
-  setListView: Dispatch<SetStateAction<'my' | 'community' | null>>;
-  editMode: boolean;
-  setEditMode: Dispatch<SetStateAction<boolean>>;
-  sessions: SessionSummary[];
-  sessionsLoading: boolean;
-  selectedIds: Set<string>;
-  setSelectedIds: Dispatch<SetStateAction<Set<string>>>;
-  setShowBulkDeleteConfirm: Dispatch<SetStateAction<boolean>>;
-  customOrder: string[];
-  saveCustomOrder: (order: string[]) => void;
-  exitEditMode: () => void;
-  handleNewDebate: () => Promise<void>;
+  fullWidth: boolean;
   setListCollapsed: Dispatch<SetStateAction<boolean>>;
-  communityDebates: CommunityDebate[];
+  config: ReturnType<typeof buildDebateLibraryConfig>;
+  myRows: SessionRowData[];
+  myLoading: boolean;
+  communityRows: CommunityDebate[];
   communityLoading: boolean;
-  searchQuery: string;
-  setSearchQuery: Dispatch<SetStateAction<string>>;
-  filteredSessions: SessionSummary[];
-  filteredCommunityDebates: CommunityDebate[];
-  activeDebateId: string | null;
-  loadDebate: (id: string) => Promise<void>;
-  renamingId: string | null;
-  setRenamingId: Dispatch<SetStateAction<string | null>>;
-  renameValue: string;
-  setRenameValue: Dispatch<SetStateAction<string>>;
-  renameDebate: (id: string, newTitle: string) => Promise<void>;
-  handleSelect: (session: { id: string }) => void;
-  moveSession: (id: string, direction: 'up' | 'down') => void;
-  selectedCommunityDebate: CommunityDebate | null;
-  setSelectedCommunityDebate: Dispatch<SetStateAction<CommunityDebate | null>>;
-  nav: NavApi;
-  copyingId: string | null;
-  setCopyingId: Dispatch<SetStateAction<string | null>>;
-  copyItem: CopyDebateFn;
-  loadSessions: () => Promise<void>;
-  auth: AuthStatus;
-  // Table-mode action handlers (t/2305)
-  onRowOpen: (id: string) => void;
-  onCommunityRowOpen: (id: string) => void;
-  onRowExport: (session: SessionRowData, format: string) => void;
-  onRowShare: (session: SessionRowData) => Promise<void>;
-  onRowCommunityExport: (cd: CommunityDebate, format: string) => void;
-  onRowBrief: (target: BriefTarget) => void;
+  onOpenMy: (id: string) => void;
+  onOpenCommunity: (id: string) => void;
 }
 
 // Shared prop bag for the right (detail) pane subtree.
@@ -112,7 +78,11 @@ interface DebateRightPaneProps {
   isPhone: boolean;
   activeDebate: DebateSession | null;
   selectedCommunityDebate: CommunityDebate | null;
-  listView: 'my' | 'community' | null;
+  /** Which variant was last opened — drives the detail-pane branch on phone now that tab
+   *  selection lives inside <LibraryListPage> and DebateTab has no visibility into it (t/3705#7,
+   *  gap 1 still open with Rosetta re: anon-tab suppression; this is the "which item is showing"
+   *  question, orthogonal to that). */
+  lastOpenedVariant: 'my' | 'community';
   nav: NavApi;
   handleExport: (format?: string) => void;
   exportStatus: string | null;
@@ -194,15 +164,15 @@ export function DebateTab() {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [quotaError, setQuotaError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [listView, setListView] = useState<'my' | 'community' | null>(null);
+  // Which variant was last opened — <LibraryListPage> owns tab selection internally now, so this
+  // is DebateTab's own record of "which detail to show on phone" (t/3705#7).
+  const [lastOpenedVariant, setLastOpenedVariant] = useState<'my' | 'community'>('my');
   const { debates: communityDebates, loading: communityLoading, fetchDebates: fetchCommunityDebates, copyItem } = useCommunityStore();
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [selectedCommunityDebate, setSelectedCommunityDebate] = useState<CommunityDebate | null>(null);
@@ -263,21 +233,6 @@ export function DebateTab() {
     return ordered;
   }, [sessions, customOrder]);
 
-  const filteredSessions = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return orderedSessions;
-    return orderedSessions.filter(s =>
-      (typeof s.title === 'string' ? s.title : '').toLowerCase().includes(q) ||
-      (s.topic_text && s.topic_text.toLowerCase().includes(q))
-    );
-  }, [orderedSessions, searchQuery]);
-
-  // Community debates filtered by the shared search box (t/951 AC#3).
-  const filteredCommunityDebates = useMemo(
-    () => filterCommunityDebates(communityDebates, searchQuery),
-    [communityDebates, searchQuery],
-  );
-
   const moveSession = useCallback((id: string, direction: 'up' | 'down') => {
     // Build full order array from current display order
     const ids = orderedSessions.map(s => s.id);
@@ -299,21 +254,6 @@ export function DebateTab() {
     void loadSessions();
     void fetchCommunityDebates();
   }, [loadSessions, fetchCommunityDebates]);
-
-  useEffect(() => {
-    if (listView !== null) return;
-    if (sessionsLoading) return;
-    setListView(sessions.length > 0 ? 'my' : 'community');
-  }, [listView, sessionsLoading, sessions.length]);
-
-  const handleSelect = (session: { id: string }) => {
-    if (session.id !== activeDebateId) {
-      void loadDebate(session.id);
-    }
-    if (nav.isActive) {
-      nav.push({ view: 'debate', id: session.id });
-    }
-  };
 
   // Condition 2 (t/2305): runExport accepts explicit `session` so table rows can pass
   // their own data directly — `activeDebate` from the store is not loaded on row click,
@@ -455,26 +395,107 @@ export function DebateTab() {
 
   const rowBrief = useRowBriefExport(isElectronMode());
 
-  const listProps: DebateListProps = {
-    width, listView, setListView, editMode, setEditMode, sessions, sessionsLoading,
-    selectedIds, setSelectedIds, setShowBulkDeleteConfirm, customOrder, saveCustomOrder,
-    exitEditMode, handleNewDebate, setListCollapsed, communityDebates, communityLoading,
-    searchQuery, setSearchQuery, filteredSessions, filteredCommunityDebates, activeDebateId,
-    loadDebate, renamingId, setRenamingId, renameValue, setRenameValue, renameDebate,
-    handleSelect, moveSession, selectedCommunityDebate, setSelectedCommunityDebate, nav,
-    copyingId, setCopyingId, copyItem, loadSessions, auth,
-    onRowOpen: handleRowOpen,
-    onCommunityRowOpen: handleCommunityRowOpen,
-    onRowExport: (s, fmt) => { void handleRowExport(s, fmt); },
-    onRowShare: handleRowShare,
-    onRowCommunityExport: (cd, fmt) => { void handleRowCommunityExport(cd, fmt); },
-    onRowBrief: rowBrief.openRowBrief,
-  };
+  // Row-open — branches on phone vs desktop inside the handler DebateTab owns (t/3702#5 gap 2
+  // ruling: no shared per-device contract needed, this is page-side logic behind one callback).
+  const handleOpenMy = useCallback((id: string) => {
+    if (isPhone) {
+      if (id !== activeDebateId) void loadDebate(id);
+      setLastOpenedVariant('my');
+      nav.push({ view: 'debate', id });
+      return;
+    }
+    handleRowOpen(id);
+  }, [isPhone, activeDebateId, loadDebate, nav, handleRowOpen]);
+
+  const handleOpenCommunity = useCallback((id: string) => {
+    if (isPhone) {
+      const cd = communityDebates.find(c => c.id === id) ?? null;
+      setSelectedCommunityDebate(cd);
+      setLastOpenedVariant('community');
+      if (cd) nav.push({ view: 'detail', id });
+      return;
+    }
+    handleCommunityRowOpen(id);
+  }, [isPhone, communityDebates, nav, handleCommunityRowOpen]);
+
+  const handleCopyCommunity = useCallback(async (cd: CommunityDebate): Promise<void> => {
+    setCopyingId(cd.id);
+    try {
+      await copyItem('debates', cd.id);
+      void loadSessions();
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-tab',
+        level: 'error',
+        message: 'Failed to copy community debate',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    } finally {
+      setCopyingId(null);
+    }
+  }, [copyItem, loadSessions]);
+
+  // Per-row edit-mode affordances — rename + reorder, preserved as icon descriptors per the
+  // shared contract (t/3705#2, LibraryRowEditAction). Position/boundary comes from customOrder,
+  // matching moveSession's own semantics — independent of whatever sort LibraryListPage applies.
+  const rowActions = useCallback((row: SessionRowData): LibraryRowEditAction[] => {
+    const ids = orderedSessions.map(s => s.id);
+    const idx = ids.indexOf(row.id);
+    const title = debateSafeTitle(row);
+    return [
+      { icon: 'rename', label: `Rename "${title}"`, onClick: () => setRenamingId(row.id) },
+      { icon: 'moveUp', label: `Move "${title}" up`, disabled: idx <= 0, onClick: () => moveSession(row.id, 'up') },
+      { icon: 'moveDown', label: `Move "${title}" down`, disabled: idx === -1 || idx === ids.length - 1, onClick: () => moveSession(row.id, 'down') },
+    ];
+  }, [orderedSessions, moveSession]);
+
+  // Bulk-action bar — same All/None/Delete/Reset-Order/Done set as today, as button descriptors
+  // (t/3705#2). Community-row clicks can't reach onToggleSelect in normal use (edit mode only
+  // ever activates from the My-tab header), but guard defensively anyway: LibraryListPage has no
+  // tab-switch hook to auto-exit edit mode (t/3705#7), so a stray id can't reach bulk delete.
+  const editModeActions: LibraryEditModeAction[] = [
+    { label: 'All', onClick: () => setSelectedIds(new Set(sessions.map(s => s.id))) },
+    { label: 'None', onClick: () => setSelectedIds(new Set()) },
+    ...(selectedIds.size > 0 ? [{ label: `Delete ${selectedIds.size}`, variant: 'danger' as const, onClick: () => setShowBulkDeleteConfirm(true) }] : []),
+    ...(customOrder.length > 0 ? [{ label: 'Reset Order', onClick: () => saveCustomOrder([]) }] : []),
+    { label: 'Done', onClick: exitEditMode },
+  ];
+
+  const libraryConfig = buildDebateLibraryConfig({
+    // Anon users can create/save/list their own debates — server persists them via
+    // anonymousSessionStore and GET /api/debates returns them (debateStore.ts:135, confirmed
+    // t/3705#7 gap 1 investigation, p/501#22). Gating +New on `!auth?.anonymous` (today's
+    // behavior, inherited pre-t/3705) hid a real capability; not carrying that bug forward.
+    onNew: () => { void handleNewDebate(); },
+    editModeActive: editMode,
+    onEditModeEnter: () => setEditMode(true),
+    onEditModeExit: exitEditMode,
+    editModeActions,
+    selectedIds,
+    onToggleSelect: (id) => setSelectedIds(prev => {
+      if (!sessions.some(s => s.id === id)) return prev; // guard: see comment above
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    }),
+    rowActions,
+    onRename: (id, title) => { void renameDebate(id, title); },
+    renamingId,
+    setRenamingId,
+    onExportMy: (row, fmt) => { void handleRowExport(row, fmt); },
+    onExportCommunity: (row, fmt) => { void handleRowCommunityExport(row, fmt); },
+    onShare: (row) => { void handleRowShare(row); },
+    onCopy: (row) => { void handleCopyCommunity(row); },
+    showCopy: () => !auth?.anonymous,
+    onBrief: (row) => rowBrief.openRowBrief({ id: row.id, title: debateSafeTitle(row), phase: row.phase ?? '' }),
+    briefWebOnly: isElectronMode(),
+  });
 
   const rightPaneProps: DebateRightPaneProps = {
     toolbarPanel, promptInspectorActive, onMouseDown, onTouchStart, searchPreviewId,
     setSearchPreviewId, selectedPromptEntry, lineagePreviewValue, setLineagePreviewValue,
-    isPhone, activeDebate, selectedCommunityDebate, listView, nav, handleExport,
+    isPhone, activeDebate, selectedCommunityDebate, lastOpenedVariant, nav, handleExport,
     exportStatus, handleNewDebate,
   };
 
@@ -507,7 +528,18 @@ export function DebateTab() {
           <span className="pane-collapsed-label">Debates</span>
         </div>
       ) : (
-        <DebateListPanel {...listProps} fullWidth={isTableMode} />
+        <DebateLibraryPanel
+          width={width}
+          fullWidth={isTableMode}
+          setListCollapsed={setListCollapsed}
+          config={libraryConfig}
+          myRows={orderedSessions}
+          myLoading={sessionsLoading}
+          communityRows={communityDebates}
+          communityLoading={communityLoading}
+          onOpenMy={handleOpenMy}
+          onOpenCommunity={handleOpenCommunity}
+        />
       )}
 
       {/* Right pane: toolbar detail or phone workspace — hidden in desktop table mode */}
@@ -599,198 +631,41 @@ function ToolbarLeftPanel({
   );
 }
 
-// ── Debate list panel (My / Community switch) ──
-
-function DebateListPanel(props: DebateListProps & { fullWidth?: boolean }) {
-  const { width, listView, setListView, sessions, communityDebates, exitEditMode, fullWidth, auth } = props;
+// ── Debate library panel — thin resizable-panel chrome + the shared list component (t/3705) ──
+//
+// Header row 1 (title/Edit/+New), tabs+search, grid, row interaction, and the entire actions
+// column all live inside <LibraryListPage> now — this wrapper supplies only what has nowhere
+// else to go: the resizable-width style, and the collapse-chevron + TheoryLink docs-link that
+// the handoff doesn't describe and the shared header has no slot for (t/3705#7 gap 3, TL ruling
+// p/501#20 — page-owned strip, no contract change).
+//
+// Known gap, not yet raised: in Electron, community debates aren't supported and today's
+// DebateCommunityList short-circuits to an explanatory notice instead of an empty table. The
+// shared component's EmptyStateRow has no per-variant custom-message hook, so Electron users see
+// the generic "No community debates yet." here instead. Flagging for whoever reviews this file
+// rather than working around it by suppressing the Community tab (a bigger behavior change).
+function DebateLibraryPanel(props: DebateLibraryPanelProps) {
+  const {
+    width, fullWidth, setListCollapsed, config, myRows, myLoading, communityRows, communityLoading,
+    onOpenMy, onOpenCommunity,
+  } = props;
   return (
     // eslint-disable-next-line local/no-inline-style -- dynamic: resizable panel width, omitted in fullWidth/table mode
     <div className="list-panel debate-session-list" style={fullWidth ? undefined : { width }}>
-      <div className="list-panel-header">
-        <h2>Debates</h2>
+      <div className="debate-lib-accessory-strip">
         <TheoryLink docPath="docs/debate-system-overview.md" />
-        <DebateListHeaderActions {...props} />
+        <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
       </div>
-      <div className="list-view-tabs">
-        {!auth?.anonymous && (
-          <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => { setListView('my'); exitEditMode(); }}>My ({sessions.length})</button>
-        )}
-        <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => { setListView('community'); exitEditMode(); }}>Community ({communityDebates.length})</button>
-      </div>
-      {listView === 'my' ? (
-        <DebateMyList {...props} />
-      ) : (
-        <DebateCommunityList {...props} />
-      )}
-    </div>
-  );
-}
-
-function DebateListHeaderActions(props: DebateListProps) {
-  const {
-    listView, editMode, sessions, selectedIds, setSelectedIds, setShowBulkDeleteConfirm,
-    customOrder, saveCustomOrder, exitEditMode, handleNewDebate, setEditMode, setListCollapsed, auth,
-  } = props;
-  return (
-    <div className="list-panel-header-actions">
-      {listView === 'my' && editMode ? (
-        <>
-          <button className="btn btn-sm" onClick={() => setSelectedIds(new Set(sessions.map(s => s.id)))}>All</button>
-          <button className="btn btn-sm" onClick={() => setSelectedIds(new Set())}>None</button>
-          {selectedIds.size > 0 && (
-            <button className="btn btn-sm btn-danger" onClick={() => setShowBulkDeleteConfirm(true)}>
-              Delete {selectedIds.size}
-            </button>
-          )}
-          {customOrder.length > 0 && (
-            <button className="btn btn-sm btn-ghost" onClick={() => saveCustomOrder([])} title="Reset to default sort order">
-              Reset Order
-            </button>
-          )}
-          <button className="btn btn-sm btn-ghost" onClick={exitEditMode}>Done</button>
-        </>
-      ) : listView === 'my' ? (
-        <>
-          {sessions.length > 0 && (
-            <button className="btn btn-sm btn-ghost" onClick={() => setEditMode(true)} title="Edit, rename, reorder, or delete debates">
-              Edit
-            </button>
-          )}
-          {!auth?.anonymous && <button className="btn btn-sm" onClick={handleNewDebate}>+ New</button>}
-          <TheoryLink docPath="docs/theory-of-success.md" label="Help: theory of success" />
-          <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse" aria-label="Collapse panel">&lsaquo;</button>
-        </>
-      ) : (
-        <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
-      )}
-    </div>
-  );
-}
-
-function DebateMyList(props: DebateListProps) {
-  const {
-    sessions, sessionsLoading, editMode, searchQuery, setSearchQuery,
-    filteredSessions, activeDebateId, selectedIds, setSelectedIds,
-    renamingId, setRenamingId, renameValue, setRenameValue, renameDebate,
-    moveSession, handleSelect, nav,
-    onRowOpen, onRowExport, onRowShare, onRowBrief,
-  } = props;
-  const isPhone = nav.isActive;
-  return (
-    <>
-      {sessions.length > 0 && (
-        <div className="debate-tab-search-wrap">
-          <input
-            type="text"
-            placeholder="Search debates..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="debate-tab-search-input"
-          />
-        </div>
-      )}
-      <DebateTable
-        variant="my"
-        rows={filteredSessions}
-        loading={sessionsLoading}
-        searchQuery={searchQuery}
-        editMode={editMode}
-        selectedIds={selectedIds}
-        onToggleSelect={(id) => setSelectedIds(prev => {
-          const next = new Set(prev);
-          next.has(id) ? next.delete(id) : next.add(id);
-          return next;
-        })}
-        renamingId={renamingId}
-        setRenamingId={setRenamingId}
-        renameValue={renameValue}
-        setRenameValue={setRenameValue}
-        onRename={renameDebate}
-        onMoveSession={moveSession}
-        onOpen={onRowOpen}
-        onExport={onRowExport}
-        onShare={onRowShare}
-        onBrief={onRowBrief}
-        briefWebOnly={isElectronMode()}
-        onPhoneSelect={handleSelect}
-        isPhone={isPhone}
-        activeDebateId={activeDebateId}
-        totalCount={sessions.length}
+      <LibraryListPage
+        config={config}
+        myRows={myRows}
+        myLoading={myLoading}
+        communityRows={communityRows}
+        communityLoading={communityLoading}
+        onOpenMy={onOpenMy}
+        onOpenCommunity={onOpenCommunity}
       />
-    </>
-  );
-}
-
-function DebateCommunityList(props: DebateListProps) {
-  const {
-    communityDebates, communityLoading, searchQuery, setSearchQuery,
-    filteredCommunityDebates, selectedCommunityDebate, setSelectedCommunityDebate,
-    copyingId, setCopyingId, copyItem, loadSessions, auth, nav,
-    onCommunityRowOpen, onRowCommunityExport, onRowBrief,
-  } = props;
-  const isPhone = nav.isActive;
-
-  // Electron mode: community debates not supported — show notice as empty state.
-  if (!communityLoading && communityDebates.length === 0 && isElectronMode()) {
-    return (
-      <div className="debate-session-empty">
-        Community debates are only available in the web app — open it in your browser to browse and search shared debates.
-      </div>
-    );
-  }
-
-  const handleCopy = async (cd: CommunityDebate): Promise<void> => {
-    setCopyingId(cd.id);
-    try {
-      await copyItem('debates', cd.id);
-      void loadSessions();
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        component: 'debate-tab',
-        level: 'error',
-        message: 'Failed to copy community debate',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
-      });
-    } finally {
-      setCopyingId(null);
-    }
-  };
-
-  return (
-    <>
-      {communityDebates.length > 0 && (
-        <div className="debate-tab-search-wrap">
-          <input
-            type="text"
-            placeholder="Search community debates..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="debate-tab-search-input"
-          />
-        </div>
-      )}
-      <DebateTable
-        variant="community"
-        rows={filteredCommunityDebates}
-        loading={communityLoading}
-        searchQuery={searchQuery}
-        selectedId={selectedCommunityDebate?.id ?? null}
-        onOpen={onCommunityRowOpen}
-        onExport={onRowCommunityExport}
-        onBrief={(cd) => onRowBrief({ id: cd.id, title: cd.title, phase: cd.phase ?? '' })}
-        briefWebOnly={isElectronMode()}
-        onCopy={handleCopy}
-        copyingId={copyingId}
-        auth={auth}
-        onPhoneSelect={(cd) => {
-          setSelectedCommunityDebate(cd);
-          if (nav.isActive) nav.push({ view: 'detail', id: cd.id });
-        }}
-        isPhone={isPhone}
-        totalCount={communityDebates.length}
-      />
-    </>
+    </div>
   );
 }
 
@@ -838,7 +713,7 @@ function DebateRightPane(props: DebateRightPaneProps) {
 function DebateDetailPane(props: DebateRightPaneProps) {
   const {
     onMouseDown, onTouchStart, isPhone, activeDebate, selectedCommunityDebate,
-    listView, nav, handleExport, exportStatus, handleNewDebate,
+    lastOpenedVariant, nav, handleExport, exportStatus, handleNewDebate,
   } = props;
   const debateAuth = useAuthStatus();
   return (
@@ -852,7 +727,7 @@ function DebateDetailPane(props: DebateRightPaneProps) {
             </button>
           </div>
         )}
-        {listView === 'community' && selectedCommunityDebate ? (
+        {lastOpenedVariant === 'community' && selectedCommunityDebate ? (
           <CommunityDebateDetail debate={selectedCommunityDebate} />
         ) : activeDebate ? (
           isPhone ? (
