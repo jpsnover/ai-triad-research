@@ -5,19 +5,12 @@
    are authoritative per t/3705 (superseding the handoff's `opening` typo) and t/3705#3/#4
    (the `cancelled` 5th token, ruled by Design). */
 
-.debate-lib-empty {
-  color: #b3aaa2;
-}
+/* Empty-dash and Model cells now use the shared .lib-empty-value/.lib-model utilities from
+   LibraryListPage.css (t/3717) — page-local .debate-lib-empty/.debate-lib-model deleted so
+   Model can't drift between pages again (t/3702#11 F2). */
 
 .debate-lib-date {
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.debate-lib-model {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

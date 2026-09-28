@@ -58,7 +58,7 @@ const STATUS_LABEL: Record<DebateStatusToken, string> = {
  *  matches the shared component's empty-value convention. */
 export function renderDebateStatus(row: DebateRow): import('react').ReactNode {
   const token = debatePhaseToStatusToken(row.phase);
-  if (!token) return <span className="debate-lib-empty">—</span>;
+  if (!token) return <span className="lib-empty-value">—</span>;
   return (
     <span className={`debate-lib-status debate-lib-status--${token}`}>
       <span className="debate-lib-status-dot" aria-hidden="true" />
@@ -77,7 +77,7 @@ export function formatDebateDate(iso: string): string {
 }
 
 export function renderDebateDate(iso: string | undefined): import('react').ReactNode {
-  if (!iso) return <span className="debate-lib-empty">—</span>;
+  if (!iso) return <span className="lib-empty-value">—</span>;
   return <span className="debate-lib-date" title={iso}>{formatDebateDate(iso)}</span>;
 }
 
@@ -147,7 +147,7 @@ export const DEBATE_COLUMNS: LibraryColumn<SessionRowData, CommunityDebate>[] = 
     align: 'right',
     sortable: true,
     compare: (a, b) => (a.turn_count ?? 0) - (b.turn_count ?? 0),
-    render: (row) => (row.turn_count != null ? row.turn_count : <span className="debate-lib-empty">—</span>),
+    render: (row) => (row.turn_count != null ? row.turn_count : <span className="lib-empty-value">—</span>),
   },
   {
     key: 'model',
@@ -156,8 +156,8 @@ export const DEBATE_COLUMNS: LibraryColumn<SessionRowData, CommunityDebate>[] = 
     sortable: true,
     compare: (a, b) => localeCompare(a.model ?? '', b.model ?? ''),
     render: (row) => (
-      <span className="debate-lib-model" title={row.model}>
-        {row.model || <span className="debate-lib-empty">—</span>}
+      <span className="lib-model" title={row.model}>
+        {row.model || <span className="lib-empty-value">—</span>}
       </span>
     ),
   },
