@@ -169,6 +169,14 @@ describe('LibraryListPage — actions column', () => {
     expect(screen.queryByRole('menuitem', { name: 'Markdown' })).not.toBeInTheDocument();
   });
 
+  it('extraExportMenuItems (e.g. Debates\' Brief…) appends a non-format item to the same menu', () => {
+    const onBrief = vi.fn();
+    renderPage({ extraExportMenuItems: () => [{ label: 'Brief…', onClick: onBrief }] });
+    fireEvent.click(screen.getAllByRole('button', { name: /Export/ })[0]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Brief…' }));
+    expect(onBrief).toHaveBeenCalled();
+  });
+
   it('picking an export format calls onExportMy and shows a toast', async () => {
     const onExportMy = vi.fn();
     renderPage({ onExportMy });

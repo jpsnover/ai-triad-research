@@ -133,6 +133,13 @@ export interface LibraryListPageConfig<TMy extends { id: string }, TCommunity ex
   exportFormats: LibraryExportFormat[];
   onExportMy: (row: TMy, format: string) => void;
   onExportCommunity: (row: TCommunity, format: string) => void;
+  /** Extra items appended to the Export dropdown after the format list, for an action that isn't
+   *  a format variant (e.g. Debates' "Brief…", t/3705#6) — same menu, same positioning/Esc/
+   *  outside-click/stopPropagation, so it stays "looks the same on every page" while letting a
+   *  page attach one unrelated action to the shared menu rather than inventing a second menu.
+   *  Return [] (not omit-and-branch) to gate an item off for a given row/variant — e.g. Debates'
+   *  existing web-only Brief gating becomes `variant === 'my' && !isElectron ? [...] : []`. */
+  extraExportMenuItems?: (row: TMy | TCommunity, variant: LibraryVariant) => Array<{ label: string; onClick: () => void; disabled?: boolean }>;
   /** My-tab action — mirrors submitToCommunity; the page owns the actual call. */
   onShare: (row: TMy) => void;
   /** Community-tab action — copies the item into My; the page owns the actual call. */

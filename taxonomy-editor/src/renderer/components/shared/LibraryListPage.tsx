@@ -120,10 +120,12 @@ function TitleCell<TMy extends { id: string }, TCommunity extends { id: string }
 
 // ── Export menu (shared) ──
 
-function ExportMenu({ formats, onExport, onOpenChange }: {
+function ExportMenu({ formats, onExport, onOpenChange, extraItems = [] }: {
   formats: { key: string; label: string }[];
   onExport: (format: string) => void;
   onOpenChange: (open: boolean) => void;
+  /** Non-format items appended after the format list — e.g. Debates' "Brief…" (t/3705#6). */
+  extraItems?: Array<{ label: string; onClick: () => void; disabled?: boolean }>;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
@@ -166,6 +168,18 @@ function ExportMenu({ formats, onExport, onOpenChange }: {
               onClick={() => { close(); onExport(f.key); }}
             >
               {f.label}
+            </button>
+          ))}
+          {extraItems.map(item => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              className="lib-export-menu-item"
+              disabled={item.disabled}
+              onClick={() => { close(); item.onClick(); }}
+            >
+              {item.label}
             </button>
           ))}
         </span>
@@ -232,6 +246,7 @@ function ActionsCell<TMy extends { id: string }, TCommunity extends { id: string
           else config.onExportCommunity(row as TCommunity, fmt);
           toast(`Exporting as ${config.exportFormats.find(f => f.key === fmt)?.label ?? fmt}`);
         }}
+        extraItems={config.extraExportMenuItems?.(row, variant) ?? []}
       />
       {variant === 'my' && (
         <button type="button" className="lib-action-btn" onClick={() => { config.onShare(row as TMy); toast('Share link copied'); }}>
