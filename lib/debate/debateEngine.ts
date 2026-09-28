@@ -641,10 +641,8 @@ export class DebateEngine {
       }
 
       const weights = loadProvisionalWeights();
-      const __engineDir = path.dirname(fileURLToPath(import.meta.url));
-      const repoRoot = resolveRepoRoot(__engineDir);
-      const dataRoot = resolveDataRoot(repoRoot);
-      const conflicts = loadConflicts(repoRoot);
+      const repoRoot = resolveRepoRoot(path.dirname(fileURLToPath(import.meta.url)));
+      const dataRoot = resolveDataRoot(repoRoot), conflicts = loadConflicts(repoRoot);
       const dataPoint = extractCalibrationData(this.session, 'local', {
         argumentationExitThreshold: weights.thresholds.argumentation_exit,
         relevanceThreshold: DEFAULT_RELEVANCE_THRESHOLD,
