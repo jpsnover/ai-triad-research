@@ -5,7 +5,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ActionableError } from '../debate/errors.js';
 import type { ToolDefinition } from './types.js';
-import type { ModelRegistry } from './registry.js';
+import { parseVersionedModelId, type ModelRegistry } from './registry.js';
 
 export interface UsageConfig {
   description: string;
@@ -22,6 +22,12 @@ export interface UsageConfig {
   tools?: ToolDefinition[];
   tags?: string[];
   _extends?: string;
+  /** Pin intent for the currency check (t/3676). Absent = assumed `current`.
+   *  `comparability` — deliberately frozen for cross-run reproducibility;
+   *  must name the corpus/run in `comparabilityCorpus` (the lapse condition).
+   *  `current` — intended to track the newest suitable model; falling behind is drift. */
+  _intent?: 'comparability' | 'current';
+  comparabilityCorpus?: string;
 }
 
 export type UsageRegistry = Record<string, UsageConfig>;
@@ -55,7 +61,8 @@ export function renderTemplate(
   return rendered;
 }
 
-const META_FIELDS = new Set(['_schema_version', '_doc']);
+// _pinPolicy is a top-level policy declaration (unannotated = assumed current), not a usage entry.
+const META_FIELDS = new Set(['_schema_version', '_doc', '_pinPolicy']);
 
 export function loadUsageRegistry(repoRoot: string): UsageRegistry {
   const configPath = path.join(repoRoot, 'ai-usages.json');
@@ -163,4 +170,43 @@ export function validateUsageConfig(
   }
 
   return errors;
+}
+
+export interface CurrencyCheckResult {
+  usageId: string;
+  currentModel: string;
+  newerModel: string;
+  family: string;
+}
+
+/** Returns usages that pin an outdated model version when a newer one exists in the registry.
+ *  Usages with `_intent: 'comparability'` are intentionally frozen and skipped.
+ *  Backends not covered by parseVersionedModelId (groq, openai, ollama, etc.) are silently skipped —
+ *  name that gap in the close-out (SO e/216#2 condition 5). */
+export function checkUsageCurrency(
+  registry: UsageRegistry,
+  modelRegistry: ModelRegistry,
+): CurrencyCheckResult[] {
+  // Reuse parseVersionedModelId so "newest in family" agrees with alias resolution (SO condition 1).
+  const familyLatest = new Map<string, { id: string; version: number }>();
+  for (const m of modelRegistry.models) {
+    const parsed = parseVersionedModelId(m.id);
+    if (!parsed) continue;
+    const cur = familyLatest.get(parsed.family);
+    if (!cur || parsed.version > cur.version) {
+      familyLatest.set(parsed.family, { id: m.id, version: parsed.version });
+    }
+  }
+
+  const results: CurrencyCheckResult[] = [];
+  for (const [usageId, config] of Object.entries(registry)) {
+    if (config._intent === 'comparability') continue;
+    const parsed = parseVersionedModelId(config.model);
+    if (!parsed) continue;
+    const latest = familyLatest.get(parsed.family);
+    if (latest && parsed.version < latest.version) {
+      results.push({ usageId, currentModel: config.model, newerModel: latest.id, family: parsed.family });
+    }
+  }
+  return results;
 }
