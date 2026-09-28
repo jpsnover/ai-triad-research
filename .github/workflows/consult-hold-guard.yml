@@ -1,0 +1,99 @@
+# consult-hold-guard — dedicated required status context that BLOCKS a merge while a
+# `consult-hold` label is present (t/3680). This is the ENFORCEMENT half of the consult/
+# review-hold discipline: a hold recorded in a PR comment (the landed 89b26d41 practice) is
+# ADVISORY and stops nothing. This makes the hold block at the merge button REGARDLESS of who
+# or what initiates the merge — human, agent, or the server-side auto-merge automation (t/3716)
+# — because the refusal is GitHub's, not an agent-side hook's.
+#
+# WHY NOT A FEEDBACK RULE (t/3680#3): a PreToolUse feedback rule intercepts an AGENT'S tool
+# call. The automation merges SERVER-SIDE through the GitHub API and never passes through
+# anyone's shell, so a feedback-rule guard would stop only the compliant and be invisible to
+# the thing that breaks holds. A required status check is the only mechanism that blocks a
+# server-side merge. Precedent: joint-gv-guard, promoted to its own required context by t/3607.
+#
+# CRITICAL — MUST ALWAYS REPORT + MUST BE CLEARABLE WITHOUT A PUSH. The `types` list must cover
+# EVERY event that changes the gated condition (the label):
+#   • opened/synchronize/reopened — a PR against main always gets a result.
+#   • labeled/unlabeled          — LOAD-BEARING: without `unlabeled`, removing the label would
+#     never re-run the check and the PR would stay RED forever (t/3680 AC2). A guard you can
+#     apply but not clear is worse than none.
+#   • edited                     — base-retarget. A PR opened against a feature branch does not
+#     run here until its base becomes `main`; retargeting fires `edited`, so the context appears
+#     and reports. Without it, a retargeted PR would have NO check → permanently blocked once
+#     this is required (the joint-gv-guard never-reports / Arm-E class, t/3607).
+# The job SELF-GATES: SUCCESS when `consult-hold` is absent; FAILURE only when it is present.
+# Fail-CLOSED on an API/parse error (retry 3x → red with a legible infra message), because once
+# this is a REQUIRED context a transient error must not silently open the gate.
+name: consult-hold-guard
+
+on:
+  pull_request:
+    branches: [main]
+    # lint:gated-events: opened,synchronize,reopened,labeled,unlabeled,edited
+    # ^ machine-readable (t/3646): every event that can change the consult-hold label this guard
+    #   evaluates. workflow-lint asserts pull_request.types ⊇ this set. labeled/unlabeled are
+    #   load-bearing for clear-without-a-push (t/3680 AC2); edited covers base-retarget.
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+
+# The job id below (consult-hold-guard) is the check-run name GitHub reports — the exact string
+# to add to branch protection as a required status context (Jeffrey does that wiring; agents are
+# classifier-blocked from branch-protection changes — t/3680 Constraint A). Until then this runs
+# and reports but blocks nothing (Gate Promotion: >=1 non-blocking green cycle before promotion).
+jobs:
+  consult-hold-guard:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Refuse merge while a consult-hold label is present
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Make fail-closed EXPLICIT (mirror joint-gv-guard): GitHub's default run shell is
+          # `bash -eo pipefail`, so a malformed-but-200 API response makes jq error and reds the
+          # job. That is the behaviour we want for a required gate, but it rests on an implicit
+          # flag — state it in-script so a future `shell:` override can't silently flip it to
+          # fail-OPEN (report success on garbage — the Arm-E class).
+          set -euo pipefail
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+
+          # Retry the API read: once this is REQUIRED, a transient gh/API error would block EVERY
+          # PR. Retry 3x with short backoff; on exhaustion FAIL CLOSED but with a message that says
+          # the API query failed — NOT that a hold exists — because the remedies are opposite: a
+          # transient 5xx wants a re-run; a token/permission error wants a workflow fix and will
+          # never recover on re-run (Fallback-Path Logging: capture + surface the stderr).
+          PR_JSON=""
+          last_err=""
+          errfile="${RUNNER_TEMP:-/tmp}/consult-hold-guard.err"
+          for attempt in 1 2 3; do
+            if PR_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json labels 2>"$errfile"); then
+              break
+            fi
+            PR_JSON=""
+            last_err=$(head -c 400 "$errfile" 2>/dev/null | tr '\n' ' ')
+            echo "::warning::consult-hold-guard: gh pr view attempt ${attempt}/3 failed — ${last_err} — retrying in $((attempt * 3))s"
+            sleep $((attempt * 3))
+          done
+          if [ -z "$PR_JSON" ]; then
+            echo "::error::consult-hold-guard: could NOT read PR labels after 3 attempts — API/INFRA failure, NOT a hold. Last error: ${last_err}. A transient 5xx -> re-run this job; a token/permission error -> fix the workflow (will NOT recover on re-run). (Failing closed — required gate.)"
+            exit 1
+          fi
+
+          # Shape assertion (complement to set -euo pipefail, not a substitute): a malformed-but-200
+          # payload ({}, partial JSON) makes the jq below fail. set -e already reds the job, but the
+          # only diagnostic would be jq's raw error on a step whose other legible errors name a hold
+          # / API failure — a third indistinguishable red. Name this cause explicitly.
+          if ! echo "$PR_JSON" | jq -e 'has("labels")' >/dev/null 2>&1; then
+            echo "::error::consult-hold-guard: PR labels read succeeded but the payload is MALFORMED (missing labels) — NOT a hold, NOT API-unreachable. Re-run; if it persists the gh JSON contract changed. (Failing closed — required gate.)"
+            exit 1
+          fi
+
+          HAS_HOLD=$(echo "$PR_JSON" | jq -r '[.labels[].name] | contains(["consult-hold"]) | tostring')
+          echo "consult-hold label present: $HAS_HOLD"
+
+          if [ "$HAS_HOLD" = "true" ]; then
+            echo "::error::consult-hold-guard: this PR carries the 'consult-hold' label — a mandatory consult/review hold is OUTSTANDING, so merge is blocked (required gate; blocks human, agent, and server-side auto-merge alike). The outstanding conditions and who can clear them are in this PR's HOLD comment (the landed hold-comment practice, 89b26d41) — read it there. TO CLEAR: resolve the conditions, then REMOVE the 'consult-hold' label; this check re-runs on unlabel and goes green with NO push. EMERGENCY OVERRIDE: a branch-protection admin override (there is NO feedback rule to disable — t/3680#3)."
+            exit 1
+          fi
+          echo "guard OK — no consult-hold label present; reporting success."
