@@ -1,0 +1,1075 @@
+{
+  "count": 23,
+  "all": {
+    "acc-intentions-008": {
+      "predicate": "match",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "patient",
+          "ref": "term:deployment_gated",
+          "sort": "universal",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"Decision Stakes\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:acc",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:deployment_gated",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:model_weights",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "acc-desires-021": {
+      "predicate": "prioritize",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "patient",
+          "ref": "lit:\"domestic development and control of full-stack AI infrastructure\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:acc",
+        "attitude": "desire"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:governance_adaptive",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "acc-intentions-096": {
+      "predicate": "require",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "term:autonomy_machine",
+          "sort": "universal",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"cryptographically sign intended actions at deterministic execution gateways\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:acc",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.85,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:autonomy_machine",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:control_human_agency",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:autonomy_human",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "acc-intentions-103": {
+      "predicate": "impose",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"vendors\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "term:behavioral_guardrails",
+          "sort": "universal",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "negative",
+      "modality": {
+        "holder": "camp:acc",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.9,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:behavioral_guardrails",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:governance_oversight",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "acc-beliefs-070": {
+      "predicate": "evaluate",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"Evaluating AI behavior through observable outputs\"",
+          "sort": "perdurant",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "term:accountability_algorithmic",
+          "sort": "universal",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:acc",
+        "attitude": "belief"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:accountability_algorithmic",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:oversight_audit",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:safety_empirical",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:transparency_verification",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "saf-desires-002": {
+      "predicate": "hold",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"Humans\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "patient",
+          "ref": "lit:\"the Off Switch\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:saf",
+        "attitude": "desire"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.85,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:autonomy_human",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:control_human_agency",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:oversight_human_control",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "saf-intentions-048": {
+      "predicate": "develop",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "theme",
+          "ref": "lit:\"general strategies for ensuring safe AI behavior when direct human feedback or frequent evaluation of its true objective is limited\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:saf",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:safety_empirical",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "saf-desires-025": {
+      "predicate": "maintain",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "term:autonomy_human",
+          "sort": "universal",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "term:governance_oversight",
+          "sort": "universal",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:saf",
+        "attitude": "desire"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.85,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:accountability_institutional",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:autonomy_human",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:governance_oversight",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "saf-intentions-076": {
+      "predicate": "prioritize",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "theme",
+          "ref": "term:safety_existential",
+          "sort": "universal",
+          "match_level": "exact"
+        },
+        {
+          "role": "patient",
+          "ref": "term:speculative_risk_critique",
+          "sort": "universal",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:saf",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.85,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:risk_existential",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:safety_alignment",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:safety_existential",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:speculative_risk_critique",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "saf-intentions-111": {
+      "predicate": "maintain",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"Advocates\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"comprehensive inventory of AI systems\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:saf",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:governance_oversight",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "saf-intentions-127": {
+      "predicate": "hold",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "patient",
+          "ref": "lit:\"AI agents\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "term:transparency_accountability",
+          "sort": "universal",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:saf",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": []
+    },
+    "saf-beliefs-095": {
+      "predicate": "lead",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "cause",
+          "ref": "lit:\"goal-directed AI systems\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        },
+        {
+          "role": "patient",
+          "ref": "term:oversight_human_control",
+          "sort": "universal",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:saf",
+        "attitude": "belief"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:oversight_human_control",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:capabilities_hazard",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:risk_existential",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:safety_existential",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:speculative_future_harm",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "saf-intentions-149": {
+      "predicate": "mandate",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "patient",
+          "ref": "term:oversight_human_control",
+          "sort": "universal",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:saf",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.9,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:oversight_human_control",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:accountability_market",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:accountability_institutional",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:behavioral_guardrails",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:capabilities_hazard",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:deployment_gated",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:governance_oversight",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:regulation_precautionary",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "saf-intentions-217": {
+      "predicate": "require",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "patient",
+          "ref": "lit:\"solvency and insurance threshold\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:saf",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.9,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:behavioral_guardrails",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:regulation_precautionary",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "skp-beliefs-125": {
+      "predicate": "distort",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "term:speculative_risk_critique",
+          "sort": "universal",
+          "match_level": "exact"
+        },
+        {
+          "role": "patient",
+          "ref": "lit:\"public AI discourse\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:skp",
+        "attitude": "belief"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.9,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:speculative_risk_critique",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "skp-intentions-040": {
+      "predicate": "hold",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "patient",
+          "ref": "term:accountability_institutional",
+          "sort": "universal",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"designs That Fail Risk-Utility Analysis\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:skp",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.85,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:accountability_institutional",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:liability_strict",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "skp-desires-011": {
+      "predicate": "prioritize",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"developers\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "patient",
+          "ref": "lit:\"ecological health\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "term:deployment_competitive",
+          "sort": "universal",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:skp",
+        "attitude": "desire"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.85,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:deployment_competitive",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "skp-intentions-055": {
+      "predicate": "operationalize",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "patient",
+          "ref": "lit:\"AI Risk Mitigation\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "instrument",
+          "ref": "lit:\"Concrete Technical Practices\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:skp",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:risk_innovation",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "skp-desires-075": {
+      "predicate": "align",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "patient",
+          "ref": "lit:\"AI development\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:skp",
+        "attitude": "desire"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.85,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:oversight_democratic",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "skp-intentions-079": {
+      "predicate": "report",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"federal agencies\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "recipient",
+          "ref": "lit:\"Congress\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"impacts of AI systems on vulnerable communities\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:skp",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.85,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:oversight_democratic",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:governance_oversight",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:oversight_audit",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:transparency_verification",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "skp-desires-076": {
+      "predicate": "report",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"AI developers\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"copyrighted works in their training datasets\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:skp",
+        "attitude": "desire"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.9,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:transparency_accountability",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:autonomy_individual",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:data_provenance",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "skp-beliefs-196": {
+      "predicate": "favor",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"Centralized compliance mandates\"",
+          "sort": "normative-description",
+          "match_level": "exact"
+        },
+        {
+          "role": "patient",
+          "ref": "lit:\"dominant technology firms\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"decentralized developers\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:skp",
+        "attitude": "belief"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:autonomy_individual",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "skp-beliefs-232": {
+      "predicate": "destroy",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "patient",
+          "ref": "lit:\"Content provenance metadata\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        },
+        {
+          "role": "manner",
+          "ref": "term:compliance_performative",
+          "sort": "universal",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:skp",
+        "attitude": "belief"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:compliance_performative",
+            "match_level": "exact"
+          }
+        ]
+      }
+    }
+  }
+}

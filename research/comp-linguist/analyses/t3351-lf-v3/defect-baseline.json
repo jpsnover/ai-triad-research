@@ -1,0 +1,115 @@
+{
+  "total_formalized": 641,
+  "stance_pure": [
+    {
+      "id": "acc-desires-021",
+      "predicate": "prioritize"
+    },
+    {
+      "id": "saf-desires-002",
+      "predicate": "maintain"
+    },
+    {
+      "id": "saf-desires-025",
+      "predicate": "maintain"
+    },
+    {
+      "id": "saf-intentions-076",
+      "predicate": "prioritize"
+    },
+    {
+      "id": "saf-intentions-111",
+      "predicate": "maintain"
+    },
+    {
+      "id": "saf-beliefs-095",
+      "predicate": "seek"
+    },
+    {
+      "id": "skp-desires-011",
+      "predicate": "prioritize"
+    },
+    {
+      "id": "skp-desires-075",
+      "predicate": "align"
+    },
+    {
+      "id": "skp-beliefs-196",
+      "predicate": "favor"
+    },
+    {
+      "id": "skp-beliefs-232",
+      "predicate": "maintain"
+    }
+  ],
+  "stance_borderline": [
+    {
+      "id": "saf-intentions-127",
+      "predicate": "hold"
+    },
+    {
+      "id": "skp-intentions-040",
+      "predicate": "hold"
+    },
+    {
+      "id": "skp-intentions-079",
+      "predicate": "report"
+    },
+    {
+      "id": "skp-desires-076",
+      "predicate": "report"
+    }
+  ],
+  "discourse_as_agent": [
+    {
+      "id": "acc-intentions-008",
+      "role": "agent",
+      "ref": "lit:\"accelerationist discourse\""
+    },
+    {
+      "id": "acc-desires-021",
+      "role": "agent",
+      "ref": "lit:\"accelerationist discourse\""
+    },
+    {
+      "id": "acc-intentions-096",
+      "role": "agent",
+      "ref": "lit:\"accelerationist discourse\""
+    },
+    {
+      "id": "acc-intentions-103",
+      "role": "agent",
+      "ref": "lit:\"accelerationist discourse\""
+    },
+    {
+      "id": "acc-beliefs-070",
+      "role": "agent",
+      "ref": "lit:\"accelerationist discourse\""
+    },
+    {
+      "id": "saf-intentions-048",
+      "role": "agent",
+      "ref": "lit:\"safetyist discourse\""
+    },
+    {
+      "id": "saf-intentions-149",
+      "role": "agent",
+      "ref": "lit:\"safetyist discourse\""
+    },
+    {
+      "id": "saf-intentions-217",
+      "role": "agent",
+      "ref": "lit:\"safetyist discourse\""
+    },
+    {
+      "id": "skp-beliefs-125",
+      "role": "patient",
+      "ref": "lit:\"Public AI Discourse\""
+    },
+    {
+      "id": "skp-intentions-055",
+      "role": "agent",
+      "ref": "lit:\"skeptic discourse\""
+    }
+  ]
+}
