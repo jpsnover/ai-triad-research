@@ -10,12 +10,14 @@
 //     resolves in inquiryJobs.ts — the await ensures no window between result persist and record delete
 //     (e/221#12: "immediately after" was ambiguous; "after the await resolves" is the safe reading).
 //     The durable InquiryResult is the source of truth for completed jobs.
-//  2. Compare-and-set on tier-3 recovery (e/221#8): markJobFailedIfStale writes status='failed'
-//     (fire-and-forget) and returns the error descriptor. The 'failed' state is then DURABLE — a
-//     user reload or second poll reads the same descriptor from the stored record. (Delete was
-//     rejected: it makes the honest failed state at-most-once; if the single response doesn't land,
-//     all subsequent polls see 404 instead of 'failed'. The ordinary reload-after-error case.)
-//     Concurrent polls both write identical content — idempotent as a write, consistent as a read.
+//  2. Idempotent-content write on tier-3 recovery (e/221#8, e/221#18): markJobFailedIfStale writes
+//     status='failed' (fire-and-forget) and returns the error descriptor. The 'failed' state is
+//     then DURABLE — a user reload or second poll reads the same descriptor from the stored record.
+//     (Delete was rejected: it makes the honest failed state at-most-once; if the single response
+//     doesn't land, all subsequent polls see 404 instead of 'failed'. The ordinary reload-after-
+//     error case.) Concurrent polls both write identical content — safe because the written content
+//     is the same under any interleaving, not because the write is atomic. These differ the moment
+//     anyone adds a field whose value depends on when the transition was observed (e.g. failedAt).
 //  3. Orphan reap: a non-terminal record whose heartbeat is older than INQUIRY_HEARTBEAT_STALE_MS
 //     is treated as stale by markJobFailedIfStale and promoted to 'failed' (same staleness check).
 //     An orphaned record (crash without clean shutdown) is reaped on the first GET after threshold.
@@ -76,7 +78,7 @@ export const INQUIRY_HEARTBEAT_STALE_MS = 30_000;            // must satisfy: �
 // assumption. If deep runs are observed to exceed this, raise it; the window must follow.
 export const INQUIRY_ASSUMED_MAX_RUN_DURATION_MS = 60 * 60_000; // 1 h — generous, observed assumption
 
-// ── Read-time retention window for terminal records (e/221#9, e/221#12) ──
+// ── Read-time retention window for terminal records (e/221#9, e/221#12, e/221#18) ──
 //
 // Terminal records (failed, done, done_truncated) are deleted on-read past this window.
 // This bounds accumulation without enumeration or a background sweep:
@@ -85,18 +87,15 @@ export const INQUIRY_ASSUMED_MAX_RUN_DURATION_MS = 60 * 60_000; // 1 h — gener
 //     (orphaned by a dropped delete), the record itself has no result to return — 404 is best.
 //   - Any terminal past window: deleted on-read, handler returns 404.
 //
-// POLICY CHOICE (not a derived relationship — e/221#10): the operative quantity is
-// "how long after seeing an error might a user reload?" — a human-behaviour judgment with no
-// measurable trace. 24 h is generous for any plausible reload.
+// Window = INQUIRY_ASSUMED_MAX_RUN_DURATION_MS + INQUIRY_JOB_RECORD_RELOAD_GRACE_MS (e/221#18).
+// The floor is structural (it's a sum), not just asserted. The policy number is RELOAD_GRACE —
+// "how long after seeing an error might a user reload?" — a human-behaviour judgment. Cutting
+// the grace is visible in the diff as cutting the grace.
 //
-// One floor IS statable: window > INQUIRY_ASSUMED_MAX_RUN_DURATION_MS — a run that dies near the
-// end of its life must still get a non-zero reload window. Both operands are observed-not-bounded,
-// stated separately so neither masquerades as measured. The invariant test in
-// inquiryJobStoreInvariant.test.ts enforces this relationship.
-//
-// Window is measured from startedAt (not from the CAS transition) so total record lifetime is
+// Window is measured from startedAt (not from the failed transition) so total record lifetime is
 // capped regardless of how long before discovery the job died (e/221#10 refinement 1).
-export const INQUIRY_JOB_RECORD_FAILED_WINDOW_MS = 24 * 60 * 60_000; // 24 h policy — see comment above
+export const INQUIRY_JOB_RECORD_RELOAD_GRACE_MS = 23 * 60 * 60_000; // 23 h — policy: reload window after an error
+export const INQUIRY_JOB_RECORD_FAILED_WINDOW_MS = INQUIRY_ASSUMED_MAX_RUN_DURATION_MS + INQUIRY_JOB_RECORD_RELOAD_GRACE_MS; // = 24 h (structural floor)
 
 export interface InquiryJobRecord {
   jobId: string;
@@ -177,7 +176,7 @@ export type InquiryTier3Result =
 /** Tier-3 recovery: determine the job's durable state from the persisted record (e/221#8/9/11/12).
  *
  *  Three verdicts:
- *  - `{ verdict: 'failed', error }` — stale heartbeat (CAS-write to `failed` fire-and-forget)
+ *  - `{ verdict: 'failed', error }` — stale heartbeat (idempotent-content write to `failed`, fire-and-forget)
  *    OR already written `failed` within the retention window (durable second-poll descriptor).
  *  - `{ verdict: 'live', record }` — fresh heartbeat: a live process owns this job (possibly on
  *    another replica during deploy overlap). Serve the record's own status — honest "still running"
@@ -187,7 +186,7 @@ export type InquiryTier3Result =
  *
  *  Retention window applies to ALL terminal records (e/221#12): `done`/`done_truncated` orphaned
  *  by a dropped delete are also bounded. Window measures from startedAt (e/221#10).
- *  CAS semantics: two concurrent stale polls write identical content — idempotent (e/221#8).
+ *  Idempotent-content: two concurrent stale polls write identical content — safe under any interleaving (e/221#8, e/221#18).
  *  Response is independent of write outcome — SO condition 5. */
 export async function markJobFailedIfStale(
   jobId: string,
@@ -224,15 +223,15 @@ export async function markJobFailedIfStale(
     return { verdict: 'live', record };
   }
 
-  // Stale heartbeat — the owning process is gone. CAS: write failed state (fire-and-forget).
+  // Stale heartbeat — the owning process is gone. Idempotent-content write to failed (fire-and-forget).
   const errorDescriptor = { code: 'restart', message: 'Server restarted while this inquiry was in progress.' };
   void saveInquiryJobRecord({ ...record, status: 'failed', error: errorDescriptor }).catch((err) => {
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'inquiry', level: 'warn',
-      message: `markJobFailedIfStale: CAS write failed for ${jobId}`,
+      message: `markJobFailedIfStale: idempotent-content write failed for ${jobId}`,
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
-    log.server.warn({ err, jobId }, 'markJobFailedIfStale: CAS write failed (responding anyway)');
+    log.server.warn({ err, jobId }, 'markJobFailedIfStale: idempotent-content write failed (responding anyway)');
   });
   return { verdict: 'failed', error: errorDescriptor };
 }

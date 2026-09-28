@@ -29,6 +29,7 @@ import {
   INQUIRY_HEARTBEAT_INTERVAL_MS,
   INQUIRY_HEARTBEAT_WORST_SYNC_BLOCK_MS,
   INQUIRY_JOB_RECORD_FAILED_WINDOW_MS,
+  INQUIRY_JOB_RECORD_RELOAD_GRACE_MS,
   INQUIRY_ASSUMED_MAX_RUN_DURATION_MS,
   markJobFailedIfStale,
   type InquiryJobRecord,
@@ -46,10 +47,11 @@ describe('t/3728 — staleness threshold invariant (e/221#6)', () => {
     );
   });
 
-  it('FAILED_WINDOW_MS > ASSUMED_MAX_RUN_DURATION_MS (retention window exceeds max run — e/221#10)', () => {
-    // A run that dies near the end of its life must still get a non-zero reload window.
-    // Both are observed-not-bounded; the floor is a policy relationship.
-    expect(INQUIRY_JOB_RECORD_FAILED_WINDOW_MS).toBeGreaterThan(INQUIRY_ASSUMED_MAX_RUN_DURATION_MS);
+  it('FAILED_WINDOW_MS = ASSUMED_MAX_RUN_DURATION_MS + RELOAD_GRACE_MS (structural floor — e/221#10, e/221#18)', () => {
+    // The floor is structural (a sum), not just asserted. RELOAD_GRACE is the policy number —
+    // "how long after an error might a user reload?" Cutting it is visible in the diff as cutting it.
+    expect(INQUIRY_JOB_RECORD_FAILED_WINDOW_MS).toBe(INQUIRY_ASSUMED_MAX_RUN_DURATION_MS + INQUIRY_JOB_RECORD_RELOAD_GRACE_MS);
+    expect(INQUIRY_JOB_RECORD_RELOAD_GRACE_MS).toBeGreaterThan(0);
   });
 });
 

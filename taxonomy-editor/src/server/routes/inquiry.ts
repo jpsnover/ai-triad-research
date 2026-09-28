@@ -182,7 +182,7 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
           return;
         }
         // Tier 3 (t/3728): check for a durable job record. Three verdicts from markJobFailedIfStale:
-        //   failed  → serve the stored error descriptor (CAS write made it durable — second poll gets same desc).
+        //   failed  → serve the stored error descriptor (idempotent-content write made it durable — second poll gets same desc).
         //   live    → fresh heartbeat: another process owns this job (deploy overlap); serve "still running".
         //   null    → no record or past retention window → fall through to 404.
         // Response is independent of write outcome per SO condition 4.
