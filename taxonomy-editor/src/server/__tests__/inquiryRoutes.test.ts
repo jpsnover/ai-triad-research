@@ -46,8 +46,9 @@ vi.mock('../inquiryJobs.js', () => ({
   countRunningInquiryJobs: () => h.running,
   findIdempotentInquiryJob: () => h.idempotent,
   deriveTruncation: (r: { truncated?: boolean }) => ({ truncated: !!r.truncated, terminationReason: r.truncated ? 'api_ceiling' : undefined }),
-  // t/3728 tier-3: stub present so the route can import it; h.markStaleReturn controls the return.
-  markJobFailedIfStale: async (_jobId: string) => h.markStaleReturn,
+  // t/3728 tier-3: h.markStaleReturn=true → return descriptor (stale); false → null (fresh/absent).
+  markJobFailedIfStale: async (_jobId: string) =>
+    h.markStaleReturn ? { code: 'restart', message: 'Server restarted while this inquiry was in progress.' } : null,
 }));
 vi.mock('../storage/inquiryResultStore.js', () => ({ loadInquiryResult: async (jobId: string) => h.persisted.get(jobId) ?? null, listInquiryResults: async () => h.summaries }));
 vi.mock('../inquiryPipelineDeps.js', () => ({ buildInquiryRunPipeline: () => vi.fn() }));
@@ -221,8 +222,8 @@ describe('t/3728 — tier-3 fallback ordering (AC arms)', () => {
   // Second Opinion conditions (e/221#2). Un-skip when the route adds the tier-3 markJobFailedIfStale
   // call. The mock (h.markStaleReturn) is already wired; only the route path is missing.
 
-  it.skip('arm 1 — stale heartbeat: absent from map + no result → fails with restart error, NOT 404', async () => {
-    h.markStaleReturn = true;   // markJobFailedIfStale returns true (heartbeat expired → stale)
+  it('arm 1 — stale heartbeat: absent from map + no result → fails with restart error, NOT 404', async () => {
+    h.markStaleReturn = true;   // markJobFailedIfStale returns descriptor (heartbeat expired → stale)
     const r = res(); await get()(req('/api/inquiry/job-stale'), r, undefined);
     expect(r.statusCode).toBe(200);
     const parsed = JSON.parse(r.body);
@@ -231,8 +232,8 @@ describe('t/3728 — tier-3 fallback ordering (AC arms)', () => {
     expect(parsed.debateId).toBe(null);   // shape-compatible with jobView (SO condition 5)
   });
 
-  it.skip('arm 2 — fresh heartbeat: absent from map + no result → 404 (must NOT fabricate a failed state)', async () => {
-    h.markStaleReturn = false;  // markJobFailedIfStale returns false (heartbeat still fresh / same process)
+  it('arm 2 — fresh heartbeat: absent from map + no result → 404 (must NOT fabricate a failed state)', async () => {
+    h.markStaleReturn = false;  // markJobFailedIfStale returns null (heartbeat still fresh / record absent)
     const r = res(); await get()(req('/api/inquiry/job-fresh'), r, undefined);
     expect(r.statusCode).toBe(404);   // different defect — must not be papered over with false failed
   });

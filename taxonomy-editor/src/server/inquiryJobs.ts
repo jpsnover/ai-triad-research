@@ -37,6 +37,11 @@ import { errorMessage } from '../../../lib/debate/errors.js';
 import { log } from './logger.js';
 import type { InquiryRequest, InquiryResult } from '../../../lib/inquiry/index.js';
 import { saveInquiryResult, type InquiryResultSummary } from './storage/inquiryResultStore.js';
+import {
+  saveInquiryJobRecord, deleteInquiryJobRecord,
+  INQUIRY_HEARTBEAT_INTERVAL_MS, type InquiryJobRecord,
+} from './storage/inquiryJobStore.js';
+export { markJobFailedIfStale } from './storage/inquiryJobStore.js';
 
 // Status vocabulary + truncation derivation hoisted to lib/inquiry (t/3609). Imported here for this
 // module's own internal use (isTerminalStatus in the concurrency/sweep checks, deriveTruncation in
@@ -155,11 +160,26 @@ export interface CreateInquiryJobArgs {
   runPipeline: InquiryPipelineRunner;
 }
 
-/** Create a queued job, return it, and kick off the async pipeline (fire-and-forget). The route
- *  returns 202 { jobId } immediately; GET polls the evolving state. Concurrency + idempotency are
- *  the caller's pre-check (mirrors briefExportJobs — the route uses countRunningInquiryJobs /
- *  findIdempotentInquiryJob before calling this). */
-export function startInquiryJob(args: CreateInquiryJobArgs): InquiryJob {
+/** Snapshot the current job state into a durable record shape. */
+function buildRecord(job: InquiryJob, userId: string): InquiryJobRecord {
+  return {
+    jobId: job.jobId,
+    userId,
+    bootId: INQUIRY_BOOT_ID,
+    status: job.status,
+    lastHeartbeatAt: new Date().toISOString(),
+    resultId: job.resultId,
+    error: null,
+    debateId: job.debateId,
+    startedAt: job.startedAt,
+  };
+}
+
+/** Create a queued job, persist the creation record (awaited — SO condition 3), and kick off the
+ *  async pipeline. The route returns 202 { jobId } immediately; GET polls the evolving state.
+ *  Concurrency + idempotency are the caller's pre-check (mirrors briefExportJobs — the route uses
+ *  countRunningInquiryJobs / findIdempotentInquiryJob before calling this). */
+export async function startInquiryJob(args: CreateInquiryJobArgs): Promise<InquiryJob> {
   const job: InquiryJob = {
     jobId: randomUUID(),
     userId: args.userId,
@@ -172,11 +192,26 @@ export function startInquiryJob(args: CreateInquiryJobArgs): InquiryJob {
     startedAt: Date.now(),
   };
   jobs.set(job.jobId, job);
+  // Await the creation write (SO condition 3 — a lost creation write silently disables tier-3 recovery).
+  await saveInquiryJobRecord(buildRecord(job, args.userId));
   void runInquiryJob(job, args);
   return job;
 }
 
 async function runInquiryJob(job: InquiryJob, args: CreateInquiryJobArgs): Promise<void> {
+  // Heartbeat loop — runs concurrently inside the same AsyncLocalStorage context (Promise-based
+  // setTimeout preserves ALS; setInterval would not). Fire-and-forget: we don't await the loop;
+  // it exits as soon as the job reaches a terminal state.
+  void (async () => {
+    while (!isTerminalStatus(job.status)) {
+      await new Promise<void>(resolve => setTimeout(resolve, INQUIRY_HEARTBEAT_INTERVAL_MS));
+      if (isTerminalStatus(job.status)) break;
+      void saveInquiryJobRecord(buildRecord(job, args.userId)).catch((err) => {
+        log.server.warn({ err, jobId: job.jobId }, 'Heartbeat write failed (best-effort)');
+      });
+    }
+  })();
+
   try {
     const result = await args.runPipeline(args.request, {
       onStage: (stage) => setStatus(job, stage),
@@ -199,6 +234,11 @@ async function runInquiryJob(job: InquiryJob, args: CreateInquiryJobArgs): Promi
     await saveInquiryResult(job.jobId, result, summary);
     job.resultId = job.jobId;
     setStatus(job, truncated ? 'done_truncated' : 'done');
+    // Delete the durable job record now that the result is persisted (retention mechanism 1 —
+    // the InquiryResult is the source of truth for completed jobs, so the record is redundant).
+    void deleteInquiryJobRecord(job.jobId).catch((err) => {
+      log.server.warn({ err, jobId: job.jobId }, 'Job record delete after completion failed (best-effort)');
+    });
   } catch (err) {
     job.error = errorMessage(err);
     getGlobalRecorder()?.record({
@@ -208,6 +248,9 @@ async function runInquiryJob(job: InquiryJob, args: CreateInquiryJobArgs): Promi
     });
     log.server.error({ component: 'inquiry', jobId: job.jobId, stage: job.status, err }, 'Inquiry job failed');
     setStatus(job, 'failed');
+    // On failure: leave the durable record in place with the last heartbeat. The staleness check
+    // in markJobFailedIfStale will reap it if the job is still non-terminal after a restart.
+    // (The in-memory job correctly shows 'failed'; tier-3 is only reached after a restart.)
   } finally {
     job.startedAt = Date.now(); // restart the TTL clock from the terminal state
   }

@@ -27,7 +27,8 @@ import { isRegisteredModel } from '../ai/aiBackends.js';
 import { InquiryRequestSchema, type InquiryRequest, type InquiryResult } from '../../../../lib/inquiry/index.js';
 import {
   startInquiryJob, getInquiryJob, hasInquiryJob, countRunningInquiryJobs,
-  findIdempotentInquiryJob, deriveTruncation, MAX_CONCURRENT_INQUIRY_JOBS, type InquiryJob,
+  findIdempotentInquiryJob, deriveTruncation, markJobFailedIfStale,
+  MAX_CONCURRENT_INQUIRY_JOBS, type InquiryJob,
 } from '../inquiryJobs.js';
 import { loadInquiryResult, listInquiryResults } from '../storage/inquiryResultStore.js';
 import { publishInquiryShare, unpublishInquiryShare } from '../storage/inquiryShareStore.js';
@@ -114,7 +115,7 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
         return;
       }
 
-      const job = startInquiryJob({ userId, request, idempotencyKey, runPipeline: buildInquiryRunPipeline() });
+      const job = await startInquiryJob({ userId, request, idempotencyKey, runPipeline: buildInquiryRunPipeline() });
       json(res, { jobId: job.jobId }, 202);
     } catch (err) {
       getGlobalRecorder()?.record({
@@ -172,12 +173,25 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
       // (not cross-replica — maxReplicas: 1). Tier 2: completed result. Tier 3 (t/3728): in-flight
       // jobs lost to restart → honest failed state via inquiryJobStore, pending Second Opinion.
       if (!hasInquiryJob(jobId)) {
+        // Tier 2: completed result (cross-restart durability — result was persisted before the terminal flip).
         const result: InquiryResult | null = await loadInquiryResult(jobId);
         if (result) {
           const { truncated, terminationReason } = deriveTruncation(result);
           json(res, {
             jobId, status: truncated ? 'done_truncated' : 'done', progressPct: 100,
             terminationReason: terminationReason ?? null, resultId: jobId, error: null, result,
+          });
+          return;
+        }
+        // Tier 3 (t/3728): check for a durable job record whose heartbeat has gone stale.
+        // Returns a { code, message } descriptor if stale (self-reaps the record); null otherwise.
+        // Response is independent of write outcome per SO condition 4.
+        const errorDescriptor = await markJobFailedIfStale(jobId);
+        if (errorDescriptor) {
+          json(res, {
+            jobId, status: 'failed', progressPct: 100,
+            terminationReason: null, resultId: null,
+            error: errorDescriptor.message, debateId: null,
           });
           return;
         }
