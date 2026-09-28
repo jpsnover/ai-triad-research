@@ -66,6 +66,7 @@ This is not `direct` failing at what it is chosen for — one agent committing s
 - **Worktree-only, in BOTH modes:** `checkout`, `reset`, `rebase`, `merge`, `pull --rebase`, `stash` — anything that moves HEAD or rewrites the tree. `git worktree add` costs seconds; the collision costs a colleague's uncommitted work.
 - **Never `git commit -a` (or `git add -A`) here.** Distinct from the staged-index rule below: `-a` bypasses the index and commits every tracked modification **including deletions**, so a stale working tree becomes a destructive commit in one step. Commit with an explicit pathspec.
 - **Scan `git status --short` UNSCOPED before any tree-wide build.** A peer's uncommitted file compiles into your `npm run verify`, so a red may not be yours. Your branch's CI sees only committed files and is the authoritative signal.
+- **Push immediately after committing on shared `main`** — not at the end of the task. If the push is rejected, do **not** resolve it in place; cherry-pick to a worktree and land it from there. Resolving a rejected push on the shared tree *is* the prohibited rewrite. A tree that has already diverged is cleaned up by **DevOps only**, per **`docs/shared-tree-divergence.md`** — the distinction is that an incidental rewrite mid-task is prohibited while an announced, precondition-checked maintenance sync is required (a tree that can never sync goes stale, which caused two of the six collisions itself).
 
 ### Shared-Checkout Commit Guard (pre-commit hook)
 
