@@ -87,6 +87,39 @@ export const BANNED_TELLS: readonly string[] = [
 ];
 
 /**
+ * Deterministic paragraph-split backstop (t/3710). If the LLM edit pass still leaves
+ * a paragraph over `maxWords`, this splits it at sentence boundaries into ≤maxWords
+ * chunks. A single sentence longer than `maxWords` is left intact — the LLM is
+ * responsible for sentence-level rewriting; this only inserts paragraph breaks.
+ */
+export function splitLongParagraphs(text: string, maxWords = 90): string {
+  return text
+    .split(/\n\n+/)
+    .flatMap((para) => {
+      if ((para.match(/\b\S+\b/g) ?? []).length <= maxWords) return [para];
+      // Split at sentence-terminal whitespace, keeping punctuation with its sentence.
+      const sentences = para.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
+      const chunks: string[] = [];
+      let chunk = '';
+      let chunkWords = 0;
+      for (const sent of sentences) {
+        const sw = (sent.match(/\b\S+\b/g) ?? []).length;
+        if (chunk && chunkWords + sw > maxWords) {
+          chunks.push(chunk.trim());
+          chunk = sent;
+          chunkWords = sw;
+        } else {
+          chunk = chunk ? `${chunk} ${sent}` : sent;
+          chunkWords += sw;
+        }
+      }
+      if (chunk.trim()) chunks.push(chunk.trim());
+      return chunks.length > 0 ? chunks : [para];
+    })
+    .join('\n\n');
+}
+
+/**
  * Returns tells present in `edited` that were absent in `original` (case-insensitive).
  * An empty return means the edit introduced no new banned tells.
  */
