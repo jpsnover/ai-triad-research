@@ -44,10 +44,32 @@ def refs_block(n):
         allowed[cid] = ("universal", "exact")  # distinct from the 5 particular DolceCategory sorts
     return ("\n".join(lines) if lines else "(none)"), allowed
 
+# t/3351 v3 (class B fix): node descriptions verbatim begin "A(n) <Belief|Desire|
+# Intention> within <camp> discourse that <verb>..." (917/959 frames). The model read
+# that literal wrapper as an AGENT ("<camp> discourse"), producing the discourse-as-
+# agent residuals the line-37 ban could not stop, it was being asked to ignore text it
+# was handed. Strip the wrapper at the SOURCE so "discourse" is never a candidate agent;
+# the camp attribution is carried by modality.holder, not by the prose. The exposed
+# content clause (e.g. "advocates X") is re-capitalized. The camp's stance is still
+# handled by the prompt's stance-strip self-check (class A), unchanged here.
+_DISCOURSE_WRAP = re.compile(
+    r"^An?\s+(?:Belief|Desire|Intention)\s+within\s+\w+\s+discourse\s+that\s+", re.IGNORECASE)
+
+
+def strip_discourse_wrapper(desc):
+    """Remove the leading '<cat> within <camp> discourse that ' framing prefix (t/3351).
+    No-op on descriptions that don't carry it. Re-capitalizes the exposed clause."""
+    stripped = _DISCOURSE_WRAP.sub("", desc or "")
+    if stripped and stripped != (desc or ""):
+        return stripped[0].upper() + stripped[1:]
+    return desc or ""
+
+
 def build_prompt(tmpl, n):
     cat = n.get("category", "Beliefs")
     camp = n["id"].split("-")[0]
-    prop = (n.get("label", "") + ". " + (n.get("description") or n.get("plain_description") or "")).strip()
+    desc = strip_discourse_wrapper(n.get("description") or n.get("plain_description") or "")
+    prop = (n.get("label", "") + ". " + desc).strip()
     block, allowed = refs_block(n)
     p = (tmpl.replace("{{CLAIM_CATEGORY}}", cat).replace("{{CAMP}}", POV.get(camp, camp))
              .replace("{{PROPOSITION}}", prop[:2400]).replace("{{ENTITY_REFS}}", block))
@@ -146,12 +168,19 @@ def validate(lf, allowed, camp, cat):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cap", type=int, default=0, help="max nodes (0=all grounded)")
+    ap.add_argument("--ids", default="", help="comma-separated node ids to formalize (dry-run subset, e.g. defect nodes)")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "node_lf_sample.json"))
     args = ap.parse_args()
     tmpl = open(PROMPT_PATH, encoding="utf-8").read()
     nodes = load_nodes()
+    if args.ids:
+        want = {s.strip() for s in args.ids.split(",") if s.strip()}
+        nodes = [x for x in nodes if x[2]["id"] in want]
+        missing = want - {x[2]["id"] for x in nodes}
+        if missing:
+            sys.stderr.write(f"  [warn] --ids not found among grounded nodes: {sorted(missing)}\n")
     if args.cap: nodes = nodes[:args.cap]
     print(f"grounded nodes to formalize: {len(nodes)}")
 
@@ -178,9 +207,11 @@ def main():
         results = dict(ex.map(formalize, nodes))
     ok = {k: v for k, v in results.items() if v}
     print(f"formalized: {len(ok)}/{len(nodes)}  (failed: {len(nodes)-len(ok)})")
-    # sample for eyeball
-    sample = {k: results[k] for k in list(ok)[:6]}
-    json.dump({"count": len(ok), "sample": sample}, open(args.out, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+    # Write results: a 6-node eyeball sample for a full run, but ALL formalized frames when a
+    # subset was targeted (--ids/--cap) so a dry-run can be re-scanned for defects (t/3351).
+    subset = bool(args.ids) or (0 < args.cap <= 60)
+    payload = {"count": len(ok), "all" if subset else "sample": ok if subset else {k: results[k] for k in list(ok)[:6]}}
+    json.dump(payload, open(args.out, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
     for k in list(ok)[:4]:
         print(f"\n{k}: pred={ok[k].get('predicate')!r} args={[(a.get('role'),a.get('ref'),a.get('sort')) for a in ok[k].get('args',[])]} conf={ok[k].get('formalization_confidence')} status={ok[k].get('status')}")
 
