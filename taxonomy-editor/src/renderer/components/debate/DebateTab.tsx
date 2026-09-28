@@ -35,7 +35,7 @@ import { trackExport } from '../../lib/analyticsEmitter';
 // DebatePopoutWindow already mounts its own useBriefTimeoutEvents — the correct home.
 // activeDebateId is never set in table mode (no loadDebate on row click) → events
 // would match every debate (guard always falsy), producing orphan toasts here.
-import type { SessionRowData } from './DebateTable';
+import type { SessionRowData } from './debateSessionTypes';
 import { LibraryListPage } from '../shared/LibraryListPage';
 import type { LibraryEditModeAction, LibraryRowEditAction } from '../shared/LibraryListPage.types';
 import { buildDebateLibraryConfig, debateSafeTitle } from './debateLibraryConfig';

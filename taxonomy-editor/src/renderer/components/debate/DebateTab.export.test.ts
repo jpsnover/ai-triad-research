@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { resolveExportLoader } from './DebateTab';
-import type { SessionRowData } from './DebateTable';
+import type { SessionRowData } from './debateSessionTypes';
 
 function makeRow(overrides: Partial<SessionRowData> = {}): SessionRowData {
   return { id: 'row-1', title: 'Test', created_at: '2026-01-01', updated_at: '2026-01-01', phase: '', ...overrides };
