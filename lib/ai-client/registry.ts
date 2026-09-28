@@ -200,7 +200,7 @@ export function resolveTimeout(explicitMs: number | undefined, model: string, re
   return Math.max(base, getModelMinTimeout(model, registry));
 }
 
-function parseVersionedModelId(id: string): { family: string; version: number } | null {
+export function parseVersionedModelId(id: string): { family: string; version: number } | null {
   const gemini = id.match(/^(gemini)-(\d+\.\d+)-(.+?)(?:-preview)?$/);
   if (gemini) return { family: `${gemini[1]}-${gemini[3]}`, version: parseFloat(gemini[2]) };
   const claude = id.match(/^(claude-(?:opus|sonnet|haiku|fable))-(\d+(?:-\d+)?)$/);
