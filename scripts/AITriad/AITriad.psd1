@@ -129,6 +129,7 @@
         'Request-FlightRecorderDump'
         'Get-FlightRecorderReport'
         'Read-FlightRecorderDump'
+        'Invoke-DebateDiagnosis'
         'Get-AITClaim'
         'Compare-EmbeddingModel'
         'Test-RerankerBaseline'
