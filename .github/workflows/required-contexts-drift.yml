@@ -31,7 +31,12 @@ on:
 permissions:
   contents: read
   issues: write
-  administration: read   # reading branch protection requires admin scope; grant it to GITHUB_TOKEN here
+  # NOTE: `administration` is NOT a valid GITHUB_TOKEN permission key. It made GitHub fail to PARSE this
+  # whole file — the workflow listed by PATH (not name) and never started, producing only 0s push-event
+  # failures (t/3741 reopen, TL p/331#1650). Branch-protection READ requires a repo-ADMIN token, which a
+  # scoped GITHUB_TOKEN can never be — supplied via RUNNER_PAT on the runner step below, NOT a permissions
+  # grant. Startup is verified by the OUTCOME (`gh workflow list` shows this by NAME), not by linting
+  # permission keys against a hand-copied schema (TL p/331#1655).
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -53,7 +58,13 @@ jobs:
         shell: pwsh
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ github.token }}
+          # GITHUB_TOKEN cannot read branch protection (API requires repo-admin; a scoped job token never
+          # has it). RUNNER_PAT is a repo PAT used for the admin READ. If RUNNER_PAT ALSO lacks repo-admin,
+          # the runner exits 2 (could-not-verify) → infra issue. A job that exits 2 EVERY run is noise that
+          # trains dismissal of its own channel (TL p/331#1655): so if the first dispatch proves RUNNER_PAT
+          # insufficient, this check MOVES TO THE FLEET HOST (admin gh), it does NOT ship here as a perpetual
+          # red heartbeat. RUNNER_PAT scope is confirmed empirically by that first dispatch, not assumed.
+          GH_TOKEN: ${{ secrets.RUNNER_PAT }}
         run: |
           pwsh -File operations/devops/Test-RequiredContextsListDrift.ps1 > drift-output.txt 2>&1
           $code = $LASTEXITCODE
@@ -123,7 +134,7 @@ jobs:
               // COULD-NOT-VERIFY — degraded, distinct from drift. Never silent-green (the whole point of exit 2).
               await openOrUpdate(process.env.INFRA_LABEL,
                 'required-contexts drift guard could not verify (degraded)',
-                `## Drift guard degraded — could NOT read branch protection or the SSOT\n\nThis is an INFRA problem with the check, NOT a confirmed in-sync or drift. Most likely the token lacks admin scope to read branch protection (the job grants \`administration: read\` to GITHUB_TOKEN — if that is insufficient for this repo, wire an admin PAT). "Could not verify" must never read as "in sync".\n\n${detail}`);
+                `## Drift guard degraded — could NOT read branch protection or the SSOT\n\nThis is an INFRA problem with the check, NOT a confirmed in-sync or drift. Most likely RUNNER_PAT lacks repo-admin scope to read branch protection. If so, this check belongs on the FLEET HOST (admin gh), NOT as a perpetually-degraded Actions job that reds every day and trains dismissal of its own channel — do not just keep re-running it here. "Could not verify" must never read as "in sync".\n\n${detail}`);
             } else if (code === '0') {
               // IN SYNC — recovery: clear any open drift / infra issues.
               await closeIfOpen(process.env.DRIFT_LABEL, 'Resolved — SSOT back in sync with branch protection');
