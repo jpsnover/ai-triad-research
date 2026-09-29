@@ -101,4 +101,33 @@ describe('runOpeningStatements slot-first integration (t/2907)', () => {
     // Run-level banner still summarizes the partial failure.
     expect(useDebateStore.getState().debateError).toBeTruthy();
   });
+
+  it('passes priorSpeakerLabels for a non-first speaker (t/3757, guards t/3755\'s fix)', async () => {
+    vi.mocked(runOpeningPipelineWithRepair).mockResolvedValue({ stage_diagnostics: [], total_time_ms: 1, draft: {}, topicAlignmentResult: null, qualityGateResult: null } as never);
+    vi.mocked(getOpeningRepairHints).mockReturnValue([]);
+    vi.mocked(assembleOpeningPipelineResult).mockReturnValue({ statement: LONG, taxonomyRefs: [], meta: { policy_refs: [] } } as never);
+    setActive(makeSession({
+      // Accelerationist already delivered — safetyist and skeptic are the non-first
+      // speakers under test.
+      transcript: [{
+        id: 'opening-acc', timestamp: '2026-01-01T00:00:00Z', type: 'opening', speaker: 'accelerationist',
+        content: LONG, taxonomy_refs: [],
+      }],
+    }));
+    // Isolate from the unrelated auto-run-cross-respond stage that fires once all
+    // openings are delivered (out of scope for this test — see e.g. narrativeVoicingOpenings.test.ts).
+    useDebateStore.setState({ initialCrossRespondRounds: 0 });
+
+    await useDebateStore.getState().runOpeningStatements();
+
+    // Accelerationist already delivered — safetyist and skeptic generate; every one of
+    // those calls must see the prior (accelerationist) speaker's label.
+    expect(runOpeningPipelineWithRepair).toHaveBeenCalledTimes(2);
+    for (const call of vi.mocked(runOpeningPipelineWithRepair).mock.calls) {
+      const pipelineInput = call[0] as { isFirst: boolean; priorSpeakerLabels?: string[] };
+      expect(pipelineInput.isFirst).toBe(false);
+      expect(pipelineInput.priorSpeakerLabels).toBeDefined();
+      expect(pipelineInput.priorSpeakerLabels!.length).toBeGreaterThan(0);
+    }
+  });
 });
