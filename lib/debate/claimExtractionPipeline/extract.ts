@@ -55,7 +55,7 @@ export async function extractClaims(
 
   let prompt: string;
   if (debaterClaims && debaterClaims.length > 0) {
-    prompt = classifyClaimsPrompt(statement, POVER_INFO[speaker].label, debaterClaims, priorClaims, ctx.session.audience);
+    prompt = classifyClaimsPrompt(statement, POVER_INFO[speaker].label, debaterClaims, priorClaims, ctx.session.audience, ctx.session.phase === 'opening');
   } else {
     prompt = extractClaimsPrompt(statement, POVER_INFO[speaker].label, priorClaims, ctx.session.audience, ctx.session.topic.final);
   }
