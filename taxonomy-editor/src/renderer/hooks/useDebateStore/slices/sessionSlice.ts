@@ -1128,6 +1128,10 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     const prev = activeDebate.adaptive_staging.phase_state.current_phase;
     if (prev === phase) return;
     const newPhaseState = { ...activeDebate.adaptive_staging.phase_state, current_phase: phase, rounds_in_phase: 0 };
+    // `current_phase`/`rounds_in_phase` below are sibling copies of the same fields inside
+    // `phase_state` above. getCurrentPhase(session) (lib/debate/phaseTransitions.ts) is the
+    // authoritative read path and only looks at `phase_state`; these siblings are written
+    // here but read nowhere (t/3761#8 condition 4) — forensics, not a second source of truth.
     const asObj = { ...activeDebate.adaptive_staging, phase_state: newPhaseState, current_phase: phase, rounds_in_phase: 0 };
     const newDebate = { ...activeDebate, adaptive_staging: asObj, updated_at: nowISO() };
     set({ activeDebate: newDebate });
