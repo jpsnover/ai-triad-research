@@ -449,12 +449,22 @@ export function assembleOpeningPipelineResult(
     ? rawClaims.filter(c => wordOverlap(c.claim, statement) >= 0.4)
     : rawClaims;
 
+  // Steelman sketches from prior_steelmans — these represent the steelmanned camp's position,
+  // so word-overlap with the speaker's own statement is irrelevant; append unconditionally.
+  const steelmanSeeds = (result.draft.prior_steelmans ?? [])
+    .filter(s => typeof s?.speaker === 'string' && typeof s?.steelman_claim === 'string' && s.steelman_claim.trim())
+    .map(s => ({ claim: s.steelman_claim, targets: [] as string[], steelman_of: s.speaker }));
+
+  const allClaims = steelmanSeeds.length > 0
+    ? [...(groundedClaims ?? []), ...steelmanSeeds]
+    : groundedClaims;
+
   return {
     statement,
     taxonomyRefs,
     meta: {
       key_assumptions: result.draft.key_assumptions?.length ? result.draft.key_assumptions : undefined,
-      my_claims: groundedClaims?.length ? groundedClaims : undefined,
+      my_claims: allClaims?.length ? allClaims : undefined,
       policy_refs: result.cite.policy_refs?.length ? result.cite.policy_refs : undefined,
       turn_symbols: result.draft.turn_symbols?.length ? sanitizeTurnSymbols(result.draft.turn_symbols) : undefined,
     },

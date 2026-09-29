@@ -106,7 +106,9 @@ export interface DraftWorkProduct {
   [key: string]: unknown;
   statement: string;
   turn_symbols: TurnSymbol[];
-  claim_sketches: { claim: string; targets: string[] }[];
+  claim_sketches: { claim: string; targets: string[]; steelman_of?: string }[];
+  /** Non-first-speaker openings: one entry per prior speaker, strongest version in their own terms. */
+  prior_steelmans?: { speaker: string; steelman_claim: string }[];
   key_assumptions: { assumption: string; if_wrong: string }[];
   disagreement_type: string;
   position_update?: string;

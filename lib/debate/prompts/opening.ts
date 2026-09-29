@@ -228,10 +228,14 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
   "claim_sketches": [
     {"claim": "near-verbatim headline assertion from your statement", "targets": [${input.isFirst ? '' : '"AN-3"'}], "relationship": "${input.isFirst ? '' : 'extends'}"},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": [], "relationship": ""}
-  ]
+  ]${input.isFirst ? '' : `,
+  "prior_steelmans": [
+    {"speaker": "accelerationist", "steelman_claim": "one-sentence strongest version of their position in their own terms"},
+    {"speaker": "safetyist", "steelman_claim": "one-sentence strongest version of their position in their own terms"}
+  ]`}
 }${input.isFirst ? '' : `
 
-NOTE: At least one claim_sketch MUST have a non-empty "targets" array referencing a prior speaker's AN node, with a support/neutral relationship. Allowed opening relationships: "extends", "integrates", "concedes_and_pivots", "specifies".`}`;
+NOTE: (1) At least one claim_sketch MUST have a non-empty "targets" array referencing a prior speaker's AN node, with a support/neutral relationship. Allowed opening relationships: "extends", "integrates", "concedes_and_pivots", "specifies". (2) prior_steelmans is REQUIRED — include one entry per prior speaker. Each steelman_claim must be a single sentence capturing the strongest, most charitable version of that speaker's position in their own terms, with their evidence and reasoning — not a dismissal or paraphrase of their conclusion alone.`}`;
 }
 
 export function citeOpeningStagePrompt(
