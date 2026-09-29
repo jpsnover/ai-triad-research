@@ -499,7 +499,7 @@ export interface PoverResponseMeta {
   move_types?: (string | MoveAnnotation)[];
   disagreement_type?: string;
   key_assumptions?: { assumption: string; if_wrong: string }[];
-  my_claims?: { claim: string; targets: string[] }[];
+  my_claims?: { claim: string; targets: string[]; steelman_of?: string }[];
   /** Pre-CQ: bare string IDs. Post-CQ: objects with relevance. Consumers must check typeof. */
   policy_refs?: (string | { policy_id: string; relevance: string })[];
   position_update?: string;

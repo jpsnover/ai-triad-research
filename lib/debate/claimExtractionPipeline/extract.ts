@@ -41,7 +41,7 @@ export async function extractClaims(
   speaker: Exclude<SpeakerId, 'user'>,
   entryId: string,
   taxonomyRefIds: string[],
-  debaterClaims?: { claim: string; targets: string[] }[],
+  debaterClaims?: { claim: string; targets: string[]; steelman_of?: string }[],
 ): Promise<void> {
   const an = ctx.session.argument_network!;
   // Include all prior claims but cap at last 30 to keep the prompt manageable.

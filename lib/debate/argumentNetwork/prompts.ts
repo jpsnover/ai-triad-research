@@ -193,7 +193,7 @@ Full example response:
 export function classifyClaimsPrompt(
   statement: string,
   speaker: string,
-  debaterClaims: { claim: string; targets: string[] }[],
+  debaterClaims: { claim: string; targets: string[]; steelman_of?: string }[],
   priorClaims: PriorClaim[],
   audience?: string,
 ): string {
@@ -202,7 +202,7 @@ export function classifyClaimsPrompt(
     : '  (none yet)';
 
   const claimsBlock = debaterClaims
-    .map((c, i) => `  [${i + 1}] "${c.claim}"${c.targets.length > 0 ? ` → targets: ${c.targets.join(', ')}` : ' (standalone)'}`)
+    .map((c, i) => `  [${i + 1}] "${c.claim}"${c.targets.length > 0 ? ` → targets: ${c.targets.join(', ')}` : ' (standalone)'}${c.steelman_of ? ` [STEELMAN of ${c.steelman_of} — set steelman_of: "${c.steelman_of}"]` : ''}`)
     .join('\n');
 
   return `The debater ${speaker} made the following statement and identified their key claims.
