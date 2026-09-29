@@ -33,6 +33,25 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
 
   const priorStatements: { speaker: string; pov: string; poverId: string; statement: string; summary: string }[] = [];
 
+  // Rehydrate prior openings from transcript so resumed runs get correct steelman context (t/3770).
+  // Iterate transcript in delivery order so priorStatements matches the sequence each speaker saw.
+  for (const entry of engine.session.transcript) {
+    if (entry.type === 'opening') {
+      const priorInfo = POVER_INFO[entry.speaker as keyof typeof POVER_INFO];
+      if (priorInfo) {
+        priorStatements.push({
+          speaker: priorInfo.label,
+          pov: priorInfo.pov,
+          poverId: entry.speaker,
+          statement: entry.content,
+          summary: entry.content.split('\n')[0].slice(0, 150) + '...',
+        });
+      } else {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: engine.session?.id, message: `opening rehydration: unknown speaker '${entry.speaker}' in transcript — skipped`, data: { speaker: entry.speaker } });
+      }
+    }
+  }
+
   for (const poverId of order) {
     // Per-iteration idempotency: skip speakers who already have an opening (t/919)
     if (engine.session.transcript.some(e => e.type === 'opening' && e.speaker === poverId)) {
