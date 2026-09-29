@@ -636,8 +636,8 @@ export async function runTurnPipeline(
         level: 'info',
         speaker: input.label,
         phase: input.phase,
-        stage: 'draft',
-        fields: {
+        data: {
+          stage: 'draft',
           claim_sketches: draft.claim_sketches?.length ?? 0,
           prior_steelmans: draft.prior_steelmans?.length ?? 0,
           turn_symbols: draft.turn_symbols?.length ?? 0,
