@@ -15,7 +15,7 @@
 // makes the shape ⟷ matrix cross-check exact, which is worth more than a flatter artifact.
 
 import { z } from 'zod';
-import { CampSchema, FidelitySchema, TrustVerdictSchema, type InquiryResult, type NodeRef } from './schema.js';
+import { CampSchema, FidelitySchema, TrustVerdictSchema, HEADLINE_MAX_CHARS, type InquiryResult, type NodeRef } from './schema.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 /** Independent of INQUIRY_SCHEMA_VERSION — the public artifact is its own contract (SO e/201#2). */
@@ -62,6 +62,9 @@ export const PublicInquiryShareSchema = z.object({
   derivation: PublicDerivationSchema,
   grounding: PublicGroundingSchema,
   singleRunCaveat: z.string(),
+  /** Present only when the pipeline produced a characterization on a healthy run. Absent for degraded runs
+   *  by construction — Condition A: if `result.synthesizedHeadline` is undefined, the key is not written. */
+  synthesizedHeadline: z.string().optional(),
 }).strict();
 export type PublicInquiryShare = z.infer<typeof PublicInquiryShareSchema>;
 
@@ -154,6 +157,7 @@ const publicNode = (n: NodeRef): z.infer<typeof PublicNodeRefSchema> => ({ label
  *  role,solves}. NOT to campVerdicts.verdict — that is the core answer, not an excerpt (Server Auth's
  *  list omits it deliberately). */
 const PUBLIC_EXCERPT_MAX_CHARS = 280;
+
 function truncateExcerpt(text: string, max: number = PUBLIC_EXCERPT_MAX_CHARS): string {
   const trimmed = text.trim();
   return trimmed.length > max ? `${trimmed.slice(0, max).trimEnd()}…` : trimmed;
@@ -192,6 +196,18 @@ export function toPublicInquiryShare(result: InquiryResult): PublicInquiryShare 
       ),
     },
     singleRunCaveat: result.singleRunCaveat,
+    // Condition A: omit at construction for degraded runs — if the pipeline didn't produce the field, the
+    // key is simply not written. Construction is the ONLY enforcement point (no read-side Zod validation).
+    // Condition B: omit over-bound headlines — never truncate (an over-bound value signals a producer bug).
+    ...(() => {
+      if (result.synthesizedHeadline === undefined) return {};
+      if (result.synthesizedHeadline.length > HEADLINE_MAX_CHARS) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'inquiry.publicShare', level: 'warn',
+          message: `toPublicInquiryShare: synthesizedHeadline over bound (${result.synthesizedHeadline.length} > ${HEADLINE_MAX_CHARS} chars) — omitted (Condition B)` });
+        return {};
+      }
+      return { synthesizedHeadline: result.synthesizedHeadline };
+    })(),
   };
   return PublicInquiryShareSchema.parse(share);
 }
