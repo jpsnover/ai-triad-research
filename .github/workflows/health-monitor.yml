@@ -11,10 +11,16 @@ on:
   schedule:
     - cron: '*/15 * * * *'  # Every 15 minutes
   workflow_dispatch:
+    inputs:
+      gv_inject_missing:
+        description: 'Gate-verification: inject a nonexistent workflow to prove the staleness/fail-loud alarm fires (t/3672)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
   issues: write
+  actions: read  # list-workflow-runs for the schedule-staleness heartbeat (t/3672)
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -133,4 +139,100 @@ jobs:
                 state: 'closed'
               });
               console.log(`Auto-closed issue #${issue.number}`);
+            }
+
+  schedule-staleness:
+    # Watches tracked scheduled workflows for SILENCE (a cron that stopped firing) — the failure
+    # mode a workflow cannot detect about itself (t/3672). Same-repo only: default GITHUB_TOKEN +
+    # actions:read. compliance-live.yml already self-alerts on its RED conclusion; this covers the
+    # ABSENCE case (auto-disable after 60d repo inactivity, rename, broken YAML, disabled cron).
+    runs-on: ubuntu-latest
+    steps:
+      - name: Heartbeat — assert tracked scheduled workflows ran within their window
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            // Drop-in: add { file, maxAgeHours }. Freshness is asserted on the SCHEDULE event only,
+            // so a manual dispatch cannot mask a dead cron.
+            const TRACKED = [
+              { file: 'compliance-live.yml', maxAgeHours: 30 }, // daily 06:00 UTC + 6h slack
+            ];
+            // GV arm: a workflow_dispatch with gv_inject_missing=true adds a nonexistent workflow,
+            // proving the fail-loud path ALARMS (a query failure / not-found must never read healthy).
+            if (context.payload.inputs && context.payload.inputs.gv_inject_missing === 'true') {
+              TRACKED.push({ file: '__nonexistent_gv_probe__.yml', maxAgeHours: 30 });
+            }
+            const alarms = [];
+            for (const t of TRACKED) {
+              try {
+                const res = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: t.file,
+                  event: 'schedule',
+                  per_page: 1,
+                });
+                const runs = (res.data && res.data.workflow_runs) || [];
+                if (runs.length === 0) {
+                  alarms.push(`${t.file}: no scheduled runs found (missing/renamed/never-fired) — cannot confirm freshness`);
+                  continue;
+                }
+                const ts = Date.parse(runs[0].created_at);
+                if (!Number.isFinite(ts)) {
+                  alarms.push(`${t.file}: last-run timestamp unparseable ('${runs[0].created_at}')`);
+                  continue;
+                }
+                const ageH = (Date.now() - ts) / 3600000;
+                if (ageH > t.maxAgeHours) {
+                  alarms.push(`${t.file}: STALE — last scheduled run ${ageH.toFixed(1)}h ago (max ${t.maxAgeHours}h)`);
+                }
+              } catch (e) {
+                // fail-loud (t/3672#2): auth failure / not-found / API error must ALARM, never green
+                alarms.push(`${t.file}: QUERY FAILED (${e.status || '?'} ${e.message}) — cannot confirm freshness, treating as UNHEALTHY`);
+              }
+            }
+            const LABEL = 'schedule-staleness';
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: LABEL, per_page: 5,
+            });
+            if (alarms.length > 0) {
+              const list = alarms.map(a => `- ${a}`).join('\n');
+              if (open.data.length > 0) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: open.data[0].number,
+                  body: `Still alarming at ${new Date().toISOString()}:\n\n${list}`,
+                });
+              } else {
+                await github.rest.issues.create({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  title: 'Scheduled-workflow staleness detected',
+                  body: [
+                    '## Scheduled-workflow staleness / heartbeat alarm',
+                    '',
+                    'A tracked scheduled workflow is not reporting fresh scheduled runs:',
+                    '',
+                    list,
+                    '',
+                    `- **Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                    '',
+                    "Likely causes: cron auto-disabled (60d repo inactivity), workflow renamed/deleted, broken YAML, or an actions:read query failure. Check the workflow's Actions tab.",
+                  ].join('\n'),
+                  labels: [LABEL, 'bug'],
+                });
+              }
+              core.setFailed(alarms.join('; '));
+            } else {
+              for (const issue of open.data) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `Resolved at ${new Date().toISOString()} — all tracked scheduled workflows reporting fresh.`,
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: issue.number, state: 'closed',
+                });
+              }
             }
