@@ -296,6 +296,34 @@ export async function runAdaptiveCrossRespond(engine: DebateEngineInternals): Pr
       });
     }
 
+    // All-COMMIT termination: after all active povers receive a COMMIT intervention in the
+    // concluding phase, the signal predicates may never converge — terminate explicitly.
+    if (!terminated && state.current_phase === 'concluding'
+        && engine.config.dialecticalStyle !== 'socratic'
+        && engine._moderatorState) {
+      const committed = new Set(
+        engine._moderatorState.intervention_history
+          .filter(h => h.move === 'COMMIT')
+          .map(h => h.target),
+      );
+      if (engine.config.activePovers.every(p => committed.has(p))) {
+        const reason = 'All active povers received COMMIT intervention';
+        terminated = true;
+        diag.phases.push({
+          phase: state.current_phase,
+          rounds: Array.from({ length: round - currentPhaseStartRound + 1 }, (_, i) => currentPhaseStartRound + i),
+          exit_reason: reason,
+          force_active: false,
+        });
+        engine.addEntry({
+          type: 'system', speaker: 'system',
+          content: `[Debate terminated] ${reason}`,
+          taxonomy_refs: [],
+          metadata: { adaptive_termination: true, reason },
+        });
+      }
+    }
+
     // Network GC check
     const an = engine.session.argument_network!;
     if (needsGc(an.nodes.length, w.network.gc_trigger) && !state.gc_ran_this_phase) {
