@@ -155,7 +155,10 @@ jobs:
             // Drop-in: add { file, maxAgeHours }. Freshness is asserted on the SCHEDULE event only,
             // so a manual dispatch cannot mask a dead cron.
             const TRACKED = [
-              { file: 'compliance-live.yml', maxAgeHours: 30 }, // daily 06:00 UTC + 6h slack
+              // 36h = 24h daily + 12h slack. Measured (t/3672#9): GitHub throttles the 0 6 * * *
+              // cron to ~10:40-12:47 UTC; worst observed inter-run gap ~25.5h. 36h avoids false
+              // alarms on normal throttling while still catching a genuine multi-day silence.
+              { file: 'compliance-live.yml', maxAgeHours: 36 },
             ];
             // GV arm: a workflow_dispatch with gv_inject_missing=true adds a nonexistent workflow,
             // proving the fail-loud path ALARMS (a query failure / not-found must never read healthy).
