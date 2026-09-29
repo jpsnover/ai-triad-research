@@ -272,7 +272,7 @@ Also classify each claim:
   0.5-0.69: implicit premise or reading between the lines
   Below 0.5: do not include — you are editorializing beyond the statement
 - "specificity": "precise" (specific numbers, dates, named entities), "general" (broad empirical), or "abstract" (theoretical/normative)
-- "steelman_of": null normally. Set to the opponent's camp id ("accelerationist", "safetyist", or "skeptic") ONLY when this claim deliberately presents the strongest version of that opponent's position in terms its advocates would accept. A rebuttal, dismissal, or concession is NOT a steelman.
+- "steelman_of": null normally. Set to the opponent's camp id ("accelerationist", "safetyist", or "skeptic") ONLY when this claim deliberately presents the strongest version of that opponent's position in terms its advocates would accept. A rebuttal, dismissal, or concession is NOT a steelman. IMPORTANT: a claim may have BOTH "responds_to" populated AND "steelman_of" set — when the debater charitably restates a prior speaker's position (in terms that speaker would accept) before diverging from it, set "steelman_of" to that speaker's camp even if "responds_to" is also populated with an edge to that speaker's node.
 ${audience === 'policymakers' ? `
 - "political_salience": classify each claim's relevance to political decision-making:
   "high" = Names a specific bill, agency, budget line, executive order, identifiable constituency, or references a specific court ruling or legal standard (e.g., Chevron deference, Section 230, strict liability standard). The claim could appear in a committee hearing or regulatory comment letter.
