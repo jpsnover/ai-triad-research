@@ -135,12 +135,17 @@ export function classifyMainCI({ runs, healthWorkflow = HEALTH_WORKFLOW, headAge
     reason: `UNKNOWN — no '${healthWorkflow}' run exists on the head SHA (no push run created). Correct for a paths-filtered push; not alerted (observe-what-ran accepts the CI-never-started blank).` };
 }
 
-// SSOT CROSS-CHECK (t/3737#5) is deliberately NOT implemented here — it already has an owner.
-// `operations/devops/Test-RequiredContextsListDrift.ps1` validates the required-contexts.json mirror
-// against the LIVE branch-protection API (per that file's own header). Re-implementing live-vs-mirror
-// in this monitor would duplicate an existing DevOps guard, and two copies of one check drift apart.
-// The TL's intent (#5 — the cross-check must exist) is satisfied there, not here. This monitor answers
-// a different question ("is the tip broken?") and does not read the required-contexts list at all.
+// SSOT CROSS-CHECK is deliberately NOT part of this monitor — it answers a DIFFERENT question
+// ("is the required-contexts.json mirror stale vs live branch protection?" vs this monitor's "is the
+// tip broken?"). This monitor never reads the required-contexts list at all.
+//
+// ⚠️ DO NOT cite that cross-check as "covered" — as of 2026-09-29 it is performed NOWHERE (TL
+// p/331#1633). `RequiredContextsDriftVerdict.ps1`'s predicate is Pester-tested, but its live-API
+// runner `Test-RequiredContextsListDrift.ps1` is invoked by no workflow or script (only a descriptive
+// comment in required-contexts.json names it) — a t/3695-shape dead execution layer (pure half tested,
+// impure half never runs). Wiring that orphaned runner as its OWN scheduled job (separate routing +
+// liveness, advisory) is tracked at t/3741. It must NOT be bolted onto this monitor's self-health —
+// coupling would make the main-CI health check assert less than it appears (the t/3737#3/#4 defect).
 
 // ── CLI shim (impure — the ONLY part that touches gh). Prints a JSON verdict to stdout.
 //    node main-ci-monitor.mjs <owner/repo>
