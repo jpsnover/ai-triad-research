@@ -144,7 +144,7 @@ export function classifyMainCI({ runs, healthWorkflow = HEALTH_WORKFLOW, headAge
 // runner `Test-RequiredContextsListDrift.ps1` is invoked by no workflow or script (only a descriptive
 // comment in required-contexts.json names it) — a t/3695-shape dead execution layer (pure half tested,
 // impure half never runs). Wiring that orphaned runner as its OWN scheduled job (separate routing +
-// liveness, advisory) is tracked at t/3741. It must NOT be bolted onto this monitor's self-health —
+// liveness, advisory) is tracked at t/3740. It must NOT be bolted onto this monitor's self-health —
 // coupling would make the main-CI health check assert less than it appears (the t/3737#3/#4 defect).
 
 // ── CLI shim (impure — the ONLY part that touches gh). Prints a JSON verdict to stdout.
