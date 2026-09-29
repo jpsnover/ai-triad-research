@@ -74,6 +74,7 @@ import * as proxyTiers from './ai/proxyTiers.js';
 import * as rateLimiter from './security/rateLimiter.js';
 import * as analytics from './community/analytics.js';
 import { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder.js';
+import { INQUIRY_BOOT_ID } from './inquiryJobs.js';
 import { log, runWithRequestContext, generateRequestId, getRequestId, getRequestContext } from './logger.js';
 import {
   registerReviewHandler,
@@ -190,6 +191,22 @@ if (process.platform === 'win32') {
 }
 
 export { serverRecorder };
+
+// t/3724: one boot event between the last good poll and a first 404 is enough to distinguish
+// a routine process restart from a crash from a scale-to-zero cycle — the discriminating signal
+// the incident that filed this ticket couldn't get from the inquiry events alone. boot_id is
+// shared with inquiryJobs.ts's INQUIRY_BOOT_ID by design (see that file's t/3724 coordination note).
+getGlobalRecorder()?.record({
+  type: 'server.started', component: 'server', level: 'info',
+  message: 'Server process started',
+  data: {
+    pid: process.pid,
+    boot_id: INQUIRY_BOOT_ID,
+    build_date: process.env.BUILD_DATE ?? null,
+    build_commit: process.env.BUILD_COMMIT ?? null,
+    node_version: process.version,
+  },
+});
 
 // Merge the bounded server-log buffer into a server dump's ndjson as `log.line`
 // entries, so a dump is self-contained for offline triage without a Log

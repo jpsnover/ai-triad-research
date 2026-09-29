@@ -164,6 +164,14 @@ export type EventType =
   | 'embed.load-failure'
   // Judge (turn validator)
   | 'judge.skipped'
+  // Server process lifecycle (t/3724): one boot event correlating pid/build/restart-trigger
+  // discovery — distinguishes a routine restart from a crash from a scale-to-zero cycle.
+  | 'server.started'
+  // Inquiry job lifecycle (t/3724) — creation and the terminal not-found case, so a 404's
+  // fallback outcome is a dump grep instead of an inference from client-side symptoms alone.
+  // 'inquiry.abandoned' is deferred until t/3728's job persistence lands (t/3724#1).
+  | 'inquiry.created'
+  | 'inquiry.not_found'
   // System
   | 'system.error'
   | 'system.info'

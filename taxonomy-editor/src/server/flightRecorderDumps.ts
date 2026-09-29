@@ -241,7 +241,7 @@ function buildMergedHeaderLine(
   };
   // t/3081: explicit server_source annotation — never leave the absence silent.
   mergedHeader.server_source = server !== null
-    ? { attempted: true }
+    ? { attempted: true, events_contributed: server.events.length }
     : { attempted: false, reason: serverOmissionReason ?? 'unknown' };
   for (const [src, dump] of [['client', client], ['server', server]] as const) {
     if (!dump?.header) continue;
@@ -319,6 +319,17 @@ function buildTriggerLines(client: ParsedDump | null, server: ParsedDump | null)
 export function mergeDumps(clientNdjson: string | null, serverNdjson: string | null, serverOmissionReason?: string): string {
   const client = clientNdjson ? parseDumpNdjson(clientNdjson) : null;
   const server = serverNdjson ? parseDumpNdjson(serverNdjson) : null;
+
+  // t/3724 (Class 6 silent degradation, root AGENTS.md fallback-logging rule): a merge that
+  // attempted the server source and got zero events back reads identically in the dump to a
+  // genuinely quiet server — the diagnostic channel going silent must say so itself.
+  if (server !== null && server.events.length === 0) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'flight-recorder-dumps', level: 'warn',
+      message: 'Server flight recorder contributed zero events to merged dump — diagnostic channel may be silent',
+      data: { serverEventCount: 0, clientEventCount: client?.events.length ?? 0 },
+    });
+  }
 
   // Section order is the dump contract: header → dictionary → context → events → triggers.
   const lines: string[] = [

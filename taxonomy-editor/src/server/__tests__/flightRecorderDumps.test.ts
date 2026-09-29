@@ -196,7 +196,68 @@ describe('mergeDumps (t/939)', () => {
     const server = ndjson({ _type: 'header' }, { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api' });
     const merged = mergeDumps(client, server);
     const header = JSON.parse(merged.trim().split('\n')[0]);
-    expect(header.server_source).toEqual({ attempted: true });
+    expect(header.server_source).toEqual({ attempted: true, events_contributed: 1 });
+  });
+
+  // t/3724: a merge that attempted the server source and got zero events back must not read
+  // identically to a genuinely quiet server — both the header and a WARN must say so.
+  it('t/3724: events_contributed reflects the actual server event count', () => {
+    const client = ndjson({ _type: 'header' }, { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' });
+    const server = ndjson(
+      { _type: 'header' },
+      { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api' },
+      { _type: 'event', _wall: '2026-01-01T00:00:03Z', type: 'api' },
+    );
+    const merged = mergeDumps(client, server);
+    const header = JSON.parse(merged.trim().split('\n')[0]);
+    expect(header.server_source).toEqual({ attempted: true, events_contributed: 2 });
+  });
+
+  it('t/3724: server attempted with zero events → events_contributed:0 in header, WARN emitted', () => {
+    const records: RecordInput[] = [];
+    setGlobalRecorder({ record: (e: RecordInput) => records.push(e) } as unknown as FlightRecorder);
+    try {
+      const client = ndjson({ _type: 'header' }, { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' });
+      const server = ndjson({ _type: 'header' }); // header only — zero events
+      const merged = mergeDumps(client, server);
+      const header = JSON.parse(merged.trim().split('\n')[0]);
+      expect(header.server_source).toEqual({ attempted: true, events_contributed: 0 });
+
+      const warn = records.find(r => r.type === 'system.error' && r.component === 'flight-recorder-dumps'
+        && typeof r.message === 'string' && r.message.includes('zero events'));
+      expect(warn).toBeDefined();
+      expect(warn!.level).toBe('warn');
+      expect(warn!.data).toEqual({ serverEventCount: 0, clientEventCount: 1 });
+    } finally {
+      setGlobalRecorder(null as unknown as FlightRecorder);
+    }
+  });
+
+  it('t/3724: no WARN when the server dump was never attempted (client-only merge)', () => {
+    const records: RecordInput[] = [];
+    setGlobalRecorder({ record: (e: RecordInput) => records.push(e) } as unknown as FlightRecorder);
+    try {
+      const client = ndjson({ _type: 'header' }, { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' });
+      mergeDumps(client, null);
+      const warn = records.find(r => typeof r.message === 'string' && r.message.includes('zero events'));
+      expect(warn).toBeUndefined();
+    } finally {
+      setGlobalRecorder(null as unknown as FlightRecorder);
+    }
+  });
+
+  it('t/3724: no WARN when the server contributed at least one event', () => {
+    const records: RecordInput[] = [];
+    setGlobalRecorder({ record: (e: RecordInput) => records.push(e) } as unknown as FlightRecorder);
+    try {
+      const client = ndjson({ _type: 'header' }, { _type: 'event', _wall: '2026-01-01T00:00:01Z', type: 'click' });
+      const server = ndjson({ _type: 'header' }, { _type: 'event', _wall: '2026-01-01T00:00:02Z', type: 'api' });
+      mergeDumps(client, server);
+      const warn = records.find(r => typeof r.message === 'string' && r.message.includes('zero events'));
+      expect(warn).toBeUndefined();
+    } finally {
+      setGlobalRecorder(null as unknown as FlightRecorder);
+    }
   });
 
   it('t/3081: no serverOmissionReason → reason defaults to "unknown"', () => {
