@@ -22,7 +22,7 @@ import { resolveDataPath } from '../config.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
 import { getUserContentBackend, assertSafeId } from './fileIO.js';
 import { loadInquiryResult } from './inquiryResultStore.js';
-import { toPublicInquiryShare, type PublicInquiryShare } from '../../../../lib/inquiry/index.js';
+import { toPublicInquiryShare, PublicInquiryShareReadSchema, type PublicInquiryShare } from '../../../../lib/inquiry/index.js';
 import { log } from '../logger.js';
 
 // Public copies live under a fixed, user-agnostic prefix — NEVER under users/{id}/.
@@ -96,9 +96,34 @@ export async function unpublishInquiryShare(jobId: string): Promise<boolean> {
  * revoked. The file at rest is already the positive projection (written by publishInquiryShare
  * via toPublicInquiryShare), so no private field can be present. shareId shape is validated by
  * the route (invalidRouteParam, t/3653) before this is called.
+ *
+ * t/3730: validated against `PublicInquiryShareReadSchema` — a bare `JSON.parse … as T` cast
+ * would let a corrupt or partially-written blob type-check and serve structurally-wrong data to
+ * an anonymous reader. TOLERANT (passthrough at every nested level) on purpose, never the strict
+ * write-side `PublicInquiryShareSchema`: a strict reader would reject a blob written by a NEWER
+ * build during the ACA deploy-overlap window (this build's still-draining replica hasn't picked
+ * up the field an already-rolled-forward replica just started writing), turning a valid public
+ * link into a false 404 on every deploy. A validation failure is a distinct, WARN-worthy event
+ * from "file absent" (fallback-logging rule) — it is NOT silent-by-design like a missing file.
  */
 export async function loadPublicInquiryShare(shareId: string): Promise<PublicInquiryShare | null> {
   const raw = await getUserContentBackend().readFile(publicInquiryPath(shareId));
   if (raw === null) return null;
-  try { return JSON.parse(raw) as PublicInquiryShare; } catch { /* telemetry — silent by design */ return null; }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    log.server.warn({ shareId, err, cause: 'inquiry-share-unparseable' },
+      'public inquiry share is not valid JSON — treating as absent (t/3730)');
+    return null;
+  }
+
+  const result = PublicInquiryShareReadSchema.safeParse(parsed);
+  if (!result.success) {
+    log.server.warn({ shareId, issues: result.error.issues, cause: 'inquiry-share-schema-invalid' },
+      'public inquiry share failed schema validation — treating as absent (t/3730)');
+    return null;
+  }
+  return result.data as PublicInquiryShare;
 }
