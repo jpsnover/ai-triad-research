@@ -1631,7 +1631,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Applies To:** All agents using the worktree landing procedure — the window between verify and push, especially during active fleet push cadence.
 
-## #73 [Build] Windows Git Bash Silently Breaks Command Chains — grep Zero-Match Exit + MSYS Path Conversion
+## #73 [Build] MSYS Path Conversion Mangles Unix-Looking Args — grep Zero-Match Exit, Colon-Revspec, Leading Slash
 
 **Pattern:** Two independent Windows/Git-Bash behaviors silently abort a Bash-tool command mid-chain even though nothing is actually wrong: **(A)** `grep -c` (and any grep) **exits 1 on ZERO matches** — standard grep behavior — so an `&&`-chained check breaks at that link *even when the printed `0` was the desired result* (e.g. confirming zero `.ts` entries); **(B)** MSYS **auto path-conversion mangles ANY git `<ref>:<slashed-path>` colon revspec** (`git show`, `git cat-file`, `git rev-parse`, `git ls-tree` …) — `git show origin/main:.github/workflows/ci.yml` is rewritten to `origin\main;.github\...` (colon→`;`, `/`→`\`), producing `fatal: unknown revision` on a perfectly valid ref. **More broadly, MSYS mangles ANY argument that *looks like* a Unix path — not only git colon-revspecs but a leading-slash argument to a NON-git CLI** (e.g. an Azure resource ID `/subscriptions/...` passed to `az`, prefixed with the Git-bin install path → `InvalidEnvironmentId`; Azure p/105#4). Same root, two triggers: the `<ref>:<path>` colon and the leading `/`.
 
