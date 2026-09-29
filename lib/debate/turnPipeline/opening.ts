@@ -47,6 +47,8 @@ export interface OpeningPipelineInput {
   taxonomyContext: string;
   priorStatements: string;
   isFirst: boolean;
+  /** Labels of speakers who have already given their opening, in order. */
+  priorSpeakerLabels?: string[];
   sourceContent?: string;
   documentAnalysis?: DocumentAnalysis;
   audience?: import('../types.js').DebateAudience;
@@ -100,6 +102,7 @@ export async function runOpeningPipeline(
     taxonomyContext: input.taxonomyContext,
     priorStatements: input.priorStatements,
     isFirst: input.isFirst,
+    priorSpeakerLabels: input.priorSpeakerLabels,
     sourceContent: input.sourceContent,
     documentAnalysis: input.documentAnalysis,
     audience: input.audience,
