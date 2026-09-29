@@ -44,7 +44,6 @@ import type {
 import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
 import {
   loadProvisionalWeights,
-  initPhaseState,
   buildSignalRegistry,
   evaluatePhaseTransition,
   applyTransition,
@@ -138,7 +137,6 @@ import { resolveTurnValidationConfig, classifyHintKey } from './turnValidator.js
 import type { TurnValidation, ModeratorState, ModeratorIntervention, SelectionResult, InterventionMove } from './types.js';
 import { MOVE_TO_FAMILY, FAMILY_BURDEN_WEIGHT, MOVE_TO_FORCE, HINT_SUPPRESSION_THRESHOLD } from './types.js';
 import {
-  initModeratorState,
   validateRecommendation,
   updateModeratorState,
   computeDebateHealthScore,
@@ -172,6 +170,7 @@ import { seedExplorationSummary, applyExplorationConfigDefaults } from './debate
 import { runDocumentAnalysis } from './debateEngine/phases/documentPreAnalysis.js';
 import { runOpeningStatements } from './debateEngine/phases/opening.js';
 import { runFixedCrossRespond, runAdaptiveCrossRespond } from './debateEngine/phases/crossRespond.js';
+import { hydrateModeratorState, hydratePhaseState } from './debateEngine/hydrateState.js';
 import { _rescoreSituations } from './debateEngine/adaptiveStaging.js';
 export { modelTierRank } from './debateEngine/modelResolution.js';
 export type { DebateConfig, DebateProgress, LifecycleStage } from './debateEngine/internals.js';
@@ -1002,15 +1001,7 @@ export class DebateEngine {
       this.session.commitments![pover] = { asserted: [], conceded: [], challenged: [] };
     }
 
-    // Initialize active moderator state — hydrate from session if present (t/3761).
-    // Hydrated here; persisted by the explicit write-back at crossRespond.ts:1298 after each round.
-    // _moderatorState is reassigned at crossRespond.ts:430 — do NOT rely on reference aliasing
-    // to carry writes back to session.moderator_state.
-    this._moderatorState = this.session.moderator_state
-      ?? initModeratorState(this.config.rounds, this.config.activePovers);
-    if (!this.session.moderator_state) {
-      this.session.moderator_state = this._moderatorState;
-    }
+    this._moderatorState = hydrateModeratorState(this.session, this.config.rounds, this.config.activePovers);
 
     if (resolveStageModel(this._internal, 'evaluator') === this.config.model) {
       this.recordDiagnostic('session_init', {
@@ -1045,9 +1036,7 @@ export class DebateEngine {
           ? { maxConcludingRounds: 1, ...this.config.phaseBoundsOverride }
           : this.config.phaseBoundsOverride,
       };
-      // Hydrate phase state from session if present; init fresh on first run (t/3761).
-      this._phaseState = this.session.adaptive_staging?.phase_state
-        ?? initPhaseState(this._adaptiveConfig);
+      this._phaseState = hydratePhaseState(this.session, this._adaptiveConfig);
       this._signalRegistry = buildSignalRegistry(this.config.dialecticalStyle);
       this._adaptiveDiagnostics = initAdaptiveDiagnostics();
     }
