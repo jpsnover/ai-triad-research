@@ -1,0 +1,137 @@
+# ─── required-contexts drift guard (t/3741) ───
+# What:  Once daily, invokes the EXISTING operations/devops/Test-RequiredContextsListDrift.ps1 to
+#        compare the .github/ci/required-contexts.json SSOT mirror against the LIVE branch-protection
+#        required-status-checks. The runner + its predicate (RequiredContextsDriftVerdict.ps1) were
+#        Pester-tested but INVOKED BY NOTHING — a t/3695-shape dead execution layer. This job is the
+#        missing execution half: it actually runs the check, on a schedule, and routes the result.
+#
+# Why its OWN workflow file (not folded into main-ci-monitor.yml): the two answer different questions
+# ("is the mirror stale?" vs "is the tip of main broken?") for different audiences, and deserve
+# INDEPENDENT liveness + outage isolation (TL t/3741 spec / p/331#1636). A YAML or runtime fault in
+# one must not silently take the other down, and neither health signal should be read off the other.
+#
+# ⚠️ SURVIVING VECTOR — state it plainly at close-out, do NOT let "drift is now detected" read as
+# "the required set is now trustworthy" (TL t/3741#1, Gate Co-Location): this check verifies AGREEMENT
+# BETWEEN TWO RECORDS (the SSOT mirror ⇄ live branch protection). It does NOT verify that either record
+# is CORRECT. If a required context is removed from branch protection AND from the mirror together, the
+# check is GREEN and the protection is GONE. "Is the required set correct?" is a different question and
+# nothing here asks it.
+#
+# ADVISORY ONLY: opens/updates/closes issues; gates nothing. It does NOT automatically satisfy
+# t/3691's blocking-promotion precondition — a freshly-wired check going green once is not the
+# >=1-cycle real-environment evidence Gate Promotion requires; that stays a separate, evidenced call.
+
+name: required-contexts-drift
+
+on:
+  schedule:
+    - cron: '17 7 * * *'   # daily 07:17 UTC — drift is low-frequency (the SSOT/protection change rarely)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  administration: read   # reading branch protection requires admin scope; grant it to GITHUB_TOKEN here
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  DRIFT_LABEL: required-contexts-drift
+  INFRA_LABEL: required-contexts-drift-infra
+  HEARTBEAT_LABEL: required-contexts-drift-heartbeat
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      # Run the EXISTING runner in a child pwsh process so its `exit N` reliably lands in
+      # $LASTEXITCODE (0=in-sync, 1=DRIFT, 2=could-not-verify — fails degraded, never silent-green).
+      # continue-on-error so exit 1/2 does not fail the step — we route on the code below.
+      - name: Run required-contexts drift guard
+        id: drift
+        shell: pwsh
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pwsh -File operations/devops/Test-RequiredContextsListDrift.ps1 > drift-output.txt 2>&1
+          $code = $LASTEXITCODE
+          Get-Content drift-output.txt
+          "exit_code=$code" | Add-Content -Path $env:GITHUB_OUTPUT
+
+      # LIVENESS (t/3741 AC — its own signal, not "the predicate is tested"): each run stamps `now`
+      # into a dedicated heartbeat issue and flags a stale prior stamp. A daily job that silently stops
+      # firing (schedule auto-disabled after 60 days repo-inactivity, or a broken cron) is otherwise
+      # indistinguishable from "no drift"; the freshness of this stamp is what tells you it is alive.
+      - name: Liveness heartbeat
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const label = process.env.HEARTBEAT_LABEL;
+            const now = new Date();
+            const STALE_MS = 2 * 24 * 60 * 60 * 1000; // 2× the daily cadence; a longer gap = schedule stalled
+            const body = (ts) => `required-contexts-drift heartbeat: ${ts} (run ${context.runId})\n\nThis issue is the drift job's liveness heartbeat; each daily run updates it. Leaving it open is intentional — a stale timestamp means the drift check stopped running (and "no drift issue" would then be silence, not health).`;
+            const list = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: label, per_page: 1 });
+            if (list.data.length === 0) {
+              await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title: 'required-contexts-drift — liveness heartbeat (do not close)', body: body(now.toISOString()), labels: [label] });
+            } else {
+              const issue = list.data[0];
+              const prior = Date.parse((issue.body || '').match(/heartbeat:\s*([0-9T:.\-Z]+)/)?.[1] || '');
+              if (Number.isFinite(prior) && (now.getTime() - prior) > STALE_MS) {
+                await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, body: `⚠️ Drift-job liveness GAP: previous heartbeat was ${new Date(prior).toISOString()}, ${Math.round((now.getTime()-prior)/3600000)}h ago (> ${STALE_MS/3600000}h). The daily schedule may have stopped — the SSOT was UNCHECKED in that window.` });
+              }
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, body: body(now.toISOString()) });
+            }
+
+      # Route the exit code to its OWN channel (labels distinct from main-ci-monitor's), auto-closing on recovery.
+      - name: Route drift verdict
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const fs = require('fs');
+            const code = '${{ steps.drift.outputs.exit_code }}';
+            let output = '';
+            try { output = fs.readFileSync('drift-output.txt', 'utf8'); } catch { output = '(no output captured)'; }
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const ts = new Date().toISOString();
+
+            async function openOrUpdate(label, title, body) {
+              const ex = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: label, per_page: 1 });
+              if (ex.data.length > 0) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: ex.data[0].number, body: `Still present at ${ts}.\n\n${body}` });
+              } else {
+                await github.rest.issues.create({ owner, repo, title, body, labels: [label] });
+              }
+            }
+            async function closeIfOpen(label, note) {
+              const ex = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: label, per_page: 10 });
+              for (const i of ex.data) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: i.number, body: `${note} at ${ts}.` });
+                await github.rest.issues.update({ owner, repo, issue_number: i.number, state: 'closed' });
+              }
+            }
+            const detail = `\`\`\`\n${output.slice(0, 4000)}\n\`\`\`\n\n- **Run:** ${runUrl}\n- **Time:** ${ts}`;
+
+            if (code === '1') {
+              // DRIFT — the SSOT mirror and live branch protection disagree.
+              await openOrUpdate(process.env.DRIFT_LABEL,
+                'required-contexts SSOT has drifted from live branch protection',
+                `## Required-contexts drift\n\nThe committed \`.github/ci/required-contexts.json\` mirror no longer matches the live required status checks on \`main\`. workflow-lint enforces its required-context rules against the SSOT, so a stale mirror makes the lint guard the wrong set. Reconcile the SSOT with branch protection (or vice versa).\n\n**Note (surviving vector):** this detects disagreement between the two records; it does NOT certify the required set is *correct*.\n\n${detail}`);
+            } else if (code === '2') {
+              // COULD-NOT-VERIFY — degraded, distinct from drift. Never silent-green (the whole point of exit 2).
+              await openOrUpdate(process.env.INFRA_LABEL,
+                'required-contexts drift guard could not verify (degraded)',
+                `## Drift guard degraded — could NOT read branch protection or the SSOT\n\nThis is an INFRA problem with the check, NOT a confirmed in-sync or drift. Most likely the token lacks admin scope to read branch protection (the job grants \`administration: read\` to GITHUB_TOKEN — if that is insufficient for this repo, wire an admin PAT). "Could not verify" must never read as "in sync".\n\n${detail}`);
+            } else if (code === '0') {
+              // IN SYNC — recovery: clear any open drift / infra issues.
+              await closeIfOpen(process.env.DRIFT_LABEL, 'Resolved — SSOT back in sync with branch protection');
+              await closeIfOpen(process.env.INFRA_LABEL, 'Resolved — drift guard verified cleanly');
+              console.log('in sync — no drift');
+            } else {
+              // Unexpected exit code — treat as degraded (fail toward visibility, never silent).
+              await openOrUpdate(process.env.INFRA_LABEL,
+                'required-contexts drift guard returned an unexpected exit code',
+                `## Drift guard — unexpected exit code \`${code}\`\n\nThe runner exited with a code outside {0,1,2}. Treated as degraded (not in-sync). Investigate the run.\n\n${detail}`);
+            }
