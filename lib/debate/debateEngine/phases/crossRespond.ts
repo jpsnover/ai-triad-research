@@ -233,6 +233,8 @@ export async function runAdaptiveCrossRespond(engine: DebateEngineInternals): Pr
     state = applyTransition(state, result);
     state.api_calls_used = engine.apiCallCount;
     engine._phaseState = state;
+    // Persist after each round so single-step GUI can hydrate on next invocation (t/3761).
+    engine.session.adaptive_staging!.phase_state = state;
 
     if (result.action === 'transition' || result.action === 'force_transition') {
       diag.phases.push({

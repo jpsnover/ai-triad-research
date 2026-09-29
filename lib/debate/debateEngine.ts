@@ -1002,9 +1002,15 @@ export class DebateEngine {
       this.session.commitments![pover] = { asserted: [], conceded: [], challenged: [] };
     }
 
-    // Initialize active moderator state
-    this._moderatorState = initModeratorState(this.config.rounds, this.config.activePovers);
-    this.session.moderator_state = this._moderatorState;
+    // Initialize active moderator state — hydrate from session if present (t/3761).
+    // Hydrated here; persisted by the explicit write-back at crossRespond.ts:1298 after each round.
+    // _moderatorState is reassigned at crossRespond.ts:430 — do NOT rely on reference aliasing
+    // to carry writes back to session.moderator_state.
+    this._moderatorState = this.session.moderator_state
+      ?? initModeratorState(this.config.rounds, this.config.activePovers);
+    if (!this.session.moderator_state) {
+      this.session.moderator_state = this._moderatorState;
+    }
 
     if (resolveStageModel(this._internal, 'evaluator') === this.config.model) {
       this.recordDiagnostic('session_init', {
@@ -1039,7 +1045,9 @@ export class DebateEngine {
           ? { maxConcludingRounds: 1, ...this.config.phaseBoundsOverride }
           : this.config.phaseBoundsOverride,
       };
-      this._phaseState = initPhaseState(this._adaptiveConfig);
+      // Hydrate phase state from session if present; init fresh on first run (t/3761).
+      this._phaseState = this.session.adaptive_staging?.phase_state
+        ?? initPhaseState(this._adaptiveConfig);
       this._signalRegistry = buildSignalRegistry(this.config.dialecticalStyle);
       this._adaptiveDiagnostics = initAdaptiveDiagnostics();
     }
