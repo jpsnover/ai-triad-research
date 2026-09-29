@@ -20,5 +20,5 @@ export type { InquiryExportOptions } from './inquiryExport.js';
 export { CLASSIFICATION, includedFields, dispositionFor } from './fieldClassification.js';
 export type { Surface, Disposition, FieldPath } from './fieldClassification.js';
 // Public no-login share projection (t/3648 part 2) — separate schema + constructive projector.
-export { PublicInquiryShareSchema, PUBLIC_INQUIRY_SHARE_VERSION, toPublicInquiryShare } from './publicShare.js';
-export type { PublicInquiryShare } from './publicShare.js';
+export { PublicInquiryShareSchema, PublicInquiryShareReadSchema, PUBLIC_INQUIRY_SHARE_VERSION, toPublicInquiryShare } from './publicShare.js';
+export type { PublicInquiryShare, PublicInquiryShareRead } from './publicShare.js';
