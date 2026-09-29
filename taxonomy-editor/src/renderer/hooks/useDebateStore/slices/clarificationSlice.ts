@@ -152,6 +152,12 @@ async function cacheOpeningEmbeddings(get: () => DebateStore, set: (partial: any
     } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Opening embeddings caching failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
 }
 
+/** Ceiling for the non-adaptive watch-only auto-run loop (t/3760) — matches the adaptive
+ *  branch's default 'moderate' maxTotalRounds and the round count observed completing a
+ *  full situation debate. Separate from `initialCrossRespondRounds`, which is also read
+ *  elsewhere as a phase-labeling divisor and must stay small for that purpose. */
+const WATCH_ONLY_MAX_CROSS_RESPOND_ROUNDS = 12;
+
 async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession): Promise<void> {
     // Auto-run initial cross-respond rounds if configured
     const { initialCrossRespondRounds } = get();
@@ -232,7 +238,16 @@ async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partia
           await get().requestSynthesis();
         }
       } else if (initialCrossRespondRounds > 0) {
-        for (let i = 0; i < initialCrossRespondRounds; i++) {
+        // t/3760: a watch-only debate has no user to click "Cross-respond" again, so this
+        // must not stop after a small fixed count — loop up to a much higher ceiling
+        // instead of the small initialCrossRespondRounds count (which is also used
+        // elsewhere as a phase-labeling divisor and must stay small for that purpose).
+        // Exit checks below (daily-limit pause / no transcript growth / no debater
+        // statement) are the same three this branch already had; NOT porting the adaptive
+        // branch's `phase_state?.current_phase === 'terminated'` exit — non-adaptive
+        // debates have no adaptive_staging.phase_state, so that check would be a dead
+        // optional-chain-to-undefined here, not a fourth working exit (TL, p/336#517).
+        for (let i = 0; i < WATCH_ONLY_MAX_CROSS_RESPOND_ROUNDS; i++) {
           const d = get().activeDebate;
           if (!d || get().dailyLimitPaused) break;
           const preLen = d.transcript.length;
