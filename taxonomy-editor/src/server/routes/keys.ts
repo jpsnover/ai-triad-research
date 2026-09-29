@@ -79,12 +79,13 @@ export const KEY_VALIDATION_PROBES: Record<string, KeyProbe> = {
   // any key (public metadata), so it can't distinguish a valid key from garbage.
   // 1-token body keeps the cost effectively zero. t/3563: model is resolved at call
   // time from the registry SSOT (see resolveGeminiProbeModel) so it can't drift to a
-  // retired id.
+  // retired id. t/3747: key in x-goog-api-key header, not the ?key= query string —
+  // matches the other seven probes and avoids URL-based credential leakage.
   gemini: key => fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${resolveGeminiProbeModel()}:generateContent?key=${encodeURIComponent(key)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${resolveGeminiProbeModel()}:generateContent`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({ contents: [{ parts: [{ text: 'hi' }] }], generationConfig: { maxOutputTokens: 1 } }),
     },
   ),

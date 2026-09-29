@@ -84,6 +84,9 @@ describe('gemini key probe uses generateContent, not list-models (t/1572)', () =
     expect(calls[0].url).toContain(`${derivedGeminiProbeModel}:generateContent`);
     expect(calls[0].url).not.toContain('gemini-2.0-flash'); // t/3563: never the retired hardcoded model
     expect(calls[0].url).not.toContain('/v1beta/models?key='); // NOT the permissive list endpoint
+    // t/3747: key must NOT appear in the URL — it must travel in the x-goog-api-key header only
+    expect(calls[0].url).not.toContain('bad-key');
+    expect((calls[0].init?.headers as Record<string, string>)?.['x-goog-api-key']).toBe('bad-key');
     expect(calls[0].init?.method).toBe('POST');
     expect(String(calls[0].init?.body)).toContain('maxOutputTokens');
   });
