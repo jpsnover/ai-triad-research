@@ -63,8 +63,8 @@ export const CLASSIFICATION: Record<FieldPath, Record<Surface, Disposition>> = {
     export: I('Owner-scoped: the raw-run link IS the t/3617 affordance; stripping it here would silently delete a legitimate capability (SO/TL t/3651#4).'),
   },
   synthesizedHeadline: {
-    'public-share': I('Answer substance — characterizes the disagreement shape for the public reader, not a verdict or conclusion. Condition A (toPublicInquiryShare construction) governs suppression for degraded runs; a healthy-run characterization belongs in the public share (TL presumption p/342#456, pending confirmation by Server Auth).'),
-    community: I('Core answer content — the disagreement characterization is directly relevant to an authenticated community reader and adds informative context without exposing internals (TL presumption p/342#457, pending confirmation by Server Community).'),
+    'public-share': I('Answer substance — characterizes the disagreement shape for the public reader, not a verdict or conclusion. Condition A (toPublicInquiryShare construction) governs suppression for degraded runs; a healthy-run characterization belongs in the public share (TL ruling p/342#456, confirmed by Server Auth p/673#11, t/3667#12).'),
+    community: I('Core answer content — the disagreement characterization is directly relevant to an authenticated community reader and adds informative context without exposing internals (TL ruling p/342#457, confirmed by Server Community p/671#13).'),
     export: I(EXPORT_FULL),
   },
 
