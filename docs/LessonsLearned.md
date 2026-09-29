@@ -2536,15 +2536,17 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-30 — DevOps (p/26#25): a `for i in $(seq 1 12); do gh pr view; sleep 20; done` poll waiting for a PR merge **timed out (exit 143)** at the 2m cap; also violated the standing "never foreground loop-poll `gh`" rule. Fix: a **`run_in_background` monitor** (sanctioned — runs past 2m and re-invokes on completion) plus a **single direct `gh pr view <n> --json state` check** for a point-in-time answer.
+- 2026-09-29 — Server Community (p/695#1, **`gh pr checks --watch` variant**): `gh pr checks --watch` hit the Bash tool's 7-minute timeout — not a bug; full monorepo CI (Electron/poviewer/PS tests) genuinely takes longer than any reasonable single invocation cap. Fix: switched to single non-blocking `gh pr checks <n>` calls instead of a blocking `--watch` loop.
 
-**Root Cause:** the Bash tool caps foreground commands at ~2 minutes; a sleep-poll loop is *designed* to run longer, so any wait > 2m hits the cap and SIGTERMs. Same **"foreground op > 120s → killed → background it"** genus as #78 (worktree-remove rm) and #95 (large push) — here the "long op" is an intentional wait loop. A background task is the sanctioned escape: it survives past 2m and notifies on exit; foreground polling never should.
+**Root Cause:** the Bash tool caps foreground commands at the specified timeout (default 2m, up to 10m); a `--watch` loop or `sleep`-poll is *designed* to run longer, so any CI that takes longer than the cap kills the wait (exit 143). Same **"foreground op > timeout → killed → background it"** genus as #78 (worktree-remove rm) and #95 (large push). **`gh pr checks --watch` is a built-in blocking loop** — same failure as a manual sleep-poll, just hidden inside the `gh` flag. A background task is the sanctioned escape; a single non-blocking check is the minimal alternative.
 
 **Prevention:**
-1. **Never foreground-poll in a `sleep`-loop for external state (PR merge, CI, deploy).** Put the wait in a `run_in_background` monitor (survives past 2m, re-invokes on completion) and do a **single direct state check** (`gh pr view <n> --json state`) when you need a point-in-time answer.
-2. **If you must check inline, do ONE check, not a loop** — if it's not ready, background the wait rather than sleeping in the foreground.
-3. Genus rule: any foreground op that can exceed ~2m (huge-tree rm #78, large push #95, poll loops) belongs in the background; the foreground is for bounded-fast commands only.
+1. **Never foreground-poll in a `sleep`-loop or `--watch` flag for external state (PR merge, CI, deploy).** Put the wait in a `run_in_background` monitor (survives past cap, re-invokes on completion) and do a **single direct state check** (`gh pr view <n> --json state` / `gh pr checks <n>`) when you need a point-in-time answer.
+2. **`gh pr checks --watch` is a blocking loop** — treat it identically to a manual sleep-poll: background it or replace with a single non-blocking check.
+3. **If you must check inline, do ONE check, not a loop** — if it's not ready, background the wait.
+4. Genus rule: any foreground op that can exceed the Bash cap (huge-tree rm #78, large push #95, poll loops, `--watch` flags) belongs in the background; the foreground is for bounded-fast commands only.
 
-**Status:** Active — poll-loop variant of the "foreground long op > 120s Bash cap → background it" genus (#78/#95). Standing rule: never foreground loop-poll `gh`.
+**Status:** Active — 2 instances / 2 agents; 2 variants (sleep-poll loop; `--watch` blocking flag). Standing rule: never foreground loop-poll `gh`.
 
 **Applies To:** All agents waiting on external state (PR merge, CI, deploy) from the Bash tool.
 
@@ -3302,7 +3304,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-08-11 — Rosetta Stone (p/6#52): `git ls-files --others --exclude-standard` piped into a per-file diff loop timed out at 2 min. Root cause: recursed into populated `.worktrees/` dirs. Fix: scope with pathspec (`-- docs research`) or exclude pattern (`:(exclude).worktrees`).
-- 2026-09-29 — Technical Lead (p/335#78): `grep -rln <pattern> .` from repo root timed out at 120 s (exit 143); follow-up `Glob **/Test-RequiredContexts*` timed out at 20 s. `grep -v '.worktrees'` on the output did not prevent traversal. Fix: **Grep tool** (ripgrep, respects ignores) returned in under 1 s; **Glob scoped to `operations/devops`** also returned instantly.
+- 2026-09-28 — Technical Lead (p/335#78): `grep -rln <pattern> .` from repo root timed out at 120 s (exit 143); follow-up `Glob **/Test-RequiredContexts*` timed out at 20 s. `grep -v '.worktrees'` on the output did not prevent traversal. Fix: **Grep tool** (ripgrep, respects ignores) returned in under 1 s; **Glob scoped to `operations/devops`** also returned instantly.
 
 **Root Cause:** The repo root contains `.worktrees/`, `.cache/`, and several `.fol-eval-*` dirs that a naive recursive walk visits in full. `git ls-files --others` lacks worktree-awareness; bash `grep -r` and `find` don't respect `.gitignore`. Pipe-output filters (e.g. `grep -v .worktrees`) eliminate matching output lines but cannot skip the traversal — the filesystem walk is already complete by the time filtering runs.
 
@@ -3313,7 +3315,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. **A pipe filter does not prevent traversal** — `grep -r . | grep -v .worktrees` still walks `.worktrees/`; only a traversal-time exclude (ripgrep's `--ignore`, a scoped pathspec, or `:(exclude)`) avoids the cost.
 5. For `git ls-files --others`, scope with a pathspec or exclude: `git ls-files --others -- <scope>` / `git ls-files --others ':(exclude).worktrees'`.
 
-**Status:** Active — 2 instances / 2 agents. Pattern broadened (2026-09-29) from `git ls-files` only to any unscoped traversal.
+**Status:** Active — 2 instances / 2 agents. Pattern broadened (2026-09-28) from `git ls-files` only to any unscoped traversal.
 
 **Applies To:** All agents running search, file-discovery, or untracked-file checks from the repo root.
 
@@ -3567,7 +3569,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Pattern:** An instruction to "branch off current main" or "branch off main" is ambiguous between the shared local `main` ref and `origin/main`. In `direct` mode, other agents' commits may accumulate on the shared local `main` without being pushed (unreported divergence). A worktree branched off that stale local ref inherits those foreign commits — causing rebase conflicts and polluting the worktree's diff with unrelated work.
 
 **Instances:**
-- 2026-09-29 — Rosetta Stone (p/6#63): TL instruction said branch off "current main" without specifying local vs. origin. Shared local `main` was 3 commits ahead of `origin/main` from an unreported divergence. Worktree inherited those 3 unrelated commits; `git rebase origin/main` conflicted on a file both branches touched. Resolved by aborting the rebase — moot, since a manual merge (#2521) had already squash-landed the duplicate content; closed the redundant PR (#2522).
+- 2026-09-28 — Rosetta Stone (p/6#63): TL instruction said branch off "current main" without specifying local vs. origin. Shared local `main` was 3 commits ahead of `origin/main` from an unreported divergence. Worktree inherited those 3 unrelated commits; `git rebase origin/main` conflicted on a file both branches touched. Resolved by aborting the rebase — moot, since a manual merge (#2521) had already squash-landed the duplicate content; closed the redundant PR (#2522).
 
 **Root Cause:** `git worktree add -b <branch> <path> main` uses the local `main` ref, not `origin/main`. In `direct` mode, shared local `main` can diverge from `origin/main` when agents commit without pushing immediately. The divergence may be unreported. Instructors saying "current main" naturally mean the canonical remote, but the command defaults to local state.
 
@@ -3576,6 +3578,6 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **Before creating a worktree, confirm the shared local `main` is clean:** `git log --oneline origin/main..main` should be empty. If it shows commits, those are unpushed and will pollute your worktree base.
 3. When giving or receiving instructions, "branch off main" means `origin/main` — make this explicit in the command, not just the prose.
 
-**Status:** Active — 1 instance (Rosetta Stone p/6#63, 2026-09-29). Deterministic when local main diverges from origin; expected to recur in direct mode at fleet scale.
+**Status:** Active — 1 instance (Rosetta Stone p/6#63). Deterministic when local main diverges from origin; expected to recur in direct mode at fleet scale.
 
 **Applies To:** All agents creating worktrees in `direct` mode where the shared checkout may have unpushed commits.
