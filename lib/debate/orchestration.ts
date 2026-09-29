@@ -390,6 +390,19 @@ export async function runModeratorSelection(
     ? getConcludingResponder(modState, activePovers, transcript as TranscriptEntry[])
     : null;
 
+  if (phase === 'concluding' && input.dialecticalStyle !== 'socratic') {
+    const commitReceivedBy = [...new Set(modState.intervention_history.filter(h => h.move === 'COMMIT').map(h => h.target))];
+    getGlobalRecorder()?.record({
+      type: 'debate.closure_eligible', component: 'orchestration', level: 'info',
+      message: `closure_eligible: ${commitReceivedBy.length}/${activePovers.length} povers committed`,
+      data: {
+        commit_received_by: commitReceivedBy,
+        total_povers: activePovers.length,
+        eligible: concludingTarget === null,
+      },
+    });
+  }
+
   let responder: Exclude<SpeakerId, 'user'> | null = null;
   let focusPoint = 'Continue the discussion';
   let addressing = 'general';
