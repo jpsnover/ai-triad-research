@@ -1,0 +1,24 @@
+# ─── THROWAWAY — t/3736 negative-arm live-fire. DO NOT MERGE. ───
+# Exists to make `workflow-lint` conclude `failure`, so `ci-gate` concludes
+# `failure`, so we can prove that `enforce_admins: true` refuses an admin merge
+# on a RED required check — not merely on an UNREPORTED one (t/3736#7 proved
+# `expected`; t/3736#8 flagged the gap; PI directed this arm).
+#
+# The deliberate violation is workflow-lint Check 3: no `permissions:` block.
+# Nothing else here is a violation — actions are absent, so the unpinned-ref
+# check cannot fire and the failure is attributable to exactly one rule.
+#
+# Cannot execute: `workflow_dispatch` is the only trigger, and dispatch resolves
+# workflows from the DEFAULT branch, so this file is inert on a feature branch.
+#
+# This branch is closed unmerged and deleted as soon as the arm is recorded.
+name: zz-t3736-failure-arm (throwaway)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "inert by construction"
