@@ -76,7 +76,11 @@ Three defects, each found by **running** it, none by reading it:
 
 **What the check therefore sees, and does not:** it catches the **ticketed** inheritance case. A commit whose subject carries no ticket ref is invisible to it — and that is not hypothetical. `5de42009` (*"docs(lessons): land rescued multi-agent LessonsLearned WIP…"*) is on `main` with no ticket ref at all. So an unreferenced foreign commit passes, by construction.
 
-**Fluency in a failure shape does not prevent producing it.** That rules out "learn the pattern" as the remedy and is the argument for a mechanical check — and for running a predicate over real history before shipping it rather than after.
+**Note which of the three teaches most.** Defect 2 is a wrong tool — the extraction read the wrong thing. Defect 3 is a **correct-looking predicate whose fault lives in how results were combined**, and `cb35c91e` legitimately naming two tickets in one subject is a case no amount of reading finds. Aggregation defects are the harder class precisely because every part looks right in isolation.
+
+**Fluency in a failure shape does not prevent producing it** — defect 1's author had catalogued that shape an hour earlier. That rules out "learn the pattern" as the remedy and is the argument for a mechanical check.
+
+**All three were found by execution. None by inspection.**
 
 ## Fail closed on uncertainty — the requirement, not the config
 
