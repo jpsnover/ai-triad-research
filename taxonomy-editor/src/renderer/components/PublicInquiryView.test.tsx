@@ -126,6 +126,21 @@ describe('PublicInquiryView (t/3628)', () => {
     expect(screen.getByText('trust')).toBeInTheDocument();
   });
 
+  // Adjacency (t/3734, SO condition via t/3667#6) — end-to-end through the real fetch→render
+  // path, since PublicInquiryView.tsx itself has no template and only proves the fix by way of
+  // the component it delegates to (PublicInquiryShareContent.tsx).
+  it('renders synthesizedHeadline immediately adjacent to singleRunCaveat', async () => {
+    const WITH_HEADLINE = { ...SAMPLE, synthesizedHeadline: 'Camps converge on outcome, diverge on intent.' };
+    mockFetch.mockResolvedValue(fakeResponse({ body: WITH_HEADLINE }));
+    render(<PublicInquiryView />);
+
+    await screen.findByText(SAMPLE.request.question);
+    const headline = screen.getByText(WITH_HEADLINE.synthesizedHeadline);
+    const caveat = screen.getByText(SAMPLE.singleRunCaveat, { exact: false });
+    expect(headline.parentElement).toBe(caveat.parentElement);
+    expect(caveat.previousElementSibling).toBe(headline);
+  });
+
   it('shows a zero-result banner when campVerdicts/convergences/evidenceLayers are all empty', async () => {
     const ZERO = { ...SAMPLE, campVerdicts: [], convergences: [], evidenceLayers: [] };
     mockFetch.mockResolvedValue(fakeResponse({ body: ZERO }));

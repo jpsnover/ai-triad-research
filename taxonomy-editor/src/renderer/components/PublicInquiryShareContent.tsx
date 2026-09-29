@@ -116,8 +116,14 @@ export function PublicInquiryShareContent({ doc }: { doc: PublicInquiryShare }) 
         </>
       )}
 
-      {/* Must-include per SO review (t/3628#2): "one run, not a finding" caveat. */}
-      <div className="pov-inquiry-caveat"><b>One run, not a finding.</b> {doc.singleRunCaveat}</div>
+      {/* Adjacency-by-construction (t/3734, SO condition via t/3667#6). synthesizedHeadline's
+       *  absence on this surface is already suppression-by-construction (toPublicInquiryShare
+       *  Condition A/B) — presence-branch only, no content inspection (t/3566 exemption scope).
+       *  Must-include per SO review (t/3628#2): "one run, not a finding" caveat. */}
+      <div className="pov-inquiry-headline-group">
+        {doc.synthesizedHeadline && <p className="pov-inquiry-headline">{doc.synthesizedHeadline}</p>}
+        <div className="pov-inquiry-caveat"><b>One run, not a finding.</b> {doc.singleRunCaveat}</div>
+      </div>
 
       <footer className="pov-inquiry-footer">
         <span className="pov-inquiry-brand">AI Triad Research</span>
