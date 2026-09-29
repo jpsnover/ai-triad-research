@@ -366,7 +366,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. Check `type()` / `isinstance()` before calling type-specific methods (`.items()` for dict, iteration for list).
 4. When a script returns 0 results, empty data, or an AttributeError, suspect a schema mismatch before debugging logic.
 
-**Status:** Resolved — "Data File Convention" added to root AGENTS.md under Taxonomy Model (p/8#22).
+- 2026-09-29 — DebateTool (p/70#23): Bash Python script used `turn["turn_type"]` — KeyError because the transcript schema uses `"type"`, not `"turn_type"`. Fix: use `.get()` with a fallback or inspect the actual JSON keys first. 13th instance.
+
+**Status:** Active — recurring despite AGENTS.md "Data File Convention" rule (p/8#22). 13 instances. Use `.get()` with a fallback at every JSON read site as the default pattern.
 
 **Applies To:** All agents working with taxonomy JSON data or writing data processing scripts.
 
@@ -2742,6 +2744,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-08-03 — DevOps (t/2067, p/26#38): ran `ls /c/Users/jsnov/wt-2067/` — assumed `../wt-2067` from the repo resolves at home level, but the actual path was `C:/Users/jsnov/repos/wt-2067` = `/c/Users/jsnov/repos/wt-2067`. Fixed by running `git worktree list` to confirm the real path.
 - 2026-08-03 — ElectronMain (p/98#13, t/2111): `cd /c/.../wt-t2111` immediately after `git worktree add ../wt-t2111` — "No such file." Compounding factor: **Bash tool resets cwd between invocations**, so the cwd for the `cd` call was the repo root regardless of any prior `cd`. The agent constructed the POSIX path from memory rather than reading `git worktree list`. Fixed by running `git worktree list` and using the canonical absolute path `/c/Users/jsnov/repos/wt-t2111`.
+- 2026-09-29 — DebateTool (p/70#25): `sh .githooks/read-workflow-mode.sh` — "No such file or directory." cwd was role scope (`lib/debate`), not repo root; `.githooks/` only exists at repo root. Fix: `cd C:/Users/jsnov/repos/ai-triad-research && sh .githooks/read-workflow-mode.sh`. Clarifies prevention #4: cwd resets to the agent's **role scope**, not always repo root.
 
 **Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. **Compounding factor (instance 2):** the Bash tool resets cwd to the repo root between invocations, so any relative path like `../wt-<name>` re-anchors to the repo root on every call — you cannot rely on a prior `cd` persisting to the next Bash call.
 
@@ -2749,9 +2752,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 1. **Run `git worktree list` BEFORE first Bash access to a worktree** — it returns the canonical absolute path; never reconstruct the path by prepending the assumed home directory + a relative spec.
 2. On this machine: repo = `C:/Users/jsnov/repos/ai-triad-research/`; sibling worktrees land at `C:/Users/jsnov/repos/wt-<name>` = `/c/Users/jsnov/repos/wt-<name>` in POSIX. NOT `/c/Users/jsnov/wt-<name>`.
 3. Companion to the MSYS colon-revspec/path trap (#73 facet B): both produce a wrong absolute path for a git resource. #73B = MSYS mangles a correct path; #128 = a wrong path is assembled from an incorrect mental model. The fix for both: **verify the actual path before access** rather than reconstructing from memory.
-4. **Bash tool cwd resets to the repo root between invocations** — relative paths (`../wt-<name>`) re-anchor on every call; don't assume a prior `cd` carried over. Use absolute paths from `git worktree list` output.
+4. **Bash tool cwd resets to the agent's primary working directory (role scope) between invocations, NOT necessarily the repo root** — for agents with scope subdirectories (e.g. `lib/debate`, `operations/sage`), this means repo-root scripts like `.githooks/read-workflow-mode.sh` are NOT on the default path. Relative paths re-anchor on every call; don't assume a prior `cd` carried over. Always prefix with `cd C:/Users/jsnov/repos/ai-triad-research &&` or use absolute paths.
 
-**Status:** Active — 2 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths.
+**Status:** Active — 3 instances / 3 agents. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Prevention #4 updated: cwd resets to agent's role scope (not always repo root). Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths.
 
 **Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path.
 
