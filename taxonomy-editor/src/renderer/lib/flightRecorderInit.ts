@@ -17,6 +17,7 @@ import { api } from '@bridge';
 import { getClientConfig } from './clientConfig';
 import { getResilienceState } from '../bridge/resilience';
 import { showDumpToast, showDumpErrorToast, showDumpPendingToast } from './dumpToast';
+import { getCurrentPhase } from '@lib/debate/phaseTransitions';
 
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
@@ -710,7 +711,7 @@ export function initFlightRecorder(): FlightRecorder {
           // of the `source=community` load path.
           source: (debateState.communityReadOnly ? 'community' : 'personal') as 'community' | 'personal' | null,
           phase: debate.phase,
-          adaptive_phase: debate.adaptive_staging?.current_phase ?? null,
+          adaptive_phase: getCurrentPhase(debate),
           transcript_length: debate.transcript?.length ?? 0,
           an_nodes: debate.argument_network?.nodes?.length ?? 0,
           model: debateState.debateModel,
