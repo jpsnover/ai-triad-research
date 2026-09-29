@@ -216,7 +216,14 @@ export function InquiryAnswerPanel() {
         </div>
       )}
 
-      <div className="inquiry-caveat"><b>One run, not a finding.</b> {result.singleRunCaveat}</div>
+      {/* Adjacency-by-construction (t/3734, SO condition via t/3667#6): the headline is the most
+       *  quotable element of the answer, and singleRunCaveat is what keeps it from reading as a
+       *  settled finding. Wrapping both means a future insertion has to edit inside this element,
+       *  not just avoid adding a section between two siblings elsewhere in the tree. */}
+      <div className="inquiry-headline-group">
+        {result.synthesizedHeadline && <p className="inquiry-headline">{result.synthesizedHeadline}</p>}
+        <div className="inquiry-caveat"><b>One run, not a finding.</b> {result.singleRunCaveat}</div>
+      </div>
 
       <div className="inquiry-rawrow">
         <button className="inquiry-ghost" onClick={reset}>Ask another question</button>

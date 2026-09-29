@@ -154,6 +154,7 @@
 .inquiry-pill.ok { color: var(--color-skp, #2e7d5b); }
 .inquiry-pill.bad { color: var(--danger); }
 
+.inquiry-headline { font-size: 15px; font-weight: 600; margin: 16px 0 8px; }
 .inquiry-caveat { margin-top: 16px; border: 1px solid var(--warning); background: color-mix(in srgb, var(--warning) 8%, transparent); border-radius: var(--radius-md); padding: 13px 15px; font-size: 13px; }
 .inquiry-rawrow { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
 .inquiry-ghost { appearance: none; border: 1px solid var(--border-color); background: transparent; color: var(--text-primary); border-radius: var(--radius-md); font-size: 13px; padding: 8px 14px; cursor: pointer; }

@@ -204,6 +204,13 @@
   color: #fff;
 }
 
+.pov-inquiry-headline {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--text-primary);
+}
+
 .pov-inquiry-caveat {
   border-top: 1px solid var(--border-color);
   padding-top: 1rem;
