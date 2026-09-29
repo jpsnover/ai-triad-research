@@ -17,7 +17,9 @@ import type {
   ArgumentNetworkEdge,
   TranscriptEntry,
   DialecticalStyle,
+  DebateSession,
 } from './types.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { computePragmaticConvergence, computeConcludingPragmaticSignal } from './pragmaticSignals.js';
 import { computeSchemeStagnationCombined, computeSchemeCoverageFactor } from './schemeStagnation.js';
 import {
@@ -1060,4 +1062,30 @@ export function initAdaptiveDiagnostics(): AdaptiveStagingDiagnostics {
     gc_events: [],
     signal_telemetry: [],
   };
+}
+
+// ── Session Selectors ────────────────────────────────────────
+
+/**
+ * Read the current debate phase from a session.
+ * Authoritative source is adaptive_staging.phase_state.current_phase (t/3761).
+ * Falls back to the legacy sibling field written by the renderer for old sessions,
+ * emitting a WARN so the fallback path is never silent.
+ */
+export function getCurrentPhase(session: DebateSession): DebatePhase | null {
+  if (session.adaptive_staging?.phase_state?.current_phase) {
+    return session.adaptive_staging.phase_state.current_phase;
+  }
+  const legacySibling = (session.adaptive_staging as Record<string, unknown> | undefined)?.['current_phase'] as DebatePhase | undefined;
+  if (legacySibling) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'debate-engine',
+      level: 'warn',
+      message: 'getCurrentPhase: phase_state absent — falling back to legacy sibling current_phase (legacy session)',
+      data: { current_phase: legacySibling },
+    });
+    return legacySibling;
+  }
+  return null;
 }
