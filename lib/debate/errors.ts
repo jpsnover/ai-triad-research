@@ -22,6 +22,7 @@ export class ActionableError extends Error {
   public readonly location: string;
   public readonly nextSteps: string[];
   public readonly innerError?: Error;
+  public httpStatus?: number;
 
   constructor(opts: {
     goal: string;
