@@ -26,6 +26,7 @@ import { PROMPT_CATALOG } from '../../data/promptCatalog';
 import { api } from '@bridge';
 import { sortSituationNodes, type SitSortMode } from './situationSort';
 import { SituationListItem } from './SituationListItem';
+import { subscribeToSituationDebateStart } from './waitForSituationDebateStart';
 import './SituationsTab.css';
 
 // --- Presentational sub-components (props in → JSX out, NO hooks) ---------
@@ -371,6 +372,7 @@ export function SituationsTab() {
   const [selectedFallacyKey, setSelectedFallacyKey] = useState<string | null>(null);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
+  const [debateLaunching, setDebateLaunching] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
   const breakpoint = useBreakpoint();
   const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
@@ -520,15 +522,33 @@ export function SituationsTab() {
   }, [setActiveTab, setSelectedNodeId]);
 
   const createSituationDebate = useDebateStore(s => s.createSituationDebate);
-  const handleDebate = useCallback(async () => {
-    if (!selectedNode) return;
-    try {
-      await createSituationDebate(selectedNode.id);
+  const handleDebate = useCallback(() => {
+    if (!selectedNode || debateLaunching) return;
+    setDebateLaunching(true);
+    const nodeId = selectedNode.id;
+
+    // Mirrors SituationDebatePanel.handleLaunch's fix (t/3752): open the popout
+    // (t/3749 — setActiveTab alone lands on the summary card, not the live debate)
+    // as soon as the record exists, instead of blocking on createSituationDebate's
+    // full watch-only opening round (enterClarificationOrBegin, t/3629 — don't touch).
+    const unsubscribe = subscribeToSituationDebateStart(nodeId, (id) => {
+      unsubscribe();
+      void api.openDebateWindow(id).catch((openErr: Error) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'situations-tab', level: 'warn', debate_id: id, message: 'Failed to open debate popout window after situation debate launch', error: { name: openErr.name ?? 'Error', message: String(openErr), stack: openErr.stack } });
+      });
       setActiveTab('debate');
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'situations-tab', level: 'error', message: 'Failed to create situation debate', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    }
-  }, [selectedNode, createSituationDebate, setActiveTab]);
+      setDebateLaunching(false);
+    });
+
+    createSituationDebate(nodeId)
+      .catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'situations-tab', level: 'error', message: 'Failed to create situation debate', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        setDebateLaunching(false);
+      })
+      .finally(() => {
+        unsubscribe();
+      });
+  }, [selectedNode, debateLaunching, createSituationDebate, setActiveTab]);
 
   if (!situations) {
     return <div className="detail-panel-empty">No situations data loaded</div>;

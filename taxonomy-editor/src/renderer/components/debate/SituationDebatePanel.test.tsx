@@ -9,23 +9,44 @@ import type { SituationNode } from '../../types/taxonomy';
 const mockRecord = vi.hoisted(() => vi.fn());
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: mockRecord }) }));
 
-const mockRunClarification = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const mockSaveDebate = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const mockCreateSituationDebate = vi.hoisted(() => vi.fn().mockResolvedValue('sit-debate-1'));
+const mockCreateSituationDebate = vi.hoisted(() => vi.fn());
 const mockSetActiveTab = vi.hoisted(() => vi.fn());
 const mockOpenDebateWindow = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
+// A minimal fake zustand store: real `subscribe`/`getState` semantics, driven
+// imperatively by `setActiveDebate` so tests can simulate createSituationDebate's
+// real sequencing — activeDebate is set synchronously, well before its returned
+// promise resolves (t/3752) — without depending on the real store's many slices.
+type FakeSession = { id: string; source_type: string; source_ref: string; debate_model?: string } | null;
+const fakeStore = vi.hoisted(() => ({
+  activeDebate: null as FakeSession,
+  listeners: [] as Array<(s: { activeDebate: FakeSession }, p: { activeDebate: FakeSession }) => void>,
+}));
+
+function setActiveDebate(session: FakeSession) {
+  const prev = { activeDebate: fakeStore.activeDebate };
+  fakeStore.activeDebate = session;
+  const next = { activeDebate: fakeStore.activeDebate };
+  for (const l of [...fakeStore.listeners]) l(next, prev);
+}
+
 vi.mock('../../hooks/useDebateStore', () => {
-  const storeState = {
+  const useDebateStore = (selector: (s: Record<string, unknown>) => unknown) => selector({
     createDebate: vi.fn(),
     loadDebate: vi.fn(),
     createSituationDebate: mockCreateSituationDebate,
-    activeDebate: { id: 'sit-debate-1', debate_model: 'gemini-flash' },
+    activeDebate: fakeStore.activeDebate,
     saveDebate: mockSaveDebate,
-    runClarification: mockRunClarification,
+  });
+  useDebateStore.getState = () => ({ activeDebate: fakeStore.activeDebate, saveDebate: mockSaveDebate });
+  useDebateStore.subscribe = (listener: (s: { activeDebate: FakeSession }, p: { activeDebate: FakeSession }) => void) => {
+    fakeStore.listeners.push(listener);
+    return () => {
+      const idx = fakeStore.listeners.indexOf(listener);
+      if (idx >= 0) fakeStore.listeners.splice(idx, 1);
+    };
   };
-  const useDebateStore = (selector: (s: typeof storeState) => unknown) => selector(storeState);
-  useDebateStore.getState = () => storeState;
   return { useDebateStore };
 });
 
@@ -48,25 +69,61 @@ describe('SituationDebatePanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSaveDebate.mockResolvedValue(undefined);
-    mockCreateSituationDebate.mockResolvedValue('sit-debate-1');
-    mockRunClarification.mockResolvedValue(undefined);
     mockOpenDebateWindow.mockResolvedValue(undefined);
+    fakeStore.activeDebate = null;
+    fakeStore.listeners = [];
+    // Default: mirror createSituationDebate's real shape — set activeDebate
+    // synchronously (source_type/source_ref match the launched node), then resolve.
+    mockCreateSituationDebate.mockImplementation(async (nodeId: string) => {
+      setActiveDebate({ id: 'sit-debate-1', source_type: 'situations', source_ref: nodeId, debate_model: 'gemini-flash' });
+      return 'sit-debate-1';
+    });
   });
 
-  // t/3031 regression: handleLaunch must call runClarification after saveDebate.
-  // Without this, situation debates are created but never generate (stuck at transcript_length=0).
-  it('calls runClarification after saveDebate on launch (t/3031)', async () => {
+  // t/3752: Start must navigate as soon as the debate record exists, not wait for
+  // createSituationDebate's promise to resolve — that promise blocks on the full
+  // watch-only opening round (enterClarificationOrBegin, t/3629), which is minutes,
+  // not seconds. This is the regression test for the reported "stuck on Starting…" bug.
+  it('opens the popout and switches tabs before createSituationDebate resolves (t/3752)', async () => {
+    let resolveCreate!: (id: string) => void;
+    mockCreateSituationDebate.mockImplementationOnce((nodeId: string) => {
+      setActiveDebate({ id: 'sit-debate-1', source_type: 'situations', source_ref: nodeId });
+      return new Promise<string>((resolve) => { resolveCreate = resolve; });
+    });
+
+    render(<SituationDebatePanel node={mockNode} />);
+    fireEvent.click(screen.getByText('Start Situation Debate'));
+
+    await waitFor(() => {
+      expect(mockOpenDebateWindow).toHaveBeenCalledWith('sit-debate-1');
+    });
+    expect(mockSetActiveTab).toHaveBeenCalledWith('debate');
+    // The creation promise is still pending — config-apply/save hasn't run yet,
+    // proving navigation didn't wait for it.
+    expect(mockSaveDebate).not.toHaveBeenCalled();
+
+    resolveCreate('sit-debate-1');
+    await waitFor(() => {
+      expect(mockSaveDebate).toHaveBeenCalledWith('SituationDebatePanel:applyConfig');
+    });
+  });
+
+  // t/3752 (TL review, p/696#4): my earlier t/3749 fix left a `store.runClarification()`
+  // call after createSituationDebate() resolved. That's now removed — the watch-only
+  // opening round is already handled inside createSituationDebate via
+  // enterClarificationOrBegin (t/3629), and calling runClarification() again would
+  // regenerate clarifying questions and regress phase back to 'clarification' after
+  // opening statements had already run. `runClarification` isn't in this mock store at
+  // all, so a reintroduced call would throw (not silently pass) — a real regression guard.
+  it('does not call runClarification (removed t/3749-era call, t/3752)', async () => {
     render(<SituationDebatePanel node={mockNode} />);
 
     fireEvent.click(screen.getByText('Start Situation Debate'));
 
     await waitFor(() => {
-      expect(mockRunClarification).toHaveBeenCalledOnce();
+      expect(mockOpenDebateWindow).toHaveBeenCalledWith('sit-debate-1');
     });
-    expect(mockSaveDebate).toHaveBeenCalledWith('SituationDebatePanel:applyConfig');
-    expect(mockSaveDebate.mock.invocationCallOrder[0]).toBeLessThan(
-      mockRunClarification.mock.invocationCallOrder[0],
-    );
+    expect(mockSetActiveTab).toHaveBeenCalledWith('debate');
   });
 
   // t/3749: Start must actually take the user to the debate, not just switch app tabs
@@ -83,26 +140,6 @@ describe('SituationDebatePanel', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  // t/3749: a fire-and-forget runClarification silently lost failures with no record
-  // (the defect this ticket flagged) — it must be awaited and its rejection logged,
-  // and the launch must still proceed to open the debate window.
-  it('logs a WARN and still opens the window when runClarification rejects (t/3749)', async () => {
-    mockRunClarification.mockRejectedValueOnce(new Error('clarification boom'));
-    render(<SituationDebatePanel node={mockNode} />);
-
-    fireEvent.click(screen.getByText('Start Situation Debate'));
-
-    await waitFor(() => {
-      expect(mockOpenDebateWindow).toHaveBeenCalledWith('sit-debate-1');
-    });
-    expect(mockRecord).toHaveBeenCalledWith(expect.objectContaining({
-      level: 'warn',
-      debate_id: 'sit-debate-1',
-      message: expect.stringContaining('runClarification'),
-    }));
-    expect(mockSetActiveTab).toHaveBeenCalledWith('debate');
-  });
-
   // t/3749: at-cap must surface to the user instead of silently doing nothing —
   // the original bug's symptom was "Starting…" with no signal of what happened.
   it('shows an inline error when the popout is at the open-window cap (t/3749)', async () => {
@@ -115,5 +152,18 @@ describe('SituationDebatePanel', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(/max 5 open/i);
     });
     expect(mockSetActiveTab).toHaveBeenCalledWith('debate');
+  });
+
+  it('surfaces an error and does not navigate when createSituationDebate rejects', async () => {
+    mockCreateSituationDebate.mockRejectedValueOnce(new Error('node not found'));
+    render(<SituationDebatePanel node={mockNode} />);
+
+    fireEvent.click(screen.getByText('Start Situation Debate'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('node not found');
+    });
+    expect(mockSetActiveTab).not.toHaveBeenCalled();
+    expect(mockOpenDebateWindow).not.toHaveBeenCalled();
   });
 });
