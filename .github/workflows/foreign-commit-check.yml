@@ -1,0 +1,52 @@
+name: foreign-commit-check
+
+# Ticketed branch-ancestry-inheritance detector (t/3738). Prevention for the PR #2521 /
+# `007a5136` incident: a PR described as a one-file catalog fix carried three other agents'
+# commits because the worktree that produced it branched from a stale shared HEAD instead of
+# origin/main, and merged clean with no conflict.
+#
+# WARN-ONLY / ADVISORY. `continue-on-error: true` below means this step can NEVER fail the job
+# or block a merge, regardless of what the predicate concludes. Promotion to a blocking gate is a
+# separate, later change requiring its own mandatory Second Opinion consult (root AGENTS.md) and
+# at least one green cycle observing real PRs first (Gate Promotion discipline) — do not remove
+# continue-on-error without that separate step.
+#
+# RESIDUAL (state exactly this — do not overclaim): catches TICKETED foreign commits (a commit
+# subject carrying a t/NNNN-shaped ref disjoint from this PR's own ticket) and MERGE commits in
+# range. It is BLIND to a ref-less, non-merge foreign commit — that commit shape evades detection
+# entirely. See operations/devops/worker/foreign-commit-predicate.mjs for the full design notes
+# and t/3738 for the six rounds of hardening that produced this spec.
+#
+# EXPECTED-REF SOURCE: the PR title (github.event.pull_request.title). A PR whose title carries
+# no t/NNNN ref is treated as a no-ticket PR and fires (clearable via the opt-out below) rather
+# than silently skipping the check.
+#
+# OPT-OUT for genuine multi-ticket PRs (or a no-ticket PR that is intentionally ticket-less):
+# add the `multi-ticket` label to the PR. This is a coarse, PR-wide override — it silences the
+# whole check for that PR, not just the specific commit that triggered it.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history is required: merge-base against origin/main must resolve, and a shallow
+          # checkout (the default fetch-depth: 1) is exactly the condition that makes the range
+          # unresolvable — which the predicate treats as "cannot evaluate", never "clean" (t/3738#2).
+          fetch-depth: 0
+
+      - name: Run foreign-commit predicate (warn-only)
+        continue-on-error: true
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          OPTED_OUT: ${{ contains(github.event.pull_request.labels.*.name, 'multi-ticket') && '1' || '0' }}
+        run: |
+          node operations/devops/worker/foreign-commit-predicate.mjs "$PR_TITLE" "$OPTED_OUT"
