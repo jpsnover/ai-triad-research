@@ -46,13 +46,40 @@ as generic defensive posturing. This is the **pre-improvement baseline** for t/3
 - AN-coverage-dependent (needs `attacks` edges).
 - `blindside` denominator = all landing attacks, some genuinely un-anticipatable → ~97% is a ceiling, not a failing grade.
 
+## Pre/post-t3404 payoff read (`forecast_prepost.py`)
+Does the t/3404 ATTACK:/ASSUMPTION: tagging (which lets the matchable set be filtered to actual
+predicted-attack statements, not self-exposed assumptions) raise foresight? Debates are split by
+presence of the tag; post-t3404 debates use only ATTACK:-tagged challenges as the matchable set
+(the untagged/pre group has no tag to filter on, so it uses all raw challenges — the same
+apples-to-different-oranges limit as any before/after read on a prompt change that also changed
+what's measured).
+
+**Result (267 debate files scanned; τ=0.60, same calibration as the baseline):**
+
+| group | debates | debater-sides | hit_rate (mean, sd) | blindside_rate (mean, sd) |
+|---|---|---|---|---|
+| pre  | 195 | 562 | 0.060 (0.174) | 0.975 (0.082) |
+| post | 21  | 56  | 0.071 (0.258) | 0.967 (0.150) |
+
+Welch t-test (post vs pre hit_rate): t=0.32, p=0.75 — **no detectable difference**.
+
+**Reading:** the tagging change (t/3404) has **not measurably improved forecast accuracy**. The
+post-t3404 sample (21 debates / 56 sides) is still underpowered to rule out a real but small effect
+— this is a **negative/inconclusive result, not proof of no effect**. The steelman-grounding work
+(t/3405, seeding challenges from node `steelman_vulnerability`) has not yet been measured this way
+and is the more likely lever, since t/3404 changed *labeling* (which challenges count as ATTACK-type)
+rather than the *content* of what debaters forecast.
+
 ## Remaining
-- **pre/post-t3404 read** (does the prompt work raise foresight?) — BLOCKED: only ~8 post-t3404 debates so far; underpowered.
-- schema/cal-log fields + SO/TL — only when wiring into the optimizer.
+- **Re-run the payoff read once more post-t3404 debates accumulate** (and once t/3405 lands, measure
+  that separately) — no longer *blocked*, just data-starved; re-run `forecast_prepost.py` any time.
+- **2nd-annotator τ re-validation** before this metric gates anything.
+- schema/cal-log fields + SO/TL — only when/if wiring into the optimizer is actually wanted.
 
 ## Reproduce
 ```
-python tau_golden_gen.py    # regenerates the 40-pair worksheet (deterministic, no RNG)
-python tau_calibrate.py     # precision/recall curve from the CL labels
-python forecast_v2.py       # hit/blindside at τ (edit THRS)
+python tau_golden_gen.py     # regenerates the 40-pair worksheet (deterministic, no RNG)
+python tau_calibrate.py      # precision/recall curve from the CL labels
+python forecast_v2.py        # hit/blindside at τ (edit THRS)
+python forecast_prepost.py   # pre/post-t3404 payoff read
 ```
