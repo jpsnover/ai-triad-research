@@ -250,3 +250,10 @@ export const InquiryResultSchema = z
   })
   .passthrough();
 export type InquiryResult = z.infer<typeof InquiryResultSchema>;
+
+/** Runaway-output backstop for `synthesizedHeadline` on the public-share surface (SO item 5, e/222#3).
+ *  Generous enough to never false-positive on a legitimate long sentence; strict enough to catch looped
+ *  or garbage output. Enforced by `toPublicInquiryShare` (omit + WARN if exceeded — Condition B).
+ *  Exported so DebateTool (t/3735) can bound generation against the same definition — one constant,
+ *  no divergence. */
+export const HEADLINE_MAX_CHARS = 400;

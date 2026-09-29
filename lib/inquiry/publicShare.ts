@@ -15,7 +15,7 @@
 // makes the shape ⟷ matrix cross-check exact, which is worth more than a flatter artifact.
 
 import { z } from 'zod';
-import { CampSchema, FidelitySchema, TrustVerdictSchema, type InquiryResult, type NodeRef } from './schema.js';
+import { CampSchema, FidelitySchema, TrustVerdictSchema, HEADLINE_MAX_CHARS, type InquiryResult, type NodeRef } from './schema.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 /** Independent of INQUIRY_SCHEMA_VERSION — the public artifact is its own contract (SO e/201#2). */
@@ -108,9 +108,6 @@ const publicNode = (n: NodeRef): z.infer<typeof PublicNodeRefSchema> => ({ label
  *  list omits it deliberately). */
 const PUBLIC_EXCERPT_MAX_CHARS = 280;
 
-/** Upper bound for synthesizedHeadline (SO item 5, e/222#3). A one-sentence characterization must not
- *  grow into a paragraph without detection. Over-bound → omit + WARN (Condition B: never truncate). */
-const HEADLINE_MAX_CHARS = 400;
 function truncateExcerpt(text: string, max: number = PUBLIC_EXCERPT_MAX_CHARS): string {
   const trimmed = text.trim();
   return trimmed.length > max ? `${trimmed.slice(0, max).trimEnd()}…` : trimmed;
