@@ -144,8 +144,10 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod 
 # apt-get upgrade clears the fixable OS-package CVEs; node held at 22.23.2 per the
 # Dockerfile.base guardrail (t/2047 P1). Residual no-fix CVEs ride .trivyignore + the
 # weekly-rebuild auto-retirement.
+# Bumped to :2026-09-29 (t/3746) — poppler-utils removed from base (eliminates
+# libX11/libXrender transitive-dep CVE class); glibc CVEs cleared by apt-get upgrade.
 # Gate base bumps on staging /healthz, not CI green.
-FROM ghcr.io/jpsnover/ai-triad-base:2026-09-21@sha256:90b6f1934253dbbf15ca78e27294df21d24d050910a70496d682c0c208c06268 AS runtime
+FROM ghcr.io/jpsnover/ai-triad-base:2026-09-29@sha256:4383e4ad1bbcaf01f0985645d12df815f88843926771dd2e05d1c5cf1fdcb9bd AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
