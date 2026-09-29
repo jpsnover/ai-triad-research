@@ -85,8 +85,14 @@ BeforeAll {
         [pscustomobject]@{ Fx=$fx; Tax=$tax; Sum=$sum; Src=$src; Index=$idxPath }
     }
 
-    function script:RunCli($f) {
-        Test-CitationLinkIntegrity -SummariesDir $f.Sum -TaxonomyDir $f.Tax -SourceIndexPath $f.Index -SourcesRoot $f.Src -WarningAction SilentlyContinue
+    function script:RunCli($f, [switch]$SkipSourceResolution) {
+        if ($SkipSourceResolution) {
+            # Deliberately do NOT pass -SourcesRoot — proves the switch removes the need for it
+            # entirely (the t/3745 CI scenario: no ai-triad-sources checkout, so no valid root exists).
+            Test-CitationLinkIntegrity -SummariesDir $f.Sum -TaxonomyDir $f.Tax -SourceIndexPath $f.Index -SkipSourceResolution -WarningAction SilentlyContinue
+        } else {
+            Test-CitationLinkIntegrity -SummariesDir $f.Sum -TaxonomyDir $f.Tax -SourceIndexPath $f.Index -SourcesRoot $f.Src -WarningAction SilentlyContinue
+        }
     }
     function script:Leg($r, $leg) { $r.results | Where-Object { $_.leg -eq $leg } }
 
@@ -178,6 +184,36 @@ Describe 'Test-CitationLinkIntegrity (t/3598)' -Tag 'config' {
         $b.pass | Should -BeTrue
         @($b.offenders).Count | Should -Be 0
         @($b.accepted.source_id) | Should -Contain 'practical-tech-leader-2026'
+    }
+
+    It '-SkipSourceResolution: leg-b reports SKIPPED (pass, no offenders) even with a real dangle present (t/3745)' {
+        $f = script:New-CliFixture @{ DangleSource = $true }; $script:Fixtures.Add($f.Fx)   # src-gone would normally FAIL leg-b
+        $r = script:RunCli $f -SkipSourceResolution
+        $b = script:Leg $r 'b'
+        $b.pass | Should -BeTrue          # NOT evaluated — src-gone's would-be failure never runs
+        $b.skipped | Should -BeTrue
+        @($b.offenders).Count | Should -Be 0
+        @($b.accepted).Count | Should -Be 0
+        $b.checked | Should -Be 0
+        $r.pass | Should -BeTrue           # leg-b skip does not drag down overall pass
+    }
+
+    It '-SkipSourceResolution: legs a+c still run normally (a+c-now CI split, t/3745)' {
+        $f = script:New-CliFixture @{ DeadRefs = $true }; $script:Fixtures.Add($f.Fx)   # leg-a SHOULD still fail
+        $r = script:RunCli $f -SkipSourceResolution
+        $a = script:Leg $r 'a'
+        $a.pass | Should -BeFalse
+        @($a.offenders.ref) | Should -Contain 'saf-dead-999'
+        $c = script:Leg $r 'c'
+        $c.pass | Should -BeTrue           # index rebuilt over this summary set — leg-c unaffected by the skip
+        (script:Leg $r 'b').skipped | Should -BeTrue
+    }
+
+    It '-SkipSourceResolution never touches SourcesRoot — no throw even with no sources dir at all' {
+        $f = script:New-CliFixture; $script:Fixtures.Add($f.Fx)
+        Remove-Item -Recurse -Force $f.Src   # simulate the t/3745 CI scenario: no ai-triad-sources checkout
+        { Test-CitationLinkIntegrity -SummariesDir $f.Sum -TaxonomyDir $f.Tax -SourceIndexPath $f.Index -SkipSourceResolution -WarningAction SilentlyContinue } |
+            Should -Not -Throw
     }
 
     It 'is advisory: never throws on offenders, and reports the blocking toggle state' {

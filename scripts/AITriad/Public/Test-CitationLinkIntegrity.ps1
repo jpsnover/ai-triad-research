@@ -66,13 +66,23 @@ function Test-CitationLinkIntegrity {
         The source_index.json sidecar. Default: <TaxonomyDir>/source_index.json.
     .PARAMETER SourcesRoot
         Root of the sources repo (holds <id>/metadata.json). Default: Get-SourcesRoot else
-        <data_root>/../ai-triad-sources.
+        <data_root>/../ai-triad-sources. Ignored when -SkipSourceResolution is set.
+    .PARAMETER SkipSourceResolution
+        Run legs a+c only; leg-b is reported `skipped` (pass, zero offenders, zero accepted) instead
+        of being evaluated. For CI environments with no ai-triad-sources checkout available (t/3745
+        a+c-now split — leg-b waits on a provisioned sources-read token). Without this switch, running
+        legs a+c with no sources checkout either throws resolving the SourcesRoot default or false-fails
+        leg-b on every source_id — both unacceptable for a warn-only stability window. Also skips the
+        SourcesRoot default-resolution call entirely, so it cannot throw when no sources checkout exists.
     .OUTPUTS
         [pscustomobject] { pass; results = @({leg; pass; offenders[]}) ; blocking }
-        leg 'b' additionally carries `checked` (N distinct source_ids) and `accepted[]` (t/3743
-        accepted-baseline hits — {source_id; reason} — PASS, not counted as offenders).
+        leg 'b' additionally carries `checked` (N distinct source_ids), `accepted[]` (t/3743
+        accepted-baseline hits — {source_id; reason} — PASS, not counted as offenders), and
+        `skipped` ($true when -SkipSourceResolution was used — pass is $true, not a real check).
     .EXAMPLE
         (Test-CitationLinkIntegrity).results | Format-Table leg, pass, @{n='n';e={$_.offenders.Count}}
+    .EXAMPLE
+        Test-CitationLinkIntegrity -SkipSourceResolution   # legs a+c only, no ai-triad-sources checkout needed
     .LINK
         Build-NodeSourceIndex
     #>
@@ -82,7 +92,8 @@ function Test-CitationLinkIntegrity {
         [Parameter()] [string]$SummariesDir,
         [Parameter()] [string]$TaxonomyDir,
         [Parameter()] [string]$SourceIndexPath,
-        [Parameter()] [string]$SourcesRoot
+        [Parameter()] [string]$SourcesRoot,
+        [Parameter()] [switch]$SkipSourceResolution
     )
 
     Set-StrictMode -Version Latest
@@ -91,7 +102,9 @@ function Test-CitationLinkIntegrity {
     if (-not $SummariesDir)    { $SummariesDir = Get-SummariesDir }
     if (-not $TaxonomyDir)     { $TaxonomyDir  = Get-TaxonomyDir }
     if (-not $SourceIndexPath) { $SourceIndexPath = Join-Path $TaxonomyDir 'source_index.json' }
-    if (-not $SourcesRoot) { $SourcesRoot = Get-SourcesDir }
+    # Skip the default-resolve entirely when -SkipSourceResolution — Get-SourcesDir can throw when
+    # no ai-triad-sources checkout exists (t/3745), and it is never used in that mode regardless.
+    if (-not $SourcesRoot -and -not $SkipSourceResolution) { $SourcesRoot = Get-SourcesDir }
 
     # ── Live id sets ────────────────────────────────────────────────────────────
     $beliefLive = [System.Collections.Generic.HashSet[string]]::new()
@@ -160,32 +173,37 @@ function Test-CitationLinkIntegrity {
     $bAllowlist = @{}
     foreach ($a in $script:CitationIntegrityAcceptedBaseline) { $bAllowlist[$a.source_id] = $a.reason }
     $bChecked = 0   # N distinct source_ids checked (statistic-provenance, t/3598 CL ask)
+    $bSkipped = $SkipSourceResolution.IsPresent
     $indexExists = Test-Path -LiteralPath $SourceIndexPath
     $ix = $null
     if ($indexExists) {
+        # $ix is loaded regardless of -SkipSourceResolution — leg (c) needs it for the
+        # staleness/key-count checks even when leg-b's per-source_id resolution is skipped.
         $ix = Get-Content -Raw -LiteralPath $SourceIndexPath | ConvertFrom-Json
-        $seen = [System.Collections.Generic.HashSet[string]]::new()
-        foreach ($nodeProp in $ix.index.PSObject.Properties) {
-            foreach ($e in @($nodeProp.Value)) {
-                if (-not ($e.PSObject.Properties['source_id']) -or -not $e.source_id) { continue }
-                $sid = [string]$e.source_id
-                if (-not $seen.Add($sid)) { continue }   # distinct only
-                # Resolve as-is first (chunk dirs often exist on their own), else strip a chunk
-                # '-N' suffix ONLY when it follows a '-YYYY' year — a naive '-\d+$' would eat the
-                # year off every non-chunked id (t/3598#3 chunk→base convention, year-aware).
-                $okAsIs = Test-Path -LiteralPath (Join-Path (Join-Path $SourcesRoot $sid) 'metadata.json')
-                $base   = $sid -replace '^(.*-\d{4})-\d+$', '$1'
-                $okBase = ($base -ne $sid) -and (Test-Path -LiteralPath (Join-Path (Join-Path $SourcesRoot $base) 'metadata.json'))
-                if (-not ($okAsIs -or $okBase)) {
-                    if ($bAllowlist.ContainsKey($sid)) {
-                        $bAccepted.Add([pscustomobject]@{ source_id = $sid; reason = $bAllowlist[$sid] })
-                    } else {
-                        $bOff.Add([pscustomobject]@{ source_id = $sid; base = $base })
+        if (-not $bSkipped) {
+            $seen = [System.Collections.Generic.HashSet[string]]::new()
+            foreach ($nodeProp in $ix.index.PSObject.Properties) {
+                foreach ($e in @($nodeProp.Value)) {
+                    if (-not ($e.PSObject.Properties['source_id']) -or -not $e.source_id) { continue }
+                    $sid = [string]$e.source_id
+                    if (-not $seen.Add($sid)) { continue }   # distinct only
+                    # Resolve as-is first (chunk dirs often exist on their own), else strip a chunk
+                    # '-N' suffix ONLY when it follows a '-YYYY' year — a naive '-\d+$' would eat the
+                    # year off every non-chunked id (t/3598#3 chunk→base convention, year-aware).
+                    $okAsIs = Test-Path -LiteralPath (Join-Path (Join-Path $SourcesRoot $sid) 'metadata.json')
+                    $base   = $sid -replace '^(.*-\d{4})-\d+$', '$1'
+                    $okBase = ($base -ne $sid) -and (Test-Path -LiteralPath (Join-Path (Join-Path $SourcesRoot $base) 'metadata.json'))
+                    if (-not ($okAsIs -or $okBase)) {
+                        if ($bAllowlist.ContainsKey($sid)) {
+                            $bAccepted.Add([pscustomobject]@{ source_id = $sid; reason = $bAllowlist[$sid] })
+                        } else {
+                            $bOff.Add([pscustomobject]@{ source_id = $sid; base = $base })
+                        }
                     }
                 }
             }
+            $bChecked = $seen.Count
         }
-        $bChecked = $seen.Count
     }
 
     # ── Leg (c): staleness — header hash + key count vs live nodes ──────────────
@@ -209,7 +227,7 @@ function Test-CitationLinkIntegrity {
 
     $results = @(
         [pscustomobject]@{ leg = 'a'; name = 'link-resolution';   pass = ($aOff.Count -eq 0); offenders = @($aOff) }
-        [pscustomobject]@{ leg = 'b'; name = 'source-resolution'; pass = ($bOff.Count -eq 0); offenders = @($bOff); checked = $bChecked; accepted = @($bAccepted) }
+        [pscustomobject]@{ leg = 'b'; name = 'source-resolution'; pass = ($bOff.Count -eq 0); offenders = @($bOff); checked = $bChecked; accepted = @($bAccepted); skipped = $bSkipped }
         [pscustomobject]@{ leg = 'c'; name = 'staleness';         pass = ($cOff.Count -eq 0); offenders = @($cOff) }
     )
     $overall = @($results | Where-Object { -not $_.pass }).Count -eq 0
@@ -218,9 +236,15 @@ function Test-CitationLinkIntegrity {
     # dangle ids, pass or fail — so the advisory run records "checked N, D dangles: <ids>". Now
     # also logs the accepted-baseline count (t/3743) so a green leg-b that is silently absorbing
     # 3 known orphans is never confused with a leg-b that found zero dangles at all.
-    $bDangles = @($bOff | ForEach-Object { $_.source_id }) -join ', '
-    $bAcceptedIds = @($bAccepted | ForEach-Object { $_.source_id }) -join ', '
-    Write-Host "Citation-integrity leg (b): $bChecked distinct source_id(s) checked; $($bOff.Count) dangle(s)$(if ($bOff.Count) { ": $bDangles" }); $($bAccepted.Count) accepted-baseline$(if ($bAccepted.Count) { ": $bAcceptedIds" })"
+    if ($bSkipped) {
+        # Fallback-path logging (root AGENTS.md): a plain "0 checked; 0 dangles" line would read
+        # identically to a genuine clean pass — this must say explicitly that leg-b was NOT run.
+        Write-Host "Citation-integrity leg (b): SKIPPED (-SkipSourceResolution — no ai-triad-sources checkout available, t/3745); not evaluated, does not count toward pass/fail"
+    } else {
+        $bDangles = @($bOff | ForEach-Object { $_.source_id }) -join ', '
+        $bAcceptedIds = @($bAccepted | ForEach-Object { $_.source_id }) -join ', '
+        Write-Host "Citation-integrity leg (b): $bChecked distinct source_id(s) checked; $($bOff.Count) dangle(s)$(if ($bOff.Count) { ": $bDangles" }); $($bAccepted.Count) accepted-baseline$(if ($bAccepted.Count) { ": $bAcceptedIds" })"
+    }
 
     foreach ($r in $results) {
         if (-not $r.pass) {
