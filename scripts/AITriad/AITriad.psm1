@@ -893,6 +893,8 @@ Export-ModuleMember -Function @(
     'Get-FlightRecorderReport'
     # t/3726 — structured error/retry summary from a flight recorder JSONL dump
     'Read-FlightRecorderDump'
+    # t/3768 — structured debate-issue analysis from a flight recorder JSONL dump
+    'Invoke-DebateDiagnosis'
     'Get-AITClaim'
     'Compare-EmbeddingModel'
     'Test-RerankerBaseline'
