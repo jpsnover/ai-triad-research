@@ -35,6 +35,7 @@ export const PROMPT_CATALOG_EXCLUDED: PromptExclusion[] = [
   // ── CL INTERNAL: repair / classifier / gate helpers — not user-inspected turn prompts.
   { name: 'dolceComplianceRetryPrompt', reason: 'DOLCE-compliance repair micro-prompt (CL t/2835#1).' },
   { name: 'entailmentRepairPrompt', reason: 'Entailment repair micro-prompt (CL t/2835#1).' },
+  { name: 'readabilityEditPassPrompt', reason: 'Post-draft readability repair micro-prompt (t/3729 Part B) — same class as dolceComplianceRetryPrompt/entailmentRepairPrompt. INTERNAL-vs-EXPOSE pending CL confirmation (t/2835#1); landed provisionally to unblock main (p/336#498).' },
   { name: 'classifyCounterfactualTypePrompt', reason: 'Classifier helper, not a user-facing turn prompt (CL t/2835#1).' },
   { name: 'coverageCheckPrompt', reason: 'Coverage gate helper, not a user-facing turn prompt (CL t/2835#1).' },
   { name: 'elementDecompositionPrompt', reason: 'Statement→information-elements helper (CL t/2835#1).' },
