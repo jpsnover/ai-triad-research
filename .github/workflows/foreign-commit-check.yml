@@ -39,7 +39,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
         with:
           # Full history is required: merge-base against origin/main must resolve, and a shallow
           # checkout (the default fetch-depth: 1) is exactly the condition that makes the range
