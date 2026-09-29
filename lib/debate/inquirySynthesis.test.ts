@@ -294,6 +294,57 @@ describe('synthesizeInquiry — node resolution', () => {
   });
 });
 
+// ── synthesizedHeadline — t/3735 bound-check ────────────────────────────────
+
+describe('synthesizeInquiry — synthesizedHeadline (t/3735)', () => {
+  it('includes synthesizedHeadline when within the 400-char bound', async () => {
+    const headline = 'Acc and Saf diverge on timeline; Skp questions both.';
+    const result = await synthesizeInquiry(
+      makeSession(), makeGrounding(), makeCalibration(),
+      makeDerivation(), makeRequest(),
+      makeAdapter({ ...validLlmResponse(), synthesizedHeadline: headline }),
+    );
+    expect(result.synthesizedHeadline).toBe(headline);
+  });
+
+  it('includes synthesizedHeadline at exactly 400 chars', async () => {
+    const headline = 'x'.repeat(400);
+    const result = await synthesizeInquiry(
+      makeSession(), makeGrounding(), makeCalibration(),
+      makeDerivation(), makeRequest(),
+      makeAdapter({ ...validLlmResponse(), synthesizedHeadline: headline }),
+    );
+    expect(result.synthesizedHeadline).toBe(headline);
+  });
+
+  it('omits synthesizedHeadline when over the 400-char bound', async () => {
+    const headline = 'x'.repeat(401);
+    const result = await synthesizeInquiry(
+      makeSession(), makeGrounding(), makeCalibration(),
+      makeDerivation(), makeRequest(),
+      makeAdapter({ ...validLlmResponse(), synthesizedHeadline: headline }),
+    );
+    expect(result.synthesizedHeadline).toBeUndefined();
+  });
+
+  it('omits synthesizedHeadline when LLM omits the field', async () => {
+    const result = await synthesizeInquiry(
+      makeSession(), makeGrounding(), makeCalibration(),
+      makeDerivation(), makeRequest(), makeAdapter(validLlmResponse()),
+    );
+    expect(result.synthesizedHeadline).toBeUndefined();
+  });
+
+  it('omits synthesizedHeadline when LLM returns null (not a string)', async () => {
+    const result = await synthesizeInquiry(
+      makeSession(), makeGrounding(), makeCalibration(),
+      makeDerivation(), makeRequest(),
+      makeAdapter({ ...validLlmResponse(), synthesizedHeadline: null }),
+    );
+    expect(result.synthesizedHeadline).toBeUndefined();
+  });
+});
+
 // ── Prompt includes question and grounding context ───────────────────────────
 
 describe('synthesizeInquiry — prompt construction', () => {

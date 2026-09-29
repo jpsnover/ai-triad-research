@@ -21,7 +21,7 @@ import type {
   CampVerdict,
   Convergence,
 } from '../inquiry/schema.js';
-import { INQUIRY_SCHEMA_VERSION } from '../inquiry/schema.js';
+import { INQUIRY_SCHEMA_VERSION, HEADLINE_MAX_CHARS } from '../inquiry/schema.js';
 import { parseInquiryResult } from '../inquiry/parse.js';
 import { ActionableError } from './errors.js';
 import { parseAIJson } from './helpers.js';
@@ -67,6 +67,7 @@ interface LlmSynthesisOutput {
   evidenceLayers: LlmEvidenceLayer[];
   unresolvedGaps: LlmUnresolvedGap[];
   singleRunCaveat?: string;
+  synthesizedHeadline?: string;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -107,6 +108,21 @@ function resolveNodeRefs(nodeIds: string[], nodeRefMap: Map<string, NodeRef>): N
     resolved.push(ref);
   }
   return resolved;
+}
+
+/**
+ * Return a partial object carrying synthesizedHeadline, or {} if the value is
+ * absent or over the bound (t/3735: omit-never-truncate rule).
+ */
+function buildHeadlineField(
+  headline: string | undefined,
+): { synthesizedHeadline?: string } {
+  if (typeof headline !== 'string') return {};
+  if (headline.length <= HEADLINE_MAX_CHARS) return { synthesizedHeadline: headline };
+  warn(
+    `synthesizeInquiry: synthesizedHeadline over bound (${headline.length} > ${HEADLINE_MAX_CHARS}) — omitted`,
+  );
+  return {};
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -195,6 +211,7 @@ export async function synthesizeInquiry(
     evidenceLayers: parsed.evidenceLayers ?? [],
     unresolvedGaps: parsed.unresolvedGaps ?? [],
     singleRunCaveat: parsed.singleRunCaveat || SINGLE_RUN_CAVEAT,
+    ...buildHeadlineField(parsed.synthesizedHeadline),
     calibration,
     derivation,
     grounding,

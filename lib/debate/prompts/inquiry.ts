@@ -25,7 +25,8 @@ export const SINGLE_RUN_CAVEAT =
  *   "convergences": [{"claim": "...", "nodeIds": ["acc-beliefs-001", "saf-beliefs-002"]}],
  *   "evidenceLayers": [{"title": "...", "role": "...", "solves": "...", "sources": [...]}],
  *   "unresolvedGaps": [{"description": "...", "confidence": "..."}],
- *   "singleRunCaveat": "..."
+ *   "singleRunCaveat": "...",
+ *   "synthesizedHeadline": "..."
  * }
  * ```
  *
@@ -77,6 +78,8 @@ REQUIRED FIELDS:
 
 5. singleRunCaveat — one sentence acknowledging this is a single-run result, not a replicated finding.
    Use approximately this phrasing: "${SINGLE_RUN_CAVEAT.slice(0, 120)}..."
+
+6. synthesizedHeadline — ONE sentence characterising the shape of the disagreement: which camps diverge and on what axis, plus any notable convergence. Describe the split, not the verdict. Must be ≤400 characters. Omit this field entirely if you cannot write it within the limit without truncating the meaning.
 
 Return ONLY the JSON object. No preamble, no commentary, no markdown fences.`;
 }
