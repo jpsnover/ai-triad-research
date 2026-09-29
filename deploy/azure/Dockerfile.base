@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # AI Triad Base Image — heavy system dependencies, rebuilt monthly.
-# Last rebuild forced: 2026-09-01 (t/3135 CVE sweep — image-size, perl, libtiff6 triage; .trivyignore added)
+# Last rebuild forced: 2026-09-29 (t/3746 — remove poppler-utils; eliminates libX11/libXrender CVE class permanently)
 #
 # Contains: Node 22, system packages, a build-time-baked flat ONNX embedding
 # model (all-MiniLM-L6-v2, read in-process via onnxruntime-node), and the
@@ -101,7 +101,6 @@ RUN apt-get update \
     python3 \
     python3-pip \
     python3-venv \
-    poppler-utils \
     curl \
     libicu76 \
     tini \
