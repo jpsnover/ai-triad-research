@@ -97,6 +97,7 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
       taxonomyContext: fullContext,
       priorStatements: priorBlock,
       isFirst: priorStatements.length === 0,
+      priorSpeakerLabels: priorStatements.length > 0 ? priorStatements.map(ps => ps.speaker) : undefined,
       sourceContent: engine.session.document_analysis ? undefined : engine.config.sourceContent,
       documentAnalysis: engine.session.document_analysis,
       audience: engine.config.audience,

@@ -28,6 +28,8 @@ export interface OpeningStagePromptInput {
   taxonomyContext: string;
   priorStatements: string;
   isFirst: boolean;
+  /** Labels of speakers who have already given their opening, in order. Used to generate a dynamic prior_steelmans example. */
+  priorSpeakerLabels?: string[];
   sourceContent?: string;
   documentAnalysis?: DocumentAnalysis;
   audience?: DebateAudience;
@@ -230,8 +232,7 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": [], "relationship": ""}
   ]${input.isFirst ? '' : `,
   "prior_steelmans": [
-    {"speaker": "accelerationist", "steelman_claim": "one-sentence strongest version of their position in their own terms"},
-    {"speaker": "safetyist", "steelman_claim": "one-sentence strongest version of their position in their own terms"}
+    ${(input.priorSpeakerLabels ?? ['<prior speaker>']).map(s => `{"speaker": "${s}", "steelman_claim": "one-sentence strongest version of ${s}'s position in their own terms"}`).join(',\n    ')}
   ]`}
 }${input.isFirst ? '' : `
 
