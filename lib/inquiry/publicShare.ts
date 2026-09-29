@@ -16,6 +16,7 @@
 
 import { z } from 'zod';
 import { CampSchema, FidelitySchema, TrustVerdictSchema, HEADLINE_MAX_CHARS, type InquiryResult, type NodeRef } from './schema.js';
+import { TRUNCATION_REASONS } from './jobStatus.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 /** Independent of INQUIRY_SCHEMA_VERSION — the public artifact is its own contract (SO e/201#2). */
@@ -153,13 +154,14 @@ function sanitizeSources(sources: string[]): string[] {
 const publicNode = (n: NodeRef): z.infer<typeof PublicNodeRefSchema> => ({ label: n.label, camp: n.camp }); // omits nodeId by not reading it
 
 /** Condition A predicate: a run is degraded if any calibration entry carries a `censored` trust verdict
- *  OR terminated on `api_ceiling` (the motivating case — `verdict:'trust'` + `terminationReason:'api_ceiling'`
- *  is a valid state, tested in jobStatus.test.ts, that represents an incomplete truncated run). The two arms
- *  are independent: `censored` is an explicit trust failure; `api_ceiling` is call-budget truncation with a
- *  passing trust verdict. `synthesizedHeadline` must not publish for either (t/3667, TL p/342#477). */
+ *  OR terminated on any reason in `TRUNCATION_REASONS` (max_iterations / situation_cap / api_ceiling —
+ *  "cut short by a binding budget/ceiling", per jobStatus.ts). These two arms are independent: `censored`
+ *  is an explicit trust failure; a truncation reason marks an incomplete run that happened to pass the trust
+ *  gate. `synthesizedHeadline` must not appear in the anonymous public projection for either (t/3667). */
 function isRunDegraded(result: InquiryResult): boolean {
   return result.calibration.some(
-    (c) => c.trust.verdict === 'censored' || c.trust.terminationReason === 'api_ceiling',
+    (c) => c.trust.verdict === 'censored' ||
+           (c.trust.terminationReason !== undefined && TRUNCATION_REASONS.has(c.trust.terminationReason)),
   );
 }
 
@@ -216,7 +218,7 @@ export function toPublicInquiryShare(result: InquiryResult): PublicInquiryShare 
       if (result.synthesizedHeadline === undefined) return {};
       if (isRunDegraded(result)) {
         getGlobalRecorder()?.record({ type: 'system.error', component: 'inquiry.publicShare', level: 'warn',
-          message: `toPublicInquiryShare: synthesizedHeadline suppressed — degraded run (Condition A: censored verdict or api_ceiling truncation)` });
+          message: `toPublicInquiryShare: synthesizedHeadline suppressed — degraded run (Condition A: censored verdict or truncation reason in TRUNCATION_REASONS)` });
         return {};
       }
       if (result.synthesizedHeadline.length > HEADLINE_MAX_CHARS) {
