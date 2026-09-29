@@ -14,6 +14,7 @@ import { AI_POVERS } from '@lib/debate/types';
 import type { DebateSession } from '../../types/debate';
 import { DEBATE_PROTOCOLS } from '../../data/debateProtocols';
 import { api } from '@bridge';
+import { subscribeToSituationDebateStart } from './waitForSituationDebateStart';
 
 type DebatePacing = 'tight' | 'moderate' | 'thorough';
 
@@ -83,46 +84,19 @@ export function SituationDebatePanel({ node }: SituationDebatePanelProps) {
 
   const canStart = selected.size >= 2;
 
-  const handleLaunch = async () => {
+  const handleLaunch = () => {
     if (!canStart || launching) return;
     setLaunching(true);
     setLaunchError(null);
-    try {
-      const povers = Array.from(selected);
-      if (userIsPover && !povers.includes('user')) povers.push('user');
-      const effectiveModel = useCustomModel ? customModel : undefined;
 
-      // Use createSituationDebate for the enrichment, but we need to pass config.
-      // Since createSituationDebate doesn't accept config, call createDebate directly
-      // with the situation context built the same way.
-      const id = await createSituationDebate(node.id);
+    const povers = Array.from(selected);
+    if (userIsPover && !povers.includes('user')) povers.push('user');
+    const effectiveModel = useCustomModel ? customModel : undefined;
 
-      // Update the session with custom config if non-default
-      const store = useDebateStore.getState();
-      const session = store.activeDebate;
-      if (session) {
-        applySituationDebateConfig(session, { effectiveModel, pacing, useAdaptiveStaging, temperature, audience, protocolId });
-        await store.saveDebate('SituationDebatePanel:applyConfig');
-      }
-
-      try {
-        await store.runClarification();
-      } catch (clarErr) {
-        // Don't abort the launch over a failed clarification pass — the debate
-        // was created and is still worth opening (t/3749).
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          component: 'situation-debate',
-          level: 'warn',
-          debate_id: id,
-          message: 'runClarification failed during situation debate launch',
-          error: { name: (clarErr as Error).name ?? 'Error', message: String(clarErr), stack: (clarErr as Error).stack },
-        });
-      }
-
-      // t/3749: setActiveTab alone only lands on the Debate tab's summary card
-      // (a manual "Open in Window" button) — open the popout directly, mirroring
-      // NewDebateDialog's working path, so Start actually takes the user somewhere.
+    // t/3749: setActiveTab alone only lands on the Debate tab's summary card
+    // (a manual "Open in Window" button) — open the popout directly, mirroring
+    // NewDebateDialog's working path, so Start actually takes the user somewhere.
+    const openAndNavigate = async (id: string) => {
       try {
         const result = await api.openDebateWindow(id);
         if (result && 'atCap' in result && result.atCap) {
@@ -139,14 +113,42 @@ export function SituationDebatePanel({ node }: SituationDebatePanelProps) {
         });
         setLaunchError('Debate created but the window failed to open — find it in the Debates list.');
       }
-
       setActiveTab('debate');
-    } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'situation-debate', level: 'error', message: 'debate launch failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      setLaunchError(err instanceof Error ? err.message : 'Failed to start debate. Please try again.');
-    } finally {
       setLaunching(false);
-    }
+    };
+
+    // t/3752: navigate as soon as the debate record exists (fires inside
+    // createSituationDebate's createDebate() call) instead of blocking on the
+    // full watch-only opening round (enterClarificationOrBegin, t/3629 — don't touch).
+    const unsubscribe = subscribeToSituationDebateStart(node.id, (id) => {
+      unsubscribe();
+      void openAndNavigate(id);
+    });
+
+    // Use createSituationDebate for the enrichment, but we need to pass config.
+    // Since createSituationDebate doesn't accept config, call createDebate directly
+    // with the situation context built the same way.
+    createSituationDebate(node.id)
+      .then(async () => {
+        // Update the session with custom config if non-default. Kept off the
+        // navigation path per t/3752 — this still runs against the same
+        // in-progress promise, just no longer gates when the user sees the debate.
+        const store = useDebateStore.getState();
+        const session = store.activeDebate;
+        if (session) {
+          applySituationDebateConfig(session, { effectiveModel, pacing, useAdaptiveStaging, temperature, audience, protocolId });
+          await store.saveDebate('SituationDebatePanel:applyConfig');
+        }
+        setLaunching(false);
+      })
+      .catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'situation-debate', level: 'error', message: 'debate launch failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        setLaunchError(err instanceof Error ? err.message : 'Failed to start debate. Please try again.');
+        setLaunching(false);
+      })
+      .finally(() => {
+        unsubscribe();
+      });
   };
 
   // Past debates linked to this situation
