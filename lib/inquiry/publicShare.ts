@@ -65,6 +65,56 @@ export const PublicInquiryShareSchema = z.object({
 }).strict();
 export type PublicInquiryShare = z.infer<typeof PublicInquiryShareSchema>;
 
+// Read-side variants — tolerant (passthrough) at every nested level to survive additive-field
+// evolution across the ACA deploy-overlap window (t/3730). Strict on write, tolerant on read.
+// Zod strictness is shallow, so every nested object must be replaced — not just the top level.
+const PublicNodeRefReadSchema = z.object({ label: z.string(), camp: CampSchema }).passthrough();
+const PublicTrustStateReadSchema = z.object({
+  verdict: TrustVerdictSchema,
+  reason: z.string(),
+  terminationReason: z.string().optional(),
+  metricFamily: z.string().optional(),
+}).passthrough();
+const PublicCampVerdictReadSchema = z.object({ camp: CampSchema, verdict: z.string(), nodes: z.array(PublicNodeRefReadSchema) }).passthrough();
+const PublicConvergenceReadSchema = z.object({ claim: z.string(), nodes: z.array(PublicNodeRefReadSchema) }).passthrough();
+const PublicEvidenceLayerReadSchema = z.object({ title: z.string(), role: z.string(), solves: z.string(), sources: z.array(z.string()) }).passthrough();
+const PublicUnresolvedGapReadSchema = z.object({ description: z.string(), confidence: z.string() }).passthrough();
+const PublicCalibrationEntryReadSchema = z.object({
+  metric: z.string(),
+  value: z.number(),
+  displayValue: z.string().optional(),
+  trust: PublicTrustStateReadSchema,
+}).passthrough();
+const PublicDerivationReadSchema = z.object({
+  fidelity: FidelitySchema,
+  models: z.record(z.string(), z.string()),
+  rounds: z.number().int(),
+}).passthrough();
+const PublicRequestReadSchema = z.object({ question: z.string(), fidelity: FidelitySchema }).passthrough();
+const PublicGroundingReadSchema = z.object({
+  anchorSummary: z.string().optional(),
+  nodesByCamp: z.partialRecord(CampSchema, z.array(PublicNodeRefReadSchema)),
+}).passthrough();
+
+/** Tolerant read-side counterpart to {@link PublicInquiryShareSchema} — passthrough at every nested
+ *  level. Use this when deserializing blobs loaded from storage. A blob written by a NEWER build
+ *  (carrying fields unknown to this build) will still parse successfully during the ACA deploy-overlap
+ *  window; a blob written by an OLDER build (missing a field this build added as `.optional()`) is
+ *  equally accepted. Use `safeParse` and WARN+null on failure (t/3730). */
+export const PublicInquiryShareReadSchema = z.object({
+  version: z.literal(PUBLIC_INQUIRY_SHARE_VERSION),
+  request: PublicRequestReadSchema,
+  campVerdicts: z.array(PublicCampVerdictReadSchema),
+  convergences: z.array(PublicConvergenceReadSchema),
+  evidenceLayers: z.array(PublicEvidenceLayerReadSchema),
+  unresolvedGaps: z.array(PublicUnresolvedGapReadSchema),
+  calibration: z.array(PublicCalibrationEntryReadSchema),
+  derivation: PublicDerivationReadSchema,
+  grounding: PublicGroundingReadSchema,
+  singleRunCaveat: z.string(),
+}).passthrough();
+export type PublicInquiryShareRead = z.infer<typeof PublicInquiryShareReadSchema>;
+
 /** Public-safe source predicate (Server Auth t/3648#2): `evidenceLayers.sources` is an unconstrained
  *  string[] that could carry a filesystem path or internal ref. Keep public URLs, DOIs, and plain
  *  citation titles; DROP anything that looks like a local/UNC path or a non-http scheme. */
