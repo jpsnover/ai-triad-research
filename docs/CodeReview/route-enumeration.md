@@ -78,7 +78,15 @@ Three defects, each found by **running** it, none by reading it:
 
 That matters more than 23% suggests, because **a merge commit is the characteristic artifact of reconciling a diverged tree**, which is exactly what this check exists to detect. **The blind spot is not independent of the target; it sits on the target's signature.** A uniformly-distributed gap degrades coverage proportionally; a correlated one degrades it more than the number implies.
 
-So the honest statement is *blind to merge commits, which are the divergence artifact* — **not** the more comfortable *"catches the ticketed case."* Both are true; only the first is informative, and choosing the comfortable true statement is its own version of a gate overclaiming.
+So the honest statement is *blind to merge commits, which are the divergence artifact* — **not** the more comfortable *"catches the ticketed case."*
+
+**Both are true. Choosing the comfortable one is overclaiming by selection**, and it is a distinct form from every other instance above — those were claims that were simply *false*. This one lies about nothing, which is why the usual detector misses it:
+
+> The test is not *"is this true?"* but **"is there a truer statement I am not making?"**
+
+It recurs at every level. The residual above was first written as *"catches the ticketed case"*; when that was corrected, the implementation brief restated it as *"blind to a ref-less non-merge foreign commit (**rare**)"* — accurate, and "rare" was unmeasured. It is **~15%** of recent `main` commits, about one in seven, across ordinary classes: `docs(lessons)`, dependency bumps, UI fixes. Twice in one hour, in successive artifacts, by two authors, each correcting the previous overclaim while introducing the next.
+
+**Sizes beat adjectives.** "Rare," "narrow," "edge case" are all selections; a measured rate with its date is not.
 
 **Generalizable:** when you size a residual, ask whether it is **correlated with the thing being detected**. An uncorrelated blind spot is a coverage percentage. A correlated one is a hole shaped like the problem.
 
