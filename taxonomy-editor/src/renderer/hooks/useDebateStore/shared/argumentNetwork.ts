@@ -1255,7 +1255,14 @@ export async function extractClaimsAndUpdateAN(
     checkAnInvariants(`post-save(extract,${entryId.slice(-6)})`, get, expectedMinAnCount);
 
     console.log(`[AN] Extracted ${newNodes.length} claims, ${newEdges.length} edges from ${speakerLabel}'s turn`);
-    getGlobalRecorder()?.record({ type: 'an.commit', component: 'argument-network-extraction', level: 'info', debate_id: debate.id, turn_id: entryId, speaker, message: `Committed ${newNodes.length} nodes, ${newEdges.length} edges`, data: { new_nodes: newNodes.length, new_edges: newEdges.length, node_ids: commitResult.assignedNodeIds, an_nodes_after: commitResult.idBase + newNodes.length, rejected: diagRejected.length, rejection_reasons: claimsResult.rejectionReasons } });
+    getGlobalRecorder()?.record({ type: 'an.commit', component: 'argument-network-extraction', level: 'info', debate_id: debate.id, turn_id: entryId, speaker, message: `Committed ${newNodes.length} nodes, ${newEdges.length} edges`, data: {
+      new_nodes: newNodes.length, new_edges: newEdges.length, node_ids: commitResult.assignedNodeIds, an_nodes_after: commitResult.idBase + newNodes.length, rejected: diagRejected.length, rejection_reasons: claimsResult.rejectionReasons,
+      // t/3763: per-node summary so a dump answers "what did node AN-30 claim, and who was
+      // it steelmanning?" in one event read instead of cross-referencing the turn embedding
+      // event for the source text. assignedNodeIds is index-parallel to newNodes (both are
+      // the batch committed by this turn, in extraction order).
+      nodes: newNodes.map((n, i) => ({ id: commitResult.assignedNodeIds[i], claim_preview: n.text.slice(0, 80), steelman_of: n.steelman_of ?? null, pov: speaker })),
+    } });
     trace(TraceEventName.AN_EXTRACT_COMPLETE, {
       debate_id: debate.id,
       turn_id: entryId,

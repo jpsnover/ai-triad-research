@@ -1147,6 +1147,21 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
             injection_manifest: ctx.injectionManifest,
           },
         });
+        // t/3762: the sessionSlice.addTranscriptEntry `debate.opening_added` event fires at
+        // slot-creation (upsertTranscriptEntry, t/2907) — before the pipeline runs, so it can
+        // never carry prior_steelmans data. Emit the enriched event here instead, where the
+        // draft is actually known, so a dump answers "did steelmans fire?" in one event read
+        // rather than a 2881-line grep for the field name.
+        getGlobalRecorder()?.record({
+          type: 'debate.opening_added', component: 'debate-store', level: 'info',
+          debate_id: activeDebate.id,
+          message: `Opening delivered for ${info.label}`,
+          data: {
+            speaker: poverId, entryId: slotId,
+            prior_steelmans_count: pipelineResult.draft.prior_steelmans?.length ?? 0,
+            is_first_speaker: priorStatements.length === 0,
+          },
+        });
         // Key diagnostics/summary/claim-extraction off the SLOT id, not slice(-1):
         // the slot is not necessarily the last entry under slot-first (t/2907).
         const lastEntry = get().activeDebate?.transcript.find(e => e.id === slotId);
