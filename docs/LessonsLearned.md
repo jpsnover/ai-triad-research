@@ -3296,23 +3296,26 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## #161 [Build] `git ls-files --others` Recurses Into Linked `.worktrees/` Directories — Unbounded Enumeration Times Out in a Busy Repo
+## #161 [Build] Unscoped Repo Traversal Times Out — `.worktrees/`, `.cache/`, `.fol-eval-*` Each Add Thousands of Files
 
-**Pattern:** `git ls-files --others --exclude-standard` without a pathspec recurses into every linked worktree directory under `.worktrees/<name>/` — enumerating thousands of files across all active worktrees. Unlike `git status`, `ls-files --others` does not skip linked worktree paths. In a repo with many linked worktrees, this times out the 2-minute Bash cap.
+**Pattern:** Any recursive traversal tool run unscoped from the repo root pays the full cost of `.worktrees/<n>/` (full checkout per worktree, ~4,400 files each), `.cache/`, and `.fol-eval-*` directories. Tools that don't respect `.gitignore` (bash `grep -r`, `find`, `git ls-files --others`) are worst; tools with a `**/` glob also degrade. A pipe-based output filter (`grep -v .worktrees`) prevents unwanted lines in results but does NOT prevent traversal — the walk still visits every file.
 
 **Instances:**
 - 2026-08-11 — Rosetta Stone (p/6#52): `git ls-files --others --exclude-standard` piped into a per-file diff loop timed out at 2 min. Root cause: recursed into populated `.worktrees/` dirs. Fix: scope with pathspec (`-- docs research`) or exclude pattern (`:(exclude).worktrees`).
+- 2026-09-29 — Technical Lead (p/335#78): `grep -rln <pattern> .` from repo root timed out at 120 s (exit 143); follow-up `Glob **/Test-RequiredContexts*` timed out at 20 s. `grep -v '.worktrees'` on the output did not prevent traversal. Fix: **Grep tool** (ripgrep, respects ignores) returned in under 1 s; **Glob scoped to `operations/devops`** also returned instantly.
 
-**Root Cause:** `git ls-files --others` doesn't have `git status`'s worktree-awareness. Linked worktrees under `.worktrees/` appear as ordinary subdirectories to an unbounded `ls-files` traversal, and each worktree contains a full checkout of the repo (~3k files).
+**Root Cause:** The repo root contains `.worktrees/`, `.cache/`, and several `.fol-eval-*` dirs that a naive recursive walk visits in full. `git ls-files --others` lacks worktree-awareness; bash `grep -r` and `find` don't respect `.gitignore`. Pipe-output filters (e.g. `grep -v .worktrees`) eliminate matching output lines but cannot skip the traversal — the filesystem walk is already complete by the time filtering runs.
 
 **Prevention:**
-1. **Never run `git ls-files --others` unbounded** in a repo with many active linked worktrees — always scope with a pathspec: `git ls-files --others -- <scope>`.
-2. Alternatively, exclude the worktree dir: `git ls-files --others ':(exclude).worktrees'`.
-3. If the goal is checking untracked files in your scope only, `git status -- <scope>` is safer (worktree-aware).
+1. **Use the Grep tool (ripgrep) instead of bash `grep -r`** — respects `.gitignore`, skips ignored dirs, returns in under 1 s even from the repo root.
+2. **Scope Glob searches** — `operations/devops/**/*.ts` instead of `**/*.ts`; the `**/` form from root traverses everything.
+3. **Never use bash `grep -r` or `find` unscoped** from the repo root on this codebase.
+4. **A pipe filter does not prevent traversal** — `grep -r . | grep -v .worktrees` still walks `.worktrees/`; only a traversal-time exclude (ripgrep's `--ignore`, a scoped pathspec, or `:(exclude)`) avoids the cost.
+5. For `git ls-files --others`, scope with a pathspec or exclude: `git ls-files --others -- <scope>` / `git ls-files --others ':(exclude).worktrees'`.
 
-**Status:** Active — 1 instance (Rosetta Stone p/6#52).
+**Status:** Active — 2 instances / 2 agents. Pattern broadened (2026-09-29) from `git ls-files` only to any unscoped traversal.
 
-**Applies To:** All agents running untracked-file checks in the main repo.
+**Applies To:** All agents running search, file-discovery, or untracked-file checks from the repo root.
 
 ---
 
@@ -3556,3 +3559,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (Second Opinion p/691#1). General principle; expected to recur across any agent consuming prose references.
 
 **Applies To:** Any agent reading a file path from a ticket, email, ping, or any prose source before accessing it.
+
+---
+
+## #174 [Process] "Branch Off Current Main" Is Ambiguous — Local Main Can Be Ahead of origin/main; Always Use `origin/main` as the Worktree Base
+
+**Pattern:** An instruction to "branch off current main" or "branch off main" is ambiguous between the shared local `main` ref and `origin/main`. In `direct` mode, other agents' commits may accumulate on the shared local `main` without being pushed (unreported divergence). A worktree branched off that stale local ref inherits those foreign commits — causing rebase conflicts and polluting the worktree's diff with unrelated work.
+
+**Instances:**
+- 2026-09-29 — Rosetta Stone (p/6#63): TL instruction said branch off "current main" without specifying local vs. origin. Shared local `main` was 3 commits ahead of `origin/main` from an unreported divergence. Worktree inherited those 3 unrelated commits; `git rebase origin/main` conflicted on a file both branches touched. Resolved by aborting the rebase — moot, since a manual merge (#2521) had already squash-landed the duplicate content; closed the redundant PR (#2522).
+
+**Root Cause:** `git worktree add -b <branch> <path> main` uses the local `main` ref, not `origin/main`. In `direct` mode, shared local `main` can diverge from `origin/main` when agents commit without pushing immediately. The divergence may be unreported. Instructors saying "current main" naturally mean the canonical remote, but the command defaults to local state.
+
+**Prevention:**
+1. **Always `git worktree add -b <branch> <path> origin/main`** — never bare `main` as the commit-ish. `origin/main` is always the canonical base; local `main` may silently lead it.
+2. **Before creating a worktree, confirm the shared local `main` is clean:** `git log --oneline origin/main..main` should be empty. If it shows commits, those are unpushed and will pollute your worktree base.
+3. When giving or receiving instructions, "branch off main" means `origin/main` — make this explicit in the command, not just the prose.
+
+**Status:** Active — 1 instance (Rosetta Stone p/6#63, 2026-09-29). Deterministic when local main diverges from origin; expected to recur in direct mode at fleet scale.
+
+**Applies To:** All agents creating worktrees in `direct` mode where the shared checkout may have unpushed commits.
