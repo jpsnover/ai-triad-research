@@ -22,7 +22,7 @@ ${violations}
 
 RULES:
 - Reading level: target Flesch-Kincaid grade ~${target} (ceiling ${ceiling}).
-- VOCABULARY IS THE MAIN FIX: replace polysyllabic/abstract/jargon words with plain equivalents; de-nominalize ("regulators decided", not "the regulatory decision"); a technical term only when load-bearing, defined in the same sentence on first use.
+- VOCABULARY IS THE MAIN FIX: replace polysyllabic/abstract/jargon words with plain equivalents; de-nominalize ("regulators decided", not "the regulatory decision"); a technical term only when load-bearing, defined in the same sentence on first use.${audience === 'policymakers' ? ' POLICYMAKERS ESPECIALLY: every verb-derived noun ("implementation", "enforcement", "facilitation", "feasibility", "utilization") is a suspect — try the verb form or a shorter noun. Prefer two-syllable words over four-syllable ones.' : ''}
 - Sentences: no sentence over 30 words; one idea per sentence; split multi-claim sentences.
 - Paragraphs: no wall of text; one point per paragraph.
 

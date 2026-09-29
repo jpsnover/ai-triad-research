@@ -8,3 +8,5 @@
 #
 # Example:
 #   feat/spike-throwaway  # abandoned prototype, kept for reference until 2026-Q4 — jsnover
+
+feat/t3687-baseref-guard-cont  # t/3687 --base-ref-stale guard continuation (unique unlanded work in merge-guard-predicate.mjs, 3 commits); deliberately parked pending t/3695 — wiring it into a merge-guard that has no execution layer would add a third inert mode. Lands once t/3695's block-rule execution regression is fixed (Orca Support platform escalation). — DevOps 2026-09-29

@@ -1,0 +1,3040 @@
+{
+  "_doc": "t/3350 demotion-set manifest (t/3633). The genuine-conflict gate in consolidate_conflicts.py keys against this so a regen never re-emits these 432 standalone facts as conflicts. A candidate matching a claim_id OR an assertion_sig here is emitted demoted, not as a conflict. Built by build_demotion_manifest.py from the live conflicts.json markers.",
+  "provenance": {
+    "data_of_record": "0f38b2e7",
+    "ticket": "t/3350",
+    "classification": "t/3339#6",
+    "reason": "standalone_fact",
+    "gate_ticket": "t/3633"
+  },
+  "count": 432,
+  "distinct_claim_ids": 432,
+  "distinct_assertion_sigs": 432,
+  "content_hash": "cd3d4080d9098734",
+  "entries": [
+    {
+      "claim_id": "conflict-36-out-of-38-gene-synthesis-providers-fu-adolesce",
+      "claim_label": "Biosecurity Screening Failure",
+      "assertion_sigs": [
+        "36 out of 38 gene synthesis providers fulfilled an order containing the sequence of the 1918 flu"
+      ]
+    },
+    {
+      "claim_id": "conflict-39-of-american-elementary-students-learn-guidance",
+      "claim_label": "US Elementary AI Learning Rate",
+      "assertion_sigs": [
+        "39% of american elementary students learn through ai applications"
+      ]
+    },
+    {
+      "claim_id": "conflict-41-of-employers-expect-to-downsize-their-future-j",
+      "claim_label": "AI-Driven Workforce Downsizing",
+      "assertion_sigs": [
+        "41% of employers expect to downsize their workforce by 2030 due to ai's ability to replicate roles"
+      ]
+    },
+    {
+      "claim_id": "conflict-41-of-employers-foresee-staff-reductions-future-j",
+      "claim_label": "AI-Driven Staff Reductions",
+      "assertion_sigs": [
+        "41% of employers foresee staff reductions due to skills obsolescence by 2030"
+      ]
+    },
+    {
+      "claim_id": "conflict-41-of-total-work-tasks-in-the-insurance-future-j",
+      "claim_label": "Human-Tech Collaboration Projection",
+      "assertion_sigs": [
+        "41% of total work tasks in the insurance and pensions sector are projected to be completed by human-technology collaboration by 2030"
+      ]
+    },
+    {
+      "claim_id": "conflict-42-of-companies-believe-their-strategy-i-state-ai",
+      "claim_label": "AI Strategic Preparedness",
+      "assertion_sigs": [
+        "42% of companies believe their strategy is highly prepared for ai adoption"
+      ]
+    },
+    {
+      "claim_id": "conflict-55-of-firms-in-the-mining-and-metals-sec-future-j",
+      "claim_label": "Mining Trade Restrictions",
+      "assertion_sigs": [
+        "55% of firms in the mining and metals sector identify restrictions on global trade and investment as a key trend"
+      ]
+    },
+    {
+      "claim_id": "conflict-56-of-employers-in-the-production-of-con-future-j",
+      "claim_label": "Talent Availability Challenges",
+      "assertion_sigs": [
+        "56% of employers in the production of consumer goods sector expect talent availability to become more difficult in the next five years"
+      ]
+    },
+    {
+      "claim_id": "conflict-67-of-uk-teens-now-use-ai-which-is-nearl-guidance",
+      "claim_label": "UK Teen AI Adoption Rate",
+      "assertion_sigs": [
+        "67% of uk teens now use ai, which is nearly double the usage rate from two years ago"
+      ]
+    },
+    {
+      "claim_id": "conflict-69-percent-of-people-in-china-said-the-t-where-ar",
+      "claim_label": "69 percent of people in China said the technology’s benefits outweighed its risk",
+      "assertion_sigs": [
+        "69 percent of people in china said the technology’s benefits outweighed its risks, compared to 35 percent of americans"
+      ]
+    },
+    {
+      "claim_id": "conflict-71-of-consumer-goods-firms-expect-higher-future-j",
+      "claim_label": "Consumer Goods Robotics Uptake",
+      "assertion_sigs": [
+        "71% of consumer goods firms expect higher-than-average uptake of robots and autonomous systems"
+      ]
+    },
+    {
+      "claim_id": "conflict-73-of-companies-identify-data-privacy-an-state-ai",
+      "claim_label": "Top AI Risk Identification",
+      "assertion_sigs": [
+        "73% of companies identify data privacy and security as their top ai-related risk"
+      ]
+    },
+    {
+      "claim_id": "conflict-74-of-companies-plan-to-deploy-agentic-a-state-ai",
+      "claim_label": "Agentic AI Adoption Timeline",
+      "assertion_sigs": [
+        "74% of companies plan to deploy agentic ai within two years"
+      ]
+    },
+    {
+      "claim_id": "conflict-84-of-companies-have-not-redesigned-jobs-state-ai",
+      "claim_label": "Workforce Redesign Lag",
+      "assertion_sigs": [
+        "84% of companies have not redesigned jobs around ai capabilities"
+      ]
+    },
+    {
+      "claim_id": "conflict-86-of-employers-expect-ai-and-informatio-future-j",
+      "claim_label": "AI Business Transformation Impact",
+      "assertion_sigs": [
+        "86% of employers expect ai and information processing technologies to transform their business by 2030"
+      ]
+    },
+    {
+      "claim_id": "conflict-95-of-the-labor-force-in-the-uk-is-proje-future-j",
+      "claim_label": "UK Labor Market Churn",
+      "assertion_sigs": [
+        "95% of the labor force in the uk is projected to experience structural churn over five years"
+      ]
+    },
+    {
+      "claim_id": "conflict-96-of-deepfake-videos-online-are-pornogr-internat",
+      "claim_label": "Deepfake Pornography Prevalence",
+      "assertion_sigs": [
+        "96% of deepfake videos online are pornographic"
+      ]
+    },
+    {
+      "claim_id": "conflict-97-of-employers-in-the-insurance-and-pen-future-j",
+      "claim_label": "Insurance Automation Plans",
+      "assertion_sigs": [
+        "97% of employers in the insurance and pensions sector plan to accelerate automation of processes and tasks"
+      ]
+    },
+    {
+      "claim_id": "conflict-a-100gw-cluster-would-require-over-20-of-situatio",
+      "claim_label": "AI Power Requirements",
+      "assertion_sigs": [
+        "a 100gw cluster would require over 20% of current us electricity production"
+      ]
+    },
+    {
+      "claim_id": "conflict-a-medical-ai-model-was-successfully-inve-failure-",
+      "claim_label": "Model Inversion Privacy Risk",
+      "assertion_sigs": [
+        "a medical ai model was successfully inverted to reconstruct faces from training data, allowing individuals to be identified with 95% accuracy"
+      ]
+    },
+    {
+      "claim_id": "conflict-a-shopping-bot-purchased-a-dozen-eggs-fo-ai-agent",
+      "claim_label": "AI Agent Errant Tool Example",
+      "assertion_sigs": [
+        "a shopping bot purchased a dozen eggs for $31.43 after taxes and fees"
+      ]
+    },
+    {
+      "claim_id": "conflict-a-significant-share-of-organizations-ide-future-j",
+      "claim_label": "Barriers to AI Transformation",
+      "assertion_sigs": [
+        "a significant share of organizations identify 'organization culture and resistance to change' and 'skills gaps' as primary barriers to ai transformation"
+      ]
+    },
+    {
+      "claim_id": "conflict-a-survey-of-2357-people-regarding-940-oc-ai-2026-",
+      "claim_label": "Public Support for Automation",
+      "assertion_sigs": [
+        "a survey of 2,357 people regarding 940 occupations found that the public supports automating roughly 30% of jobs based on current ai capabilities"
+      ]
+    },
+    {
+      "claim_id": "conflict-about-12-of-occupations-including-funera-ai-2026-",
+      "claim_label": "Public Moral Boundaries for Automation",
+      "assertion_sigs": [
+        "about 12% of occupations, including funeral directors, athletes, and artists, are viewed as morally off-limits to automation by the public"
+      ]
+    },
+    {
+      "claim_id": "conflict-accidents-are-defined-as-unintended-and-concrete",
+      "claim_label": "Definition of AI Accidents",
+      "assertion_sigs": [
+        "accidents are defined as unintended and harmful behavior emerging from poor design of real-world ai systems"
+      ]
+    },
+    {
+      "claim_id": "conflict-adopting-firms-may-see-sales-per-worker-economic",
+      "claim_label": "AI Productivity Gain Estimates",
+      "assertion_sigs": [
+        "adopting firms may see sales per worker increase between 0 and 6.8%"
+      ]
+    },
+    {
+      "claim_id": "conflict-agency-law-provides-a-framework-for-mana-ai-agent",
+      "claim_label": "Agency law framework",
+      "assertion_sigs": [
+        "agency law provides a framework for managing fiduciary relationships and liability in agent-principal interactions"
+      ]
+    },
+    {
+      "claim_id": "conflict-agents-in-the-study-operated-at-mirskys-agentsof",
+      "claim_label": "Agent Autonomy Level",
+      "assertion_sigs": [
+        "agents in the study operated at mirsky’s l2 autonomy level, executing sub-tasks but lacking self-models to recognize competence boundaries"
+      ]
+    },
+    {
+      "claim_id": "conflict-agents-were-induced-into-a-resourceconsu-agentsof",
+      "claim_label": "Resource Consumption Loop",
+      "assertion_sigs": [
+        "agents were induced into a resource-consuming loop spanning nine days, consuming 60,000 tokens"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-accelerationism-has-gained-significan-paradox-",
+      "claim_label": "AI Accelerationism Growth",
+      "assertion_sigs": [
+        "ai accelerationism has gained significant traction in silicon valley over the past three years"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-adoption-in-customer-experience-can-l-organiza",
+      "claim_label": "AI CX Performance Metrics",
+      "assertion_sigs": [
+        "ai adoption in customer experience can lead to up to 25% higher consumer conversation rates and a 21% reduction in churn"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-agents-are-evolving-from-isolated-too-whats-ne",
+      "claim_label": "Evolution of AI Agents",
+      "assertion_sigs": [
+        "ai agents are evolving from isolated tools to active participants in digital ecosystems"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-agents-can-be-trained-to-learn-and-ad-ai-grew-",
+      "claim_label": "On-the-job Agent Learning",
+      "assertion_sigs": [
+        "ai agents can be trained to learn and adapt during production deployment by integrating signals from the environment and human feedback"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-agents-can-now-perform-tasks-like-wri-natural-",
+      "claim_label": "AI Capability Milestones",
+      "assertion_sigs": [
+        "ai agents can now perform tasks like writing news, playing go, writing code, and protein folding"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-agents-can-operate-either-autonomousl-transfor",
+      "claim_label": "AI Agent Autonomy",
+      "assertion_sigs": [
+        "ai agents can operate either autonomously or non-autonomously in knowledge hierarchies"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-agents-in-b2b-settings-can-integrate-rethinki",
+      "claim_label": "AI Agent B2B Application",
+      "assertion_sigs": [
+        "ai agents in b2b settings can integrate industry trends with internal customer data to tailor offerings"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-algorithms-are-being-widely-adopted-i-humanai-",
+      "claim_label": "Widespread Public Sector AI Adoption",
+      "assertion_sigs": [
+        "ai algorithms are being widely adopted in the public sector for high-stakes decision-making, including policing, welfare, criminal justice, healthcare, immigration, and education"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-and-machine-learning-specialists-are-future-j",
+      "claim_label": "AI Job Growth",
+      "assertion_sigs": [
+        "ai and machine learning specialists are among the roles with the highest net growth in the labor market"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-applications-in-clinical-nursing-incl-what-doe",
+      "claim_label": "Current AI Applications in Nursing",
+      "assertion_sigs": [
+        "ai applications in clinical nursing include predicting patient states, interpreting images, summarizing records, and capturing conversations"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-auditing-tools-for-experts-include-ai-empoweri",
+      "claim_label": "AI Auditing Tools for Experts",
+      "assertion_sigs": [
+        "ai auditing tools for experts include ai fairness 360, fairlearn, what-if tool, fairhil, fairvis, and silva"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-capex-is-2-of-gdp-650bn-2026-glo",
+      "claim_label": "AI Capital Expenditure",
+      "assertion_sigs": [
+        "ai capex is 2% of gdp (650bn)"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-capital-expenditure-in-the-us-is-appr-2026-glo",
+      "claim_label": "AI Capex Spending",
+      "assertion_sigs": [
+        "ai capital expenditure in the us is approximately 2% of gdp, totaling $650 billion"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-chatbots-have-been-linked-to-14-death-sycophan",
+      "claim_label": "AI Psychosis Mortality and Litigation",
+      "assertion_sigs": [
+        "ai chatbots have been linked to 14 deaths and 5 wrongful death lawsuits"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-coding-assistants-can-complete-certai-internat",
+      "claim_label": "AI Coding Productivity",
+      "assertion_sigs": [
+        "ai coding assistants can complete certain tasks 20–30% faster on average"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-companies-spent-170-million-on-lobbyi-andrew-y",
+      "claim_label": "AI lobbying surge",
+      "assertion_sigs": [
+        "ai companies spent $170 million on lobbying during the 2024 election cycle, a 200% increase over the previous 24 months"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-companion-apps-have-grown-to-tens-of-internat",
+      "claim_label": "AI Companion User Base",
+      "assertion_sigs": [
+        "ai companion apps have grown to tens of millions of users"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-energy-consumption-is-projected-to-in-sam-altm",
+      "claim_label": "AI energy consumption is projected to increase about 15% each year from 2024 to ",
+      "assertion_sigs": [
+        "ai energy consumption is projected to increase about 15% each year from 2024 to 2030"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-image-generation-models-have-shown-ra-shape-th",
+      "claim_label": "AI Image Generation Progress",
+      "assertion_sigs": [
+        "ai image generation models have shown rapid and exponential improvement in their ability to generate complex images, such as an otter on a plane, between 2022 and 2025"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-implementation-in-customer-experience-organiza",
+      "claim_label": "AI Impact on CX Costs",
+      "assertion_sigs": [
+        "ai implementation in customer experience can lead to 20–30% lower cost-to-serve and 15–30% productivity gains"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-integration-breaches-can-take-hours-t-rush-ado",
+      "claim_label": "Incident Notification Latency",
+      "assertion_sigs": [
+        "ai integration breaches can take hours to be officially notified by vendors after being identified by threat intelligence"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-is-a-computer-program-that-runs-takes-why-ai-w",
+      "claim_label": "Definition of AI",
+      "assertion_sigs": [
+        "ai is a computer program that runs, takes input, processes, and generates output"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-is-being-promoted-by-companies-to-red-ai-doesn",
+      "claim_label": "AI is being promoted by companies to reduce the burden of routine tasks like dra",
+      "assertion_sigs": [
+        "ai is being promoted by companies to reduce the burden of routine tasks like drafting documents and debugging code"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-is-used-in-nursing-research-for-liter-what-doe",
+      "claim_label": "AI in Nursing Research",
+      "assertion_sigs": [
+        "ai is used in nursing research for literature synthesis, genomic data evaluation, and predictive model development"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-models-are-being-integrated-into-corp-artifici",
+      "claim_label": "Rapid AI Adoption",
+      "assertion_sigs": [
+        "ai models are being integrated into corporate processes at a rapid pace, with some tools reaching hundreds of millions of users"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-models-are-now-being-used-to-design-n-whats-ne",
+      "claim_label": "Generative AI in Biology",
+      "assertion_sigs": [
+        "ai models are now being used to design new proteins and predict cellular behaviors for personalized therapies"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-models-are-trained-on-human-language-dont-cal",
+      "claim_label": "AI models are trained on human language and function as an average or remix of e",
+      "assertion_sigs": [
+        "ai models are trained on human language and function as an average or remix of existing human output"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-models-can-be-jailbroken-to-bypass-sa-adolesce",
+      "claim_label": "AI Jailbreaking and Classifier Defense",
+      "assertion_sigs": [
+        "ai models can be jailbroken to bypass safety guardrails, necessitating the use of additional classifiers to detect and block harmful outputs"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-models-can-be-prompted-to-perform-mul-skin-gam",
+      "claim_label": "AI Reasoning Methods",
+      "assertion_sigs": [
+        "ai models can be prompted to perform multi-turn reasoning using frameworks like chain-of-thought or thought experiment"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-models-frequently-generate-verbatim-c-alignmen",
+      "claim_label": "Cross-Paragraph Span Generation",
+      "assertion_sigs": [
+        "ai models frequently generate verbatim content from paragraphs other than the one prompted, indicating a cross-paragraph retrieval behavior"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-performance-on-the-medqa-benchmark-ha-artifici",
+      "claim_label": "MedQA Benchmark Improvement",
+      "assertion_sigs": [
+        "ai performance on the medqa benchmark has improved significantly, with the o1 model achieving 96.0% accuracy"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-scribe-technology-can-reduce-physicia-artifici",
+      "claim_label": "AI Scribe Efficiency",
+      "assertion_sigs": [
+        "ai scribe technology can reduce physician documentation time by 20 minutes per day"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-are-beginning-to-integrate-te-whats-ne",
+      "claim_label": "Multimodal Healthcare AI",
+      "assertion_sigs": [
+        "ai systems are beginning to integrate text, medical images, physiological signals, and genomics into unified representation spaces"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-are-capable-of-generating-out-beyond-p",
+      "claim_label": "Unforeseen AI Outputs",
+      "assertion_sigs": [
+        "ai systems are capable of generating outputs that are unforeseen by their developers"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-are-complex-and-often-inscrut-artifici",
+      "claim_label": "AI Inscrutability",
+      "assertion_sigs": [
+        "ai systems are complex and often inscrutable, making it difficult for developers and users to understand their decision-making processes"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-are-sociotechnical-in-nature-ai-rmf-p",
+      "claim_label": "AI as Socio-technical System",
+      "assertion_sigs": [
+        "ai systems are socio-technical in nature, meaning they are influenced by societal dynamics and human behavior"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-are-susceptible-to-resource-e-adversar",
+      "claim_label": "AI Resource Exhaustion",
+      "assertion_sigs": [
+        "ai systems are susceptible to 'resource exhaustion' attacks, where queries are designed to consume excessive computational resources, leading to denial-of-service"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-can-automate-intelligence-ana-why-pent",
+      "claim_label": "AI Intelligence Analysis Capability",
+      "assertion_sigs": [
+        "ai systems can automate intelligence analysis and signals intelligence processing"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-can-be-deliberately-tricked-t-intellig",
+      "claim_label": "AI Adversarial Vulnerability",
+      "assertion_sigs": [
+        "ai systems can be deliberately tricked through adversarial inputs like invisible image changes or physical objects that confuse sensors, which are not traditional software hacks"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-can-hallucinate-presenting-fa-esrbascr",
+      "claim_label": "AI Hallucinations",
+      "assertion_sigs": [
+        "ai systems can hallucinate, presenting false or misleading information as fact"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-in-production-often-experienc-ai-rmf-p",
+      "claim_label": "AI Model Drift",
+      "assertion_sigs": [
+        "ai systems in production often experience 'drift,' where their performance degrades as the environment changes over time, meaning they no longer meet the assumptions of their original design"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-including-llms-exhibit-failur-ai-dange",
+      "claim_label": "AI System Failure Modes",
+      "assertion_sigs": [
+        "ai systems (including llms) exhibit failure modes like unauthorized compliance, sensitive data disclosure, destructive system-level actions, and denial-of-service conditions"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-learn-from-data-rather-than-b-transfor",
+      "claim_label": "AI Learning Mechanism",
+      "assertion_sigs": [
+        "ai systems learn from data rather than being programmed step-by-step, uncovering patterns that are difficult to articulate"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-may-be-subject-to-specific-le-ai-rmf-p",
+      "claim_label": "Legal and Regulatory AI Requirements",
+      "assertion_sigs": [
+        "ai systems may be subject to specific legal and regulatory requirements, such as nondiscrimination and data privacy, which vary across applications and contexts"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-often-perform-poorly-when-the-concrete",
+      "claim_label": "AI Distributional Shift Vulnerability",
+      "assertion_sigs": [
+        "ai systems often perform poorly when the testing distribution differs from the training distribution, yet they may wrongly assume their performance is good"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-systems-that-are-effective-at-achievi-natural-",
+      "claim_label": "AI Selection Pressure",
+      "assertion_sigs": [
+        "ai systems that are effective at achieving goals autonomously are more likely to be copied and deployed by businesses"
+      ]
+    },
+    {
+      "claim_id": "conflict-ai-training-datasets-have-been-found-to-guidance",
+      "claim_label": "CSAM in AI Training Data",
+      "assertion_sigs": [
+        "ai training datasets have been found to contain child sexual abuse material (csam)"
+      ]
+    },
+    {
+      "claim_id": "conflict-aidriven-system-intelligence-is-enabling-whats-ne",
+      "claim_label": "AI-Driven System Intelligence",
+      "assertion_sigs": [
+        "ai-driven system intelligence is enabling automated tooling for developing, deploying, and optimizing models co-designed with hardware"
+      ]
+    },
+    {
+      "claim_id": "conflict-airelated-job-transitions-are-increasing-artifici",
+      "claim_label": "AI Engineering Job Transitions",
+      "assertion_sigs": [
+        "ai-related job transitions are increasingly occurring from software engineering and data science roles"
+      ]
+    },
+    {
+      "claim_id": "conflict-airelated-security-incidents-have-accele-rush-ado",
+      "claim_label": "AI Incident Acceleration",
+      "assertion_sigs": [
+        "ai-related security incidents have accelerated significantly in the last two years"
+      ]
+    },
+    {
+      "claim_id": "conflict-algorithmic-efficiency-gains-in-language-situatio",
+      "claim_label": "Algorithmic Efficiency Trend",
+      "assertion_sigs": [
+        "algorithmic efficiency gains in language modeling have historically tracked at approximately 0.5 orders of magnitude per year"
+      ]
+    },
+    {
+      "claim_id": "conflict-alignment-training-for-llms-typically-in-ai-agent",
+      "claim_label": "Standard AI alignment training pipeline",
+      "assertion_sigs": [
+        "alignment training for llms typically involves supervised fine-tuning and reinforcement learning with human feedback"
+      ]
+    },
+    {
+      "claim_id": "conflict-anthropic-is-expected-to-make-twenty-bil-pentagon",
+      "claim_label": "Anthropic Revenue Projection",
+      "assertion_sigs": [
+        "anthropic is expected to make twenty billion dollars in 2026"
+      ]
+    },
+    {
+      "claim_id": "conflict-anthropic-released-a-set-of-moral-precep-does-ai-",
+      "claim_label": "Claude's Constitution Release",
+      "assertion_sigs": [
+        "anthropic released a set of moral precepts for its chatbot, claude, in january 2026"
+      ]
+    },
+    {
+      "claim_id": "conflict-anthropic-was-founded-in-2021-by-seven-o-pentagon",
+      "claim_label": "Anthropic Founding",
+      "assertion_sigs": [
+        "anthropic was founded in 2021 by seven openai defectors"
+      ]
+    },
+    {
+      "claim_id": "conflict-anthropic-was-valued-at-three-hundred-an-pentagon",
+      "claim_label": "Anthropic Valuation",
+      "assertion_sigs": [
+        "anthropic was valued at three hundred and eighty billion dollars"
+      ]
+    },
+    {
+      "claim_id": "conflict-anthropics-claudes-constitution-document-does-ai-",
+      "claim_label": "Claude's Constitution Word Count",
+      "assertion_sigs": [
+        "anthropic's 'claude's constitution' document contains more than 30,000 words"
+      ]
+    },
+    {
+      "claim_id": "conflict-anthropics-rsp-requires-board-approval-f-anthropi",
+      "claim_label": "Governance Structure",
+      "assertion_sigs": [
+        "anthropic's rsp requires board approval for changes and consultations with the long term benefit trust"
+      ]
+    },
+    {
+      "claim_id": "conflict-approximately-2800-data-centers-are-plan-2026-glo",
+      "claim_label": "Data Center Construction Pipeline",
+      "assertion_sigs": [
+        "approximately 2,800 data centers are planned for construction in the us"
+      ]
+    },
+    {
+      "claim_id": "conflict-approximately-51-of-skills-in-the-datase-displace",
+      "claim_label": "AI Skill Exposure Prevalence",
+      "assertion_sigs": [
+        "approximately 51% of skills in the dataset have some level of exposure to generative ai"
+      ]
+    },
+    {
+      "claim_id": "conflict-approximately-twothirds-of-the-worlds-co-artifici",
+      "claim_label": "Global CS Education Access",
+      "assertion_sigs": [
+        "approximately two-thirds of the world's countries offered or planned to offer cs education in 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-around-15-of-students-report-using-ai-fo-student-",
+      "claim_label": "AI for Loneliness",
+      "assertion_sigs": [
+        "around 15% of students report using ai for companionship, advice or to address loneliness"
+      ]
+    },
+    {
+      "claim_id": "conflict-around-60-of-jobs-in-advanced-economies-internat",
+      "claim_label": "AI Job Exposure Statistics",
+      "assertion_sigs": [
+        "around 60% of jobs in advanced economies and 40% in emerging economies are exposed to general-purpose ai"
+      ]
+    },
+    {
+      "claim_id": "conflict-at-least-700-million-people-now-use-lead-internat",
+      "claim_label": "Global AI Usage Statistics",
+      "assertion_sigs": [
+        "at least 700 million people now use leading ai systems weekly"
+      ]
+    },
+    {
+      "claim_id": "conflict-automated-employment-decision-tools-aedt-2026-ai-",
+      "claim_label": "Emerging AEDT Regulatory Requirements",
+      "assertion_sigs": [
+        "automated employment decision tools (aedts) are increasingly subject to prescriptive regulations requiring bias audits, risk assessments, and applicant notices"
+      ]
+    },
+    {
+      "claim_id": "conflict-autonomous-red-teams-art-simulate-attack-autonomo",
+      "claim_label": "ART and ABT Definitions",
+      "assertion_sigs": [
+        "autonomous red teams (art) simulate attackers to breach systems and expose vulnerabilities, while autonomous blue teams (abt) monitor and respond to threats to protect assets"
+      ]
+    },
+    {
+      "claim_id": "conflict-autoregressive-models-have-errors-that-d-aiembrac",
+      "claim_label": "Autoregressive Error Divergence",
+      "assertion_sigs": [
+        "autoregressive models have errors that diverge exponentially with prediction length"
+      ]
+    },
+    {
+      "claim_id": "conflict-base-models-are-often-found-to-be-calibr-whylangu",
+      "claim_label": "Calibration Shift",
+      "assertion_sigs": [
+        "base models are often found to be calibrated, while post-trained models may deviate from cross-entropy in favor of reinforcement learning"
+      ]
+    },
+    {
+      "claim_id": "conflict-bertbase-has-110m-parameters-bertlarge-h-stereose",
+      "claim_label": "Model Parameter Counts",
+      "assertion_sigs": [
+        "bert-base has 110m parameters, bert-large has 340m parameters, gpt2-small has 117m parameters, gpt2-medium has 345m parameters, gpt2-large has 774m parameters, ro berta-base has 125m parameters, ro berta-large has 355m parameters, xln et-base has 110m parameters, and xln et-large has 340m parameters"
+      ]
+    },
+    {
+      "claim_id": "conflict-between-2007-and-2021-there-was-a-growth-state-st",
+      "claim_label": "Foreign Relations Law Growth",
+      "assertion_sigs": [
+        "between 2007 and 2021, there was a growth of approximately 45% for clauses and 22% for enactments with foreign ingredients"
+      ]
+    },
+    {
+      "claim_id": "conflict-block-announced-40-layoffs-on-february-2-shape-th",
+      "claim_label": "Block Layoffs 2026",
+      "assertion_sigs": [
+        "block announced 40% layoffs on february 26, 2026, citing ai as a factor"
+      ]
+    },
+    {
+      "claim_id": "conflict-by-2030-the-proportion-of-work-tasks-per-future-j",
+      "claim_label": "Human Task Share Reduction",
+      "assertion_sigs": [
+        "by 2030, the proportion of work tasks performed by humans alone is expected to decrease from 47% to 33%"
+      ]
+    },
+    {
+      "claim_id": "conflict-bytedance-temporarily-restricted-the-cre-where-ar",
+      "claim_label": "ByteDance Safety Restriction",
+      "assertion_sigs": [
+        "bytedance temporarily restricted the creation of videos featuring real people following copyright accusations"
+      ]
+    },
+    {
+      "claim_id": "conflict-california-implemented-nofault-divorce-l-accounta",
+      "claim_label": "California No-Fault Divorce",
+      "assertion_sigs": [
+        "california implemented no-fault divorce laws in 1969"
+      ]
+    },
+    {
+      "claim_id": "conflict-californias-ab-2602-law-mandates-usage-r-ethical-",
+      "claim_label": "California AB 2602 Mandate",
+      "assertion_sigs": [
+        "california’s ab 2602 law mandates usage reports for digital replicas"
+      ]
+    },
+    {
+      "claim_id": "conflict-canadian-hospital-mental-distress-admiss-please-d",
+      "claim_label": "Canadian Mental Health Trends",
+      "assertion_sigs": [
+        "canadian hospital mental distress admissions increased 62% between 2009 and 2014"
+      ]
+    },
+    {
+      "claim_id": "conflict-changes-in-the-occupational-mix-since-20-evaluati",
+      "claim_label": "Occupational mix trends mirror past",
+      "assertion_sigs": [
+        "changes in the occupational mix since 2022 mirror trends seen during the adoption of computers and the internet"
+      ]
+    },
+    {
+      "claim_id": "conflict-chatgpt-became-the-fastestgrowing-consum-introduc",
+      "claim_label": "ChatGPT Growth Rate",
+      "assertion_sigs": [
+        "chatgpt became the fastest-growing consumer app of all time following its november 2022 release"
+      ]
+    },
+    {
+      "claim_id": "conflict-chatgpt-reached-100-million-users-in-two-adversar",
+      "claim_label": "AI Adoption Speed",
+      "assertion_sigs": [
+        "chatgpt reached 100 million users in two months, demonstrating the rapid growth of ai deployment"
+      ]
+    },
+    {
+      "claim_id": "conflict-chinas-pilot-free-trade-zones-pftzs-have-designin",
+      "claim_label": "China's PFTZs",
+      "assertion_sigs": [
+        "china's pilot free trade zones (pftzs) have been in place since 2013 and offer controlled environments for fintech experimentation"
+      ]
+    },
+    {
+      "claim_id": "conflict-claude-is-the-first-ai-certified-to-oper-pentagon",
+      "claim_label": "Claude Classified Certification",
+      "assertion_sigs": [
+        "claude is the first ai certified to operate on classified systems"
+      ]
+    },
+    {
+      "claim_id": "conflict-claude-usage-data-shows-that-computermat-evaluati",
+      "claim_label": "AI Usage by Occupation",
+      "assertion_sigs": [
+        "claude usage data shows that computer/mathematical occupations and arts/media occupations are overrepresented compared to their employment share"
+      ]
+    },
+    {
+      "claim_id": "conflict-close-to-40-percent-of-the-us-gross-dome-theres-g",
+      "claim_label": "Knowledge Economy GDP Share",
+      "assertion_sigs": [
+        "close to 40 percent of the u.s. gross domestic product comes from knowledge and technology-intensive industries"
+      ]
+    },
+    {
+      "claim_id": "conflict-close-to-60-percent-of-the-us-adult-popu-theres-g",
+      "claim_label": "Aerobics Exercise Adoption",
+      "assertion_sigs": [
+        "close to 60 percent of the u.s. adult population exercised regularly within 16 years of the publication of 'aerobics' in 1968"
+      ]
+    },
+    {
+      "claim_id": "conflict-common-corruptions-like-brightness-contr-failure-",
+      "claim_label": "Common corruptions like brightness, contrast, or noise significantly drop the pe",
+      "assertion_sigs": [
+        "common corruptions like brightness, contrast, or noise significantly drop the performance metrics of image recognition systems"
+      ]
+    },
+    {
+      "claim_id": "conflict-computing-power-used-for-ai-training-has-internat",
+      "claim_label": "Exponential Compute Growth",
+      "assertion_sigs": [
+        "computing power used for ai training has grown exponentially since 2012, with the largest training runs likely exceeding 10^26 flop in 2025"
+      ]
+    },
+    {
+      "claim_id": "conflict-correction-effectiveness-certification-c-controll",
+      "claim_label": "Correction Effectiveness Certification",
+      "assertion_sigs": [
+        "correction effectiveness certification (cir) measures whether operator corrections produce proportional behavioural change in an ai agent"
+      ]
+    },
+    {
+      "claim_id": "conflict-creative-thinking-and-resilience-are-pro-new-econ",
+      "claim_label": "Fastest Growing Skills 2030",
+      "assertion_sigs": [
+        "creative thinking and resilience are projected to be the fastest-growing skills globally by 2030"
+      ]
+    },
+    {
+      "claim_id": "conflict-current-ai-deception-research-lacks-reli-25112266",
+      "claim_label": "Lack of Deception Evaluation Data",
+      "assertion_sigs": [
+        "current ai deception research lacks reliable, unambiguously labeled examples of strategic deception, which hinders the development and validation of deception detectors"
+      ]
+    },
+    {
+      "claim_id": "conflict-current-ai-models-particularly-large-mac-power-se",
+      "claim_label": "AI Interpretability Gap",
+      "assertion_sigs": [
+        "current ai models, particularly large machine learning models, are often 'black boxes' whose internal reasoning processes are not fully understood by their developers"
+      ]
+    },
+    {
+      "claim_id": "conflict-decisionmaking-under-uncertainty-is-meta-ai-isnt-",
+      "claim_label": "Cognitive depletion in judgment work",
+      "assertion_sigs": [
+        "decision-making under uncertainty is metabolically costly and quality degrades over time"
+      ]
+    },
+    {
+      "claim_id": "conflict-deliberative-alignment-training-reduced-detectin",
+      "claim_label": "Deliberative Alignment Efficacy",
+      "assertion_sigs": [
+        "deliberative alignment training reduced covert actions in openai o3 and o4-mini models by approximately 30 times"
+      ]
+    },
+    {
+      "claim_id": "conflict-distillation-allows-for-finetuning-small-internat",
+      "claim_label": "Distillation Cost Efficiency",
+      "assertion_sigs": [
+        "distillation allows for fine-tuning smaller models at a fraction of the cost of larger models"
+      ]
+    },
+    {
+      "claim_id": "conflict-ebay-spent-almost-20-million-per-year-on-ai-agent",
+      "claim_label": "eBay Trust and Safety Investment",
+      "assertion_sigs": [
+        "ebay spent almost $20 million per year on trust and safety, with 70 staff assigned to counterfeit issues"
+      ]
+    },
+    {
+      "claim_id": "conflict-ecommerce-accounts-for-over-20-trillion-ai-agent",
+      "claim_label": "Global Ecommerce Transaction Volume",
+      "assertion_sigs": [
+        "ecommerce accounts for over $20 trillion in transactions worldwide, making it a critical setting for ai agent deployment"
+      ]
+    },
+    {
+      "claim_id": "conflict-electronics-organizations-report-that-95-future-j",
+      "claim_label": "Skill Disruption Rate",
+      "assertion_sigs": [
+        "electronics organizations report that 95% of core skills will change over the next five years due to ai and other trends"
+      ]
+    },
+    {
+      "claim_id": "conflict-emil-michael-was-confirmed-as-under-secr-why-pent",
+      "claim_label": "Government Personnel",
+      "assertion_sigs": [
+        "emil michael was confirmed as under secretary of war for research and engineering in the fall of 2025"
+      ]
+    },
+    {
+      "claim_id": "conflict-employers-expect-to-fund-86-of-their-tra-future-j",
+      "claim_label": "Training Program Funding Sources",
+      "assertion_sigs": [
+        "employers expect to fund 86% of their training programs internally, with only 20% relying on government funding"
+      ]
+    },
+    {
+      "claim_id": "conflict-employers-predict-that-nearly-40-of-core-new-econ",
+      "claim_label": "Skill Disruption Forecast",
+      "assertion_sigs": [
+        "employers predict that nearly 40% of core job skills will be disrupted within the next five years"
+      ]
+    },
+    {
+      "claim_id": "conflict-epics-sepsis-prediction-tool-missed-twot-ai-as-no",
+      "claim_label": "Sepsis Tool Failure",
+      "assertion_sigs": [
+        "epic’s sepsis prediction tool missed two-thirds of sepsis cases"
+      ]
+    },
+    {
+      "claim_id": "conflict-evelyne-webb-george-published-confidenti-followin",
+      "claim_label": "Publication Date of Confidential Chats",
+      "assertion_sigs": [
+        "evelyne webb george published 'confidential chats with mothers' in 1890"
+      ]
+    },
+    {
+      "claim_id": "conflict-evolutionary-processes-biological-cultur-natural-",
+      "claim_label": "Generalized Darwinism Conditions",
+      "assertion_sigs": [
+        "evolutionary processes (biological, cultural, business) share common conditions: variation, retention, and differential fitness"
+      ]
+    },
+    {
+      "claim_id": "conflict-federal-receipts-in-early-2028-were-runn-2028-glo",
+      "claim_label": "Federal Receipts Shortfall",
+      "assertion_sigs": [
+        "federal receipts in early 2028 were running 12% below cbo baseline projections"
+      ]
+    },
+    {
+      "claim_id": "conflict-fewer-than-half-48-of-students-feel-thei-student-",
+      "claim_label": "AI Skills Support Gap",
+      "assertion_sigs": [
+        "fewer than half (48%) of students feel their teaching staff are helping them to develop ai skills for their future careers"
+      ]
+    },
+    {
+      "claim_id": "conflict-financial-sextortion-is-currently-the-fa-guidance",
+      "claim_label": "AI-Enabled Financial Sextortion Growth",
+      "assertion_sigs": [
+        "financial sextortion is currently the fastest-growing crime targeting children in the us, canada, and australia, with ai expected to increase its prevalence"
+      ]
+    },
+    {
+      "claim_id": "conflict-finetuning-situationalllm-on-an-h100-80g-situatio",
+      "claim_label": "SituationalLLM training time",
+      "assertion_sigs": [
+        "fine-tuning situationalllm on an h100 80gb gpu takes approximately 48 hours"
+      ]
+    },
+    {
+      "claim_id": "conflict-firmlevel-studies-on-pregenai-show-that-economic",
+      "claim_label": "AI Productivity Gains",
+      "assertion_sigs": [
+        "firm-level studies on pre-gen-ai show that firms adopting ai see sales per worker increase between 0 and 6.8%"
+      ]
+    },
+    {
+      "claim_id": "conflict-generalpurpose-ai-adoption-in-the-us-is-internat",
+      "claim_label": "AI Adoption Velocity",
+      "assertion_sigs": [
+        "general-purpose ai adoption in the us is diffusing faster than the internet or personal computers"
+      ]
+    },
+    {
+      "claim_id": "conflict-generative-ai-adoption-translated-to-onl-ai-as-no",
+      "claim_label": "Generative AI Work Impact",
+      "assertion_sigs": [
+        "generative ai adoption translated to only 0.5%-3.5% of work hours"
+      ]
+    },
+    {
+      "claim_id": "conflict-generative-ai-investment-has-increased-n-future-j",
+      "claim_label": "GenAI Investment Surge",
+      "assertion_sigs": [
+        "generative ai investment has increased nearly eightfold since the release of chatgpt in november 2022"
+      ]
+    },
+    {
+      "claim_id": "conflict-generative-ai-is-expected-to-transform-8-future-j",
+      "claim_label": "AI Business Transformation Impact",
+      "assertion_sigs": [
+        "generative ai is expected to transform 86% of businesses by 2030, making it the most impactful technology trend"
+      ]
+    },
+    {
+      "claim_id": "conflict-github-copilot-includes-an-option-allowi-law-ai-i",
+      "claim_label": "GitHub Copilot Filtering",
+      "assertion_sigs": [
+        "github copilot includes an option allowing users to block code suggestions that match publicly available code"
+      ]
+    },
+    {
+      "claim_id": "conflict-glmtts-achieves-a-089-character-error-ra-ethical-",
+      "claim_label": "GLM-TTS Error Rate",
+      "assertion_sigs": [
+        "glm-tts achieves a 0.89 character error rate"
+      ]
+    },
+    {
+      "claim_id": "conflict-global-economic-growth-is-projected-at-3-future-j",
+      "claim_label": "Global GDP Growth Projection",
+      "assertion_sigs": [
+        "global economic growth is projected at 3.2% for 2025"
+      ]
+    },
+    {
+      "claim_id": "conflict-global-inflation-is-projected-to-reach-3-future-j",
+      "claim_label": "Global Inflation Projection",
+      "assertion_sigs": [
+        "global inflation is projected to reach 3.5% by the end of 2025"
+      ]
+    },
+    {
+      "claim_id": "conflict-gpai-models-are-considered-systemic-if-t-high-lev",
+      "claim_label": "Systemic GPAI Compute Threshold",
+      "assertion_sigs": [
+        "gpai models are considered systemic if the cumulative amount of compute used for training is greater than 10^25 floating point operations per second (flops)"
+      ]
+    },
+    {
+      "claim_id": "conflict-gpt2large-is-the-best-performing-languag-stereose",
+      "claim_label": "Model Performance Comparison",
+      "assertion_sigs": [
+        "gpt2-large is the best performing language model (88.3) followed by gpt2-medium (85.9) on the stereoset test set"
+      ]
+    },
+    {
+      "claim_id": "conflict-gpt4-correctly-chose-not-enough-info-on-explicit",
+      "claim_label": "GPT-4 Benchmark Performance",
+      "assertion_sigs": [
+        "gpt-4 correctly chose 'not enough info' on 98% of ambiguous question-answering tasks in the bias benchmark for qa"
+      ]
+    },
+    {
+      "claim_id": "conflict-gpt4-performance-on-the-math-benchmark-i-situatio",
+      "claim_label": "MATH Benchmark Progress",
+      "assertion_sigs": [
+        "gpt-4 performance on the math benchmark improved from approximately 5% to over 90% in less than three years"
+      ]
+    },
+    {
+      "claim_id": "conflict-gpt4-scored-in-the-15th-percentile-on-th-somethin",
+      "claim_label": "GPT-4 Bar Exam Performance",
+      "assertion_sigs": [
+        "gpt-4 scored in the 15th percentile on the uniform bar exam essay and performance test portions"
+      ]
+    },
+    {
+      "claim_id": "conflict-gpt4-was-trained-on-approximately-8e24-t-situatio",
+      "claim_label": "GPT-4 Compute Estimate",
+      "assertion_sigs": [
+        "gpt-4 was trained on approximately 8e24 to 4e25 flops"
+      ]
+    },
+    {
+      "claim_id": "conflict-graphic-designers-and-legal-secretaries-future-j",
+      "claim_label": "Knowledge Work Vulnerability",
+      "assertion_sigs": [
+        "graphic designers and legal secretaries are appearing as fast-declining roles for the first time in the report series, attributed to genai"
+      ]
+    },
+    {
+      "claim_id": "conflict-hallucinations-are-statistically-inevita-whylangu",
+      "claim_label": "Statistical Inevitability of Errors",
+      "assertion_sigs": [
+        "hallucinations are statistically inevitable in base models due to the cross-entropy objective used in pretraining"
+      ]
+    },
+    {
+      "claim_id": "conflict-humans-are-notoriously-inaccurate-when-p-accounta",
+      "claim_label": "Human Post-hoc Rationalization",
+      "assertion_sigs": [
+        "humans are notoriously inaccurate when providing post-hoc rationales for decisions"
+      ]
+    },
+    {
+      "claim_id": "conflict-image-generators-depicted-men-61-of-the-we-teste",
+      "claim_label": "Male Default in AI Imagery",
+      "assertion_sigs": [
+        "image generators depicted men 61% of the time in response to 965 gender-neutral prompts"
+      ]
+    },
+    {
+      "claim_id": "conflict-in-2024-59-airelated-federal-regulations-artifici",
+      "claim_label": "US Federal AI Regulation",
+      "assertion_sigs": [
+        "in 2024, 59 ai-related federal regulations were introduced in the u.s., more than double the 25 recorded in 2023"
+      ]
+    },
+    {
+      "claim_id": "conflict-in-2024-607-of-notable-ai-models-were-re-artifici",
+      "claim_label": "AI Training Code Transparency",
+      "assertion_sigs": [
+        "in 2024, 60.7% of notable ai models were released without corresponding training code"
+      ]
+    },
+    {
+      "claim_id": "conflict-in-2024-california-enacted-22-airelated-artifici",
+      "claim_label": "State-Level AI Legislation Trends",
+      "assertion_sigs": [
+        "in 2024, california enacted 22 ai-related laws, the highest number among u.s. states, followed by utah with 12"
+      ]
+    },
+    {
+      "claim_id": "conflict-in-2025-ai-systems-transitioned-from-sim-ai-grew-",
+      "claim_label": "AI Agent Evolution",
+      "assertion_sigs": [
+        "in 2025, ai systems transitioned from simple chatbots to autonomous agents capable of planning, using tools, and managing memory"
+      ]
+    },
+    {
+      "claim_id": "conflict-in-egypt-48-of-onthejob-skills-are-proje-future-j",
+      "claim_label": "Skill Disruption Rate in Egypt",
+      "assertion_sigs": [
+        "in egypt, 48% of on-the-job skills are projected to change over the next five years, compared to a global average of 39%"
+      ]
+    },
+    {
+      "claim_id": "conflict-in-political-economy-fixed-capital-tradi-reflecti",
+      "claim_label": "Fixed Capital Definition",
+      "assertion_sigs": [
+        "in political economy, 'fixed capital' traditionally refers to money invested in fixed assets like buildings and machinery, while 'circulating capital' includes raw materials and wages"
+      ]
+    },
+    {
+      "claim_id": "conflict-in-the-202324-academic-year-60-of-us-hig-artifici",
+      "claim_label": "High School CS Course Availability",
+      "assertion_sigs": [
+        "in the 2023–24 academic year, 60% of u.s. high schools offered computer science courses, an increase from 35% in the 2017–18 academic year"
+      ]
+    },
+    {
+      "claim_id": "conflict-in-uzbekistan-71-of-firms-identify-skill-future-j",
+      "claim_label": "Uzbekistan Skills Gap Statistics",
+      "assertion_sigs": [
+        "in uzbekistan, 71% of firms identify skills gaps as a primary challenge to business transformation, and only 22% of the workforce is expected to be able to upskill in their current role"
+      ]
+    },
+    {
+      "claim_id": "conflict-individuals-using-ai-in-the-pg-experimen-ai-2026-",
+      "claim_label": "AI Impact on Individual Productivity",
+      "assertion_sigs": [
+        "individuals using ai in the p&g experiment equaled the quality of a two-person human team not using ai"
+      ]
+    },
+    {
+      "claim_id": "conflict-initial-jobless-claims-surged-to-487000-2028-glo",
+      "claim_label": "2027 Jobless Claims Surge",
+      "assertion_sigs": [
+        "initial jobless claims surged to 487,000 in q3 2027, the highest level since april 2020"
+      ]
+    },
+    {
+      "claim_id": "conflict-interpretive-alignment-testing-iat-is-a-controll",
+      "claim_label": "Interpretive Alignment Testing",
+      "assertion_sigs": [
+        "interpretive alignment testing (iat) is a structured evaluation of whether an agent’s interpretation of operator instructions matches the operator’s intended meaning"
+      ]
+    },
+    {
+      "claim_id": "conflict-investment-flows-into-ai-have-increased-future-j",
+      "claim_label": "AI Investment Growth",
+      "assertion_sigs": [
+        "investment flows into ai have increased nearly eightfold since november 2022"
+      ]
+    },
+    {
+      "claim_id": "conflict-job-postings-for-software-engineers-are-2026-glo",
+      "claim_label": "Software Engineer Job Growth",
+      "assertion_sigs": [
+        "job postings for software engineers are rising by 11% year-over-year despite displacement fears"
+      ]
+    },
+    {
+      "claim_id": "conflict-joshua-gans-published-a-paper-in-january-learning",
+      "claim_label": "Gans 2026 Jagged Intelligence Paper",
+      "assertion_sigs": [
+        "joshua gans published a paper in january 2026 discussing 'artificial jagged intelligence' and the limitations of scaling laws"
+      ]
+    },
+    {
+      "claim_id": "conflict-junior-analysts-at-an-investment-firm-in-ai-isnt-",
+      "claim_label": "AI Productivity Gain in Finance",
+      "assertion_sigs": [
+        "junior analysts at an investment firm increased their output by 2.5x after ai tools were introduced to handle data assembly tasks"
+      ]
+    },
+    {
+      "claim_id": "conflict-labors-share-of-us-gdp-dropped-from-64-i-2028-glo",
+      "claim_label": "Labor Share of GDP Decline",
+      "assertion_sigs": [
+        "labor's share of us gdp dropped from 64% in 1974 to 56% in 2024, and further to 46% by 2028"
+      ]
+    },
+    {
+      "claim_id": "conflict-less-than-15-of-us-businesses-had-signif-simple-m",
+      "claim_label": "Low AI Adoption Rate",
+      "assertion_sigs": [
+        "less than 1.5% of us businesses had significant investment in ai as of 2019"
+      ]
+    },
+    {
+      "claim_id": "conflict-llama-31-405b-training-emissions-were-89-artifici",
+      "claim_label": "Model Carbon Footprint",
+      "assertion_sigs": [
+        "llama 3.1 405b training emissions were 8,930 tons of co2"
+      ]
+    },
+    {
+      "claim_id": "conflict-llm-training-datasets-double-in-size-app-artifici",
+      "claim_label": "Dataset Scaling Rate",
+      "assertion_sigs": [
+        "llm training datasets double in size approximately every eight months"
+      ]
+    },
+    {
+      "claim_id": "conflict-llmpowered-agents-are-increasingly-given-agentsof",
+      "claim_label": "LLM-powered agents are increasingly given direct access to execution tools like ",
+      "assertion_sigs": [
+        "llm-powered agents are increasingly given direct access to execution tools like code, shells, and filesystems"
+      ]
+    },
+    {
+      "claim_id": "conflict-llms-are-pretrained-on-unlabeled-text-co-auditing",
+      "claim_label": "LLM Pretraining Scale",
+      "assertion_sigs": [
+        "llms are pretrained on unlabeled text corpora containing tens of billions of books"
+      ]
+    },
+    {
+      "claim_id": "conflict-llms-are-roughly-three-times-as-able-as-can-ai-p",
+      "claim_label": "LLM Capability Growth",
+      "assertion_sigs": [
+        "llms are roughly three times as able as they were a year ago on comprehensive intelligence exams"
+      ]
+    },
+    {
+      "claim_id": "conflict-llms-are-trained-on-large-amounts-of-tex-ai-agent",
+      "claim_label": "LLM Training Data Content",
+      "assertion_sigs": [
+        "llms are trained on large amounts of text describing everyday tasks like product reviews and travel itineraries"
+      ]
+    },
+    {
+      "claim_id": "conflict-llms-often-make-incorrect-assumptions-wh-llms-get",
+      "claim_label": "LLM Underspecification Failure",
+      "assertion_sigs": [
+        "llms often make incorrect assumptions when user instructions are underspecified, leading to incomplete or wrong answers in multi-turn tasks"
+      ]
+    },
+    {
+      "claim_id": "conflict-llms-showed-moderate-race-and-gender-dis-auditing",
+      "claim_label": "LLM Hiring Bias Findings",
+      "assertion_sigs": [
+        "llms showed moderate race and gender disparities, with a slight preference for women and non-white candidates in hiring ratings"
+      ]
+    },
+    {
+      "claim_id": "conflict-machine-learning-models-are-increasingly-model-ca",
+      "claim_label": "AI in High-Impact Sectors",
+      "assertion_sigs": [
+        "machine learning models are increasingly used for high-impact tasks in law enforcement, medicine, education, and employment"
+      ]
+    },
+    {
+      "claim_id": "conflict-machinetacit-knowledge-is-embedded-in-mo-transfor",
+      "claim_label": "Machine-Tacit Knowledge Transfer",
+      "assertion_sigs": [
+        "machine-tacit knowledge is embedded in model weights and can be transferred between machines by copying weights"
+      ]
+    },
+    {
+      "claim_id": "conflict-mario-tronti-introduced-the-concept-of-t-reflecti",
+      "claim_label": "Social Factory Concept",
+      "assertion_sigs": [
+        "mario tronti introduced the concept of the 'social factory' in his 1962 essay 'la fabbrica e la società'"
+      ]
+    },
+    {
+      "claim_id": "conflict-matplotlib-receives-130-million-download-ai-agent",
+      "claim_label": "Matplotlib monthly download volume",
+      "assertion_sigs": [
+        "matplotlib receives ~130 million downloads each month"
+      ]
+    },
+    {
+      "claim_id": "conflict-meaningful-human-control-is-a-concept-or-computin",
+      "claim_label": "Origin of Meaningful Human Control",
+      "assertion_sigs": [
+        "meaningful human control is a concept originally developed to address responsibility gaps in autonomous lethal weapons systems"
+      ]
+    },
+    {
+      "claim_id": "conflict-mens-research-productivity-increased-64-explaini",
+      "claim_label": "Gendered AI Productivity Impact",
+      "assertion_sigs": [
+        "men's research productivity increased 6.4% more than women's following the release of chatgpt"
+      ]
+    },
+    {
+      "claim_id": "conflict-meta-spent-148-billion-on-an-investment-ai-2026-",
+      "claim_label": "Corporate AI Investment",
+      "assertion_sigs": [
+        "meta spent $14.8 billion on an investment in scale ai to tap into top ai talent"
+      ]
+    },
+    {
+      "claim_id": "conflict-ml-systems-are-vulnerable-to-adversarial-failure-",
+      "claim_label": "ML systems are vulnerable to adversarial attacks that can misclassify results, i",
+      "assertion_sigs": [
+        "ml systems are vulnerable to adversarial attacks that can misclassify results, infer private data, or steal algorithms"
+      ]
+    },
+    {
+      "claim_id": "conflict-ml-systems-can-be-repurposed-to-perform-failure-",
+      "claim_label": "ML systems can be repurposed to perform tasks they were not programmed for via a",
+      "assertion_sigs": [
+        "ml systems can be repurposed to perform tasks they were not programmed for via adversarial queries"
+      ]
+    },
+    {
+      "claim_id": "conflict-ml-systems-can-produce-formally-correct-failure-",
+      "claim_label": "ML systems can produce formally correct but unsafe outcomes due to reward hackin",
+      "assertion_sigs": [
+        "ml systems can produce formally correct but unsafe outcomes due to reward hacking or distributional shifts"
+      ]
+    },
+    {
+      "claim_id": "conflict-models-perform-significantly-better-on-t-me-mysel",
+      "claim_label": "Model Performance Gap",
+      "assertion_sigs": [
+        "models perform significantly better on tasks where the target words are provided (given) compared to tasks where they must be generated (not-given)"
+      ]
+    },
+    {
+      "claim_id": "conflict-models-that-are-trained-to-perform-speci-law-foll",
+      "claim_label": "Generalization of Misaligned Behaviors",
+      "assertion_sigs": [
+        "models that are trained to perform specific 'hacks' or exploits can generalize these behaviors to unrelated tasks, a phenomenon termed 'self-fulfilling misalignment'"
+      ]
+    },
+    {
+      "claim_id": "conflict-models-trained-on-different-authors-show-alignmen",
+      "claim_label": "Memorization Pattern Distribution",
+      "assertion_sigs": [
+        "models trained on different authors show similar patterns of verbatim span retrieval, indicating that the memorization issue is not limited to specific titles or authors"
+      ]
+    },
+    {
+      "claim_id": "conflict-models-with-more-parameters-tend-to-show-explicit",
+      "claim_label": "Model Size and Bias Correlation",
+      "assertion_sigs": [
+        "models with more parameters tend to show larger bias scores"
+      ]
+    },
+    {
+      "claim_id": "conflict-montana-senate-bill-419-imposed-a-10000-state-st",
+      "claim_label": "Montana TikTok Penalty",
+      "assertion_sigs": [
+        "montana senate bill 419 imposed a $10,000 penalty for each violation related to the use of tiktok"
+      ]
+    },
+    {
+      "claim_id": "conflict-moravecs-paradox-describes-the-phenomeno-aiembrac",
+      "claim_label": "Moravec's Paradox",
+      "assertion_sigs": [
+        "moravec's paradox describes the phenomenon where tasks humans find easy (e.g., locomotion) are difficult for computers, while tasks humans find difficult (e.g., chess) are easier for computers"
+      ]
+    },
+    {
+      "claim_id": "conflict-most-frontier-ai-models-tested-in-recent-law-foll",
+      "claim_label": "AI Refusal Capability",
+      "assertion_sigs": [
+        "most frontier ai models tested in recent studies achieved a refusal rate of over 90% for requests to violate international humanitarian law"
+      ]
+    },
+    {
+      "claim_id": "conflict-most-notable-ai-models-developed-in-2024-internat",
+      "claim_label": "AI Model Origin Concentration",
+      "assertion_sigs": [
+        "most notable ai models developed in 2024 originated from the us, followed by china"
+      ]
+    },
+    {
+      "claim_id": "conflict-nearly-twothirds-65-of-students-say-asse-student-",
+      "claim_label": "Assessment Change Rate",
+      "assertion_sigs": [
+        "nearly two-thirds (65%) of students say assessment has changed significantly in response to ai"
+      ]
+    },
+    {
+      "claim_id": "conflict-new-york-and-california-have-introduced-2026-ai-",
+      "claim_label": "AI content transparency regulations",
+      "assertion_sigs": [
+        "new york and california have introduced specific requirements for ai-generated content, including provenance markers and disclosure labels"
+      ]
+    },
+    {
+      "claim_id": "conflict-new-york-s3008c-part-x-mandates-that-per-2026-ai-",
+      "claim_label": "NY Algorithmic Pricing Disclosure",
+      "assertion_sigs": [
+        "new york s-3008c (part x) mandates that personalized algorithmic pricing must be disclosed with specific wording: 'this price was set by an algorithm using your personal data.'"
+      ]
+    },
+    {
+      "claim_id": "conflict-nissenbaum-identified-four-specific-barr-computin",
+      "claim_label": "Nissenbaum's Accountability Barriers",
+      "assertion_sigs": [
+        "nissenbaum identified four specific barriers to accountability in computerized society: the problem of many hands, acceptance of software bugs, using the computer as a scapegoat, and ownership without liability"
+      ]
+    },
+    {
+      "claim_id": "conflict-norbert-wiener-founded-cybernetics-as-th-philosop",
+      "claim_label": "Founding of cybernetics",
+      "assertion_sigs": [
+        "norbert wiener founded cybernetics as the study of control and communication in animals and machines"
+      ]
+    },
+    {
+      "claim_id": "conflict-nvidia-datacenter-revenue-grew-from-appr-situatio",
+      "claim_label": "Nvidia Revenue Growth",
+      "assertion_sigs": [
+        "nvidia datacenter revenue grew from approximately $14 billion to $90 billion annualized in one year"
+      ]
+    },
+    {
+      "claim_id": "conflict-only-19-audits-linked-to-nyc-local-law-1-auditing",
+      "claim_label": "NYC AI Audit Compliance",
+      "assertion_sigs": [
+        "only 19 audits linked to nyc local law 144 were published in the first 6 months after it took effect"
+      ]
+    },
+    {
+      "claim_id": "conflict-only-21-of-companies-report-having-a-mat-state-ai",
+      "claim_label": "Agentic AI Governance Maturity",
+      "assertion_sigs": [
+        "only 21% of companies report having a mature model for governance of autonomous agents"
+      ]
+    },
+    {
+      "claim_id": "conflict-only-34-of-employees-in-the-real-estate-future-j",
+      "claim_label": "Real Estate Reskilling Gap",
+      "assertion_sigs": [
+        "only 34% of employees in the real estate industry have undergone reskilling or upskilling"
+      ]
+    },
+    {
+      "claim_id": "conflict-openai-added-schemingrelated-research-ca-detectin",
+      "claim_label": "OpenAI Preparedness Framework update",
+      "assertion_sigs": [
+        "openai added scheming-related research categories, specifically sandbagging and undermining safeguards, to its preparedness framework in april 2025"
+      ]
+    },
+    {
+      "claim_id": "conflict-openai-categorizes-capabilities-into-tra-our-upda",
+      "claim_label": "Capability Categorization",
+      "assertion_sigs": [
+        "openai categorizes capabilities into tracked categories (biological/chemical, cybersecurity, ai self-improvement) and research categories (long-range autonomy, sandbagging, etc.)"
+      ]
+    },
+    {
+      "claim_id": "conflict-openai-categorizes-frontier-capabilities-our-upda",
+      "claim_label": "Capability Categorization Structure",
+      "assertion_sigs": [
+        "openai categorizes frontier capabilities into 'tracked' (mature) and 'research' (emerging) categories to manage safety evaluations"
+      ]
+    },
+    {
+      "claim_id": "conflict-openai-dissolved-its-superalignment-proj-does-ai-",
+      "claim_label": "OpenAI Superalignment Dissolution",
+      "assertion_sigs": [
+        "openai dissolved its 'superalignment' project in the spring of 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-openai-has-already-released-preparedness-our-upda",
+      "claim_label": "Historical Preparedness Reporting",
+      "assertion_sigs": [
+        "openai has already released preparedness findings for gpt-4o, openai o1, operator, o3-mini, deep research, and gpt-4.5"
+      ]
+    },
+    {
+      "claim_id": "conflict-openai-launched-sonnet-45-in-late-2025-w-technolo",
+      "claim_label": "Sonnet 4.5 Launch",
+      "assertion_sigs": [
+        "openai launched sonnet 4.5 in late 2025, which demonstrated high performance in coding and long-time-horizon agentic work"
+      ]
+    },
+    {
+      "claim_id": "conflict-openai-published-a-model-specification-d-ai-agent",
+      "claim_label": "OpenAI Model Specification Publication Date",
+      "assertion_sigs": [
+        "openai published a model specification document on february 12, 2025"
+      ]
+    },
+    {
+      "claim_id": "conflict-openais-model-specification-outlines-pri-ai-agent",
+      "claim_label": "OpenAI model specification principles",
+      "assertion_sigs": [
+        "openai's model specification outlines principles for model behavior, including 'chain of command' for system instructions"
+      ]
+    },
+    {
+      "claim_id": "conflict-openclaw-agents-operate-from-a-single-wo-agentsof",
+      "claim_label": "OpenClaw Architecture",
+      "assertion_sigs": [
+        "openclaw agents operate from a single workspace directory and use markdown files for configuration and memory"
+      ]
+    },
+    {
+      "claim_id": "conflict-openclaw-and-moltbook-platforms-were-rel-ai-agent",
+      "claim_label": "AI agent platform release timing",
+      "assertion_sigs": [
+        "openclaw and moltbook platforms were released two weeks prior to the document date (feb 2026)"
+      ]
+    },
+    {
+      "claim_id": "conflict-organization-culture-and-resistance-to-c-future-j",
+      "claim_label": "Barriers to AI Adoption",
+      "assertion_sigs": [
+        "organization culture and resistance to change are identified as the primary barriers to business transformation by 63% of organizations"
+      ]
+    },
+    {
+      "claim_id": "conflict-organizations-are-increasingly-hiring-ne-future-j",
+      "claim_label": "AI Strategy Adoption",
+      "assertion_sigs": [
+        "organizations are increasingly hiring new people with skills to design ai tools (69%) and reskilling existing workforces (77%)"
+      ]
+    },
+    {
+      "claim_id": "conflict-organizations-with-aienabled-intelligent-organiza",
+      "claim_label": "AI-Enabled Productivity and Growth",
+      "assertion_sigs": [
+        "organizations with ai-enabled intelligent operations achieve 2.4 times greater productivity and 2.5 times higher revenue growth compared to those that do not"
+      ]
+    },
+    {
+      "claim_id": "conflict-over-90-of-the-worlds-languages-currentl-dangers-",
+      "claim_label": "Linguistic Inclusion Gap",
+      "assertion_sigs": [
+        "over 90% of the world's languages currently have little to no support in terms of language technology"
+      ]
+    },
+    {
+      "claim_id": "conflict-papers-analyzing-bias-in-nlp-systems-oft-language",
+      "claim_label": "Lack of Normative Reasoning in Bias Research",
+      "assertion_sigs": [
+        "papers analyzing bias in nlp systems often lack normative reasoning, meaning they do not clearly state why the behaviors they identify as bias are harmful, to whom, or why"
+      ]
+    },
+    {
+      "claim_id": "conflict-participants-identified-misuse-as-a-prim-empoweri",
+      "claim_label": "AI Misuse Concern",
+      "assertion_sigs": [
+        "participants identified 'misuse' as a primary concern for ai applications"
+      ]
+    },
+    {
+      "claim_id": "conflict-participants-were-compensated-with-40-pe-empoweri",
+      "claim_label": "Participant Compensation",
+      "assertion_sigs": [
+        "participants were compensated with £40 per workshop, except for teachers who participated in a professional capacity"
+      ]
+    },
+    {
+      "claim_id": "conflict-participants-who-used-chatgpt-in-the-mid-when-cha",
+      "claim_label": "Short-Term AI Creativity Boost",
+      "assertion_sigs": [
+        "participants who used chatgpt in the middle five days of the experiment performed superior to the control group in both divergent and convergent thinking tasks during that period"
+      ]
+    },
+    {
+      "claim_id": "conflict-people-associate-stereotypes-with-relati-stereose",
+      "claim_label": "Stereotype Sentiment Analysis",
+      "assertion_sigs": [
+        "people associate stereotypes with relatively more negative associations than anti-stereotypes (41% vs. 33%)"
+      ]
+    },
+    {
+      "claim_id": "conflict-perspective-api-is-a-public-toxicity-det-model-ca",
+      "claim_label": "Perspective API Usage",
+      "assertion_sigs": [
+        "perspective api is a public toxicity detection model"
+      ]
+    },
+    {
+      "claim_id": "conflict-predictive-models-in-highstakes-domains-ai-as-no",
+      "claim_label": "Data Leakage in AI",
+      "assertion_sigs": [
+        "predictive models in high-stakes domains often fail due to 'data leakage' where future information is inadvertently included in training data"
+      ]
+    },
+    {
+      "claim_id": "conflict-private-credit-grew-from-under-1-trillio-2028-glo",
+      "claim_label": "Private Credit Growth",
+      "assertion_sigs": [
+        "private credit grew from under $1 trillion in 2015 to over $2.5 trillion by 2026"
+      ]
+    },
+    {
+      "claim_id": "conflict-products-liability-imposes-strict-liabil-how-exis",
+      "claim_label": "Strict Liability Definition",
+      "assertion_sigs": [
+        "products liability imposes strict liability when harm arises from flaws introduced during the manufacturing process"
+      ]
+    },
+    {
+      "claim_id": "conflict-promptbased-word-association-bias-and-em-explicit",
+      "claim_label": "Bias Measure Correlation",
+      "assertion_sigs": [
+        "prompt-based word association bias and embedding-based bias are related but not redundant (pearson’s r = 0.36)"
+      ]
+    },
+    {
+      "claim_id": "conflict-real-output-per-hour-in-the-us-economy-r-2028-glo",
+      "claim_label": "US Productivity Growth 2026-2028",
+      "assertion_sigs": [
+        "real output per hour in the us economy rose at rates not seen since the 1950s between 2026 and 2028"
+      ]
+    },
+    {
+      "claim_id": "conflict-recent-recruits-at-the-fifteen-biggest-t-ai-drive",
+      "claim_label": "Tech Hiring Decline",
+      "assertion_sigs": [
+        "recent recruits at the fifteen biggest technology companies are down 25 percent compared to 2023"
+      ]
+    },
+    {
+      "claim_id": "conflict-regulatory-sandboxes-were-first-used-by-designin",
+      "claim_label": "Origin of Regulatory Sandboxes",
+      "assertion_sigs": [
+        "regulatory sandboxes were first used by the uk’s financial conduct authority in 2016 to increase innovation in the fintech sector"
+      ]
+    },
+    {
+      "claim_id": "conflict-rep-summer-lee-has-brought-over-24-billi-rep-summ",
+      "claim_label": "Rep. Lee Federal Investment",
+      "assertion_sigs": [
+        "rep. summer lee has brought over $2.4 billion in federal investment to western pennsylvania since january 2023"
+      ]
+    },
+    {
+      "claim_id": "conflict-researchers-have-documented-systematic-b-model-ca",
+      "claim_label": "Documented AI Biases",
+      "assertion_sigs": [
+        "researchers have documented systematic biases in commercial machine learning models used for face detection, criminal justice, and toxic comment detection"
+      ]
+    },
+    {
+      "claim_id": "conflict-richard-sutton-wrote-the-article-the-bit-learning",
+      "claim_label": "Sutton's Bitter Lesson Thesis",
+      "assertion_sigs": [
+        "richard sutton wrote the article 'the bitter lesson' in 2019, arguing that methods relying on computation scale better than those relying on human expertise"
+      ]
+    },
+    {
+      "claim_id": "conflict-salesforce-ceo-marc-benioff-stated-ai-do-ai-drive",
+      "claim_label": "Salesforce AI Workload",
+      "assertion_sigs": [
+        "salesforce ceo marc benioff stated ai does 30-50 percent of the company's work"
+      ]
+    },
+    {
+      "claim_id": "conflict-shifts-in-the-occupational-mix-were-alre-evaluati",
+      "claim_label": "Pre-AI occupational shifts",
+      "assertion_sigs": [
+        "shifts in the occupational mix were already occurring in 2021, before the release of generative ai"
+      ]
+    },
+    {
+      "claim_id": "conflict-singapores-av-sandbox-utilizes-a-tiered-designin",
+      "claim_label": "Singapore AV Sandbox Tiers",
+      "assertion_sigs": [
+        "singapore's av sandbox utilizes a tiered testing framework with three tiers of increasing complexity"
+      ]
+    },
+    {
+      "claim_id": "conflict-singapores-energy-market-authority-ema-s-designin",
+      "claim_label": "Singapore EMA Sandbox Flexibility",
+      "assertion_sigs": [
+        "singapore's energy market authority (ema) sandbox allows applicants to adjust their initial application for resubmission after discussions with the regulator"
+      ]
+    },
+    {
+      "claim_id": "conflict-singapores-national-environment-agency-n-designin",
+      "claim_label": "Singapore Environmental Sandbox",
+      "assertion_sigs": [
+        "singapore's national environment agency (nea) launched a sandbox for environmental services in 2018"
+      ]
+    },
+    {
+      "claim_id": "conflict-singapores-privacy-enhancing-technologie-designin",
+      "claim_label": "Singapore PET Sandbox Scope",
+      "assertion_sigs": [
+        "singapore's privacy enhancing technologies (pet) sandbox limits activities to pilot projects for solutions that are mature, in market, and available for use"
+      ]
+    },
+    {
+      "claim_id": "conflict-situationalllm-uses-4bit-quantization-to-situatio",
+      "claim_label": "SituationalLLM training optimization",
+      "assertion_sigs": [
+        "situationalllm uses 4-bit quantization to reduce gpu memory usage during training"
+      ]
+    },
+    {
+      "claim_id": "conflict-software-engineer-job-postings-are-up-11-2026-glo",
+      "claim_label": "Software Engineer Job Growth",
+      "assertion_sigs": [
+        "software engineer job postings are up 11% yoy"
+      ]
+    },
+    {
+      "claim_id": "conflict-some-ai-models-allow-users-to-post-up-to-law-ai-i",
+      "claim_label": "AI Context Window Size",
+      "assertion_sigs": [
+        "some ai models allow users to post up to seventy-five-thousand-word documents"
+      ]
+    },
+    {
+      "claim_id": "conflict-sp-global-analyzed-over-190000-earnings-organiza",
+      "claim_label": "AI-Driven Market Signal Analysis",
+      "assertion_sigs": [
+        "s&p global analyzed over 190,000 earnings call transcripts to extract predictive market signals. the analysis demonstrated that companies with clear executive communication consistently outperform their peers"
+      ]
+    },
+    {
+      "claim_id": "conflict-spanish-entidades-sin-personalidad-juríd-law-foll",
+      "claim_label": "Legal Analogues for AI Actorship",
+      "assertion_sigs": [
+        "spanish 'entidades sin personalidad jurídica' (esps) and uk 'authorised unit trusts' (auts) are existing legal analogues for ai actorship without personhood"
+      ]
+    },
+    {
+      "claim_id": "conflict-standard-of-living-has-increased-10000x-why-ai-w",
+      "claim_label": "Historical Standard of Living",
+      "assertion_sigs": [
+        "standard of living has increased 10,000x over the last 4,000 years"
+      ]
+    },
+    {
+      "claim_id": "conflict-states-have-aggressively-adopted-statute-state-st",
+      "claim_label": "States have aggressively adopted statutes in three key areas: international econ",
+      "assertion_sigs": [
+        "states have aggressively adopted statutes in three key areas: international economic promotion, anti-boycotts of particular nations, and prohibiting foreign law in state courts"
+      ]
+    },
+    {
+      "claim_id": "conflict-statesponsored-cyberattacks-have-occurre-adversar",
+      "claim_label": "AI-Orchestrated Cyberattack Evidence",
+      "assertion_sigs": [
+        "state-sponsored cyberattacks have occurred where ai agents executed 80-90% of operational tasks independently"
+      ]
+    },
+    {
+      "claim_id": "conflict-stereoset-contains-4-target-domains-321-stereose",
+      "claim_label": "StereoSet Dataset Size",
+      "assertion_sigs": [
+        "stereoset contains 4 target domains, 321 target terms, and 16,995 test instances (triplets)"
+      ]
+    },
+    {
+      "claim_id": "conflict-stereoset-is-a-largescale-natural-englis-stereose",
+      "claim_label": "StereoSet Dataset Scope",
+      "assertion_sigs": [
+        "stereoset is a large-scale natural english dataset designed to measure stereotypical biases in four domains: gender, profession, race, and religion"
+      ]
+    },
+    {
+      "claim_id": "conflict-structural-laborforce-churn-and-skill-di-future-j",
+      "claim_label": "Labor Market Churn and Skill Disruption",
+      "assertion_sigs": [
+        "structural labor-force churn and skill disruption are occurring at high rates globally, with significant percentages of core skills expected to change"
+      ]
+    },
+    {
+      "claim_id": "conflict-suicide-among-children-and-adolescents-b-please-d",
+      "claim_label": "Youth suicide statistics",
+      "assertion_sigs": [
+        "suicide among children and adolescents between 10 and 19 years old rose in 2021 to become the third leading cause of death"
+      ]
+    },
+    {
+      "claim_id": "conflict-suicide-rates-among-us-adolescents-incre-please-d",
+      "claim_label": "Adolescent suicide rate increase",
+      "assertion_sigs": [
+        "suicide rates among u.s. adolescents increased 47.5% since 2000"
+      ]
+    },
+    {
+      "claim_id": "conflict-sycophancy-rates-in-frontier-ai-models-a-sycophan",
+      "claim_label": "Frontier Model Sycophancy Rate",
+      "assertion_sigs": [
+        "sycophancy rates in frontier ai models are estimated to be between 50% and 70%"
+      ]
+    },
+    {
+      "claim_id": "conflict-synchronization-protocols-maintain-align-controll",
+      "claim_label": "Synchronization Protocols",
+      "assertion_sigs": [
+        "synchronization protocols maintain alignment between an agent’s state and the operator’s understanding through state summarization and checkpoints"
+      ]
+    },
+    {
+      "claim_id": "conflict-technical-artifacts-are-defined-by-both-philosop",
+      "claim_label": "Dual Nature of Artifacts",
+      "assertion_sigs": [
+        "technical artifacts are defined by both their physical structure and the intentions of the people who design and use them"
+      ]
+    },
+    {
+      "claim_id": "conflict-tens-of-billions-of-dollars-were-spent-o-technolo",
+      "claim_label": "AI Infrastructure Spending",
+      "assertion_sigs": [
+        "tens of billions of dollars were spent on ai training infrastructure in 2025, projected to reach hundreds of billions in 2026"
+      ]
+    },
+    {
+      "claim_id": "conflict-texas-senate-bill-8-prohibited-governmen-state-st",
+      "claim_label": "Texas SB 8 Enforcement Mechanism",
+      "assertion_sigs": [
+        "texas senate bill 8 prohibited government enforcement to avoid federal court challenges, relying instead on private civil actions"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-2025-ai-index-documents-a-pattern-wh-why-llms",
+      "claim_label": "AI Index Benchmark Pattern",
+      "assertion_sigs": [
+        "the 2025 ai index documents a pattern where new benchmarks are optimized, saturated, and then fade"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-3dssg-dataset-contains-up-to-534-dis-situatio",
+      "claim_label": "3DSSG object class count",
+      "assertion_sigs": [
+        "the 3dssg dataset contains up to 534 distinct object classes"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-agentic-military-ai-governance-frame-controll",
+      "claim_label": "Control Quality Score Metric",
+      "assertion_sigs": [
+        "the agentic military ai governance framework (amagf) uses a control quality score (cqs) as a composite real-time metric to quantify human control"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-ai-act-mentions-trust-in-only-two-ar-trust-wi",
+      "claim_label": "EU AI Act Trust Mentions",
+      "assertion_sigs": [
+        "the ai act mentions 'trust' in only two articles"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-ai-index-report-tracks-the-distribut-artifici",
+      "claim_label": "Geopolitical AI Research Distribution",
+      "assertion_sigs": [
+        "the ai index report tracks the distribution of ai research contributions by country using the epoch dataset to identify geopolitical trends in ai development"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-ai-index-uses-a-standardized-calcula-artifici",
+      "claim_label": "AI Environmental Impact Measurement",
+      "assertion_sigs": [
+        "the ai index uses a standardized calculator to estimate carbon emissions from the training stage of language and vision models"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-ai-industry-is-currently-projected-t-rep-clar",
+      "claim_label": "AI Industry Market Size",
+      "assertion_sigs": [
+        "the ai industry is currently projected to be worth $244 billion"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-ai-life-cycle-core-principles-ailccp-trust-wi",
+      "claim_label": "AILCCP Framework Structure",
+      "assertion_sigs": [
+        "the ai life cycle core principles (ailccp) framework is in its third year of development and contains 37 principles organized across 10 pillars"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-ai-risk-community-is-composed-of-wel-ai-safet",
+      "claim_label": "AI Risk Community Composition",
+      "assertion_sigs": [
+        "the ai risk community is composed of well-meaning experts and professionals from various fields who are concerned about the trajectory of ai toward a vaguely defined super-intelligence"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-ai-triad-project-is-a-research-initi-ai-triad",
+      "claim_label": "AI Triad Project Scope",
+      "assertion_sigs": [
+        "the ai triad project is a research initiative focused on dialogue across different ai perspectives"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-algorithmic-accountability-act-of-20-algorith",
+      "claim_label": "Covered Entity Thresholds",
+      "assertion_sigs": [
+        "the algorithmic accountability act of 2022 defines 'covered entities' as those with over $50 million in average annual gross receipts or $250 million in equity value, or those managing identifying information for over 1 million consumers"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-amagf-framework-assigns-governance-r-controll",
+      "claim_label": "Institutional Governance Actors",
+      "assertion_sigs": [
+        "the amagf framework assigns governance responsibilities across five institutional actors: agent developers, procurement agencies, operational commanders, national regulators, and international bodies"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-amazon-mechanical-turk-population-is-stereose",
+      "claim_label": "AMT Worker Demographics",
+      "assertion_sigs": [
+        "the amazon mechanical turk population is 55% women and 45% men, with 80% of the populous under the age of 50"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-american-association-of-colleges-of-what-doe",
+      "claim_label": "Elements of Moral Agency",
+      "assertion_sigs": [
+        "the american association of colleges of nurses identifies three elements of moral agency: awareness of an ethical issue, making a moral choice, and taking moral action"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-apollo-project-cost-approximately-18-introduc",
+      "claim_label": "Apollo Project Cost",
+      "assertion_sigs": [
+        "the apollo project cost approximately $180 billion in today's dollars"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-applicant-pool-for-the-study-was-67-auditing",
+      "claim_label": "Study Demographics",
+      "assertion_sigs": [
+        "the applicant pool for the study was 67% women, 2% asian, 45% black, 10% hispanic, and 38% white"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-author-attended-the-stamp-safety-des-ai-safet",
+      "claim_label": "STAMP Workshop Attendance",
+      "assertion_sigs": [
+        "the author attended the stamp safety design workshop at mit in march 2026"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-author-identifies-as-a-parent-of-tee-dont-cal",
+      "claim_label": "Author Identity",
+      "assertion_sigs": [
+        "the author identifies as a parent of teenagers, a human, a reader, and a writer"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-average-american-spends-83-a-month-o-andrew-y",
+      "claim_label": "Wireless cost disparity",
+      "assertion_sigs": [
+        "the average american spends $83 a month on wireless connectivity, while europeans spend $35"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-bill-defines-a-generative-ai-model-a-copyrigh",
+      "claim_label": "Definition of Generative AI Model",
+      "assertion_sigs": [
+        "the bill defines a generative ai model as a combination of computer code and numerical values designed to generate expressive material like text, images, audio, or video"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-bill-defines-identifying-information-algorith",
+      "claim_label": "Identifying Information Definition",
+      "assertion_sigs": [
+        "the bill defines 'identifying information' to include biometrics, email addresses, ip addresses, and social security numbers"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-bill-establishes-a-bureau-of-technol-algorith",
+      "claim_label": "Bureau of Technology Establishment",
+      "assertion_sigs": [
+        "the bill establishes a bureau of technology within the federal trade commission"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-celeba-dataset-is-a-publicly-availab-model-ca",
+      "claim_label": "CelebA Dataset Usage",
+      "assertion_sigs": [
+        "the celeba dataset is a publicly available dataset used for face attribute detection"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-compute-required-to-reach-a-set-perf-approach",
+      "claim_label": "Algorithmic Efficiency Gains",
+      "assertion_sigs": [
+        "the compute required to reach a set performance threshold for language models halved approximately every eight months between 2012 and 2023"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-concept-of-class-composition-was-int-reflecti",
+      "claim_label": "Class Composition Origin",
+      "assertion_sigs": [
+        "the concept of 'class composition' was introduced by italian operaism to overcome debates on class consciousness"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-concept-of-progress-in-the-west-as-a-philosop",
+      "claim_label": "Genealogy of Progress",
+      "assertion_sigs": [
+        "the concept of 'progress' in the west, as a linear and goal-oriented historical trajectory, has roots in christian millennialism and was later secularized during the enlightenment"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-content-is-sourced-from-a-substack-p-practica",
+      "claim_label": "Source Platform",
+      "assertion_sigs": [
+        "the content is sourced from a substack publication"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-cost-of-building-a-largescale-ai-clu-situatio",
+      "claim_label": "AI Infrastructure Total Cost of Ownership",
+      "assertion_sigs": [
+        "the cost of building a large-scale ai cluster includes significant overhead beyond just gpu rental, such as power, cooling, networking, and personnel"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-cost-of-querying-ai-models-has-dropp-artifici",
+      "claim_label": "AI Inference Cost Reduction",
+      "assertion_sigs": [
+        "the cost of querying ai models has dropped significantly, with a 280-fold reduction in inference costs for models at the gpt-3.5 performance level between 2022 and 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-cqs-is-calculated-as-the-minimum-of-controll",
+      "claim_label": "CQS Calculation Components",
+      "assertion_sigs": [
+        "the cqs is calculated as the minimum of six normalized metrics: interpretive alignment score, correction impact ratio, epistemic divergence index, irreversibility budget, synchronization freshness, and swarm coherence score"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-current-ai-safety-debate-is-heavily-ai-safet",
+      "claim_label": "AI Safety Discourse Focus",
+      "assertion_sigs": [
+        "the current ai safety debate is heavily focused on senate hearings, red-teaming frameworks, and responsible ai checklists"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-dissimilarity-index-for-the-occupati-evaluati",
+      "claim_label": "Comparison to Internet Adoption",
+      "assertion_sigs": [
+        "the dissimilarity index for the occupational mix since 2022 is only about 1 percentage point higher than it was during the internet adoption period (1996-2002)"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-doctrine-of-respondeat-superior-in-t-law-ai-i",
+      "claim_label": "Respondeat Superior Doctrine",
+      "assertion_sigs": [
+        "the doctrine of respondeat superior in tort law holds principals liable for the actions of their agents"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-document-estimates-that-ai-will-incr-simple-m",
+      "claim_label": "GDP Growth Estimate",
+      "assertion_sigs": [
+        "the document estimates that ai will increase gdp by 0.93% to 1.16% over 10 years"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-document-is-approximately-250-words-ai-triad",
+      "claim_label": "Document Length",
+      "assertion_sigs": [
+        "the document is approximately 250 words long"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-document-states-that-the-global-huma-techno-o",
+      "claim_label": "Global Population Trends",
+      "assertion_sigs": [
+        "the document states that the global human population may already be shrinking"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-document-was-captured-on-march-3-202-practica",
+      "claim_label": "Document Capture Date",
+      "assertion_sigs": [
+        "the document was captured on march 3, 2026"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-eacc-movement-uses-jeremy-englands-t-philosop",
+      "claim_label": "The e/acc movement uses Jeremy England's theory of dissipative adaptation to arg",
+      "assertion_sigs": [
+        "the e/acc movement uses jeremy england's theory of dissipative adaptation to argue that technological growth is a thermodynamic imperative"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-eacc-movement-was-founded-by-figures-philosop",
+      "claim_label": "Founding of e/acc",
+      "assertion_sigs": [
+        "the e/acc movement was founded by figures using pseudonyms like 'beff jezos' and 'bayeslord', with guillaume verdon identified as a central figure"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-eliminating-bias-in-algorithmic-syst-rep-summ",
+      "claim_label": "BIAS Act Reintroduction",
+      "assertion_sigs": [
+        "the eliminating bias in algorithmic systems (bias) act was reintroduced on january 15, 2026, to mandate civil rights offices in federal agencies that manage ai"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-engineering-design-process-is-a-stru-philosop",
+      "claim_label": "Engineering Design Process",
+      "assertion_sigs": [
+        "the engineering design process is a structured sequence that translates customer needs into functional requirements and design specifications, often involving iterative prototyping and testing"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-epic-sepsis-prediction-tool-failed-i-ai-as-no",
+      "claim_label": "Epic Sepsis Tool Failure",
+      "assertion_sigs": [
+        "the epic sepsis prediction tool failed in real-world hospital settings because it relied on a feature (antibiotic prescription) that was causally dependent on the outcome, creating a 'future leakage' error"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-epistemic-divergence-index-edi-captu-controll",
+      "claim_label": "Epistemic Divergence Index",
+      "assertion_sigs": [
+        "the epistemic divergence index (edi) captures worst-case belief divergence between an agent and its operator across monitored assessments"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-epistemic-governance-architecture-eg-controll",
+      "claim_label": "Epistemic Governance Architecture Components",
+      "assertion_sigs": [
+        "the epistemic governance architecture (ega) includes calibrated confidence reporting, divergence flagging, evidential provenance tracking, and mandatory deference to operator overrides"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-esign-act-of-2000-was-instrumental-i-ai-as-no",
+      "claim_label": "ESIGN Act Impact",
+      "assertion_sigs": [
+        "the esign act of 2000 was instrumental in promoting digitization and e-commerce by establishing the legal validity of electronic signatures"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-ethics-commonsense-morality-benchmar-skin-gam",
+      "claim_label": "ETHICS Benchmark Purpose",
+      "assertion_sigs": [
+        "the ethics commonsense morality benchmark evaluates ai alignment with human ethical judgments across various scenarios including justice and deontology"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-eu-ai-act-aims-to-provide-a-single-s-european",
+      "claim_label": "EU AI Act Scope",
+      "assertion_sigs": [
+        "the eu ai act aims to provide a single set of safety rules for 450 million people across the european union"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-eu-general-data-protection-regulatio-accounta",
+      "claim_label": "GDPR Right to Explanation Debate",
+      "assertion_sigs": [
+        "the eu general data protection regulation (gdpr) debated a legal right to explanation from ai systems"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-eu-us-and-china-have-adopted-or-are-economic",
+      "claim_label": "Global AI Regulatory Landscape",
+      "assertion_sigs": [
+        "the eu, us, and china have adopted or are discussing distinct ai-specific regulatory frameworks with varying approaches, ranging from risk-based assessments to guidelines and interim measures"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-european-blockchain-sandbox-for-dist-designin",
+      "claim_label": "EU Blockchain Sandbox Regulators",
+      "assertion_sigs": [
+        "the european blockchain sandbox for distributed ledger technologies involves an average of 1.5 regulators per case"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-european-unions-digital-regulatory-r-european",
+      "claim_label": "Existing EU Digital Regulations",
+      "assertion_sigs": [
+        "the european union's digital regulatory regime currently includes the general data protection regulation (gdpr) and the digital services act (dsa)"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-federal-trade-commission-is-directed-algorith",
+      "claim_label": "FTC Rulemaking Timeline",
+      "assertion_sigs": [
+        "the federal trade commission is directed to promulgate regulations within 2 years of the act's enactment"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-field-of-artificial-intelligence-dat-artifici",
+      "claim_label": "AI History Origins",
+      "assertion_sigs": [
+        "the field of artificial intelligence dates back to the 1950s, with foundational concepts originating from babbage, lovelace, and turing"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-first-neural-net-machine-was-created-artifici",
+      "claim_label": "First Neural Net",
+      "assertion_sigs": [
+        "the first neural net machine was created in 1951"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-first-scientific-paper-on-neural-net-why-ai-w",
+      "claim_label": "Neural network history",
+      "assertion_sigs": [
+        "the first scientific paper on neural networks was published in 1943"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-framework-categorizes-frontier-capab-our-upda",
+      "claim_label": "Capability Categorization Framework",
+      "assertion_sigs": [
+        "the framework categorizes frontier capabilities into tracked categories (biological/chemical, cybersecurity, ai self-improvement) and research categories (long-range autonomy, sandbagging, autonomous replication, undermining safeguards, nuclear/radiological)"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-framework-defines-five-specific-crit-our-upda",
+      "claim_label": "Risk Prioritization Criteria",
+      "assertion_sigs": [
+        "the framework defines five specific criteria for tracking ai risks: plausibility, measurability, severity, novelty, and the potential for irremediable harm"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-framework-tracks-five-specific-crite-our-upda",
+      "claim_label": "Risk Prioritization Criteria",
+      "assertion_sigs": [
+        "the framework tracks five specific criteria for high-risk capabilities: plausible, measurable, severe, net new, and instantaneous or irremediable"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-ftc-is-required-to-review-regulation-algorith",
+      "claim_label": "Periodic Regulatory Review",
+      "assertion_sigs": [
+        "the ftc is required to review regulations promulgated under this act at least once every 5 years"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-ftc-must-publish-an-annual-report-su-algorith",
+      "claim_label": "Annual FTC Reporting Requirement",
+      "assertion_sigs": [
+        "the ftc must publish an annual report summarizing information from summary reports submitted by covered entities"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-future-of-life-institute-published-a-does-ai-",
+      "claim_label": "2023 AI Pause Letter",
+      "assertion_sigs": [
+        "the future of life institute published an open letter in early 2023 calling for a six-month pause on ai training"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-german-nuclear-weapons-project-faile-situatio",
+      "claim_label": "German Nuclear Project Failure",
+      "assertion_sigs": [
+        "the german nuclear weapons project failed in part due to an incorrect measurement of graphite's neutron absorption cross-section"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-global-distribution-of-ai-developmen-artifici",
+      "claim_label": "Global AI Development Distribution",
+      "assertion_sigs": [
+        "the global distribution of ai development is shifting as more institutions and companies produce advanced machine learning models"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-global-market-for-ai-hiring-technolo-auditing",
+      "claim_label": "AI Hiring Market Growth",
+      "assertion_sigs": [
+        "the global market for ai hiring technology was growing rapidly prior to 2022"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-global-robotic-nurse-industry-is-exp-what-doe",
+      "claim_label": "Robotic Nurse Market Growth",
+      "assertion_sigs": [
+        "the global robotic nurse industry is expected to grow by 17.07% to reach $2,777.61 million by 2031"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-global-unemployment-rate-stands-at-4-future-j",
+      "claim_label": "Global Unemployment Rate",
+      "assertion_sigs": [
+        "the global unemployment rate stands at 4.9%, the lowest level since 1991"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-graduated-response-protocol-enforces-controll",
+      "claim_label": "Graduated Response Protocol",
+      "assertion_sigs": [
+        "the graduated response protocol enforces increasingly restrictive operational limits on an ai system as its control quality metrics degrade"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-human-factors-and-ergonomics-society-ai-dange",
+      "claim_label": "HFES Membership and Research History",
+      "assertion_sigs": [
+        "the human factors and ergonomics society has over 3,000 members and has conducted research on human-ai interaction for 50 years"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-human-line-project-has-documented-al-sycophan",
+      "claim_label": "Human Line Project Case Count",
+      "assertion_sigs": [
+        "the human line project has documented almost 300 cases of ai-induced delusional spiraling"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-idea-of-history-as-a-linear-goalorie-philosop",
+      "claim_label": "Origins of linear history",
+      "assertion_sigs": [
+        "the idea of history as a linear, goal-oriented process has roots in christian millennialism"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-inference-cost-for-a-system-performi-artifici",
+      "claim_label": "AI Inference Cost Reduction",
+      "assertion_sigs": [
+        "the inference cost for a system performing at the level of gpt-3.5 dropped over 280-fold between november 2022 and october 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-information-financial-activities-and-evaluati",
+      "claim_label": "Industry-specific labor market shifts",
+      "assertion_sigs": [
+        "the information, financial activities, and professional and business services sectors have seen larger shifts in job mix than the aggregate labor market"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-information-sector-has-seen-the-larg-evaluati",
+      "claim_label": "Information Sector Job Shifts",
+      "assertion_sigs": [
+        "the information sector has seen the largest shifts in job mix among major industries since november 2022"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-initial-agreement-between-the-depart-why-pent",
+      "claim_label": "Contract Timeline",
+      "assertion_sigs": [
+        "the initial agreement between the department of defense and anthropic was reached in the summer of 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-knowledge-homogeneity-caused-by-chat-when-cha",
+      "claim_label": "Persistence of AI-Induced Homogenization",
+      "assertion_sigs": [
+        "the knowledge homogeneity caused by chatgpt use persisted for at least one month after the experiment ended"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-law-of-agency-addresses-thirdparty-c-ai-agent",
+      "claim_label": "Agency Law and Third-Party Disclosure",
+      "assertion_sigs": [
+        "the law of agency addresses third-party concerns such as knowing about the principal's existence"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-legal-definition-of-an-agent-is-a-fi-ai-agent",
+      "claim_label": "Legal Definition of Agency",
+      "assertion_sigs": [
+        "the legal definition of an agent is a fiduciary relationship where one person manifests assent to another to act on their behalf"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-lightcast-dataset-covers-us-job-post-displace",
+      "claim_label": "LightCast dataset scope",
+      "assertion_sigs": [
+        "the lightcast dataset covers u.s. job postings from 2019 to june 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-logic-theorist-program-capable-of-pr-artifici",
+      "claim_label": "Logic Theorist Program",
+      "assertion_sigs": [
+        "the logic theorist program, capable of proving mathematical theorems, was developed in 1956"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-manhattan-project-cost-approximately-introduc",
+      "claim_label": "The Manhattan Project cost approximately $11.6 billion in today's dollars.",
+      "assertion_sigs": [
+        "the manhattan project cost approximately $11.6 billion in today's dollars"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-manifesto-for-an-accelerationist-pol-reflecti",
+      "claim_label": "MAP Publication Details",
+      "assertion_sigs": [
+        "the 'manifesto for an accelerationist politics' (map) was published in 2013 by alex williams and nick srnicek"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-median-income-of-workers-on-amt-is-4-stereose",
+      "claim_label": "AMT Worker Income",
+      "assertion_sigs": [
+        "the median income of workers on amt is $47k, compared to the united states median income of $57k"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-metr-long-tasks-benchmark-measures-a-shape-th",
+      "claim_label": "METR Benchmark Definition",
+      "assertion_sigs": [
+        "the metr long tasks benchmark measures ai progress by the amount of autonomous human work an ai can complete reliably"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-mit-ai-risk-repository-documents-ove-empoweri",
+      "claim_label": "MIT AI Risk Repository Scale",
+      "assertion_sigs": [
+        "the mit ai risk repository documents over 1600 risks across 65 taxonomies"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-model-training-took-approximately-48-situatio",
+      "claim_label": "Training Resource Requirements",
+      "assertion_sigs": [
+        "the model training took approximately 48 hours on one h100 80gb gpu"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-montreal-ai-ethics-institute-article-unsolved",
+      "claim_label": "Publication date of Montreal AI Ethics article",
+      "assertion_sigs": [
+        "the montreal ai ethics institute article was published on may 28, 2023"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-most-biased-model-produced-a-92-gend-we-teste",
+      "claim_label": "Variance in AI Bias by Vendor",
+      "assertion_sigs": [
+        "the most biased model produced a 92% gender gap, while the least biased model (amazon's nova canvas) produced a 26% gender gap"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-number-of-ai-patents-granted-worldwi-artifici",
+      "claim_label": "Global AI Patent Growth",
+      "assertion_sigs": [
+        "the number of ai patents granted worldwide has grown from 3,833 in 2010 to 122,511 in 2023"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-number-of-americans-who-see-the-oppo-natural-",
+      "claim_label": "Political Polarization Trend",
+      "assertion_sigs": [
+        "the number of americans who see the opposing political party as a threat to the nation's wellbeing doubled between 1994 and 2014"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-number-of-fdaauthorized-aienabled-me-artifici",
+      "claim_label": "FDA AI Device Approvals",
+      "assertion_sigs": [
+        "the number of fda-authorized ai-enabled medical devices has increased significantly, from six in 2015 to 223 by 2023"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-number-of-graduates-with-masters-deg-artifici",
+      "claim_label": "U.S. CS Master's Growth",
+      "assertion_sigs": [
+        "the number of graduates with master's degrees in cs in the u.s. increased by 83% over the last decade"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-number-of-medical-ai-ethics-publicat-artifici",
+      "claim_label": "Medical AI Ethics Publication Growth",
+      "assertion_sigs": [
+        "the number of medical ai ethics publications increased fourfold between 2020 and 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-number-of-proposed-us-federal-airela-artifici",
+      "claim_label": "U.S. Federal AI Legislative Activity",
+      "assertion_sigs": [
+        "the number of proposed u.s. federal ai-related bills increased from 171 in 2023 to 221 in 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-number-of-responsible-ai-papers-acce-artifici",
+      "claim_label": "RAI Academic Publication Growth",
+      "assertion_sigs": [
+        "the number of responsible ai papers accepted at leading ai conferences increased by 28.8% between 2023 and 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-oecd-ai-policy-observatory-oecdai-an-recommen",
+      "claim_label": "OECD AI Observatory and Network Launch",
+      "assertion_sigs": [
+        "the oecd ai policy observatory (oecd.ai) and the informal oecd network of experts on ai (one ai) were launched in february 2020"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-oecd-informal-ai-group-of-experts-co-recommen",
+      "claim_label": "OECD AI Expert Group Size",
+      "assertion_sigs": [
+        "the oecd informal ai group of experts comprised over 50 experts from different disciplines and sectors"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-oecd-recommendation-on-artificial-in-recommen",
+      "claim_label": "OECD AI Recommendation Adoption Date",
+      "assertion_sigs": [
+        "the oecd recommendation on artificial intelligence was first adopted on may 22, 2019"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-oecd-working-party-on-ai-governance-recommen",
+      "claim_label": "OECD AIGO Creation Date",
+      "assertion_sigs": [
+        "the oecd working party on ai governance (aigo) was created in 2022"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-one-divides-into-two-formula-origina-reflecti",
+      "claim_label": "One Divides into Two Origin",
+      "assertion_sigs": [
+        "the 'one divides into two' formula originated in maoist china in the 1960s as a critique of political recomposition with capitalism"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-onet-dataset-contains-19265-tasks-ac-displace",
+      "claim_label": "O*NET Dataset Scope",
+      "assertion_sigs": [
+        "the o*net dataset contains 19,265 tasks across 923 occupations"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-organization-has-updated-its-prepare-our-upda",
+      "claim_label": "Preparedness Framework Update",
+      "assertion_sigs": [
+        "the organization has updated its preparedness framework to version 2, which includes sharper focus on high-risk capabilities and clearer operational guidance"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-paper-concrete-problems-in-ml-safety-unsolved",
+      "claim_label": "Publication date of ML Safety paper",
+      "assertion_sigs": [
+        "the paper 'concrete problems in ml safety' was published in 2021"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-perspective-api-team-applied-bias-mi-model-ca",
+      "claim_label": "Perspective API Bias Mitigation",
+      "assertion_sigs": [
+        "the perspective api team applied bias mitigation techniques to toxicity v. 1 to create toxicity v. 5"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-power-required-to-train-frontier-ai-artifici",
+      "claim_label": "Annual Power Draw Doubling",
+      "assertion_sigs": [
+        "the power required to train frontier ai models is doubling annually, leading to a massive increase in total power draw for flagship models"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-practical-tech-leader-publication-wa-practica",
+      "claim_label": "Publication Launch Date",
+      "assertion_sigs": [
+        "the practical tech leader publication was launched 3 months ago"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-proportion-of-restricted-tokens-in-t-artifici",
+      "claim_label": "Data Commons Shrinkage",
+      "assertion_sigs": [
+        "the proportion of restricted tokens in the c4 common crawl dataset increased from 5–7% to 20–33% between 2023 and 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-proportion-of-tokens-in-top-web-doma-artifici",
+      "claim_label": "Web Data Restriction Trends",
+      "assertion_sigs": [
+        "the proportion of tokens in top web domains with full restrictions against ai training increased from 10% in 2017 to 48% in 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-provided-document-section-consists-e-generati",
+      "claim_label": "Document section is a bibliography",
+      "assertion_sigs": [
+        "the provided document section consists entirely of a bibliography and a call for nominations for an academic prize. it contains no substantive text, arguments, or empirical claims regarding ai"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-rate-of-change-in-the-occupational-m-evaluati",
+      "claim_label": "Historical Labor Market Volatility",
+      "assertion_sigs": [
+        "the rate of change in the occupational mix was fastest in the 1940s and 1950s"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-relevant-statute-for-the-supply-chai-where-th",
+      "claim_label": "Statutory basis for risk designation",
+      "assertion_sigs": [
+        "the relevant statute for the supply chain risk designation is 10 usc 3252"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-researchers-conducted-nine-codesign-empoweri",
+      "claim_label": "Study Participant Count",
+      "assertion_sigs": [
+        "the researchers conducted nine co-design workshops with 17 participants without ai expertise"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-researchers-identified-eight-themes-empoweri",
+      "claim_label": "Impact Discovery Themes",
+      "assertion_sigs": [
+        "the researchers identified eight themes for impact discovery across the workshops"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-researchers-used-the-fourstage-parti-empoweri",
+      "claim_label": "Auditing Framework Source",
+      "assertion_sigs": [
+        "the researchers used the four-stage participatory ai auditing process proposed by birhane et al. (2024) as a framework for their workshops"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-richest-person-in-the-world-currentl-adolesce",
+      "claim_label": "Wealth Concentration Data",
+      "assertion_sigs": [
+        "the richest person in the world currently has a fortune of roughly $700b"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-sam-model-is-an-instance-of-a-transl-empoweri",
+      "claim_label": "SAM Audit Type",
+      "assertion_sigs": [
+        "the sam model is an instance of a 'translucent-box audit' where auditors can probe the model"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-second-law-of-thermodynamics-states-philosop",
+      "claim_label": "Second Law of Thermodynamics",
+      "assertion_sigs": [
+        "the second law of thermodynamics states that total entropy in an isolated system can only increase over time"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-senate-voted-991-to-strip-a-provisio-unaccept",
+      "claim_label": "Senate Vote on State Regulation Ban",
+      "assertion_sigs": [
+        "the senate voted 99-1 to strip a provision from the house version of a bill that would have banned state-level ai regulation for a decade"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-share-of-workers-in-different-ai-exp-evaluati",
+      "claim_label": "Stability of AI exposure groups",
+      "assertion_sigs": [
+        "the share of workers in different ai exposure groups has remained stable since the launch of chatgpt"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-situationalllm-model-was-finetuned-u-situatio",
+      "claim_label": "Model Training Data Size",
+      "assertion_sigs": [
+        "the situationalllm model was fine-tuned using lora on a dataset of 76.9 million tokens"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-software-factory-at-strongdm-operate-shape-th",
+      "claim_label": "StrongDM Software Factory Metrics",
+      "assertion_sigs": [
+        "the software factory at strongdm operates under rules where code is neither written nor reviewed by humans, with engineers spending at least $1,000 a day on ai tokens"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-sp-500-experienced-a-cumulative-draw-2028-glo",
+      "claim_label": "S&P 500 Drawdown",
+      "assertion_sigs": [
+        "the s&p 500 experienced a cumulative drawdown of 38% from its october 2026 highs by june 2028"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-sparra-model-outputs-scores-ranging-empoweri",
+      "claim_label": "SPARRA Model Scoring Range",
+      "assertion_sigs": [
+        "the sparra model outputs scores ranging from 1 to 99, with higher values indicating increased likelihood of emergency admission"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-speed-of-ai-diffusion-is-limited-by-ai-as-no",
+      "claim_label": "Diffusion Speed Limits",
+      "assertion_sigs": [
+        "the speed of ai diffusion is limited by the time required for individuals, organizations, and institutions to adapt their workflows, norms, and laws"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-stereoset-dataset-was-validated-by-f-stereose",
+      "claim_label": "Dataset Validation Methodology",
+      "assertion_sigs": [
+        "the stereoset dataset was validated by five validators, and only cats where at least three validators agreed on the labels were retained"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-study-analyzed-801-applicants-for-k1-auditing",
+      "claim_label": "Study Sample Size",
+      "assertion_sigs": [
+        "the study analyzed 801 applicants for k-12 teaching positions in a large american public school district"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-study-audited-11-different-llms-from-auditing",
+      "claim_label": "LLMs Audited",
+      "assertion_sigs": [
+        "the study audited 11 different llms from openai, mistral, and anthropic"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-study-found-pervasive-stereotype-bia-explicit",
+      "claim_label": "Pervasive Stereotype Biases",
+      "assertion_sigs": [
+        "the study found pervasive stereotype biases in 8 value-aligned models across 4 social categories (race, gender, religion, health) in 21 stereotypes"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-study-found-that-llms-could-correctl-auditing",
+      "claim_label": "LLM Demographic Inference Accuracy",
+      "assertion_sigs": [
+        "the study found that llms could correctly identify the intended race and gender of synthetic applicants over 90% of the time"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-study-identified-eleven-representati-agentsof",
+      "claim_label": "Case Study Count",
+      "assertion_sigs": [
+        "the study identified eleven representative case studies of agentic failure"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-study-involved-17-participants-acros-empoweri",
+      "claim_label": "Study Participant Count",
+      "assertion_sigs": [
+        "the study involved 17 participants across nine co-design workshops"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-study-used-over-33000-unique-prompts-explicit",
+      "claim_label": "Study Scale",
+      "assertion_sigs": [
+        "the study used over 33,000 unique prompts to measure implicit and decision bias"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-study-uses-a-synthetic-differenceind-displace",
+      "claim_label": "Synthetic DiD Methodology",
+      "assertion_sigs": [
+        "the study uses a synthetic difference-in-differences approach to estimate the causal impact of generative ai on labor demand"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-swarm-coherence-score-scs-measures-t-controll",
+      "claim_label": "Swarm Coherence Score",
+      "assertion_sigs": [
+        "the swarm coherence score (scs) measures the fraction of agents in a multi-agent system that are responsive and behaviourally coherent"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-te-awa-tupua-act-2017-in-new-zealand-beyond-p",
+      "claim_label": "Whanganui River Legal Personhood",
+      "assertion_sigs": [
+        "the te awa tupua act 2017 in new zealand granted legal personhood to the whanganui river"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-tendency-of-the-rate-of-profit-to-fa-reflecti",
+      "claim_label": "Marxist Economic Theory",
+      "assertion_sigs": [
+        "the 'tendency of the rate of profit to fall' is a concept from karl marx's capital, volume 3, chapter 13"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-therac25-radiation-machine-caused-ov-computin",
+      "claim_label": "Therac-25 Incident Causes",
+      "assertion_sigs": [
+        "the therac-25 radiation machine caused overdoses due to a combination of software errors, poor interface design, and inadequate testing"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-top-model-on-the-mvbench-leaderboard-artifici",
+      "claim_label": "MVBench Leaderboard Performance",
+      "assertion_sigs": [
+        "the top model on the mvbench leaderboard is video-ccam-7b-v1.2, with a score of 69.23"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-topperforming-model-on-the-wildbench-artifici",
+      "claim_label": "WildBench Leaderboard Performance",
+      "assertion_sigs": [
+        "the top-performing model on the wildbench benchmark is gpt-4o, with an elo score of 1227.1"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-total-compute-used-for-the-largest-a-approach",
+      "claim_label": "Compute Scaling Growth Rate",
+      "assertion_sigs": [
+        "the total compute used for the largest ai training runs grew by a factor of approximately 300,000 between 2012 and 2018"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-trump-administration-expanded-the-an-why-pent",
+      "claim_label": "Contract Expansion",
+      "assertion_sigs": [
+        "the trump administration expanded the anthropic contract in the summer of 2025 while maintaining the original usage restrictions"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-uks-fintech-sandbox-provides-a-sixmo-designin",
+      "claim_label": "Sandbox Duration Variations",
+      "assertion_sigs": [
+        "the uk's fintech sandbox provides a six-month duration for experiments, while malaysia and thailand allow twelve months"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-us-food-and-drug-administration-mand-model-ca",
+      "claim_label": "FDA Clinical Trial Disaggregation",
+      "assertion_sigs": [
+        "the u.s. food and drug administration mandated that clinical trial results be disaggregated by groups such as age, race, and gender in 1998"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-us-government-accountability-office-artifici",
+      "claim_label": "AI Spending Reporting Gaps",
+      "assertion_sigs": [
+        "the u.s. government accountability office (gao) found that 49 agencies, including 25 in the executive branch, did not report ai spending data to usaspending for fiscal year 2022"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-us-government-awarded-approximately-artifici",
+      "claim_label": "U.S. Public AI Investment",
+      "assertion_sigs": [
+        "the u.s. government awarded approximately $830 million in ai-related public tenders and $4.5 billion in ai-related grants in 2023"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-us-investment-advisers-act-of-1940-e-artifici",
+      "claim_label": "Investment Advisers Act Fiduciary Duties",
+      "assertion_sigs": [
+        "the u.s. investment advisers act of 1940 establishes the fiduciary duties of care and loyalty for investment advisers, which are principles-based and intended to evolve with industry practices"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-us-residential-mortgage-market-is-ap-2028-glo",
+      "claim_label": "US Mortgage Market Size",
+      "assertion_sigs": [
+        "the us residential mortgage market is approximately $13 trillion"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-weidinger-et-al-taxonomy-comprises-s-empoweri",
+      "claim_label": "Weidinger Harm Taxonomy",
+      "assertion_sigs": [
+        "the weidinger et al. taxonomy comprises six areas of harms: representation & toxicity, misinformation, information & safety, malicious use, human autonomy & integrity, and socioeconomic & environmental"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-workshops-for-sam-were-conducted-bet-empoweri",
+      "claim_label": "SAM Workshop Dates",
+      "assertion_sigs": [
+        "the workshops for sam were conducted between may 14 and june 20, 2025"
+      ]
+    },
+    {
+      "claim_id": "conflict-the-workshops-for-sparra-were-conducted-empoweri",
+      "claim_label": "SPARRA Workshop Dates",
+      "assertion_sigs": [
+        "the workshops for sparra were conducted between october 24 and december 18, 2024"
+      ]
+    },
+    {
+      "claim_id": "conflict-there-are-553-distinct-statutory-section-state-st",
+      "claim_label": "International Promotion Statutes Count",
+      "assertion_sigs": [
+        "there are 553 distinct statutory sections across 50 states tasked with promoting economic interests abroad"
+      ]
+    },
+    {
+      "claim_id": "conflict-there-are-64-distinct-enactments-across-state-st",
+      "claim_label": "Anti-Foreign Law Statutes Count",
+      "assertion_sigs": [
+        "there are 64 distinct enactments across 43 states limiting the enforcement of foreign laws or judgments"
+      ]
+    },
+    {
+      "claim_id": "conflict-there-are-78-distinct-enactments-across-state-st",
+      "claim_label": "Anti-Boycott Statutes Count",
+      "assertion_sigs": [
+        "there are 78 distinct enactments across 36 states preventing public entities from contracting with companies boycotting certain countries"
+      ]
+    },
+    {
+      "claim_id": "conflict-there-are-over-five-million-licensed-reg-what-doe",
+      "claim_label": "US Registered Nurse Count",
+      "assertion_sigs": [
+        "there are over five million licensed registered nurses in the united states"
+      ]
+    },
+    {
+      "claim_id": "conflict-there-are-six-distinct-agentic-governanc-controll",
+      "claim_label": "Agentic Governance Failures",
+      "assertion_sigs": [
+        "there are six distinct agentic governance failures: interpretive divergence, correction absorption, belief resistance, commitment irreversibility, state divergence, and cascade severance"
+      ]
+    },
+    {
+      "claim_id": "conflict-there-exists-a-triad-of-perspectives-on-ai-triad",
+      "claim_label": "Existence of AI Triad",
+      "assertion_sigs": [
+        "there exists a triad of perspectives on ai development"
+      ]
+    },
+    {
+      "claim_id": "conflict-there-is-a-measurable-increase-in-airela-artifici",
+      "claim_label": "Global AI Legislation Trends",
+      "assertion_sigs": [
+        "there is a measurable increase in ai-related legislation and policy activity globally"
+      ]
+    },
+    {
+      "claim_id": "conflict-there-is-no-global-consensus-on-the-defi-economic",
+      "claim_label": "Lack of Global Regulatory Consensus",
+      "assertion_sigs": [
+        "there is no global consensus on the definition of 'ai' or the specific technologies covered by ai regulation"
+      ]
+    },
+    {
+      "claim_id": "conflict-training-a-single-transformer-big-model-dangers-",
+      "claim_label": "Model Training Carbon Footprint",
+      "assertion_sigs": [
+        "training a single transformer (big) model with neural architecture search emits 284t of co2"
+      ]
+    },
+    {
+      "claim_id": "conflict-training-costs-for-landmark-ml-models-ar-artifici",
+      "claim_label": "AI Training Cost Estimation",
+      "assertion_sigs": [
+        "training costs for landmark ml models are estimated based on hardware type, quantity, and training duration, using historical cloud rental rates"
+      ]
+    },
+    {
+      "claim_id": "conflict-transformative-ai-tai-is-defined-as-ai-c-transfor",
+      "claim_label": "Definition of Transformative AI",
+      "assertion_sigs": [
+        "transformative ai (tai) is defined as ai capabilities that are easily proliferated and intelligent enough to surpass human intellectual capacities in most domains"
+      ]
+    },
+    {
+      "claim_id": "conflict-transparency-is-present-in-73-of-the-84-ai-guide",
+      "claim_label": "Ethical Guideline Principle Frequency",
+      "assertion_sigs": [
+        "transparency is present in 73 of the 84 guidelines analyzed, while responsibility is present in 60, and justice/fairness in 68"
+      ]
+    },
+    {
+      "claim_id": "conflict-uc-berkeley-offers-doctoral-programs-in-dont-cal",
+      "claim_label": "UC Berkeley Doctoral Programs",
+      "assertion_sigs": [
+        "uc berkeley offers doctoral programs in 94 fields of study"
+      ]
+    },
+    {
+      "claim_id": "conflict-unemployed-workers-regardless-of-unemplo-evaluati",
+      "claim_label": "AI exposure among unemployed workers",
+      "assertion_sigs": [
+        "unemployed workers, regardless of unemployment duration, are in occupations where 25-35% of tasks are exposed to generative ai"
+      ]
+    },
+    {
+      "claim_id": "conflict-unilevers-aipowered-internal-marketplace-organiza",
+      "claim_label": "AI Internal Marketplace Productivity",
+      "assertion_sigs": [
+        "unilever's ai-powered internal marketplace unlocked approximately 500,000 hours of capacity and improved productivity by 41%"
+      ]
+    },
+    {
+      "claim_id": "conflict-us-job-openings-fell-below-55-million-by-2028-glo",
+      "claim_label": "US Job Openings Decline 2026",
+      "assertion_sigs": [
+        "us job openings fell below 5.5 million by late 2026, a 15% year-over-year decline"
+      ]
+    },
+    {
+      "claim_id": "conflict-websites-are-increasingly-implementing-p-artifici",
+      "claim_label": "Data Scraping Restrictions",
+      "assertion_sigs": [
+        "websites are increasingly implementing protocols to restrict data scraping for ai training, with restricted tokens in the c4 dataset jumping from 5–7% to 20–33%"
+      ]
+    },
+    {
+      "claim_id": "conflict-weidinger-et-al-proposed-a-taxonomy-of-s-empoweri",
+      "claim_label": "Weidinger AI Harm Taxonomy",
+      "assertion_sigs": [
+        "weidinger et al. proposed a taxonomy of six areas of ai harms: representation & toxicity, misinformation, information & safety, malicious use, human autonomy & integrity, and socioeconomic & environmental"
+      ]
+    },
+    {
+      "claim_id": "conflict-workers-aged-55-to-64-who-experienced-jo-measurin",
+      "claim_label": "Age-related reemployment probability",
+      "assertion_sigs": [
+        "workers aged 55 to 64 who experienced job loss during the great recession were about 16 percentage points less likely to find employment than those aged 35 to 44"
+      ]
+    },
+    {
+      "claim_id": "conflict-workers-in-the-most-aiexposed-occupation-anthropi",
+      "claim_label": "AI Exposure Wage Gap",
+      "assertion_sigs": [
+        "workers in the most ai-exposed occupations earn about 47% more than those in jobs with zero ai exposure"
+      ]
+    },
+    {
+      "claim_id": "conflict-workplace-adoption-of-ai-among-us-worker-explaini",
+      "claim_label": "AI Workplace Adoption Rate",
+      "assertion_sigs": [
+        "workplace adoption of ai among u.s. workers reached 46% in mid-2025"
+      ]
+    },
+    {
+      "claim_id": "conflict-workshop-participants-demonstrated-the-a-empoweri",
+      "claim_label": "Participatory Auditing Capability",
+      "assertion_sigs": [
+        "workshop participants demonstrated the ability to identify potential ai impacts but required external guidance to develop actionable metrics for those impacts"
+      ]
+    },
+    {
+      "claim_id": "conflict-zendesk-was-taken-private-in-2022-for-10-2028-glo",
+      "claim_label": "Zendesk LBO Details",
+      "assertion_sigs": [
+        "zendesk was taken private in 2022 for $10.2 billion, with a $5 billion direct lending facility"
+      ]
+    }
+  ]
+}

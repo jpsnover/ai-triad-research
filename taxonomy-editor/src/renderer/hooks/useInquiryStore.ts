@@ -87,12 +87,18 @@ function clearPollTimer(): void {
   }
 }
 
+/** Same formula schedulePoll() uses — shared so the poll-failed FR event can report the exact
+ *  backoff it's about to apply, instead of forcing a reader to recompute it (t/3725). */
+function computeBackoffDelay(failures: number): number {
+  return failures === 0
+    ? POLL_INTERVAL_MS
+    : Math.min(POLL_INTERVAL_MS * 2 ** failures, MAX_POLL_BACKOFF_MS);
+}
+
 export const useInquiryStore = create<InquiryStoreState>((set, get) => {
   function schedulePoll(jobId: string): void {
     clearPollTimer();
-    const delay = consecutivePollFailures === 0
-      ? POLL_INTERVAL_MS
-      : Math.min(POLL_INTERVAL_MS * 2 ** consecutivePollFailures, MAX_POLL_BACKOFF_MS);
+    const delay = computeBackoffDelay(consecutivePollFailures);
     pollTimer = setTimeout(() => void poll(jobId), delay);
   }
 
@@ -126,6 +132,7 @@ export const useInquiryStore = create<InquiryStoreState>((set, get) => {
           level: 'warn',
           message: `Inquiry ${jobId} not found (HTTP 404) — stopping poll`,
           error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          data: { attempt: consecutivePollFailures + 1, backoff_interval_ms: null, is_terminal: true },
         });
         clearPollTimer();
         if (get().jobId === jobId) {
@@ -139,12 +146,14 @@ export const useInquiryStore = create<InquiryStoreState>((set, get) => {
       }
 
       consecutivePollFailures++;
+      const backoffIntervalMs = computeBackoffDelay(consecutivePollFailures);
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'inquiry-store',
         level: 'warn',
         message: `Poll failed for inquiry ${jobId} (attempt ${consecutivePollFailures})`,
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        data: { attempt: consecutivePollFailures, backoff_interval_ms: backoffIntervalMs, is_terminal: false },
       });
       if (get().jobId === jobId) {
         set({ pollError: err instanceof Error ? err.message : String(err) });
