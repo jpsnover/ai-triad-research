@@ -190,6 +190,81 @@ describe('community inquiry submission (t/3621)', () => {
     expect(published.calibration[0].trust.reason).toBe('consistent replication');
   });
 
+  // t/3742 (TL p/613#60-61): synthesizedHeadline is a single declarative claim generated from a
+  // multi-perspective process — the highest-overclaim-risk field in the artifact. This is the arm
+  // that matters: a degraded (censored) run whose generator populated the field anyway (a producer
+  // bug, t/3735's scope) must still be suppressed at the sanitizer — the security boundary, not
+  // generation. A presence-only test would have passed on the unimplemented public-share version too.
+  it('approveSubmission suppresses synthesizedHeadline on a censored (degraded-trust) inquiry run', async () => {
+    const censored: InquiryResult = {
+      ...makeResult('Does a degraded run still leak its headline?'),
+      calibration: [{ metric: 'claim_acceptance', value: 0.3, trust: { verdict: 'censored', reason: 'api ceiling reached' } }],
+      synthesizedHeadline: 'The camps converge on urgency but split on mechanism.',
+    };
+    await userContext.runWithUser(alice, () => saveInquiryResult(
+      'job-censored-headline',
+      censored,
+      { jobId: 'job-censored-headline', question: censored.request.question, debateId: null, truncated: true, terminationReason: 'api_ceiling', createdAt: '2026-09-02T00:00:00.000Z' },
+    ));
+    const { submissionId } = await userContext.runWithUser(alice, () => community.submitToCommunity('inquiry', { id: 'job-censored-headline' }));
+    const { communityId } = await userContext.runWithUser(admin, () => community.approveSubmission(submissionId));
+
+    const published = await community.loadCommunityItem('inquiries', communityId) as Record<string, unknown>;
+    expect(published).not.toHaveProperty('synthesizedHeadline');
+  });
+
+  // TL p/613#63: this is the case a narrower `verdict === 'censored'`-only predicate misses —
+  // jobStatus.test.ts:48 already asserts `verdict: 'trust'` + `terminationReason: 'api_ceiling'` is a
+  // valid, truncated state. A predicate that only checks the verdict would publish this run's headline.
+  it('approveSubmission suppresses synthesizedHeadline on a trust-verdict run truncated by api_ceiling (not censored)', async () => {
+    const truncatedButTrusted: InquiryResult = {
+      ...makeResult('Does an api_ceiling-truncated trust-verdict run still leak its headline?'),
+      calibration: [{ metric: 'claim_acceptance', value: 0.7, trust: { verdict: 'trust', reason: 'partial run', terminationReason: 'api_ceiling' } }],
+      synthesizedHeadline: 'The camps converge on urgency but split on mechanism.',
+    };
+    await userContext.runWithUser(alice, () => saveInquiryResult(
+      'job-trust-truncated-headline',
+      truncatedButTrusted,
+      { jobId: 'job-trust-truncated-headline', question: truncatedButTrusted.request.question, debateId: null, truncated: true, terminationReason: 'api_ceiling', createdAt: '2026-09-05T00:00:00.000Z' },
+    ));
+    const { submissionId } = await userContext.runWithUser(alice, () => community.submitToCommunity('inquiry', { id: 'job-trust-truncated-headline' }));
+    const { communityId } = await userContext.runWithUser(admin, () => community.approveSubmission(submissionId));
+
+    const published = await community.loadCommunityItem('inquiries', communityId) as Record<string, unknown>;
+    expect(published).not.toHaveProperty('synthesizedHeadline');
+  });
+
+  it('approveSubmission includes synthesizedHeadline on a clean (non-degraded) inquiry run', async () => {
+    const clean: InquiryResult = {
+      ...makeResult('Does a clean run keep its headline?'),
+      calibration: [{ metric: 'claim_acceptance', value: 0.9, trust: { verdict: 'trust', reason: 'consistent replication' } }],
+      synthesizedHeadline: 'The camps converge on urgency but split on mechanism.',
+    };
+    await userContext.runWithUser(alice, () => saveInquiryResult(
+      'job-clean-headline',
+      clean,
+      { jobId: 'job-clean-headline', question: clean.request.question, debateId: null, truncated: false, createdAt: '2026-09-03T00:00:00.000Z' },
+    ));
+    const { submissionId } = await userContext.runWithUser(alice, () => community.submitToCommunity('inquiry', { id: 'job-clean-headline' }));
+    const { communityId } = await userContext.runWithUser(admin, () => community.approveSubmission(submissionId));
+
+    const published = await community.loadCommunityItem('inquiries', communityId) as { synthesizedHeadline: string };
+    expect(published.synthesizedHeadline).toBe('The camps converge on urgency but split on mechanism.');
+  });
+
+  it('approveSubmission omits synthesizedHeadline cleanly when absent (no key, not undefined-valued)', async () => {
+    await userContext.runWithUser(alice, () => saveInquiryResult(
+      'job-no-headline',
+      makeResult('No headline was ever generated for this run'),
+      { jobId: 'job-no-headline', question: 'No headline was ever generated for this run', debateId: null, truncated: false, createdAt: '2026-09-04T00:00:00.000Z' },
+    ));
+    const { submissionId } = await userContext.runWithUser(alice, () => community.submitToCommunity('inquiry', { id: 'job-no-headline' }));
+    const { communityId } = await userContext.runWithUser(admin, () => community.approveSubmission(submissionId));
+
+    const published = await community.loadCommunityItem('inquiries', communityId) as Record<string, unknown>;
+    expect(published).not.toHaveProperty('synthesizedHeadline');
+  });
+
   it('approveSubmission publishes to community/inquiries/ and does not attempt an auto-share', async () => {
     await userContext.runWithUser(alice, () => saveInquiryResult(
       'job-2',

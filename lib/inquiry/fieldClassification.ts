@@ -64,7 +64,7 @@ export const CLASSIFICATION: Record<FieldPath, Record<Surface, Disposition>> = {
   },
   synthesizedHeadline: {
     'public-share': I('Answer substance — characterizes the disagreement shape for the public reader, not a verdict or conclusion. Condition A (toPublicInquiryShare construction) governs suppression for degraded runs; a healthy-run characterization belongs in the public share (TL ruling p/342#456, confirmed by Server Auth p/673#11, t/3667#12).'),
-    community: I('Core answer content — the disagreement characterization is directly relevant to an authenticated community reader and adds informative context without exposing internals (TL ruling p/342#457, confirmed by Server Community p/671#13).'),
+    community: I('Core answer content — the disagreement characterization is directly relevant to an authenticated community reader and adds informative context without exposing internals (TL ruling p/342#457, confirmed by Server Community p/671#13). Suppressed at construction for degraded (censored/api_ceiling) runs in sanitizeForCommunity (t/3742) — same enforcement-not-annotation discipline as public-share\'s Condition A.'),
     export: I(EXPORT_FULL),
   },
 

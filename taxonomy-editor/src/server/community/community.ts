@@ -606,7 +606,24 @@ function sanitizeForCommunity(data: unknown, submittedBy: string, type: Submissi
     // contract fields (t/3651#7's "not part of this matrix" note), so they're preserved explicitly
     // rather than dropped as unclassified. `id` is re-minted below regardless.
     const { id, created_at, ...contractFields } = d;
-    d = { ...projectInquiryFields(contractFields, 'community', '') as Record<string, unknown>, id, created_at };
+    const projected = projectInquiryFields(contractFields, 'community', '') as Record<string, unknown>;
+    // t/3742 (TL p/613#61): a degraded run (censored/api_ceiling) must not surface a synthesized
+    // headline to ANY reader, community included — this sanitizer, not generation, is the actual
+    // security boundary (generation decides whether to PRODUCE a headline; this decides whether to
+    // PUBLISH it). Suppress at construction, mirroring the matrix's own field-classification
+    // discipline. WARN on suppress: reaching this path means generation populated the field for a
+    // degraded run — a producer bug (t/3735's scope), and it must be loud, not silently corrected.
+    if (projected.synthesizedHeadline !== undefined) {
+      const { truncated, terminationReason } = deriveTruncation(data as InquiryResult);
+      if (truncated) {
+        delete projected.synthesizedHeadline;
+        log.server.warn(
+          { terminationReason },
+          'sanitizeForCommunity: suppressed synthesizedHeadline on a degraded-trust inquiry run (producer bug — generation should not have populated it, t/3742)',
+        );
+      }
+    }
+    d = { ...projected, id, created_at };
   }
   d.community_metadata = {
     submitted_by_display: submittedBy,
