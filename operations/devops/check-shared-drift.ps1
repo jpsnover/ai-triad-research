@@ -84,6 +84,11 @@ if (Test-Path $strandVerdictScript) { . $strandVerdictScript }
 $phantomVerdictScript = Join-Path $PSScriptRoot 'DriftPhantomVerdict.ps1'
 if (Test-Path $phantomVerdictScript) { . $phantomVerdictScript }
 
+# t/3745: pure ff-sync HOLD predicate — hold iff real WIP intersects the incoming change-set (NOT on
+# any real WIP). Same dot-sourceable pattern; both arms + fail-closed arms unit-tested (DriftSyncVerdict.Tests.ps1).
+$syncVerdictScript = Join-Path $PSScriptRoot 'DriftSyncVerdict.ps1'
+if (Test-Path $syncVerdictScript) { . $syncVerdictScript }
+
 # t/3652: bounded gh invocation. Returns combined output + exit code + timeout flag so the caller
 # can distinguish gh-absent / unauth / rate-limited / timeout — different causes, different fixes
 # (TL t/3652#3 condition 2). Never throws.
@@ -137,6 +142,11 @@ function Get-OwningScope {
 $result = [PSCustomObject]@{
     Alarm            = $false
     BehindCount      = 0
+    AheadCount       = 0                # t/3745: origin/main..HEAD — >0 together with behind>0 = DIVERGED
+    SyncBlocked      = $false           # t/3745: ff-sync blocked by real WIP the incoming would overwrite. The t/2452 reminder branches on THIS, not HasRealDiff — a real-WIP file the incoming does not touch no longer holds the sync.
+    SyncConflicts    = @()              # t/3745: the real-WIP file(s) intersecting the incoming change-set (or all WIP when diverged/broken)
+    IncomingFiles    = @()              # t/3745: paths the incoming commits change (HEAD..origin/main)
+    SyncReason       = ''               # t/3745: human-readable verdict rationale
     DirtyFiles       = @()
     HasRealDiff      = $false           # t/3669: = RealWipFiles.Count -gt 0 (the t/2452 reminder branches on this)
     PhantomFiles     = @()              # t/3669: dirty but byte-identical to origin/main modulo CRLF — safe to restore, no owner-claim
@@ -193,6 +203,37 @@ try {
     $hasRealDiff  = $result.HasRealDiff
     $phantomFiles = $result.PhantomFiles
     $realWipFiles = $result.RealWipFiles
+
+    # 4b. t/3745 — ff-sync HOLD predicate. The bug: the sync was held on ANY real WIP (HasRealDiff),
+    #     but `git merge --ff-only` only refuses when the FF would OVERWRITE a locally-modified file —
+    #     a dirty file the incoming commits don't touch is carried through. So hold iff real WIP
+    #     INTERSECTS the incoming change-set (clean-behind), or on any real WIP when DIVERGED (reset
+    #     --hard overwrites everything). Ahead>0 with behind>0 = diverged.
+    $aheadRaw = Invoke-Git @('-C', $RepoRoot, 'rev-list', '--count', 'origin/main..HEAD')
+    $ahead = if ($aheadRaw -match '^\d+$') { [int]$aheadRaw } else { 0 }
+    $result.AheadCount = $ahead
+    # Incoming change-set (paths the behind-commits touch). $incomingKnown=$false on git failure so the
+    # verdict fails CLOSED — an empty incoming set with behind>0 is impossible; never read it as "safe".
+    $incomingKnown = $true
+    $incomingFiles = @()
+    if ($behind -gt 0) {
+        $incomingRaw = Invoke-Git @('-C', $RepoRoot, 'diff', '--name-only', 'HEAD..origin/main')
+        if ($null -eq $incomingRaw) { $incomingKnown = $false }
+        else { $incomingFiles = @($incomingRaw | Where-Object { $_ } | ForEach-Object { ($_ -replace '\\', '/').Trim() }) }
+    }
+    $result.IncomingFiles = $incomingFiles
+    if (Get-Command Get-DriftSyncVerdict -ErrorAction SilentlyContinue) {
+        $syncV = Get-DriftSyncVerdict -RealWipFiles $realWipFiles -IncomingFiles $incomingFiles -Behind $behind -Ahead $ahead -IncomingKnown $incomingKnown
+        $result.SyncBlocked   = $syncV.SyncBlocked
+        $result.SyncConflicts = $syncV.Conflicts
+        $result.SyncReason    = $syncV.Reason
+    }
+    else {
+        # Fail-safe if the verdict file is missing: block if behind>0 with any real WIP (conservative).
+        $result.SyncBlocked   = ($behind -gt 0 -and @($realWipFiles).Count -gt 0)
+        $result.SyncConflicts = @($realWipFiles)
+        $result.SyncReason    = 'DriftSyncVerdict.ps1 missing — conservative fallback (hold on any real WIP while behind)'
+    }
 
     # 5. Junk untracked — two classes (t/2222 + t/2473), excluding linked worktrees (.worktrees/):
     #    JunkPaths:       0-byte files anywhere in the tree
@@ -467,7 +508,11 @@ try {
     if ($alarm) {
         $hints = @()
         if ($behind -gt 0) {
-            $hints += "behind ($behind commit(s)): git fetch && git merge --ff-only origin/main"
+            $hints += if ($result.SyncBlocked) {
+                "behind ($behind commit(s)) — SYNC BLOCKED: $($result.SyncReason). Do NOT ff; resolve per the real-WIP / diverged hint below (owner-claim, or the DevOps reset-sync)."
+            } else {
+                "behind ($behind commit(s)) — ff-sync is SAFE ($($result.SyncReason)): git fetch && git merge --ff-only origin/main"
+            }
         }
         if ($autoRemoved.Count -gt 0) {
             $listed = $autoRemoved -join ', '
