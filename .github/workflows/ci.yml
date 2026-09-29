@@ -1746,6 +1746,11 @@ jobs:
     # lint:skipped-tolerated: yes — path-filtered gated jobs gate on needs.changes.outputs.* and
     #   skip by design on PRs that don't touch their subsystem; a skipped need is expected, not a
     #   failure, so the Block step below asserts on failure/cancelled only (R5, t/3646/e/209).
+    # lint:tolerated-skip: workflow-lint t/3685 — workflow-lint gates on needs.changes.result (NOT
+    #   outputs.*): it lints the whole workflow SSOT, so it runs on every PR where `changes` succeeds
+    #   and is never path-filtered. Its only skip is when `changes` is failure/cancelled — and
+    #   `changes` is itself in this needs list, so the Block step catches that as a red `changes`.
+    #   The skip therefore cannot produce a false-green; audited-tolerant, not gated on outputs.*.
     runs-on: ubuntu-latest
     steps:
       - name: Report gated job results
