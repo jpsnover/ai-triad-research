@@ -3,7 +3,7 @@
 // t/3578 — inquiry async job runner (POST-202 + poll, mirroring briefExportJobs).
 // The pipeline is INJECTED (a fake here), so the bookkeeping is tested without running a real
 // debate. The store is mocked by an in-memory map that survives a job-registry reset — that's what
-// lets the cross-replica fallback test (TL t/3578#6 addition) be exercised deterministically.
+// lets the cross-restart fallback test (TL t/3578#6 addition) be exercised deterministically.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { InquiryResult, InquiryRequest } from '../../../../lib/inquiry/index.js';
@@ -14,6 +14,15 @@ vi.mock('../storage/inquiryResultStore.js', () => ({
   saveInquiryResult: vi.fn(async (jobId: string, result: InquiryResult) => { persisted.set(jobId, result); }),
   loadInquiryResult: vi.fn(async (jobId: string) => persisted.get(jobId) ?? null),
   listInquiryResults: vi.fn(async () => []),
+}));
+// t/3728: mock the job-record store so heartbeat writes don't need ALS context in tests.
+vi.mock('../storage/inquiryJobStore.js', () => ({
+  saveInquiryJobRecord: vi.fn(async () => undefined),
+  deleteInquiryJobRecord: vi.fn(async () => undefined),
+  markJobFailedIfStale: vi.fn(async () => null),
+  INQUIRY_HEARTBEAT_WORST_SYNC_BLOCK_MS: 8_000,
+  INQUIRY_HEARTBEAT_INTERVAL_MS: 5_000,
+  INQUIRY_HEARTBEAT_STALE_MS: 30_000,
 }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
 vi.mock('../logger.js', () => ({
@@ -57,7 +66,7 @@ beforeEach(() => { _resetInquiryJobsForTest(); persisted.clear(); vi.clearAllMoc
 
 describe('t/3578 — inquiry job lifecycle', () => {
   it('a clean run reaches `done` and persists the result under the jobId', async () => {
-    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
+    const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
     await waitTerminal(job);
     expect(job.status).toBe('done');
     expect(job.progressPct).toBe(100);
@@ -67,7 +76,7 @@ describe('t/3578 — inquiry job lifecycle', () => {
   });
 
   it('a truncated run reaches the DISTINCT `done_truncated` state + surfaces terminationReason', async () => {
-    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(truncatedResult()) });
+    const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(truncatedResult()) });
     await waitTerminal(job);
     expect(job.status).toBe('done_truncated');            // NOT folded into `done`
     expect(job.terminationReason).toBe('api_ceiling');
@@ -76,7 +85,7 @@ describe('t/3578 — inquiry job lifecycle', () => {
 
   it('a pipeline throw reaches `failed` with the error captured', async () => {
     const boom: InquiryPipelineRunner = async () => { throw new Error('pipeline exploded'); };
-    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: boom });
+    const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: boom });
     await waitTerminal(job);
     expect(job.status).toBe('failed');
     expect(job.error).toMatch(/pipeline exploded/);
@@ -87,20 +96,20 @@ describe('t/3578 — inquiry job lifecycle', () => {
 describe('t/3647 — debateId normalizer (single reader of result.debateId)', () => {
   it('stamps a real debateId onto the job when the result declares one', async () => {
     const result = { ...cleanResult(), debateId: 'debate-abc123' } as unknown as InquiryResult;
-    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(result) });
+    const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(result) });
     await waitTerminal(job);
     expect(job.debateId).toBe('debate-abc123');
   });
 
   it('normalizes an absent debateId (old pre-t/3641 records) to null', async () => {
-    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
+    const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
     await waitTerminal(job);
     expect(job.debateId).toBeNull();
   });
 
   it('normalizes an empty-string debateId to null', async () => {
     const result = { ...cleanResult(), debateId: '' } as unknown as InquiryResult;
-    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(result) });
+    const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(result) });
     await waitTerminal(job);
     expect(job.debateId).toBeNull();
   });
@@ -117,17 +126,17 @@ describe('t/3578 — truncation derivation (both arms)', () => {
 
 describe('t/3578 — concurrency + idempotency', () => {
   it('countRunningInquiryJobs reflects a running job, then drops after it terminates', async () => {
-    const running = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: neverPipeline });
+    const running = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: neverPipeline });
     expect(countRunningInquiryJobs(USER)).toBe(1);           // the route rejects a 2nd concurrent start on this
     expect(countRunningInquiryJobs('other-user')).toBe(0);   // per-user
-    const done = startInquiryJob({ userId: 'other-user', request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
+    const done = await startInquiryJob({ userId: 'other-user', request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
     await waitTerminal(done);
     expect(countRunningInquiryJobs('other-user')).toBe(0);   // terminal jobs don't count
     expect(running.status).toBe('queued');                   // untouched, still pending
   });
 
-  it('findIdempotentInquiryJob returns the in-window job for the same (user, key)', () => {
-    const job = startInquiryJob({ userId: USER, request: REQUEST, idempotencyKey: 'k1', runPipeline: neverPipeline });
+  it('findIdempotentInquiryJob returns the in-window job for the same (user, key)', async () => {
+    const job = await startInquiryJob({ userId: USER, request: REQUEST, idempotencyKey: 'k1', runPipeline: neverPipeline });
     expect(findIdempotentInquiryJob(USER, 'k1')?.jobId).toBe(job.jobId);
     expect(findIdempotentInquiryJob(USER, 'other-key')).toBeNull();
     expect(findIdempotentInquiryJob('other-user', 'k1')).toBeNull();
@@ -137,7 +146,7 @@ describe('t/3578 — concurrency + idempotency', () => {
 
 describe('t/3578 — TTL sweep', () => {
   it('drops a TERMINAL job past the TTL', async () => {
-    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
+    const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
     await waitTerminal(job);
     job.startedAt = Date.now() - INQUIRY_JOB_TTL_MS - 1_000;  // backdate past the TTL
     sweepInquiryJobs();
@@ -145,8 +154,8 @@ describe('t/3578 — TTL sweep', () => {
     expect(hasInquiryJob(job.jobId)).toBe(false);
   });
 
-  it('TL guard: a NON-terminal job older than the TTL SURVIVES the sweep (deep inquiries run ~45m > 30m TTL)', () => {
-    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: neverPipeline });
+  it('TL guard: a NON-terminal job older than the TTL SURVIVES the sweep (deep inquiries run ~45m > 30m TTL)', async () => {
+    const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: neverPipeline });
     job.startedAt = Date.now() - INQUIRY_JOB_TTL_MS - 60_000;  // older than TTL but still running
     sweepInquiryJobs();
     expect(hasInquiryJob(job.jobId)).toBe(true);               // must NOT vanish mid-run
@@ -154,9 +163,9 @@ describe('t/3578 — TTL sweep', () => {
   });
 });
 
-describe('t/3578 — cross-replica fallback (TL addition)', () => {
+describe('t/3578 — cross-restart fallback', () => {
   it('a job absent from the in-memory map still resolves via the persisted result', async () => {
-    const job = startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
+    const job = await startInquiryJob({ userId: USER, request: REQUEST, runPipeline: fakePipeline(cleanResult()) });
     await waitTerminal(job);
     const jobId = job.jobId;
 

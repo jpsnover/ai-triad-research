@@ -20,6 +20,9 @@ const h = vi.hoisted(() => ({
   hasById: new Set<string>(),
   persisted: new Map<string, unknown>(),
   summaries: [] as unknown[],
+  /** Controls the markJobFailedIfStale mock (t/3728 tier-3).
+   *  false = null (no record / past window); 'stale' = failed verdict; 'live' = live verdict. */
+  markStaleReturn: false as false | 'stale' | 'live',
 }));
 
 vi.mock('../security/userContext.js', () => ({
@@ -37,12 +40,22 @@ vi.mock('../ai/aiBackends.js', () => ({ isRegisteredModel: () => h.registered })
 const startInquiryJob = vi.fn((args: { userId: string }) => { const jobId = 'job-new'; h.jobById.set(jobId, { jobId, status: 'queued' }); return { jobId, userId: args.userId, status: 'queued', progressPct: 0, resultId: null, error: null }; });
 vi.mock('../inquiryJobs.js', () => ({
   MAX_CONCURRENT_INQUIRY_JOBS: 1,
+  INQUIRY_BOOT_ID: 'boot-test',
   startInquiryJob: (args: { userId: string }) => startInquiryJob(args),
   getInquiryJob: (jobId: string, userId: string) => { const j = h.jobById.get(jobId); return j && (j.userId === userId || j.userId === undefined) ? j : null; },
   hasInquiryJob: (jobId: string) => h.hasById.has(jobId) || h.jobById.has(jobId),
   countRunningInquiryJobs: () => h.running,
   findIdempotentInquiryJob: () => h.idempotent,
   deriveTruncation: (r: { truncated?: boolean }) => ({ truncated: !!r.truncated, terminationReason: r.truncated ? 'api_ceiling' : undefined }),
+  buildPollView: (p: { jobId: string; status: string; resultId: string | null; error: string | null; debateId: string | null; terminationReason: string | null }) => ({
+    jobId: p.jobId, status: p.status, progressPct: 0, terminationReason: p.terminationReason, resultId: p.resultId, error: p.error, debateId: p.debateId,
+  }),
+  // t/3728 tier-3: three-state mock matching InquiryTier3Result discriminated union.
+  markJobFailedIfStale: async (_jobId: string) => {
+    if (h.markStaleReturn === 'stale') return { verdict: 'failed' as const, error: { code: 'restart', message: 'Server restarted while this inquiry was in progress.' } };
+    if (h.markStaleReturn === 'live') return { verdict: 'live' as const, record: { jobId: _jobId, userId: 'alice', bootId: 'boot-x', status: 'debating', lastHeartbeatAt: new Date().toISOString(), resultId: null, error: null, debateId: null, startedAt: Date.now() - 5_000 } };
+    return null;
+  },
 }));
 vi.mock('../storage/inquiryResultStore.js', () => ({ loadInquiryResult: async (jobId: string) => h.persisted.get(jobId) ?? null, listInquiryResults: async () => h.summaries }));
 vi.mock('../inquiryPipelineDeps.js', () => ({ buildInquiryRunPipeline: () => vi.fn() }));
@@ -71,7 +84,7 @@ const VALID = { question: 'What counts as an AI harm?', fidelity: 'standard' };
 
 beforeEach(() => {
   h.user = AUTHED; h.storageUserId = 'alice'; h.rpmAllowed = true; h.backendBlocked = false;
-  h.registered = true; h.running = 0; h.idempotent = null;
+  h.registered = true; h.running = 0; h.idempotent = null; h.markStaleReturn = false;
   h.jobById.clear(); h.hasById.clear(); h.persisted.clear(); h.summaries = [];
   startInquiryJob.mockClear();
 });
@@ -158,7 +171,7 @@ describe('t/3581 — GET /api/inquiry/:jobId', () => {
     expect(JSON.parse(r.body).result).toMatchObject({ schemaVersion: 1 });
   });
 
-  it('cross-replica fallback: job absent from map → serves the persisted result', async () => {
+  it('cross-restart fallback: job absent from map → serves the persisted result', async () => {
     h.persisted.set('job-gone', { truncated: true, schemaVersion: 1 });
     const r = res(); await get()(req('/api/inquiry/job-gone'), r, undefined);
     expect(r.statusCode).toBe(200);
@@ -206,5 +219,49 @@ describe('t/3619 — GET /api/inquiry (My Questions list)', () => {
     const r = res(); await get()(req('/api/inquiry'), r, undefined);
     expect(r.statusCode).toBe(200);
     expect(JSON.parse(r.body)).toEqual([]);
+  });
+});
+
+describe('t/3728 — tier-3 fallback ordering (AC arms)', () => {
+  const get = () => handler('GET', '/api/inquiry/:jobId');
+
+  it('arm 1 — stale heartbeat: absent from map + no result → fails with restart error, NOT 404', async () => {
+    h.markStaleReturn = 'stale';  // markJobFailedIfStale returns failed verdict (heartbeat expired)
+    const r = res(); await get()(req('/api/inquiry/job-stale'), r, undefined);
+    expect(r.statusCode).toBe(200);
+    const parsed = JSON.parse(r.body);
+    expect(parsed.status).toBe('failed');
+    expect(typeof parsed.error).toBe('string');
+    expect(parsed.debateId).toBe(null);   // shape-compatible with buildPollView (SO condition 5)
+  });
+
+  it('arm 2 — fresh heartbeat: absent from map + no result → 200 in-progress (deploy overlap — must NOT 404)', async () => {
+    h.markStaleReturn = 'live';  // markJobFailedIfStale returns live verdict (another process owns the job)
+    const r = res(); await get()(req('/api/inquiry/job-fresh'), r, undefined);
+    expect(r.statusCode).toBe(200);
+    const parsed = JSON.parse(r.body);
+    expect(parsed.status).toBe('debating');   // live record's own status — honest "still running"
+    expect(parsed.error).toBe(null);
+  });
+
+  it('arm 3 — unknown jobId → 404 (no in-map entry, no persisted result, no job record)', async () => {
+    const r = res(); await get()(req('/api/inquiry/no-such-job'), r, undefined);
+    expect(r.statusCode).toBe(404);
+  });
+
+  // This is the critical regression: if tier 3 ever ran before tier 2, a completed job would report
+  // `failed` and this arm would catch it. h.markStaleReturn=true ensures tier 3 would fire if reached.
+  it('arm 4 — completed job (tier 2 precedence): serves the persisted result, tier 3 never consulted', async () => {
+    h.persisted.set('job-done', { schemaVersion: 1, truncated: false });
+    h.markStaleReturn = 'stale';  // would fire if tier ordering were wrong
+    const r = res(); await get()(req('/api/inquiry/job-done'), r, undefined);
+    expect(r.statusCode).toBe(200);
+    expect(JSON.parse(r.body).status).toBe('done');   // NOT 'failed' — tier 2 wins
+  });
+
+  it("arm 5 — cross-user: another user's jobId → 404, tiers 2/3 never entered", async () => {
+    h.jobById.set('job-bob', { jobId: 'job-bob', userId: 'bob', status: 'debating', progressPct: 40 });
+    const r = res(); await get()(req('/api/inquiry/job-bob'), r, undefined);
+    expect(r.statusCode).toBe(404);   // hasInquiryJob=true → !hasInquiryJob block skipped → straight 404
   });
 });

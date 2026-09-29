@@ -9,7 +9,8 @@
 // POST → 202 { jobId }, GET polls the evolving state, per-user concurrency cap, TTL sweep,
 // idempotency window, progress percentage. Durable truth is the persisted InquiryResult
 // (inquiryResultStore, keyed by jobId); the in-memory job is an ephemeral progress view —
-// a "job not found" GET falls back to loadInquiryResult(jobId) (cross-replica durability).
+// a "job not found" GET falls back to loadInquiryResult(jobId) (cross-restart durability —
+// not cross-replica; maxReplicas: 1).
 //
 // TWO DELIBERATE IMPROVEMENTS on the brief precedent (TL t/3578#6):
 //  1. The pipeline is INJECTED, not imported. briefExportJobs imports runBriefPipeline directly,
@@ -22,11 +23,25 @@
 //     status union is exhaustiveness-checked by tsc (see assertNever in isTerminalStatus).
 
 import { randomUUID } from 'crypto';
+
+/** Unique id for this process boot — forensic only per SO e/221#2. Must NOT gate the tier-3
+ *  transition (that job is done by `lastHeartbeatAt` staleness, not boot identity — `bootId`
+ *  misfires during deploy overlap where the old replica is still healthy).
+ *  Must be process-generated (a UUID), never derived from `CONTAINER_APP_REVISION` or any env
+ *  var: a revision id is stable across scale-to-zero restarts within a revision, so a
+ *  revision-derived id would silently disable tier-3 in the dominant restart mode (SO condition 2).
+ *  Coordinate with t/3724: `server.started` must emit this same id for unified boot forensics. */
+export const INQUIRY_BOOT_ID: string = randomUUID();
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { errorMessage } from '../../../lib/debate/errors.js';
 import { log } from './logger.js';
 import type { InquiryRequest, InquiryResult } from '../../../lib/inquiry/index.js';
 import { saveInquiryResult, type InquiryResultSummary } from './storage/inquiryResultStore.js';
+import {
+  saveInquiryJobRecord, deleteInquiryJobRecord,
+  INQUIRY_HEARTBEAT_INTERVAL_MS, type InquiryJobRecord,
+} from './storage/inquiryJobStore.js';
+export { markJobFailedIfStale, type InquiryTier3Result } from './storage/inquiryJobStore.js';
 
 // Status vocabulary + truncation derivation hoisted to lib/inquiry (t/3609). Imported here for this
 // module's own internal use (isTerminalStatus in the concurrency/sweep checks, deriveTruncation in
@@ -42,12 +57,37 @@ export const MAX_CONCURRENT_INQUIRY_JOBS = 1;        // per user — an inquiry 
 export const INQUIRY_JOB_TTL_MS = 30 * 60_000;       // 30 min — poll + idempotency window; > export's 10 min because an inquiry runs minutes. TL-confirmed t/3578#6.
 
 // TRUNCATION_REASONS, InquiryPipelineStage, InquiryJobStatus, isTerminalStatus, and deriveTruncation
-// were hoisted to lib/inquiry (t/3609) — imported + re-exported above. PROGRESS stays host-local: it
-// is this job store's display concern, not shared vocabulary (Electron main keeps its own copy).
+// were hoisted to lib/inquiry (t/3609) — imported + re-exported above. PROGRESS stays host-local (not
+// hoisted to lib): it is this server's display concern, not shared vocabulary (Electron main keeps its
+// own copy). It IS shared within the host because all three GET tiers render through buildPollView.
 const PROGRESS: Record<InquiryJobStatus, number> = {
   queued: 0, grounding: 10, debating: 40, judging: 70, synthesizing: 90,
   done: 100, done_truncated: 100, failed: 100,
 };
+
+/** Fields each GET tier constructs independently — the shared contract for buildPollView (e/221#13/14).
+ *  Having each tier construct this type ensures identical response shape at the type level. */
+export interface InquiryPollProjection {
+  jobId: string;
+  status: InquiryJobStatus;
+  resultId: string | null;
+  error: string | null;
+  debateId: string | null;
+  terminationReason: string | null;
+}
+
+/** Build a poll-response record from a shared projection, deriving progressPct from PROGRESS.
+ *  All three GET tiers route through this — "identical shape" is a type-level fact (e/221#13/14).
+ *  Note: tier-3 live path derives progress from the durable record's status, which may lag the
+ *  in-memory value (transition writes are fire-and-forget) — lagging bar, never backward (e/221#16). */
+export function buildPollView(p: InquiryPollProjection): Record<string, unknown> {
+  return {
+    jobId: p.jobId, status: p.status,
+    progressPct: PROGRESS[p.status],
+    terminationReason: p.terminationReason,
+    resultId: p.resultId, error: p.error, debateId: p.debateId,
+  };
+}
 
 export interface InquiryJob {
   jobId: string;
@@ -58,7 +98,7 @@ export interface InquiryJob {
   /** Set on `done_truncated` — the binding termination reason (e.g. `api_ceiling`), for the UI
    *  to render (t/3583 must not re-derive it). Undefined on a clean `done`. */
   terminationReason?: string;
-  /** The persisted result's id (== jobId) once stored; the cross-replica fallback loads by it. */
+  /** The persisted result's id (== jobId) once stored; the cross-restart fallback loads by it. */
   resultId: string | null;
   error: string | null;
   /** The source debate's id (`session.id`), normalized to `null` when absent — see readDebateRef.
@@ -83,7 +123,7 @@ export function getInquiryJob(jobId: string, userId: string): InquiryJob | null 
 }
 
 /** Raw membership (any user) — lets the GET handler distinguish "not in this process's Map at all"
- *  (the cross-replica-fallback signal → load the persisted result) from "present but wrong user". */
+ *  (cross-restart fallback signal → load persisted result / job record) from "present but wrong user". */
 export function hasInquiryJob(jobId: string): boolean {
   return jobs.has(jobId);
 }
@@ -145,28 +185,58 @@ export interface CreateInquiryJobArgs {
   runPipeline: InquiryPipelineRunner;
 }
 
-/** Create a queued job, return it, and kick off the async pipeline (fire-and-forget). The route
- *  returns 202 { jobId } immediately; GET polls the evolving state. Concurrency + idempotency are
- *  the caller's pre-check (mirrors briefExportJobs — the route uses countRunningInquiryJobs /
- *  findIdempotentInquiryJob before calling this). */
-export function startInquiryJob(args: CreateInquiryJobArgs): InquiryJob {
+/** Snapshot the current job state into a durable record shape. */
+function buildRecord(job: InquiryJob, userId: string): InquiryJobRecord {
+  return {
+    jobId: job.jobId,
+    userId,
+    bootId: INQUIRY_BOOT_ID,
+    status: job.status,
+    lastHeartbeatAt: new Date().toISOString(),
+    resultId: job.resultId,
+    error: null,
+    debateId: job.debateId,
+    startedAt: job.startedAt,
+  };
+}
+
+/** Create a queued job, persist the creation record (awaited — SO condition 3), and kick off the
+ *  async pipeline. The route returns 202 { jobId } immediately; GET polls the evolving state.
+ *  Concurrency + idempotency are the caller's pre-check (mirrors briefExportJobs — the route uses
+ *  countRunningInquiryJobs / findIdempotentInquiryJob before calling this). */
+export async function startInquiryJob(args: CreateInquiryJobArgs): Promise<InquiryJob> {
   const job: InquiryJob = {
     jobId: randomUUID(),
     userId: args.userId,
     idempotencyKey: args.idempotencyKey,
     status: 'queued',
-    progressPct: 0,
+    progressPct: PROGRESS['queued'],
     resultId: null,
     error: null,
     debateId: null,
     startedAt: Date.now(),
   };
   jobs.set(job.jobId, job);
+  // Await the creation write (SO condition 3 — a lost creation write silently disables tier-3 recovery).
+  await saveInquiryJobRecord(buildRecord(job, args.userId));
   void runInquiryJob(job, args);
   return job;
 }
 
 async function runInquiryJob(job: InquiryJob, args: CreateInquiryJobArgs): Promise<void> {
+  // Heartbeat loop — runs concurrently inside the same AsyncLocalStorage context (Promise-based
+  // setTimeout preserves ALS; setInterval would not). Fire-and-forget: we don't await the loop;
+  // it exits as soon as the job reaches a terminal state.
+  void (async () => {
+    while (!isTerminalStatus(job.status)) {
+      await new Promise<void>(resolve => setTimeout(resolve, INQUIRY_HEARTBEAT_INTERVAL_MS));
+      if (isTerminalStatus(job.status)) break;
+      void saveInquiryJobRecord(buildRecord(job, args.userId)).catch((err) => {
+        log.server.warn({ err, jobId: job.jobId }, 'Heartbeat write failed (best-effort)');
+      });
+    }
+  })();
+
   try {
     const result = await args.runPipeline(args.request, {
       onStage: (stage) => setStatus(job, stage),
@@ -185,10 +255,17 @@ async function runInquiryJob(job: InquiryJob, args: CreateInquiryJobArgs): Promi
       createdAt: new Date().toISOString(),
     };
     // Persist BEFORE flipping to a terminal state, so a poll that observes `done`/`done_truncated`
-    // is guaranteed the result is loadable (the cross-replica fallback can't race ahead of the write).
+    // is guaranteed the result is loadable (the cross-restart fallback can't race ahead of the write).
     await saveInquiryResult(job.jobId, result, summary);
     job.resultId = job.jobId;
     setStatus(job, truncated ? 'done_truncated' : 'done');
+    // Delete the durable job record after the await saveInquiryResult() resolves (retention
+    // mechanism 1 — e/221#12: "after the await resolves" is critical; parallelising these writes
+    // would create a window where the record is gone but the result is not yet readable → 404 on a
+    // *successful* run, which t/3723's client treats as terminal).
+    void deleteInquiryJobRecord(job.jobId).catch((err) => {
+      log.server.warn({ err, jobId: job.jobId }, 'Job record delete after completion failed (best-effort)');
+    });
   } catch (err) {
     job.error = errorMessage(err);
     getGlobalRecorder()?.record({
@@ -198,6 +275,9 @@ async function runInquiryJob(job: InquiryJob, args: CreateInquiryJobArgs): Promi
     });
     log.server.error({ component: 'inquiry', jobId: job.jobId, stage: job.status, err }, 'Inquiry job failed');
     setStatus(job, 'failed');
+    // On failure: leave the durable record in place with the last heartbeat. The staleness check
+    // in markJobFailedIfStale will reap it if the job is still non-terminal after a restart.
+    // (The in-memory job correctly shows 'failed'; tier-3 is only reached after a restart.)
   } finally {
     job.startedAt = Date.now(); // restart the TTL clock from the terminal state
   }
