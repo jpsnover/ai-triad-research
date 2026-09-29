@@ -166,4 +166,12 @@ Each entry is a correction to the *remedy*, not to the original incident. Listed
 
 Plus one **misdiagnosis** rather than a defect: a correct playbook blamed twice before being read (Example 1).
 
+### What the chain shows, and what it does not
+
+**It is not an argument for execution over reasoning.** Roughly half of these were found by tracing a case mentally (1, 4, 5, 6, and the `{3,}` cliff) and half by running or measuring (8, 9, the merge correlation, and "rare"). A route table is itself a thinking artifact; if the lesson were *instrumentation beats thought*, this document would argue against itself.
+
+**What none of them was reachable by is thinking about it *once*.** Each became visible only after the previous fix changed what there was to think about — the subject set was not a question until wiring was settled; the aggregation bug was not visible until extraction was correct. **The lesson is iteration, not instrumentation.** That is also the rule's central bet: enumeration front-loads iterations you would otherwise pay for one incident at a time.
+
+**And the rate held while severity collapsed.** The early defects would have shipped outages — a monitor paging on every merge, a check passing on a shallow checkout, a health check certifying a blind monitor. The late ones are a regex quantifier and one word in a residual sentence. Both halves were worth doing, for different reasons, and **a reader deciding how long to run such an exchange should know the knee exists**: the iterations keep finding things, and what they find gets cheaper.
+
 Ref: t/3736, t/3737, t/3738, t/3695, t/3716, t/3670, t/3686, e/225 (the consult)
