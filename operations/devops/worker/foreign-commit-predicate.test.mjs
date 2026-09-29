@@ -27,6 +27,13 @@ test('extractTicketRefs: multiple refs, deduped, order-preserving', () => {
   assert.deepEqual(extractTicketRefs('feat(cl): t3350 demotion-set manifest for the genuine-conflict gate (t3633, t3350)'), ['t3350', 't3633']);
 });
 
+test('extractTicketRefs: 5-digit ticket number (t/10000) is recognized — silent-cliff regression (t/3738#9/#11)', () => {
+  // {3,4} would match "t/1000" inside "t/10000", then \b fails on the trailing "0", backtracks,
+  // fails again, and produces NO match at all (total miss, not truncation). {3,} has no cliff.
+  assert.deepEqual(extractTicketRefs('feat: thing (t/10000)'), ['t10000']);
+  assert.deepEqual(extractTicketRefs('feat: thing (t/12345)'), ['t12345']);
+});
+
 test('extractTicketRefs: no ref -> empty array', () => {
   assert.deepEqual(extractTicketRefs('docs(lessons): land rescued multi-agent LessonsLearned WIP'), []);
   assert.deepEqual(extractTicketRefs(''), []);

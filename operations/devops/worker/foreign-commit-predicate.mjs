@@ -9,12 +9,16 @@ import { execFileSync } from 'node:child_process';
  * commits (t/3725, t/3732, t/3733) because the worktree that produced it branched from a stale
  * shared HEAD instead of `origin/main`, and merged clean with no conflict.
  *
- * RESIDUAL (state exactly this, never "ancestry inheritance detected" — that overclaims):
+ * RESIDUAL (state exactly this, never "ancestry inheritance detected" — that overclaims, and
+ * never "rare" — measured, it isn't):
  * catches TICKETED foreign commits (subject carries a `t/NNNN`-shaped ref disjoint from the PR's
  * own ticket) and MERGE commits in range (100% of sampled merge commits carry no ticket ref, and
  * a merge commit is the reconciliation artifact this check exists to catch — Option B, t/3738#6).
- * It is BLIND to a ref-less, non-merge foreign commit — that commit shape evades detection
- * entirely; `5de42009` and `e348e467` are live, observed instances of that residual on this repo.
+ * It is BLIND to a ref-less, non-merge foreign commit. Ref-less subjects run ~15% of recent
+ * `main` commits (9/60, measured 2026-09-29, t/3738#9/#10) — Option B catches the ref-less
+ * MERGE subset, so the true blind spot is ref-less NON-merge foreign commits only, and that
+ * subset is ordinary (docs/lessons commits, dep bumps, UI fixes), not exotic. `5de42009` and
+ * `e348e467` are live, observed instances.
  *
  * Pure-core/impure-shim split (t/3699 pattern): this module's exported functions take only
  * plain data (subjects, ticket sets, a pre-computed commit list) — no git calls, no env reads.
@@ -24,7 +28,12 @@ import { execFileSync } from 'node:child_process';
 
 // Catches BOTH `t/NNNN` and the live `scope(tNNNN):` convention form (`analysis(t3596)`, etc.).
 // `t/[0-9]+` alone misses the second form — a confirmed false-negative (t/3738#6).
-const TICKET_REF_RE = /\bt\/?([0-9]{3,4})\b/gi;
+//
+// `{3,}` NOT `{3,4}` (t/3738#9/#11): `{3,4}` has a SILENT CLIFF at 5-digit ticket numbers. On
+// "t/10000" it matches "t/1000", then \b fails against the trailing "0", the regex backtracks,
+// fails again, and produces NO match at all — a total miss, not a truncated one. So t/10000 and
+// beyond would read as ref-less, which is the check's PASSING branch. `{3,}` has no such cliff.
+const TICKET_REF_RE = /\bt\/?([0-9]{3,})\b/gi;
 
 /** Pure: subject line -> normalized ticket ids (e.g. "t3729"), deduped, order-preserving. */
 export function extractTicketRefs(subject) {
@@ -110,7 +119,8 @@ export function formatResult(result) {
   lines.push(
     '',
     'Residual: catches TICKETED foreign commits and MERGE commits only. Blind to a ref-less, ' +
-      'non-merge foreign commit — that shape evades this check entirely.',
+      'non-merge foreign commit (~15% of recent main commits, 9/60 measured 2026-09-29) — ' +
+      'that shape evades this check entirely.',
   );
   return lines.join('\n');
 }

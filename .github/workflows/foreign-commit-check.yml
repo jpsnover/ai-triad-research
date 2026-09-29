@@ -11,11 +11,14 @@ name: foreign-commit-check
 # at least one green cycle observing real PRs first (Gate Promotion discipline) — do not remove
 # continue-on-error without that separate step.
 #
-# RESIDUAL (state exactly this — do not overclaim): catches TICKETED foreign commits (a commit
-# subject carrying a t/NNNN-shaped ref disjoint from this PR's own ticket) and MERGE commits in
-# range. It is BLIND to a ref-less, non-merge foreign commit — that commit shape evades detection
-# entirely. See operations/devops/worker/foreign-commit-predicate.mjs for the full design notes
-# and t/3738 for the six rounds of hardening that produced this spec.
+# RESIDUAL (state exactly this — do not overclaim, and never "rare" — measured, it isn't):
+# catches TICKETED foreign commits (a commit subject carrying a t/NNNN-shaped ref disjoint from
+# this PR's own ticket) and MERGE commits in range. It is BLIND to a ref-less, non-merge foreign
+# commit — ref-less subjects run ~15% of recent main commits (9/60, measured 2026-09-29); Option B
+# (merge-commit detection) catches the ref-less MERGE subset, so the true blind spot is ref-less
+# NON-merge foreign commits only, and that subset is ordinary (docs/lessons commits, dep bumps,
+# UI fixes), not exotic. See operations/devops/worker/foreign-commit-predicate.mjs for the full
+# design notes and t/3738 for the rounds of hardening that produced this spec.
 #
 # EXPECTED-REF SOURCE: the PR title (github.event.pull_request.title). A PR whose title carries
 # no t/NNNN ref is treated as a no-ticket PR and fires (clearable via the opt-out below) rather
