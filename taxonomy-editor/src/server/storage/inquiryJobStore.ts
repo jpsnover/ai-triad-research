@@ -21,9 +21,12 @@
 //  3. Orphan reap: a non-terminal record whose heartbeat is older than INQUIRY_HEARTBEAT_STALE_MS
 //     is treated as stale by markJobFailedIfStale and promoted to 'failed' (same staleness check).
 //     An orphaned record (crash without clean shutdown) is reaped on the first GET after threshold.
+//  4. Read-time retention window: any terminal record polled past INQUIRY_JOB_RECORD_FAILED_WINDOW_MS
+//     is deleted at that poll (see 'Read-time retention window' section below). Bounds terminal-record
+//     accumulation for polled jobs without a background sweep or enumeration.
 //
 // RESIDUAL ACCUMULATION (stated, not denied — e/221#7/8):
-//  All three mechanisms are poll- or completion-triggered; there is no background sweep (per-user
+//  All four mechanisms are poll- or completion-triggered; there is no background sweep (per-user
 //  enumeration is infeasible — same problem that ruled out the boot-scan). Records accumulate for
 //  jobs where the process crashed AND the user never polls again (closed tab, different device).
 //  This is bounded by *abandoned* runs, not all runs or all failures — a small, event-driven set.
