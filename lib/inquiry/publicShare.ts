@@ -107,6 +107,10 @@ const publicNode = (n: NodeRef): z.infer<typeof PublicNodeRefSchema> => ({ label
  *  role,solves}. NOT to campVerdicts.verdict — that is the core answer, not an excerpt (Server Auth's
  *  list omits it deliberately). */
 const PUBLIC_EXCERPT_MAX_CHARS = 280;
+
+/** Upper bound for synthesizedHeadline (SO item 5, e/222#3). A one-sentence characterization must not
+ *  grow into a paragraph without detection. Over-bound → omit + WARN (Condition B: never truncate). */
+const HEADLINE_MAX_CHARS = 400;
 function truncateExcerpt(text: string, max: number = PUBLIC_EXCERPT_MAX_CHARS): string {
   const trimmed = text.trim();
   return trimmed.length > max ? `${trimmed.slice(0, max).trimEnd()}…` : trimmed;
@@ -147,7 +151,16 @@ export function toPublicInquiryShare(result: InquiryResult): PublicInquiryShare 
     singleRunCaveat: result.singleRunCaveat,
     // Condition A: omit at construction for degraded runs — if the pipeline didn't produce the field, the
     // key is simply not written. Construction is the ONLY enforcement point (no read-side Zod validation).
-    ...(result.synthesizedHeadline !== undefined ? { synthesizedHeadline: result.synthesizedHeadline } : {}),
+    // Condition B: omit over-bound headlines — never truncate (an over-bound value signals a producer bug).
+    ...(() => {
+      if (result.synthesizedHeadline === undefined) return {};
+      if (result.synthesizedHeadline.length > HEADLINE_MAX_CHARS) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'inquiry.publicShare', level: 'warn',
+          message: `toPublicInquiryShare: synthesizedHeadline over bound (${result.synthesizedHeadline.length} > ${HEADLINE_MAX_CHARS} chars) — omitted (Condition B)` });
+        return {};
+      }
+      return { synthesizedHeadline: result.synthesizedHeadline };
+    })(),
   };
   return PublicInquiryShareSchema.parse(share);
 }

@@ -230,6 +230,8 @@ export const InquiryResultSchema = z
      *
      *  **Omit, never truncate** (TL condition B): if the characterization cannot be produced in full, omit
      *  entirely. A truncated characterization misleads; an absent field signals incompleteness cleanly.
+     *  Bound: `HEADLINE_MAX_CHARS` (400 chars, `publicShare.ts`). Over-bound values are omitted with a WARN
+     *  at `toPublicInquiryShare` construction; they never reach the public artifact.
      *
      *  **Always adjacent to `singleRunCaveat`, never standalone** (SO e/222#3): the single-run caveat
      *  provides the epistemic context that makes a disagreement characterization honest; separating them
@@ -241,8 +243,9 @@ export const InquiryResultSchema = z
      *  the conclusion is right.) Old readers ignore unknown fields via `.passthrough()`; a bump would trip
      *  parse.ts's refuse-newer arm — a read outage across all five consumers.
      *
-     *  **PUBLIC-SHARE: INCLUDED** (TL ruling p/342#456). Condition A governs suppression for degraded runs
-     *  at construction; a characterization from a healthy run belongs in the public share. */
+     *  **PUBLIC-SHARE: INCLUDED** (see `fieldClassification.ts` `synthesizedHeadline.public-share`). Condition A
+     *  governs suppression for degraded runs at construction; a characterization from a healthy run belongs in the
+     *  public share. */
     synthesizedHeadline: z.string().optional(),
   })
   .passthrough();
