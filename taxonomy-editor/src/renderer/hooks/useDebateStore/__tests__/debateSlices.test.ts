@@ -689,6 +689,20 @@ describe('Clarification slice: runClarification happy path', () => {
     expect(clarEntry!.content).toContain('What scope?');
     expect(mockApi.saveDebateSession).toHaveBeenCalled();
   });
+
+  it('normalizes structured {question, options} items instead of interpolating "[object Object]" (t/3753)', async () => {
+    useDebateStore.setState({ activeDebate: makeSession() as any });
+    mockApi.generateText.mockResolvedValue({
+      text: '{"questions":[{"question":"What scope?","options":["Narrow","Broad"]},{"question":"Which stakeholders?"}]}',
+    });
+
+    await useDebateStore.getState().runClarification();
+
+    const clarEntry = useDebateStore.getState().activeDebate!.transcript.find((e: any) => e.type === 'clarification');
+    expect(clarEntry!.content).toContain('What scope?');
+    expect(clarEntry!.content).toContain('Which stakeholders?');
+    expect(clarEntry!.content).not.toContain('[object Object]');
+  });
 });
 
 describe('Clarification slice: beginDebate', () => {

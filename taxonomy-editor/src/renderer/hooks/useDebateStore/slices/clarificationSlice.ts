@@ -49,6 +49,15 @@ import { narrativeBlockForDebater } from '@lib/debate/narrativeVoicing';
 import { buildLineageContext, getRelevantTaxonomyContext, formatDebaterEdgeContext, enrichPolicyRefs, serializeNodeSourceMap, getAllKnownNodeIds } from '../shared/taxonomyContext';
 import { extractClaimsAndUpdateAN } from '../shared/argumentNetwork';
 
+/** The AI's clarification response is spec'd as `questions: string[]`, but some models return
+ *  structured items (`{ question, options }`) instead — normalize to a display string rather
+ *  than let template interpolation produce "[object Object]" (t/3753). */
+function normalizeClarificationQuestion(q: unknown): string {
+  if (typeof q === 'string') return q;
+  if (q !== null && typeof q === 'object' && 'question' in q) return String((q as Record<string, unknown>).question);
+  return String(q);
+}
+
 export interface ClarificationSlice {
   runClarification: () => Promise<void>;
   submitAnswersAndSynthesize: (answers: string) => Promise<void>;
@@ -279,11 +288,11 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       const { text } = await generateTextWithProgress(prompt, model, `Generating clarifying questions (${model})`, set);
       if (!isStillValid()) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate?.id, message: 'runClarification aborted: guard failed after question generation' }); return; }
       let questions: string[];
-      const clarParsed = parseAIJson<{ questions?: string[] } | string[]>(text);
+      const clarParsed = parseAIJson<{ questions?: unknown[] } | unknown[]>(text);
       if (clarParsed && typeof clarParsed === 'object' && 'questions' in clarParsed && Array.isArray(clarParsed.questions)) {
-        questions = clarParsed.questions.slice(0, 3);
+        questions = clarParsed.questions.slice(0, 3).map(normalizeClarificationQuestion);
       } else if (Array.isArray(clarParsed)) {
-        questions = clarParsed.slice(0, 3);
+        questions = clarParsed.slice(0, 3).map(normalizeClarificationQuestion);
       } else {
         questions = [text.trim()];
       }
