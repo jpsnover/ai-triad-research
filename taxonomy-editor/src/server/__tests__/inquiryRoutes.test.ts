@@ -59,7 +59,8 @@ vi.mock('../inquiryJobs.js', () => ({
 }));
 vi.mock('../storage/inquiryResultStore.js', () => ({ loadInquiryResult: async (jobId: string) => h.persisted.get(jobId) ?? null, listInquiryResults: async () => h.summaries }));
 vi.mock('../inquiryPipelineDeps.js', () => ({ buildInquiryRunPipeline: () => vi.fn() }));
-vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
+const recordMock = vi.hoisted(() => vi.fn());
+vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: recordMock }) }));
 
 import { createRouter, type Handler } from '../httpKit.js';
 import { registerInquiryRoutes } from '../routes/inquiry.js';
@@ -87,6 +88,7 @@ beforeEach(() => {
   h.registered = true; h.running = 0; h.idempotent = null; h.markStaleReturn = false;
   h.jobById.clear(); h.hasById.clear(); h.persisted.clear(); h.summaries = [];
   startInquiryJob.mockClear();
+  recordMock.mockClear();
 });
 
 describe('t/3581 — POST /api/inquiry', () => {
@@ -144,6 +146,23 @@ describe('t/3581 — POST /api/inquiry', () => {
     expect(r.statusCode).toBe(202);
     expect(JSON.parse(r.body)).toEqual({ jobId: 'job-new' });
     expect(startInquiryJob).toHaveBeenCalledTimes(1);
+  });
+
+  // t/3724 change 3: creation event, independent of t/3728.
+  it('t/3724 — records inquiry.created after startInquiryJob succeeds', async () => {
+    const r = res(); await post()(req('/api/inquiry'), r, VALID);
+    expect(r.statusCode).toBe(202);
+    expect(recordMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'inquiry.created', level: 'info',
+      data: expect.objectContaining({ jobId: 'job-new', fidelity: 'standard', hasIdempotencyKey: false }),
+    }));
+  });
+
+  it('t/3724 — does NOT record inquiry.created when the request is rejected before starting a job', async () => {
+    h.running = 1; // 429 concurrency cap
+    const r = res(); await post()(req('/api/inquiry'), r, VALID);
+    expect(r.statusCode).toBe(429);
+    expect(recordMock).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'inquiry.created' }));
   });
 });
 
@@ -263,5 +282,39 @@ describe('t/3728 — tier-3 fallback ordering (AC arms)', () => {
     h.jobById.set('job-bob', { jobId: 'job-bob', userId: 'bob', status: 'debating', progressPct: 40 });
     const r = res(); await get()(req('/api/inquiry/job-bob'), r, undefined);
     expect(r.statusCode).toBe(404);   // hasInquiryJob=true → !hasInquiryJob block skipped → straight 404
+  });
+});
+
+describe('t/3724 — inquiry.not_found event', () => {
+  const get = () => handler('GET', '/api/inquiry/:jobId');
+
+  it('records inquiry.not_found with the jobId on genuine absence (no map entry, no persisted result, no durable record)', async () => {
+    const r = res(); await get()(req('/api/inquiry/no-such-job'), r, undefined);
+    expect(r.statusCode).toBe(404);
+    expect(recordMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'inquiry.not_found', level: 'warn',
+      data: expect.objectContaining({ jobId: 'no-such-job', fallback_attempted: true, fallback_outcome: 'no_persisted_result' }),
+    }));
+  });
+
+  it("does NOT record inquiry.not_found for the owned-by-other-user case — must not log that jobId", async () => {
+    h.jobById.set('job-bob', { jobId: 'job-bob', userId: 'bob', status: 'debating', progressPct: 40 });
+    const r = res(); await get()(req('/api/inquiry/job-bob'), r, undefined);
+    expect(r.statusCode).toBe(404);
+    expect(recordMock).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'inquiry.not_found' }));
+  });
+
+  it('does NOT record inquiry.not_found when the persisted-result fallback succeeds (tier 2)', async () => {
+    h.persisted.set('job-gone', { truncated: false, schemaVersion: 1 });
+    const r = res(); await get()(req('/api/inquiry/job-gone'), r, undefined);
+    expect(r.statusCode).toBe(200);
+    expect(recordMock).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'inquiry.not_found' }));
+  });
+
+  it('does NOT record inquiry.not_found when tier 3 resolves the job as failed or live', async () => {
+    h.markStaleReturn = 'stale';
+    const r = res(); await get()(req('/api/inquiry/job-stale'), r, undefined);
+    expect(r.statusCode).toBe(200);
+    expect(recordMock).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'inquiry.not_found' }));
   });
 });

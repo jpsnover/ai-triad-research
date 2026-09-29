@@ -113,6 +113,11 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
       }
 
       const job = await startInquiryJob({ userId, request, idempotencyKey, runPipeline: buildInquiryRunPipeline() });
+      getGlobalRecorder()?.record({
+        type: 'inquiry.created', component: 'inquiry', level: 'info',
+        message: `Inquiry job created: ${job.jobId}`,
+        data: { jobId: job.jobId, fidelity: request.fidelity, hasIdempotencyKey: !!idempotencyKey },
+      });
       json(res, { jobId: job.jobId }, 202);
     } catch (err) {
       getGlobalRecorder()?.record({
@@ -196,6 +201,14 @@ export function registerInquiryRoutes(r: Router, _ctx: ServerCtx): void {
           json(res, buildPollView({ jobId, status: tier3.record.status, resultId: tier3.record.resultId, error: null, debateId: tier3.record.debateId, terminationReason: null }));
           return;
         }
+        // t/3724: only on this branch — !hasInquiryJob(jobId) is genuine absence, not the
+        // owned-by-other-user case (that skips this whole block and falls straight to the 404
+        // below without a jobId in the event, since it's a different failure entirely).
+        getGlobalRecorder()?.record({
+          type: 'inquiry.not_found', component: 'inquiry', level: 'warn',
+          message: 'Inquiry not found: not in Map and no persisted result',
+          data: { jobId, fallback_attempted: true, fallback_outcome: tier3 ? 'stale_durable_record_expired' : 'no_persisted_result' },
+        });
       }
       error(res, 'Inquiry not found', 404);
     } catch (err) {
