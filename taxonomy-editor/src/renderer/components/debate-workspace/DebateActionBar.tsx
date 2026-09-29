@@ -7,6 +7,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId, DebateAudience } from '../../types/debate';
 import { AI_POVERS } from '@lib/debate/types';
+import { getCurrentPhase } from '@lib/debate/phaseTransitions';
 import { speakerLabel } from './utils';
 import type { AdaptivePhase } from './utils';
 import { ADAPTIVE_PHASES, ADAPTIVE_PHASE_LABELS, ADAPTIVE_PHASE_COLORS } from './utils';
@@ -331,7 +332,7 @@ function deriveAdaptiveState(activeDebate: any): {
   return {
     isAdaptive: activeDebate?.adaptive_staging?.enabled ?? false,
     isStepMode: activeDebate?.adaptive_staging?.step_mode ?? false,
-    currentAdaptivePhase: activeDebate?.adaptive_staging?.current_phase as AdaptivePhase | undefined,
+    currentAdaptivePhase: activeDebate ? (getCurrentPhase(activeDebate) as AdaptivePhase | undefined) : undefined,
   };
 }
 
