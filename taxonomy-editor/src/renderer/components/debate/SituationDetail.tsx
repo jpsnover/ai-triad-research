@@ -788,7 +788,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
         )}
 
         {activeTab === 'debate' && (
-          <SituationDebatePanel node={node} onLaunched={() => {}} />
+          <SituationDebatePanel node={node} />
         )}
 
         {isPovTab(activeTab) && (

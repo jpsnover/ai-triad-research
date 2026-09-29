@@ -38,6 +38,9 @@
 
 .sit-debate-launch { margin-top: 16px; width: 100%; }
 
+.sit-debate-launch-error { align-items: center; color: var(--error, #ef4444); display: flex; font-size: var(--text-sm); gap: var(--sp-2, 8px); margin-top: 8px; }
+.sit-debate-launch-retry { background: none; border: none; color: var(--focus-ring, #3b82f6); cursor: pointer; font-size: var(--text-sm); padding: 0; text-decoration: underline; }
+
 .sit-debate-history { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
 .sit-debate-history-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .sit-debate-history-item { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 4px 8px; font-size: var(--text-xs); cursor: pointer; color: var(--text-primary); }
