@@ -1,0 +1,158 @@
+# ─── main-CI Monitor (t/3737) ───
+# What:  Every 15 min, asks "is the tip of `main` broken?" by OBSERVING the push-event workflow
+#        runs on main's head SHA (NOT by modelling which required contexts should have posted —
+#        see operations/devops/main-ci-monitor.mjs header for why that model was rejected).
+#          - `CI` (the designated main-health workflow) concluded failure  → FULL alert issue.
+#          - any OTHER push workflow concluded failure                     → LOW-severity notice issue.
+#          - `CI` created but unconcluded past the deadline                → alert (hung run).
+#          - `CI` absent entirely (e.g. a paths-filtered/docs-only push)   → UNKNOWN, no emission.
+#          - `CI` success, nothing failed                                  → green; close open alerts.
+#        Warn-only today: this workflow only opens/updates/closes issues; it gates nothing.
+# Why the cadence + deadline: main-health CI's observed worst-case is ~13m; deadline 30m (×2.3).
+
+name: main-ci-monitor
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 min — a red is surfaced within one cadence
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  RED_LABEL: main-ci-red
+  NOTICE_LABEL: main-ci-notice
+  INFRA_LABEL: main-ci-infra
+  HEARTBEAT_LABEL: main-ci-monitor-heartbeat
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      # ── SELF-HEALTH: detection probe (t/3737#4) ──────────────────────────────────────────────
+      # ⚠️ COUPLING — DO NOT DELETE without reading (TL p/331#1631, Gate Co-Location across decisions).
+      # The classifier's "CI absent → no emission" branch means a healthy week of `main` produces
+      # SILENCE, which by inspection is indistinguishable from a DEAD monitor. This self-health block
+      # (detection probe + liveness/wiring heartbeat below) is the ONLY thing that tells "healthy and
+      # quiet" apart from "broken and quiet." The no-emission branch and this block are LOAD-BEARING
+      # FOR EACH OTHER — the reciprocal pointer lives at case 5 in operations/devops/main-ci-monitor.mjs.
+      # The detection probe re-runs the full verdict unit suite every scheduled run, so a regression
+      # that stops red-detection working FAILS THIS JOB (a loud, attributable signal) rather than
+      # silently degrading the monitor to always-green.
+      - name: Self-health — detection probe (verdict unit suite)
+        run: node --test operations/devops/main-ci-monitor.test.mjs
+
+      # ── Observe what ran on main's head, classify. Writes verdict.json (never inlined — Shell Quoting Rule).
+      - name: Classify main's head
+        id: classify
+        run: |
+          node operations/devops/main-ci-monitor.mjs "${{ github.repository }}" > verdict.json || true
+          echo "----- verdict.json -----"; cat verdict.json
+
+      # ── SELF-HEALTH: liveness + wiring heartbeat ─────────────────────────────────────────────
+      # Liveness: each run stamps `now` into a dedicated heartbeat issue's body and checks the PRIOR
+      # stamp's age. GitHub auto-disables a scheduled workflow after 60 days of repo inactivity; when
+      # that happens the schedule stops firing silently. The first run after any gap surfaces "monitor
+      # was asleep since <ts>" — the gap becomes visible the moment the monitor wakes. Wiring: touching
+      # the issues API here proves the token + issues:write path the alert steps depend on.
+      - name: Self-health — liveness + wiring heartbeat
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const label = process.env.HEARTBEAT_LABEL;
+            const now = new Date();
+            const STALE_MS = 3 * 15 * 60 * 1000; // 3× the 15-min cadence; a longer gap = schedule stalled
+            const list = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: label, per_page: 1,
+            });
+            const stamp = `main-ci-monitor heartbeat: ${now.toISOString()} (run ${context.runId})`;
+            if (list.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: 'main-ci-monitor — liveness heartbeat (do not close)',
+                body: `${stamp}\n\nThis issue is the monitor's liveness heartbeat; each scheduled run updates it. Leaving it open is intentional — a stale timestamp here means the monitor stopped running.`,
+                labels: [label],
+              });
+              console.log('created heartbeat issue');
+            } else {
+              const issue = list.data[0];
+              const prior = Date.parse((issue.body || '').match(/heartbeat:\s*([0-9T:.\-Z]+)/)?.[1] || '');
+              if (Number.isFinite(prior) && (now.getTime() - prior) > STALE_MS) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number,
+                  body: `⚠️ Monitor liveness GAP: previous heartbeat was ${new Date(prior).toISOString()}, ${Math.round((now.getTime()-prior)/60000)}m ago (> ${STALE_MS/60000}m). The scheduled run may have been disabled/paused in that window — main was UNMONITORED. Investigate why the schedule stopped.`,
+                });
+              }
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, body: `${stamp}\n\nThis issue is the monitor's liveness heartbeat; each scheduled run updates it. Leaving it open is intentional — a stale timestamp here means the monitor stopped running.`,
+              });
+            }
+
+      # ── Route the verdict to graded, deduped, auto-closing issues ────────────────────────────
+      - name: Route verdict → alert / notice / infra / recovery
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const fs = require('fs');
+            let v;
+            try { v = JSON.parse(fs.readFileSync('verdict.json', 'utf8')); }
+            catch { v = { ok: false, error: 'verdict.json missing/empty — the classifier shim did not produce output' }; }
+
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const ts = new Date().toISOString();
+
+            async function openOrUpdate(label, title, body) {
+              const ex = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: label, per_page: 1 });
+              if (ex.data.length > 0) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: ex.data[0].number, body: `Still present at ${ts}.\n\n${body}` });
+                console.log(`updated #${ex.data[0].number} (${label})`);
+              } else {
+                await github.rest.issues.create({ owner, repo, title, body, labels: [label, 'bug'] });
+                console.log(`opened new (${label})`);
+              }
+            }
+            async function closeIfOpen(label, note) {
+              const ex = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: label, per_page: 10 });
+              for (const i of ex.data) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: i.number, body: `${note} at ${ts}.` });
+                await github.rest.issues.update({ owner, repo, issue_number: i.number, state: 'closed' });
+                console.log(`auto-closed #${i.number} (${label})`);
+              }
+            }
+
+            // CANNOT-EVALUATE (infra) — fail LOUD, distinct from a main-red (opposite remedies).
+            if (!v.ok) {
+              await openOrUpdate(process.env.INFRA_LABEL,
+                'main-ci-monitor: CANNOT EVALUATE (infra)',
+                `The monitor could not evaluate main's head — this is an infra problem with the monitor, not (necessarily) a red main.\n\n- **Error:** \`${v.error}\`\n- **Run:** ${runUrl}\n- **Time:** ${ts}`);
+              return;
+            }
+
+            const vd = v.verdict || {};
+            const head = `- **Head:** \`${v.sha}\` (${v.headAgeMin}m old)\n- **Runs observed:** ${(v.runObserved||[]).join(', ') || '(none)'}\n- **Verdict:** ${vd.reason}\n- **Run:** ${runUrl}`;
+
+            if (vd.severity === 'red') {
+              await openOrUpdate(process.env.RED_LABEL,
+                `main is RED — ${vd.state === 'stuck' ? "CI run stuck" : "CI failed"} on the tip`,
+                `## main-CI FULL alert\n\n${head}\n\nThe designated main-health workflow (\`CI\`) is failing/stuck on the current tip of \`main\`. Triage and fix or revert. Close when \`CI\` is green on a newer head.`);
+              // A full red supersedes a lingering low notice.
+              await closeIfOpen(process.env.NOTICE_LABEL, 'Superseded by a full main-ci-red alert');
+            } else if (vd.severity === 'notice') {
+              await openOrUpdate(process.env.NOTICE_LABEL,
+                'main — a non-CI push workflow is failing (low severity)',
+                `## main-CI low-severity notice\n\n${head}\n\nA push-event workflow OTHER than the main-health \`CI\` concluded failure (or CI is stuck-but-not-failed). Not a confirmed broken build; surfaced so it isn't silently dropped.`);
+            } else {
+              // green / unresolved-within-deadline / unknown → nothing to alert; clear any resolved alerts.
+              if (vd.state === 'green') {
+                await closeIfOpen(process.env.RED_LABEL, 'Resolved — CI green on the tip again');
+                await closeIfOpen(process.env.NOTICE_LABEL, 'Resolved — no failing push workflow on the tip');
+                await closeIfOpen(process.env.INFRA_LABEL, 'Resolved — monitor evaluated main cleanly');
+              }
+              console.log(`no alert: ${vd.state} — ${vd.reason}`);
+            }
