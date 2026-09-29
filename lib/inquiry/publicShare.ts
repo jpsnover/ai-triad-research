@@ -16,6 +16,7 @@
 
 import { z } from 'zod';
 import { CampSchema, FidelitySchema, TrustVerdictSchema, HEADLINE_MAX_CHARS, type InquiryResult, type NodeRef } from './schema.js';
+import { TRUNCATION_REASONS } from './jobStatus.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 /** Independent of INQUIRY_SCHEMA_VERSION — the public artifact is its own contract (SO e/201#2). */
@@ -62,8 +63,10 @@ export const PublicInquiryShareSchema = z.object({
   derivation: PublicDerivationSchema,
   grounding: PublicGroundingSchema,
   singleRunCaveat: z.string(),
-  /** Present only when the pipeline produced a characterization on a healthy run. Absent for degraded runs
-   *  by construction — Condition A: if `result.synthesizedHeadline` is undefined, the key is not written. */
+  /** Present only when the pipeline produced a characterization on a healthy (non-degraded) run.
+   *  Absent for degraded runs by Condition A enforcement in `toPublicInquiryShare` — suppressed at
+   *  construction if any calibration entry carries a `censored` trust verdict. Also absent when undefined
+   *  (no field produced by the generator). Construction is the ONLY enforcement point (t/3667). */
   synthesizedHeadline: z.string().optional(),
 }).strict();
 export type PublicInquiryShare = z.infer<typeof PublicInquiryShareSchema>;
@@ -150,6 +153,18 @@ function sanitizeSources(sources: string[]): string[] {
 
 const publicNode = (n: NodeRef): z.infer<typeof PublicNodeRefSchema> => ({ label: n.label, camp: n.camp }); // omits nodeId by not reading it
 
+/** Condition A predicate: a run is degraded if any calibration entry carries a `censored` trust verdict
+ *  OR terminated on any reason in `TRUNCATION_REASONS` (max_iterations / situation_cap / api_ceiling —
+ *  "cut short by a binding budget/ceiling", per jobStatus.ts). These two arms are independent: `censored`
+ *  is an explicit trust failure; a truncation reason marks an incomplete run that happened to pass the trust
+ *  gate. `synthesizedHeadline` must not appear in the anonymous public projection for either (t/3667). */
+function isRunDegraded(result: InquiryResult): boolean {
+  return result.calibration.some(
+    (c) => c.trust.verdict === 'censored' ||
+           (c.trust.terminationReason !== undefined && TRUNCATION_REASONS.has(c.trust.terminationReason)),
+  );
+}
+
 /** Excerpt cap for FREE-TEXT fields on the anonymous public surface (SO condition 5, e/201#2; Server
  *  Auth t/3648#2/#10). Mirrors `opedShareStore.ts`'s `GROUNDING_EXCERPT_MAX_CHARS` exactly: 280 chars,
  *  trim, ellipsis on overflow. Routine sanitization — NOT a fallback path, so no WARN (matches oped).
@@ -196,11 +211,16 @@ export function toPublicInquiryShare(result: InquiryResult): PublicInquiryShare 
       ),
     },
     singleRunCaveat: result.singleRunCaveat,
-    // Condition A: omit at construction for degraded runs — if the pipeline didn't produce the field, the
-    // key is simply not written. Construction is the ONLY enforcement point (no read-side Zod validation).
+    // Condition A: omit for degraded runs — enforced here at construction, NOT delegated to the generator.
+    // Construction is the ONLY enforcement point (no read-side Zod validation on the anonymous path).
     // Condition B: omit over-bound headlines — never truncate (an over-bound value signals a producer bug).
     ...(() => {
       if (result.synthesizedHeadline === undefined) return {};
+      if (isRunDegraded(result)) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'inquiry.publicShare', level: 'warn',
+          message: `toPublicInquiryShare: synthesizedHeadline suppressed — degraded run (Condition A: censored verdict or truncation reason in TRUNCATION_REASONS)` });
+        return {};
+      }
       if (result.synthesizedHeadline.length > HEADLINE_MAX_CHARS) {
         getGlobalRecorder()?.record({ type: 'system.error', component: 'inquiry.publicShare', level: 'warn',
           message: `toPublicInquiryShare: synthesizedHeadline over bound (${result.synthesizedHeadline.length} > ${HEADLINE_MAX_CHARS} chars) — omitted (Condition B)` });
