@@ -333,6 +333,62 @@ describe('computeClaimTaxonomyAttribution', () => {
   });
 });
 
+// ── Steelman attribution (t/3748) ─────────────────────────
+
+describe('computeClaimTaxonomyAttribution — steelman nodes', () => {
+  it('attributes steelman node to the steelmanned camp, not the speaker camp', () => {
+    const emb = makeEmbedding(0);
+    const nodes: ArgumentNetworkNode[] = [{
+      ...makeNode('AN-1', 'accelerationist', emb),
+      steelman_of: 'safetyist',
+    }];
+    const allIds = new Set(['acc-B-001', 'saf-B-001']);
+    const embeddings: Record<string, { pov: string; vector: number[] }> = {
+      'acc-B-001': { pov: 'accelerationist', vector: emb },     // same embedding but wrong camp
+      'saf-B-001': { pov: 'safetyist', vector: emb },           // steelmanned camp — should win
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, allIds);
+
+    expect(result.attributed).toBe(1);
+    expect(nodes[0].claim_taxonomy_attribution!.primary_ref).toBe('saf-B-001');
+    expect(nodes[0].claim_taxonomy_attribution!.primary_ref).not.toMatch(/^acc-/);
+  });
+
+  it('normal (non-steelman) nodes still attribute to the speaker camp', () => {
+    const emb = makeEmbedding(0);
+    const nodes = [makeNode('AN-1', 'accelerationist', emb)];
+    const allIds = new Set(['acc-B-001', 'saf-B-001']);
+    const embeddings: Record<string, { pov: string; vector: number[] }> = {
+      'acc-B-001': { pov: 'accelerationist', vector: emb },
+      'saf-B-001': { pov: 'safetyist', vector: emb },
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, allIds);
+
+    expect(result.attributed).toBe(1);
+    expect(nodes[0].claim_taxonomy_attribution!.primary_ref).toBe('acc-B-001');
+  });
+
+  it('steelman node is novel_argument when steelmanned camp has no candidates', () => {
+    const emb = makeEmbedding(0);
+    const nodes: ArgumentNetworkNode[] = [{
+      ...makeNode('AN-1', 'accelerationist', emb),
+      steelman_of: 'skeptic',
+    }];
+    const allIds = new Set(['acc-B-001']);  // only acc nodes in candidate set
+    const embeddings: Record<string, { pov: string; vector: number[] }> = {
+      'acc-B-001': { pov: 'accelerationist', vector: emb },
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, allIds);
+
+    expect(result.unattributed).toBe(1);
+    expect(result.missing_embedding).toBe(1);  // no_embedding when candidateEntries is empty
+    expect(nodes[0].claim_taxonomy_attribution!.primary_ref).toBe('');
+  });
+});
+
 // ── V3 directional gate (t/2746) ─────────────────────────
 
 describe('computeClaimTaxonomyAttribution — V3 direction_mismatch gate', () => {
