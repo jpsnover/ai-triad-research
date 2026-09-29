@@ -1019,6 +1019,10 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           taxonomyContext: taxonomyBlock,
           priorStatements: priorBlock,
           isFirst: priorStatements.length === 0,
+          // t/3755: must mirror debateEngine/phases/opening.ts. The field is OPTIONAL, so
+          // omitting it here compiles clean and silently falls back to a single
+          // '<prior speaker>' example — the desktop path would keep the exact bug t/3755 fixes.
+          priorSpeakerLabels: priorStatements.length > 0 ? priorStatements.map(ps => ps.speaker) : undefined,
           sourceContent: docAnalysis ? undefined : (activeDebate.source_content || undefined),
           documentAnalysis: docAnalysis,
           audience: activeDebate.audience,
