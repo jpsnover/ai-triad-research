@@ -13,6 +13,7 @@ import type { SpeakerId, DebateAudience } from '../../types/debate';
 import { AI_POVERS } from '@lib/debate/types';
 import type { DebateSession } from '../../types/debate';
 import { DEBATE_PROTOCOLS } from '../../data/debateProtocols';
+import { api } from '@bridge';
 
 type DebatePacing = 'tight' | 'moderate' | 'thorough';
 
@@ -45,10 +46,9 @@ function applySituationDebateConfig(session: DebateSession, cfg: SituationDebate
 
 interface SituationDebatePanelProps {
   node: SituationNode;
-  onLaunched: () => void;
 }
 
-export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelProps) {
+export function SituationDebatePanel({ node }: SituationDebatePanelProps) {
   const { createDebate, loadDebate } = useDebateStore(
     useShallow(s => ({ createDebate: s.createDebate, loadDebate: s.loadDebate }))
   );
@@ -72,6 +72,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
   const [useAdaptiveStaging, setUseAdaptiveStaging] = useState(false);
   const [launching, setLaunching] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
 
   const toggle = (id: SpeakerId) => {
     const next = new Set(selected);
@@ -85,6 +86,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
   const handleLaunch = async () => {
     if (!canStart || launching) return;
     setLaunching(true);
+    setLaunchError(null);
     try {
       const povers = Array.from(selected);
       if (userIsPover && !povers.includes('user')) povers.push('user');
@@ -103,11 +105,45 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
         await store.saveDebate('SituationDebatePanel:applyConfig');
       }
 
-      void store.runClarification();
+      try {
+        await store.runClarification();
+      } catch (clarErr) {
+        // Don't abort the launch over a failed clarification pass — the debate
+        // was created and is still worth opening (t/3749).
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'situation-debate',
+          level: 'warn',
+          debate_id: id,
+          message: 'runClarification failed during situation debate launch',
+          error: { name: (clarErr as Error).name ?? 'Error', message: String(clarErr), stack: (clarErr as Error).stack },
+        });
+      }
+
+      // t/3749: setActiveTab alone only lands on the Debate tab's summary card
+      // (a manual "Open in Window" button) — open the popout directly, mirroring
+      // NewDebateDialog's working path, so Start actually takes the user somewhere.
+      try {
+        const result = await api.openDebateWindow(id);
+        if (result && 'atCap' in result && result.atCap) {
+          setLaunchError('Close a debate window — max 5 open — then open this one from the Debates list.');
+        }
+      } catch (openErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'situation-debate',
+          level: 'warn',
+          debate_id: id,
+          message: 'Failed to open debate popout window after situation debate launch',
+          error: { name: (openErr as Error).name ?? 'Error', message: String(openErr), stack: (openErr as Error).stack },
+        });
+        setLaunchError('Debate created but the window failed to open — find it in the Debates list.');
+      }
+
       setActiveTab('debate');
-      onLaunched();
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'situation-debate', level: 'error', message: 'debate launch failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      setLaunchError(err instanceof Error ? err.message : 'Failed to start debate. Please try again.');
     } finally {
       setLaunching(false);
     }
@@ -236,6 +272,13 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
         >
           {launching ? 'Starting...' : 'Start Situation Debate'}
         </button>
+
+        {launchError && (
+          <div className="sit-debate-launch-error" role="alert">
+            {launchError}
+            <button type="button" className="sit-debate-launch-retry" onClick={handleLaunch}>Retry</button>
+          </div>
+        )}
       </div>
     </div>
   );
