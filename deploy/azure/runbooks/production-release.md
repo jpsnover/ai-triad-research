@@ -49,12 +49,12 @@ If this release touches the **serialize path specifically** — the synthetic-em
 
 ## Step 3: Deploy to Azure
 
-1. Trigger the deploy workflow (**once only** — duplicate dispatches are cancelled):
+1. Trigger the deploy workflow (**once only** — duplicate dispatches are cancelled). Pass the **commit SHA** you built in Step 2 — the deploy resolves its permanent `sha-<commit>` tag to an immutable `@sha256` digest and pins the revision to it (deploy-by-digest, t/3679). There is **no `image_tag`/`:latest` path** — an empty/missing `sha` aborts with an actionable message:
    ```bash
    gh workflow run deploy-azure.yml --ref main \
      -f environment=production \
      -f auth_mode=optional \
-     -f image_tag=latest
+     -f sha=<full-or-short-commit-sha>   # the SAME sha passed to Invoke-ContainerBuild.ps1 in Step 2
    ```
 
 2. Monitor the deploy:
@@ -64,11 +64,12 @@ If this release touches the **serialize path specifically** — the synthetic-em
    ```
 
 3. The workflow automatically:
-   - Verifies CI passed for the commit (test-electron + test-container)
-   - Verifies the container image exists in GHCR
+   - Verifies CI passed for the **deployed commit** (`sha`), not the dispatch HEAD (test-electron + test-container)
+   - Resolves the commit's per-SHA tag to an immutable `@sha256` digest and pins to it — aborts fail-closed if the tag is absent (this replaces the old tag-existence check)
    - Runs Bicep what-if (checks for unexpected deletions)
-   - Deploys Bicep template (infra + app config)
-   - Creates new revision at 0% traffic
+   - Deploys Bicep template (infra + app config) with the digest-pinned image
+   - Creates new revision at 0% traffic (pinned to the digest; `IMAGE_DIGEST`/`IMAGE_DEPLOYED_AT` stamped as env)
+   - Asserts the revision's resolved image ref equals the intended digest before any traffic shift
    - Health checks the new revision (Phase 1: server up, Phase 2: data loaded)
    - Runs acceptance tests (18 endpoint checks across 8 categories)
    - Shifts 100% traffic to new revision on success
@@ -128,6 +129,8 @@ If post-deploy issues are found after traffic shift:
    ```
 
 The deploy workflow handles this automatically when health checks or acceptance tests fail. Manual rollback is only needed for issues discovered after the workflow completes.
+
+**Rollback-anchor durability (t/3679 + t/3756).** A rollback target is only valid while its image is **tagged** or within the untagged-retention window. `ghcr-cleanup.yml` deletes **untagged** images older than 30 days (keeping the 5 most-recent untagged). Since deploy-by-digest (t/3679) makes `container.yml` push a **permanent `sha-<commit>` tag** for every built image, every deploy-pinnable image now stays **tagged → preserved**, so its digest remains pullable as a rollback target indefinitely — this is the going-forward fix. **Caveat for images built before t/3679 landed:** those were only ever tagged `:latest`, so once `:latest` moved past them they went untagged and prune at ~30 days. To roll back to a pre-t/3679 image, first confirm it still exists (`gh api user/packages/container/taxonomy-editor/versions`) before relying on it; if you need a specific old digest preserved, tag it durably (`docker buildx imagetools create --tag ghcr.io/jpsnover/taxonomy-editor:rollback-<date> <digest-ref>`). To forward-deploy a known-good digest directly, see the recovery path in [digest-pin-upgrade.md](digest-pin-upgrade.md).
 
 ## Deploy Hold
 
