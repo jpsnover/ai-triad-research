@@ -628,6 +628,27 @@ export async function runTurnPipeline(
       console.log(`[pipeline] Draft field-level merge: froze ${ALL_DRAFT_FIELDS.filter(f => !targetedFields.has(f)).join(', ')}, regenerated ${[...targetedFields].join(', ')}`);
     }
 
+    // Emit draft-field coverage event (t/3769) — _covered:true makes absence distinguishable from present-but-zero.
+    if (draft) {
+      getGlobalRecorder()?.record({
+        type: 'debate.stage_draft_fields',
+        component: 'turn-pipeline',
+        level: 'info',
+        speaker: input.label,
+        phase: input.phase,
+        stage: 'draft',
+        fields: {
+          claim_sketches: draft.claim_sketches?.length ?? 0,
+          prior_steelmans: draft.prior_steelmans?.length ?? 0,
+          turn_symbols: draft.turn_symbols?.length ?? 0,
+          statement_chars: draft.statement?.length ?? 0,
+          position_update: !!draft.position_update,
+          commitment: !!draft.commitment,
+          _covered: true,
+        },
+      });
+    }
+
     // Backfill empty claim_sketches targets from prior draft — LLMs drop AN-ID
     // targets when regenerating claims because they focus on text, not ID mappings.
     if (draft?.claim_sketches && priorDraft?.claim_sketches) {
