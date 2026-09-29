@@ -74,7 +74,13 @@ Three defects, each found by **running** it, none by reading it:
 2. **`%s%n%b` false-fires on documentation.** Commit *bodies* cite related tickets, and this repo's `Ref:` convention encourages it. Run against the commit introducing this very document: six refs on a single-ticket commit. Subject-only yields one. The better-documented the commit, the likelier it tripped.
 3. **Range-wide `sort -u` false-fires on a normal commit.** `cb35c91e` — *"feat(cl): t/3350 demotion-set manifest … (t/3633…)"* — is one legitimate commit naming its ticket and a related one. Collapsing the range into a single ref set loses which commit carried which ref, which is the only thing that makes "foreign" meaningful. Correct predicate: **per-commit, foreign iff its subject refs are non-empty AND disjoint from the PR's ticket.**
 
-**What the check therefore sees, and does not:** it catches the **ticketed** inheritance case. A commit whose subject carries no ticket ref is invisible to it — and that is not hypothetical. `5de42009` (*"docs(lessons): land rescued multi-agent LessonsLearned WIP…"*) is on `main` with no ticket ref at all. So an unreferenced foreign commit passes, by construction.
+**What the check sees, and does not — and the residual is worse than its size.** A commit whose subject carries no ticket ref is invisible. Measured over 60 `main` commits: 14 are ref-less (23%), of which **all 4 merge commits** — `git pull` writes their subjects, so no ticket can appear by construction.
+
+That matters more than 23% suggests, because **a merge commit is the characteristic artifact of reconciling a diverged tree**, which is exactly what this check exists to detect. **The blind spot is not independent of the target; it sits on the target's signature.** A uniformly-distributed gap degrades coverage proportionally; a correlated one degrades it more than the number implies.
+
+So the honest statement is *blind to merge commits, which are the divergence artifact* — **not** the more comfortable *"catches the ticketed case."* Both are true; only the first is informative, and choosing the comfortable true statement is its own version of a gate overclaiming.
+
+**Generalizable:** when you size a residual, ask whether it is **correlated with the thing being detected**. An uncorrelated blind spot is a coverage percentage. A correlated one is a hole shaped like the problem.
 
 **Note which of the three teaches most.** Defect 2 is a wrong tool — the extraction read the wrong thing. Defect 3 is a **correct-looking predicate whose fault lives in how results were combined**, and `cb35c91e` legitimately naming two tickets in one subject is a case no amount of reading finds. Aggregation defects are the harder class precisely because every part looks right in isolation.
 
