@@ -9,7 +9,7 @@ import type {
   ProcessRewardEntry,
   EntailmentRepairEvent,
 } from '../types.js';
-import { POVER_INFO } from '../types.js';
+import { POVER_INFO, POV_KEYS } from '../types.js';
 import type { PovKey } from '../types.js';
 
 import { generateId, nowISO, parseJsonRobust, wordOverlap } from '../helpers.js';
@@ -226,9 +226,15 @@ export async function extractClaims(
     const speakerPov = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.pov;
     if (speakerPov) {
       const povNodes = ctx.taxonomy[speakerPov as PovKey]?.nodes ?? [];
-      const allPovNodeIds = new Set(povNodes.map(n => n.id));
+      // Include all-POV node IDs so steelman nodes can be attributed to the steelmanned camp.
+      const allCandidateNodeIds = new Set<string>();
+      for (const pov of POV_KEYS) {
+        for (const n of ctx.taxonomy[pov as PovKey]?.nodes ?? []) {
+          allCandidateNodeIds.add(n.id);
+        }
+      }
       const attrResult = computeClaimTaxonomyAttribution(
-        claimsResult.newNodes, speakerPov, ctx.taxonomy.embeddings, allPovNodeIds,
+        claimsResult.newNodes, speakerPov, ctx.taxonomy.embeddings, allCandidateNodeIds,
       );
       trace.attribution_attributed = attrResult.attributed;
       trace.attribution_unattributed = attrResult.unattributed;

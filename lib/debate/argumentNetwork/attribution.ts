@@ -53,17 +53,22 @@ export function computeClaimTaxonomyAttribution(
   let missingEmbedding = 0;
   let novelArgument = 0;
 
-  // Pre-filter: same-POV nodes with embeddings (all BDI categories)
-  const candidateEntries: [string, { vector: number[]; vectors?: number[][]; exclusion_vector?: number[] }][] = [];
+  // Build per-POV candidate maps. Steelman nodes use steelman_of as effective POV instead of speakerPov.
+  type CandidateEntry = [string, { vector: number[]; vectors?: number[][]; exclusion_vector?: number[] }];
+  const candidatesByPov = new Map<string, CandidateEntry[]>();
   for (const [nodeId, entry] of Object.entries(nodeEmbeddings)) {
-    if (entry.pov === speakerPov && candidateNodeIds.has(nodeId) && entry.vector?.length > 0) {
-      candidateEntries.push([nodeId, { vector: entry.vector, vectors: entry.vectors, exclusion_vector: entry.exclusion_vector }]);
-    }
+    if (!candidateNodeIds.has(nodeId) || !entry.vector?.length) continue;
+    if (!candidatesByPov.has(entry.pov)) candidatesByPov.set(entry.pov, []);
+    candidatesByPov.get(entry.pov)!.push([nodeId, { vector: entry.vector, vectors: entry.vectors, exclusion_vector: entry.exclusion_vector }]);
   }
-  const candidateMap = new Map(candidateEntries);
-  const hasMultiVector = candidateEntries.some(([, e]) => e.vectors && e.vectors.length > 0);
+  const hasMultiVector = [...candidatesByPov.values()].flat().some(([, e]) => e.vectors && e.vectors.length > 0);
 
   for (const node of nodes) {
+    // Steelman nodes are attributed to the steelmanned camp's taxonomy, not the speaker's.
+    const effectivePov = node.steelman_of ?? speakerPov;
+    const candidateEntries = candidatesByPov.get(effectivePov) ?? [];
+    const candidateMap = new Map(candidateEntries);
+
     const queryVector = node.attribution_embedding ?? node.embedding;
     if (!queryVector || queryVector.length === 0) {
       const attribution: ClaimTaxonomyAttribution = {
@@ -107,11 +112,11 @@ export function computeClaimTaxonomyAttribution(
     const similarities: { node_id: string; similarity: number }[] = [];
     if (hasMultiVector) {
       // Mean-of-top-3: build a single-node embeddings map per candidate and score
-      const candidateMap: Record<string, { pov: string; vector: number[]; vectors?: number[][] }> = {};
+      const candidateMapRecord: Record<string, { pov: string; vector: number[]; vectors?: number[][] }> = {};
       for (const [nodeId, entry] of candidateEntries) {
-        candidateMap[nodeId] = { pov: speakerPov, vector: entry.vector, vectors: entry.vectors };
+        candidateMapRecord[nodeId] = { pov: effectivePov, vector: entry.vector, vectors: entry.vectors };
       }
-      const meanScores = scoreNodeRelevanceMeanTopN(queryVector, candidateMap, topN);
+      const meanScores = scoreNodeRelevanceMeanTopN(queryVector, candidateMapRecord, topN);
       for (const [nodeId, sim] of meanScores) {
         similarities.push({ node_id: nodeId, similarity: sim });
       }
