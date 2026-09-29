@@ -6,6 +6,26 @@
 # for the blocking-gate promotion. Flipping to $true makes any leg's offenders fail the gate.
 $script:CitationIntegrityBlocking = $false
 
+# Leg-b accepted-baseline allowlist (t/3743, CL disposition t/3598#8). These 3 source_ids are
+# genuine cross-repo orphans — the summary exists with real content, but the source dir is
+# absent with no source_url/git history, so a restore is infeasible and deletion would be
+# irreversible loss of real content. CL ruled accept-baseline, not delete. A dangle NOT in
+# this list is still an offender — this is a closed, explicit exception list, not a pattern.
+$script:CitationIntegrityAcceptedBaseline = @(
+    [pscustomobject]@{
+        source_id = 'adversarialaithreatmodelingframework-aatmfv3-kaiaizen-2026'
+        reason    = 'pre-existing cross-repo orphan; summary exists, no source dir / no source_url / no git history; accepted-baseline CL t/3598#8'
+    }
+    [pscustomobject]@{
+        source_id = 'adversarialaithreatmodelingframework-aatmfv3-kaiaizen-2026-1'
+        reason    = 'pre-existing cross-repo orphan; summary exists, no source dir / no source_url / no git history; accepted-baseline CL t/3598#8'
+    }
+    [pscustomobject]@{
+        source_id = 'practical-tech-leader-2026'
+        reason    = 'pre-existing cross-repo orphan; summary exists, no source dir / no source_url / no git history; accepted-baseline CL t/3598#8'
+    }
+)
+
 function Test-CitationLinkIntegrity {
     <#
     .SYNOPSIS
@@ -28,6 +48,10 @@ function Test-CitationLinkIntegrity {
               a trailing '-N' ONLY when it follows a '-YYYY' year" (resolve-full-first, then
               instance-suffix-only-after-year). A naive '-\d+$' strip is WRONG — it eats the
               year off bare 'author-YYYY' ids and mis-resolves (that was the original shorthand).
+              A dangle whose source_id is in $script:CitationIntegrityAcceptedBaseline (t/3743,
+              CL disposition t/3598#8 — 3 genuine cross-repo orphans, restore infeasible, accept
+              not delete) PASSES and is reported separately as `accepted`, not an offender. Any
+              dangle NOT on that closed, explicit list is still an offender.
           (c) Staleness — source_index.json header inputHash == Get-SummariesInputHash over the
               current summaries, AND the index key count == the live-node count.
 
@@ -45,6 +69,8 @@ function Test-CitationLinkIntegrity {
         <data_root>/../ai-triad-sources.
     .OUTPUTS
         [pscustomobject] { pass; results = @({leg; pass; offenders[]}) ; blocking }
+        leg 'b' additionally carries `checked` (N distinct source_ids) and `accepted[]` (t/3743
+        accepted-baseline hits — {source_id; reason} — PASS, not counted as offenders).
     .EXAMPLE
         (Test-CitationLinkIntegrity).results | Format-Table leg, pass, @{n='n';e={$_.offenders.Count}}
     .LINK
@@ -130,6 +156,9 @@ function Test-CitationLinkIntegrity {
 
     # ── Leg (b): source_index source_id → metadata.json (strip -<digits> chunk) ─
     $bOff = [System.Collections.Generic.List[object]]::new()
+    $bAccepted = [System.Collections.Generic.List[object]]::new()   # accepted-baseline hits (t/3743) — not offenders
+    $bAllowlist = @{}
+    foreach ($a in $script:CitationIntegrityAcceptedBaseline) { $bAllowlist[$a.source_id] = $a.reason }
     $bChecked = 0   # N distinct source_ids checked (statistic-provenance, t/3598 CL ask)
     $indexExists = Test-Path -LiteralPath $SourceIndexPath
     $ix = $null
@@ -148,7 +177,11 @@ function Test-CitationLinkIntegrity {
                 $base   = $sid -replace '^(.*-\d{4})-\d+$', '$1'
                 $okBase = ($base -ne $sid) -and (Test-Path -LiteralPath (Join-Path (Join-Path $SourcesRoot $base) 'metadata.json'))
                 if (-not ($okAsIs -or $okBase)) {
-                    $bOff.Add([pscustomobject]@{ source_id = $sid; base = $base })
+                    if ($bAllowlist.ContainsKey($sid)) {
+                        $bAccepted.Add([pscustomobject]@{ source_id = $sid; reason = $bAllowlist[$sid] })
+                    } else {
+                        $bOff.Add([pscustomobject]@{ source_id = $sid; base = $base })
+                    }
                 }
             }
         }
@@ -176,15 +209,18 @@ function Test-CitationLinkIntegrity {
 
     $results = @(
         [pscustomobject]@{ leg = 'a'; name = 'link-resolution';   pass = ($aOff.Count -eq 0); offenders = @($aOff) }
-        [pscustomobject]@{ leg = 'b'; name = 'source-resolution'; pass = ($bOff.Count -eq 0); offenders = @($bOff); checked = $bChecked }
+        [pscustomobject]@{ leg = 'b'; name = 'source-resolution'; pass = ($bOff.Count -eq 0); offenders = @($bOff); checked = $bChecked; accepted = @($bAccepted) }
         [pscustomobject]@{ leg = 'c'; name = 'staleness';         pass = ($cOff.Count -eq 0); offenders = @($cOff) }
     )
     $overall = @($results | Where-Object { -not $_.pass }).Count -eq 0
 
     # Statistic-provenance (t/3598 CL ask): always log leg-b's N distinct source_ids + the
-    # dangle ids, pass or fail — so the advisory run records "checked N, D dangles: <ids>".
+    # dangle ids, pass or fail — so the advisory run records "checked N, D dangles: <ids>". Now
+    # also logs the accepted-baseline count (t/3743) so a green leg-b that is silently absorbing
+    # 3 known orphans is never confused with a leg-b that found zero dangles at all.
     $bDangles = @($bOff | ForEach-Object { $_.source_id }) -join ', '
-    Write-Host "Citation-integrity leg (b): $bChecked distinct source_id(s) checked; $($bOff.Count) dangle(s)$(if ($bOff.Count) { ": $bDangles" })"
+    $bAcceptedIds = @($bAccepted | ForEach-Object { $_.source_id }) -join ', '
+    Write-Host "Citation-integrity leg (b): $bChecked distinct source_id(s) checked; $($bOff.Count) dangle(s)$(if ($bOff.Count) { ": $bDangles" }); $($bAccepted.Count) accepted-baseline$(if ($bAccepted.Count) { ": $bAcceptedIds" })"
 
     foreach ($r in $results) {
         if (-not $r.pass) {

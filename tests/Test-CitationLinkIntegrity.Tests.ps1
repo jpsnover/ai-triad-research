@@ -64,6 +64,14 @@ BeforeAll {
                 pov_summaries = @{ saf = @{ key_points = @(@{ taxonomy_node_id='saf-beliefs-201'; verbatim='qz' }) } }
             }
         }
+        # Optional: a summary whose doc_id is one of the REAL t/3743 accepted-baseline ids, with
+        # no source dir — proves the allowlist against the actual hardcoded list, not an injected one.
+        if ($Opts.ContainsKey('AllowlistedDangle') -and $Opts.AllowlistedDangle) {
+            script:WriteJson (Join-Path $sum 'doc-allowlisted.json') @{
+                doc_id = 'practical-tech-leader-2026'
+                pov_summaries = @{ saf = @{ key_points = @(@{ taxonomy_node_id='saf-beliefs-201'; verbatim='qa' }) } }
+            }
+        }
 
         # Source dirs: src-alpha + src-beta (base of src-beta-3) resolve; src-gone intentionally absent.
         script:WriteJson (Join-Path $src 'src-alpha/metadata.json')          @{ id='src-alpha';          title='Alpha' }
@@ -150,6 +158,26 @@ Describe 'Test-CitationLinkIntegrity (t/3598)' -Tag 'config' {
         $c = script:Leg $r 'c'
         $c.pass | Should -BeFalse
         @($c.offenders.kind) | Should -Contain 'key-count'
+    }
+
+    It 'LEG B: accepted-baseline allowlist PASSES a known orphan while a NEW dangle still FAILS (t/3743)' {
+        $f = script:New-CliFixture @{ DangleSource = $true; AllowlistedDangle = $true }; $script:Fixtures.Add($f.Fx)
+        $r = script:RunCli $f
+        $b = script:Leg $r 'b'
+        $b.pass | Should -BeFalse   # src-gone is NOT allowlisted — still an offender, leg-b still fails overall
+        @($b.offenders.source_id) | Should -Contain 'src-gone'
+        @($b.offenders.source_id) | Should -Not -Contain 'practical-tech-leader-2026'   # allowlisted → not an offender
+        @($b.accepted.source_id) | Should -Contain 'practical-tech-leader-2026'
+        (@($b.accepted) | Where-Object { $_.source_id -eq 'practical-tech-leader-2026' }).reason | Should -Match 't/3598#8'
+    }
+
+    It 'LEG B PASSES entirely when the only dangle present is accepted-baseline' {
+        $f = script:New-CliFixture @{ AllowlistedDangle = $true }; $script:Fixtures.Add($f.Fx)
+        $r = script:RunCli $f
+        $b = script:Leg $r 'b'
+        $b.pass | Should -BeTrue
+        @($b.offenders).Count | Should -Be 0
+        @($b.accepted.source_id) | Should -Contain 'practical-tech-leader-2026'
     }
 
     It 'is advisory: never throws on offenders, and reports the blocking toggle state' {
