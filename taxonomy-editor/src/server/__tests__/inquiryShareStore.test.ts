@@ -43,9 +43,25 @@ vi.mock('../storage/fileIO.js', async (importOriginal) => {
   return { ...actual, getUserContentBackend: () => fakeBackend };
 });
 
+import path from 'path';
 import { runWithUser, type UserContext } from '../security/userContext.js';
 import { publishInquiryShare, unpublishInquiryShare, loadPublicInquiryShare } from '../storage/inquiryShareStore.js';
-import type { InquiryResult } from '../../../../lib/inquiry/index.js';
+import { resolveDataPath } from '../config.js';
+import type { InquiryResult, PublicInquiryShare } from '../../../../lib/inquiry/index.js';
+
+function publicInquiryPath(shareId: string): string {
+  return path.join(resolveDataPath('public/inquiries'), `${shareId}.json`);
+}
+function validShare(): PublicInquiryShare {
+  return {
+    version: 1,
+    request: { question: 'Q', fidelity: 'standard' },
+    campVerdicts: [], convergences: [], evidenceLayers: [], unresolvedGaps: [], calibration: [],
+    derivation: { fidelity: 'standard', models: {}, rounds: 1 },
+    grounding: { nodesByCamp: {} },
+    singleRunCaveat: 'One run is not a finding.',
+  };
+}
 
 const OWNER: UserContext = { principalName: 'owner-1', idp: 'github', storageUserId: 'owner-1', isAnonymous: false };
 const ANON: UserContext = { principalName: '', idp: 'anon', storageUserId: '_local', isAnonymous: true };
@@ -164,5 +180,44 @@ describe('inquiryShareStore (t/3627)', () => {
       const norm = p.replace(/\\/g, '/');
       expect(norm.includes('inquiry-results')).toBe(false);
     }
+  });
+
+  // ─── t/3730: tolerant read-side validation ─────────────────────────────────
+
+  it('a structurally-invalid blob returns null and WARNs (never type-checks through to the caller)', async () => {
+    files.set(publicInquiryPath('bad-share'), JSON.stringify({ version: 1, request: { question: 'Q' } })); // missing required fields
+    expect(await loadPublicInquiryShare('bad-share')).toBeNull();
+    expect(serverWarn).toHaveBeenCalledWith(
+      expect.objectContaining({ shareId: 'bad-share', cause: 'inquiry-share-schema-invalid' }),
+      expect.any(String),
+    );
+  });
+
+  it('non-JSON content returns null and WARNs', async () => {
+    files.set(publicInquiryPath('corrupt-share'), '{not valid json');
+    expect(await loadPublicInquiryShare('corrupt-share')).toBeNull();
+    expect(serverWarn).toHaveBeenCalledWith(
+      expect.objectContaining({ shareId: 'corrupt-share', cause: 'inquiry-share-unparseable' }),
+      expect.any(String),
+    );
+  });
+
+  it('(deploy-overlap hazard) a valid blob carrying an UNKNOWN extra key still parses successfully', async () => {
+    // Simulates a share written by a NEWER build (a field this build doesn't know about yet) —
+    // the exact scenario a strict reader would 404 on during an ACA rolling-deploy overlap.
+    const withExtraField = { ...validShare(), synthesizedHeadline: 'A headline from a future build' };
+    files.set(publicInquiryPath('forward-compat-share'), JSON.stringify(withExtraField));
+    const pub = await loadPublicInquiryShare('forward-compat-share');
+    expect(pub).not.toBeNull();
+    expect(pub!.request.question).toBe('Q');
+    expect(serverWarn).not.toHaveBeenCalled();
+  });
+
+  it('a well-formed share (no extra fields) still round-trips cleanly through the tolerant schema', async () => {
+    files.set(publicInquiryPath('clean-share'), JSON.stringify(validShare()));
+    const pub = await loadPublicInquiryShare('clean-share');
+    expect(pub).not.toBeNull();
+    expect(pub!.singleRunCaveat).toContain('One run');
+    expect(serverWarn).not.toHaveBeenCalled();
   });
 });
