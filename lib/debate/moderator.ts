@@ -580,10 +580,14 @@ export function updateModeratorState(
       state.consecutive_rise = 0;
     }
   }
+  const stateEventData: Record<string, unknown> = { round, phase, intervened: !!intervention, budget_remaining: state.budget_remaining, interventions_fired: state.interventions_fired };
+  if (phase === 'concluding') {
+    stateEventData.commit_received_count = new Set(state.intervention_history.filter(h => h.move === 'COMMIT').map(h => h.target)).size;
+  }
   getGlobalRecorder()?.record({
     type: 'debate.moderate', component: 'moderator', level: 'debug',
     message: `moderator state updated: round ${round}, phase ${phase}${intervention ? `, fired ${intervention.move} → ${intervention.target_debater}` : ', no intervention'}`,
-    data: { round, phase, intervened: !!intervention, budget_remaining: state.budget_remaining, interventions_fired: state.interventions_fired },
+    data: stateEventData,
   });
 }
 

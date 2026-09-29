@@ -61,6 +61,7 @@ export type EventType =
   | 'debate.lifecycle'
   | 'debate.lookahead.filter'
   | 'debate.opening_added'
+  | 'debate.closure_eligible'
   // State management
   | 'state.save'
   | 'state.save-coalesced'
