@@ -274,6 +274,27 @@ export async function runOpeningPipeline(
   });
   const draftJson = toPromptJson(draft);
 
+  // Emit draft-field coverage event (t/3769) — _covered:true makes absence distinguishable from present-but-zero.
+  if (draft) {
+    getGlobalRecorder()?.record({
+      type: 'debate.stage_draft_fields',
+      component: 'turn-pipeline',
+      level: 'info',
+      speaker: input.label,
+      phase: 'opening',
+      stage: 'draft',
+      fields: {
+        claim_sketches: draft.claim_sketches?.length ?? 0,
+        prior_steelmans: draft.prior_steelmans?.length ?? 0,
+        turn_symbols: draft.turn_symbols?.length ?? 0,
+        statement_chars: draft.statement?.length ?? 0,
+        position_update: !!draft.position_update,
+        commitment: !!draft.commitment,
+        _covered: true,
+      },
+    });
+  }
+
   // Per-stage draft validation for openings (Rules 6, 10, 12 — no moves/disagreement for openings)
   if (draft) {
     const openingDraftMeta: import('../helpers.js').PoverResponseMeta = {
