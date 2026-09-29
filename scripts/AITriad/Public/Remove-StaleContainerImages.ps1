@@ -110,6 +110,18 @@ function Remove-StaleContainerImages {
     }
 
     # ── Filter to untagged, sort newest first ────────────────────────────
+    # DEPLOY-BY-DIGEST COUPLING (t/3679 condition 1) — SYNC WITH the per-SHA tag block in
+    # .github/workflows/container.yml. This filter deletes ONLY untagged versions (tags.Count -eq 0);
+    # a TAGGED version is never a candidate. That is the load-bearing invariant behind deploy-by-digest:
+    # container.yml pushes a PERMANENT `sha-<commit>` tag for every built image, so a digest a deploy has
+    # pinned stays TAGGED -> PRESERVED here -> pullable on a pod recycle indefinitely (the t/3679#8 SO
+    # finding-1 outage-preventer; also why t/3756 rollback anchors survive going forward). The predicate
+    # fails SAFE: a version whose `tags` property is ABSENT is excluded (all three PSObject.Properties
+    # guards must hold), not swept in — verified t/3679#9 §1. TRAP (t/3679#9 §4): GHCR also lists
+    # `sha256-<digest>` COSIGN/attestation versions; those carry that tag so they are `tags.Count -ne 0`
+    # and are likewise preserved — do NOT special-case them here, and do not mistake them for per-SHA
+    # image tags. Consequence ACCEPTED: permanent sha- tags accumulate (never pruned by this cmdlet) —
+    # bounded-retention of old sha- tags is a future decision, not this change.
     $Untagged = @(
         $AllVersions | Where-Object {
             $_.PSObject.Properties['metadata'] -and

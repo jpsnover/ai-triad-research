@@ -40,18 +40,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
-      - name: Resolve image tag from triggering workflow
-        id: resolve_tag
+      - name: Resolve image digest from the built commit (t/3679 — never :latest)
+        id: resolve_digest
+        shell: pwsh
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          # Extract the version from the triggering workflow's ref (e.g., refs/tags/v0.8.0)
-          REF="${{ github.event.workflow_run.head_branch }}"
-          TAG="${REF#v}"
-          if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
-          else
-            echo "tag=latest" >> $GITHUB_OUTPUT
-          fi
-          echo "Deploying tag: $(grep tag= $GITHUB_OUTPUT | cut -d= -f2)"
+          # t/3679: the workflow_run trigger gives us the BUILT commit for FREE (head_sha) — so staging
+          # needs no `sha` input (unlike deploy-azure.yml). Resolve its PERMANENT sha-<commit> tag -> the
+          # immutable @sha256 digest (the TESTED artifact), NEVER :latest. Fail-closed on empty/not-found/
+          # ambiguous (Resolve-ImageDigest.ps1). $HEAD_SHA is read from env, not interpolated inline.
+          & ./operations/devops/Resolve-ImageDigest.ps1 -Sha $env:HEAD_SHA -GitHubOutput
 
       - name: Log in to Azure
         uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c  # v3
@@ -88,17 +88,53 @@ jobs:
       - name: Deploy new revision to staging (0% traffic)
         id: new_revision
         shell: pwsh
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          IMAGE_REF: ${{ steps.resolve_digest.outputs.image_ref }}
+          RESOLVED_DIGEST: ${{ steps.resolve_digest.outputs.digest }}
         run: |
           Import-Module ./scripts/AITriad/AITriad.psm1 -Force
-          $ShortSha = '${{ github.event.workflow_run.head_sha }}'.Substring(0, 7)
+          # t/3679: deploy the DIGEST-PINNED ref (…@sha256:<digest>), not a tag — a recycle re-pulls identical
+          # bytes. DEPLOY_SHA + suffix encode the built commit ($HEAD_SHA, which IS the deployed commit here).
+          # IMAGE_DIGEST + IMAGE_DEPLOYED_AT stamped for the detect half; IMAGE_DEPLOYED_AT is DEPLOY-time
+          # (not container start) so a recycle without a deploy shows the same timestamp (condition 6).
+          $ShortSha = $env:HEAD_SHA.Substring(0, [Math]::Min(7, $env:HEAD_SHA.Length))
+          $DeployedAt = [DateTimeOffset]::UtcNow.ToString('o')
           $Result = New-ContainerAppRevision `
-            -ImageRef '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }}' `
+            -ImageRef $env:IMAGE_REF `
             -RevisionSuffix "staging-$ShortSha" `
-            -EnvVars @{ DEPLOY_SHA = '${{ github.event.workflow_run.head_sha }}'; DEPLOY_TAG = '${{ steps.resolve_tag.outputs.tag }}' } `
+            -EnvVars @{
+              DEPLOY_SHA        = $env:HEAD_SHA
+              DEPLOY_TAG        = "sha-$($env:HEAD_SHA)"
+              IMAGE_DIGEST      = $env:RESOLVED_DIGEST
+              IMAGE_DEPLOYED_AT = $DeployedAt
+            } `
             -AppName '${{ env.CONTAINER_APP_NAME }}' `
             -ResourceGroup '${{ env.RESOURCE_GROUP }}'
           Write-Host "New revision: $($Result.RevisionName)"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "revision=$($Result.RevisionName)"
+
+      - name: Assert staging revision is digest-pinned to the intended image (t/3679 condition 3)
+        shell: pwsh
+        env:
+          EXPECTED_REF: ${{ steps.resolve_digest.outputs.image_ref }}
+        run: |
+          # Mirror of the prod assertion (deploy-azure.yml): value-equality of the resolved image ref,
+          # NOT @sha256-shape. Fail-closed before the traffic promote below.
+          $Rev = '${{ steps.new_revision.outputs.revision }}'
+          $Info = az containerapp revision show `
+            --name '${{ env.CONTAINER_APP_NAME }}' -g '${{ env.RESOURCE_GROUP }}' --revision $Rev `
+            --query '{prov:properties.provisioningState, image:properties.template.containers[0].image}' -o json | ConvertFrom-Json
+          Write-Host "New staging revision $Rev — provisioningState=$($Info.prov) image=$($Info.image)"
+          if ($Info.prov -eq 'Failed') {
+            Write-Host "::error::t/3679: staging revision provisioningState is 'Failed' — NOT promoting (fail-closed)."
+            exit 1
+          }
+          if ($Info.image -ne $env:EXPECTED_REF) {
+            Write-Host "::error::t/3679: staging revision image '$($Info.image)' != intended '$($env:EXPECTED_REF)' — digest-pin MISMATCH, NOT promoting (fail-closed)."
+            exit 1
+          }
+          Write-Host "t/3679 assert OK: staging revision digest-pinned to '$($env:EXPECTED_REF)' (value-equal)."
 
       - name: Smoke test new revision (pre-traffic gate)
         id: smoke

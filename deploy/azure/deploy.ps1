@@ -72,7 +72,13 @@ param(
     # a prior commit-named revision (see production-release.md `az containerapp ingress traffic set`),
     # independent of this tag. Pinning the default would force a per-release bump — its own
     # forget/drift surface — for no gain the revision layer doesn't already provide. To pin a
-    # SPECIFIC version for one deploy, pass -ContainerImage (or deploy-azure.yml -f image_tag=<vX.Y.Z|digest>).
+    # SPECIFIC version for one deploy, pass -ContainerImage a full @sha256 digest ref.
+    # t/3679 (deploy-by-digest): the AUTOMATED workflow path now ALWAYS pins by digest —
+    # deploy-azure.yml takes an explicit `sha` input and resolves the commit's PERMANENT
+    # sha-<commit> tag to its immutable @sha256 digest (Resolve-ImageDigest.ps1); it no longer
+    # accepts image_tag or defaults to :latest. THIS script is the MANUAL path — its :latest
+    # default is the hand-run/bootstrap escape hatch. For a reproducible manual deploy pass
+    # -ContainerImage the digest (resolve via: Get-TaxEditorImage | ? { $_.Tags -contains "sha-<commit>" }).
     [string]$ContainerImage = 'ghcr.io/jpsnover/taxonomy-editor:latest',
 
     [switch]$SeedData,

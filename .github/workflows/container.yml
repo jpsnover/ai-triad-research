@@ -218,6 +218,28 @@ jobs:
             # keeps :latest = newest of {last release, last main dispatch}; the main-branch
             # clause is load-bearing for the Invoke-ContainerBuild dispatch -> deploy path.
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+            # ── Per-SHA tag (t/3679 deploy-by-digest, condition 1) ───────────────────────
+            # A PERMANENT, deploy-pinnable tag naming the BUILT commit. deploy-azure.yml and
+            # deploy-staging.yml resolve `sha-<commit>` -> the immutable @sha256:<digest> and pin
+            # the ACA revision to that digest, so a pod recycle re-pulls IDENTICAL bytes — never a
+            # mutated :latest (the t/3679 recycle-swap hazard).
+            #
+            # WHY type=raw, NOT type=sha: docker/metadata-action's `type=sha` reads the git context
+            # (github.sha) = the DISPATCH ref HEAD. On a workflow_dispatch build with an explicit
+            # `sha`, the checkout builds `inputs.sha` (see BUILD_SHA at :279-285), so `type=sha`
+            # would tag the image with a commit it does NOT contain (t/3278 wrong-SHA / t/3110
+            # misleading-marker sink). The value below is IDENTICAL to BUILD_SHA and to `ref:`.
+            #
+            # GHCR-CLEANUP COUPLING — SYNC WITH operations/devops/Remove-StaleContainerImages.ps1:
+            # this tag is PERMANENT by design. ghcr-cleanup deletes only UNTAGGED images (>30d,
+            # keep 5 newest) — so a sha-tagged image is PRESERVED, which is what keeps a pinned
+            # digest pullable on a recycle indefinitely (the outage-preventer, t/3679#8 SO finding 1;
+            # also fixes t/3756 rollback-anchor expiry going forward). Tradeoff ACCEPTED: sha- tags
+            # accumulate (never auto-pruned) — modest manifest storage; a bounded-retention policy is
+            # a future call, not this change. TRAP: GHCR also lists `sha256-<digest>` COSIGN /
+            # attestation tags — those are NOT per-SHA image tags and do NOT preserve the image
+            # (t/3679#9 §4); do not mistake them for this tag.
+            type=raw,value=sha-${{ inputs.sha || github.sha }}
 
       - name: Fetch taxonomy snapshot for fallback
         id: snapshot

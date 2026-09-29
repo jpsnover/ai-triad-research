@@ -25,12 +25,18 @@
 @description('Azure region for all resources')
 param location string = resourceGroup().location
 
-// Mutable :latest default is a deliberate decision (t/3523) — see the rationale block at
-// $ContainerImage in deploy.ps1. Post-t/3522 :latest is always current; the deployed commit is
-// recorded (commit-granular) in the ACA revision NAME (e.g. taxonomy-editor--deploy-89c3d9a-…)
-// + /health buildSha. NB the revision's image field records this mutable tag, not a resolved
-// digest (verified, t/3523). Override per-deploy to pin a specific version.
-@description('Container image — defaults to mutable :latest (t/3523 decision; override to pin). ghcr.io/jpsnover/taxonomy-editor:latest')
+// t/3679 (deploy-by-digest): the AUTOMATED deploy path ALWAYS passes a resolved, IMMUTABLE
+// `…@sha256:<digest>` here — deploy-azure.yml / deploy-staging.yml resolve the deploy commit's
+// permanent `sha-<commit>` tag to its digest (Resolve-ImageDigest.ps1) and pin the revision to it,
+// so a pod recycle re-pulls IDENTICAL bytes (closing the t/3522/t/3523 mutable-:latest recycle-swap).
+// The `:latest` DEFAULT below is retained ONLY as a manual escape hatch (a hand-run `az deployment
+// group create` with no containerImage) and for a genuine first deploy — NOT a path any automated
+// deploy takes. It is NOT cosmetic: it avoids a hard failure on a manual bootstrap. Detect half
+// (t/3679#7): the resolved digest + deploy-time timestamp are also injected as IMAGE_DIGEST /
+// IMAGE_DEPLOYED_AT env on the revision (deploy-azure.yml) — a recycle without a deploy keeps the
+// SAME IMAGE_DEPLOYED_AT, so the reconcile check's purpose is OUT-OF-BAND revision creation, not
+// recycle-swap (condition 6), which digest-pinning already makes unreachable.
+@description('Container image. The automated deploy path passes a resolved @sha256 digest (t/3679 deploy-by-digest). Default :latest is a manual/first-deploy escape hatch only. ghcr.io/jpsnover/taxonomy-editor:latest')
 param containerImage string = 'ghcr.io/jpsnover/taxonomy-editor:latest'
 
 @description('Unique suffix for globally unique resource names')

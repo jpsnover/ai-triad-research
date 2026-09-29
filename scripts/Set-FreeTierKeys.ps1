@@ -195,12 +195,22 @@ $btnSave.add_Click({
         if ($chkDeploy.Checked) {
             $lblStatus.Text += 'Triggering deploy...'
             $form.Refresh()
-            gh workflow run deploy-azure.yml --repo $Repo 2>&1
-            if ($LASTEXITCODE -eq 0) {
-                $lblStatus.Text = "Done! $($rawKeys.Count) key(s) saved + deploy triggered."
-            } else {
-                $lblStatus.Text += ' Deploy trigger failed — run manually.'
+            # t/3679 (deploy-by-digest): deploy-azure.yml now requires an explicit `sha` input — it resolves
+            # that commit's sha-<commit> tag to an immutable digest and no longer defaults to :latest. So a
+            # bare dispatch fail-closes. Deploy the current origin/main HEAD by resolving its SHA first.
+            $deploySha = (gh api "repos/$Repo/commits/main" --jq '.sha' 2>&1)
+            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($deploySha)) {
+                $lblStatus.Text += ' Could not resolve main HEAD — run deploy manually: gh workflow run deploy-azure.yml -f sha=<commit>.'
                 $lblStatus.ForeColor = [System.Drawing.Color]::DarkOrange
+            } else {
+                $deploySha = $deploySha.Trim()
+                gh workflow run deploy-azure.yml --repo $Repo -f sha=$deploySha 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    $lblStatus.Text = "Done! $($rawKeys.Count) key(s) saved + deploy triggered (sha $($deploySha.Substring(0, [Math]::Min(7, $deploySha.Length))))."
+                } else {
+                    $lblStatus.Text += ' Deploy trigger failed — run manually.'
+                    $lblStatus.ForeColor = [System.Drawing.Color]::DarkOrange
+                }
             }
         }
     }
