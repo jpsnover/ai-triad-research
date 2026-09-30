@@ -1261,7 +1261,10 @@ export async function extractClaimsAndUpdateAN(
       // it steelmanning?" in one event read instead of cross-referencing the turn embedding
       // event for the source text. assignedNodeIds is index-parallel to newNodes (both are
       // the batch committed by this turn, in extraction order).
-      nodes: newNodes.map((n, i) => ({ id: commitResult.assignedNodeIds[i], claim_preview: n.text.slice(0, 80), steelman_of: n.steelman_of ?? null, pov: speaker })),
+      nodes: newNodes.map((n, i) => ({
+        id: commitResult.assignedNodeIds[i], claim_preview: n.text.slice(0, 80), steelman_of: n.steelman_of ?? null,
+        pov: n.steelman_of ?? speaker, // FR records effective pov (steelmanned camp), not speaker pov
+      })),
     } });
     trace(TraceEventName.AN_EXTRACT_COMPLETE, {
       debate_id: debate.id,
