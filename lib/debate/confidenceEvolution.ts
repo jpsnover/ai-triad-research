@@ -342,6 +342,11 @@ export function computeCrossPovUpdates(
       : null;
     if (!beliefPov) continue;
 
+    // Steelman nodes are excluded from cross-POV confidence updates — a charitable
+    // restatement of another camp's position is not an opposing citation of that belief.
+    // Conservative default per CL ruling 2026-09-30 (t/3786).
+    if (node.steelman_of) continue;
+
     // Determine POV of the speaker
     const speakerPov = speakerPovMap[node.speaker];
     if (!speakerPov || speakerPov === beliefPov) continue;

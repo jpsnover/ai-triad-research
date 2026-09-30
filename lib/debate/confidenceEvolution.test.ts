@@ -428,6 +428,27 @@ describe('computeCrossPovUpdates', () => {
 
     expect(updates).toHaveLength(0);
   });
+
+  it('skips steelman nodes — charitable restatement does not fire cross-POV delta (t/3786)', () => {
+    // AN-6 shape from FR 2026-09-30: speaker=accelerationist, steelman_of=skeptic,
+    // primary_ref is a skp-* belief. Before the fix this produced CROSS_POV_DELTA.
+    const belief = makeBelief('skp-beliefs-001', 0.60);
+    const node = makeNode('an-6', {
+      speaker: 'accelerationist',
+      steelman_of: 'skeptic',
+      claim_taxonomy_attribution: makeAttribution(0.85, 'skp-beliefs-001'),
+    });
+
+    const updates = computeCrossPovUpdates(
+      [node],
+      new Map([['skp-beliefs-001', belief]]),
+      new Map([['skp-beliefs-001', 0.60]]),
+      'deb-001',
+      { accelerationist: 'accelerationist', skeptic: 'skeptic' },
+    );
+
+    expect(updates).toHaveLength(0);
+  });
 });
 
 // ── computePriorityUpdates ──────────────────────────────
