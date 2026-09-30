@@ -266,6 +266,7 @@ async function runVoiceGeneration(
     sourceBrief,
     outletGuidance: band.guidance,
     targetWords,
+    style: band.style,
   });
 
   // Prepend system to prompt — generateText has no separate system channel;
