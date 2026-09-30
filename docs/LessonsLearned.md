@@ -707,6 +707,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-04 — TL (p/335#1): **Bash glob with `C:\...` Windows path** — MSYS mangled the backslashes during glob expansion; no matches returned. Resolved by switching to the **Glob tool**, which handles Windows paths natively without MSYS translation.
 - 2026-08-04 — Shared Lib (p/5#25): **`cd C:\...` path in Bash again** — same failure as p/5#23. **Second time same agent hit identical mistake** → per-agent memory ("on win32, paths/shell ops = PowerShell tool") is the durable fix (mirrors the Diagnostics double-hit, p/9#28+34).
 - 2026-09-28 — DebateTool (p/70#19): `cd C:\Users\jsnov\repos\ai-triad-research && git fetch...` in Bash — Windows backslash path invalid POSIX syntax; Bash rejected as bad command. Fixed by switching to PowerShell tool.
+- 2026-09-29 — DebateTool (p/70#31): `cd C:\Users\jsnov\repos\wt-3767 && npx vitest run` in Bash — POSIX sh can't navigate Windows absolute paths with backslashes. Resolved by switching to PowerShell tool. 2nd DebateTool instance of this same axis.
 
 **Root Cause:** Agents have access to both Bash and PowerShell tools. PowerShell cmdlets (`Get-ChildItem`, `Get-Item`, `Invoke-Pester`, `Select-Object`, etc.), `$var = ...` assignment, `.Property` access, and `;`-chained statements only work in the PowerShell tool. Unix commands (`ls`, `grep`, `cat`, `stat -c%s`) only work in Bash (on Windows/Git Bash). **A second axis is path format:** git-bash presents `/c/Users/...` msys paths, but native win32 programs (`node`, and anything not msys-aware) resolve `C:\...` — an msys path handed to `node require`/`fs` fails as MODULE_NOT_FOUND / ENOENT. **A third axis:** Windows backslash paths (`C:\...`) given directly to Bash fail silently — Bash treats `\` as escape characters. **A fourth axis: Bash glob over `C:\...` paths** — MSYS mangles the backslashes during expansion, producing zero matches with no error.
 
@@ -2602,6 +2603,26 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (ServerAPI p/504#14).
 
 **Applies To:** All agents dismissing code-scanning alerts via `gh api` or the GitHub REST API.
+
+---
+
+## #176 [Process] `gh pr review --approve` Fails — GitHub Blocks Self-Approval; Use `gh pr comment` Instead
+
+**Pattern:** `gh pr review <n> --approve` exits non-zero with "Can not approve your own pull request" — GitHub enforces that a PR author cannot also be the approver. Since the fleet is one GitHub identity, every PR is self-authored, making `--approve` permanently unavailable.
+
+**Instances:**
+- 2026-09-28 — AI Triad Research Project Instructions (p/688#1): `gh pr review 2485 --approve` failed. Resolved by recording owner sign-off via Orca ping to the requesting role instead of a GitHub review.
+- 2026-09-29 — Tech Lead (p/447#20): `gh pr review 2577 --approve` failed. Resolved by posting approval comment via `gh pr comment` instead.
+
+**Root Cause:** GitHub PR review approval requires a reviewer who is NOT the PR author. The fleet pushes as one GitHub identity (the repo owner), so every PR is both authored and reviewed by the same account — GitHub's self-approval block is always triggered.
+
+**Prevention:**
+1. **Never use `gh pr review --approve`** — it will always fail for this fleet. Use `gh pr comment` to post an approval note instead.
+2. For sign-off/approval signals visible to humans, post via Orca ping to the requesting role.
+
+**Status:** Active — 2 instances / 2 roles. Permanent constraint (fleet is one GitHub identity).
+
+**Applies To:** All agents attempting to approve their own PRs on GitHub.
 
 ---
 
