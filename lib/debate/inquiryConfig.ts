@@ -23,9 +23,9 @@ interface FidelityProfile {
 }
 
 const FIDELITY_PROFILES: Record<Fidelity, FidelityProfile> = {
-  quick:    { pacing: 'tight',    maxTotalRounds: 4,  rounds: 2, responseLength: 'brief',    tier: 'basic',    useAdaptiveStaging: false },
-  standard: { pacing: 'moderate', maxTotalRounds: 10, rounds: 4, responseLength: 'medium',   tier: 'basic',    useAdaptiveStaging: true  },
-  deep:     { pacing: 'thorough', maxTotalRounds: 8,  rounds: 6, responseLength: 'detailed', tier: 'advanced', useAdaptiveStaging: true  },
+  quick:    { pacing: 'tight',    maxTotalRounds: 8,  rounds: 2, responseLength: 'brief',    tier: 'basic',    useAdaptiveStaging: false },
+  standard: { pacing: 'moderate', maxTotalRounds: 16, rounds: 4, responseLength: 'medium',   tier: 'basic',    useAdaptiveStaging: true  },
+  deep:     { pacing: 'thorough', maxTotalRounds: 20, rounds: 6, responseLength: 'detailed', tier: 'advanced', useAdaptiveStaging: true  },
 };
 
 export interface DerivedDebateConfig {
