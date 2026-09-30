@@ -35,6 +35,7 @@ import {
 } from './signalConfidence.js';
 import { needsGc, needsHardCap } from './networkGc.js';
 import { computeUncertaintyMetric } from './convergenceSignals.js';
+import { effectiveCamp } from './argumentNetwork/utils.js';
 // ── Weight Loading ──────────────────────────────────────────
 // Node.js fs/path/url are only available in the main process. In the renderer
 // (Vite browser bundle) we fall through to the hardcoded defaults below.
@@ -433,7 +434,7 @@ export function computeConvergenceScore(ctx: SignalContext, coldStart: boolean):
     const targetNode = ctx.network.nodes.find(n => n.id === e.target);
     if (!sourceNode || !targetNode) return false;
     return e.type === 'supports'
-      && sourceNode.speaker !== targetNode.speaker
+      && effectiveCamp(sourceNode) !== effectiveCamp(targetNode)
       && (recentTurnNumbers.has(sourceNode.turn_number) || recentTurnNumbers.has(targetNode.turn_number));
   });
 
@@ -454,7 +455,7 @@ export function computeConvergenceScore(ctx: SignalContext, coldStart: boolean):
   const recentCrossPovEdges = ctx.network.edges.filter(e => {
     const sn = ctx.network.nodes.find(n => n.id === e.source);
     const tn = ctx.network.nodes.find(n => n.id === e.target);
-    return sn && tn && sn.speaker !== tn.speaker
+    return sn && tn && effectiveCamp(sn) !== effectiveCamp(tn)
       && (recentTurnNumbers.has(sn.turn_number) || recentTurnNumbers.has(tn.turn_number));
   });
   const strongAttackEdges = recentCrossPovEdges.filter(e => {
