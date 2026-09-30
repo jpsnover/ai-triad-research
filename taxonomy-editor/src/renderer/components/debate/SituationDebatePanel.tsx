@@ -7,11 +7,9 @@ import './SituationDebatePanel.css';
 import type { SituationNode } from '../../types/taxonomy';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../../hooks/useTaxonomyStore';
-import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId, DebateAudience } from '../../types/debate';
 import { AI_POVERS } from '@lib/debate/types';
-import type { DebateSession } from '../../types/debate';
 import { DEBATE_PROTOCOLS } from '../../data/debateProtocols';
 import { api } from '@bridge';
 import { subscribeToSituationDebateStart } from './waitForSituationDebateStart';
@@ -24,38 +22,11 @@ const PACING_PRESETS: { id: DebatePacing; label: string; desc: string }[] = [
   { id: 'thorough', label: 'Thorough', desc: 'Deep dive, longer exploration.' },
 ];
 
-interface SituationDebateConfig {
-  effectiveModel?: string;
-  pacing: DebatePacing;
-  useAdaptiveStaging: boolean;
-  temperature: number;
-  audience: DebateAudience;
-  protocolId: string;
-}
-
-// Apply the panel's non-default config onto a freshly created session (t/1915:
-// extracted from handleLaunch to keep that handler under the complexity ceiling).
-// Mirrors the original inline order exactly; only non-default values are written.
-function applySituationDebateConfig(session: DebateSession, cfg: SituationDebateConfig) {
-  if (cfg.effectiveModel) session.debate_model = cfg.effectiveModel;
-  // t/3783: mirrors sessionSlice.ts's createDebate() template for the regular-debate
-  // path — phase_bounds_override/step_mode aren't applicable here (situation debates
-  // don't expose per-phase round overrides), so this is the minimal correct subset,
-  // not an independently-invented shape.
-  if (cfg.useAdaptiveStaging) session.adaptive_staging = { enabled: true, pacing: cfg.pacing };
-  if (cfg.temperature !== 0.7) session.debate_temperature = cfg.temperature;
-  if (cfg.audience !== 'policymakers') session.audience = cfg.audience;
-  if (cfg.protocolId !== 'structured') session.protocol_id = cfg.protocolId;
-}
-
 interface SituationDebatePanelProps {
   node: SituationNode;
 }
 
 export function SituationDebatePanel({ node }: SituationDebatePanelProps) {
-  const { createDebate, loadDebate } = useDebateStore(
-    useShallow(s => ({ createDebate: s.createDebate, loadDebate: s.loadDebate }))
-  );
   const createSituationDebate = useDebateStore(s => s.createSituationDebate);
   const { geminiModel, setActiveTab } = useTaxonomyStore();
 
@@ -130,20 +101,13 @@ export function SituationDebatePanel({ node }: SituationDebatePanelProps) {
       void openAndNavigate(id);
     });
 
-    // Use createSituationDebate for the enrichment, but we need to pass config.
-    // Since createSituationDebate doesn't accept config, call createDebate directly
-    // with the situation context built the same way.
-    createSituationDebate(node.id)
-      .then(async () => {
-        // Update the session with custom config if non-default. Kept off the
-        // navigation path per t/3752 — this still runs against the same
-        // in-progress promise, just no longer gates when the user sees the debate.
-        const store = useDebateStore.getState();
-        const session = store.activeDebate;
-        if (session) {
-          applySituationDebateConfig(session, { effectiveModel, pacing, useAdaptiveStaging, temperature, audience, protocolId });
-          await store.saveDebate('SituationDebatePanel:applyConfig');
-        }
+    // t/3783: config is threaded into createSituationDebate so adaptive_staging
+    // (and the rest) exist at creation time, not patched onto activeDebate
+    // afterward — a post-creation mutate-then-save was silently discarded by
+    // clarificationSlice's concurrent `set({ activeDebate: { ...fresh } })`
+    // replacements during the opening/clarification pipeline (TL diagnosis, t/3783#4).
+    createSituationDebate(node.id, { effectiveModel, pacing, useAdaptiveStaging, temperature, audience, protocolId })
+      .then(() => {
         setLaunching(false);
       })
       .catch((err) => {

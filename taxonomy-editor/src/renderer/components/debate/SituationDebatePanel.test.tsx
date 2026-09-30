@@ -9,7 +9,6 @@ import type { SituationNode } from '../../types/taxonomy';
 const mockRecord = vi.hoisted(() => vi.fn());
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: mockRecord }) }));
 
-const mockSaveDebate = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const mockCreateSituationDebate = vi.hoisted(() => vi.fn());
 const mockSetActiveTab = vi.hoisted(() => vi.fn());
 const mockOpenDebateWindow = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -18,14 +17,7 @@ const mockOpenDebateWindow = vi.hoisted(() => vi.fn().mockResolvedValue(undefine
 // imperatively by `setActiveDebate` so tests can simulate createSituationDebate's
 // real sequencing — activeDebate is set synchronously, well before its returned
 // promise resolves (t/3752) — without depending on the real store's many slices.
-type FakeSession = {
-  id: string;
-  source_type: string;
-  source_ref: string;
-  debate_model?: string;
-  adaptive_staging?: unknown;
-  pacing?: unknown;
-} | null;
+type FakeSession = { id: string; source_type: string; source_ref: string } | null;
 const fakeStore = vi.hoisted(() => ({
   activeDebate: null as FakeSession,
   listeners: [] as Array<(s: { activeDebate: FakeSession }, p: { activeDebate: FakeSession }) => void>,
@@ -40,13 +32,11 @@ function setActiveDebate(session: FakeSession) {
 
 vi.mock('../../hooks/useDebateStore', () => {
   const useDebateStore = (selector: (s: Record<string, unknown>) => unknown) => selector({
-    createDebate: vi.fn(),
     loadDebate: vi.fn(),
     createSituationDebate: mockCreateSituationDebate,
     activeDebate: fakeStore.activeDebate,
-    saveDebate: mockSaveDebate,
   });
-  useDebateStore.getState = () => ({ activeDebate: fakeStore.activeDebate, saveDebate: mockSaveDebate });
+  useDebateStore.getState = () => ({ activeDebate: fakeStore.activeDebate });
   useDebateStore.subscribe = (listener: (s: { activeDebate: FakeSession }, p: { activeDebate: FakeSession }) => void) => {
     fakeStore.listeners.push(listener);
     return () => {
@@ -75,14 +65,13 @@ const mockNode = {
 describe('SituationDebatePanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSaveDebate.mockResolvedValue(undefined);
     mockOpenDebateWindow.mockResolvedValue(undefined);
     fakeStore.activeDebate = null;
     fakeStore.listeners = [];
     // Default: mirror createSituationDebate's real shape — set activeDebate
     // synchronously (source_type/source_ref match the launched node), then resolve.
     mockCreateSituationDebate.mockImplementation(async (nodeId: string) => {
-      setActiveDebate({ id: 'sit-debate-1', source_type: 'situations', source_ref: nodeId, debate_model: 'gemini-flash' });
+      setActiveDebate({ id: 'sit-debate-1', source_type: 'situations', source_ref: nodeId });
       return 'sit-debate-1';
     });
   });
@@ -105,32 +94,13 @@ describe('SituationDebatePanel', () => {
       expect(mockOpenDebateWindow).toHaveBeenCalledWith('sit-debate-1');
     });
     expect(mockSetActiveTab).toHaveBeenCalledWith('debate');
-    // The creation promise is still pending — config-apply/save hasn't run yet,
-    // proving navigation didn't wait for it.
-    expect(mockSaveDebate).not.toHaveBeenCalled();
 
+    // createSituationDebate's promise (config write + opening round) is still
+    // unresolved at this point — resolving it now must not throw or double-navigate.
     resolveCreate('sit-debate-1');
     await waitFor(() => {
-      expect(mockSaveDebate).toHaveBeenCalledWith('SituationDebatePanel:applyConfig');
+      expect(mockOpenDebateWindow).toHaveBeenCalledOnce();
     });
-  });
-
-  // t/3752 (TL review, p/696#4): my earlier t/3749 fix left a `store.runClarification()`
-  // call after createSituationDebate() resolved. That's now removed — the watch-only
-  // opening round is already handled inside createSituationDebate via
-  // enterClarificationOrBegin (t/3629), and calling runClarification() again would
-  // regenerate clarifying questions and regress phase back to 'clarification' after
-  // opening statements had already run. `runClarification` isn't in this mock store at
-  // all, so a reintroduced call would throw (not silently pass) — a real regression guard.
-  it('does not call runClarification (removed t/3749-era call, t/3752)', async () => {
-    render(<SituationDebatePanel node={mockNode} />);
-
-    fireEvent.click(screen.getByText('Start Situation Debate'));
-
-    await waitFor(() => {
-      expect(mockOpenDebateWindow).toHaveBeenCalledWith('sit-debate-1');
-    });
-    expect(mockSetActiveTab).toHaveBeenCalledWith('debate');
   });
 
   // t/3749: Start must actually take the user to the debate, not just switch app tabs
@@ -161,21 +131,22 @@ describe('SituationDebatePanel', () => {
     expect(mockSetActiveTab).toHaveBeenCalledWith('debate');
   });
 
-  // t/3783: adaptive_staging must be the real object shape the type requires
-  // ({ enabled, pacing }), not the boolean `true` that silently made the adaptive
-  // path unreachable — and the dead top-level `pacing` field must not be written.
-  it('writes adaptive_staging as the correct object shape for the selected pacing (t/3783)', async () => {
+  // t/3783: config must be threaded into createSituationDebate at creation time, not
+  // patched onto activeDebate afterward — a post-creation mutate-then-save was silently
+  // discarded by clarificationSlice's concurrent `set({ activeDebate: { ...fresh } })`
+  // replacements during the opening/clarification pipeline (TL diagnosis, t/3783#4).
+  it('passes the selected pacing and adaptive-staging config into createSituationDebate (t/3783)', async () => {
     render(<SituationDebatePanel node={mockNode} />);
 
     fireEvent.click(screen.getByRole('radio', { name: 'Tight' }));
     fireEvent.click(screen.getByText('Start Situation Debate'));
 
     await waitFor(() => {
-      expect(mockSaveDebate).toHaveBeenCalledWith('SituationDebatePanel:applyConfig');
+      expect(mockCreateSituationDebate).toHaveBeenCalledWith(
+        'sit-007',
+        expect.objectContaining({ pacing: 'tight', useAdaptiveStaging: true }),
+      );
     });
-
-    expect(fakeStore.activeDebate?.adaptive_staging).toEqual({ enabled: true, pacing: 'tight' });
-    expect(fakeStore.activeDebate?.pacing).toBeUndefined();
   });
 
   it('surfaces an error and does not navigate when createSituationDebate rejects', async () => {
