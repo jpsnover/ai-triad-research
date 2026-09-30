@@ -52,6 +52,7 @@ import {
   shouldFirePolicyChallenge,
   detectCruxFocusTrigger,
   buildCruxFocusInterventionText,
+  getFocusedIds,
 } from './moderator.js';
 
 import {
@@ -626,9 +627,11 @@ export async function runModeratorSelection(
             source_evidence: activeIntervention.source_evidence,
           },
         });
-        // Track this crux as focused — fires at most once per crux
-        modState.crux_focused_ids ??= new Set<string>();
-        modState.crux_focused_ids.add(cruxCandidate.cruxId);
+        // Track this crux as focused — fires at most once per crux.
+        // getFocusedIds normalizes any {} from pre-fix saved sessions before we push.
+        const existingFocused = getFocusedIds(modState);
+        if (!existingFocused.includes(cruxCandidate.cruxId)) existingFocused.push(cruxCandidate.cruxId);
+        modState.crux_focused_ids = existingFocused;
         callbacks.progress('debate', undefined, `Moderator: CRUX_FOCUS (${cruxCandidate.disagreementType}) → ${poverInfo[targetPov]?.label}`);
       }
       return true;
