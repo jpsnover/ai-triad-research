@@ -19,6 +19,7 @@
   "required_contexts": [
     { "context": "ci-gate", "workflow": ".github/workflows/ci.yml" },
     { "context": "joint-gv-guard", "workflow": ".github/workflows/joint-gv-guard.yml" },
-    { "context": "CodeQL", "workflow": ".github/workflows/codeql.yml", "posts": "app-aggregate" }
+    { "context": "CodeQL", "workflow": ".github/workflows/codeql.yml", "posts": "app-aggregate" },
+    { "context": "consult-hold-guard", "workflow": ".github/workflows/consult-hold-guard.yml" }
   ]
 }
