@@ -49,7 +49,14 @@ export interface SessionSlice {
 
   loadSessions: () => Promise<void>;
   createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced'; stepMode?: boolean; stageModels?: { brief?: string; plan?: string; cite?: string }; background?: string; excludeGreatestHits?: boolean; narrativeVoicing?: boolean }) => Promise<string>;
-  createSituationDebate: (ccNodeId: string) => Promise<string>;
+  // Config is threaded into createDebate's existing options param at creation time (t/3783) —
+  // never patched onto the session afterward. A post-creation mutate-then-save races every
+  // concurrent `set({ activeDebate: { ...fresh } })` in the opening/clarification pipeline,
+  // which discards an in-place mutation the store never saw via set().
+  createSituationDebate: (ccNodeId: string, config?: {
+    effectiveModel?: string; pacing?: string; useAdaptiveStaging?: boolean;
+    temperature?: number; audience?: DebateAudience; protocolId?: string;
+  }) => Promise<string>;
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
   loadDebateFromData: (raw: unknown, opts?: { readOnly?: boolean }) => void;
@@ -527,7 +534,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     return id;
   },
 
-  createSituationDebate: async (ccNodeId: string) => {
+  createSituationDebate: async (ccNodeId: string, config) => {
     const taxState = useTaxonomyStore.getState();
     const ccNode = taxState.situations?.nodes.find(n => n.id === ccNodeId);
     if (!ccNode) throw new Error(`Situation node ${ccNodeId} not found`);
@@ -611,7 +618,11 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     const topic = proposition ?? ccNode.label;
     const allPovers = [...AI_POVERS] as SpeakerId[];
 
-    const id = await get().createDebate(topic, allPovers, false, 'situations', ccNodeId, sourceContent, undefined, undefined, undefined, undefined, { title: ccNode.label });
+    const id = await get().createDebate(
+      topic, allPovers, false, 'situations', ccNodeId, sourceContent,
+      config?.effectiveModel, config?.protocolId, config?.temperature, config?.audience,
+      { title: ccNode.label, useAdaptiveStaging: config?.useAdaptiveStaging, pacing: config?.pacing },
+    );
     await get().loadDebate(id);
     await enterClarificationOrBegin(get);
     await get().saveDebate('createSituationDebate');

@@ -183,6 +183,32 @@ describe('createSituationDebate', () => {
     ).rejects.toThrow('not found');
   });
 
+  // t/3783: config must be threaded into createDebate's options at creation time, not
+  // patched onto the session afterward — a post-creation mutation races the opening
+  // pipeline's own `set({ activeDebate: { ...fresh } })` calls and gets silently discarded.
+  // Asserts the shape actually stored on activeDebate, not just that the call succeeded.
+  it('threads pacing/useAdaptiveStaging into createDebate at creation, producing the real adaptive_staging object shape', async () => {
+    mockTaxonomyState.situations = {
+      nodes: [{
+        id: 'sit-003',
+        label: 'Test Situation',
+        description: 'A test situation',
+        interpretations: {
+          accelerationist: { text: 'acc view' },
+          safetyist: { text: 'saf view' },
+          skeptic: { text: 'skp view' },
+        },
+        linked_nodes: [],
+        conflict_ids: [],
+      }],
+    } as unknown as typeof mockTaxonomyState.situations;
+
+    await useDebateStore.getState().createSituationDebate('sit-003', { useAdaptiveStaging: true, pacing: 'tight' });
+
+    const adaptive = useDebateStore.getState().activeDebate?.adaptive_staging;
+    expect(adaptive).toEqual(expect.objectContaining({ enabled: true, pacing: 'tight' }));
+  });
+
   // t/3629: createSituationDebate always creates with user_is_pover=false (watch-only), so
   // it must reach opening directly rather than parking in clarification. Asserts the
   // TERMINAL phase, not that a function was called (a stalled flow could still "call"
