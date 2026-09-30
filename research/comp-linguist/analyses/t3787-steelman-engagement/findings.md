@@ -75,6 +75,32 @@ n = 129 steelman nodes across 72 debates.
   a **10-debate pilot** to confirm direction + re-estimate variance, then scale to the powered n.
   Read as a distribution across debates, never a single draw (replication-gate R-1 spirit).
 
+## Pre-registered abandonment rule (what would count AGAINST the hypothesis)
+
+Stated **before** the data, per TL (e/230#3). Rationale: today produced four real fixes to this
+feature (t/3781, t/3786, t/3787, t/3755), so when the data disappoints the path of least resistance
+is to hunt a fifth wiring bug rather than accept disconfirmation. A stopping rule written now is
+cheap; written after the data, it isn't credible.
+
+- **Wiring-correct precondition (positive control).** The abandonment reading is valid ONLY if the
+  post-fix wiring is demonstrably correct: t/3787's helper applied at every enumerated site (derived
+  from code, not the count of six), AND a positive control passes — construct a steelman node and
+  confirm it now reaches the steelmanned camp's turn-context as a shared referent (the plumbing *can*
+  carry it). Without that control a null is ambiguous (could still be wiring), and THEN looking for
+  another defect is legitimate.
+- **Abandonment condition.** With the control passing, if the **pilot (10–15 debates)** shows the
+  steelmanned-camp adoption rate **statistically indistinguishable from the ~3–5% pre-fix baseline**
+  (CI overlapping baseline, no upward shift), that is **evidence against** the hypothesis — steelmans
+  do not drive own-camp uptake even when correctly presented. Report the null; do NOT escalate to a
+  fifth wiring hunt.
+- **Continue-to-confirm condition.** If the pilot shows a clear upward shift (adoption materially
+  above baseline, CI excluding ~5%), proceed to the ~50-debate confirmatory arm.
+- **Ambiguous (underpowered) condition.** If the pilot is directionally positive but CI-wide, that is
+  "insufficient data" (explanation 2), not support — proceed to the confirmatory arm; do not conclude
+  from the pilot either way.
+- **Non-degenerate guard (t/3587).** Report adoption with its n and the per-camp decomposition; a flat
+  ~3% and a jump to ~30% are distinguished by the decomposition, not a bare rate.
+
 ## Caveats
 
 - Edges are LLM-extracted (argument-network extraction); edge recall is imperfect and is itself a
