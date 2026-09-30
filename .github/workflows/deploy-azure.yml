@@ -88,8 +88,21 @@ jobs:
           # immutable @sha256 digest (the TESTED artifact) — NEVER :latest. Fail-closed: empty / invalid /
           # not-found / ambiguous each ABORT here with an actionable message (Resolve-ImageDigest.ps1),
           # so this step also IS the image-existence gate (it throws when the tag is absent — replacing
-          # the old "Verify container image exists" step). $INPUT_SHA is read from env, never interpolated
-          # inline, to avoid an Actions-expression injection (the M14 guard, now applied to `sha`).
+          # the old "Verify container image exists" step).
+          #
+          # SECURITY — M14 (.orca/docs/security-analysis-2026-08-12.md), BOTH halves, because this sink is
+          # in preflight BEFORE the production approval gate with workflow-level id-token: write:
+          #   (a) env-indirection — $INPUT_SHA is read from env, NEVER interpolated into the script text,
+          #       so an Actions-expression payload in `inputs.sha` cannot inject.
+          #   (b) allowlist — reject anything but a hex commit SHA up front (below). `sha` REPLACES
+          #       `image_tag`, whose M14 fix used env-indirection + a value allowlist; a SHA admits the
+          #       tighter ^[0-9a-fA-F]{7,40}$. Static error, never echo the raw value (M14: a newline could
+          #       inject a workflow command). This also gives an HONEST failure — a malformed sha dies here
+          #       saying so, not deep in the resolver as ImageTagNotFound or as a mangled gh-api query.
+          if ($env:INPUT_SHA -notmatch '^[0-9a-fA-F]{7,40}$') {
+            Write-Host "::error::sha input is invalid — it must be a hex commit SHA matching ^[0-9a-fA-F]{7,40}$. Dispatch with -f sha=<commit>."
+            exit 1
+          }
           & ./operations/devops/Resolve-ImageDigest.ps1 -Sha $env:INPUT_SHA -GitHubOutput
 
       - name: Verify container-relevant CI passed for this commit
