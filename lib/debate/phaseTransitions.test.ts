@@ -433,6 +433,25 @@ describe('computeConvergenceScore', () => {
     expect(score).toBeLessThanOrEqual(1);
   });
 
+  it('steelman→own-camp support edge does NOT inflate qbaf_agreement_density (t/3789)', () => {
+    // Pre-fix: steelmanNode.speaker='accelerationist', targetNode.speaker='skeptic'
+    //   → 'accelerationist' !== 'skeptic' = true → counted as cross-POV agreement
+    // Post-fix: effectiveCamp(steelmanNode)='skeptic' (steelman_of), effectiveCamp(targetNode)='skeptic'
+    //   → 'skeptic' !== 'skeptic' = false → NOT counted; same-camp support excluded
+    const steelmanNode = makeNode('AN-10', 'accelerationist', 4, 0.8, { steelman_of: 'skeptic' });
+    const ownCampTarget = makeNode('AN-11', 'skeptic', 4, 0.7);
+    const steelmanSupportEdge = makeEdge('E-1', 'AN-10', 'AN-11', 'supports');
+
+    const ctxNoEdges = makeSignalContext({ network: { nodes: [steelmanNode, ownCampTarget], edges: [], nodeCount: 2 } });
+    const ctxSteelmanEdge = makeSignalContext({ network: { nodes: [steelmanNode, ownCampTarget], edges: [steelmanSupportEdge], nodeCount: 2 } });
+
+    const scoreNoEdges = computeConvergenceScore(ctxNoEdges, false);
+    const scoreSteelmanEdge = computeConvergenceScore(ctxSteelmanEdge, false);
+
+    // Steelman→own-camp support must not increase qbaf_agreement_density
+    expect(scoreSteelmanEdge).toBeCloseTo(scoreNoEdges, 5);
+  });
+
   it('position stability contributes based on drift', () => {
     // Low drift = high stability = higher convergence
     const ctxLowDrift = makeSignalContext({
