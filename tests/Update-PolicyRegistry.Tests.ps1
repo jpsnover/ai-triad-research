@@ -182,4 +182,37 @@ Describe 'Update-PolicyRegistry -Fix (t/3431 batched write + idempotent MaxId)' 
             }
         }
     }
+
+    It 'skips the registry rewrite when already consistent, so a dirty registry does not block' {
+        InModuleScope AITriad {
+            $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "polreg-noop-$(Get-Random)"
+            New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+            try {
+                # Repro: Invoke-BatchSummary adds policies (uncommitted) then runs -Fix. Nothing needs fixing,
+                # but the unconditional rewrite hit the dirty-tree guard and reported a consolidation failure.
+                @{ _schema_version = '1.0.0'; nodes = @(
+                        @{ id = 'sit-C'; graph_attributes = @{ policy_actions = @(
+                                    @{ action = 'registered'; framing = 'f'; policy_id = 'pol-001' }
+                                ) } }
+                    ) } | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $TempDir 'situations.json')
+                @{ _schema_version = '1.0.0'; _doc = 'x'; policy_count = 1; policies = @(
+                        @{ id = 'pol-001'; action = 'registered'; source_povs = @('situations'); member_count = 1; status = 'active' }
+                    ) } | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $TempDir 'policy_actions.json')
+
+                Mock Get-TaxonomyDir { $TempDir }
+                Mock Write-Utf8NoBom { Set-Content -Path $Path -Value $Value -Encoding utf8 }
+                Update-PolicyRegistry -Fix | Out-Null   # normalize to canonical serialization
+
+                $regPath = Join-Path $TempDir 'policy_actions.json'
+                $before = (Get-FileHash $regPath).Hash
+                # Simulate the BLOCK-tier guard on a dirty file: any write now throws.
+                Mock Write-Utf8NoBom { throw 'dirty-tree guard: target already carries uncommitted changes' }
+
+                { Update-PolicyRegistry -Fix } | Should -Not -Throw
+                (Get-FileHash $regPath).Hash | Should -Be $before
+            } finally {
+                Remove-Item $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
 }

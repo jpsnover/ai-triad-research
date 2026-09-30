@@ -283,8 +283,17 @@ function Update-PolicyRegistry {
             policies        = @($ExistingPolicies.Values | Sort-Object id)
         }
 
-        if ($PSCmdlet.ShouldProcess($RegistryPath, 'Write rebuilt policy registry')) {
-            $NewRegistry | ConvertTo-Json -Depth 10 | Write-Utf8NoBom -Path $RegistryPath 
+        # Skip the whole-file rewrite when the rebuild is content-identical to disk. -Fix always
+        # rebuilds, so an unconditional write re-serializes a file with nothing to change — and when
+        # the same batch already added policies (uncommitted), the dirty-tree guard blocks that
+        # pointless rewrite and Invoke-BatchSummary reports a spurious consolidation failure.
+        $NewJson = $NewRegistry | ConvertTo-Json -Depth 10
+        $OnDisk  = if (Test-Path $RegistryPath) { Get-Content -Raw -Path $RegistryPath } else { $null }
+        if ($null -ne $OnDisk -and ($OnDisk -replace '\r\n', "`n").TrimEnd() -ceq ($NewJson -replace '\r\n', "`n").TrimEnd()) {
+            Write-OK "Registry already consistent: $($ExistingPolicies.Count) policies — no write needed"
+        }
+        elseif ($PSCmdlet.ShouldProcess($RegistryPath, 'Write rebuilt policy registry')) {
+            $NewJson | Write-Utf8NoBom -Path $RegistryPath
             Write-OK "Registry saved: $($ExistingPolicies.Count) policies"
         }
     }
