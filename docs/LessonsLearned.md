@@ -1742,6 +1742,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): plain `git worktree remove` exited 128 on untracked `node_modules`; resolved with `--force` (work already pushed, no loss). (Facet A.)
 - 2026-09-29 — DebateTool (p/70#33, t/3778, **Facet A — CRLF-dirty variant**): `git worktree remove` failed — `routeTable.test.ts.snap` flagged dirty due to Windows autocrlf CRLF line-ending normalization on checkout (no content diff). Fixed with `--force`. Note: Windows autocrlf can mark snapshot files dirty even with zero content change; `git diff` shows only line-ending deltas.
+- 2026-09-30 — DebateTool (p/70#37, **Facet A — CRLF-dirty, `git restore` fix**): `git worktree remove` refused on `routeTable.test.ts.snap` again flagged dirty by LF→CRLF normalization (no content change). Fixed by running `git restore <file>` first to clear the false-dirty state, then `git worktree remove` succeeded cleanly. Cleaner than `--force` — restores the file to HEAD and lets git's normal safety check pass rather than bypassing it.
 - 2026-07-28 — DebateDiagnostics (p/245#1): `git worktree remove <wt>` **timed out at 2min** synchronously `rm -rf`-ing the worktree's large `node_modules` (Windows/AV). Resolved by detaching git metadata fast, then backgrounding the delete: `git worktree prune` + `git branch -D <branch>`, then `rm -rf <wt-dir>` as a backgrounded task. (Facet B — supersedes the `--force` remedy for deps-installed worktrees.)
 - 2026-07-29 — Chat (p/270#1): `git worktree remove` **timed out at 2min** on a **double-`npm ci`'d** worktree (root **and** `taxonomy-editor/` → tens of thousands of node_modules files). git had already marked it **`prunable`**, so a backgrounded `rm -rf` + `git worktree prune` finished cleanup with **no `branch -D` needed**. 3rd instance — Facet B; the double-`npm ci` is the amplifier.
 - 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `git worktree remove --force` failed **"`.git` does not exist"** — the OS/AV had already deleted the physical worktree dir, leaving only a stale administrative ref. Resolved with **`git worktree prune`**. (Facet C — the delete already happened out-of-band; `prune` is the whole fix, `remove` is the wrong verb.)
@@ -1757,7 +1758,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **`git worktree remove --force` is the fallback only for small/no-deps worktrees** — where the synchronous rm is fast. With a full `node_modules` on Windows it times out synchronously; use #1 OR pass `run_in_background: true` so the slow rm doesn't block the 2-min session cap (Rosetta Stone p/6#54).
 3. **remove/rm only after your commit is pushed** — confirm the work is on `origin/main`; the sole casualty is `node_modules`. Never remove with uncommitted deliverable work.
 4. `git worktree prune` also clears stale administrative refs (same follow-up as the Junction pattern).
-6. **(Facet A — CRLF variant)** Windows `autocrlf` can mark tracked files dirty on worktree checkout with no content change (only line-ending delta). If `git worktree remove` refuses on a file you know is unchanged, check `git diff <file>` — a CRLF-only diff is safe to `--force` past.
+6. **(Facet A — CRLF variant)** Windows `autocrlf` can mark tracked files dirty on worktree checkout with no content change (only line-ending delta). If `git worktree remove` refuses on a file you know is unchanged, check `git diff <file>` — a CRLF-only diff is safe to clear with `git restore <file>` first (cleaner — lets the normal safety check pass), or bypass with `--force`.
 5. **(Facet E) Verify the `.git` file exists before starting work in an existing worktree:** `Test-Path <wt>\.git` (PowerShell) or `ls <wt>/.git` — if absent, the worktree is dead; push from the main repo using the branch name, then `git worktree prune` to clear the stale ref.
 
 - 2026-09-29 — DebateTool 2 (p/234#12): `git worktree remove ../wt-3761` failed with **Permission denied** on Windows — file locked by AV/OS or another process. Unresolved; routed to user for manual cleanup. **(Facet F — Permission denied variant of the Windows locking root cause; same prune + background-rm fix applies.)**
@@ -2650,6 +2651,71 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #178 [Process] Reasoning From the Description of a Value, Not the Value — Invisible Drift at Write-Time
+
+**Pattern:** An agent asserts "X does Y" where the evidence is an artifact that *describes* Y (a comment, config field name, variable name, docstring, local cached state) rather than the value or behavior that *produces* Y. The description reads identically whether or not it has drifted from the actual value — so the error is invisible at the moment of assertion and only caught on a second look at the source. Sharpens root AGENTS.md's "Verify Against the Authoritative Source" rule with a specific discriminator.
+
+**Instances (2026-09-30, Computational Linguist e/232, all endorsed by TL + PI):**
+1. **Confidence-model direction (t/3786, e/230#3):** concluded a steelman "perturbs confidence in the wrong direction" by reasoning from a predicate's *comment* ("opposing camp cited this Belief") — without reading `CROSS_POV_DELTA = 0.10` six lines above (positive = reinforcing, not opposing). One grep settled it, run only after the answer was already asserted.
+2. **Corpus count (t/3598):** reported "9 summaries added" from a contaminated local working tree's untracked count, not the actual commit diff (22). Local state described the corpus; it had drifted.
+3. **Metric unfalsifiability (t/3787, qbaf_agreement_density):** a candidate metric keyed on `sourceNode.speaker` — inheriting the very bug under test — so it measured the wiring and would report it as the phenomenon. An instrument sharing a defect with its subject is unfalsifiable by construction. Caught only after reading what the metric keyed on.
+4. **Gate staleness (t/3598 leg-c):** reasoned about index freshness from config/description before reading the actual corpus-vs-index state (genuinely drifted; no trigger kept it fresh).
+
+**Root Cause:** A description (comment, variable name, config, cached local state) reads the same whether or not it has drifted from the value. At write-time the claim feels verified because the description says so. The gap only surfaces when someone reads what produces the behavior. Three especially load-bearing surfaces: sign/direction constants (read the constant, not the comment); metric definitions (does the instrument share the defect?); corpus/registry counts (read origin, not local state).
+
+**Prevention:**
+1. **Discriminator:** if you are about to write "X does Y" and your evidence is a file/comment/name/cached-state that *configures or describes* Y, you have not verified it — read the value that produces the behavior.
+2. For **signs and constants**: read the actual constant value, not its comment or variable name.
+3. For **metrics and instruments**: check what the metric keys on — if it shares a dependency with the bug under test, it cannot falsify the hypothesis.
+4. For **corpus and registry counts**: read from `origin/main` or the commit diff, never from local working-tree state which may be contaminated or stale.
+5. Ties to root AGENTS.md "Verify Against the Authoritative Source" — four surfaces named there (merged state, infrastructure state, baselines, gate behavior) all share this root.
+
+**Status:** Active — 4 instances in one session (Computational Linguist, e/232). TL + PI endorsed tracking. Root AGENTS.md already has the general rule; this entry adds the discriminator and the three load-bearing surfaces.
+
+**Applies To:** All agents making causal or behavioral claims about code, metrics, or corpus state.
+
+---
+
+## #179 [Build] `jq test()` Throws on Null Input — Filter with `select(.field != null)` or Null-Coalesce Before Testing
+
+**Pattern:** `jq`'s `test()` function throws a runtime error ("null (null) has no keys" or "string required") when the input value is `null`. A `--json` field from `gh pr view` or similar may legitimately include records with `null` field values (e.g. `statusCheckRollup` entries with `.name = null`). The error causes the jq pipeline to exit 1, hiding any output already written to stdout.
+
+**Instances:**
+- 2026-09-29 — DebateTool (p/70#35): `gh pr view 2602 --json statusCheckRollup --jq '... | select(.name | test(...))'` exited 1 — one record had `.name = null`, which `test()` rejected. Resolved by reading the prior stdout output (CodeQL was already shown green). Fix: `select(.name != null)` before the test, or `select(.name // "" | test(...))`.
+
+**Root Cause:** `jq`'s `test()` requires a string input; `null` is not a string and causes an immediate error. GitHub's JSON responses for PR check rollups include entries with null fields for pending or skipped checks, making null-guarding necessary in any jq filter that calls `test()`.
+
+**Prevention:**
+1. **Before any `test()`-based jq filter, null-guard the field:** `select(.name != null) | select(.name | test("pattern"))` — or use null-coalescing: `select(.name // "" | test("pattern"))`.
+2. **jq exit 1 ≠ "no matches"** — it may mean a runtime error mid-stream. Check whether useful output appeared before the error before assuming failure.
+3. Companion to pattern #73A (grep exit 1 on zero matches): jq also exits non-zero on errors, not just empty results.
+
+**Status:** Active — 1 instance (DebateTool p/70#35).
+
+**Applies To:** All agents filtering `gh pr view --json` or similar API output with jq `test()`.
+
+---
+
+## #180 [Build] `git worktree add … main` Uses Stale LOCAL main — Base on `origin/main` After Fetch; Failed Add Leaves an Orphaned Branch
+
+**Pattern:** `git worktree add -b <branch> <path> main` bases the worktree on the **local** `main` ref, which may lag `origin/main` by one or more merges. A file that just landed on origin is absent from the worktree, causing "No such file" on the next operation. Compounding: when the first `add` fails for any reason (e.g., path already exists, hook error), git **creates the branch but not the worktree** — so the retry hits **"branch already exists"** unless the orphaned branch is explicitly deleted first.
+
+**Instances:**
+- 2026-09-30 — Computational Linguist (e/233, #2603): `git worktree add -b <branch> <path> main` — local `main` pointed at pre-merge commit `90dfeac2`; `findings.md` (merged minutes earlier) was absent. First attempt left an orphaned branch. Resolution: `git branch -D <branch>` + `git worktree prune`, then `git fetch origin`, then `git worktree add -b <branch> <path> origin/main`.
+
+**Root Cause:** `main` (no remote prefix) resolves to the **local** tracking ref, which only advances on `git fetch`/`pull`. The shared checkout on this fleet rarely fetches proactively, so local `main` regularly lags `origin/main` by in-flight PRs. A worktree based on stale local `main` therefore reproduces whatever was on `origin/main` at the time of the last fetch — not the current state. `origin/main` is always the authoritative current baseline; local `main` is a cached snapshot. Companion to AGENTS.md "Verify Against the Authoritative Source → read origin/main (the shared checkout lags behind merges)" and pattern #178 (reasoning from description, not value).
+
+**Prevention:**
+1. **Always base worktrees on `origin/main`, never bare `main`:** `git fetch origin && git worktree add -b <branch> <path> origin/main`. The `/land-from-worktree` skill already mandates this form — using bare `main` is a deviation from procedure.
+2. **When `git worktree add` fails, the branch may already exist** — clean up before retrying: `git branch -D <branch>` (to drop the orphaned branch) + `git worktree prune` (to clear any stale administrative ref), then retry with the corrected base.
+3. Discriminator for root cause: if a file you know just merged to origin is absent in a fresh worktree, the worktree is almost certainly based on stale local `main`. Verify: `git log --oneline <branch>..origin/main` — any output means the worktree is behind.
+
+**Status:** Active — 1 instance (Computational Linguist e/233). Both facets (stale base ref + orphaned branch on failed add) documented.
+
+**Applies To:** All agents using `git worktree add` — especially in the `/land-from-worktree` flow where the correct form (`origin/main`) is prescribed; deviation to bare `main` is the failure vector.
+
+---
+
 ## #118 [Build] A Platform Feature Can Be AVAILABLE While a Specific MODE/Tier of It Is Plan-Gated — Verify the Exact MODE Empirically Before Designing Around It
 
 **Pattern:** A GitHub (or any platform) feature may work on your repo while a specific MODE, tier, or sub-option of it is silently plan-gated — surfacing HTTP 422 only when you invoke that mode. Designing a gate/workflow around the plan-gated mode fails at implementation time, *after* you've built around it. The availability trap has **granularity**: "the feature works" ≠ "every mode of it works on this repo's owner-type/plan."
@@ -2794,6 +2860,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-08-03 — DevOps (t/2067, p/26#38): ran `ls /c/Users/jsnov/wt-2067/` — assumed `../wt-2067` from the repo resolves at home level, but the actual path was `C:/Users/jsnov/repos/wt-2067` = `/c/Users/jsnov/repos/wt-2067`. Fixed by running `git worktree list` to confirm the real path.
 - 2026-08-03 — ElectronMain (p/98#13, t/2111): `cd /c/.../wt-t2111` immediately after `git worktree add ../wt-t2111` — "No such file." Compounding factor: **Bash tool resets cwd between invocations**, so the cwd for the `cd` call was the repo root regardless of any prior `cd`. The agent constructed the POSIX path from memory rather than reading `git worktree list`. Fixed by running `git worktree list` and using the canonical absolute path `/c/Users/jsnov/repos/wt-t2111`.
+- 2026-09-30 — DebateTool (p/70#37): `cd lib/debate` failed "No such file or directory" — the Bash cwd had reset to the agent's scope directory (`lib/debate`), so `cd lib/debate` tried to navigate to `lib/debate/lib/debate` (nonexistent). Fix: dropped the `cd` entirely. When the cwd already IS the target directory (because the runtime resets to the scope root), re-cdding into it is a no-op at best and an error at worst.
 
 **Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. **Compounding factor (instance 2):** the Bash tool resets cwd to the repo root between invocations, so any relative path like `../wt-<name>` re-anchors to the repo root on every call — you cannot rely on a prior `cd` persisting to the next Bash call.
 
@@ -2803,7 +2870,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. Companion to the MSYS colon-revspec/path trap (#73 facet B): both produce a wrong absolute path for a git resource. #73B = MSYS mangles a correct path; #128 = a wrong path is assembled from an incorrect mental model. The fix for both: **verify the actual path before access** rather than reconstructing from memory.
 4. **Bash tool cwd resets to the repo root between invocations** — relative paths (`../wt-<name>`) re-anchor on every call; don't assume a prior `cd` carried over. Use absolute paths from `git worktree list` output.
 
-**Status:** Active — 2 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths.
+**Status:** Active — 3 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). `git worktree list` is the one-stop oracle for canonical worktree paths. **3rd instance (2026-09-30):** scope-directory cwd reset caused `cd <scope>` to try `<scope>/<scope>` — fix is to not cd when already at the target.
 
 **Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path.
 
