@@ -4,14 +4,16 @@
 # ADVISORY and stops nothing. This makes the hold block at the merge button for every merge path
 # SUBJECT TO BRANCH PROTECTION — human, agent, and GitHub's server-side auto-merge alike (t/3716;
 # auto-merge honors required contexts by construction) — because the refusal is GitHub's, not an
-# agent-side hook's. HONEST SCOPE (SO e/219#2, risk 2): it does NOT bind an admin-token DIRECT
-# merge (`PUT /pulls/{n}/merge`). `enforce_admins` is deliberately `false` so a sustained-outage
-# fail-closed keeps a human escape hatch — and that same setting means an admin-token direct merge
-# bypasses EVERY required context, this one included, exactly as it bypasses ci-gate. You cannot
-# have both the escape and the admin-bind; keeping the escape is the deliberate choice. Whether the
-# gap matters for t/3716 turns on the automation's merge method — GitHub auto-merge (honored → this
-# guard blocks it) vs admin-token direct merge (bypassed) — which the condition-1 end-to-end
-# merge-refusal proof settles empirically (t/3680).
+# agent-side hook's. COVERAGE (SO e/219#2 risk 2, resolved by t/3736): with `enforce_admins: true`
+# on `main` (t/3736, verified 2026-09-30), a required context binds ADMINS too — so once this guard
+# is a required context, a red `consult-hold-guard` refuses EVERY merge path: human, agent, GitHub
+# server-side auto-merge, AND an admin-token direct merge (`PUT /pulls/{n}/merge`). The SO's open
+# question — does the t/3716 automation merge via auto-merge (honored) or admin-token (formerly
+# bypassed) — no longer decides coverage; `enforce_admins` closes the bypass. Cond-1's end-to-end
+# merge-refusal proof confirms this empirically (t/3680). The outage-escape (a sustained fail-closed
+# API error blocks all merges) is now the PI `enforce_admins` toggle-off — shared by EVERY fail-closed
+# required check (ci-gate/CodeQL/joint-gv-guard, and this one once promoted), documented once in
+# deploy/azure/runbooks/enforce-admins-override.md rather than restated per-gate.
 #
 # WHY NOT A FEEDBACK RULE (t/3680#3): a PreToolUse feedback rule intercepts an AGENT'S tool
 # call. The automation merges SERVER-SIDE through the GitHub API and never passes through
