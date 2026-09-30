@@ -2,10 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { DebateEngineInternals } from './internals.js';
-import { type SpeakerId, POVER_INFO } from '../types.js';
+import { type SpeakerId } from '../types.js';
 import { formatCommitments, formatEstablishedPoints } from '../argumentNetwork.js';
 import { ESTABLISHED_POINTS_LIMIT } from '../debateConfig.js';
-import { effectiveCamp } from '../argumentNetwork/utils.js';
 
 // ── Commitment context ─────────────────────────────────────
 
@@ -29,8 +28,9 @@ export function getEstablishedPointsContext(engine: DebateEngineInternals, pover
   const allNodes = an.nodes.map(n => ({
     id: n.id,
     text: n.canonical_proposition || n.text,
-    speaker: POVER_INFO[effectiveCamp(n) as Exclude<SpeakerId, 'user'>]?.label ?? effectiveCamp(n),
+    speaker: n.speaker as string,
+    steelman_of: n.steelman_of,
   }));
 
-  return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, ESTABLISHED_POINTS_LIMIT, an.edges.filter(e => e.type !== 'revoice_of') as { source: string; target: string; type: 'supports' | 'attacks' }[]);
+  return formatEstablishedPoints(allNodes, poverId, ESTABLISHED_POINTS_LIMIT, an.edges.filter(e => e.type !== 'revoice_of') as { source: string; target: string; type: 'supports' | 'attacks' }[]);
 }
