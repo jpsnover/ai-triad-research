@@ -362,7 +362,8 @@ export function formatEstablishedPoints(
   if (allNodes.length === 0) return '';
 
   const otherClaims = allNodes.filter(n => effectiveCamp(n) !== currentSpeaker);
-  if (otherClaims.length === 0) return '';
+  const ownSteelmans = allNodes.filter(n => effectiveCamp(n) === currentSpeaker && n.steelman_of != null);
+  if (otherClaims.length === 0 && ownSteelmans.length === 0) return '';
 
   // Identify this speaker's claim IDs
   const myClaims = new Set(allNodes.filter(n => effectiveCamp(n) === currentSpeaker).map(n => n.id));
@@ -417,19 +418,39 @@ export function formatEstablishedPoints(
 
   const capped = result.slice(0, maxPoints);
 
-  const lines = [
-    '',
-    '=== POINTS ALREADY ESTABLISHED BY OTHER DEBATERS ===',
-    'These points have already been made. Do NOT restate them in your own words.',
-    'If you agree, say so briefly ("as [name] noted") and move to what you can ADD.',
-    'If you disagree, attack the specific claim rather than restating it.',
-  ];
-  for (const c of capped) {
-    const tag = c.tag ? ` ${c.tag}` : '';
-    const campLabel = c.steelman_of
-      ? `Charitable restatement of the ${POVER_INFO[c.steelman_of as Exclude<SpeakerId, 'user'>]?.label ?? c.steelman_of} position, authored by ${POVER_INFO[c.speaker as Exclude<SpeakerId, 'user'>]?.label ?? c.speaker}`
-      : (POVER_INFO[c.speaker as Exclude<SpeakerId, 'user'>]?.label ?? c.speaker);
-    lines.push(`- ${c.id} (${campLabel}):${tag} ${c.text}`);
+  const lines: string[] = [];
+
+  // Gift section — own-camp steelmans, rendered first (primacy)
+  if (ownSteelmans.length > 0) {
+    lines.push(
+      '',
+      '=== YOUR POSITION, AS CHARITABLY RESTATED BY ANOTHER DEBATER ===',
+      'Another debater has stated your camp\'s position in its strongest form. Treat it as a shared reference point and YOUR foundation — not an opponent\'s claim.',
+      '- If it represents you well: BUILD on it — adopt as common ground and advance, sharpen it, or add the evidence it lacks.',
+      '- If it subtly misframes or weakens your position: CORRECT the misframing and state the stronger version.',
+      '- Do NOT attack it as an opponent claim, and do NOT simply restate it.',
+    );
+    for (const c of ownSteelmans) {
+      const campLabel = `Charitable restatement of the ${POVER_INFO[c.steelman_of as Exclude<SpeakerId, 'user'>]?.label ?? c.steelman_of} position, authored by ${POVER_INFO[c.speaker as Exclude<SpeakerId, 'user'>]?.label ?? c.speaker}`;
+      lines.push(`- ${c.id} (${campLabel}): ${c.text}`);
+    }
+  }
+
+  if (capped.length > 0) {
+    lines.push(
+      '',
+      '=== POINTS ALREADY ESTABLISHED BY OTHER DEBATERS ===',
+      'These points have already been made. Do NOT restate them in your own words.',
+      'If you agree, say so briefly ("as [name] noted") and move to what you can ADD.',
+      'If you disagree, attack the specific claim rather than restating it.',
+    );
+    for (const c of capped) {
+      const tag = c.tag ? ` ${c.tag}` : '';
+      const campLabel = c.steelman_of
+        ? `Charitable restatement of the ${POVER_INFO[c.steelman_of as Exclude<SpeakerId, 'user'>]?.label ?? c.steelman_of} position, authored by ${POVER_INFO[c.speaker as Exclude<SpeakerId, 'user'>]?.label ?? c.speaker}`
+        : (POVER_INFO[c.speaker as Exclude<SpeakerId, 'user'>]?.label ?? c.speaker);
+      lines.push(`- ${c.id} (${campLabel}):${tag} ${c.text}`);
+    }
   }
 
   return lines.join('\n') + '\n';
