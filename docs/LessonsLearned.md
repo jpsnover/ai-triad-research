@@ -1739,6 +1739,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-07-17 — Shared Lib (`/land-from-worktree` step 8, p/5#13): plain `git worktree remove` exited 128 on untracked `node_modules`; resolved with `--force` (work already pushed, no loss). (Facet A.)
+- 2026-09-29 — DebateTool (p/70#33, t/3778, **Facet A — CRLF-dirty variant**): `git worktree remove` failed — `routeTable.test.ts.snap` flagged dirty due to Windows autocrlf CRLF line-ending normalization on checkout (no content diff). Fixed with `--force`. Note: Windows autocrlf can mark snapshot files dirty even with zero content change; `git diff` shows only line-ending deltas.
 - 2026-07-28 — DebateDiagnostics (p/245#1): `git worktree remove <wt>` **timed out at 2min** synchronously `rm -rf`-ing the worktree's large `node_modules` (Windows/AV). Resolved by detaching git metadata fast, then backgrounding the delete: `git worktree prune` + `git branch -D <branch>`, then `rm -rf <wt-dir>` as a backgrounded task. (Facet B — supersedes the `--force` remedy for deps-installed worktrees.)
 - 2026-07-29 — Chat (p/270#1): `git worktree remove` **timed out at 2min** on a **double-`npm ci`'d** worktree (root **and** `taxonomy-editor/` → tens of thousands of node_modules files). git had already marked it **`prunable`**, so a backgrounded `rm -rf` + `git worktree prune` finished cleanup with **no `branch -D` needed**. 3rd instance — Facet B; the double-`npm ci` is the amplifier.
 - 2026-07-29 — Server Storage (t/1921 Batch B/C, p/206#5): `git worktree remove --force` failed **"`.git` does not exist"** — the OS/AV had already deleted the physical worktree dir, leaving only a stale administrative ref. Resolved with **`git worktree prune`**. (Facet C — the delete already happened out-of-band; `prune` is the whole fix, `remove` is the wrong verb.)
@@ -1754,6 +1755,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **`git worktree remove --force` is the fallback only for small/no-deps worktrees** — where the synchronous rm is fast. With a full `node_modules` on Windows it times out synchronously; use #1 OR pass `run_in_background: true` so the slow rm doesn't block the 2-min session cap (Rosetta Stone p/6#54).
 3. **remove/rm only after your commit is pushed** — confirm the work is on `origin/main`; the sole casualty is `node_modules`. Never remove with uncommitted deliverable work.
 4. `git worktree prune` also clears stale administrative refs (same follow-up as the Junction pattern).
+6. **(Facet A — CRLF variant)** Windows `autocrlf` can mark tracked files dirty on worktree checkout with no content change (only line-ending delta). If `git worktree remove` refuses on a file you know is unchanged, check `git diff <file>` — a CRLF-only diff is safe to `--force` past.
 5. **(Facet E) Verify the `.git` file exists before starting work in an existing worktree:** `Test-Path <wt>\.git` (PowerShell) or `ls <wt>/.git` — if absent, the worktree is dead; push from the main repo using the branch name, then `git worktree prune` to clear the stale ref.
 
 - 2026-09-29 — DebateTool 2 (p/234#12): `git worktree remove ../wt-3761` failed with **Permission denied** on Windows — file locked by AV/OS or another process. Unresolved; routed to user for manual cleanup. **(Facet F — Permission denied variant of the Windows locking root cause; same prune + background-rm fix applies.)**
@@ -2603,6 +2605,26 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (ServerAPI p/504#14).
 
 **Applies To:** All agents dismissing code-scanning alerts via `gh api` or the GitHub REST API.
+
+---
+
+## #177 [Process] `direct` Mode Permits Committing on `main` — NOT Pushing; `enforce_admins:true` Blocks All Direct Pushes
+
+**Pattern:** An agent in `direct` mode commits on the shared `main` checkout (permitted by AGENTS.md), then attempts `git push origin main` directly — rejected by GitHub branch protection. Since t/3736 added `enforce_admins:true` to `main`, **branch protection applies to admins too**: a direct push that skips CI is refused even for the repo owner. `direct` mode governs the *commit gate* (pre-commit hook allows commits on main); it has never governed the *push gate* (branch protection, which is a GitHub-layer control). These two gates are independent.
+
+**Instances:**
+- 2026-09-29 — Rosetta Stone (p/6#67): direct `git push origin main` rejected — branch protection requires status checks even for admin in direct mode (t/3736 enforce_admins:true). Resolved by landing via branch + PR instead.
+
+**Root Cause:** Conflating two independent gates: (1) the `pre-commit` hook (Orca/local) governs whether a commit is allowed on the shared `main` branch — `direct` mode disables this gate; (2) branch protection on GitHub governs whether a push to `main` is accepted — `enforce_admins:true` means this gate is always active, regardless of mode or admin status. AGENTS.md says direct mode makes committing *permitted*; the land-from-worktree skill separately notes "a direct push to `main` bypasses the required checks in EITHER mode and remains a process violation" — but the implication ("and will be rejected") was only enforced by convention until t/3736.
+
+**Prevention:**
+1. **`direct` mode changes the commit gate only.** In either mode, code must land via a CI-green PR — `git push origin main` is rejected by branch protection (enforce_admins:true, t/3736).
+2. The correct path in direct mode: commit on shared main, then `git push origin <new-branch>` (not main), open a PR, CI-green, self-merge.
+3. If you already committed on main and need to land it: cherry-pick to a worktree branch, open a PR from there.
+
+**Status:** Active — 1 instance. t/3736 (enforce_admins:true) made this a hard rejection rather than a process violation.
+
+**Applies To:** All agents in direct mode attempting to push commits directly to `main`.
 
 ---
 
