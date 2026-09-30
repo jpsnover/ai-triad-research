@@ -130,4 +130,19 @@ describe('runOpeningStatements slot-first integration (t/2907)', () => {
       expect(pipelineInput.priorSpeakerLabels!.length).toBeGreaterThan(0);
     }
   });
+
+  it('passes draftModel from stage_models.draft (t/3774 — was missing, engine path had it)', async () => {
+    vi.mocked(runOpeningPipelineWithRepair).mockResolvedValue({ stage_diagnostics: [], total_time_ms: 1, draft: {}, topicAlignmentResult: null, qualityGateResult: null } as never);
+    vi.mocked(getOpeningRepairHints).mockReturnValue([]);
+    vi.mocked(assembleOpeningPipelineResult).mockReturnValue({ statement: LONG, taxonomyRefs: [], meta: { policy_refs: [] } } as never);
+    setActive(makeSession({
+      active_povers: ['skeptic'], phase: 'opening',
+      stage_models: { draft: 'claude-opus-5' },
+    }));
+
+    await useDebateStore.getState().runOpeningStatements();
+
+    const pipelineInput = vi.mocked(runOpeningPipelineWithRepair).mock.calls[0][0] as { draftModel?: string };
+    expect(pipelineInput.draftModel).toBe('claude-opus-5');
+  });
 });

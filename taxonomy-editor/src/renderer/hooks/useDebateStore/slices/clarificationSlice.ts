@@ -1042,6 +1042,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           documentAnalysis: docAnalysis,
           audience: activeDebate.audience,
           model: speakerModel,
+          draftModel: activeDebate.stage_models?.draft || undefined,
           briefModel: activeDebate.stage_models?.brief || undefined,
           planModel: activeDebate.stage_models?.plan || undefined,
           citeModel: activeDebate.stage_models?.cite || undefined,
