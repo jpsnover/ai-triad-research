@@ -12,7 +12,8 @@ import type {
 import type { TranscriptEntry, TurnPipelineResult, TaxonomyRef } from './types.js';
 import type { TurnPipelineInput } from './turnPipeline.js';
 import type { PoverResponseMeta } from './helpers.js';
-import { initModeratorState } from './moderator.js';
+import * as moderatorModule from './moderator.js';
+const { initModeratorState } = moderatorModule;
 
 // ── Shared helpers ──────────────────────────────────────
 
@@ -530,6 +531,55 @@ describe('runModeratorSelection', () => {
 
     // Should alternate away from safetyist (the last speaker)
     expect(result.responder).toBe('accelerationist');
+  });
+
+  // ── CRUX_FOCUS catch parity (t/3778) ──────────────────────
+
+  it('CRUX_FOCUS: round does not throw when intervention block throws — calls warn and degrades gracefully', async () => {
+    // Arrange a crux tracker entry that will trigger detectCruxFocusTrigger:
+    // state=engaged, identified_turn=3, round=5 → roundsEngaged=2 (≥ threshold).
+    const cruxEntry = {
+      id: 'crux-parity-test',
+      description: 'Whether alignment scales with capability',
+      identified_turn: 3,
+      state: 'engaged',
+      disagreement_type: 'empirical',
+      attacking_claim_ids: [],
+      speakers_involved: ['accelerationist', 'safetyist'] as ('accelerationist' | 'safetyist' | 'skeptic' | 'user')[],
+    };
+    const modState = initModeratorState(10, ['accelerationist', 'safetyist', 'skeptic']);
+    modState.phase = 'argumentation';
+    modState.rounds_since_last_intervention = 4;
+
+    const input = makeBaseModeratorInput({
+      round: 5,
+      phase: 'argumentation',
+      cruxTracker: [cruxEntry],
+      existingModState: modState,
+      transcript: [
+        makeTranscriptEntry({ speaker: 'accelerationist' }),
+        makeTranscriptEntry({ speaker: 'safetyist' }),
+      ],
+    });
+
+    const callbacks = makeBaseModeratorCallbacks();
+    // Spy on validateRecommendation to throw — CRUX_FOCUS is absent from ALL_MOVES
+    // so engineValidation.proceed is always false, meaning addEntry is never reached.
+    // Throwing from validateRecommendation is the reliable way to exercise the catch.
+    const validateSpy = vi.spyOn(moderatorModule, 'validateRecommendation')
+      .mockImplementationOnce(() => { throw new TypeError('Simulated CRUX_FOCUS failure'); });
+
+    // Should not throw — catch block must degrade gracefully.
+    await expect(runModeratorSelection(input, callbacks)).resolves.toBeDefined();
+
+    validateSpy.mockRestore();
+
+    // warn must have been called with the error (catch block fired).
+    expect(callbacks.warn).toHaveBeenCalledWith(
+      'Moderator CRUX_FOCUS generation',
+      expect.any(TypeError),
+      'Proceeding without CRUX_FOCUS intervention',
+    );
   });
 });
 

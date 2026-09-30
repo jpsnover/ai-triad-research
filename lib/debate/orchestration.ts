@@ -584,57 +584,63 @@ export async function runModeratorSelection(
       ? detectCruxFocusTrigger(input.cruxTracker, round, modState, activePovers, input.claimTexts)
       : null;
     if (cruxCandidate) {
-      const targetPov = cruxCandidate.speakersInvolved[0] as Exclude<SpeakerId, 'user'>;
-      responder = targetPov;
-      focusPoint = `Address this unresolved crux directly: ${cruxCandidate.description}`;
-      addressing = targetPov;
-      selectionResultObj = {
-        responder: targetPov,
-        addressing: targetPov as SpeakerId,
-        focus_point: focusPoint,
-        agreement_detected: false,
-        intervene: true,
-        suggested_move: 'CRUX_FOCUS' as InterventionMove,
-        target_debater: targetPov,
-        trigger_reasoning: `CRUX_FOCUS: ${cruxCandidate.disagreementType} crux "${cruxCandidate.description}" engaged for ${cruxCandidate.roundsEngaged} rounds without resolution`,
-      };
-      engineValidation = validateRecommendation(selectionResultObj as SelectionResult, modState);
-      if (engineValidation.proceed) {
-        const interventionText = buildCruxFocusInterventionText(
-          cruxCandidate, poverInfo[targetPov]?.label ?? targetPov,
-        );
-        activeIntervention = buildIntervention(
-          engineValidation, interventionText,
-          `CRUX_FOCUS: ${cruxCandidate.disagreementType} crux engaged ${cruxCandidate.roundsEngaged} rounds`,
-          { signal: 'crux_focus_trigger', node_id: cruxCandidate.cruxId, round },
-        );
-        interventionBriefInjection = buildInterventionBriefInjection(
-          activeIntervention, poverInfo[responder]?.label ?? responder,
-        );
-        callbacks.addEntry({
-          type: 'intervention',
-          speaker: 'moderator',
-          content: interventionText,
-          taxonomy_refs: [],
-          addressing: engineValidation.validated_target,
-          intervention_metadata: {
-            family: activeIntervention.family,
-            move: activeIntervention.move,
-            force: activeIntervention.force,
-            burden: activeIntervention.burden,
-            target_debater: activeIntervention.target_debater,
-            trigger_reason: activeIntervention.trigger_reason,
-            source_evidence: activeIntervention.source_evidence,
-          },
-        });
-        // Track this crux as focused — fires at most once per crux.
-        // getFocusedIds normalizes any {} from pre-fix saved sessions before we push.
-        const existingFocused = getFocusedIds(modState);
-        if (!existingFocused.includes(cruxCandidate.cruxId)) existingFocused.push(cruxCandidate.cruxId);
-        modState.crux_focused_ids = existingFocused;
-        callbacks.progress('debate', undefined, `Moderator: CRUX_FOCUS (${cruxCandidate.disagreementType}) → ${poverInfo[targetPov]?.label}`);
+      try {
+        const targetPov = cruxCandidate.speakersInvolved[0] as Exclude<SpeakerId, 'user'>;
+        responder = targetPov;
+        focusPoint = `Address this unresolved crux directly: ${cruxCandidate.description}`;
+        addressing = targetPov;
+        selectionResultObj = {
+          responder: targetPov,
+          addressing: targetPov as SpeakerId,
+          focus_point: focusPoint,
+          agreement_detected: false,
+          intervene: true,
+          suggested_move: 'CRUX_FOCUS' as InterventionMove,
+          target_debater: targetPov,
+          trigger_reasoning: `CRUX_FOCUS: ${cruxCandidate.disagreementType} crux "${cruxCandidate.description}" engaged for ${cruxCandidate.roundsEngaged} rounds without resolution`,
+        };
+        engineValidation = validateRecommendation(selectionResultObj as SelectionResult, modState);
+        if (engineValidation.proceed) {
+          const interventionText = buildCruxFocusInterventionText(
+            cruxCandidate, poverInfo[targetPov]?.label ?? targetPov,
+          );
+          activeIntervention = buildIntervention(
+            engineValidation, interventionText,
+            `CRUX_FOCUS: ${cruxCandidate.disagreementType} crux engaged ${cruxCandidate.roundsEngaged} rounds`,
+            { signal: 'crux_focus_trigger', node_id: cruxCandidate.cruxId, round },
+          );
+          interventionBriefInjection = buildInterventionBriefInjection(
+            activeIntervention, poverInfo[responder]?.label ?? responder,
+          );
+          callbacks.addEntry({
+            type: 'intervention',
+            speaker: 'moderator',
+            content: interventionText,
+            taxonomy_refs: [],
+            addressing: engineValidation.validated_target,
+            intervention_metadata: {
+              family: activeIntervention.family,
+              move: activeIntervention.move,
+              force: activeIntervention.force,
+              burden: activeIntervention.burden,
+              target_debater: activeIntervention.target_debater,
+              trigger_reason: activeIntervention.trigger_reason,
+              source_evidence: activeIntervention.source_evidence,
+            },
+          });
+          // Track this crux as focused — fires at most once per crux.
+          // getFocusedIds normalizes any {} from pre-fix saved sessions before we push.
+          const existingFocused = getFocusedIds(modState);
+          if (!existingFocused.includes(cruxCandidate.cruxId)) existingFocused.push(cruxCandidate.cruxId);
+          modState.crux_focused_ids = existingFocused;
+          callbacks.progress('debate', undefined, `Moderator: CRUX_FOCUS (${cruxCandidate.disagreementType}) → ${poverInfo[targetPov]?.label}`);
+        }
+        return true;
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'ai.error', component: 'orchestration', level: 'warn', message: 'Moderator CRUX_FOCUS generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        callbacks.warn('Moderator CRUX_FOCUS generation', err, 'Proceeding without CRUX_FOCUS intervention');
+        return false;
       }
-      return true;
     }
     return false;
   })()) {
