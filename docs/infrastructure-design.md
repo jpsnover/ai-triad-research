@@ -392,7 +392,8 @@ For the complete technical specification, see [GitHub API-First Implementation P
    ├─ release.yml builds all artifacts
    └─ container.yml builds and pushes Docker image
 
-5. Manual: trigger deploy-azure.yml (workflow_dispatch)
+5. Manual: trigger deploy-azure.yml (workflow_dispatch) with the built commit —
+   `-f sha=<commit>` (t/3679 deploy-by-digest; `sha` is required, no `:latest` path)
 ```
 
 ### 6.2 Version Consistency Checks
@@ -490,7 +491,7 @@ The CI pipeline validates version consistency:
 
 | Operation | Command/Action |
 |---|---|
-| Deploy new version | `gh workflow run deploy-azure.yml` |
+| Deploy new version | `gh workflow run deploy-azure.yml -f environment=production -f sha=<commit>` (t/3679: `sha` required, pins by digest) |
 | View container logs | Azure Portal → Container Apps → Log stream |
 | Rebuild base image | `gh workflow run base-image.yml` |
 | Force restart | Azure Portal → Container Apps → Restart |
