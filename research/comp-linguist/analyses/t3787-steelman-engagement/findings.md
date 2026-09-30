@@ -82,22 +82,47 @@ feature (t/3781, t/3786, t/3787, t/3755), so when the data disappoints the path 
 is to hunt a fifth wiring bug rather than accept disconfirmation. A stopping rule written now is
 cheap; written after the data, it isn't credible.
 
-- **Wiring-correct precondition (positive control).** The abandonment reading is valid ONLY if the
-  post-fix wiring is demonstrably correct: t/3787's helper applied at every enumerated site (derived
-  from code, not the count of six), AND a positive control passes — construct a steelman node and
-  confirm it now reaches the steelmanned camp's turn-context as a shared referent (the plumbing *can*
-  carry it). Without that control a null is ambiguous (could still be wiring), and THEN looking for
-  another defect is legitimate.
-- **Abandonment condition.** With the control passing, if the **pilot (10–15 debates)** shows the
-  steelmanned-camp adoption rate **statistically indistinguishable from the ~3–5% pre-fix baseline**
-  (CI overlapping baseline, no upward shift), that is **evidence against** the hypothesis — steelmans
-  do not drive own-camp uptake even when correctly presented. Report the null; do NOT escalate to a
-  fifth wiring hunt.
+- **Wiring-correct precondition — now THREE surfaces, not one (TL p/349, re t/3791/t/3792).** The
+  abandonment reading is valid ONLY if the mechanism is demonstrably correct across every surface that
+  camps a steelman:
+  - **Turn-context presentation (t/3787):** the helper applied at every enumerated site (derived from
+    code, not the count of six — the corrected predicate found `crossRespond.ts:509`, unnamed by either
+    analysis), AND the structural positive control passes. Control = **P1∧P2∧P3** (t/3790#3): P1 the
+    steelman lands in the current speaker's own-position grouping; P2 its entry renders *differently*
+    from a plain claim (a diff, not a phrase — rewording-robust); P3 both camp identifiers appear in
+    the entry. None satisfiable by routing alone; none an exact-string assertion (avoids green-by-erosion).
+  - **Belief-state camp (t/3791) and utility-scoring camp (t/3792):** both `beliefTracking.ts:116` and
+    `agentUtility.ts:48,54` still miscamp the steelmanned camp's own steelman as an opponent. Neither
+    feeds the instrument (verified — they write belief-state / a utility score, not the AN nodes/edges
+    the metric reads), so **measurement is clean without them**. But both shape debater *behavior*,
+    biasing the steelmanned camp *away* from its own steelman → biasing measured adoption **downward**.
+  - **So the abandonment branch is gated on all three (t/3787 ∧ t/3791 ∧ t/3792); the confirm branch is
+    gated on t/3787 only** (see the asymmetry below). Without all three, a null is ambiguous — it could
+    be residual belief/utility suppression masking a real effect, not a false hypothesis — and THEN
+    looking for the remaining defect is legitimate, not defect-hunting.
+- **Abandonment condition.** With **all three surfaces correct** (t/3787 ∧ t/3791 ∧ t/3792, per the
+  precondition above), if the **pilot (10–15 debates)** shows the steelmanned-camp adoption rate
+  **statistically indistinguishable from the ~3–5% pre-fix baseline** (CI overlapping baseline, no
+  upward shift), that is **evidence against** the hypothesis — steelmans do not drive own-camp uptake
+  even when correctly presented AND correctly camped in belief/utility. Report the null; do NOT
+  escalate to a further wiring hunt. (If t/3791/t/3792 are still open, this branch is unavailable —
+  see the precondition; a null there routes to "ambiguous", not "abandon".)
 - **Continue-to-confirm condition.** If the pilot shows a clear upward shift (adoption materially
-  above baseline, CI excluding ~5%), proceed to the ~50-debate confirmatory arm.
+  above baseline, CI excluding ~5%), proceed to the ~50-debate confirmatory arm. **The confirm branch
+  is SAFE to run before t/3791/t/3792 land** — belief/utility suppression only biases adoption down,
+  so a positive result under it is *stronger*, not weaker.
+  - **Effect size is a FLOOR, not an estimate, while t/3791/t/3792 are open (TL p/349#458).** A positive
+    pilot effect measured under active downward suppression is a **lower bound** on the fully-wired
+    effect. Do NOT re-estimate the confirmatory-arm n from it as if it were the true effect — that
+    *over-powers* the arm (larger effect ⇒ smaller n needed; the floor understates the effect ⇒
+    overstates the n). Record the pilot effect **as a floor**; re-estimate n after t/3791/t/3792 land,
+    or accept the over-powered (conservative, wasteful-not-wrong) n.
 - **Ambiguous (underpowered) condition.** If the pilot is directionally positive but CI-wide, that is
   "insufficient data" (explanation 2), not support — proceed to the confirmatory arm; do not conclude
-  from the pilot either way.
+  from the pilot either way. **But weight the direction: under known downward suppression (t/3791/t/3792
+  open), a *marginal* positive leans toward continue more than the bare CI implies** — the true effect
+  is likely larger than measured. A marginal positive is a reason to continue (and re-check once the
+  suppression is removed), never to abandon.
 - **Non-degenerate guard (t/3587).** Report adoption with its n and the per-camp decomposition; a flat
   ~3% and a jump to ~30% are distinguished by the decomposition, not a bare rate.
 
