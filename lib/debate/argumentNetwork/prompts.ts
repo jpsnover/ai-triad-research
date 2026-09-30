@@ -70,6 +70,8 @@ export function extractClaimsPrompt(
   priorClaims: PriorClaim[],
   audience?: string,
   topic?: string,
+  // isOpeningPhase defaults to false — steelman framing is only meaningful in opening statements (t/3765).
+  isOpeningPhase = false,
 ): string {
   const priorBlock = priorClaims.length > 0
     ? priorClaims.map(c => `  ${c.id} (${c.speaker}): ${c.text}`).join('\n')
@@ -159,7 +161,9 @@ For each claim, also classify:
    "counter_evidence": "none" (no contradicting info in the source) | "minor" (some tension but not decisive) | "significant" (source contains strong counter-evidence),
    "ambiguity_resolved": "none" (the source makes a clear, unambiguous claim) | "acknowledged" (the source hedges or presents multiple readings, and this extraction preserves that uncertainty) | "collapsed" (the source hedges or presents multiple readings, but this extraction picks one and states it as settled)}
 - "specificity": "precise" (contains specific numbers, dates, named entities, or directly verifiable facts), "general" (broad empirical claim without specific verifiable details), or "abstract" (theoretical/normative, not empirically testable)
-- "steelman_of": null normally. Set to the opponent's camp id — exactly one of "accelerationist", "safetyist", "skeptic" — ONLY when this claim deliberately presents the STRONGEST version of that opponent's position, in terms its advocates would accept, before critiquing it. A steelman restates someone else's argument charitably. A claim that rebuts, dismisses, or concedes to the opponent is NOT a steelman, even when it names their position (e.g. "X's objection is baseless" is a rebuttal, not a steelman of X). Never use a claim id, document id, or the speaker's own camp.
+${isOpeningPhase
+  ? `- "steelman_of": null normally. Set to the opponent's camp id — exactly one of "accelerationist", "safetyist", "skeptic" — ONLY when this claim deliberately presents the STRONGEST version of that opponent's position, in terms its advocates would accept, before critiquing it. A steelman restates someone else's argument charitably. A claim that rebuts, dismisses, or concedes to the opponent is NOT a steelman, even when it names their position (e.g. "X's objection is baseless" is a rebuttal, not a steelman of X). Never use a claim id, document id, or the speaker's own camp.`
+  : `- "steelman_of": ALWAYS null. Steelman framing is only valid in opening statements, not in cross-respond turns.`}
 ${topic ? `- "topic_relevance": "on_topic" (directly engages the stated scope), "adjacent" (related but requires inference to connect), or "off_topic" (examples or framing contradict explicit topic constraints)
 ` : ''}${audience === 'policymakers' ? `
 - "political_salience": classify each claim's relevance to political decision-making:

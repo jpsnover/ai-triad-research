@@ -57,7 +57,7 @@ export async function extractClaims(
   if (debaterClaims && debaterClaims.length > 0) {
     prompt = classifyClaimsPrompt(statement, POVER_INFO[speaker].label, debaterClaims, priorClaims, ctx.session.audience, ctx.session.phase === 'opening');
   } else {
-    prompt = extractClaimsPrompt(statement, POVER_INFO[speaker].label, priorClaims, ctx.session.audience, ctx.session.topic.final);
+    prompt = extractClaimsPrompt(statement, POVER_INFO[speaker].label, priorClaims, ctx.session.audience, ctx.session.topic.final, ctx.session.phase === 'opening');
   }
 
   const anNodeCountBefore = an.nodes.length;
