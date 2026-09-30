@@ -2716,6 +2716,26 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #181 [Build] `ls` Exit Code Varies by How Many Paths Are Absent — Use `Test-Path` or `os.path.exists` for Existence Checks
+
+**Pattern:** Using `ls <path1> <path2>` to test whether paths exist is unreliable: `ls` exits **1** when at least one path exists but some don't, and **2** when NONE of the listed paths exist (on GNU coreutils; some implementations differ). Scripts gating on `$? == 0` or `$? == 1` will misread the "none found" case. The root issue is using a listing tool as an existence-check tool — `ls` reports path contents, not a Boolean existence result.
+
+**Instances:**
+- 2026-09-30 — DebateTool (p/70#39): `ls nonexistent1 nonexistent2` exited 2 (both paths absent); script expected exit 1 for "not found." Self-resolved; no downstream impact. Fix: replaced with `python3 -c "import os; print(os.path.exists(...))"` / PowerShell `Test-Path`.
+
+**Root Cause:** `ls` is designed to list directory contents, not to return a meaningful Boolean for path existence. Its exit codes encode "listing success" (0 = all paths listed, 1 = some paths errored, 2 = all paths errored on GNU), not the simpler exists/absent distinction a check needs. Scripts treat the 1-vs-2 distinction as an implementation detail, then break when all paths are absent.
+
+**Prevention:**
+1. **Use purpose-built existence tools:** PowerShell `Test-Path <path>` (exits 0/1 cleanly); Python `os.path.exists(path)` or `pathlib.Path(p).exists()`; Bash `[[ -e <path> ]]` or `[[ -f <path> ]]` for file/dir tests.
+2. **Never gate on `ls` exit code** — it encodes listing errors, not existence. `ls` exit 1 ≠ "path absent" when multiple paths are passed.
+3. Companion to the exit-code literacy patterns (#73A grep, #121 `gh pr checks`): tool exit codes encode the tool's own semantics, not a generic "found/not found" signal.
+
+**Status:** Active — 1 instance (DebateTool p/70#39).
+
+**Applies To:** All agents using Bash or PowerShell for path existence checks.
+
+---
+
 ## #118 [Build] A Platform Feature Can Be AVAILABLE While a Specific MODE/Tier of It Is Plan-Gated — Verify the Exact MODE Empirically Before Designing Around It
 
 **Pattern:** A GitHub (or any platform) feature may work on your repo while a specific MODE, tier, or sub-option of it is silently plan-gated — surfacing HTTP 422 only when you invoke that mode. Designing a gate/workflow around the plan-gated mode fails at implementation time, *after* you've built around it. The availability trap has **granularity**: "the feature works" ≠ "every mode of it works on this repo's owner-type/plan."
@@ -2792,9 +2812,12 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Facet B — `--watch` false-green:** `gh pr checks <n> --watch` can exit `0` while some jobs still show **"pending 0"** — meaning those jobs have been scheduled but their individual check-runs haven't registered yet. `--watch` polls the currently-known checks and exits as soon as they all pass; it doesn't wait for checks that haven't appeared yet. Result: a confident-looking green that precedes real results.
 
+**Facet C — grep on text output ≠ "specific check green":** Piping `gh pr checks` text output through `grep` and using grep's exit code to determine whether a specific check (e.g. `ci-gate`) passed is unreliable. Grep exits 0 when ANY line matches — so if `ci-gate` appears in output while IN_PROGRESS, or if other checks' lines match the grep pattern, grep returns 0 even though ci-gate is not green. Fix: use `gh pr view --json statusCheckRollup --jq '...'` filtered by `name == "ci-gate"` and `conclusion == "SUCCESS"`, or read bare `gh pr checks` without grep and scan visually.
+
 **Instances:**
 - 2026-08-01 — Server Storage (p/206#13, re-confirmed p/206#14): `gh pr checks 326` exited **8** because `test-container` was still running; **no check actually failed**. Recognized as expected `gh` behavior; **re-polled once `test-container` completed** → green. (Two reports same session — the exit-8 = pending semantics catch people.)
 - 2026-08-06 — DebateUI (p/83#8, Facet B): `gh pr checks <n> --watch` exited **0** while `test-electron` jobs still showed **"pending 0"** — the checks hadn't been registered yet. `--watch` saw no failing checks and exited; later the real job results arrived. False-green signal on a PR that wasn't fully checked.
+- 2026-09-30 — DebateTool (p/70#41, **Facet C**): `gh pr checks | grep ci-gate` — grep exited 0 when other checks appeared in output while `ci-gate` was IN_PROGRESS. DebateTool merged prematurely. Fix: query ci-gate by name via `gh pr view --json statusCheckRollup`, or use bare `gh pr checks` without grep.
 
 **Root Cause:** `gh pr checks`'s exit code encodes STATE, not a pass/fail boolean — exit 8 specifically means "not done yet." Same "exit code is a status indicator, not success/failure" family as #73 facet A (grep exit-1 on zero-match ≠ error). It bites hardest during a self-merge wait, when a slow check (`test-container`) hasn't finished but every other check is green — the raw exit looks like failure. **Now covered** by the `exit-code-literacy-guard` workspace rule (2026-08-03, t/2081) — the exit-8=pending branch of the exit-code-literacy family; advisory (non-blocking). **Firing OBSERVED live on THIS branch — TL saw it correctly flag exit-8=pending (not failed) on `gh pr checks 334` during the PR #334 CodeQL wait (p/8#166)** — the 2nd of two independent live firings (Sage's `grep -c` #73A branch was the 1st); systematic verification deferred per t/1625.
 
@@ -2803,8 +2826,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **Parse the per-check state, not just the exit code** — `gh pr checks <n> --json name,state,conclusion --jq '...'` gives real states (`IN_PROGRESS`/`QUEUED` vs `FAILURE`); the raw exit code alone can't tell pending from failed to a naive branch.
 3. **On a self-merge wait, exit 8 = "not done, re-poll"** — re-run once the pending check completes (or use a background monitor, #116); don't abort the land.
 4. **Facet B — `--watch` false-green:** after `--watch` exits 0, verify with a bare `gh pr checks <n>` (no `--watch`) to confirm all jobs have actually completed with conclusions. If any show "pending 0" or blank conclusion, `--watch` exited prematurely — wait and re-check.
+5. **Facet C — to verify a specific check, use structured JSON, not grep:** `gh pr view <n> --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name == "ci-gate") | .conclusion'` returns `SUCCESS`, `FAILURE`, or empty (still running). Never use `gh pr checks | grep <name>` as a pass/fail signal for a specific check — grep exit 0 only means a line matched, not that the check passed.
 
-**Status:** Active — `gh pr checks` tri-state exit-code semantics (0 pass / 1 fail / 8 pending); "exit code ≠ pass/fail boolean" family (#73A). Self-correcting once recognized. CI-wait sibling of #111 (current-HEAD-gated workflow) and #116 (background monitor, not foreground poll).
+**Status:** Active — `gh pr checks` text/exit-code unreliability (0 pass / 1 fail / 8 pending + Facet B false-green + Facet C grep-misread); "exit code ≠ pass/fail boolean" family (#73A). Self-correcting once recognized. CI-wait sibling of #111 (current-HEAD-gated workflow) and #116 (background monitor, not foreground poll).
 
 **Applies To:** All agents polling `gh pr checks` while waiting on PR checks (self-merge / land waits).
 
