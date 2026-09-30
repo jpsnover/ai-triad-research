@@ -61,7 +61,7 @@ export function loadAndAssemblePrompt(promptsDir: string, ctx: PromptContext): A
     : '(none supplied — write a generic authority line the author can replace, e.g. "[Author], [affiliation]")';
 
   const s = ctx.style;
-  const styleAudience = s?.audience ?? 'a broad, non-specialist public to act';
+  const styleAudience = s?.audience ?? 'persuade a broad, non-specialist public to act';
   const styleReadingLevel = s?.readingLevel ?? 'write for a general newspaper audience at roughly a 10th-grade reading level (Flesch-Kincaid grade ~10, and no higher than 11). This is the single most important constraint. If a passage would make a smart non-specialist reread it, simplify it.';
   const styleSentence = s?.sentenceMechanics ?? 'average under 18 words per sentence; NO sentence over 30 words. One idea per sentence. When a sentence carries two or three claims, split it into two or three sentences. Long, clause-chained sentences are the main reason these essays read as hard.';
   const styleParagraph = s?.paragraphMechanics ?? 'at most four sentences AND at most ~90 words per paragraph. The word cap matters as much as the sentence count, four long sentences is still a wall. Break a longer paragraph in two.';
