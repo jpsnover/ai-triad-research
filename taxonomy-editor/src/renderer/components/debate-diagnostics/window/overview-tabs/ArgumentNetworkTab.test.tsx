@@ -157,6 +157,26 @@ describe('ArgumentNetworkTab', () => {
     expect(screen.getByText('Third claim')).toBeInTheDocument();
   });
 
+  it('minimap places a steelman node in the steelmanned camp\'s arc/color, not the speaker\'s (t/3781)', () => {
+    const nodes = [
+      { ...makeNode('n1', 'e1', 'Safetyist claim'), speaker: 'safetyist' },
+      { ...makeNode('n2', 'e2', 'Steelman of skeptic'), speaker: 'accelerationist', steelman_of: 'skeptic' },
+    ];
+
+    const { container } = render(
+      <ArgumentNetworkTab
+        {...makeProps({ an: { nodes, edges: [] } })}
+      />,
+    );
+
+    const circles = container.querySelectorAll('.ant-minimap-wrap circle');
+    expect(circles).toHaveLength(2);
+    const fills = Array.from(circles).map(c => c.getAttribute('fill'));
+    // n2 is authored by accelerationist but steelmans skeptic — must render skeptic's color, never accelerationist's.
+    expect(fills[0]).toBe('var(--color-saf)');
+    expect(fills[1]).toBe('var(--color-skp)');
+  });
+
   it('shows filter select with All, Unattributed, Novel, and Anchored options', () => {
     render(<ArgumentNetworkTab {...makeProps()} />);
 
