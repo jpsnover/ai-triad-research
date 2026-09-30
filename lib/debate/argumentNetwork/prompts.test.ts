@@ -22,28 +22,49 @@ describe('formatEstablishedPoints — steelman routing', () => {
     speaker: 'skeptic',
   };
 
-  it('steelman of skeptic is excluded from otherClaims when skeptic is current speaker', () => {
-    // The misfiling the ticket exists to fix: without the fix, steelmanNode.speaker=accelerationist
-    // would land in otherClaims (n.speaker !== "skeptic" → true), surfacing it to the Skeptic
-    // as an accelerationist claim to attack. With the fix, effectiveCamp=skeptic === currentSpeaker
-    // → excluded.
+  it('steelman of skeptic appears in gift section (not opponent section) when skeptic is current speaker', () => {
+    // t/3795: own-camp steelmans surface in the gift section, not as opponent claims.
+    // effectiveCamp(steelmanNode) = 'skeptic' === currentSpeaker → ownSteelman, not otherClaims.
     const result = formatEstablishedPoints(
       [steelmanNode, regularAccNode],
       'skeptic',
     );
-    expect(result).not.toContain('an-10');
+    // Gift section is present and contains the steelman with CL label
+    expect(result).toContain('=== YOUR POSITION, AS CHARITABLY RESTATED BY ANOTHER DEBATER ===');
+    expect(result).toContain('an-10');
+    expect(result).toContain('Charitable restatement of the Skeptic position, authored by Accelerationist');
+    // Gift section rendered BEFORE the opponent section (primacy)
+    const giftIdx = result.indexOf('=== YOUR POSITION');
+    const otherIdx = result.indexOf('=== POINTS ALREADY ESTABLISHED');
+    expect(giftIdx).toBeGreaterThanOrEqual(0);
+    expect(otherIdx).toBeGreaterThanOrEqual(0);
+    expect(giftIdx).toBeLessThan(otherIdx);
+    // an-10 appears before the opponent section header (i.e., in the gift section, not as opponent claim)
+    expect(result.indexOf('an-10')).toBeLessThan(otherIdx);
+    // Regular acc node still visible as opponent claim
     expect(result).toContain('an-11');
   });
 
   it('steelman of skeptic is included in otherClaims when accelerationist is current speaker', () => {
-    // Author should not see their own steelman as an opponent claim.
+    // effectiveCamp(steelmanNode) = 'skeptic' !== 'accelerationist' → in otherClaims
     const result = formatEstablishedPoints(
       [steelmanNode, regularSkpNode],
       'accelerationist',
     );
-    // effectiveCamp(steelmanNode) = 'skeptic' !== 'accelerationist' → in otherClaims
     expect(result).toContain('an-10');
     expect(result).toContain('an-12');
+  });
+
+  it('steelman author does not see their own steelman in the gift section', () => {
+    // The accelerationist authored steelmanNode — effectiveCamp = 'skeptic' !== 'accelerationist',
+    // so it lands in otherClaims, not ownSteelmans. No gift section for the author.
+    const result = formatEstablishedPoints(
+      [steelmanNode, regularSkpNode],
+      'accelerationist',
+    );
+    expect(result).not.toContain('=== YOUR POSITION, AS CHARITABLY RESTATED BY ANOTHER DEBATER ===');
+    // Steelman still appears — as a skeptic-camp claim in the opponent section
+    expect(result).toContain('an-10');
   });
 
   it('steelman node carries CL label — charitable restatement, authored by', () => {
