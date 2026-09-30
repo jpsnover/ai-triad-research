@@ -74,5 +74,5 @@ export const OUTLET_BANDS: Readonly<Record<string, OutletBand>> = {
 };
 
 export function resolveOutletBand(outlet: string | undefined): OutletBand {
-  return OUTLET_BANDS[outlet ?? 'Generic'] ?? OUTLET_BANDS['Generic']!;
+  return OUTLET_BANDS[outlet ?? 'TechPolicyPress'] ?? OUTLET_BANDS['TechPolicyPress']!;
 }
