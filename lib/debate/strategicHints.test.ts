@@ -330,3 +330,61 @@ describe('computeStrategicHints', () => {
     expect(result.dropped).toBeGreaterThanOrEqual(0);
   });
 });
+
+// ── Steelman-aware routing regressions (t/3787) ──────────
+
+describe('steelman routing — effectiveCamp', () => {
+  it('detectCommitmentTraps: steelman of current speaker excluded from opponent node map', () => {
+    // Accelerationist authors a steelman of Skeptic. Current speaker is Skeptic.
+    // effectiveCamp(node) = 'skeptic' = currentSpeaker → node must be skipped from nodesBySpeaker.
+    //
+    // The topology path (lines 89+) fires when:
+    //   a) node is in nodesBySpeaker[speaker], AND
+    //   b) conceded text has >= 3 word overlap (>=5 chars) with node text, AND
+    //   c) the node then has taxonomy refs matching the conceded territory.
+    //
+    // Without fix: node filed under nodesBySpeaker['accelerationist'] → topology hint fires.
+    // With fix: effectiveCamp = currentSpeaker → node skipped → no hint.
+    //
+    // NO asserted text → path-1 (word-overlap DISTINGUISH) skipped by the `asserted.length === 0` guard.
+    const steelmanText = 'regulatory oversight mechanisms require serious reform';
+    const nodes = [
+      makeNode({
+        id: 'AN-sm', speaker: 'accelerationist', steelman_of: 'skeptic',
+        text: steelmanText,
+        taxonomy_refs: ['skp-beliefs-001'],
+        computed_strength: 0.6,
+      }),
+    ];
+    const commitments = emptyCommitments();
+    // Conceded text shares 3 significant words with steelmanText (regulatory, oversight, mechanisms).
+    // Setting only conceded (not asserted) prevents the path-1 word-overlap hint from firing.
+    commitments.accelerationist.conceded = ['regulatory oversight mechanisms have fundamental problems'];
+
+    const hints = detectCommitmentTraps('skeptic', nodes, commitments);
+    expect(hints).toHaveLength(0);
+  });
+
+  it('detectCapabilityGaps: steelman taxonomy refs count toward the steelmanned camp', () => {
+    // Accelerationist authors 3 steelmans of Skeptic with skp refs.
+    // For capability gaps: these should count toward skeptic's skp coverage, not accelerationist's.
+    const nodes = [
+      makeNode({ id: 'AN-sm1', speaker: 'accelerationist', steelman_of: 'skeptic', taxonomy_refs: ['skp-beliefs-001'] }),
+      makeNode({ id: 'AN-sm2', speaker: 'accelerationist', steelman_of: 'skeptic', taxonomy_refs: ['skp-beliefs-002'] }),
+      makeNode({ id: 'AN-sm3', speaker: 'accelerationist', steelman_of: 'skeptic', taxonomy_refs: ['skp-beliefs-003'] }),
+      // Accelerationist's own nodes with acc refs (3 of them → enough to attempt gap flagging)
+      makeNode({ id: 'AN-a1', speaker: 'accelerationist', taxonomy_refs: ['acc-beliefs-001'] }),
+      makeNode({ id: 'AN-a2', speaker: 'accelerationist', taxonomy_refs: ['acc-beliefs-002'] }),
+      makeNode({ id: 'AN-a3', speaker: 'accelerationist', taxonomy_refs: ['acc-beliefs-003'] }),
+    ];
+
+    const hints = detectCapabilityGaps('accelerationist', nodes);
+    // Without fix: steelmanRefs counted under 'accelerationist' → acc has 6 'skp' refs → no gap visible.
+    // With fix: steelmanRefs under 'skeptic' → accelerationist only has acc refs; skeptic has skp refs.
+    // The important assertion: no spurious hint that Accelerationist dominates Skeptic's own taxonomy.
+    const falseSelfHints = hints.filter(h => h.hint.includes('skeptic') && h.hint.includes('skp'));
+    // A hint saying Skeptic is sparse in SKP while accelerationist has refs there is a misfiling artifact.
+    // After fix: the steelman refs belong to skeptic, so skeptic looks covered in skp (not sparse).
+    expect(falseSelfHints).toHaveLength(0);
+  });
+});

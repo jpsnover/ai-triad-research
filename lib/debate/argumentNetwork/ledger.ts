@@ -5,6 +5,7 @@
 
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../types.js';
 import type { UnansweredClaimEntry } from '../types.js';
+import { effectiveCamp } from './utils.js';
 
 /**
  * Update the unanswered claims ledger after claim extraction.
@@ -157,7 +158,7 @@ export function formatConcessionCandidatesHint(
   );
 
   const candidates = nodes
-    .filter(n => n.speaker !== currentSpeaker)
+    .filter(n => effectiveCamp(n) !== currentSpeaker)
     .filter(n => !attackedByMe.has(n.id))
     .filter(n => !concededSet.has(n.id) && !concededSet.has(n.text))
     .map(n => ({ node: n, strength: n.computed_strength ?? n.base_strength ?? 0 }))

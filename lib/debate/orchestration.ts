@@ -67,6 +67,7 @@ import {
   formatUnansweredClaimsHint,
   formatSpecifyHint,
 } from './argumentNetwork.js';
+import { effectiveCamp } from './argumentNetwork/utils.js';
 
 import { parseAIJson } from './helpers.js';
 import { parseJsonRobust, formatRecentTranscript, getMoveName } from './helpers.js';
@@ -238,7 +239,7 @@ function buildQbafContext(an: { nodes: ArgumentNetworkNode[]; edges: ArgumentNet
       const unscoredTag = n.scoring_method === 'unscored' ? ' [unscored]' : '';
       const bdiTag = n.bdi_category ? ` ${n.bdi_category[0].toUpperCase()}` : '';
       const confTag = n.bdi_confidence != null && n.bdi_confidence < 0.5 ? ' [low-confidence]' : '';
-      return `- ${n.id} (${poverInfo[n.speaker]?.label ?? n.speaker},${bdiTag}, strength ${n.computed_strength!.toFixed(2)}${unscoredTag}${confTag}): ${n.text}`;
+      return `- ${n.id} (${poverInfo[effectiveCamp(n)]?.label ?? effectiveCamp(n)},${bdiTag}, strength ${n.computed_strength!.toFixed(2)}${unscoredTag}${confTag}): ${n.text}`;
     }).join('\n');
 }
 
