@@ -1422,11 +1422,23 @@ describe('detectCruxFocusTrigger', () => {
   });
 
   it('does not fire again for an already-focused crux', () => {
-    const state = makeFocusState({ crux_focused_ids: new Set(['crux-1']) });
+    const state = makeFocusState({ crux_focused_ids: ['crux-1'] });
     const result = detectCruxFocusTrigger(
       [makeCrux()], 5, state, activePovers,
     );
     expect(result).toBeNull();
+  });
+
+  it('does not fire when crux_focused_ids is a stale {} from a pre-fix saved session', () => {
+    // JSON.stringify(new Set(['crux-1'])) → '{}' — loaded sessions had this shape.
+    // getFocusedIds must normalize it to [] so .includes() does not throw.
+    const state = makeFocusState({ crux_focused_ids: {} as unknown as string[] });
+    const result = detectCruxFocusTrigger(
+      [makeCrux()], 5, state, activePovers,
+    );
+    // {} normalizes to [] — crux is NOT in focused list, so trigger fires normally
+    expect(result).not.toBeNull();
+    expect(result!.cruxId).toBe('crux-1');
   });
 
   it('does not fire when budget is exhausted', () => {

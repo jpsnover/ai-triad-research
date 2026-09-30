@@ -15,6 +15,7 @@ import type {
 } from './types.js';
 import { cosineSimilarity } from './taxonomyRelevance.js';
 import { nowISO, parseJsonRobust } from './helpers.js';
+import { getFocusedIds } from './moderator.js';
 import { decontextualizeCruxPrompt } from './prompts.js';
 
 export type EmbedFn = (text: string) => Promise<number[]>;
@@ -162,7 +163,7 @@ export async function persistDebateCruxes(
       an_id: crux.id,
       final_state: crux.state,
       turns_engaged: crux.history.length,
-      intervention_issued: session.moderator_state?.crux_focused_ids?.has(crux.id) ?? false,
+      intervention_issued: getFocusedIds(session.moderator_state).includes(crux.id),
       resolved_post_intervention: false,
       model,
     };
