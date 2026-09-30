@@ -11,6 +11,7 @@ import type {
   ArgumentNetworkEdge,
   TrackedCrux,
 } from './types.js';
+import { effectiveCamp } from './argumentNetwork/utils.js';
 
 export interface AgentUtility {
   /** Mean computed_strength of agent's undefeated nodes. */
@@ -45,13 +46,13 @@ export function computeAgentUtility(
 ): AgentUtility {
   const w = weights ?? PERSONA_UTILITY_WEIGHTS[speaker] ?? { position: 0.33, attack: 0.34, crux: 0.33 };
 
-  const agentNodes = nodes.filter(n => n.speaker === speaker);
+  const agentNodes = nodes.filter(n => effectiveCamp(n) === speaker);
   const undefeated = agentNodes.filter(n => (n.computed_strength ?? n.base_strength ?? 0.5) >= 0.3);
   const position_strength = undefeated.length > 0
     ? undefeated.reduce((sum, n) => sum + (n.computed_strength ?? n.base_strength ?? 0.5), 0) / undefeated.length
     : 0;
 
-  const opponentNodes = nodes.filter(n => n.speaker !== speaker && n.speaker !== 'system' && n.speaker !== 'document');
+  const opponentNodes = nodes.filter(n => effectiveCamp(n) !== speaker && n.speaker !== 'system' && n.speaker !== 'document');
   const weakenedOpponents = opponentNodes.filter(n => (n.computed_strength ?? n.base_strength ?? 0.5) < 0.3);
   const attack_effectiveness = opponentNodes.length > 0
     ? weakenedOpponents.length / opponentNodes.length

@@ -141,6 +141,26 @@ describe('updateBeliefs', () => {
     // observation = 0.8 (from base_strength), posterior = 0.5 + 0.6*(0.8-0.5) = 0.68
     expect(state.beliefs.get('AN-1')!.posterior).toBeCloseTo(0.68, 2);
   });
+
+  it('steelman node is observed as own claim when steelmanned camp matches state.speaker', () => {
+    // AN-10: authored by accelerationist (speaker), steelmans skeptic (steelman_of=skeptic).
+    // When updating skeptic's beliefs, effectiveCamp(AN-10)=skeptic === state.speaker='skeptic'
+    // → treated as own claim → observation = strength (not 1-strength).
+    const state = initAgentBeliefState('skeptic');
+    const steelmanNode = makeNode({
+      id: 'AN-10',
+      speaker: 'accelerationist',
+      steelman_of: 'skeptic',
+      computed_strength: 0.8,
+    });
+    const strengths = new Map([['AN-10', 0.8]]);
+    updateBeliefs(state, [steelmanNode], strengths, 1);
+
+    const b = state.beliefs.get('AN-10')!;
+    // own claim: observation=0.8 → posterior moves toward 0.8
+    expect(b.posterior).toBeGreaterThan(0.5);
+    // without the fix, it would have been treated as opponent: observation=0.2 → posterior < 0.5
+  });
 });
 
 // ── computeBeliefDivergence ─────────────────────────────

@@ -16,6 +16,7 @@
 
 import type { SpeakerId, ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 import { computeQbafStrengths } from './qbaf.js';
+import { effectiveCamp } from './argumentNetwork/utils.js';
 import type { QbafNode, QbafEdge, QbafOptions } from './qbaf.js';
 
 // ── Types ─────────────────────────────────────────────────
@@ -113,7 +114,7 @@ export function updateBeliefs(
 
     // Perspective-adjusted observation: own claims use raw strength,
     // opponent claims invert (high strength of opponent = low belief for me)
-    const observation = node.speaker === state.speaker ? strength : 1 - strength;
+    const observation = effectiveCamp(node) === state.speaker ? strength : 1 - strength;
 
     const prior = state.beliefs.get(claimId)?.posterior ?? DEFAULT_PRIOR;
     const posterior = clamp(prior + LEARNING_RATE * (observation - prior), 0.01, 0.99);
