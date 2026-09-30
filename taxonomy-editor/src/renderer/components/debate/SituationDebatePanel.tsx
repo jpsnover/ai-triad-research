@@ -38,11 +38,14 @@ interface SituationDebateConfig {
 // Mirrors the original inline order exactly; only non-default values are written.
 function applySituationDebateConfig(session: DebateSession, cfg: SituationDebateConfig) {
   if (cfg.effectiveModel) session.debate_model = cfg.effectiveModel;
-  if (cfg.pacing !== 'moderate') (session as unknown as Record<string, unknown>).pacing = cfg.pacing;
-  if (cfg.useAdaptiveStaging) (session as unknown as Record<string, unknown>).adaptive_staging = true;
-  if (cfg.temperature !== 0.7) (session as unknown as Record<string, unknown>).temperature = cfg.temperature;
-  if (cfg.audience !== 'policymakers') (session as unknown as Record<string, unknown>).audience = cfg.audience;
-  if (cfg.protocolId !== 'structured') (session as unknown as Record<string, unknown>).protocol_id = cfg.protocolId;
+  // t/3783: mirrors sessionSlice.ts's createDebate() template for the regular-debate
+  // path — phase_bounds_override/step_mode aren't applicable here (situation debates
+  // don't expose per-phase round overrides), so this is the minimal correct subset,
+  // not an independently-invented shape.
+  if (cfg.useAdaptiveStaging) session.adaptive_staging = { enabled: true, pacing: cfg.pacing };
+  if (cfg.temperature !== 0.7) session.debate_temperature = cfg.temperature;
+  if (cfg.audience !== 'policymakers') session.audience = cfg.audience;
+  if (cfg.protocolId !== 'structured') session.protocol_id = cfg.protocolId;
 }
 
 interface SituationDebatePanelProps {
@@ -70,7 +73,9 @@ export function SituationDebatePanel({ node }: SituationDebatePanelProps) {
   const [pacing, setPacing] = useState<DebatePacing>('moderate');
   const [temperature, setTemperature] = useState(0.7);
   const [audience, setAudience] = useState<DebateAudience>('policymakers');
-  const [useAdaptiveStaging, setUseAdaptiveStaging] = useState(false);
+  // t/3783: always on — matches NewDebateDialog's unconditional useAdaptiveStaging
+  // default; there's no meaningful "pacing without adaptive staging" state to offer.
+  const useAdaptiveStaging = true;
   const [launching, setLaunching] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
@@ -241,13 +246,6 @@ export function SituationDebatePanel({ node }: SituationDebatePanelProps) {
             <span className="sit-debate-model-current">{geminiModel}</span>
           )}
         </div>
-
-        {/* Adaptive staging */}
-        <label className="sit-debate-adaptive">
-          <input type="checkbox" checked={useAdaptiveStaging} onChange={(e) => setUseAdaptiveStaging(e.target.checked)} />
-          Adaptive staging
-          {useAdaptiveStaging && <span className="sit-debate-badge">Experimental</span>}
-        </label>
 
         {/* Advanced */}
         <button className="sit-debate-advanced-toggle" onClick={() => setShowAdvanced(!showAdvanced)}>
