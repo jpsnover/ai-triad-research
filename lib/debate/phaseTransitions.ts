@@ -110,9 +110,9 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
       max_total_rounds_default: 10, max_regressions: 2, regression_ratchet: 0.10,
     },
     pacing_presets: {
-      tight: { maxTotalRounds: 4, argumentationExit: 0.62, concludingExit: 0.60 },
-      moderate: { maxTotalRounds: 10, argumentationExit: 0.72, concludingExit: 0.70 },
-      thorough: { maxTotalRounds: 8, argumentationExit: 0.80, concludingExit: 0.80 },
+      tight: { maxTotalRounds: 8, argumentationExit: 0.62, concludingExit: 0.60 },
+      moderate: { maxTotalRounds: 16, argumentationExit: 0.72, concludingExit: 0.70 },
+      thorough: { maxTotalRounds: 20, argumentationExit: 0.80, concludingExit: 0.80 },
     },
     network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },
     budget: { soft_multiplier: 8, hard_multiplier: 15, max_soft_multiplier: 10 },

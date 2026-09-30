@@ -37,36 +37,36 @@ function makeRequest(overrides: Partial<InquiryRequest> = {}): InquiryRequest {
 // ── Fidelity profiles ────────────────────────────────────────────────────────
 
 describe('deriveDebateConfig — fidelity profiles', () => {
-  it('quick: tight pacing, maxTotalRounds=4, callBudget=60', () => {
+  it('quick: tight pacing, maxTotalRounds=8, callBudget=120', () => {
     const { config, derivation } = deriveDebateConfig(makeRequest({ fidelity: 'quick' }), makeRegistry());
     expect(config.pacing).toBe('tight');
-    expect(config.maxTotalRounds).toBe(4);
+    expect(config.maxTotalRounds).toBe(8);
     expect(config.rounds).toBe(2);
     expect(config.responseLength).toBe('brief');
     expect(config.useAdaptiveStaging).toBe(false);
-    expect(derivation.callBudget).toBe(60);   // 4 × 15
+    expect(derivation.callBudget).toBe(120);   // 8 × 15
     expect(derivation.fidelity).toBe('quick');
   });
 
-  it('standard: moderate pacing, maxTotalRounds=10, callBudget=150', () => {
+  it('standard: moderate pacing, maxTotalRounds=16, callBudget=240', () => {
     const { config, derivation } = deriveDebateConfig(makeRequest({ fidelity: 'standard' }), makeRegistry());
     expect(config.pacing).toBe('moderate');
-    expect(config.maxTotalRounds).toBe(10);
+    expect(config.maxTotalRounds).toBe(16);
     expect(config.rounds).toBe(4);
     expect(config.responseLength).toBe('medium');
     expect(config.useAdaptiveStaging).toBe(true);
-    expect(derivation.callBudget).toBe(150);  // 10 × 15
+    expect(derivation.callBudget).toBe(240);  // 16 × 15
     expect(derivation.fidelity).toBe('standard');
   });
 
-  it('deep: thorough pacing, maxTotalRounds=8, callBudget=120', () => {
+  it('deep: thorough pacing, maxTotalRounds=20, callBudget=300', () => {
     const { config, derivation } = deriveDebateConfig(makeRequest({ fidelity: 'deep' }), makeRegistry());
     expect(config.pacing).toBe('thorough');
-    expect(config.maxTotalRounds).toBe(8);
+    expect(config.maxTotalRounds).toBe(20);
     expect(config.rounds).toBe(6);
     expect(config.responseLength).toBe('detailed');
     expect(config.useAdaptiveStaging).toBe(true);
-    expect(derivation.callBudget).toBe(120);  // 8 × 15
+    expect(derivation.callBudget).toBe(300);  // 20 × 15
     expect(derivation.fidelity).toBe('deep');
   });
 });
