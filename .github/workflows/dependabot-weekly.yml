@@ -8,7 +8,9 @@
 # Gate:  Only merges PRs where BOTH ci-gate AND CodeQL Analysis are SUCCESS.
 #        PRs with pending or failed checks are skipped (not touched).
 # After: Monitor the triggered Container Image workflow run in the Actions tab.
-#        When satisfied, manually trigger deploy-azure.yml for production.
+#        When satisfied, manually trigger deploy-azure.yml for production with the built
+#        commit: gh workflow run deploy-azure.yml -f environment=production -f sha=<commit>
+#        (t/3679 deploy-by-digest: `sha` is required — there is no image_tag/:latest path).
 
 name: Dependabot Weekly
 
@@ -114,7 +116,8 @@ jobs:
 
   # ── Step 2: Build a fresh container image ──────────────────────────────────
   # Skipped when no PRs were merged or in dry-run mode.
-  # Production deploy is NOT triggered here — run deploy-azure.yml manually.
+  # Production deploy is NOT triggered here — run deploy-azure.yml manually with the built
+  # commit: gh workflow run deploy-azure.yml -f environment=production -f sha=<commit> (t/3679).
   build-image:
     needs: [merge-prs]
     if: needs.merge-prs.outputs.merged_count > 0 && inputs.dry_run != true
@@ -164,4 +167,4 @@ jobs:
           echo "=== Dependabot Weekly summary ==="
           echo "  PRs merged:      ${{ needs.merge-prs.outputs.merged_count }}"
           echo "  Container build: triggered and completed"
-          echo "  Production:      NOT auto-deployed — trigger deploy-azure.yml manually when ready"
+          echo "  Production:      NOT auto-deployed — run: gh workflow run deploy-azure.yml -f environment=production -f sha=<commit> (t/3679; sha required)"

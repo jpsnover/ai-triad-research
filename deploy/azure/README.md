@@ -82,7 +82,11 @@ The `deploy-azure.yml` workflow deploys on manual trigger. To use it:
 
 1. Set up Azure OIDC credentials (service principal with federated identity)
 2. Add repository secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
-3. Trigger from GitHub Actions > Deploy to Azure > Run workflow
+3. Trigger with the commit SHA to deploy — the deploy pins that commit's image by immutable digest (t/3679 deploy-by-digest); `sha` is required and there is no `:latest` fallback:
+   ```bash
+   gh workflow run deploy-azure.yml -f environment=production -f auth_mode=optional -f sha=<commit>
+   ```
+   (or GitHub Actions > Deploy to Azure > Run workflow, supplying the `sha` input). See [runbooks/production-release.md](runbooks/production-release.md).
 
 No API key secrets needed in GitHub — keys are managed per-user in the app.
 

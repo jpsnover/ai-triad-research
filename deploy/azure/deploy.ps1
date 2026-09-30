@@ -57,22 +57,27 @@ param(
 
     [string]$Location = 'eastus',
 
-    # Default is the MUTABLE :latest tag, by deliberate decision (t/3523), not oversight.
-    # Post-t/3522, :latest is refreshed on every v* release AND every main dispatch, so it
-    # is always the current image — never stale. We do NOT pin an explicit tag/digest here
-    # because the DEPLOYED VERSION is already recorded, at commit granularity, in three places:
-    #   - the deploy run's image_tag input + headSha;
-    #   - the live /health buildSha (full commit SHA, queryable anytime);
-    #   - the ACA REVISION NAME, which encodes the deployed short-SHA — e.g.
-    #     `taxonomy-editor--deploy-89c3d9a-…` (`az containerapp revision list`).
-    # NB (verified against live revisions, t/3523): the revision's template `image` field holds
-    # the mutable `:latest` tag, NOT a resolved digest — ACA does not pin the pulled digest there.
+    # This MANUAL script defaults to the mutable :latest tag as a bootstrap/escape hatch.
+    # NOTE — t/3679 SUPERSEDES the old t/3523 rationale that used to live here: the AUTOMATED
+    # workflow path (deploy-azure.yml / deploy-staging.yml) NO LONGER uses :latest. It pins each
+    # deploy to an IMMUTABLE @sha256 digest (resolved from the built commit's permanent sha-<commit>
+    # tag), so on that path the ACA revision's template `image` field holds a resolved DIGEST (not a
+    # tag) and a pod recycle re-pulls identical bytes. On THIS manual :latest path the deployed
+    # version is still recorded at commit granularity via: the live /health buildSha (full commit
+    # SHA, queryable anytime); and the ACA REVISION NAME, which encodes the deployed short-SHA
+    # (e.g. `taxonomy-editor--deploy-89c3d9a-…`, `az containerapp revision list`).
     # So reproducibility here is COMMIT-granular (revision-name + /health), not digest-pinned;
     # that's sufficient for this single-app deploy. Rollback is a revision-layer op — roll back to
     # a prior commit-named revision (see production-release.md `az containerapp ingress traffic set`),
     # independent of this tag. Pinning the default would force a per-release bump — its own
     # forget/drift surface — for no gain the revision layer doesn't already provide. To pin a
-    # SPECIFIC version for one deploy, pass -ContainerImage (or deploy-azure.yml -f image_tag=<vX.Y.Z|digest>).
+    # SPECIFIC version for one deploy, pass -ContainerImage a full @sha256 digest ref.
+    # t/3679 (deploy-by-digest): the AUTOMATED workflow path now ALWAYS pins by digest —
+    # deploy-azure.yml takes an explicit `sha` input and resolves the commit's PERMANENT
+    # sha-<commit> tag to its immutable @sha256 digest (Resolve-ImageDigest.ps1); it no longer
+    # accepts image_tag or defaults to :latest. THIS script is the MANUAL path — its :latest
+    # default is the hand-run/bootstrap escape hatch. For a reproducible manual deploy pass
+    # -ContainerImage the digest (resolve via: Get-TaxEditorImage | ? { $_.Tags -contains "sha-<commit>" }).
     [string]$ContainerImage = 'ghcr.io/jpsnover/taxonomy-editor:latest',
 
     [switch]$SeedData,

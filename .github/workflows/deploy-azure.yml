@@ -22,8 +22,8 @@ on:
         type: choice
         options:
           - production
-      image_tag:
-        description: 'Image tag to deploy (e.g., 0.8.0). Leave empty for latest tagged version.'
+      sha:
+        description: 'Commit SHA to deploy — the SAME sha built via Invoke-ContainerBuild.ps1 -Sha. The deploy resolves its PERMANENT sha-<commit> tag -> immutable @sha256 digest and pins the revision to it (t/3679, deploy-by-digest). Empty ABORTS with an actionable message; the deploy never falls back to :latest.'
         required: false
         default: ''
         type: string
@@ -66,7 +66,8 @@ jobs:
   preflight:
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.resolve_tag.outputs.tag }}
+      image_ref: ${{ steps.resolve_digest.outputs.image_ref }}
+      digest: ${{ steps.resolve_digest.outputs.digest }}
     steps:
       - name: Reject staging dispatches
         if: inputs.environment == 'staging'
@@ -76,57 +77,53 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
-      - name: Resolve image tag
-        id: resolve_tag
+      - name: Resolve image digest from per-SHA tag (t/3679 — never :latest)
+        id: resolve_digest
+        shell: pwsh
         env:
-          INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
+          INPUT_SHA: ${{ inputs.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          if [ -n "$INPUT_IMAGE_TAG" ]; then
-            # M14: allowlist image_tag before writing to GITHUB_OUTPUT.
-            # Rejects shell metacharacters, $() subexpressions, newlines, etc.
-            # Static error message — never echo the raw input (newline = command injection).
-            if [[ ! "$INPUT_IMAGE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
-              echo "::error::image_tag is invalid — must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
-              exit 1
-            fi
-            echo "tag=$INPUT_IMAGE_TAG" >> $GITHUB_OUTPUT
-          else
-            TAG="${GITHUB_REF_NAME#v}"
-            if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-              echo "tag=$TAG" >> $GITHUB_OUTPUT
-            else
-              echo "tag=latest" >> $GITHUB_OUTPUT
-            fi
-          fi
+          # t/3679 conditions 2/4/7: resolve the deploy commit's PERMANENT `sha-<commit>` tag to its
+          # immutable @sha256 digest (the TESTED artifact) — NEVER :latest. Fail-closed: empty / invalid /
+          # not-found / ambiguous each ABORT here with an actionable message (Resolve-ImageDigest.ps1),
+          # so this step also IS the image-existence gate (it throws when the tag is absent — replacing
+          # the old "Verify container image exists" step). $INPUT_SHA is read from env, never interpolated
+          # inline, to avoid an Actions-expression injection (the M14 guard, now applied to `sha`).
+          & ./operations/devops/Resolve-ImageDigest.ps1 -Sha $env:INPUT_SHA -GitHubOutput
 
       - name: Verify container-relevant CI passed for this commit
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          DEPLOY_SHA: ${{ inputs.sha }}
         run: |
-          echo "Checking CI status for ${{ github.sha }}..."
+          # t/3679: verify CI for the DEPLOYED commit (inputs.sha), not github.sha (the dispatch HEAD,
+          # which can differ from what we're deploying). $DEPLOY_SHA is validated upstream by the
+          # resolve_digest step (^[0-9a-fA-F]{7,40}$) and read from env, not interpolated inline.
+          echo "Checking CI status for ${DEPLOY_SHA}..."
 
           # Get the latest CI run for this commit (or its nearest ancestor).
           # Docs-only pushes to main are intentionally skipped by ci.yml paths-ignore
-          # (**.md, docs/**, deploy/azure/runbooks/**), so HEAD may have no CI run.
+          # (**.md, docs/**, deploy/azure/runbooks/**), so the commit may have no CI run.
           # Walk back up to 10 commits to find the last green ancestor — safe because
           # docs-only commits cannot affect the container image.
-          COMMITS=$(gh api "repos/${{ github.repository }}/commits?sha=${{ github.sha }}&per_page=10" \
+          COMMITS=$(gh api "repos/${GH_REPO}/commits?sha=${DEPLOY_SHA}&per_page=10" \
             --jq '.[].sha' 2>/dev/null || echo "")
           RUN_ID=""
           for COMMIT in $COMMITS; do
-            RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${COMMIT}&per_page=1" \
+            RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/ci.yml/runs?head_sha=${COMMIT}&per_page=1" \
               --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
             if [ -n "$RUN_ID" ]; then
-              if [ "$COMMIT" != "${{ github.sha }}" ]; then
-                echo "HEAD ${{ github.sha }} has no CI run (docs-only skip). Using ancestor ${COMMIT} (run ${RUN_ID})."
+              if [ "$COMMIT" != "${DEPLOY_SHA}" ]; then
+                echo "Commit ${DEPLOY_SHA} has no CI run (docs-only skip). Using ancestor ${COMMIT} (run ${RUN_ID})."
               fi
               break
             fi
           done
 
           if [ -z "$RUN_ID" ]; then
-            echo "::error::No CI run found for commit ${{ github.sha }} or recent ancestors. CI must run before deploying."
+            echo "::error::No CI run found for commit ${DEPLOY_SHA} or recent ancestors. CI must run before deploying."
             exit 1
           fi
 
@@ -165,23 +162,10 @@ jobs:
           done
           echo "Container-relevant CI passed for this commit"
 
-      - name: Verify container image exists
-        shell: pwsh
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          Import-Module ./scripts/AITriad/AITriad.psm1 -Force
-          $Tag = "${{ steps.resolve_tag.outputs.tag }}"
-          Write-Host "Checking for image ghcr.io/${{ github.repository_owner }}/taxonomy-editor:$Tag..."
-          $Images = Get-TaxEditorImage -Last 100
-          $AllTags = @($Images | ForEach-Object { $_.Tags })
-          if ($AllTags -contains $Tag) {
-            Write-Host "Container image tag '$Tag' exists in GHCR"
-          } else {
-            Write-Host "::error::Container image tag '$Tag' not found in GHCR. Run the Container Image workflow first."
-            Write-Host "Available tags: $(($AllTags | Select-Object -First 5) -join ', ')"
-            exit 1
-          }
+      # NOTE (t/3679): "Verify container image exists" was REMOVED — the resolve_digest step above
+      # already fails-closed if the per-SHA tag is absent (it throws in Resolve-ImageDigest.ps1),
+      # so image existence is proven by successful digest resolution. A separate tag-existence check
+      # would be redundant and would reintroduce a `:latest`/tag-name code path this change retires.
 
   deploy:
     needs: [preflight]
@@ -190,29 +174,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
-      - name: Resolve image tag
-        id: resolve_tag
-        env:
-          INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
+      - name: Show resolved image (digest-pinned, from preflight)
         run: |
-          if [ -n "$INPUT_IMAGE_TAG" ]; then
-            # M14: allowlist image_tag before writing to GITHUB_OUTPUT (same guard as preflight).
-            if [[ ! "$INPUT_IMAGE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
-              echo "::error::image_tag is invalid — must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
-              exit 1
-            fi
-            echo "tag=$INPUT_IMAGE_TAG" >> $GITHUB_OUTPUT
-          else
-            # Use the git tag name if triggered from a tag context, else 'latest'
-            TAG="${GITHUB_REF_NAME#v}"
-            if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-              echo "tag=$TAG" >> $GITHUB_OUTPUT
-            else
-              echo "::warning::No explicit tag provided and not on a version ref — falling back to 'latest'"
-              echo "tag=latest" >> $GITHUB_OUTPUT
-            fi
-          fi
-          echo "Deploying image tag: $(cat $GITHUB_OUTPUT | grep tag= | cut -d= -f2)"
+          # t/3679: the immutable @sha256 ref was resolved + verified in preflight (resolve_digest).
+          # The deploy job consumes it via job output — no re-resolution, no tag/:latest code path here.
+          echo "Deploying digest-pinned image: ${{ needs.preflight.outputs.image_ref }}"
 
       - name: Log in to Azure
         uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c  # v3
@@ -260,7 +226,7 @@ jobs:
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --template-file deploy/azure/main.bicep \
             --parameters \
-              containerImage=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }} \
+              containerImage=${{ needs.preflight.outputs.image_ref }} \
               trafficPinRevisionName=${{ steps.current_revision.outputs.revision }} \
               trafficPinRevisionNameStaging=${{ steps.current_revision.outputs.staging_revision }} \
               googleClientId=${{ secrets.GOOGLE_CLIENT_ID }} \
@@ -306,7 +272,7 @@ jobs:
           resourceGroupName: ${{ env.RESOURCE_GROUP }}
           template: deploy/azure/main.bicep
           parameters: >-
-            containerImage=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }}
+            containerImage=${{ needs.preflight.outputs.image_ref }}
             googleClientId=${{ secrets.GOOGLE_CLIENT_ID }}
             googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }}
             githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }}
@@ -386,19 +352,63 @@ jobs:
       - name: Deploy new revision (0% traffic)
         id: new_revision
         shell: pwsh
+        env:
+          INPUT_SHA: ${{ inputs.sha }}
+          IMAGE_REF: ${{ needs.preflight.outputs.image_ref }}
+          RESOLVED_DIGEST: ${{ needs.preflight.outputs.digest }}
         run: |
           Import-Module ./scripts/AITriad/AITriad.psm1 -Force
-          $ShortSha = '${{ github.sha }}'.Substring(0, 7)
+          # t/3679: deploy the DIGEST-PINNED ref (…@sha256:<digest>), not a tag — a pod recycle re-pulls
+          # IDENTICAL bytes. DEPLOY_SHA and the revision suffix encode the DEPLOYED commit ($INPUT_SHA),
+          # NOT github.sha (the dispatch HEAD, which can differ — the t/3278/t/3110 misleading-marker trap).
+          # IMAGE_DIGEST + IMAGE_DEPLOYED_AT are stamped as env for the DETECT half (ServerAPI surfaces them
+          # on /health, t/3679#7). IMAGE_DEPLOYED_AT is DEPLOY-time (not container start) so a recycle WITHOUT
+          # a deploy shows the SAME timestamp — the out-of-band-revision-creation signal (condition 6).
+          # DEPLOY_TAG carries the per-SHA tag for continuity (the resolved artifact reference).
+          $ShortSha = $env:INPUT_SHA.Substring(0, [Math]::Min(7, $env:INPUT_SHA.Length))
           $Epoch = ([string]([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()))[-5..-1] -join ''
           $Suffix = "deploy-$ShortSha-$Epoch"
+          $DeployedAt = [DateTimeOffset]::UtcNow.ToString('o')
           $Result = New-ContainerAppRevision `
-            -ImageRef '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.resolve_tag.outputs.tag }}' `
+            -ImageRef $env:IMAGE_REF `
             -RevisionSuffix $Suffix `
-            -EnvVars @{ DEPLOY_SHA = '${{ github.sha }}'; DEPLOY_TAG = '${{ steps.resolve_tag.outputs.tag }}' } `
+            -EnvVars @{
+              DEPLOY_SHA        = $env:INPUT_SHA
+              DEPLOY_TAG        = "sha-$($env:INPUT_SHA)"
+              IMAGE_DIGEST      = $env:RESOLVED_DIGEST
+              IMAGE_DEPLOYED_AT = $DeployedAt
+            } `
             -AppName '${{ env.CONTAINER_APP_NAME }}' `
             -ResourceGroup '${{ env.RESOURCE_GROUP }}'
           Add-Content -Path $env:GITHUB_OUTPUT -Value "suffix=$Suffix"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "revision=$($Result.RevisionName)"
+
+      - name: Assert revision is digest-pinned to the intended image (t/3679 condition 3)
+        shell: pwsh
+        env:
+          EXPECTED_REF: ${{ needs.preflight.outputs.image_ref }}
+        run: |
+          # t/3679 §5 established ACA rejects an UNRESOLVABLE digest at provision time (New-ContainerAppRevision
+          # above would already have thrown, atomically). This step covers the OTHER case condition 3 names —
+          # a resolvable-but-WRONG digest — by asserting the created revision's resolved image ref EQUALS the
+          # intended @sha256 ref (VALUE equality, per condition 3 "compare the value, not the form" — an
+          # @sha256-shape check would pass on the wrong digest). Fail-closed: a mismatch or a Failed
+          # provisioning state ABORTS here, before any traffic shift. (Readiness is gated by the health
+          # check below; this asserts identity, not liveness.)
+          $Rev = '${{ steps.new_revision.outputs.revision }}'
+          $Info = az containerapp revision show `
+            --name '${{ env.CONTAINER_APP_NAME }}' -g '${{ env.RESOURCE_GROUP }}' --revision $Rev `
+            --query '{prov:properties.provisioningState, image:properties.template.containers[0].image}' -o json | ConvertFrom-Json
+          Write-Host "New revision $Rev — provisioningState=$($Info.prov) image=$($Info.image)"
+          if ($Info.prov -eq 'Failed') {
+            Write-Host "::error::t/3679: new revision provisioningState is 'Failed' — NOT proceeding (fail-closed)."
+            exit 1
+          }
+          if ($Info.image -ne $env:EXPECTED_REF) {
+            Write-Host "::error::t/3679: new revision image '$($Info.image)' != intended '$($env:EXPECTED_REF)' — digest-pin MISMATCH, NOT proceeding (fail-closed)."
+            exit 1
+          }
+          Write-Host "t/3679 assert OK: revision is digest-pinned to '$($env:EXPECTED_REF)' (value-equal), provisioningState=$($Info.prov)."
 
       - name: Health check new revision
         id: health_check
