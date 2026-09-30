@@ -563,9 +563,7 @@ describe('runModeratorSelection', () => {
     });
 
     const callbacks = makeBaseModeratorCallbacks();
-    // Spy on validateRecommendation to throw — CRUX_FOCUS is absent from ALL_MOVES
-    // so engineValidation.proceed is always false, meaning addEntry is never reached.
-    // Throwing from validateRecommendation is the reliable way to exercise the catch.
+    // Spy on validateRecommendation to throw — exercises the catch path directly.
     const validateSpy = vi.spyOn(moderatorModule, 'validateRecommendation')
       .mockImplementationOnce(() => { throw new TypeError('Simulated CRUX_FOCUS failure'); });
 
@@ -580,6 +578,43 @@ describe('runModeratorSelection', () => {
       expect.any(TypeError),
       'Proceeding without CRUX_FOCUS intervention',
     );
+  });
+
+  // ── CRUX_FOCUS happy path (t/3779) ────────────────────────
+
+  it('CRUX_FOCUS: intervention fires (addEntry called) when all validation checks pass', async () => {
+    const cruxEntry = {
+      id: 'crux-happy-test',
+      description: 'Whether alignment scales with capability',
+      identified_turn: 3,
+      state: 'engaged',
+      disagreement_type: 'empirical',
+      attacking_claim_ids: [],
+      speakers_involved: ['accelerationist', 'safetyist'] as ('accelerationist' | 'safetyist' | 'skeptic' | 'user')[],
+    };
+    const modState = initModeratorState(10, ['accelerationist', 'safetyist', 'skeptic']);
+    modState.phase = 'argumentation';
+    modState.rounds_since_last_intervention = 4;
+
+    const input = makeBaseModeratorInput({
+      round: 5,
+      phase: 'argumentation',
+      cruxTracker: [cruxEntry],
+      existingModState: modState,
+      transcript: [
+        makeTranscriptEntry({ speaker: 'accelerationist' }),
+        makeTranscriptEntry({ speaker: 'safetyist' }),
+      ],
+    });
+
+    const callbacks = makeBaseModeratorCallbacks();
+
+    await expect(runModeratorSelection(input, callbacks)).resolves.toBeDefined();
+
+    // addEntry called → CRUX_FOCUS intervention actually fired (not suppressed).
+    expect(callbacks.addEntry).toHaveBeenCalled();
+    // warn must NOT have been called — no error path taken.
+    expect(callbacks.warn).not.toHaveBeenCalled();
   });
 });
 
