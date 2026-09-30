@@ -13,6 +13,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { makeSession } from './storeTestHarness';
 import { useDebateStore } from '../../useDebateStore';
+import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 
 /** A pre-delivered opening entry for `speaker` (≥50 chars so the delivery-length guard passes). */
 function opening(id: string, speaker: string) {
@@ -77,5 +78,35 @@ describe('runInitialCrossRespondRounds — watch-only non-adaptive ceiling (t/37
     await useDebateStore.getState().runOpeningStatements();
 
     expect(callCount).toBe(1);
+  });
+});
+
+describe('runInitialCrossRespondRounds — legacy adaptive_staging boolean coercion (t/3782)', () => {
+  it('coerces adaptive_staging: true to {enabled:true, pacing:"moderate"} instead of falling to non-adaptive', async () => {
+    vi.mocked(loadProvisionalWeights).mockReturnValue({
+      pacing_presets: { moderate: { maxTotalRounds: 1, argumentationExit: 0.6, concludingExit: 0.7 } },
+    } as unknown as ReturnType<typeof loadProvisionalWeights>);
+    const session = makeSession({
+      phase: 'opening',
+      user_is_pover: false,
+      active_povers: ['accelerationist', 'safetyist'],
+      // Legacy shape written by SituationDebatePanel before its t/3782 fix.
+      adaptive_staging: true as unknown as ReturnType<typeof makeSession>['adaptive_staging'],
+      transcript: [opening('o1', 'accelerationist'), opening('o2', 'safetyist')],
+    });
+    useDebateStore.setState({
+      activeDebate: session as unknown as ReturnType<typeof useDebateStore.getState>['activeDebate'],
+      activeDebateId: session.id,
+    });
+
+    vi.spyOn(useDebateStore.getState(), 'crossRespond').mockImplementation(async () => {
+      const s = useDebateStore.getState();
+      s.addTranscriptEntry({ type: 'statement', speaker: 'accelerationist', content: 'round statement', taxonomy_refs: [] });
+    });
+
+    await useDebateStore.getState().runOpeningStatements();
+
+    const coerced = useDebateStore.getState().activeDebate?.adaptive_staging;
+    expect(coerced).toEqual(expect.objectContaining({ enabled: true, pacing: 'moderate' }));
   });
 });
