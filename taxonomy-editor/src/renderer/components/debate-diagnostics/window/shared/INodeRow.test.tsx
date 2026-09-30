@@ -295,6 +295,24 @@ describe('INodeRow', () => {
     expect(screen.getByText('Safetyist')).toBeInTheDocument();
   });
 
+  it('attributes a steelman node to the steelmanned camp, not the speaker (t/3781)', async () => {
+    const INodeRow = await getINodeRow();
+    render(
+      <INodeRow
+        node={makeNode({ speaker: 'accelerationist', steelman_of: 'skeptic' })}
+        attacks={[]}
+        supports={[]}
+        allNodes={[makeNode()]}
+        allEdges={[]}
+        isSource={false}
+        strengthMap={new Map()}
+        onUpdateSubScore={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Skeptic')).toBeInTheDocument();
+    expect(screen.queryByText('Accelerationist')).not.toBeInTheDocument();
+  });
+
   it('renders claim_taxonomy_attribution when present', async () => {
     const INodeRow = await getINodeRow();
     render(

@@ -281,17 +281,19 @@ const MINIMAP_SPEAKER_COLORS: Record<string, string> = Object.fromEntries(
 );
 const MINIMAP_DEGRADE_CEILING = 80;
 
+const effectiveSpeaker = (n: ArgumentNetworkNode) => n.steelman_of ?? n.speaker;
+
 function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }) {
   const layout = useMemo(() => {
     if (nodes.length === 0 || nodes.length > MINIMAP_DEGRADE_CEILING) return null;
 
-    const speakers = [...new Set(nodes.map(n => n.speaker))];
+    const speakers = [...new Set(nodes.map(n => effectiveSpeaker(n)))];
     const W = 280, H = 140, CX = W / 2, CY = H / 2, R = 52;
     const arcPerSpeaker = (2 * Math.PI) / Math.max(speakers.length, 1);
     const positions = new Map<string, { x: number; y: number }>();
 
     speakers.forEach((spk, si) => {
-      const spkNodes = nodes.filter(n => n.speaker === spk);
+      const spkNodes = nodes.filter(n => effectiveSpeaker(n) === spk);
       const arcStart = si * arcPerSpeaker - Math.PI / 2;
       spkNodes.forEach((n, ni) => {
         const angle = arcStart + ((ni + 0.5) / spkNodes.length) * arcPerSpeaker;
@@ -337,7 +339,7 @@ function ArgNetMinimap({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
           if (!pos) return null;
           return (
             <circle key={n.id} cx={pos.x} cy={pos.y} r={3}
-              fill={MINIMAP_SPEAKER_COLORS[n.speaker] ?? 'var(--text-muted)'}
+              fill={MINIMAP_SPEAKER_COLORS[effectiveSpeaker(n)] ?? 'var(--text-muted)'}
               opacity={0.8} />
           );
         })}

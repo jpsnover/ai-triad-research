@@ -164,7 +164,23 @@ async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partia
     if (!activeDebate.user_is_pover) {
       const freshDebate = get().activeDebate;
       if (freshDebate?.protocol_id === 'socratic') return; // user-driven (ask/probe/summarize); no auto cross-respond loop
-      const adaptive = freshDebate?.adaptive_staging;
+
+      // t/3782: back-compat for the legacy boolean shape (`adaptive_staging = true`) written
+      // by SituationDebatePanel before its fix — coerce rather than treat as malformed, so an
+      // existing broken session isn't left silently stuck on the dead non-adaptive path even
+      // after the write-site fix lands (TL ruling, t/3782#2). Retire this once no persisted
+      // session carries the boolean form.
+      if (freshDebate && (freshDebate.adaptive_staging as unknown) === true) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', debate_id: freshDebate.id, message: 'adaptive_staging was the legacy boolean form — coercing to {enabled:true, pacing:"moderate"}' });
+        set({ activeDebate: { ...freshDebate, adaptive_staging: { enabled: true, pacing: 'moderate' } } });
+      }
+
+      const resolvedDebate = get().activeDebate;
+      const adaptive = resolvedDebate?.adaptive_staging;
+      // t/3782 AC: record the resolved adaptive config at debate start so a report of this
+      // shape (a config setting that appeared to have no effect) is answerable from the dump.
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: resolvedDebate?.id, message: 'Resolved adaptive config at debate start', data: { enabled: !!adaptive?.enabled, pacing: adaptive?.pacing ?? null, initial_cross_respond_rounds: initialCrossRespondRounds } });
+
       if (adaptive?.enabled) {
         // Adaptive: run until phase transitions signal termination (up to maxTotalRounds)
         const weights = loadProvisionalWeights();

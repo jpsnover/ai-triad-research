@@ -184,7 +184,8 @@ function IdStatementCell({ node, statementId, searchQuery, onGotoEntry }: {
 /** Col 2: Speaker label with descriptive tooltip. */
 function SpeakerCell({ node }: { node: ArgumentNetworkNode }) {
   const chatRedesign = useFlag('DEBATE_CHAT_REDESIGN');
-  const label = chatRedesign ? resolveSpeaker(node.speaker).label : speakerLabel(node.speaker);
+  const effectiveSpeaker = node.steelman_of ?? node.speaker;
+  const label = chatRedesign ? resolveSpeaker(effectiveSpeaker).label : speakerLabel(effectiveSpeaker);
   const desc: Record<string, string> = {
     Accelerationist: 'Accelerationist — advocates rapid AI development',
     Safetyist: 'Safetyist — prioritizes AI safety and alignment',
