@@ -19,6 +19,7 @@ import { parseJsonRobust, formatRecentTranscript, getMoveName } from '../../help
 import { checkDraftScopeBoundary, SCOPE_BOUNDARY_THRESHOLD } from '../../exclusionGuard.js';
 import { computeCampInsularityRate, isInsularityCritical, selectCrossCampNode } from '../../schemeStagnation.js';
 import { nodePovFromId } from '../../nodeIdUtils.js';
+import { effectiveCamp } from '../../argumentNetwork/utils.js';
 import { resolveTurnValidationConfig } from '../../turnValidator.js';
 import { updateModeratorState, computeDebateHealthScore, buildInterventionBriefInjection, MOVE_RESPONSE_CONFIG, DIRECT_RESPONSE_PATTERNS, updateCruxEngagement } from '../../moderator.js';
 import { runModeratorSelection, executeTurnWithRetry, type ModeratorSelectionCallbacks, type ModeratorSelectionInput, type TurnRetryCallbacks, type TurnRetryInput } from '../../orchestration.js';
@@ -506,7 +507,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
     : '';
   const concessionCandidateIds = concessionHint
     ? (concessionAN!.nodes
-        .filter(n => n.speaker !== responder)
+        .filter(n => effectiveCamp(n) !== responder)
         .filter(n => (n.computed_strength ?? n.base_strength ?? 0) >= CONCESSION_CANDIDATE_MIN_QBAF_STRENGTH)
         .filter(n => !concessionAN!.edges.some(e => e.type === 'attacks' && e.source && concessionAN!.nodes.find(x => x.id === e.source)?.speaker === responder && e.target === n.id))
         .filter(n => !priorConceded.includes(n.id) && !priorConceded.includes(n.text))

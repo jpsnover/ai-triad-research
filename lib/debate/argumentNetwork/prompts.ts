@@ -7,6 +7,8 @@
  */
 
 import { MOVE_EDGE_MAP } from '../helpers.js';
+import { POVER_INFO, type SpeakerId } from '../types.js';
+import { effectiveCamp } from './utils.js';
 
 const SUPPORT_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .filter(([, v]) => v.edgeType === 'support')
@@ -352,18 +354,18 @@ export function formatArgumentNetworkContext(
  *  Tier 2: Unaddressed claims targeting this agent.
  *  Tier 3: Recency (fallback). */
 export function formatEstablishedPoints(
-  allNodes: { id: string; text: string; speaker: string }[],
+  allNodes: { id: string; text: string; speaker: string; steelman_of?: string }[],
   currentSpeaker: string,
   maxPoints: number = 10,
   edges?: { source: string; target: string; type: 'supports' | 'attacks' }[],
 ): string {
   if (allNodes.length === 0) return '';
 
-  const otherClaims = allNodes.filter(n => n.speaker !== currentSpeaker);
+  const otherClaims = allNodes.filter(n => effectiveCamp(n) !== currentSpeaker);
   if (otherClaims.length === 0) return '';
 
   // Identify this speaker's claim IDs
-  const myClaims = new Set(allNodes.filter(n => n.speaker === currentSpeaker).map(n => n.id));
+  const myClaims = new Set(allNodes.filter(n => effectiveCamp(n) === currentSpeaker).map(n => n.id));
   const otherIds = new Set(otherClaims.map(n => n.id));
 
   // Tier 1: Claims that directly respond to my claims (via edges)
@@ -394,7 +396,7 @@ export function formatEstablishedPoints(
   }
 
   // Build prioritized list
-  const result: { id: string; text: string; speaker: string; tag: string }[] = [];
+  const result: { id: string; text: string; speaker: string; steelman_of?: string; tag: string }[] = [];
 
   for (const c of otherClaims) {
     if (tier1.has(c.id)) {
@@ -424,7 +426,10 @@ export function formatEstablishedPoints(
   ];
   for (const c of capped) {
     const tag = c.tag ? ` ${c.tag}` : '';
-    lines.push(`- ${c.id} (${c.speaker}):${tag} ${c.text}`);
+    const campLabel = c.steelman_of
+      ? `Charitable restatement of the ${POVER_INFO[c.steelman_of as Exclude<SpeakerId, 'user'>]?.label ?? c.steelman_of} position, authored by ${POVER_INFO[c.speaker as Exclude<SpeakerId, 'user'>]?.label ?? c.speaker}`
+      : (POVER_INFO[c.speaker as Exclude<SpeakerId, 'user'>]?.label ?? c.speaker);
+    lines.push(`- ${c.id} (${campLabel}):${tag} ${c.text}`);
   }
 
   return lines.join('\n') + '\n';

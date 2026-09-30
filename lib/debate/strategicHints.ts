@@ -8,6 +8,7 @@
  */
 
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore } from './types.js';
+import { effectiveCamp } from './argumentNetwork/utils.js';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -89,9 +90,10 @@ export function detectCommitmentTraps(
   // Also check AN topology: opponent nodes attacked by the same opponent
   const nodesBySpeaker = new Map<string, ArgumentNetworkNode[]>();
   for (const n of nodes) {
-    if (n.speaker === currentSpeaker || n.speaker === 'system' || n.speaker === 'document' || n.speaker === 'user') continue;
-    if (!nodesBySpeaker.has(n.speaker)) nodesBySpeaker.set(n.speaker, []);
-    nodesBySpeaker.get(n.speaker)!.push(n);
+    const camp = effectiveCamp(n);
+    if (camp === currentSpeaker || n.speaker === 'system' || n.speaker === 'document' || n.speaker === 'user') continue;
+    if (!nodesBySpeaker.has(camp)) nodesBySpeaker.set(camp, []);
+    nodesBySpeaker.get(camp)!.push(n);
   }
 
   // Check for taxonomy ref overlap between asserted nodes and conceded commitments
@@ -160,8 +162,9 @@ export function detectCapabilityGaps(
 
   for (const node of nodes) {
     if (node.speaker === 'system' || node.speaker === 'document' || node.speaker === 'user') continue;
-    if (!refCounts.has(node.speaker)) refCounts.set(node.speaker, new Map());
-    const counts = refCounts.get(node.speaker)!;
+    const nodeCamp = effectiveCamp(node);
+    if (!refCounts.has(nodeCamp)) refCounts.set(nodeCamp, new Map());
+    const counts = refCounts.get(nodeCamp)!;
 
     for (const ref of node.taxonomy_refs) {
       const prefix = ref.split('-')[0];
