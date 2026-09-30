@@ -53,20 +53,28 @@ export function measureReadability(body: string): ReadabilityChecks {
   };
 }
 
-/** True when the draft misses any of the three grade-10 targets. */
-export function needsEdit(checks: ReadabilityChecks): boolean {
-  return checks.fkGrade > 11 || checks.maxParaWords > 90 || checks.maxSentWords > 30;
+export interface ReadabilityTargets {
+  fkMax: number;
+  maxSentWords: number;
+  maxParaWords: number;
+}
+
+export const DEFAULT_READABILITY_TARGETS: ReadabilityTargets = { fkMax: 11, maxSentWords: 30, maxParaWords: 90 };
+
+/** True when the draft misses any target. Defaults to grade-10 targets. */
+export function needsEdit(checks: ReadabilityChecks, targets: ReadabilityTargets = DEFAULT_READABILITY_TARGETS): boolean {
+  return checks.fkGrade > targets.fkMax || checks.maxParaWords > targets.maxParaWords || checks.maxSentWords > targets.maxSentWords;
 }
 
 /** Render the specific violations for injection into the edit prompt's {{VIOLATIONS}} slot. */
-export function buildViolationsText(checks: ReadabilityChecks): string {
+export function buildViolationsText(checks: ReadabilityChecks, targets: ReadabilityTargets = DEFAULT_READABILITY_TARGETS): string {
   const parts: string[] = [];
-  if (checks.fkGrade > 11)
-    parts.push(`Flesch-Kincaid grade: ${checks.fkGrade.toFixed(1)} (target: no higher than 11)`);
-  if (checks.maxParaWords > 90)
-    parts.push(`Longest paragraph: ${checks.maxParaWords} words (target: at most ~90 words)`);
-  if (checks.maxSentWords > 30)
-    parts.push(`Longest sentence: ${checks.maxSentWords} words (target: no sentence over 30 words)`);
+  if (checks.fkGrade > targets.fkMax)
+    parts.push(`Flesch-Kincaid grade: ${checks.fkGrade.toFixed(1)} (target: no higher than ${targets.fkMax})`);
+  if (checks.maxParaWords > targets.maxParaWords)
+    parts.push(`Longest paragraph: ${checks.maxParaWords} words (target: at most ~${targets.maxParaWords} words)`);
+  if (checks.maxSentWords > targets.maxSentWords)
+    parts.push(`Longest sentence: ${checks.maxSentWords} words (target: no sentence over ${targets.maxSentWords} words)`);
   return parts.join('\n');
 }
 
