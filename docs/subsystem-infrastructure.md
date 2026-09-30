@@ -12,7 +12,7 @@ The platform uses GitHub Actions for CI/CD, Docker for containerization, and Azu
 |---|---|---|---|
 | **CI** | `ci.yml` | Push/PR to main | Pester tests, TypeScript check, Electron build |
 | **Release** | `release.yml` | Tag `v*` | Multi-platform builds, PSGallery publish, GitHub release |
-| **Deploy** | `deploy-azure.yml` | Manual (workflow_dispatch) | Azure Container Apps deployment |
+| **Deploy** | `deploy-azure.yml` | Manual (workflow_dispatch, `-f sha=<commit>`) | Azure Container Apps deployment (t/3679: digest-pinned; `sha` required) |
 | **Container** | `container.yml` | Tag `v*` or manual | Docker multi-platform build, GHCR push |
 
 ### Supporting Pipelines
