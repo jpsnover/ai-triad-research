@@ -54,7 +54,7 @@ const FIELD_EXEMPTIONS: Record<string, { engineRequired: boolean; rendererRequir
   briefMaxRetries: {
     engineRequired: true,
     rendererRequired: false,
-    note: 'BUG t/3775: renderer always uses pipeline default (3) — remove this exemption when fixed',
+    note: 'intentional: engine.config.briefMaxRetries never populated in production (only in tests); both paths use pipeline default (3). t/3775 closed as phantom gap.',
   },
 };
 
