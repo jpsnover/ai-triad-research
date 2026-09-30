@@ -18,7 +18,14 @@ const mockOpenDebateWindow = vi.hoisted(() => vi.fn().mockResolvedValue(undefine
 // imperatively by `setActiveDebate` so tests can simulate createSituationDebate's
 // real sequencing — activeDebate is set synchronously, well before its returned
 // promise resolves (t/3752) — without depending on the real store's many slices.
-type FakeSession = { id: string; source_type: string; source_ref: string; debate_model?: string } | null;
+type FakeSession = {
+  id: string;
+  source_type: string;
+  source_ref: string;
+  debate_model?: string;
+  adaptive_staging?: unknown;
+  pacing?: unknown;
+} | null;
 const fakeStore = vi.hoisted(() => ({
   activeDebate: null as FakeSession,
   listeners: [] as Array<(s: { activeDebate: FakeSession }, p: { activeDebate: FakeSession }) => void>,
@@ -152,6 +159,23 @@ describe('SituationDebatePanel', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(/max 5 open/i);
     });
     expect(mockSetActiveTab).toHaveBeenCalledWith('debate');
+  });
+
+  // t/3783: adaptive_staging must be the real object shape the type requires
+  // ({ enabled, pacing }), not the boolean `true` that silently made the adaptive
+  // path unreachable — and the dead top-level `pacing` field must not be written.
+  it('writes adaptive_staging as the correct object shape for the selected pacing (t/3783)', async () => {
+    render(<SituationDebatePanel node={mockNode} />);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Tight' }));
+    fireEvent.click(screen.getByText('Start Situation Debate'));
+
+    await waitFor(() => {
+      expect(mockSaveDebate).toHaveBeenCalledWith('SituationDebatePanel:applyConfig');
+    });
+
+    expect(fakeStore.activeDebate?.adaptive_staging).toEqual({ enabled: true, pacing: 'tight' });
+    expect(fakeStore.activeDebate?.pacing).toBeUndefined();
   });
 
   it('surfaces an error and does not navigate when createSituationDebate rejects', async () => {
