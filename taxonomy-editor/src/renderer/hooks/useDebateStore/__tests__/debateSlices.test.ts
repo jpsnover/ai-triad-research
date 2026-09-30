@@ -610,6 +610,24 @@ describe('Topic critique slice: runTopicCritique', () => {
     expect(mockApi.saveDebateSession).toHaveBeenCalled();
   });
 
+  // t/3722: topic critique is a scored-JSON call, not debate reasoning — it must route to
+  // the fast tier regardless of what heavy model the debate itself is configured with.
+  // Measured live (grok-4.7 vs gemini-3.5-flash-lite): 90-120s -> ~3s, no loss of parseable
+  // output. Asserts the model actually passed to the AI call, not just that it succeeded.
+  it('routes to the fast tier model, not the debate-configured heavy model (t/3722)', async () => {
+    useDebateStore.setState({ activeDebate: makeSession() as any, debateModel: 'xai-grok-4-7' });
+    mockApi.computeQueryEmbedding.mockResolvedValue({ vector: [0.1, 0.2, 0.3] });
+    mockApi.computeEmbeddings.mockResolvedValue({ vectors: [] });
+    mockApi.generateText.mockResolvedValue({ text: '{"rating":"good","frame_score":{"total":6}}' });
+
+    await useDebateStore.getState().runTopicCritique();
+
+    expect(mockApi.generateText).toHaveBeenCalled();
+    const callModel = mockApi.generateText.mock.calls[0][1];
+    expect(callModel).not.toBe('xai-grok-4-7');
+    expect(callModel).toBe('gemini-3.5-flash-lite');
+  });
+
   it('handles critique failure gracefully without setting debateError', async () => {
     useDebateStore.setState({ activeDebate: makeSession() as any });
     mockApi.computeQueryEmbedding.mockRejectedValue(new Error('Embedding unavailable'));

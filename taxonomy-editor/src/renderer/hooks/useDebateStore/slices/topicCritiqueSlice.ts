@@ -10,7 +10,7 @@ import { nowISO } from '@lib/debate/helpers';
 import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique, formatStructuralContext, computeLineageDistribution, formatLineageContext } from '@lib/debate/topicCritique';
 import type { LineageFrameEntry } from '@lib/debate/topicCritique';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
-import { getConfiguredModel } from '../shared/modelConfig';
+import { getConfiguredModel, getCritiqueModel } from '../shared/modelConfig';
 import { generateTextWithProgress } from '../shared/generation';
 import { getGreatestHits } from '../shared/getGreatestHits';
 import { getLineageMapping, getL2Categories, isLineageDataLoaded } from '../../../data/lineageCategories';
@@ -77,8 +77,12 @@ export const createTopicCritiqueSlice: StateCreator<DebateStore, [], [], TopicCr
 
     set({ topicCritiqueLoading: true, debateError: null });
     const model = getConfiguredModel();
+    // t/3722: topic critique is a scored-JSON call, not debate reasoning — route it to a fast
+    // model regardless of what the debate itself uses. Measured 90-120s -> ~3s end-to-end with
+    // no loss of parseable output.
+    const critiqueModel = getCritiqueModel(model);
     const topic = activeDebate.topic.final;
-    getGlobalRecorder()?.record({ type: 'topic.critique', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'topicCritique.started', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length, model } });
+    getGlobalRecorder()?.record({ type: 'topic.critique', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'topicCritique.started', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length, model, critique_model: critiqueModel } });
 
     try {
       // t/1567: force-reload taxonomy from disk so topic-critique scores against
@@ -172,7 +176,7 @@ export const createTopicCritiqueSlice: StateCreator<DebateStore, [], [], TopicCr
         structuralContext += '\n' + formatLineageContext(lineageFrame);
       }
       const prompt = critiqueTopicPrompt(topic, structuralContext);
-      const { text } = await generateTextWithProgress(prompt, model, `Evaluating topic quality (${model})`, set);
+      const { text } = await generateTextWithProgress(prompt, critiqueModel, `Evaluating topic quality (${critiqueModel})`, set);
       const critique = parseTopicCritique(text, structuralScore);
 
       if (lineageFrame.length > 0) {
@@ -192,7 +196,7 @@ export const createTopicCritiqueSlice: StateCreator<DebateStore, [], [], TopicCr
             embeddings: filtered.nodeEmbeddings,
           });
           const suggestedPrompt = critiqueTopicPrompt(critique.rewritten_topic, formatStructuralContext(suggestedStructural));
-          const { text: suggestedText } = await generateTextWithProgress(suggestedPrompt, model, `Scoring suggested topic (${model})`, set);
+          const { text: suggestedText } = await generateTextWithProgress(suggestedPrompt, critiqueModel, `Scoring suggested topic (${critiqueModel})`, set);
           const parsed = parseTopicCritique(suggestedText, suggestedStructural);
           if (parsed.composite_score >= critique.composite_score) {
             suggestedCritique = parsed;
@@ -255,7 +259,9 @@ export const createTopicCritiqueSlice: StateCreator<DebateStore, [], [], TopicCr
 
     set({ topicCritiqueLoading: true, debateError: null });
     const model = getConfiguredModel();
-    getGlobalRecorder()?.record({ type: 'topic.critique', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'reEvaluateSuggestedTopic.started', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length, model } });
+    // t/3722: same scored-JSON call shape as runTopicCritique — same fast-model routing.
+    const critiqueModel = getCritiqueModel(model);
+    getGlobalRecorder()?.record({ type: 'topic.critique', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'reEvaluateSuggestedTopic.started', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length, model, critique_model: critiqueModel } });
 
     try {
       const taxState = useTaxonomyStore.getState();
@@ -302,7 +308,7 @@ export const createTopicCritiqueSlice: StateCreator<DebateStore, [], [], TopicCr
       });
 
       const suggestedPrompt = critiqueTopicPrompt(suggestedText, formatStructuralContext(suggestedStructural));
-      const { text } = await generateTextWithProgress(suggestedPrompt, model, `Re-evaluating suggested topic (${model})`, set);
+      const { text } = await generateTextWithProgress(suggestedPrompt, critiqueModel, `Re-evaluating suggested topic (${critiqueModel})`, set);
       const suggestedCritique = parseTopicCritique(text, suggestedStructural);
 
       const freshDebate = get().activeDebate;
