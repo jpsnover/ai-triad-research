@@ -54,6 +54,14 @@ if ($ssotContexts.Count -eq 0) {
     Write-Host "::error::required-contexts drift-guard: SSOT has no required_contexts — cannot verify (exit 2)."
     exit 2
 }
+# t/3804 PR-1: `strict` must be DECLARED in the SSOT, not assumed or hardcoded in this script body
+# — an undeclared expectation is prose again, which is the t/3803 root cause this whole thread
+# traces back to. Missing field -> cannot verify (same discipline as empty required_contexts).
+if (-not $ssotJson.PSObject.Properties['strict']) {
+    Write-Host "::error::required-contexts drift-guard: SSOT has no 'strict' field — cannot verify (exit 2)."
+    exit 2
+}
+$ssotStrict = [bool]$ssotJson.strict
 
 # ── Query live branch protection (needs admin gh) ────────────────────────────
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
@@ -86,11 +94,19 @@ if ($apiContexts.Count -eq 0) {
     Write-Host "::error::required-contexts drift-guard: branch protection returned zero required contexts — cannot verify (exit 2)."
     exit 2
 }
+# t/3804 PR-1: `strict` is ALREADY IN THIS PAYLOAD (`{checks, contexts, contexts_url, strict, url}`
+# per the sub-resource this guard already queries at :63) — no second API call, no endpoint change.
+# Missing field here would mean GitHub changed its response shape; fail degraded, never silent-pass.
+if (-not $api.PSObject.Properties['strict']) {
+    Write-Host "::error::required-contexts drift-guard: branch-protection payload has no 'strict' field — cannot verify (exit 2)."
+    exit 2
+}
+$apiStrict = [bool]$api.strict
 
 # ── Compare ──────────────────────────────────────────────────────────────────
-$v = Get-RequiredContextsDriftVerdict -Ssot $ssotContexts -Api $apiContexts
-Write-Host "SSOT:  $([string]::Join(', ', ($ssotContexts | Sort-Object)))"
-Write-Host "API:   $([string]::Join(', ', ($apiContexts | Sort-Object)))"
+$v = Get-RequiredContextsDriftVerdict -Ssot $ssotContexts -Api $apiContexts -SsotStrict $ssotStrict -ApiStrict $apiStrict
+Write-Host "SSOT:  $([string]::Join(', ', ($ssotContexts | Sort-Object))) | strict=$ssotStrict"
+Write-Host "API:   $([string]::Join(', ', ($apiContexts | Sort-Object))) | strict=$apiStrict"
 if ($v.InSync) {
     Write-Host 'required-contexts drift-guard: IN SYNC — SSOT matches live branch protection.'
     exit 0
@@ -100,5 +116,15 @@ if ($v.MissingFromApi.Count -gt 0) {
 }
 if ($v.MissingFromSsot.Count -gt 0) {
     Write-Host "::error::required-contexts drift-guard: branch protection requires context(s) MISSING from the SSOT (SSOT under-claims — the lint won't guard them): $([string]::Join(', ', $v.MissingFromSsot)) — add them to $SsotPath."
+}
+if (-not $v.StrictInSync) {
+    # Anomaly direction matters (SO e/227#27): the SSOT's declared expectation is `false`, so
+    # `strict: true` live is the regression to name explicitly — not a bare "values differ".
+    $regressionNote = if ($apiStrict -and -not $ssotStrict) {
+        " — live `strict: true` is a REGRESSION from the expected `false` (a busy main can flip a PR behind mid-check; see docs/shared-tree-divergence.md)."
+    } else {
+        ''
+    }
+    Write-Host "::error::required-contexts drift-guard: 'strict' mismatch — SSOT expects $ssotStrict, branch protection has $apiStrict.$regressionNote"
 }
 exit 1

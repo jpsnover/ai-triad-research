@@ -14,8 +14,14 @@
     "JOB-level rules (R2/R5 — look up a job whose posted name == the context) are N/A and skipped.",
     "'posts' is a VERIFIABLE claim, not a bare opt-out (app-posted = a bare /runs/<id> status; a workflow",
     "job = /actions/runs/.../job/); an UNMARKED context with no matching job still HARD-FAILS R2 (typo",
-    "catch preserved). The R2/R5 job lookup is name-then-id (workflow-lint _find_reporting_job, t/3691)."
+    "catch preserved). The R2/R5 job lookup is name-then-id (workflow-lint _find_reporting_job, t/3691).",
+    "t/3804 PR-1: 'strict' is the SSOT's declared expectation for required_status_checks.strict —",
+    "Test-RequiredContextsListDrift.ps1 reads this field and compares it against the live API (already",
+    "present in the payload it queries; no endpoint change). Expected false: a stale-base PR must stay",
+    "mergeable without being forced to rebase against every main push (t/3686). strict:true here would",
+    "be a REGRESSION, not a hardening someone forgot to declare."
   ],
+  "strict": false,
   "required_contexts": [
     { "context": "ci-gate", "workflow": ".github/workflows/ci.yml" },
     { "context": "joint-gv-guard", "workflow": ".github/workflows/joint-gv-guard.yml" },

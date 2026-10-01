@@ -50,4 +50,42 @@ Describe 'Get-RequiredContextsDriftVerdict (t/3646)' -Tag 'devops' {
         $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate', ' ci-gate ', 'CodeQL') -Api @('CodeQL', 'ci-gate')
         $v.InSync | Should -BeTrue
     }
+
+    Context '"strict" assertion (t/3804 PR-1)' {
+        It 'BACKWARD COMPAT: omitting -SsotStrict/-ApiStrict does not affect InSync (pre-existing callers unaffected)' {
+            $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate') -Api @('ci-gate')
+            $v.InSync | Should -BeTrue
+            $v.StrictChecked | Should -BeFalse
+        }
+
+        It 'IN SYNC on contexts AND matching strict (both false)' {
+            $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate') -Api @('ci-gate') -SsotStrict $false -ApiStrict $false
+            $v.InSync | Should -BeTrue
+            $v.StrictChecked | Should -BeTrue
+            $v.StrictInSync | Should -BeTrue
+        }
+
+        It 'LOAD-BEARING: contexts in sync but strict MISMATCHES (SSOT false, live true) -> NOT in sync' {
+            $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate') -Api @('ci-gate') -SsotStrict $false -ApiStrict $true
+            $v.InSync | Should -BeFalse
+            $v.StrictChecked | Should -BeTrue
+            $v.StrictInSync | Should -BeFalse
+            $v.SsotStrict | Should -BeFalse
+            $v.ApiStrict | Should -BeTrue
+        }
+
+        It 'a strict mismatch alone (contexts otherwise in sync) is the ONLY reason InSync is false' {
+            $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate', 'CodeQL') -Api @('ci-gate', 'CodeQL') -SsotStrict $false -ApiStrict $true
+            @($v.MissingFromApi).Count | Should -Be 0
+            @($v.MissingFromSsot).Count | Should -Be 0
+            $v.InSync | Should -BeFalse
+        }
+
+        It 'strict mismatch is INDEPENDENT of context drift — both can fire together' {
+            $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate', 'ghost-gate') -Api @('ci-gate') -SsotStrict $false -ApiStrict $true
+            $v.MissingFromApi | Should -Be @('ghost-gate')
+            $v.StrictInSync | Should -BeFalse
+            $v.InSync | Should -BeFalse
+        }
+    }
 }
