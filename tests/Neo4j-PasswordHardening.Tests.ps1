@@ -115,10 +115,12 @@ Describe 'Neo4j password hardening (t/2530 M2)' -Tag 'security' {
         $src | Should -Match '\$AuthVerified'
     }
 
-    It 'Install-GraphDatabase removes the auth secret file only after the credential is verified (SO cond.2)' {
+    It 'Install-GraphDatabase scrubs the auth secret by TRUNCATING the file, not deleting it (t/3833#4, WSL2 bind-mount)' {
         $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
-        # The removal must be inside the verified branch — assert the removal references $AuthFile and that
-        # the verified-gate exists (full timeout/no-delete semantics are integration-level, Docker agent).
-        $src | Should -Match 'Remove-Item -LiteralPath \$AuthFile'
+        # Docker/WSL2: deleting a live bind-mount source makes Docker recreate it as a directory, breaking
+        # restart. The verified-path scrub must zero the file in place, keeping the bind source a file.
+        $src | Should -Match 'WriteAllBytes\(\$AuthFile, \[byte\[\]\]@\(\)\)'
+        # And the gate on the authenticated verify still exists.
+        $src | Should -Match '\$AuthVerified'
     }
 }

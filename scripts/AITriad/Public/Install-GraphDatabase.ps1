@@ -227,8 +227,12 @@ function Install-GraphDatabase {
 
             if ($AuthVerified) {
                 Write-OK 'Neo4j credential verified (authenticated RETURN 1)'
-                # SO cond.2: remove the secret file ONLY after the credential is confirmed.
-                Remove-Item -LiteralPath $AuthFile -Force -ErrorAction SilentlyContinue
+                # SO cond.2: scrub the secret ONLY after the credential is confirmed. TRUNCATE to zero bytes
+                # rather than Remove-Item (Docker/WSL2 verify, t/3833#4, p/707): deleting a live bind-mount
+                # source makes Docker recreate it as a DIRECTORY, so every later `docker start` fails with
+                # "not a directory: mount a directory onto a file". A zero-byte file holds no secret, keeps the
+                # bind source a file, and restarts cleanly (neo4j only reads NEO4J_AUTH_FILE at first init).
+                [System.IO.File]::WriteAllBytes($AuthFile, [byte[]]@())
             } else {
                 # SO cond.2: leave the file on failure; fail loudly (fail-open is the dangerous case).
                 Write-Warn "Auth secret file LEFT at $AuthFile (contains the Neo4j password) — not removed; credential unverified."
