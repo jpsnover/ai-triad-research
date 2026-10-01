@@ -185,10 +185,10 @@ function GroundingSection({ grounding, claims }: { grounding: OpEdGroundingRef[]
                       type="button"
                       className="oped-grounding-id-btn"
                       aria-expanded={isOpen}
-                      title={g.label}
+                      title={g.node_id}
                       onClick={() => setExpandedId(isOpen ? null : g.node_id)}
                     >
-                      {g.node_id}
+                      {g.label || g.node_id}
                     </button>
                   </td>
                   <td>{g.relevance || '—'}</td>
