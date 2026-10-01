@@ -2,7 +2,8 @@
 // Both-arms proof per each decision point. Uses inline baseline object (not a file path)
 // so the test is hermetic. shouldWrite semantics are re-implemented inline — the generator
 // .mjs cannot be imported in vitest (top-level await / ESM resolution mismatch).
-import { describe, it, afterAll } from 'vitest';
+import { describe, it, afterAll, beforeAll } from 'vitest';
+import { writeFileSync, unlinkSync } from 'fs';
 import { RuleTester, Linter } from 'eslint';
 import rule from '../../../lib/eslint-rules/complexity-budget.js';
 
@@ -305,6 +306,50 @@ describe('threshold mismatch — both arms', () => {
     const errs = messages.filter((m) => m.ruleId === 'local/complexity-budget');
     if (errs.length !== 1 || !errs[0].message.includes('10') || !errs[0].message.includes('15'))
       throw new Error(`Expected thresholdMismatch with both values (10 and 15), got: ${JSON.stringify(errs.map((e) => e.message))}`);
+  });
+});
+
+// ── ARM: baseline load error — both arms ─────────────────────────────────────
+// If the configured string baseline path is unreadable, the rule must fail loudly
+// with baselineLoadError naming the path. Silently degrading to {} disables the gate.
+// ARM A: string path exists and is readable → no baselineLoadError (gate active).
+// ARM B: string path does not exist → baselineLoadError (ENOENT, both values in message).
+describe('baseline load error — both arms', () => {
+  const linter = new Linter({ configType: 'flat' });
+  const simpleCode = `function f(a) { if (a) return 1; return 2; }`;
+  const tmpBaseline = `.complexity-test-baseline-tmp.json`;
+
+  beforeAll(() => {
+    writeFileSync(tmpBaseline, JSON.stringify({ __meta__: { threshold: 15 } }), 'utf-8');
+  });
+
+  afterAll(() => {
+    try { unlinkSync(tmpBaseline); } catch { /* cleanup best-effort */ }
+  });
+
+  it('ARM A: configured string path exists → no baselineLoadError', () => {
+    const messages = linter.verify(simpleCode, {
+      plugins: { local: { rules: { 'complexity-budget': rule } } },
+      rules: { 'local/complexity-budget': ['error', { threshold: 15, baseline: tmpBaseline }] },
+      languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
+    });
+    const errs = messages.filter((m) => m.ruleId === 'local/complexity-budget');
+    if (errs.some((e) => e.messageId === 'baselineLoadError'))
+      throw new Error(`Unexpected baselineLoadError: ${JSON.stringify(errs.map((e) => e.message))}`);
+  });
+
+  it('ARM B: configured string path does not exist → baselineLoadError naming the path', () => {
+    const missing = 'nonexistent-complexity-baseline-xyz.json';
+    const messages = linter.verify(simpleCode, {
+      plugins: { local: { rules: { 'complexity-budget': rule } } },
+      rules: { 'local/complexity-budget': ['error', { threshold: 15, baseline: missing }] },
+      languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
+    });
+    const errs = messages.filter((m) => m.ruleId === 'local/complexity-budget');
+    if (errs.length !== 1 || errs[0].messageId !== 'baselineLoadError')
+      throw new Error(`Expected exactly one baselineLoadError, got: ${JSON.stringify(errs.map((e) => e.message))}`);
+    if (!errs[0].message.includes(missing))
+      throw new Error(`Expected error message to include path "${missing}", got: ${errs[0].message}`);
   });
 });
 
