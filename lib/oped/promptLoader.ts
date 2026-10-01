@@ -133,3 +133,27 @@ export function assembleReadabilityEditPrompt(
     VIOLATIONS: violations,
   });
 }
+
+export function assembleCoherenceJudgePrompt(
+  promptsDir: string,
+  body: string,
+  thesis: string,
+  valueHierarchy: string,
+): string {
+  return interpolate(loadPromptTemplate(promptsDir, 'op-ed-coherence-judge'), {
+    BODY: body,
+    THESIS: thesis,
+    VALUE_HIERARCHY: valueHierarchy,
+  });
+}
+
+export function assembleCoherenceRewritePrompt(
+  promptsDir: string,
+  body: string,
+  flaggedContradictions: string,
+): string {
+  return interpolate(loadPromptTemplate(promptsDir, 'op-ed-coherence-rewrite'), {
+    BODY: body,
+    FLAGGED_CONTRADICTIONS: flaggedContradictions,
+  });
+}

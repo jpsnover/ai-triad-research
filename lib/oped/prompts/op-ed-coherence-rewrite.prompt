@@ -1,0 +1,17 @@
+The op-ed below has one or more internal contradictions, each identified by the two conflicting spans. Produce a minimally-edited version that resolves ONLY those contradictions.
+
+Resolve each by EITHER (a) adding the missing reconciling scope/qualifier/locus that makes the two claims consistent, OR (b) aligning the later claim (usually the solution or close) to the thesis and premises the op-ed already argued.
+
+Hard constraints:
+- Do NOT abandon or soften the op-ed's position/stance. The camp's conviction stays; you are removing a self-contradiction, not changing sides.
+- Preserve the voice, structure, argument order, and approximate length (±10%).
+- Change only what's needed to resolve the flagged contradictions. Do not introduce new claims, new evidence, or any of these banned tells: In conclusion, Furthermore, Moreover, Ultimately, It is important to note, mitigate, robust, leverage, utilize, ensure.
+- Do not repeat the headline inside the body.
+
+CONTRADICTIONS TO RESOLVE (each: span_a conflicts with span_b — why):
+{{FLAGGED_CONTRADICTIONS}}
+
+OP-ED BODY:
+{{BODY}}
+
+Return ONLY the rewritten body as Markdown. No commentary.

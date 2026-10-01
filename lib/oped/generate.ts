@@ -10,11 +10,12 @@ import type { ScoredPovNode, ScoredSituationNode } from '../debate/taxonomyRelev
 import { scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes } from '../debate/taxonomyRelevance.js';
 import { loadTaxonomy } from '../debate/taxonomyLoader.js';
 import { computeEmbedding } from '../embeddings/onnxEmbedding.js';
-import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef, EditingMeta } from './types.js';
+import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef, EditingMeta, CoherenceMeta } from './types.js';
 import { resolveOutletBand } from './outletBands.js';
-import { loadAndAssemblePrompt, assembleReflectionPrompt, assembleSourceBriefPrompt, assembleReadabilityEditPrompt, type SourceBrief } from './promptLoader.js';
+import { loadAndAssemblePrompt, assembleReflectionPrompt, assembleSourceBriefPrompt, assembleReadabilityEditPrompt, assembleCoherenceJudgePrompt, assembleCoherenceRewritePrompt, type SourceBrief } from './promptLoader.js';
 import { FABRICATED_LEDE_GUARD } from './opedGuards.js';
 import { measureReadability, needsEdit, buildViolationsText, findIntroducedTells, splitLongParagraphs, DEFAULT_READABILITY_TARGETS } from './readabilityMeasure.js';
+import { COHERENCE_JUDGE_SCHEMA, normalizeJudgeResult, validFlags, buildCoherenceViolationsText, type CoherenceJudgeResult } from './coherenceCheck.js';
 
 // ── Public request / deps types ───────────────────────────────────────────────
 
@@ -305,22 +306,133 @@ async function runVoiceGeneration(
 
   const body = parsed.body_markdown ?? '';
 
+  // ── Logical-coherence pass (t/3826) ──────────────────────────────────────
+  // Judge checks for internal contradiction (thesis⇄solution, mechanism⇄scope,
+  // co-asserted tension). Runs BEFORE readability so the final body is coherent
+  // before prose cleanup. Non-fatal: any throw → original body + recorder.warn.
+  //
+  // SURVIVING VECTOR: coherence is verified pre-readability only — a readability
+  // rewrite can reintroduce a removed contradiction. Accepted gap per t/3826.
+  let finalBody = body;
+  let coherenceMeta: CoherenceMeta | undefined;
+
+  if (body.trim()) {
+    try {
+      const valueHierarchyText = soul.value_hierarchy.map((v, i) => `${i + 1}. ${v}`).join('\n');
+      const thesisText = request.params.thesis?.trim() ?? '';
+      const judgePrompt = assembleCoherenceJudgePrompt(deps.promptsDir, body, thesisText, valueHierarchyText);
+      const judgeRaw = await deps.adapter.generateText(judgePrompt, request.params.model, {
+        maxTokens: 1200,
+        temperature: 0.1,
+        responseSchema: COHERENCE_JUDGE_SCHEMA as Record<string, unknown>,
+        signal: request.signal,
+      });
+      const judgeResult = JSON.parse(stripCodeFences(judgeRaw)) as CoherenceJudgeResult;
+      const checks = normalizeJudgeResult(judgeResult);
+      const flags = validFlags(checks);
+      const anyFlagged = flags.length > 0;
+
+      if (!anyFlagged) {
+        coherenceMeta = {
+          any_flagged: false,
+          checks_fired: [],
+          flags: [],
+          judge_model: request.params.model,
+          body_length_before: body.length,
+          rewritten: false,
+        };
+      } else {
+        const violationsText = buildCoherenceViolationsText(checks);
+        const rewritePrompt = assembleCoherenceRewritePrompt(deps.promptsDir, body, violationsText);
+        const rewriteRaw = await deps.adapter.generateText(rewritePrompt, request.params.model, {
+          maxTokens,
+          temperature: 0.3,
+          signal: request.signal,
+        });
+        const candidate = stripCodeFences(rewriteRaw).trim();
+
+        if (!candidate) {
+          coherenceMeta = {
+            any_flagged: true,
+            checks_fired: flags.map(f => f.check_id),
+            flags: flags.map(f => ({ check_id: f.check_id, span_a: f.span_a, span_b: f.span_b, why: f.why })),
+            judge_model: request.params.model,
+            body_length_before: body.length,
+            rewritten: false,
+            reverted_reason: 'rewrite-returned-empty',
+          };
+          deps.recorder?.record({
+            type: 'system.error', component: 'opedGenerate', level: 'warn',
+            message: `Op-ed coherence rewrite returned empty for pov=${pov} set=${request.set_id} — using original body`,
+          });
+        } else {
+          // Re-judge to verify the originally-flagged checks resolved.
+          const reJudgePrompt = assembleCoherenceJudgePrompt(deps.promptsDir, candidate, thesisText, valueHierarchyText);
+          const reJudgeRaw = await deps.adapter.generateText(reJudgePrompt, request.params.model, {
+            maxTokens: 1200,
+            temperature: 0.1,
+            responseSchema: COHERENCE_JUDGE_SCHEMA as Record<string, unknown>,
+            signal: request.signal,
+          });
+          const reJudgeResult = JSON.parse(stripCodeFences(reJudgeRaw)) as CoherenceJudgeResult;
+          const reChecks = normalizeJudgeResult(reJudgeResult);
+          const origFlagIds = new Set(flags.map(f => f.check_id));
+          const stillFlagged = validFlags(reChecks).filter(c => origFlagIds.has(c.check_id));
+
+          if (stillFlagged.length > 0) {
+            coherenceMeta = {
+              any_flagged: true,
+              checks_fired: flags.map(f => f.check_id),
+              flags: flags.map(f => ({ check_id: f.check_id, span_a: f.span_a, span_b: f.span_b, why: f.why })),
+              judge_model: request.params.model,
+              body_length_before: body.length,
+              body_length_after: candidate.length,
+              rewritten: false,
+              checks_still_flagged_after: stillFlagged.map(c => c.check_id),
+              reverted_reason: `rewrite-did-not-resolve: ${stillFlagged.map(c => c.check_id).join(', ')}`,
+            };
+            deps.recorder?.record({
+              type: 'system.error', component: 'opedGenerate', level: 'warn',
+              message: `Op-ed coherence rewrite did not resolve [${stillFlagged.map(c => c.check_id).join(', ')}] for pov=${pov} set=${request.set_id} — reverting to original body`,
+            });
+          } else {
+            finalBody = candidate;
+            coherenceMeta = {
+              any_flagged: true,
+              checks_fired: flags.map(f => f.check_id),
+              flags: flags.map(f => ({ check_id: f.check_id, span_a: f.span_a, span_b: f.span_b, why: f.why })),
+              judge_model: request.params.model,
+              body_length_before: body.length,
+              body_length_after: candidate.length,
+              rewritten: true,
+              checks_still_flagged_after: [],
+            };
+          }
+        }
+      }
+    } catch (err) {
+      deps.recorder?.record({
+        type: 'system.error', component: 'opedGenerate', level: 'warn',
+        message: `Op-ed coherence pass failed for pov=${pov} set=${request.set_id}: ${String(err)} — using original body`,
+      });
+    }
+  }
+
   // ── Readability edit pass (t/3707) ────────────────────────────────────────
   // Measure -> conditional targeted edit -> re-verify. Runs ONLY when the draft
   // misses target (FK>11 || any paragraph>90w || any sentence>30w). Non-fatal:
   // any error degrades to the original body + WARN, never blocking generation.
   // Wired BEFORE the reflection pass so reflection maps grounding on the final body.
-  let finalBody = body;
   let editingMeta: EditingMeta | undefined;
 
   if (body.trim()) {
-    const beforeChecks = measureReadability(body);
+    const beforeChecks = measureReadability(finalBody);
     if (needsEdit(beforeChecks, readTargets)) {
-      const origWordCount = (body.match(/\b\S+\b/g) ?? []).length;
+      const origWordCount = (finalBody.match(/\b\S+\b/g) ?? []).length;
 
       const attemptEdit = async (temperature: number): Promise<string | null> => {
         const violations = buildViolationsText(beforeChecks, readTargets);
-        const editPrompt = assembleReadabilityEditPrompt(deps.promptsDir, body, violations);
+        const editPrompt = assembleReadabilityEditPrompt(deps.promptsDir, finalBody, violations);
         const editRaw = await deps.adapter.generateText(editPrompt, request.params.model, {
           maxTokens,
           temperature,
@@ -346,7 +458,7 @@ async function runVoiceGeneration(
           editingMeta = { edited: false, fk_before: beforeChecks.fkGrade, fk_after: beforeChecks.fkGrade, checks_failed_after: [], reverted_reason: 'word-count-collapse' };
         } else {
           // Voice preservation: revert if the edit introduced banned tells absent from original
-          const introducedTells = findIntroducedTells(body, firstCandidate);
+          const introducedTells = findIntroducedTells(finalBody, firstCandidate);
           if (introducedTells.length > 0) {
             deps.recorder?.record({
               type: 'system.error', component: 'opedGenerate', level: 'warn',
@@ -361,7 +473,7 @@ async function runVoiceGeneration(
               try {
                 const retryCandidate = await attemptEdit(0.2);
                 if (retryCandidate !== null) {
-                  const retryTells = findIntroducedTells(body, retryCandidate);
+                  const retryTells = findIntroducedTells(finalBody, retryCandidate);
                   const retryChecks = measureReadability(retryCandidate);
                   if (retryTells.length === 0 && retryChecks.fkGrade <= firstChecks.fkGrade) {
                     chosenBody = retryCandidate;
@@ -572,6 +684,7 @@ async function runVoiceGeneration(
     ...(reflClaims && { claims: reflClaims }),
     ...(fabricatedLede && { fabricated_lede: true as const }),
     ...(editingMeta && { editing_meta: editingMeta }),
+    ...(coherenceMeta && { coherence_meta: coherenceMeta }),
   };
 }
 

@@ -54,6 +54,9 @@ export interface OpEdMember {
   /** Observability for the readability edit pass (t/3707). Absent when the edit pass was skipped
    *  (body already met targets). NO consumer should branch on this field; exemption lapses if one does. */
   editing_meta?: EditingMeta;
+  /** Observability for the logical-coherence pass (t/3826). Absent when pass was skipped (no flags).
+   *  NO consumer should branch on this field; exemption lapses if one does. */
+  coherence_meta?: CoherenceMeta;
 }
 
 /** Outcome record for the readability edit pass (t/3707). Written for CL validation tooling; log-only. */
@@ -65,6 +68,25 @@ export interface EditingMeta {
   /** Names of checks that still failed after the edit (empty = all passed). */
   checks_failed_after: string[];
   /** Populated when the edit was reverted: reason string. */
+  reverted_reason?: string;
+}
+
+/** Outcome record for the logical-coherence pass (t/3826). Written for CL validation tooling; log-only. */
+export interface CoherenceMeta {
+  any_flagged: boolean;
+  /** check_ids that produced valid (both-spans-quoted) flags on the original body. */
+  checks_fired: string[];
+  /** The valid flags verbatim — spans are non-negotiable for CL's false-positive study. */
+  flags: Array<{ check_id: string; span_a: string; span_b: string; why: string }>;
+  /** Model the coherence judge ran on — required for CL's evaluator-sensitivity study (t/3826#4). */
+  judge_model: string;
+  body_length_before: number;
+  /** Populated when the body was replaced by the coherence rewrite. */
+  body_length_after?: number;
+  rewritten: boolean;
+  /** check_ids that still flagged after an accepted rewrite (empty = all resolved). */
+  checks_still_flagged_after?: string[];
+  /** Populated when the rewrite was reverted. */
   reverted_reason?: string;
 }
 
