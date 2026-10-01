@@ -51,7 +51,8 @@ function Build-NodeSourceIndex {
         DATA WRITE: producing the file mutates the data repo; it runs under the
         /data-mutation discipline (clean tree — enforced by the Write-Utf8NoBom guard —
         app-quiesce, second-agent count-reconcile) and must invert the CLEANED, live-id
-        corpus (gated on t/3595). Use -WhatIf / -PassThru to preview without writing.
+        corpus (gated on t/3595). Use -WhatIf to preview without writing; -PassThru
+        returns the built index in addition to writing it.
     .PARAMETER SummariesDir
         Directory of summary JSON files to invert. Default: Get-SummariesDir.
     .PARAMETER TaxonomyDir
