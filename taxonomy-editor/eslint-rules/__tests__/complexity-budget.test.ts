@@ -110,15 +110,13 @@ rt.run('complexity-budget — ARM 4b: decomposition rule clean', rule, {
 
 // ── shouldWrite semantics (re-implemented inline for unit coverage) ────────────
 // The generator .mjs exports shouldWrite but cannot be imported in vitest, so we
-// replicate the function here and assert the TL-corrected logic directly.
-// Ceiling constants mirror complexity-budget-predicate.js (SO condition 2, e/240#9).
-const DECOMP_CEIL_MULT = 2;
-const DECOMP_CEIL_ADD  = 5;
-function shouldWrite(observed: { max: number; countOver: number }, existing: { max: number; countOver: number } | undefined): boolean {
+// replicate the function here and assert the corrected logic directly.
+// Formula mirrors complexity-budget-predicate.js (t/3821 predicate fix, e/240#30).
+function shouldWrite(observed: { max: number; countOver: number }, existing: { max: number; countOver: number } | undefined, threshold = 15): boolean {
   if (!existing) return true;
   if (observed.max < existing.max) {
-    // Decomposition: max strictly fell — allow countOver to rise, but cap pathological growth.
-    const ceiling = Math.max(existing.countOver * DECOMP_CEIL_MULT, existing.countOver + DECOMP_CEIL_ADD);
+    // Decomposition: max strictly fell. ceiling = max(existing.countOver+5, ceil(existing.max/threshold))
+    const ceiling = Math.max(existing.countOver + 5, Math.ceil(existing.max / threshold));
     return observed.countOver <= ceiling;
   }
   if (observed.max === existing.max && observed.countOver <= existing.countOver) return true; // Pareto
@@ -137,7 +135,7 @@ rt.run('complexity-budget — ARM 4c: ceiling passes (honest decomposition)', ru
     {
       filename: 'ceil-pass.js',
       // Two functions each with complexity 7 (1 + 6 nested ifs). max=7<20, countOver=2.
-      // ceiling = max(1*2, 1+5) = 6; 2 ≤ 6 → acceptable.
+      // ceiling = max(1+5, ceil(20/5)=4) = 6; 2 ≤ 6 → acceptable.
       code: [
         'function a(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
         'function b(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
@@ -153,15 +151,15 @@ rt.run('complexity-budget — ARM 4c: ceiling passes (honest decomposition)', ru
 // After "split": 7 functions each at complexity 7 → {max:7, countOver:7}.
 // ceiling = max(1×2, 1+5) = 6; countOver=7 > 6 → FAIL → countOverExceeded.
 const BASELINE_CEIL_FAIL = {
-  'ceil-fail.js': { max: 100, countOver: 1 },
+  'ceil-fail.js': { max: 30, countOver: 1 },
 };
 rt.run('complexity-budget — ARM 4d: ceiling fails (pathological growth)', rule, {
   valid: [],
   invalid: [
     {
       filename: 'ceil-fail.js',
-      // Seven functions each with complexity 7. max=7<100 (looks like decomposition),
-      // countOver=7 > ceiling(6) → rejected.
+      // Seven functions each with complexity 7, threshold=5. max=7<30 (looks like decomposition),
+      // ceiling = max(1+5, ceil(30/5)=6) = 6; countOver=7 > 6 → rejected.
       code: [
         'function a(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
         'function b(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
@@ -213,18 +211,18 @@ describe('shouldWrite — ARM 5: regression', () => {
   });
 });
 
-// ── shouldWrite ceiling arms (SO condition 2, e/240#9) ───────────────────────
-// ceiling = max(existing.countOver * 2, existing.countOver + 5)
+// ── shouldWrite ceiling arms (t/3821 predicate fix, e/240#30) ────────────────
+// ceiling = max(existing.countOver + 5, ceil(existing.max / threshold))
 describe('shouldWrite — ceiling arms', () => {
   it('decomp + countOver within ceiling → true', () => {
-    // {max:40, countOver:2} vs {max:100, countOver:1}: ceiling=max(2,6)=6; 2≤6 → true
-    const result = shouldWrite({ max: 40, countOver: 2 }, { max: 100, countOver: 1 });
+    // {max:40, countOver:2} vs {max:100, countOver:1}, threshold=15: ceiling=max(6,ceil(100/15)=7)=7; 2≤7 → true
+    const result = shouldWrite({ max: 40, countOver: 2 }, { max: 100, countOver: 1 }, 15);
     if (!result) throw new Error('Expected true: honest decomposition within ceiling');
   });
 
   it('decomp + countOver exceeds ceiling → false', () => {
-    // {max:99, countOver:500} vs {max:100, countOver:1}: ceiling=max(2,6)=6; 500>6 → false
-    const result = shouldWrite({ max: 99, countOver: 500 }, { max: 100, countOver: 1 });
+    // {max:99, countOver:500} vs {max:100, countOver:1}, threshold=15: ceiling=max(6,ceil(100/15)=7)=7; 500>7 → false
+    const result = shouldWrite({ max: 99, countOver: 500 }, { max: 100, countOver: 1 }, 15);
     if (result) throw new Error('Expected false: pathological countOver growth rejected by ceiling');
   });
 });
@@ -239,10 +237,11 @@ describe('generator integrity — stale-key isolation', () => {
   function generatorShouldWrite(
     observed: { max: number; countOver: number },
     existing: { max: number; countOver: number } | undefined,
+    threshold = 15,
   ): boolean {
     if (!existing) return true;
     if (observed.max < existing.max) {
-      const ceiling = Math.max(existing.countOver * DECOMP_CEIL_MULT, existing.countOver + DECOMP_CEIL_ADD);
+      const ceiling = Math.max(existing.countOver + 5, Math.ceil(existing.max / threshold));
       return observed.countOver <= ceiling;
     }
     if (observed.max === existing.max && observed.countOver <= existing.countOver) return true;
@@ -435,4 +434,69 @@ describe('drift test — built-in complexity vs our rule node set', () => {
       }
     });
   }
+});
+
+// ── Both-halves: deadlock fix (t/3821, e/240#29) ─────────────────────────────
+// Three times in this work stream a fix was correct in one half and absent in the
+// other. This arm proves BOTH: the rule passes the deadlock split AND the generator
+// writes the new baseline values. Testing only the predicate leaves the generator gap open.
+//
+// Scenario: runTurn.ts {max:408, countOver:1} split into 15 functions at complexity 20.
+// New ceiling = max(1+5, ceil(408/15)=28) = 28; countOver=15 ≤ 28 → both pass.
+// Old ceiling = max(1×2, 1+5) = 6; countOver=15 > 6 → both deadlocked (rule fails,
+// generator shares predicate so it also refuses to write the new values — no escape).
+
+const BASELINE_DEADLOCK = {
+  'deadlock.js': { max: 408, countOver: 1 },
+};
+
+// RULE ARM: 15 functions at complexity 20 (19 nested ifs, >threshold=15) → PASS.
+rt.run('complexity-budget — both-halves: rule ARM (deadlock resolved)', rule, {
+  valid: [
+    {
+      filename: 'deadlock.js',
+      // 15 functions, each complexity 20 (1 + 19 nested ifs). {max:20, countOver:15}.
+      // Baseline {max:408, countOver:1}, threshold=15.
+      // New ceiling=max(6,28)=28; 15≤28 → PASS. Old ceiling=6; 15>6 → FAIL (deadlock).
+      code: Array.from({ length: 15 }, (_, i) =>
+        `function f${i + 1}(a,b,c,d,e,g,h,i,j,k,l,m,n,o,p,q,r,s,t){if(a)if(b)if(c)if(d)if(e)if(g)if(h)if(i)if(j)if(k)if(l)if(m)if(n)if(o)if(p)if(q)if(r)if(s)if(t)return 1;return 0;}`
+      ).join('\n'),
+      options: [{ baseline: BASELINE_DEADLOCK, threshold: 15 }],
+    },
+  ],
+  invalid: [],
+});
+
+// GENERATOR ARM: shouldWrite({max:20, countOver:15}, {max:408, countOver:1}, threshold=15) → true.
+describe('both-halves: generator ARM (deadlock resolved — generator writes new values)', () => {
+  it('{max:20, countOver:15} vs {max:408, countOver:1} — shouldWrite true (not deadlocked)', () => {
+    // New ceiling = max(1+5, ceil(408/15)=28) = 28; 15≤28 → true → generator writes.
+    // Old ceiling = max(1×2, 1+5) = 6; 15>6 → false → generator refused (deadlock).
+    const result = shouldWrite({ max: 20, countOver: 15 }, { max: 408, countOver: 1 }, 15);
+    if (!result) throw new Error('Generator deadlock: shouldWrite must return true so generator can write the new baseline');
+  });
+});
+
+// ── shouldWrite — total-complexity oracle (e/240#35, TL ruling) ───────────────
+// Oracle: peak falls AND total complexity roughly preserved → pass.
+//         peak falls AND total complexity multiplies → fail.
+// Do NOT write this oracle as a function count — that was the ambiguity that nearly shipped.
+describe('shouldWrite — total-complexity oracle', () => {
+  it('peak falls, total preserved: {408,1}→{max:27,countOver:15} passes', () => {
+    // total: 408 → 15×27=405 (preserved). ceiling=max(6,ceil(408/15)=28)=28; 15≤28 → true.
+    const result = shouldWrite({ max: 27, countOver: 15 }, { max: 408, countOver: 1 }, 15);
+    if (!result) throw new Error('Expected pass: peak fell, total complexity roughly preserved');
+  });
+
+  it('peak barely falls, total multiplies ×165: {100,3}→{max:99,countOver:500} fails', () => {
+    // total: 3×100=300 → 500×99=49500 (×165). ceiling=max(3+5,ceil(100/15)=7)=8; 500>8 → false.
+    const result = shouldWrite({ max: 99, countOver: 500 }, { max: 100, countOver: 3 }, 15);
+    if (result) throw new Error('Expected fail: total complexity multiplied ×165');
+  });
+
+  it('peak falls to 40%, total multiplies ×16: {100,1}→{max:40,countOver:40} fails', () => {
+    // total: 1×100=100 → 40×40=1600 (×16). ceiling=max(6,ceil(100/15)=7)=7; 40>7 → false.
+    const result = shouldWrite({ max: 40, countOver: 40 }, { max: 100, countOver: 1 }, 15);
+    if (result) throw new Error('Expected fail: total complexity multiplied ×16');
+  });
 });
