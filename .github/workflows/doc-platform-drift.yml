@@ -1,0 +1,51 @@
+name: doc-platform-drift
+
+# Doc-vs-platform drift detector (t/3797). Prevention for the e/227 incident: three
+# docs + a skill restated `enforce_admins=false` / admin-bypass-works / a stale
+# required-context list for ~2 days after t/3736 flipped `enforce_admins:true` to
+# live — found by two reviewers reading the files for unrelated reasons, not by any
+# check. "Detected by luck" was the gap this closes.
+#
+# WARN-ONLY / ADVISORY. `continue-on-error: true` below means this step can NEVER
+# fail the job or block a merge. Promotion to a blocking gate is a separate, later
+# change requiring its own mandatory Second Opinion consult (root AGENTS.md) and at
+# least one green cycle observing real PRs first (Gate Promotion discipline).
+#
+# SCOPE BOUNDARY (state exactly this — do not overclaim, t/3797#2): this check
+# closes DRIFT-FROM-PLATFORM — a literal claim about branch-protection config
+# (enforce_admins, admin-bypass, required-context lists/counts) that disagrees with
+# the live `gh api …/branches/main/protection` snapshot at check time. It does NOT
+# catch:
+#   - doc-vs-doc self-contradiction with no platform fact to diff against (the
+#     *founding* defect class in this repo's history)
+#   - stale claims about things with no queryable source (e.g. "the
+#     pre-self-merge-verify hook BLOCKS" — loaded != enforcing has no API; only a
+#     live fire discriminates, t/3695)
+#   - `.orca/skills/**` content — overlay-tracked (separate `.orca-git` repo), NOT
+#     present in this checkout, so this workflow structurally cannot see it. The
+#     land-from-worktree skill (the original drift site) is in this blind spot.
+#
+# See operations/devops/worker/doc-platform-drift-predicate.mjs for the full claim
+# taxonomy and t/3797 for the fixture set this was built and tested against.
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**/*.md'
+      - 'deploy/**/*.md'
+      - 'AGENTS.md'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Run doc-platform-drift predicate (warn-only)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node operations/devops/worker/doc-platform-drift-predicate.mjs
