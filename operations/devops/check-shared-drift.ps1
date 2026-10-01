@@ -89,6 +89,11 @@ if (Test-Path $phantomVerdictScript) { . $phantomVerdictScript }
 $syncVerdictScript = Join-Path $PSScriptRoot 'DriftSyncVerdict.ps1'
 if (Test-Path $syncVerdictScript) { . $syncVerdictScript }
 
+# t/3801: pure hourly-ping dedup predicates (fingerprint + should-ping). Same dot-sourceable
+# pattern; both arms + fail-safe arms unit-tested (DriftDedupVerdict.Tests.ps1).
+$dedupVerdictScript = Join-Path $PSScriptRoot 'DriftDedupVerdict.ps1'
+if (Test-Path $dedupVerdictScript) { . $dedupVerdictScript }
+
 # t/3652: bounded gh invocation. Returns combined output + exit code + timeout flag so the caller
 # can distinguish gh-absent / unauth / rate-limited / timeout — different causes, different fixes
 # (TL t/3652#3 condition 2). Never throws.
@@ -162,6 +167,15 @@ $result = [PSCustomObject]@{
     AutoRemoved      = @()
     Attribution      = @{}
     RemediationHint  = ''
+    # t/3801: hourly-ping dedup. ShouldPing=$true is the FAIL-SAFE default (never silently
+    # suppress) — flipped to $false only when an already-escalated, fingerprint-identical
+    # parked state is positively confirmed below. The reminder prompt branches on THIS field,
+    # not Alarm alone, to decide whether to actually notify.
+    ShouldPing       = $true
+    DedupCategory    = ''
+    DedupFingerprint = ''
+    DedupSuppressedCount = 0
+    DedupParkedSince = ''
 }
 
 try {
@@ -504,6 +518,114 @@ try {
     $strandedAlarm = ($result.StrandedBranches.Count -gt 0) -or ($result.StrandedBranchesStatus -ne 'OK')
     $alarm = $behind -gt 0 -or $dirtyFiles.Count -gt 0 -or $remainingJunk.Count -gt 0 -or $suspiciousPaths.Count -gt 0 -or $nestedWorktrees.Count -gt 0 -or $shellFragmentPaths.Count -gt 0 -or $strandedAlarm
     $result.Alarm = $alarm
+
+    # 6b. t/3801 — hourly-ping dedup. Own try/catch (like 5d) so a dedup failure can NEVER
+    # suppress a real alarm or break the rest of the guard: on ANY exception here, ShouldPing
+    # stays at its $true default (fail-safe, never silently muted).
+    try {
+        # CONTENT STATE, not just the binary classification label (live-fired bug found during
+        # t/3801 build): "phantom" is itself a content-equivalence statement (byte-identical to
+        # origin modulo CRLF, by definition), so the fixed label is sufficient there. "real-wip"
+        # is NOT — it is an under-specified bucket meaning only "differs from origin," so two
+        # DIFFERENT real-WIP contents on the SAME path (TL's "WIP swapped for something
+        # dangerous" case) produced the SAME label and the SAME fingerprint, silently suppressing
+        # exactly the change that matters. Fix: embed a content hash in the State string for real
+        # WIP files, so any edit to that file changes the fingerprint even though its
+        # classification (still "real-wip") does not.
+        $dirtyFileStates = @(
+            @($phantomFiles | Where-Object { $_ }) | ForEach-Object { [PSCustomObject]@{ Path = $_; State = 'phantom' } }
+            @($realWipFiles | Where-Object { $_ }) | ForEach-Object {
+                $contentHash = 'unreadable'
+                try {
+                    $fp = Join-Path $RepoRoot $_
+                    if (Test-Path -LiteralPath $fp) { $contentHash = (Get-FileHash -LiteralPath $fp -Algorithm SHA256 -ErrorAction Stop).Hash }
+                } catch { $contentHash = 'unreadable' }
+                [PSCustomObject]@{ Path = $_; State = "real-wip:$contentHash" }
+            }
+        )
+        $category = Get-DriftReasonCategory -Behind $behind -Ahead $ahead -RealWipFiles $realWipFiles -PhantomFiles $phantomFiles `
+            -JunkPaths $remainingJunk -SuspiciousPaths $suspiciousPaths -ShellFragmentPaths $shellFragmentPaths `
+            -NestedWorktrees $nestedWorktrees -StrandedBranches $result.StrandedBranches -StrandedBranchesStatus $result.StrandedBranchesStatus
+        $fingerprint = Get-DriftFingerprint -ReasonCategory $category -DirtyFileStates $dirtyFileStates `
+            -JunkPaths $remainingJunk -SuspiciousPaths $suspiciousPaths -ShellFragmentPaths $shellFragmentPaths `
+            -NestedWorktrees $nestedWorktrees -StrandedBranches $result.StrandedBranches -StrandedBranchesStatus $result.StrandedBranchesStatus
+        $result.DedupCategory = $category
+        $result.DedupFingerprint = $fingerprint
+
+        # Read stored parked-state. FAIL-SAFE: any read/parse failure, or a shape missing the
+        # fingerprint field, is treated as "nothing is reliably parked" -> StoredStateValid=$false
+        # -> Get-ShouldPing always pings (never infer safe-to-suppress from an unreadable file).
+        $statePath = Join-Path $RepoRoot 'operations/devops/drift-dedup-state.json'
+        $storedFingerprint = $null
+        $storedFirstSeen = $null
+        $storedSuppressedCount = 0
+        $storedStateValid = $true
+        if (Test-Path -LiteralPath $statePath) {
+            try {
+                $stored = Get-Content -Raw -LiteralPath $statePath -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                if ($stored.PSObject.Properties['fingerprint']) {
+                    $storedFingerprint = [string]$stored.fingerprint
+                    if ($stored.PSObject.Properties['firstSeen']) { $storedFirstSeen = [string]$stored.firstSeen }
+                    if ($stored.PSObject.Properties['suppressedCount']) { $storedSuppressedCount = [int]$stored.suppressedCount }
+                } else {
+                    $storedStateValid = $false   # missing the required field -> corrupt/unreadable shape
+                }
+            } catch { $storedStateValid = $false }   # unreadable/unparseable -> corrupt
+        }
+        # else: no file yet -> $storedFingerprint stays $null, $storedStateValid stays $true
+        # (Get-ShouldPing's own "nothing parked yet" arm handles the missing-file case correctly;
+        # $storedStateValid is reserved for POSITIVELY detected corruption, not mere absence).
+
+        $shouldPing = Get-ShouldPing -Alarm $alarm -CurrentFingerprint $fingerprint -StoredFingerprint $storedFingerprint -StoredStateValid $storedStateValid
+        $result.ShouldPing = $shouldPing
+
+        if (-not $alarm) {
+            # Clean + current — clear any parked state (t/3801#5: "Alarm=false -> unchanged").
+            if (Test-Path -LiteralPath $statePath) { Remove-Item -LiteralPath $statePath -Force -ErrorAction SilentlyContinue }
+        } else {
+            $isNewFingerprint = ($storedFingerprint -ne $fingerprint) -or (-not $storedStateValid)
+            if ($isNewFingerprint) {
+                $firstSeen = (Get-Date).ToString('o')
+                $suppressedCount = 0
+            } else {
+                $firstSeen = $storedFirstSeen
+                # PowerShell gotcha guard: an `if/else` nested as a SUB-EXPRESSION inside a larger
+                # expression (e.g. `$a + (if (cond) {0} else {1})`) is unreliable -- `if` is only
+                # safe as the ENTIRE right-hand side of an assignment, not embedded inline. Written
+                # out as its own if/else assignment instead.
+                if ($shouldPing) { $suppressedCount = $storedSuppressedCount } else { $suppressedCount = $storedSuppressedCount + 1 }
+            }
+            $result.DedupParkedSince = $firstSeen
+            $result.DedupSuppressedCount = $suppressedCount
+            try {
+                [PSCustomObject]@{
+                    fingerprint     = $fingerprint
+                    firstSeen       = $firstSeen
+                    suppressedCount = $suppressedCount
+                    category        = $category
+                } | ConvertTo-Json -Compress | Set-Content -LiteralPath $statePath -ErrorAction Stop
+            } catch { }   # best-effort write; a failed write just means the NEXT run fails-safe to ping
+        }
+
+        # OBSERVABILITY (TL t/3801#2, mandatory): append a durable record EVERY run, suppressed or
+        # not, pinged or not — "snoozed" must never mean "invisible". A daily digest / status
+        # surface reads this to tell parked-and-watched apart from silently-stopped-running.
+        try {
+            $telemetryPath = Join-Path $RepoRoot 'operations/devops/drift-dedup-telemetry.jsonl'
+            [PSCustomObject]@{
+                ts              = (Get-Date).ToString('o')
+                alarm           = $alarm
+                category        = $category
+                fingerprint     = $fingerprint
+                shouldPing      = $shouldPing
+                suppressedCount = $result.DedupSuppressedCount
+                parkedSince     = $result.DedupParkedSince
+            } | ConvertTo-Json -Compress | Add-Content -LiteralPath $telemetryPath -ErrorAction Stop
+        } catch { }   # best-effort; never let telemetry logging break the guard
+    } catch {
+        # Dedup logic itself failed — fail-safe means ShouldPing stays $true (its declared
+        # default above), never flips to $false here. Never let this block throw to the caller.
+    }
 
     if ($alarm) {
         $hints = @()
