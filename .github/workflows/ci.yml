@@ -920,6 +920,10 @@ jobs:
         working-directory: lib
         run: pnpm run lint
 
+      - name: Complexity-budget drift check — built-in vs mirror, every src file (t/3821)
+        working-directory: lib
+        run: node eslint-rules/generate-complexity-baseline.mjs --root ../taxonomy-editor/src --drift-check
+
       - name: TypeScript check — lib/debate (t/2217)
         working-directory: lib
         run: pnpm exec tsc --noEmit -p debate/tsconfig.json
