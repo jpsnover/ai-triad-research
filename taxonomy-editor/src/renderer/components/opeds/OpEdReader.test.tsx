@@ -60,7 +60,9 @@ describe('OpEdReader — single voice', () => {
       grounding: [{ node_id: 'saf-belief-014', label: 'A belief', category: 'Belief', pov: 'safetyist', relevance: '0.82', how_reflected: 'Grounds the claim' }],
     })])} />);
     expect(screen.queryByText(/Written from voice alone/i)).toBeNull();
-    expect(screen.getByRole('button', { name: 'saf-belief-014' })).toBeTruthy();
+    const btn = screen.getByRole('button', { name: 'A belief' });
+    expect(btn).toBeTruthy();
+    expect(btn.getAttribute('title')).toBe('saf-belief-014');
     expect(screen.getByText('Grounds the claim')).toBeTruthy();
   });
 
@@ -74,14 +76,14 @@ describe('OpEdReader — single voice', () => {
     // Type column is gone (Element / Relevance / Reflected only).
     expect(screen.queryByRole('columnheader', { name: 'Type' })).toBeNull();
     // The used row shows; the 'not directly used' row is hidden by default.
-    expect(screen.getByRole('button', { name: 'saf-belief-014' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'acc-belief-001' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Used' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Unused' })).toBeNull();
     // The toggle reveals the hidden row…
     fireEvent.click(screen.getByRole('button', { name: /show 1 unused element/i }));
-    expect(screen.getByRole('button', { name: 'acc-belief-001' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Unused' })).toBeTruthy();
     // …and toggling again re-hides it.
     fireEvent.click(screen.getByRole('button', { name: /hide 1 unused element/i }));
-    expect(screen.queryByRole('button', { name: 'acc-belief-001' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Unused' })).toBeNull();
   });
 
   it('shows no unused-toggle when every element is reflected (t/2703)', () => {
@@ -95,7 +97,7 @@ describe('OpEdReader — single voice', () => {
     render(<OpEdReader set={makeSet([member({
       grounding: [{ node_id: 'saf-belief-014', label: 'A belief', category: 'Belief', pov: 'safetyist', relevance: '0.82', how_reflected: 'Grounds the claim', document_claims: ['Safety incidents doubled last year', 'Only 3 labs share proactively'] }],
     })])} />);
-    fireEvent.click(screen.getByRole('button', { name: 'saf-belief-014' }));
+    fireEvent.click(screen.getByRole('button', { name: 'A belief' }));
     expect(screen.getByText('Addresses these source claims:')).toBeTruthy();
     expect(screen.getByText('Safety incidents doubled last year')).toBeTruthy();
     expect(screen.getByText('Only 3 labs share proactively')).toBeTruthy();
@@ -105,7 +107,7 @@ describe('OpEdReader — single voice', () => {
     render(<OpEdReader set={makeSet([member({
       grounding: [{ node_id: 'saf-belief-014', label: 'A belief', category: 'Belief', pov: 'safetyist', relevance: '0.82', how_reflected: 'Grounds the claim' }],
     })])} />);
-    fireEvent.click(screen.getByRole('button', { name: 'saf-belief-014' }));
+    fireEvent.click(screen.getByRole('button', { name: 'A belief' }));
     expect(screen.queryByText('Addresses these source claims:')).toBeNull();
   });
 });

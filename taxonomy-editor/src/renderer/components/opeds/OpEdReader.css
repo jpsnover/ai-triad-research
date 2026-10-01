@@ -165,6 +165,14 @@
   white-space: nowrap;
 }
 
+/* Element column carries full-length labels (40-90ch) — give it room and let it wrap
+   rather than squeeze; Relevance/Reflected stay compact next to it. */
+.oped-grounding-table th:first-child,
+.oped-grounding-table td:first-child {
+  width: 32%;
+  min-width: 14rem;
+}
+
 .oped-grounding-table td {
   padding: 0.4rem 0.6rem;
   border-bottom: 1px solid var(--border-color);
@@ -183,9 +191,10 @@
   cursor: pointer;
   font: inherit;
   font-size: 0.8125rem;
-  font-family: var(--font-mono, monospace);
   color: var(--focus-ring);
   text-align: left;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .oped-grounding-id-btn:hover { text-decoration: underline; }
