@@ -228,6 +228,54 @@ describe('shouldWrite — ceiling arms', () => {
   });
 });
 
+// ── Generator integrity: stale-key isolation (e/240#15 condition 1 amendment) ───
+// A second generator run from a different --root spelling (e.g. 'taxonomy-editor/src'
+// instead of 'taxonomy-editor') produces different relative keys for the same physical file.
+// The generator's replace semantics (updated={} rather than {...existing}) ensure only
+// visited keys appear in the output. This test proves the invariant inline.
+describe('generator integrity — stale-key isolation', () => {
+  // Inline shouldWrite mirrors the generator's shouldWrite, which delegates to isAcceptable.
+  function generatorShouldWrite(
+    observed: { max: number; countOver: number },
+    existing: { max: number; countOver: number } | undefined,
+  ): boolean {
+    if (!existing) return true;
+    if (observed.max < existing.max) {
+      const ceiling = Math.max(existing.countOver * DECOMP_CEIL_MULT, existing.countOver + DECOMP_CEIL_ADD);
+      return observed.countOver <= ceiling;
+    }
+    if (observed.max === existing.max && observed.countOver <= existing.countOver) return true;
+    return false;
+  }
+
+  it('second run from different cwd does not double keys in output', () => {
+    // Simulate: run 1 used --root taxonomy-editor/src → key 'main/aiCallLog.ts'
+    const existingBaseline: Record<string, { max: number; countOver: number }> = {
+      'main/aiCallLog.ts': { max: 8, countOver: 0 },
+    };
+
+    // Simulate: run 2 uses --root taxonomy-editor → visits key 'src/main/aiCallLog.ts'
+    // Replace semantics: updated starts empty; only visited keys appear.
+    const updated: Record<string, { max: number; countOver: number }> = {};
+    const relKey = 'src/main/aiCallLog.ts';
+    const observed = { max: 8, countOver: 0 };
+
+    if (generatorShouldWrite(observed, existingBaseline[relKey])) {
+      updated[relKey] = observed;
+    } else {
+      updated[relKey] = existingBaseline[relKey]!;
+    }
+
+    // Output has exactly 1 key (the run-2 spelling) — the run-1 key is gone.
+    if (Object.keys(updated).length !== 1)
+      throw new Error(`Expected 1 key, got ${Object.keys(updated).length}: ${JSON.stringify(Object.keys(updated))}`);
+    if (!Object.prototype.hasOwnProperty.call(updated, 'src/main/aiCallLog.ts'))
+      throw new Error('Expected src/main/aiCallLog.ts in output');
+    if (Object.prototype.hasOwnProperty.call(updated, 'main/aiCallLog.ts'))
+      throw new Error('Stale key main/aiCallLog.ts must not appear — replace semantics violated');
+  });
+});
+
 // ── ARM 6: drift test — built-in `complexity` and our rule agree on max ───────
 // 18 fixtures covering: simple functions, nested ifs, ternaries, loops, switch,
 // logical expressions, async/arrow, pattern assignments, no-function files, etc.

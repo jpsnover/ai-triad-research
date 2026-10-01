@@ -1,2780 +1,4 @@
 {
-  "main/aiCallLog.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "main/apiKeyStore.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "main/chatIO.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "main/communityReviewIO.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "main/dataUpdateChecker.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "main/debateExport.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/debateIO.ts": {
-    "max": 16,
-    "countOver": 2
-  },
-  "main/debateWindowUtils.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/electronAIAdapter.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "main/embeddingErrors.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "main/embeddings.ts": {
-    "max": 21,
-    "countOver": 2
-  },
-  "main/fileIO.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "main/ipc/aiHandlers.ts": {
-    "max": 18,
-    "countOver": 1
-  },
-  "main/ipc/apiKeyHandlers.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "main/ipc/briefExportHandlers.ts": {
-    "max": 19,
-    "countOver": 1
-  },
-  "main/ipc/chatHandlers.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "main/ipc/chatWindowHandlers.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "main/ipc/communityHandlers.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "main/ipc/communitySubmitSchema.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/ipc/dataRepoHandlers.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "main/ipc/debateHandlers.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "main/ipc/entityHandlers.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "main/ipc/flightRecorderHandlers.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "main/ipc/inquiryHandlers.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "main/ipc/mentionHandlers.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/ipc/opedHandlers.ts": {
-    "max": 28,
-    "countOver": 1
-  },
-  "main/ipc/opedShimTransport.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "main/ipc/opedValidation.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "main/ipc/organizationHandlers.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/ipc/prefsHandlers.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "main/ipc/sourceHandlers.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "main/ipc/systemHandlers.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "main/ipc/taxonomyHandlers.ts": {
-    "max": 24,
-    "countOver": 1
-  },
-  "main/ipcHandlers.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/keyProbe.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "main/main.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "main/modelConfigCache.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "main/modelDiscovery.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/opedIO.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "main/organizations.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "main/terminal.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "main/__tests__/aiHandlers.callLog.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/aiHandlers.cancelGenerate.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/aiHandlers.fetchInject.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/aiHandlers.timeoutMessage.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/apiKeyStore.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "main/__tests__/briefExportHandlers.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "main/__tests__/chatIO.nullGuard.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/chatIO.safeId.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/chatWindow.multiWindow.test.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "main/__tests__/communityReviewIO.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/debateHandlers.harvest.safeId.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/debateIO.extractSummary.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/debateIO.idMutex.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/debateIO.lockHolder.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/debateIO.persistence.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/debateIO.safeId.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/debateIO.saveEnrich.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/debateWindowUrl.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/edgesFormat.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "main/__tests__/electronAIAdapter.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/embeddingErrors.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/embeddings.fixedTemperature.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/embeddings.workerOffload.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/entityHandlers.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "main/__tests__/flightRecorderDump.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "main/__tests__/flightRecorderViewer.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "main/__tests__/inquiryHandlers.test.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "main/__tests__/ipcSchemas.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/keyProbe.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "main/__tests__/mainRecorderForwarding.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/mentionHandlers.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/modelConfigCache.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "main/__tests__/opedHandlers.create.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/opedHandlers.migration.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/opedHandlers.readPath.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/opedIO.list.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/opedIO.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/opedShimTransport.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "main/__tests__/opedValidation.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "main/__tests__/prefsHandlers.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/preload.resilience.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/preloadBuffer.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "main/__tests__/saveEdges.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/saveTaxonomyHistory.test.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "main/__tests__/sourceHandlers.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/syntheticEmbeddingsWrite.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "main/__tests__/systemHandlers.openFile.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "main/__tests__/systemHandlers.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "main/__tests__/validateDataRoot.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/bootstrap.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/bridge/appapi-completeness.test.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "renderer/bridge/cancellation.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/bridge/chatStream.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "renderer/bridge/coerceSituationDivergence.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/bridge/coerceSituationDivergence.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "renderer/bridge/dataUpdatesPull.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/bridge/electron-bridge.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "renderer/bridge/embeddingsBatch.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "renderer/bridge/healthProbe.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "renderer/bridge/httpErrorSteps.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/bridge/httpErrorSteps.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "renderer/bridge/index.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/bridge/inquiryExportWeb.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/bridge/inquiryExportWeb.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/bridge/instrumentBridge.ts": {
-    "max": 29,
-    "countOver": 2
-  },
-  "renderer/bridge/opedStream.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "renderer/bridge/resilience.ts": {
-    "max": 22,
-    "countOver": 1
-  },
-  "renderer/bridge/web-bridge.ts": {
-    "max": 46,
-    "countOver": 3
-  },
-  "renderer/bridge/webBridge204NoContent.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/bridge/webBridgeAdminReviewHttpStatus.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/bridge/webBridgeAiRateLimitFault.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/bridge/webBridgeOpenDebateWindow.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/apiKeyBackends.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/briefTimeoutBus.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/cancellation.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/chatStreamBridge.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/diagnosticsStateInstrumentation.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/edgesBridge.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/embeddingsBatch.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/healthProbe.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/httpErrorSteps.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/inquiryBridge.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/instrumentBridge.test.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/mentionsBridge.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/opedStream.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/organizationBridge.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/preferencesBridge.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/resilience.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/bridge/__tests__/sessionRecovery.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/components/analysis/engagementTree.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/components/analysis/engagementTree.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "renderer/components/analysis/kindRegistry.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "renderer/components/chat/ChatTab.filter.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/conflict/conflictMeta.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/conflict/conflictMeta.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/components/conflict/edit-conflicts/nodeConflictsApi.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/components/conflict/edit-conflicts/useNodeConflicts.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/components/conflict/stanceSummary.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/conflict/stanceSummary.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "renderer/components/debate/communityFilter.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/debate/communityFilter.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/debate/cruxState.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/debate/cruxState.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/components/debate/debateLibraryConfig.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/debate/debatePresets.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "renderer/components/debate/DebateTab.export.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/debate/newDebateOptions.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/debate/newDebateOptions.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "renderer/components/debate/popoutLoad.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/debate/popoutLoad.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/debate/situationSort.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/debate/situationSort.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/components/debate/sourceSearch.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/debate/sourceSearch.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/components/debate/useBriefTimeoutEvents.test.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/components/debate/useBriefTimeoutEvents.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/components/debate/waitForSituationDebateStart.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/debate/waitForSituationDebateStart.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/components/debate-diagnostics/window/EntryDetailRouter.model.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "renderer/components/debate-diagnostics/window/shared/constants.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/debate-diagnostics/window/shared/constants.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/debate-diagnostics/window/useDiagnosticsState.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/debate-diagnostics/window/useDiagnosticsState.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "renderer/components/debate-workspace/DebateHeader.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/debate-workspace/speakerHelpers.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/debate-workspace/utils.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/components/debate-workspace/utils.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "renderer/components/inquiry/inquiryDisplay.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/inquiry/inquiryDisplay.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/components/opeds/OpEdExport.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/opeds/OpEdTab.filter.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/components/opeds/OpEdTab.libraryConfig.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/opeds/povResolve.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/opeds/povResolve.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/components/settings/geminiOnboardingState.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/shared/backendSelectState.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/components/shared/backendSelectState.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/components/shared/mentionText.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/shared/mentionText.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/components/shared/refLinkifyPlugin.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "renderer/components/shared/resolveRef.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/components/shared/resolveRef.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/data/lineageCategories.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/data/lineageLookup.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/data/navConfig.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/data/navConfig.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "renderer/data/promptCatalog.lint.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/data/promptCatalog.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useAnalytics.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useAnalytics.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/hooks/useAuthStatus.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useAuthStatus.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useBreakpoint.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useChatStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useChatStore.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "renderer/hooks/useCommentStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useCommentStore.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/hooks/useCommunityStore.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/argumentNetwork.ts": {
-    "max": 55,
-    "countOver": 6
-  },
-  "renderer/hooks/useDebateStore/shared/clarificationGuard.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/clarificationGuard.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/diagnostics.ts": {
-    "max": 16,
-    "countOver": 1
-  },
-  "renderer/hooks/useDebateStore/shared/docTitles.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/generation.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/generation.ts": {
-    "max": 19,
-    "countOver": 2
-  },
-  "renderer/hooks/useDebateStore/shared/getGreatestHits.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/guards.abortCapture.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/guards.popoutClose.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/guards.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/modelConfig.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/narrativeVoicing.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/neutralCheckpoint.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/neutralCheckpoint.ts": {
-    "max": 17,
-    "countOver": 1
-  },
-  "renderer/hooks/useDebateStore/shared/phaseOrder.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/prompts.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/taxonomyContext.ts": {
-    "max": 30,
-    "countOver": 1
-  },
-  "renderer/hooks/useDebateStore/shared/__tests__/getGreatestHits.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/shared/__tests__/modelConfig.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/slices/argumentNetworkSlice.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/slices/buildDebateDelta.ts": {
-    "max": 38,
-    "countOver": 1
-  },
-  "renderer/hooks/useDebateStore/slices/clarificationSlice.ts": {
-    "max": 102,
-    "countOver": 7
-  },
-  "renderer/hooks/useDebateStore/slices/configSlice.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/slices/debateLoopSlice.ts": {
-    "max": 39,
-    "countOver": 1
-  },
-  "renderer/hooks/useDebateStore/slices/debatePhaseSlice.ts": {
-    "max": 94,
-    "countOver": 6
-  },
-  "renderer/hooks/useDebateStore/slices/debateReflectionSlice.ts": {
-    "max": 31,
-    "countOver": 3
-  },
-  "renderer/hooks/useDebateStore/slices/explorationSlice.ts": {
-    "max": 21,
-    "countOver": 1
-  },
-  "renderer/hooks/useDebateStore/slices/sessionSlice.ts": {
-    "max": 43,
-    "countOver": 5
-  },
-  "renderer/hooks/useDebateStore/slices/synthesisSlice.ts": {
-    "max": 30,
-    "countOver": 8
-  },
-  "renderer/hooks/useDebateStore/slices/topicCritiqueSlice.ts": {
-    "max": 47,
-    "countOver": 2
-  },
-  "renderer/hooks/useDebateStore/store.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/adaptiveStagingDiagnostics.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/askQuestionSocraticStep.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/briefTimeoutFloor.openings.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/buildDebateDelta.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/crossRespondModeratorBackoff.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/crossRespondTurnFailure.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/crossSliceAndRegressions.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/debateSlices.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/interruptedTurnSocratic.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/lineagePipelineStatus.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/loadDebateCoalescing.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/loadDebateFromDataReadOnly.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/narrativeVoicingOpenings.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/reflectionScoping.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/relevanceSelectionParity.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/runOpeningStatements.abort.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/saveDebateCoalescing.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/saveDebateDelta.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/saveDebateDocMeta.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/saveDebateReadOnly.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/slotFirstOpenings.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/socraticNoAutoLoop.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/stageTimeoutFloor.openings.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/storeTestHarness.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/synthesisFactCheck.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/taxonomyContextCorpusDedup.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/taxonomyContextEmptyGuard.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/watchOnlyAutoStart.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore/__tests__/watchOnlyCrossRespondCeiling.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useDebateStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useFeatureFlags.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useFeatureFlags.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useGeminiOnboarding.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useGeminiOnboarding.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "renderer/hooks/useGitProgress.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useInquiryStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useInquiryStore.ts": {
-    "max": 18,
-    "countOver": 1
-  },
-  "renderer/hooks/useIsTouchDevice.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useKeyboardNav.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "renderer/hooks/useLongPressContextMenu.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useLongPressSelectionMenu.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useMobileNav.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useNavVisibilityContext.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useNavVisibilityContext.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useOnlineStatus.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/hooks/useOpEdStore.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/hooks/useOrganizationStore.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/usePopoutTheme.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/usePopoutTheme.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/usePrecache.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "renderer/hooks/usePromptConfigStore.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/hooks/useQuotaWarning.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useQuotaWarning.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useResilienceStatus.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useResilienceStatus.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "renderer/hooks/useResizablePanel.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/hooks/useRuntimeConfigStore.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useRuntimeConfigStore.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "renderer/hooks/useSearchHistory.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useSettingsDialog.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useSupportStore.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/hooks/useSyncStatus.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useTaxonomyStore/slices/analysisSlice.ts": {
-    "max": 43,
-    "countOver": 3
-  },
-  "renderer/hooks/useTaxonomyStore/slices/searchSlice.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useTaxonomyStore/slices/searchSlice.ts": {
-    "max": 19,
-    "countOver": 1
-  },
-  "renderer/hooks/useTaxonomyStore/slices/settingsSlice.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "renderer/hooks/useTaxonomyStore/slices/taxonomyDataSlice.ts": {
-    "max": 56,
-    "countOver": 5
-  },
-  "renderer/hooks/useTaxonomyStore/slices/__tests__/deriveModelsByBackend.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useTaxonomyStore/slices/__tests__/registryCompleteness.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/hooks/useTaxonomyStore/store.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/useTaxonomyStore.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/hooks/useTheoryLinkHotkey.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "renderer/hooks/useTierInfo.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useTierInfo.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/hooks/useUsernameStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useUsernameStore.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/hooks/useValidationStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/hooks/useValidationStore.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "renderer/hooks/__tests__/useLongPressContextMenu.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/__tests__/useLongPressSelectionMenu.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/hooks/__tests__/useRuntimeConfigStore.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/lib/analyticsEmitter.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "renderer/lib/bandColor.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/lib/clientConfig.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/lib/dumpToast.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/lib/dwellTracker.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/lib/dwellTracker.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "renderer/lib/dwellTrackerInit.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/lib/flightRecorderInit.ts": {
-    "max": 66,
-    "countOver": 2
-  },
-  "renderer/lib/initAnalyticsSession.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/lib/parseHash.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/lib/pwaRegisterStub.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/lib/swEventListener.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/lib/trace.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "renderer/lib/vitePreloadRecovery.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/lib/__tests__/analyticsEmitter.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/lib/__tests__/clientConfig.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/lib/__tests__/flightRecorderPopupDump.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/lib/__tests__/flightRecorderReactError.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/lib/__tests__/initAnalyticsSession.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/lib/__tests__/parseHash.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/lib/__tests__/vitePreloadRecovery.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/lib/__tests__/webPopupShim.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/prompts/analysis.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/prompts/aphorism.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/prompts/chat.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "renderer/prompts/newDebateDialog.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/prompts/research.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/prompts/vernacular.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/routing/appRoutes.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/routing/appRoutes.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/routing/useAppRoute.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/routing/useAppRoute.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/store/preferencesStore.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/test-setup.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/theme-token-completeness.test.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "renderer/utils/clustering.ts": {
-    "max": 18,
-    "countOver": 1
-  },
-  "renderer/utils/colorizePovPlugin.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "renderer/utils/convergenceScoring.ts": {
-    "max": 23,
-    "countOver": 2
-  },
-  "renderer/utils/debateValidation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/utils/dolceCompliance.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/utils/dolceCompliance.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/utils/errorMessages.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/utils/errorMessages.ts": {
-    "max": 55,
-    "countOver": 1
-  },
-  "renderer/utils/humanizeSpeakers.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/utils/idGenerator.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/utils/keyShareCrypto.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/utils/lineageMatcher.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "renderer/utils/localEmbedding.ts": {
-    "max": 16,
-    "countOver": 1
-  },
-  "renderer/utils/markdownLint.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/utils/promptPreview.ts": {
-    "max": 44,
-    "countOver": 1
-  },
-  "renderer/utils/qbaf.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/utils/qbafExplain.ts": {
-    "max": 21,
-    "countOver": 1
-  },
-  "renderer/utils/recordingLazy.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/utils/recordingLazy.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "renderer/utils/regeneratePlainDescription.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/utils/regeneratePlainDescription.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "renderer/utils/researchPrompt.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/utils/retryClassifier.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/utils/retryClassifier.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "renderer/utils/shareLinks.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/utils/shareLinks.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/utils/similarity.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "renderer/utils/syncApi.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/utils/taxonomyContext.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "renderer/utils/theme.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/utils/validation.data.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "renderer/utils/validation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "renderer/utils/validation.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "renderer/utils/vocabularyAnnotations.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "renderer/__tests__/resilienceFaults.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/ai/aiBackends.ts": {
-    "max": 19,
-    "countOver": 1
-  },
-  "server/ai/aiCallLog.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "server/ai/fsCache.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/ai/keyRotator.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "server/ai/opedAdapter.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "server/ai/providerBinding.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/ai/providerErrors.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "server/ai/proxyTiers.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "server/ai/rpmLimiter.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/anonAiRoutes.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/briefExportJobs.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/canaryLoopSampler.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/community/admin/calibrationHandler.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "server/community/admin/communityReviewHandler.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "server/community/admin/reviewRegistry.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "server/community/analytics.ts": {
-    "max": 28,
-    "countOver": 2
-  },
-  "server/community/community.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "server/community/communityOpedShares.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "server/community/nodeConflicts.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "server/config.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "server/cruxEvidence.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "server/embeddingsLoad.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/embedQueueDepthMonitor.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/errorAggregation.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "server/eventLoopMonitor.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/featureFlags.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/flightRecorderDumps.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "server/flightRecorderViewer.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/groundingReconcileHook.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/groundingSweepScheduler.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "server/httpCookies.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/httpKit.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "server/inquiryJobs.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "server/inquiryPipelineDeps.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "server/logger.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "server/loginPage.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/networkSecurity.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/organizations.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "server/publicPaths.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/rollbackStatus.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "server/routes/admin.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/routes/ai.ts": {
-    "max": 36,
-    "countOver": 3
-  },
-  "server/routes/all.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/routes/anonSessionCreated.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "server/routes/attribution.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/routes/briefExports.ts": {
-    "max": 16,
-    "countOver": 1
-  },
-  "server/routes/canary.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/routes/chat.ts": {
-    "max": 30,
-    "countOver": 1
-  },
-  "server/routes/community.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "server/routes/conflicts.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "server/routes/corpusAssemblyCache.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/routes/data.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/routes/dataRootReadiness.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/routes/debates.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "server/routes/diagnostics.ts": {
-    "max": 16,
-    "countOver": 1
-  },
-  "server/routes/edges.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "server/routes/entity.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "server/routes/exportModel.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "server/routes/generationContext.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "server/routes/harvest.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/routes/inquiry.ts": {
-    "max": 20,
-    "countOver": 1
-  },
-  "server/routes/inquiryShare.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "server/routes/keys.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "server/routes/mentions.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/routes/meta.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "server/routes/oped.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "server/routes/opedShare.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "server/routes/organizations.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "server/routes/preferences.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/routes/publicShare.ts": {
-    "max": 16,
-    "countOver": 1
-  },
-  "server/routes/readiness.ts": {
-    "max": 9,
-    "countOver": 0
-  },
-  "server/routes/relevantNodes.ts": {
-    "max": 23,
-    "countOver": 1
-  },
-  "server/routes/session.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/routes/sessionScopedDump.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/routes/sources.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "server/routes/support.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "server/routes/sync.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/routes/taxonomy.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "server/routes/templates.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "server/runtimeConfig.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "server/scripts/migrateUserContentToBlob.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "server/security/accessControl.ts": {
-    "max": 19,
-    "countOver": 1
-  },
-  "server/security/contentSanitizer.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "server/security/githubAppAuth.ts": {
-    "max": 21,
-    "countOver": 1
-  },
-  "server/security/keyStore.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/security/quotas.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/security/rateLimiter.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/security/rateLimitResponse.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/security/userContext.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/server.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "server/serverLogBuffer.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "server/staticServe.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "server/storage/allowlistStore.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "server/storage/analyticsBlob.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "server/storage/anonymousSessionStore.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "server/storage/azureBlobBackend.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "server/storage/briefExportStore.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/storage/calibrationStore.ts": {
-    "max": 12,
-    "countOver": 0
-  },
-  "server/storage/communityOpedShareStore.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/storage/dataRootValidator.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "server/storage/debateStore.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/storage/editMeta.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/storage/feedbackStore.ts": {
-    "max": 14,
-    "countOver": 0
-  },
-  "server/storage/fileIO.ts": {
-    "max": 17,
-    "countOver": 1
-  },
-  "server/storage/filesystemBackend.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "server/storage/githubAPIBackend.ts": {
-    "max": 16,
-    "countOver": 1
-  },
-  "server/storage/githubRestClient.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/storage/inquiryJobStore.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/storage/inquiryResultStore.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/storage/inquiryShareStore.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/storage/opedRunStore.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "server/storage/opedShareStore.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "server/storage/opedStore.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/storage/readDataFile.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/storage/sessionBranchManager.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/storage/templateStore.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/storage/undiciInvariant.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/storage/urlFetch.ts": {
-    "max": 11,
-    "countOver": 0
-  },
-  "server/support/supportStore.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "server/support/types.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/accessControl.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/adminAllowlist.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/adminBackfillShares.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/adminFeedbackPersistence.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/adminReview.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/aiBackendsFixedTemperature.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/aiCallLog.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/aiErrorClassification.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/aiRetryProgress.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/__tests__/allowlistStore.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/analytics.engagement.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "server/__tests__/analytics.probe.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/analytics.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/analyticsBlob.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/anonAiRoutes.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/anonDebateGate.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/anonSessionCreated.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/anonSessionKey.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/anonymousSessionStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/applyDebateDeltaToStorage.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/attribution.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/autoServerDump.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/azureBlobBackend.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/backendAvailability.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/briefExportBackend.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/briefExportJobs.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/briefExports.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/calibrationCuration.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/calibrationHandler.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/calibrationLog.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/canaryLoopSampler.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/canaryPublicPath.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/canaryRoutes.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/chatRequestObservability.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/chatUrlInject.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/community.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/communityApproveAutoShare.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/communityDebateIDOR.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/communityFaults.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/communityInquiries.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/communityInquiryIDOR.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/communityListingIndex.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/communityOpedShareBackfill.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/__tests__/communityOpedShareRoute.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/communityOpedShares.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/communityOpedShareStore.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/communityRemoval.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/communityReviewHandler.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/config.projectRoot.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/configCacheDir.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/conflictsFileIO.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/contentSanitizer.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/cruxEvidence.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/dataPullAdminGate.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/dataRootReadiness.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/dataSshConversion.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/debateAnonAllowlist.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/debatesDeltaSave.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/debatesInFlightGuard.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/debateStore.schemaStale.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/debateStore.sort.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/debateStoreObs.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/dictionaryTimeout.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/dictionaryWarn.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/dualBackendRouting.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/edgesSave.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/edgesSerializerRoundTrip.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/editMeta.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/embeddingHealth.test.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "server/__tests__/embeddingsBatchCapAnd503.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/embeddingsCache.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/embeddingsChunkYield.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/embeddingsLargeRecomputeWarn.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/embeddingsLoad.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/embeddingsPerChunkTimeout.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/embeddingsProbe.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/embeddingWorkerOffload.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/embeddingWorkerPoolSize.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/embedQueueDepthMonitor.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/engagementRoute.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/entitlementGate.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/entity.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/entityMentionStore.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/entityStore.test.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "server/__tests__/errorAggregation.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/eventLoopMonitor.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/exportModel.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/extractRoutes.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "server/__tests__/fallbackChain.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/fallbackWarnLogging.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/featureFlags.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/featureFlagsRmw.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/feedbackStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/flightRecorderDumps.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/freeTier.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/fsCache.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/generateAbort.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/generateAbortNoFallback.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/generateAllowlist.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/generateDisconnectAbort.integration.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/getCommunityOpEd.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/githubApi.test.ts": {
-    "max": 36,
-    "countOver": 1
-  },
-  "server/__tests__/graphAttributeValidation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/greatestHitsRoute.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/groundingReconcileHook.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/groundingSweep.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "server/__tests__/headStaticServe.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/healthzReadiness.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/hostedModeCredentials.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "server/__tests__/httpCookies.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/httpKit.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/inquiryJobs.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/inquiryJobStoreInvariant.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/inquiryPipelineDeps.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/inquiryRoutes.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/inquiryShareRevokeE2E.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/inquiryShareRoutes.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/inquiryShareStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/keyDeletion.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/keyRotation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/keyRotator.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/keyStoreNegativeCache.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/keysValidation.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/__tests__/knownBackendsConsistency.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/__tests__/listDirectoryWarnFloor.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/localUserFlightRecorder.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/loggerEmit.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/loggerTruncation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/loginPage.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/loginPageHashCarry.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/mentions.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/migrateUserContentToBlob.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/multiKeyStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/multiuser-integration.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/networkSecurity.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/newsReportNotFound.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/nodeConflicts.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/nodeDiff.test.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "server/__tests__/normalizedRequestPath.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/opedCreateAbort.integration.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/opedFilesHealth.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/opedRoutes.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/opedRunStore.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/opedShare.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/opedShareBackfill.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/opedShareRevokeCache.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/opedShareStore.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/__tests__/opedStore.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/organizations.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/paidFallbackOrdering.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/paidGeminiFallback.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/preferences.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/providerBinding.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/publicPaths.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/publicShare.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/quotas.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/rateLimiter.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/rateLimiterFaults.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/rateLimitResponse.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/readDataFile.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/readyz.test.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "server/__tests__/readyzForceResolvesFalse.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/refreshAIModels.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/relevantNodesParity.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/relevantNodesRealEmbedParity.test.ts": {
-    "max": 22,
-    "countOver": 1
-  },
-  "server/__tests__/requestId.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/rollbackStatus.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/routeEntitlement.test.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "server/__tests__/routeTable.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/rpmLimiter.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "server/__tests__/runtimeConfig.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/runtimeCredentials.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/searchKeyRotation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/searchPaidOverflow.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/serverLogBuffer.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/sessionScopedFrDump.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/shareShell.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/sourceDocuments.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "server/__tests__/stateRoot.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/storageFaults.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/supportStore.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "server/__tests__/syntheticEmbeddingsCache.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/t2020Security.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/t714Security.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/t720Security.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/taxonomyGroundingWiring.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/tokenMilestones.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "server/__tests__/userContext.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/userProfileAllowlist.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "server/__tests__/validateDataRoot.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "server/__tests__/workerPoolShedToken.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "server/__tests__/wsUserTargeting.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
   "eslint-rules/no-inline-style.js": {
     "max": 3,
     "countOver": 0
@@ -2785,14 +9,6 @@
   },
   "eslint-rules/no-unmanaged-module-resources.js": {
     "max": 6,
-    "countOver": 0
-  },
-  "eslint-rules/__tests__/complexity-budget.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "eslint-rules/__tests__/require-warn-on-degraded-catch-return.test.ts": {
-    "max": 1,
     "countOver": 0
   },
   "scripts/check-contrast.mjs": {
@@ -2834,10 +50,6 @@
   "scripts/topic-refinement-experiment.ts": {
     "max": 16,
     "countOver": 1
-  },
-  "scripts/__tests__/generate-notices-guard.test.ts": {
-    "max": 1,
-    "countOver": 0
   },
   "smoke/attributes-styled.smoke.mjs": {
     "max": 2,
@@ -2925,10 +137,6 @@
   },
   "src/main/ipc/communityHandlers.ts": {
     "max": 7,
-    "countOver": 0
-  },
-  "src/main/ipc/communitySubmitSchema.test.ts": {
-    "max": 1,
     "countOver": 0
   },
   "src/main/ipc/dataRepoHandlers.ts": {
@@ -3019,208 +227,12 @@
     "max": 12,
     "countOver": 0
   },
-  "src/main/__tests__/aiHandlers.callLog.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/aiHandlers.cancelGenerate.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/aiHandlers.fetchInject.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/aiHandlers.timeoutMessage.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/apiKeyStore.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/main/__tests__/briefExportHandlers.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/main/__tests__/chatIO.nullGuard.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/chatIO.safeId.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/chatWindow.multiWindow.test.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/main/__tests__/communityReviewIO.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/debateHandlers.harvest.safeId.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/debateIO.extractSummary.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/debateIO.idMutex.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/debateIO.lockHolder.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/debateIO.persistence.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/debateIO.safeId.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/debateIO.saveEnrich.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/debateWindowUrl.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/edgesFormat.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/main/__tests__/electronAIAdapter.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/embeddingErrors.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/embeddings.fixedTemperature.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/embeddings.workerOffload.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/entityHandlers.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/main/__tests__/flightRecorderDump.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/main/__tests__/flightRecorderViewer.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/main/__tests__/inquiryHandlers.test.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/main/__tests__/ipcSchemas.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/keyProbe.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/main/__tests__/mainRecorderForwarding.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/mentionHandlers.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/modelConfigCache.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/main/__tests__/opedHandlers.create.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/opedHandlers.migration.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/opedHandlers.readPath.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/opedIO.list.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/opedIO.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/opedShimTransport.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/main/__tests__/opedValidation.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/main/__tests__/prefsHandlers.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/preload.resilience.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/preloadBuffer.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/main/__tests__/saveEdges.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/saveTaxonomyHistory.test.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/main/__tests__/sourceHandlers.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/syntheticEmbeddingsWrite.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/main/__tests__/systemHandlers.openFile.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/main/__tests__/systemHandlers.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/main/__tests__/validateDataRoot.test.ts": {
-    "max": 3,
-    "countOver": 0
+  "src/renderer/App.tsx": {
+    "max": 58,
+    "countOver": 3
   },
   "src/renderer/bootstrap.ts": {
     "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/bridge/appapi-completeness.test.ts": {
-    "max": 15,
     "countOver": 0
   },
   "src/renderer/bridge/cancellation.ts": {
@@ -3229,10 +241,6 @@
   },
   "src/renderer/bridge/chatStream.ts": {
     "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/bridge/coerceSituationDivergence.test.ts": {
-    "max": 1,
     "countOver": 0
   },
   "src/renderer/bridge/coerceSituationDivergence.ts": {
@@ -3255,20 +263,12 @@
     "max": 14,
     "countOver": 0
   },
-  "src/renderer/bridge/httpErrorSteps.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
   "src/renderer/bridge/httpErrorSteps.ts": {
     "max": 15,
     "countOver": 0
   },
   "src/renderer/bridge/index.ts": {
     "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/bridge/inquiryExportWeb.test.ts": {
-    "max": 1,
     "countOver": 0
   },
   "src/renderer/bridge/inquiryExportWeb.ts": {
@@ -3291,112 +291,212 @@
     "max": 46,
     "countOver": 3
   },
-  "src/renderer/bridge/webBridge204NoContent.test.ts": {
-    "max": 2,
+  "src/renderer/components/analysis/AICostCard.tsx": {
+    "max": 7,
     "countOver": 0
   },
-  "src/renderer/bridge/webBridgeAdminReviewHttpStatus.test.ts": {
-    "max": 1,
+  "src/renderer/components/analysis/AnalysisPanel.tsx": {
+    "max": 13,
     "countOver": 0
   },
-  "src/renderer/bridge/webBridgeAiRateLimitFault.test.ts": {
-    "max": 1,
+  "src/renderer/components/analysis/AnalyticsDashboard.tsx": {
+    "max": 14,
     "countOver": 0
   },
-  "src/renderer/bridge/webBridgeOpenDebateWindow.test.ts": {
-    "max": 1,
+  "src/renderer/components/analysis/AttributeFilterPanel.tsx": {
+    "max": 11,
     "countOver": 0
   },
-  "src/renderer/bridge/__tests__/apiKeyBackends.test.ts": {
-    "max": 4,
+  "src/renderer/components/analysis/AttributeInfoPanel.tsx": {
+    "max": 11,
     "countOver": 0
   },
-  "src/renderer/bridge/__tests__/briefTimeoutBus.test.ts": {
-    "max": 1,
+  "src/renderer/components/analysis/BdiGroundingPanel.tsx": {
+    "max": 13,
     "countOver": 0
   },
-  "src/renderer/bridge/__tests__/cancellation.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/bridge/__tests__/chatStreamBridge.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/bridge/__tests__/diagnosticsStateInstrumentation.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/bridge/__tests__/edgesBridge.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/bridge/__tests__/embeddingsBatch.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/bridge/__tests__/healthProbe.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/bridge/__tests__/httpErrorSteps.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/bridge/__tests__/inquiryBridge.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/bridge/__tests__/instrumentBridge.test.ts": {
+  "src/renderer/components/analysis/CalibrationDashboard.tsx": {
     "max": 9,
     "countOver": 0
   },
-  "src/renderer/bridge/__tests__/mentionsBridge.test.ts": {
-    "max": 2,
+  "src/renderer/components/analysis/CalibrationReviewViewer.tsx": {
+    "max": 10,
     "countOver": 0
   },
-  "src/renderer/bridge/__tests__/opedStream.test.ts": {
-    "max": 2,
+  "src/renderer/components/analysis/chartTooltip.tsx": {
+    "max": 5,
     "countOver": 0
   },
-  "src/renderer/bridge/__tests__/organizationBridge.test.ts": {
-    "max": 3,
+  "src/renderer/components/analysis/ConvergenceSignalsPanel.tsx": {
+    "max": 15,
     "countOver": 0
   },
-  "src/renderer/bridge/__tests__/preferencesBridge.test.ts": {
-    "max": 3,
+  "src/renderer/components/analysis/DebateFunnelChart.tsx": {
+    "max": 9,
     "countOver": 0
   },
-  "src/renderer/bridge/__tests__/resilience.test.ts": {
-    "max": 3,
+  "src/renderer/components/analysis/DebateHealthCard.tsx": {
+    "max": 14,
     "countOver": 0
   },
-  "src/renderer/bridge/__tests__/sessionRecovery.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/engagementTree.test.ts": {
-    "max": 3,
-    "countOver": 0
+  "src/renderer/components/analysis/EngagementDashboard.tsx": {
+    "max": 18,
+    "countOver": 1
   },
   "src/renderer/components/analysis/engagementTree.ts": {
     "max": 10,
     "countOver": 0
   },
+  "src/renderer/components/analysis/ExtractionTimelinePanel.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/FactsPanel.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/FallacyPanel.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/GroundingPanel.tsx": {
+    "max": 16,
+    "countOver": 1
+  },
   "src/renderer/components/analysis/kindRegistry.ts": {
     "max": 15,
     "countOver": 0
   },
-  "src/renderer/components/chat/ChatTab.filter.test.ts": {
-    "max": 2,
+  "src/renderer/components/analysis/LineagePanel.tsx": {
+    "max": 9,
     "countOver": 0
   },
-  "src/renderer/components/conflict/conflictMeta.test.ts": {
-    "max": 1,
+  "src/renderer/components/analysis/NeutralEvaluationPanel.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/ParameterHistoryPanel.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/PolicyAlignmentPanel.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/PolicyDashboard.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/SummariesTab.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/SystemOverviewRow.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/TaxonomyGapPanel.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/UsageHierarchy.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/analysis/YourActivityPanel.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/chatLibraryListConfig.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/ChatTab.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/ChatWindow.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/ChatWorkspace.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/CommentCreationPopover.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/CommentHighlights.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/CommentSidebar.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/NewChatDialog.tsx": {
+    "max": 6,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/PromptDiffPane.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/PromptDiffTree.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/PromptDiffWindow.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/PromptInspector.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/PromptsPanel.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/chat/UrlContextChip.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/community/AnonymousBanner.tsx": {
+    "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/community/CommunityLibrary.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/conflict/ConflictDetail.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/conflict/ConflictInstanceForm.tsx": {
+    "max": 11,
     "countOver": 0
   },
   "src/renderer/components/conflict/conflictMeta.ts": {
     "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/conflict/ConflictNoteForm.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/conflict/ConflictsPanel.tsx": {
+    "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/conflict/ConflictsTab.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/conflict/edit-conflicts/EditConflictBadge.tsx": {
+    "max": 9,
     "countOver": 0
   },
   "src/renderer/components/conflict/edit-conflicts/nodeConflictsApi.ts": {
@@ -3407,184 +507,936 @@
     "max": 3,
     "countOver": 0
   },
-  "src/renderer/components/conflict/stanceSummary.test.ts": {
-    "max": 1,
+  "src/renderer/components/conflict/EditableField.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/conflict/InlineConfirm.tsx": {
+    "max": 5,
+    "countOver": 0
+  },
+  "src/renderer/components/conflict/linkedItemPreview.tsx": {
+    "max": 5,
     "countOver": 0
   },
   "src/renderer/components/conflict/stanceSummary.ts": {
     "max": 11,
     "countOver": 0
   },
-  "src/renderer/components/debate/communityFilter.test.ts": {
-    "max": 1,
+  "src/renderer/components/debate/BriefExportDialog.tsx": {
+    "max": 40,
+    "countOver": 2
+  },
+  "src/renderer/components/debate/BriefExportsList.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/debate/BriefTimeoutDialog.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/debate/BriefTimeoutToast.tsx": {
+    "max": 3,
     "countOver": 0
   },
   "src/renderer/components/debate/communityFilter.ts": {
     "max": 2,
     "countOver": 0
   },
-  "src/renderer/components/debate/cruxState.test.ts": {
-    "max": 1,
+  "src/renderer/components/debate/CruxesTab.tsx": {
+    "max": 13,
     "countOver": 0
   },
   "src/renderer/components/debate/cruxState.ts": {
     "max": 6,
     "countOver": 0
   },
-  "src/renderer/components/debate/debateLibraryConfig.test.ts": {
-    "max": 1,
+  "src/renderer/components/debate/DebateBriefExports.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/debate/debateLibraryConfig.tsx": {
+    "max": 6,
+    "countOver": 0
+  },
+  "src/renderer/components/debate/DebatePopoutWindow.tsx": {
+    "max": 14,
     "countOver": 0
   },
   "src/renderer/components/debate/debatePresets.ts": {
     "max": 8,
     "countOver": 0
   },
-  "src/renderer/components/debate/DebateTab.export.test.ts": {
-    "max": 2,
+  "src/renderer/components/debate/DebateSourceViewer.tsx": {
+    "max": 15,
     "countOver": 0
   },
-  "src/renderer/components/debate/newDebateOptions.test.ts": {
-    "max": 2,
+  "src/renderer/components/debate/DebateTab.tsx": {
+    "max": 20,
+    "countOver": 3
+  },
+  "src/renderer/components/debate/ExportDropdown.tsx": {
+    "max": 5,
     "countOver": 0
+  },
+  "src/renderer/components/debate/NewDebateDialog.tsx": {
+    "max": 34,
+    "countOver": 4
   },
   "src/renderer/components/debate/newDebateOptions.ts": {
     "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/popoutLoad.test.ts": {
-    "max": 1,
     "countOver": 0
   },
   "src/renderer/components/debate/popoutLoad.ts": {
     "max": 2,
     "countOver": 0
   },
-  "src/renderer/components/debate/situationSort.test.ts": {
+  "src/renderer/components/debate/SettingsToggleRow.tsx": {
     "max": 1,
+    "countOver": 0
+  },
+  "src/renderer/components/debate/SituationDebatePanel.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/debate/SituationDetail.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/debate/SituationListItem.tsx": {
+    "max": 9,
     "countOver": 0
   },
   "src/renderer/components/debate/situationSort.ts": {
     "max": 3,
     "countOver": 0
   },
-  "src/renderer/components/debate/sourceSearch.test.ts": {
-    "max": 1,
+  "src/renderer/components/debate/SituationsTab.tsx": {
+    "max": 12,
     "countOver": 0
   },
   "src/renderer/components/debate/sourceSearch.ts": {
     "max": 4,
     "countOver": 0
   },
-  "src/renderer/components/debate/useBriefTimeoutEvents.test.ts": {
-    "max": 6,
-    "countOver": 0
-  },
   "src/renderer/components/debate/useBriefTimeoutEvents.ts": {
     "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/waitForSituationDebateStart.test.tsx": {
-    "max": 2,
     "countOver": 0
   },
   "src/renderer/components/debate/waitForSituationDebateStart.ts": {
     "max": 6,
     "countOver": 0
   },
+  "src/renderer/components/debate-diagnostics/chat/DiagnosticsChatSidebar.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/panel/DiagnosticsPanel.tsx": {
+    "max": 5,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/panel/DocumentCoverageSection.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/panel/EntryView.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/panel/helpers.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/panel/OverviewView.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/panel/VerificationSection.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/panel/WhatIfSection.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/DiagnosticsWindow.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/AffectTab.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/BriefTab.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/CitationsTab.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/CiteTab.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/ClaimsTab.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/DetailsTab.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/DraftTab.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/EvidenceTab.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/ExclusionGuardTab.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/LookaheadTab.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/PlanTab.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/entry-tabs/TaxRefsTab.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
   "src/renderer/components/debate-diagnostics/window/EntryDetailRouter.model.ts": {
     "max": 14,
     "countOver": 0
   },
-  "src/renderer/components/debate-diagnostics/window/shared/constants.test.ts": {
-    "max": 2,
+  "src/renderer/components/debate-diagnostics/window/EntryDetailRouter.parts.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/debate-diagnostics/window/EntryDetailRouter.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/helpers.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/overview-tabs/AdaptiveStagingTab.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/overview-tabs/ArgStrengthTab.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/overview-tabs/ArgumentNetworkTab.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/debate-diagnostics/window/overview-tabs/EmotionalRegisterTab.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/overview-tabs/ReflectionsTab.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/debate-diagnostics/window/overview-tabs/UtilityTab.tsx": {
+    "max": 5,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/OverviewTabRouter.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/ArtifactBlock.tsx": {
+    "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/CommitmentsPanel.tsx": {
+    "max": 10,
     "countOver": 0
   },
   "src/renderer/components/debate-diagnostics/window/shared/constants.ts": {
     "max": 2,
     "countOver": 0
   },
-  "src/renderer/components/debate-diagnostics/window/useDiagnosticsState.test.ts": {
-    "max": 2,
+  "src/renderer/components/debate-diagnostics/window/shared/DebateExchangeRich.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/EdgesUsed.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/INodeRow.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/ModeratorTab.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/OverflowMenu.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/ScoreBadge.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/ScoreBreakdown.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/TensionsListDetail.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/TurnValidation.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-diagnostics/window/shared/VerdictChip.tsx": {
+    "max": 5,
     "countOver": 0
   },
   "src/renderer/components/debate-diagnostics/window/useDiagnosticsState.ts": {
     "max": 14,
     "countOver": 0
   },
-  "src/renderer/components/debate-workspace/DebateHeader.test.tsx": {
-    "max": 1,
+  "src/renderer/components/debate-workspace/ClaimsView.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/ClarificationPanel.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/DebateActionBar.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/DebateHeader.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/DebatePhaseIndicators.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/DebateSetupDialog.tsx": {
+    "max": 40,
+    "countOver": 1
+  },
+  "src/renderer/components/debate-workspace/DebateWorkspace.tsx": {
+    "max": 20,
+    "countOver": 3
+  },
+  "src/renderer/components/debate-workspace/ExplorationSummaryCard.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/OpeningPanel.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/SectionErrorBoundary.tsx": {
+    "max": 3,
     "countOver": 0
   },
   "src/renderer/components/debate-workspace/speakerHelpers.ts": {
     "max": 1,
     "countOver": 0
   },
-  "src/renderer/components/debate-workspace/utils.test.ts": {
+  "src/renderer/components/debate-workspace/StatementCard.tsx": {
+    "max": 17,
+    "countOver": 2
+  },
+  "src/renderer/components/debate-workspace/StatementProgressIndicator.tsx": {
     "max": 5,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/TaxonomyRefs.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/TopicCritique/CritiqueColumn.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/TopicCritique/RadarChart.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/TopicCritique/TopicCritiqueCard.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/debate-workspace/TranscriptOutline.tsx": {
+    "max": 15,
     "countOver": 0
   },
   "src/renderer/components/debate-workspace/utils.ts": {
     "max": 8,
     "countOver": 0
   },
-  "src/renderer/components/inquiry/inquiryDisplay.test.ts": {
-    "max": 2,
+  "src/renderer/components/debate-workspace/VocabularyPanel.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/edge-browser/EdgeBrowser.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/edge-browser/EdgeDetailPanel.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/edge-browser/FindBar.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/edge-browser/RelatedEdgesPanel.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/edge-browser/SearchBar.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/edge-browser/SearchPanel.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/edge-browser/SearchPreview.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/edge-browser/SimilarSearchPanel.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/inquiry/InquiryAnswerPanel.tsx": {
+    "max": 21,
+    "countOver": 1
+  },
+  "src/renderer/components/inquiry/InquiryAskPanel.tsx": {
+    "max": 6,
+    "countOver": 0
+  },
+  "src/renderer/components/inquiry/InquiryCommunityList.tsx": {
+    "max": 6,
     "countOver": 0
   },
   "src/renderer/components/inquiry/inquiryDisplay.ts": {
     "max": 6,
     "countOver": 0
   },
-  "src/renderer/components/opeds/OpEdExport.test.tsx": {
+  "src/renderer/components/inquiry/InquiryExportDropdown.tsx": {
+    "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/inquiry/InquiryHistoryTable.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/inquiry/InquiryListPanel.tsx": {
+    "max": 2,
+    "countOver": 0
+  },
+  "src/renderer/components/inquiry/InquiryRunningPanel.tsx": {
+    "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/inquiry/InquiryShareControl.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/inquiry/InquiryShareDialog.tsx": {
     "max": 1,
     "countOver": 0
   },
-  "src/renderer/components/opeds/OpEdTab.filter.test.ts": {
-    "max": 4,
+  "src/renderer/components/inquiry/InquiryTab.tsx": {
+    "max": 10,
     "countOver": 0
   },
-  "src/renderer/components/opeds/OpEdTab.libraryConfig.test.ts": {
-    "max": 1,
+  "src/renderer/components/OnboardingTour.tsx": {
+    "max": 8,
     "countOver": 0
   },
-  "src/renderer/components/opeds/povResolve.test.ts": {
-    "max": 1,
+  "src/renderer/components/opeds/NewOpEdDialog.tsx": {
+    "max": 15,
     "countOver": 0
+  },
+  "src/renderer/components/opeds/OpEdCampTags.tsx": {
+    "max": 2,
+    "countOver": 0
+  },
+  "src/renderer/components/opeds/OpEdReader.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/opeds/OpEdTab.tsx": {
+    "max": 16,
+    "countOver": 1
   },
   "src/renderer/components/opeds/povResolve.ts": {
     "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/organizations/OrganizationDetail.tsx": {
+    "max": 23,
+    "countOver": 1
+  },
+  "src/renderer/components/organizations/OrganizationsTab.tsx": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/renderer/components/organizations/StakeholderSection.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/policy/PhrasesPanel.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/policy/PolicySourcesPanel.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/policy/SourcesPanel.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/PovProgression/PovProgressionView.tsx": {
+    "max": 19,
+    "countOver": 3
+  },
+  "src/renderer/components/PovProgression/PovProgressionWindow.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/PublicInquiryShareContent.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/PublicInquiryView.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/PublicOpEdIndexView.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/PublicOpEdView.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/PublicPovView.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/AdminErrorsTab.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/AdminPanel.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/AdminReviewPanel.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/AllowlistPanel.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/ApiKeyDialog.tsx": {
+    "max": 5,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/ApiKeyErrorMessage.tsx": {
+    "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/CommunityReviewViewer.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/FeatureFlagsPanel.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/FirstRunDialog.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/GeminiOnboardingModal.tsx": {
+    "max": 14,
     "countOver": 0
   },
   "src/renderer/components/settings/geminiOnboardingState.ts": {
     "max": 2,
     "countOver": 0
   },
-  "src/renderer/components/shared/backendSelectState.test.ts": {
-    "max": 1,
+  "src/renderer/components/settings/HelpDialog.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/KeySharingDialog.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/RuntimeConfigPanel.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/SettingsDialog.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/SupportAdminPanel.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/UsageBrowserTab.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/settings/WhatsNewToast.tsx": {
+    "max": 2,
     "countOver": 0
   },
   "src/renderer/components/shared/backendSelectState.ts": {
     "max": 7,
     "countOver": 0
   },
-  "src/renderer/components/shared/mentionText.test.ts": {
+  "src/renderer/components/shared/BottomNav.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/CampGlyph.tsx": {
     "max": 2,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/ChatBubble.tsx": {
+    "max": 6,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/CommunityShareBanner.tsx": {
+    "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/CopyLinkButton.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/DataSourceCard.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/DeleteConfirmDialog.tsx": {
+    "max": 2,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/DeploymentErrorScreen.tsx": {
+    "max": 1,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/DescriptionToggle.tsx": {
+    "max": 6,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/DetailPane.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/DetailPrimitives.tsx": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/DiagnosticsDrawer.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/DiffWindow.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/EmbeddingsStaleBanner.tsx": {
+    "max": 2,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/EmptyState.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/EntityBrowserPanel.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/EntityDetail.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/ExternalEmbed.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/FeedbackPopover.tsx": {
+    "max": 5,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/FieldHelp.tsx": {
+    "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/FireProgressIndicator.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/GlobalDetailPaneHost.tsx": {
+    "max": 2,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/HamburgerMenu.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/HarvestDialog.tsx": {
+    "max": 50,
+    "countOver": 3
+  },
+  "src/renderer/components/shared/HighlightedField.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/InlineEditTitle.tsx": {
+    "max": 2,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/LibraryListPage.tsx": {
+    "max": 15,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/LineageDetailView.tsx": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/LinkedChip.tsx": {
+    "max": 5,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/LinkedNodePreview.tsx": {
+    "max": 19,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/LoadingProgress.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/MentionField.tsx": {
+    "max": 6,
     "countOver": 0
   },
   "src/renderer/components/shared/mentionText.ts": {
     "max": 5,
     "countOver": 0
   },
+  "src/renderer/components/shared/NewNodeDialog.tsx": {
+    "max": 1,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/NewsReportModal.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/OverflowMenu.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/PinnedPanel.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/PrecacheToast.tsx": {
+    "max": 6,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/ProposalReviewDialog.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/QuotaBanner.tsx": {
+    "max": 5,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/ReflectionsPanel.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
   "src/renderer/components/shared/refLinkifyPlugin.ts": {
     "max": 8,
     "countOver": 0
   },
-  "src/renderer/components/shared/resolveRef.test.ts": {
-    "max": 2,
+  "src/renderer/components/shared/ResilienceBanner.tsx": {
+    "max": 4,
     "countOver": 0
   },
   "src/renderer/components/shared/resolveRef.ts": {
     "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/SearchWithHistory.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/SpeakerIdentity.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/StartupProgressScreen.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/Steelman.tsx": {
+    "max": 14,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/TabBar.tsx": {
+    "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/TerminalPanel.tsx": {
+    "max": 3,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/TheoryLink.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/TimelineScrubber.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/Toolbar.tsx": {
+    "max": 27,
+    "countOver": 2
+  },
+  "src/renderer/components/shared/ToolbarPaneRenderer.tsx": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/TypeaheadSelect.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/UpdatePrompt.tsx": {
+    "max": 2,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/UsernamePromptDialog.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/shared/VocabularyPanel.tsx": {
+    "max": 19,
+    "countOver": 1
+  },
+  "src/renderer/components/support/CaseDetail.tsx": {
+    "max": 9,
+    "countOver": 0
+  },
+  "src/renderer/components/support/MyCases.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/support/SupportCaseForm.tsx": {
+    "max": 24,
+    "countOver": 1
+  },
+  "src/renderer/components/sync/GitProgressBanner.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/sync/RebaseConflictModal.tsx": {
+    "max": 11,
+    "countOver": 0
+  },
+  "src/renderer/components/sync/SaveBar.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/sync/SyncDiagnosticsDialog.tsx": {
+    "max": 22,
+    "countOver": 2
+  },
+  "src/renderer/components/sync/TaxonomyDiffPanel.tsx": {
+    "max": 12,
+    "countOver": 0
+  },
+  "src/renderer/components/sync/TaxonomyUpdateToast.tsx": {
+    "max": 4,
+    "countOver": 0
+  },
+  "src/renderer/components/sync/UnsyncedChangesDrawer.tsx": {
+    "max": 13,
+    "countOver": 0
+  },
+  "src/renderer/components/taxonomy/ArgumentGraph.tsx": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/DebateTestedChip.tsx": {
+    "max": 8,
+    "countOver": 0
+  },
+  "src/renderer/components/taxonomy/DebateTestedDrilldown.tsx": {
+    "max": 7,
+    "countOver": 0
+  },
+  "src/renderer/components/taxonomy/GraphAttributesPanel.tsx": {
+    "max": 30,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/NodeDescriptionSection.tsx": {
+    "max": 22,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/NodeDetail.tsx": {
+    "max": 24,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/NodeEditHistory.tsx": {
+    "max": 10,
+    "countOver": 0
+  },
+  "src/renderer/components/taxonomy/NodeTree.tsx": {
+    "max": 21,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/PovTab.tsx": {
+    "max": 52,
+    "countOver": 2
+  },
+  "src/renderer/components/taxonomy/QbafOverlay.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/TaxonomyRefDetail.tsx": {
+    "max": 75,
+    "countOver": 4
+  },
+  "src/renderer/components/taxonomy/ValidationTab.tsx": {
+    "max": 13,
     "countOver": 0
   },
   "src/renderer/data/lineageCategories.ts": {
@@ -3595,32 +1447,16 @@
     "max": 6,
     "countOver": 0
   },
-  "src/renderer/data/navConfig.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
   "src/renderer/data/navConfig.ts": {
     "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/data/promptCatalog.lint.test.ts": {
-    "max": 7,
     "countOver": 0
   },
   "src/renderer/data/promptCatalog.ts": {
     "max": 1,
     "countOver": 0
   },
-  "src/renderer/hooks/useAnalytics.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
   "src/renderer/hooks/useAnalytics.ts": {
     "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useAuthStatus.test.ts": {
-    "max": 2,
     "countOver": 0
   },
   "src/renderer/hooks/useAuthStatus.ts": {
@@ -3631,16 +1467,8 @@
     "max": 3,
     "countOver": 0
   },
-  "src/renderer/hooks/useChatStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
   "src/renderer/hooks/useChatStore.ts": {
     "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useCommentStore.test.ts": {
-    "max": 2,
     "countOver": 0
   },
   "src/renderer/hooks/useCommentStore.ts": {
@@ -3655,10 +1483,6 @@
     "max": 55,
     "countOver": 6
   },
-  "src/renderer/hooks/useDebateStore/shared/clarificationGuard.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
   "src/renderer/hooks/useDebateStore/shared/clarificationGuard.ts": {
     "max": 8,
     "countOver": 0
@@ -3671,24 +1495,12 @@
     "max": 8,
     "countOver": 0
   },
-  "src/renderer/hooks/useDebateStore/shared/generation.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
   "src/renderer/hooks/useDebateStore/shared/generation.ts": {
     "max": 19,
     "countOver": 2
   },
   "src/renderer/hooks/useDebateStore/shared/getGreatestHits.ts": {
     "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/shared/guards.abortCapture.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/shared/guards.popoutClose.test.ts": {
-    "max": 2,
     "countOver": 0
   },
   "src/renderer/hooks/useDebateStore/shared/guards.ts": {
@@ -3701,10 +1513,6 @@
   },
   "src/renderer/hooks/useDebateStore/shared/narrativeVoicing.ts": {
     "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/shared/neutralCheckpoint.test.ts": {
-    "max": 1,
     "countOver": 0
   },
   "src/renderer/hooks/useDebateStore/shared/neutralCheckpoint.ts": {
@@ -3722,14 +1530,6 @@
   "src/renderer/hooks/useDebateStore/shared/taxonomyContext.ts": {
     "max": 30,
     "countOver": 1
-  },
-  "src/renderer/hooks/useDebateStore/shared/__tests__/getGreatestHits.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/shared/__tests__/modelConfig.test.ts": {
-    "max": 1,
-    "countOver": 0
   },
   "src/renderer/hooks/useDebateStore/slices/argumentNetworkSlice.ts": {
     "max": 12,
@@ -3779,136 +1579,8 @@
     "max": 15,
     "countOver": 0
   },
-  "src/renderer/hooks/useDebateStore/__tests__/adaptiveStagingDiagnostics.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/askQuestionSocraticStep.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/briefTimeoutFloor.openings.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/buildDebateDelta.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/crossRespondModeratorBackoff.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/crossRespondTurnFailure.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/crossSliceAndRegressions.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/debateSlices.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/interruptedTurnSocratic.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/lineagePipelineStatus.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/loadDebateCoalescing.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/loadDebateFromDataReadOnly.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/narrativeVoicingOpenings.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/reflectionScoping.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/relevanceSelectionParity.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/runOpeningStatements.abort.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/saveDebateCoalescing.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/saveDebateDelta.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/saveDebateDocMeta.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/saveDebateReadOnly.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/slotFirstOpenings.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/socraticNoAutoLoop.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/stageTimeoutFloor.openings.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/storeTestHarness.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/synthesisFactCheck.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/taxonomyContextCorpusDedup.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/taxonomyContextEmptyGuard.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/watchOnlyAutoStart.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore/__tests__/watchOnlyCrossRespondCeiling.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useDebateStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useFeatureFlags.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
   "src/renderer/hooks/useFeatureFlags.ts": {
     "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useGeminiOnboarding.test.ts": {
-    "max": 1,
     "countOver": 0
   },
   "src/renderer/hooks/useGeminiOnboarding.ts": {
@@ -3917,10 +1589,6 @@
   },
   "src/renderer/hooks/useGitProgress.ts": {
     "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useInquiryStore.test.ts": {
-    "max": 2,
     "countOver": 0
   },
   "src/renderer/hooks/useInquiryStore.ts": {
@@ -3947,10 +1615,6 @@
     "max": 3,
     "countOver": 0
   },
-  "src/renderer/hooks/useNavVisibilityContext.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
   "src/renderer/hooks/useNavVisibilityContext.ts": {
     "max": 1,
     "countOver": 0
@@ -3967,10 +1631,6 @@
     "max": 4,
     "countOver": 0
   },
-  "src/renderer/hooks/usePopoutTheme.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
   "src/renderer/hooks/usePopoutTheme.ts": {
     "max": 3,
     "countOver": 0
@@ -3983,15 +1643,7 @@
     "max": 5,
     "countOver": 0
   },
-  "src/renderer/hooks/useQuotaWarning.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
   "src/renderer/hooks/useQuotaWarning.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useResilienceStatus.test.ts": {
     "max": 4,
     "countOver": 0
   },
@@ -4001,10 +1653,6 @@
   },
   "src/renderer/hooks/useResizablePanel.ts": {
     "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useRuntimeConfigStore.test.ts": {
-    "max": 4,
     "countOver": 0
   },
   "src/renderer/hooks/useRuntimeConfigStore.ts": {
@@ -4031,10 +1679,6 @@
     "max": 43,
     "countOver": 3
   },
-  "src/renderer/hooks/useTaxonomyStore/slices/searchSlice.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
   "src/renderer/hooks/useTaxonomyStore/slices/searchSlice.ts": {
     "max": 19,
     "countOver": 1
@@ -4047,60 +1691,24 @@
     "max": 56,
     "countOver": 5
   },
-  "src/renderer/hooks/useTaxonomyStore/slices/__tests__/deriveModelsByBackend.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useTaxonomyStore/slices/__tests__/registryCompleteness.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
   "src/renderer/hooks/useTaxonomyStore/store.ts": {
     "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useTaxonomyStore.test.ts": {
-    "max": 5,
     "countOver": 0
   },
   "src/renderer/hooks/useTheoryLinkHotkey.ts": {
     "max": 8,
     "countOver": 0
   },
-  "src/renderer/hooks/useTierInfo.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
   "src/renderer/hooks/useTierInfo.ts": {
     "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useUsernameStore.test.ts": {
-    "max": 2,
     "countOver": 0
   },
   "src/renderer/hooks/useUsernameStore.ts": {
     "max": 6,
     "countOver": 0
   },
-  "src/renderer/hooks/useValidationStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
   "src/renderer/hooks/useValidationStore.ts": {
     "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/hooks/__tests__/useLongPressContextMenu.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/hooks/__tests__/useLongPressSelectionMenu.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/hooks/__tests__/useRuntimeConfigStore.test.ts": {
-    "max": 1,
     "countOver": 0
   },
   "src/renderer/lib/analyticsEmitter.ts": {
@@ -4119,16 +1727,8 @@
     "max": 7,
     "countOver": 0
   },
-  "src/renderer/lib/dwellTracker.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
   "src/renderer/lib/dwellTracker.ts": {
     "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/lib/dwellTrackerInit.test.ts": {
-    "max": 3,
     "countOver": 0
   },
   "src/renderer/lib/flightRecorderInit.ts": {
@@ -4159,38 +1759,6 @@
     "max": 5,
     "countOver": 0
   },
-  "src/renderer/lib/__tests__/analyticsEmitter.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/lib/__tests__/clientConfig.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/lib/__tests__/flightRecorderPopupDump.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/lib/__tests__/flightRecorderReactError.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/lib/__tests__/initAnalyticsSession.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/lib/__tests__/parseHash.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/lib/__tests__/vitePreloadRecovery.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/lib/__tests__/webPopupShim.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
   "src/renderer/prompts/analysis.ts": {
     "max": 1,
     "countOver": 0
@@ -4215,16 +1783,8 @@
     "max": 1,
     "countOver": 0
   },
-  "src/renderer/routing/appRoutes.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
   "src/renderer/routing/appRoutes.ts": {
     "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/routing/useAppRoute.test.ts": {
-    "max": 2,
     "countOver": 0
   },
   "src/renderer/routing/useAppRoute.ts": {
@@ -4239,10 +1799,6 @@
     "max": 1,
     "countOver": 0
   },
-  "src/renderer/theme-token-completeness.test.ts": {
-    "max": 8,
-    "countOver": 0
-  },
   "src/renderer/utils/clustering.ts": {
     "max": 18,
     "countOver": 1
@@ -4255,20 +1811,8 @@
     "max": 23,
     "countOver": 2
   },
-  "src/renderer/utils/debateValidation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/utils/dolceCompliance.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
   "src/renderer/utils/dolceCompliance.ts": {
     "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/utils/errorMessages.test.ts": {
-    "max": 1,
     "countOver": 0
   },
   "src/renderer/utils/errorMessages.ts": {
@@ -4295,32 +1839,16 @@
     "max": 16,
     "countOver": 1
   },
-  "src/renderer/utils/markdownLint.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
   "src/renderer/utils/promptPreview.ts": {
     "max": 44,
     "countOver": 1
-  },
-  "src/renderer/utils/qbaf.test.ts": {
-    "max": 2,
-    "countOver": 0
   },
   "src/renderer/utils/qbafExplain.ts": {
     "max": 21,
     "countOver": 1
   },
-  "src/renderer/utils/recordingLazy.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
   "src/renderer/utils/recordingLazy.ts": {
     "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/utils/regeneratePlainDescription.test.ts": {
-    "max": 1,
     "countOver": 0
   },
   "src/renderer/utils/regeneratePlainDescription.ts": {
@@ -4331,16 +1859,8 @@
     "max": 1,
     "countOver": 0
   },
-  "src/renderer/utils/retryClassifier.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
   "src/renderer/utils/retryClassifier.ts": {
     "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/utils/shareLinks.test.ts": {
-    "max": 2,
     "countOver": 0
   },
   "src/renderer/utils/shareLinks.ts": {
@@ -4355,20 +1875,8 @@
     "max": 5,
     "countOver": 0
   },
-  "src/renderer/utils/taxonomyContext.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
   "src/renderer/utils/theme.ts": {
     "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/utils/validation.data.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/utils/validation.test.ts": {
-    "max": 2,
     "countOver": 0
   },
   "src/renderer/utils/validation.ts": {
@@ -4377,10 +1885,6 @@
   },
   "src/renderer/utils/vocabularyAnnotations.ts": {
     "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/__tests__/resilienceFaults.test.ts": {
-    "max": 4,
     "countOver": 0
   },
   "src/server/ai/aiBackends.ts": {
@@ -4863,2460 +2367,12 @@
     "max": 2,
     "countOver": 0
   },
-  "src/server/__tests__/accessControl.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/adminAllowlist.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/adminBackfillShares.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/adminFeedbackPersistence.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/adminReview.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/aiBackendsFixedTemperature.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/aiCallLog.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/aiErrorClassification.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/aiRetryProgress.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/server/__tests__/allowlistStore.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/analytics.engagement.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/server/__tests__/analytics.probe.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/analytics.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/analyticsBlob.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/anonAiRoutes.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/anonDebateGate.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/anonSessionCreated.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/anonSessionKey.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/anonymousSessionStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/applyDebateDeltaToStorage.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/attribution.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/autoServerDump.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/azureBlobBackend.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/backendAvailability.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/briefExportBackend.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/briefExportJobs.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/briefExports.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/calibrationCuration.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/calibrationHandler.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/calibrationLog.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/canaryLoopSampler.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/canaryPublicPath.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/canaryRoutes.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/chatRequestObservability.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/chatUrlInject.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/community.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityApproveAutoShare.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityDebateIDOR.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityFaults.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityInquiries.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityInquiryIDOR.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityListingIndex.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityOpedShareBackfill.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityOpedShareRoute.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityOpedShares.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityOpedShareStore.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityRemoval.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/communityReviewHandler.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/config.projectRoot.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/configCacheDir.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/conflictsFileIO.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/contentSanitizer.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/cruxEvidence.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/dataPullAdminGate.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/dataRootReadiness.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/dataSshConversion.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/debateAnonAllowlist.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/debatesDeltaSave.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/debatesInFlightGuard.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/debateStore.schemaStale.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/debateStore.sort.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/debateStoreObs.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/dictionaryTimeout.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/dictionaryWarn.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/dualBackendRouting.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/edgesSave.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/edgesSerializerRoundTrip.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/editMeta.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/embeddingHealth.test.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/server/__tests__/embeddingsBatchCapAnd503.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/embeddingsCache.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/embeddingsChunkYield.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/embeddingsLargeRecomputeWarn.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/embeddingsLoad.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/embeddingsPerChunkTimeout.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/embeddingsProbe.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/embeddingWorkerOffload.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/embeddingWorkerPoolSize.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/embedQueueDepthMonitor.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/engagementRoute.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/entitlementGate.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/entity.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/entityMentionStore.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/entityStore.test.ts": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/server/__tests__/errorAggregation.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/eventLoopMonitor.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/exportModel.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/extractRoutes.ts": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/server/__tests__/fallbackChain.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/fallbackWarnLogging.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/featureFlags.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/featureFlagsRmw.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/feedbackStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/flightRecorderDumps.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/freeTier.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/fsCache.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/generateAbort.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/generateAbortNoFallback.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/generateAllowlist.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/generateDisconnectAbort.integration.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/getCommunityOpEd.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/githubApi.test.ts": {
-    "max": 36,
-    "countOver": 1
-  },
-  "src/server/__tests__/graphAttributeValidation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/greatestHitsRoute.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/groundingReconcileHook.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/groundingSweep.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/server/__tests__/headStaticServe.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/healthzReadiness.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/hostedModeCredentials.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/server/__tests__/httpCookies.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/httpKit.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/inquiryJobs.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/inquiryJobStoreInvariant.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/inquiryPipelineDeps.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/inquiryRoutes.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/inquiryShareRevokeE2E.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/inquiryShareRoutes.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/inquiryShareStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/keyDeletion.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/keyRotation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/keyRotator.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/keyStoreNegativeCache.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/keysValidation.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/server/__tests__/knownBackendsConsistency.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/server/__tests__/listDirectoryWarnFloor.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/localUserFlightRecorder.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/loggerEmit.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/loggerTruncation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/loginPage.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/loginPageHashCarry.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/mentions.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/migrateUserContentToBlob.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/multiKeyStore.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/multiuser-integration.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/networkSecurity.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/newsReportNotFound.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/nodeConflicts.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/nodeDiff.test.ts": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/server/__tests__/normalizedRequestPath.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/opedCreateAbort.integration.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/opedFilesHealth.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/opedRoutes.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/opedRunStore.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/opedShare.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/opedShareBackfill.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/opedShareRevokeCache.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/opedShareStore.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/server/__tests__/opedStore.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/organizations.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/paidFallbackOrdering.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/paidGeminiFallback.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/preferences.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/providerBinding.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/publicPaths.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/publicShare.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/quotas.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/rateLimiter.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/rateLimiterFaults.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/rateLimitResponse.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/readDataFile.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/readyz.test.ts": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/server/__tests__/readyzForceResolvesFalse.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/refreshAIModels.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/relevantNodesParity.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/relevantNodesRealEmbedParity.test.ts": {
-    "max": 22,
-    "countOver": 1
-  },
-  "src/server/__tests__/requestId.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/rollbackStatus.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/routeEntitlement.test.ts": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/server/__tests__/routeTable.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/rpmLimiter.test.ts": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/server/__tests__/runtimeConfig.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/runtimeCredentials.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/searchKeyRotation.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/searchPaidOverflow.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/serverLogBuffer.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/sessionScopedFrDump.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/shareShell.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/sourceDocuments.test.ts": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/server/__tests__/stateRoot.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/storageFaults.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/supportStore.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/server/__tests__/syntheticEmbeddingsCache.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/t2020Security.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/t714Security.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/t720Security.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/taxonomyGroundingWiring.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/tokenMilestones.test.ts": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/server/__tests__/userContext.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/userProfileAllowlist.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/server/__tests__/validateDataRoot.test.ts": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/server/__tests__/workerPoolShedToken.test.ts": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/server/__tests__/wsUserTargeting.test.ts": {
-    "max": 3,
-    "countOver": 0
-  },
   "tools/diff_match_patch.js": {
     "max": 32,
     "countOver": 8
   },
   "vite.config.ts": {
     "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/App.diagnosticsHashRouting.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/App.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/App.tsx": {
-    "max": 58,
-    "countOver": 3
-  },
-  "src/renderer/components/analysis/AICostCard.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/AnalysisPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/AnalysisPanel.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/analyticsCards.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/AnalyticsDashboard.test.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/AnalyticsDashboard.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/AttributeFilterPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/AttributeFilterPanel.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/AttributeInfoPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/AttributeInfoPanel.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/BdiGroundingPanel.reachability.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/BdiGroundingPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/BdiGroundingPanel.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/CalibrationDashboard.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/CalibrationReviewViewer.test.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/CalibrationReviewViewer.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/chartTooltip.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/chartTooltip.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/ConvergenceSignalsPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/ConvergenceSignalsPanel.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/DebateFunnelChart.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/DebateHealthCard.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/EngagementDashboard.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/EngagementDashboard.tsx": {
-    "max": 18,
-    "countOver": 1
-  },
-  "src/renderer/components/analysis/ExtractionTimelinePanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/ExtractionTimelinePanel.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/FactsPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/FactsPanel.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/FallacyPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/FallacyPanel.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/GroundingPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/GroundingPanel.tsx": {
-    "max": 16,
-    "countOver": 1
-  },
-  "src/renderer/components/analysis/LineagePanel.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/LineagePanel.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/NeutralEvaluationPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/NeutralEvaluationPanel.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/ParameterHistoryPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/ParameterHistoryPanel.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/PolicyAlignmentPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/PolicyAlignmentPanel.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/PolicyDashboard.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/PolicyDashboard.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/SummariesTab.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/SummariesTab.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/SystemOverviewRow.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/SystemOverviewRow.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/TaxonomyGapPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/TaxonomyGapPanel.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/UsageHierarchy.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/UsageHierarchy.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/YourActivityPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/analysis/YourActivityPanel.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/chatLibraryListConfig.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/ChatTab.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/ChatWindow.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/ChatWindow.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/ChatWorkspace.freeTier.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/ChatWorkspace.refLinks.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/ChatWorkspace.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/ChatWorkspace.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/CommentCreationPopover.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/CommentHighlights.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/CommentOverlay.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/CommentSidebar.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/CommentSidebar.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/NewChatDialog.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/NewChatDialog.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/PromptDiffPane.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/PromptDiffTree.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/PromptDiffWindow.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/PromptInspector.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/PromptInspector.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/PromptsPanel.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/UrlContextChip.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/chat/UrlContextChip.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/community/AnonymousBanner.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/community/AnonymousBanner.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/community/CommunityLibrary.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/ConflictDetail.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/ConflictInstanceForm.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/ConflictNoteForm.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/conflictPrimitives.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/ConflictsPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/ConflictsPanel.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/ConflictsTab.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/edit-conflicts/EditConflictBadge.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/edit-conflicts/editConflicts.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/EditableField.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/InlineConfirm.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/linkedItemPreview.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/conflict/linkedItemPreview.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/BriefExportDialog.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/BriefExportDialog.tsx": {
-    "max": 40,
-    "countOver": 2
-  },
-  "src/renderer/components/debate/BriefExportsList.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/BriefTimeoutDialog.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/BriefTimeoutToast.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/CruxesTab.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/CruxExternalEvidence.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/DebateBriefExports.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/DebateConfigSection.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/debateLibraryConfig.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/DebatePopoutWindow.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/DebatePopoutWindow.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/DebateSourceViewer.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/DebateTab.anon.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/DebateTab.tsx": {
-    "max": 20,
-    "countOver": 3
-  },
-  "src/renderer/components/debate/ExportDropdown.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/ExportDropdown.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/NewDebateDialog.freeTier.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/NewDebateDialog.socratic.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/NewDebateDialog.tsx": {
-    "max": 34,
-    "countOver": 4
-  },
-  "src/renderer/components/debate/SettingsToggleRow.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/SituationDebatePanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/SituationDebatePanel.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/SituationDetail.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/SituationListItem.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/SituationListItem.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/debate/SituationsTab.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/chat/DiagnosticsChatSidebar.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/chat/DiagnosticsChatSidebar.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/panel/DiagnosticsPanel.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/panel/DocumentCoverageSection.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/panel/EntryView.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/panel/EntryView.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/panel/helpers.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/panel/OverviewView.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/panel/VerificationSection.test.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/panel/VerificationSection.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/panel/WhatIfSection.test.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/panel/WhatIfSection.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/DiagnosticsWindow.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/DiagnosticsWindow.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/AffectTab.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/BriefTab.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/CitationsTab.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/CitationsTab.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/CiteTab.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/ClaimsTab.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/ClaimsTab.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/DetailsTab.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/DetailsTab.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/DraftTab.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/DraftTab.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/EvidenceTab.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/EvidenceTab.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/ExclusionGuardTab.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/ExclusionGuardTab.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/LookaheadTab.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/PlanTab.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/entry-tabs/TaxRefsTab.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/EntryDetailRouter.parts.tsx": {
-    "max": 17,
-    "countOver": 1
-  },
-  "src/renderer/components/debate-diagnostics/window/EntryDetailRouter.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/EntryDetailRouter.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/helpers.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/helpers.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/overview-tabs/AdaptiveStagingTab.test.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/overview-tabs/AdaptiveStagingTab.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/overview-tabs/ArgStrengthTab.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/overview-tabs/ArgStrengthTab.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/overview-tabs/ArgumentNetworkTab.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/overview-tabs/ArgumentNetworkTab.tsx": {
-    "max": 17,
-    "countOver": 1
-  },
-  "src/renderer/components/debate-diagnostics/window/overview-tabs/EmotionalRegisterTab.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/overview-tabs/ReflectionsTab.tsx": {
-    "max": 17,
-    "countOver": 1
-  },
-  "src/renderer/components/debate-diagnostics/window/overview-tabs/UtilityTab.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/OverviewTabRouter.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/OverviewTabRouter.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/ArtifactBlock.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/ArtifactBlock.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/CommitmentsPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/CommitmentsPanel.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/DebateExchangeRich.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/EdgesUsed.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/EdgesUsed.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/INodeRow.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/INodeRow.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/ModeratorTab.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/OverflowMenu.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/OverflowMenu.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/ScoreBadge.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/ScoreBadge.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/ScoreBreakdown.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/ScoreBreakdown.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/TensionsListDetail.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/TurnValidation.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/TurnValidation.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/VerdictChip.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-diagnostics/window/shared/VerdictChip.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/ClaimsView.test.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/ClaimsView.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/ClarificationPanel.test.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/ClarificationPanel.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/DebateActionBar.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/DebateActionBar.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/DebateHeader.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/DebatePhaseIndicators.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/DebateSetupDialog.tsx": {
-    "max": 40,
-    "countOver": 1
-  },
-  "src/renderer/components/debate-workspace/DebateWorkspace.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/DebateWorkspace.tsx": {
-    "max": 20,
-    "countOver": 3
-  },
-  "src/renderer/components/debate-workspace/ExplorationSummaryCard.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/OpeningPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/OpeningPanel.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/SectionErrorBoundary.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/SectionErrorBoundary.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/StatementCard.collapse.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/StatementCard.comments.test.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/StatementCard.factCheck.test.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/StatementCard.prose.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/StatementCard.refLinks.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/StatementCard.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/StatementCard.tsx": {
-    "max": 17,
-    "countOver": 2
-  },
-  "src/renderer/components/debate-workspace/StatementProgressIndicator.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/TaxonomyRefs.bdiDetail.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/TaxonomyRefs.planDetail.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/TaxonomyRefs.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/TaxonomyRefs.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/TopicCritique/CritiqueColumn.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/TopicCritique/RadarChart.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/TopicCritique/TopicCritiqueCard.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/TopicCritique/TopicCritiqueCard.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/TranscriptOutline.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/TranscriptOutline.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/VocabularyPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/debate-workspace/VocabularyPanel.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/EdgeBrowser.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/EdgeBrowser.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/EdgeDetailPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/EdgeDetailPanel.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/FindBar.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/RelatedEdgesPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/RelatedEdgesPanel.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/SearchBar.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/SearchBar.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/SearchPanel.clearButton.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/SearchPanel.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/SearchPreview.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/edge-browser/SimilarSearchPanel.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryAnswerPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryAnswerPanel.tsx": {
-    "max": 21,
-    "countOver": 1
-  },
-  "src/renderer/components/inquiry/InquiryAskPanel.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryCommunityList.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryCommunityList.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryExportDropdown.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryHistoryTable.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryListPanel.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryRunningPanel.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryShareControl.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryShareControl.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryShareDialog.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryShareDialog.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryTab.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/inquiry/InquiryTab.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/OnboardingTour.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/opeds/NewOpEdDialog.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/opeds/NewOpEdDialog.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/opeds/OpEdCampTags.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/opeds/OpEdCampTags.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/opeds/OpEdReader.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/opeds/OpEdReader.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/opeds/OpEdTab.shareGuard.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/opeds/OpEdTab.tsx": {
-    "max": 16,
-    "countOver": 1
-  },
-  "src/renderer/components/organizations/OrganizationDetail.tsx": {
-    "max": 23,
-    "countOver": 1
-  },
-  "src/renderer/components/organizations/OrganizationsTab.tsx": {
-    "max": 18,
-    "countOver": 1
-  },
-  "src/renderer/components/organizations/StakeholderSection.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/policy/PhrasesPanel.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/policy/PolicySourcesPanel.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/policy/SourcesPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/policy/SourcesPanel.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/PovProgression/PovProgressionView.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/PovProgression/PovProgressionView.tsx": {
-    "max": 19,
-    "countOver": 3
-  },
-  "src/renderer/components/PovProgression/PovProgressionWindow.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/PublicInquiryShareContent.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/PublicInquiryShareContent.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/PublicInquiryView.test.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/PublicInquiryView.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/PublicOpEdIndexView.test.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/PublicOpEdIndexView.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/PublicOpEdView.test.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/PublicOpEdView.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/PublicPovView.test.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/PublicPovView.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/AdminErrorsTab.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/AdminPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/AdminPanel.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/AdminReviewPanel.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/AllowlistPanel.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/ApiKeyDialog.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/ApiKeyDialog.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/ApiKeyErrorMessage.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/CommunityReviewViewer.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/CommunityReviewViewer.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/FeatureFlagsPanel.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/FirstRunDialog.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/GeminiOnboardingModal.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/GeminiOnboardingModal.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/HelpDialog.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/KeySharingDialog.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/RuntimeConfigPanel.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/RuntimeConfigPanel.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/SettingsDialog.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/SettingsDialog.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/SupportAdminPanel.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/UsageBrowserTab.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/settings/WhatsNewToast.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/BottomNav.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/CampGlyph.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/CampGlyph.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/ChatBubble.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/CommunityShareBanner.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/CopyLinkButton.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/DataSourceCard.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/DeleteConfirmDialog.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/DeleteConfirmDialog.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/DeploymentErrorScreen.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/DescriptionToggle.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/DescriptionToggle.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/DetailPane.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/DetailPane.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/DetailPrimitives.tsx": {
-    "max": 18,
-    "countOver": 1
-  },
-  "src/renderer/components/shared/DiagnosticsDrawer.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/DiffWindow.tsx": {
-    "max": 17,
-    "countOver": 1
-  },
-  "src/renderer/components/shared/EmbeddingsStaleBanner.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/EmbeddingsStaleBanner.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/EmptyState.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/EntityBrowserPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/EntityBrowserPanel.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/EntityDetail.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/EntityDetail.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/ExternalEmbed.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/FeedbackPopover.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/FieldHelp.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/FieldHelp.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/FireProgressIndicator.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/GlobalDetailPaneHost.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/GlobalDetailPaneHost.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/HamburgerMenu.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/HamburgerMenu.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/HarvestDialog.tsx": {
-    "max": 50,
-    "countOver": 3
-  },
-  "src/renderer/components/shared/HighlightedField.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/HighlightedField.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/InlineEditTitle.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/InlineEditTitle.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/LibraryListPage.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/LibraryListPage.tsx": {
-    "max": 15,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/LineageDetailView.tsx": {
-    "max": 16,
-    "countOver": 1
-  },
-  "src/renderer/components/shared/LinkedChip.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/LinkedChip.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/LinkedNodePreview.tsx": {
-    "max": 19,
-    "countOver": 1
-  },
-  "src/renderer/components/shared/LoadingProgress.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/LoadingProgress.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/MentionField.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/MentionField.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/NewNodeDialog.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/NewsReportModal.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/NewsReportModal.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/OverflowMenu.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/PinnedPanel.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/PrecacheToast.tsx": {
-    "max": 6,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/ProposalReviewDialog.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/QuotaBanner.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/QuotaBanner.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/ReflectionsPanel.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/ReflectionsPanel.tsx": {
-    "max": 17,
-    "countOver": 1
-  },
-  "src/renderer/components/shared/refLinkifyPlugin.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/ResilienceBanner.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/SearchWithHistory.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/SpeakerIdentity.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/SpeakerIdentity.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/StartupProgressScreen.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/Steelman.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/Steelman.tsx": {
-    "max": 14,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/TabBar.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/TabBar.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/TerminalPanel.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/TheoryLink.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/TheoryLink.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/TimelineScrubber.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/Toolbar.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/Toolbar.tsx": {
-    "max": 27,
-    "countOver": 2
-  },
-  "src/renderer/components/shared/ToolbarPaneRenderer.tsx": {
-    "max": 18,
-    "countOver": 1
-  },
-  "src/renderer/components/shared/TypeaheadSelect.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/UpdatePrompt.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/UsernamePromptDialog.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/UsernamePromptDialog.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/VocabularyPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/shared/VocabularyPanel.tsx": {
-    "max": 19,
-    "countOver": 1
-  },
-  "src/renderer/components/support/CaseDetail.tsx": {
-    "max": 9,
-    "countOver": 0
-  },
-  "src/renderer/components/support/MyCases.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/support/SupportCaseForm.tsx": {
-    "max": 24,
-    "countOver": 1
-  },
-  "src/renderer/components/sync/GitProgressBanner.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/sync/RebaseConflictModal.tsx": {
-    "max": 11,
-    "countOver": 0
-  },
-  "src/renderer/components/sync/SaveBar.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/sync/SaveBar.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/sync/SyncDiagnosticsDialog.test.tsx": {
-    "max": 3,
-    "countOver": 0
-  },
-  "src/renderer/components/sync/SyncDiagnosticsDialog.tsx": {
-    "max": 22,
-    "countOver": 2
-  },
-  "src/renderer/components/sync/TaxonomyDiffPanel.test.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/sync/TaxonomyDiffPanel.tsx": {
-    "max": 12,
-    "countOver": 0
-  },
-  "src/renderer/components/sync/TaxonomyUpdateToast.test.tsx": {
-    "max": 2,
-    "countOver": 0
-  },
-  "src/renderer/components/sync/TaxonomyUpdateToast.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/sync/UnsyncedChangesDrawer.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/components/taxonomy/ArgumentGraph.tsx": {
-    "max": 16,
-    "countOver": 1
-  },
-  "src/renderer/components/taxonomy/DebateTestedChip.test.tsx": {
-    "max": 5,
-    "countOver": 0
-  },
-  "src/renderer/components/taxonomy/DebateTestedChip.tsx": {
-    "max": 8,
-    "countOver": 0
-  },
-  "src/renderer/components/taxonomy/DebateTestedDrilldown.tsx": {
-    "max": 7,
-    "countOver": 0
-  },
-  "src/renderer/components/taxonomy/GraphAttributesPanel.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/taxonomy/GraphAttributesPanel.tsx": {
-    "max": 30,
-    "countOver": 1
-  },
-  "src/renderer/components/taxonomy/NodeDescriptionSection.tsx": {
-    "max": 22,
-    "countOver": 1
-  },
-  "src/renderer/components/taxonomy/NodeDetail.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/taxonomy/NodeDetail.tsx": {
-    "max": 24,
-    "countOver": 1
-  },
-  "src/renderer/components/taxonomy/NodeEditHistory.tsx": {
-    "max": 10,
-    "countOver": 0
-  },
-  "src/renderer/components/taxonomy/NodeTree.test.tsx": {
-    "max": 4,
-    "countOver": 0
-  },
-  "src/renderer/components/taxonomy/NodeTree.tsx": {
-    "max": 21,
-    "countOver": 1
-  },
-  "src/renderer/components/taxonomy/PovTab.tsx": {
-    "max": 52,
-    "countOver": 2
-  },
-  "src/renderer/components/taxonomy/QbafOverlay.tsx": {
-    "max": 17,
-    "countOver": 1
-  },
-  "src/renderer/components/taxonomy/TaxonomyRefDetail.test.tsx": {
-    "max": 1,
-    "countOver": 0
-  },
-  "src/renderer/components/taxonomy/TaxonomyRefDetail.tsx": {
-    "max": 75,
-    "countOver": 4
-  },
-  "src/renderer/components/taxonomy/ValidationTab.tsx": {
-    "max": 13,
-    "countOver": 0
-  },
-  "src/renderer/hooks/useTheoryLinkHotkey.test.tsx": {
-    "max": 1,
     "countOver": 0
   }
 }
