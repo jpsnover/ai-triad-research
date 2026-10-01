@@ -192,3 +192,85 @@ the 33% point estimate (2 events over-powers); the pre-registered ~50 (3%→20% 
 **Answers the PI's original 3-way question (e/230):** not "hypothesis wrong," not merely "insufficient
 data" — it was **"work incomplete" (now fixed), and the fixed mechanism shows the predicted adoption
 effect directionally.** The confirmatory arm settles magnitude.
+
+---
+
+# CONFIRMATORY ARM PRE-REGISTRATION (pre-data, 2026-10-01, t/3790)
+
+Fixed before the confirmatory data exists, and before the run is even funded — the strongest timing,
+no post-hoc latitude. Everything above is the pilot's pre-registration + result; this section governs
+the ~50-debate confirmatory arm the pilot's continue-to-confirm branch triggered.
+
+## Frozen cell (identical to the pilot = the matched-baseline-subset filter)
+
+`debate_model = gemini-3.5-flash-lite`, `protocol_id = structured`, `adaptive_staging.pacing = moderate`,
+`audience = policymakers`, `active_povers = [accelerationist, safetyist, skeptic]` (3-POV). Plus the
+pinned build identity verified homogeneous in the pilot: `app_version` / `generated_with_prompt_version`
+/ moderator `mode`. **These are asserted per-debate at generation and the arm ABORTS on any mismatch**
+(TL precondition #2) — a mid-arm version/prompt landing silently splits the sample otherwise, and a
+split sample is invisible in the analysis. The pilot was homogeneous by luck (two execution windows two
+hours apart); the confirmatory arm is homogeneous by construction.
+
+## Primary readout — PER-STEELMAN-NODE binary adoption (higher-power; this is what ~50 sizes)
+
+For each steelman node, a binary: **does it receive ≥1 later-turn inbound edge whose source is a node of
+its OWN steelmanned camp** (`steelman_of`)? n = number of steelman nodes (~50 at a 50-debate arm, ~1
+node/debate in the pilot). This is the metric the pre-registered power calc actually sizes:
+
+- Power basis: detect **3% → 20%** at 80% power, α=.05, two-proportion ≈ **55 steelman nodes per arm**.
+  ~50 confirmatory debates ≈ ~50 nodes; the matched baseline subset supplies the control arm (34 nodes
+  today, grows as the corpus does). ~50 **stands** — do NOT re-power off the pilot's 33% point estimate
+  (it rests on 2 events; re-powering off observed noise is how a pre-registration becomes overpowered-
+  for-noise). TL concurs (t/3790#16).
+
+**Correction this fixes:** the pilot *reported* the edge-SHARE (2/6), but ~50 was sized at the node level.
+The per-node binary is the n-consistent primary. Baseline per-node adoption must be recomputed on the
+matched subset the same way (the instrument tracks per-node later-inbound counts already; extend to
+per-node steelmanned-camp-inbound — CL owns that instrument change, additive, same file).
+
+## Secondary readouts (reported with n; not the power-sized primary)
+
+- **Edge-share adoption** (pilot 2/6): steelmanned-camp share of all later-inbound edges. Thinner
+  (denominator ≈ later-inbound edges, ~30 at n=50); the pilot's headline, kept for continuity.
+- **Connection rate** (pilot 40% vs 44%): ≥1 later-inbound edge from ANY camp. Expected flat — not the
+  fix's target; a large move here would be a flag to investigate, not a win.
+- **Mechanism signature**: the third-camp vs steelmanned-camp split of later-inbound edges (pilot showed
+  third 88%→67%, steelmanned 4%→33% — the reallocation). Qualitative corroboration.
+
+## Control
+
+The **config-matched baseline subset** — the pre-fix corpus filtered to the frozen cell, measured by the
+SAME instrument (`measure_pilot_vs_matched_baseline.py`). Not the heterogeneous full corpus; not a new
+measurement path. Confound-bound check (ruling #6) re-run: compare later-inbound edges/debate across arms;
+material divergence → the opportunity confound isn't bounded → escalate to the concurrent fix-off control
+(ruling #7).
+
+## Decision branches (unchanged from the pilot pre-registration above — restated for the confirmatory n)
+
+All three wiring surfaces are now live (#2604 turn-context, #2606 belief/utility, #2613 own-camp gift),
+so the **abandon branch is available** and the effect-as-floor caveat does NOT apply.
+
+- **CONFIRM** (hypothesis supported): per-node adoption CI **excludes the matched-baseline rate** (upward).
+- **ABANDON** (evidence against): per-node adoption **statistically indistinguishable from baseline**,
+  with the positive control (P1∧P2∧P3) passing on the arm's build. Report the null; do NOT hunt a further
+  wiring defect (the surviving-vector reflex). The positive control is the precondition that makes a null
+  interpretable.
+- **AMBIGUOUS** (underpowered): directionally positive, CI-wide → insufficient data, not support; report
+  as such. (Should not occur at n=50 for a 3%→20% effect, but holds if the realized node yield undershoots.)
+- **Non-degenerate guard (t/3587):** every rate carries its n and the per-camp decomposition.
+
+## Run-gates (TL's four preconditions, t/3790#16 — must hold before and during the arm)
+
+1. Run-scoped output dir `t3790-confirm-<run-id>/`, idempotent skip of any complete set (never rewrite).
+2. Per-debate config pin asserted against the frozen cell; **abort on mismatch**.
+3. Foreground sequential only (~6.1 min/debate measured, ~40% headroom under the 10-min cap; no background).
+4. Commit + push incrementally (~every 10 debates); resolve the `calibration/` ignore disposition first
+   (t/3790#15/#17). **Commit the analysis-faithful calibration copy** — note the pilot's live calibration
+   log diverged from its backup via concurrent re-runs (t/3790#18); the backup is the snapshot the numbers
+   were read against.
+
+## Not a Second Opinion trigger
+
+Pre-registered confirmatory arm on an existing design; no blocking-gate promotion, no schema/data-model
+change; reversible; ~5 hours of model time is not a cost/risk asymmetry. TL recorded the same (t/3790#16).
+The only open gate is the PI funding the ~5 hours.
