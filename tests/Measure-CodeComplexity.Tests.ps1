@@ -97,7 +97,7 @@ function Get-Broken {
     script:WriteFixture 'notes.txt' 'if this were scanned it would break the count'
 
     function script:Get([string]$File, [string]$Fn, [switch]$Verbose) {
-        $all = Measure-CodeComplexity -Path $script:Fx -Include $File -AsObject -WarningAction SilentlyContinue
+        $all = Measure-CodeComplexity -Path $script:Fx -Include $File -WarningAction SilentlyContinue
         $all | Where-Object { $_.Function -eq $Fn }
     }
 }
@@ -146,27 +146,29 @@ Describe 'Measure-CodeComplexity (p/550)' -Tag 'config' {
 
     It 'skips a malformed file with a warning, continues scanning the rest' {
         $warned = $false
-        $r = Measure-CodeComplexity -Path $script:Fx -Include 'broken.ps1', 'trivial.ps1' -AsObject -WarningVariable w -WarningAction SilentlyContinue
+        $r = Measure-CodeComplexity -Path $script:Fx -Include 'broken.ps1', 'trivial.ps1' -WarningVariable w -WarningAction SilentlyContinue
         @($w).Count | Should -BeGreaterThan 0
         ($r | Where-Object { $_.Function -eq 'Get-Trivial' }) | Should -Not -BeNullOrEmpty
     }
 
     It '-Include respects file-type filtering — a .txt file is never scanned by default' {
-        $r = Measure-CodeComplexity -Path $script:Fx -AsObject -WarningAction SilentlyContinue
+        $r = Measure-CodeComplexity -Path $script:Fx -WarningAction SilentlyContinue
         @($r.File) | Should -Not -Contain 'notes.txt'
     }
 
     It '-MinComplexity filters out functions below the threshold' {
-        $r = Measure-CodeComplexity -Path $script:Fx -Include 'loops.ps1', 'trivial.ps1' -MinComplexity 5 -AsObject -WarningAction SilentlyContinue
+        $r = Measure-CodeComplexity -Path $script:Fx -Include 'loops.ps1', 'trivial.ps1' -MinComplexity 5 -WarningAction SilentlyContinue
         @($r.Function) | Should -Contain 'Get-Loops'     # complexity 6 >= 5
         @($r.Function) | Should -Not -Contain 'Get-Trivial'   # complexity 1 < 5
     }
 
-    It '-AsObject:$false returns formatted text grouped by file' {
-        $text = Measure-CodeComplexity -Path $script:Fx -Include 'ifelse.ps1' -WarningAction SilentlyContinue
-        $text | Should -BeOfType [string]
-        $text | Should -Match 'ifelse\.ps1'
-        $text | Should -Match 'Get-IfElse'
+    It 'returns structured objects by default — File/Function/Complexity/StartLine' {
+        $r = Measure-CodeComplexity -Path $script:Fx -Include 'ifelse.ps1' -WarningAction SilentlyContinue
+        $r | Should -Not -BeOfType [string]
+        $row = $r | Where-Object { $_.Function -eq 'Get-IfElse' }
+        $row.File | Should -Be 'ifelse.ps1'
+        $row.Complexity | Should -Be 3
+        $row.StartLine | Should -BeGreaterThan 0
     }
 
     It 'defaults -Path to an existing directory and does not throw' {
