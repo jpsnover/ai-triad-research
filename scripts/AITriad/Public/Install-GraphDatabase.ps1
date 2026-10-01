@@ -21,11 +21,14 @@ function Install-GraphDatabase {
         is provided, a random password is generated and printed ONCE — copy it to $env:NEO4J_PASSWORD or
         re-run with -Credential to reuse it.
 
-        SECURITY NOTE (t/3830): typing this as PSCredential keeps the password out of $PSBoundParameters,
-        PowerShell transcripts, and shell history, and satisfies PSSA PSAvoidUsingPlainTextForPassword — it
-        is NOT an encryption boundary. The password is still handed to `docker run` as the NEO4J_AUTH env
-        value, so it remains visible in the docker process args and in `docker inspect` (Config.Env). Closing
-        that residual is tracked in t/3833.
+        SECURITY NOTE (t/3830 + t/3833): typing this as PSCredential keeps the password out of
+        $PSBoundParameters, transcripts, and shell history (PSSA-clean) — it is NOT an encryption boundary.
+        The credential reaches the container via a bind-mounted NEO4J_AUTH_FILE (t/3833), so it is absent
+        from the docker argv AND from `docker inspect` Config.Env (only the file PATH appears). A short-lived
+        host file holds the secret during container init and is removed once an authenticated `RETURN 1`
+        confirms the credential took; if it does not authenticate the install FAILS LOUDLY rather than
+        silently leaving Neo4j on default credentials. (The host ACL restricts the host path only — on
+        Docker Desktop/WSL2 it is not preserved inside the container VM, which is the intended reader.)
     .PARAMETER DataPath
         Path for persistent database storage. Default: ~/ai-triad-graphdb.
     .EXAMPLE
@@ -86,6 +89,10 @@ function Install-GraphDatabase {
     }
 
     $ContainerName = 'ai-triad-neo4j'
+    # Single source for the image tag (pull + run). t/3833/SO cond.4: `community` is a floating tag — the
+    # runtime credential check (Step 6b) is the guarantee against a version that doesn't honor NEO4J_AUTH_FILE.
+    # RECOMMEND the Docker agent confirm the current `community` resolution and pick a non-downgrading pin.
+    $Neo4jImage = 'neo4j:community'
 
     # ── Step 1: Check Docker ──
     Write-Step 'Checking Docker'
@@ -139,50 +146,108 @@ function Install-GraphDatabase {
 
     # ── Step 4: Pull Neo4j image ──
     Write-Step 'Pulling Neo4j image'
-    & docker pull neo4j:community 2>&1 | ForEach-Object { Write-Info $_ }
+    & docker pull $Neo4jImage 2>&1 | ForEach-Object { Write-Info $_ }
     Write-OK 'Image ready'
 
     # ── Step 5: Run container ──
+    # SECRET CHANNEL (t/3833): the credential is passed via a bind-mounted NEO4J_AUTH_FILE, NOT `-e NEO4J_AUTH`,
+    # so the plaintext is absent from the docker argv (process list) AND from `docker inspect` Config.Env (only
+    # the in-container PATH appears). The host file is short-lived and removed after Step 6b verifies the
+    # credential actually took. ACL note (SO cond.5): the host ACL restricts the host path only — on Docker
+    # Desktop/WSL2 it is not preserved inside the container VM (the container is the intended reader).
     Write-Step 'Starting Neo4j container'
+    $AuthFile = Join-Path $DataPath '.neo4j-auth'   # NOT under the data/ or logs/ mounted subdirs
+    $ContainerStarted = $false
     if ($PSCmdlet.ShouldProcess($ContainerName, 'Create and start Neo4j container')) {
+        # BOM-free UTF-8, no trailing newline — a BOM or newline would corrupt the NEO4J_AUTH value the
+        # entrypoint reads (and -Encoding utf8 writes a BOM on PS 5.1). Any bad encoding is caught loudly by
+        # the Step 6b auth check rather than silently mis-setting the password.
+        [System.IO.File]::WriteAllText($AuthFile, "$Neo4jUser/$Neo4jPassword", (New-Object System.Text.UTF8Encoding $false))
+        try { & icacls $AuthFile /inheritance:r /grant:r "${env:USERNAME}:(R)" *> $null }
+        catch { Write-Verbose "Best-effort ACL on the auth file failed (non-fatal): $($_.Exception.Message)" }
         & docker run -d `
             --name $ContainerName `
             -p 7474:7474 `
             -p 7687:7687 `
             -v "$DataPath/data:/data" `
             -v "$DataPath/logs:/logs" `
-            -e "NEO4J_AUTH=$Neo4jUser/$Neo4jPassword" `
+            -v "${AuthFile}:/run/secrets/neo4j-auth:ro" `
+            -e "NEO4J_AUTH_FILE=/run/secrets/neo4j-auth" `
             -e "NEO4J_PLUGINS=[""apoc""]" `
-            neo4j:community 2>&1 | Out-Null
+            $Neo4jImage 2>&1 | Out-Null
 
         if ($LASTEXITCODE -eq 0) {
+            $ContainerStarted = $true
             Write-OK "Neo4j container '$ContainerName' started"
         } else {
+            # Don't leave the secret on a failed start.
+            Remove-Item -LiteralPath $AuthFile -Force -ErrorAction SilentlyContinue
             Write-Fail 'Failed to start Neo4j container'
             return
         }
     }
 
-    # ── Step 6: Wait for readiness ──
-    Write-Step 'Waiting for Neo4j to initialize'
-    $MaxWait = 30
-    $Ready = $false
-    for ($i = 0; $i -lt $MaxWait; $i++) {
-        Start-Sleep -Seconds 2
-        try {
-            $null = Invoke-RestMethod -Uri 'http://localhost:7474' -TimeoutSec 2 -ErrorAction Stop
-            $Ready = $true
-            break
-        } catch {
-            Write-Host '.' -NoNewline -ForegroundColor DarkGray
+    # ── Step 6 / 6b: readiness + AUTHENTICATED verify (only when we actually started a container) ──
+    if ($ContainerStarted) {
+        Write-Step 'Waiting for Neo4j to initialize'
+        $MaxWait = 30
+        $Ready = $false
+        for ($i = 0; $i -lt $MaxWait; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+                $null = Invoke-RestMethod -Uri 'http://localhost:7474' -TimeoutSec 2 -ErrorAction Stop
+                $Ready = $true
+                break
+            } catch {
+                Write-Host '.' -NoNewline -ForegroundColor DarkGray
+            }
         }
-    }
-    Write-Host ''
+        Write-Host ''
 
-    if ($Ready) {
-        Write-OK 'Neo4j is ready'
-    } else {
-        Write-Warn 'Neo4j may still be starting. Check docker logs ai-triad-neo4j'
+        if ($Ready) {
+            Write-OK 'Neo4j is ready'
+
+            # Step 6b (SO cond.1): the HTTP port being up does NOT prove the credential took — if the image
+            # ignored NEO4J_AUTH_FILE it is running on DEFAULT creds. Make one AUTHENTICATED request with the
+            # intended credential; fail LOUDLY on mismatch rather than silently shipping a default-cred DB.
+            $AuthVerified = $false
+            try {
+                # Build the probe SecureString via AppendChar (not ConvertTo-SecureString -AsPlainText, which
+                # PSSA flags) — the plaintext is one we just resolved/generated, re-typed here only to satisfy
+                # the sibling cmdlet's -Credential contract for a localhost auth check.
+                $ProbeSec = [System.Security.SecureString]::new()
+                foreach ($ch in $Neo4jPassword.ToCharArray()) { $ProbeSec.AppendChar($ch) }
+                $ProbeSec.MakeReadOnly()
+                $ProbeCred = [System.Management.Automation.PSCredential]::new($Neo4jUser, $ProbeSec)
+                $null = Invoke-CypherQuery -Query 'RETURN 1' -Credential $ProbeCred -ErrorAction Stop
+                $AuthVerified = $true
+            } catch {
+                Write-Fail "Neo4j credential verification failed: $($_.Exception.Message)"
+            }
+
+            if ($AuthVerified) {
+                Write-OK 'Neo4j credential verified (authenticated RETURN 1)'
+                # SO cond.2: remove the secret file ONLY after the credential is confirmed.
+                Remove-Item -LiteralPath $AuthFile -Force -ErrorAction SilentlyContinue
+            } else {
+                # SO cond.2: leave the file on failure; fail loudly (fail-open is the dangerous case).
+                Write-Warn "Auth secret file LEFT at $AuthFile (contains the Neo4j password) — not removed; credential unverified."
+                throw (New-ActionableError `
+                        -Goal 'Install Neo4j with a hardened credential channel' `
+                        -Problem "The container started and port 7474 is up, but it REJECTED the intended credential — Neo4j likely did not apply NEO4J_AUTH_FILE and may be running on DEFAULT credentials (a silent credential downgrade)." `
+                        -Location 'Install-GraphDatabase' `
+                        -NextSteps @(
+                            "Check: docker logs $ContainerName (look for auth/NEO4J_AUTH_FILE errors)",
+                            'Confirm the image honors NEO4J_AUTH_FILE; fallback is neo4j-admin dbms set-initial-password (t/3833)',
+                            "The secret file was left at $AuthFile — remove it after resolving",
+                            'Then re-run Install-GraphDatabase -Force'))
+            }
+        } else {
+            # SO cond.2: timeout only WARNS (never fails) — so do NOT delete the file out from under a
+            # still-initializing container; leave it with its path + secret note.
+            Write-Warn 'Neo4j may still be starting. Check docker logs ai-triad-neo4j'
+            Write-Warn "Auth secret file LEFT at $AuthFile (contains the Neo4j password) — not removed while readiness is unconfirmed; remove it once auth is confirmed, or re-run -Force."
+        }
     }
 
     Write-Host ''

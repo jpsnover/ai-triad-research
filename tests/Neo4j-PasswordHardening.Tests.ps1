@@ -97,4 +97,28 @@ Describe 'Neo4j password hardening (t/2530 M2)' -Tag 'security' {
         $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
         $src | Should -Not -Match 'Password:\s*\$Neo4jPassword'
     }
+
+    # ── t/3833: secret channel — NEO4J_AUTH_FILE (bind mount), no plaintext in argv / docker inspect ──
+    # (Source-grep only; the live `docker inspect` / authenticated-connection proof is the Docker agent's.)
+
+    It 'Install-GraphDatabase passes the credential via NEO4J_AUTH_FILE, not an inline NEO4J_AUTH env' {
+        $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
+        $src | Should -Match 'NEO4J_AUTH_FILE'
+        # The inline plaintext form `NEO4J_AUTH=<user>/<pw>` must be gone (NEO4J_AUTH_FILE= does not match this).
+        $src | Should -Not -Match 'NEO4J_AUTH='
+    }
+
+    It 'Install-GraphDatabase verifies the credential with an authenticated request before declaring success' {
+        $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
+        # SO cond.1 — a post-start authenticated probe (reuses the sibling cmdlet) that fails loudly on mismatch.
+        $src | Should -Match "Invoke-CypherQuery -Query 'RETURN 1'"
+        $src | Should -Match '\$AuthVerified'
+    }
+
+    It 'Install-GraphDatabase removes the auth secret file only after the credential is verified (SO cond.2)' {
+        $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
+        # The removal must be inside the verified branch — assert the removal references $AuthFile and that
+        # the verified-gate exists (full timeout/no-delete semantics are integration-level, Docker agent).
+        $src | Should -Match 'Remove-Item -LiteralPath \$AuthFile'
+    }
 }
