@@ -41,17 +41,16 @@ How to read the settings — the field, its design-intent value, and what a devi
 
 ```yaml
 ci-gate:
-  needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke,
-          test-python, dependency-coverage, lockfile-overrides-check, lib-lint,
-          renderer-tsc, contrast-check, test-server-prod-config, workflow-lint,
-          bicep-env-drift, schema-version-bump, render-smoke, bicep-aca-resources,
-          embedding-onnx-equivalence]
+  needs: [changes, test-powershell, test-electron, …]   # every gated job; the live
+                                                         # list is ci-gate's needs: in ci.yml
   if: always()
   steps:
     - name: Block on any failed/cancelled gated job
       if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
       run: exit 1
 ```
+
+(The `needs:` list above is abbreviated on purpose — enumerating it here would be the same restate-a-list drift this doc warns against. Read the authoritative set from `ci.yml`.)
 
 Why this shape rather than listing each job as its own required context:
 
@@ -70,16 +69,11 @@ Push / PR
     |
     ├── changes  (path filter — decides which gated jobs run)
     │
-    ├── test-powershell        (Pester, module build, manifest validation)
-    ├── test-electron × apps   (npm ci, ESLint, tsc, vitest+coverage, build)
-    ├── test-container         (Dockerfile lint, build, smoke test)
-    ├── render-smoke, renderer-tsc, contrast-check, lib-lint,
-    │   dependency-coverage, lockfile-overrides-check, workflow-lint,
-    │   test-python, python-embed-smoke, embedding-onnx-equivalence,
-    │   bicep-env-drift, bicep-aca-resources, schema-version-bump,
-    │   test-server-prod-config         (parallel; path-filtered)
+    ├── gated jobs (parallel, path-filtered):
+    │     test-powershell, test-electron × apps, test-container, render-smoke, …
+    │     (the full set is ci-gate's `needs:` in ci.yml — not re-listed here)
     │
-    └── ci-gate  (if: always(); needs ALL of the above)
+    └── ci-gate  (if: always(); needs ALL gated jobs)
           └── fails if any gated job is failure/cancelled  ← the required context
 ```
 
