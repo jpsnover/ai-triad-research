@@ -132,7 +132,7 @@ Two screens, mirroring `NewDebateDialog`'s **Screen A (quick) + Screen B (settin
 │  Will create 1 op-ed — Safetyist.                                   │  ← live count; relabels submit → "Draft N op-eds"
 │                                                                     │
 │  Outlet                                                             │
-│  [ Generic ▾ ]   → sets a target length (~800 words)               │  ← -Outlet (select; hint shows the band's word count)
+│  [ TechPolicyPress ▾ ] → sets a target length (~1,500 words)      │  ← -Outlet (select; hint shows the band's word count)
 │                                                                     │
 │  News hook  (strongly recommended)                                 │
 │  [ e.g. the Senate AI oversight bill up for a floor vote next week]│  ← -NewsHook
@@ -148,7 +148,7 @@ Screen-A fields:
 
 1. **Topic** (`-Topic`) — auto-grow textarea, required in the default path. A **"From a web page"** toggle swaps it for a URL input (`-Url`) exactly like `NewDebateDialog`'s topic/source mutual exclusion; when a URL is given, Topic becomes an optional "angle" hint. **Anonymous users:** URL sources are blocked (reuse the Debate rule — "Sign in to use URL sources").
 2. **Voices** (`-Pov`, one call per voice) — a **multi-select** group of three camp chips (ACC / SAF / SKP), colored via `POVER_INFO`. **At least one required; each selected voice produces its own op-ed on the shared topic.** A live count line reflects the choice: *"Will create 1 op-ed — Safetyist."* / *"Will create 2 op-eds on the same topic — Skeptic, Safetyist — shown in tabs."* and the submit button relabels (`Draft op-ed` → `Draft 2 op-eds`). This is the op-ed's defining choice, so it's on Screen A. **Implementation:** the GUI issues one `New-OpEd` call per selected camp with identical topic/outlet/hook/settings, differing only in `-Pov` (parallel where the backend allows). One shared topic in, N single-voice essays out — see §6.1.
-3. **Outlet** (`-Outlet`) — select of the eight real outlets (WashingtonPost, NYTimes, WallStreetJournal, USAToday, ForeignAffairs, Politico, Regional, Generic). Selecting one shows its target word band as a hint (e.g. "The Washington Post — ~800 words, strong news hook"). Default **Generic**.
+3. **Outlet** (`-Outlet`) — select of the nine real outlets (WashingtonPost, NYTimes, WallStreetJournal, USAToday, ForeignAffairs, Politico, TechPolicyPress, Regional, Generic). Selecting one shows its target word band as a hint (e.g. "The Washington Post — ~800 words, strong news hook"). Default **TechPolicyPress**.
 4. **News hook** (`-NewsHook`) — single-line input, labeled *strongly recommended* (the cmdlet's own guidance: op-eds without a hook get rejected). If left blank, show an inline note that the model will invent a plausible hook to verify before submitting.
 5. **Pitch email** (`-IncludePitch`) — a checkbox in the footer row.
 6. **More options** → Screen B.
