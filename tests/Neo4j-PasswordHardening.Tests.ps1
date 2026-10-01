@@ -76,4 +76,25 @@ Describe 'Neo4j password hardening (t/2530 M2)' -Tag 'security' {
         $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Invoke-CypherQuery.ps1') -Raw
         $src | Should -Not -Match 'aitriad2026'
     }
+
+    # ── t/3830: $Password String -> [PSCredential]$Credential (PSAvoidUsingPlainTextForPassword) ──
+
+    It 'Install-GraphDatabase takes a [PSCredential]$Credential, not a plaintext [string] password' {
+        $cmd = Get-Command Install-GraphDatabase
+        $cmd.Parameters.ContainsKey('Password') | Should -BeFalse
+        $cmd.Parameters.ContainsKey('Credential') | Should -BeTrue
+        $cmd.Parameters['Credential'].ParameterType | Should -Be ([System.Management.Automation.PSCredential])
+    }
+
+    It 'Install-GraphDatabase source has no [string]$Password parameter' {
+        $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
+        $src | Should -Not -Match '\[string\]\s*\$Password'
+    }
+
+    It 'Install-GraphDatabase does not reprint the resolved password in the completion summary (t/3830 cond.1)' {
+        # The only sanctioned secret print is the generate branch; the "Password:" summary line must NOT
+        # interpolate the resolved secret ($Neo4jPassword) — the assertion that catches the old :175.
+        $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
+        $src | Should -Not -Match 'Password:\s*\$Neo4jPassword'
+    }
 }
