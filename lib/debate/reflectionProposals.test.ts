@@ -3,6 +3,7 @@ import {
   confidenceUpdatesToProposals,
   priorityUpdatesToProposals,
   newItemSuggestionsToProposals,
+  filterNoOpReflectionEdits,
 } from './confidenceEvolution.js';
 import type { ConfidenceUpdate, PriorityUpdate, RawNewItemSuggestion } from './confidenceEvolution.js';
 import { operationalityUpdatesToProposals } from './operationalityEvolution.js';
@@ -841,5 +842,72 @@ describe('computeInterpretationRevisionProposals', () => {
     });
 
     expect(proposals).toHaveLength(0);
+  });
+});
+
+describe('filterNoOpReflectionEdits', () => {
+  const desc = 'A Belief within safetyist discourse that oversight gaps compound.\nEncompasses: regulatory lag, self-certification, delegation.\nExcludes: intentional evasion, post-deployment monitoring.';
+
+  it('passes through an edit where proposed description differs from current', () => {
+    const edit = {
+      disposition: 'edit_existing',
+      node_id: 'saf-beliefs-001',
+      edit_type: 'qualify',
+      current_description: desc,
+      proposed_description: desc + ' Qualified by recent empirical evidence.',
+    };
+    expect(filterNoOpReflectionEdits([edit], 'd1')).toHaveLength(1);
+  });
+
+  it('drops edit_existing where proposed_description is byte-identical to current', () => {
+    const edit = {
+      disposition: 'edit_existing',
+      node_id: 'saf-beliefs-001',
+      edit_type: 'qualify',
+      current_description: desc,
+      proposed_description: desc,
+    };
+    expect(filterNoOpReflectionEdits([edit], 'd1')).toHaveLength(0);
+  });
+
+  it('drops edit_existing where proposed_description differs only in whitespace', () => {
+    const edit = {
+      disposition: 'edit_existing',
+      node_id: 'saf-beliefs-001',
+      edit_type: 'revise',
+      current_description: desc,
+      proposed_description: '  ' + desc.replace(/\n/g, '  \n  ') + '  ',
+    };
+    expect(filterNoOpReflectionEdits([edit], 'd1')).toHaveLength(0);
+  });
+
+  it('passes through propose_new entries regardless of description match', () => {
+    const edit = {
+      disposition: 'propose_new',
+      node_id: undefined,
+      edit_type: 'new_node',
+      current_description: desc,
+      proposed_description: desc,
+    };
+    expect(filterNoOpReflectionEdits([edit], 'd1')).toHaveLength(1);
+  });
+
+  it('passes through when current_description is empty (cannot confirm no-op)', () => {
+    const edit = {
+      disposition: 'edit_existing',
+      node_id: 'saf-beliefs-001',
+      edit_type: 'qualify',
+      current_description: '',
+      proposed_description: desc,
+    };
+    expect(filterNoOpReflectionEdits([edit], 'd1')).toHaveLength(1);
+  });
+
+  it('filters multiple no-ops while keeping valid edits', () => {
+    const noop = { disposition: 'edit_existing', node_id: 'acc-beliefs-001', edit_type: 'qualify', current_description: desc, proposed_description: desc };
+    const valid = { disposition: 'edit_existing', node_id: 'acc-beliefs-002', edit_type: 'revise', current_description: desc, proposed_description: desc + ' Updated.' };
+    const result = filterNoOpReflectionEdits([noop, valid, noop], 'd2');
+    expect(result).toHaveLength(1);
+    expect(result[0].node_id).toBe('acc-beliefs-002');
   });
 });
