@@ -39,7 +39,7 @@ import {
   midDebateGapPrompt,
   crossCuttingNodePrompt,
 } from '../../../prompts/debate';
-import { newItemSuggestionsToProposals } from '@lib/debate/confidenceEvolution';
+import { newItemSuggestionsToProposals, filterNoOpReflectionEdits } from '@lib/debate/confidenceEvolution';
 import type { RawNewItemSuggestion } from '@lib/debate/confidenceEvolution';
 import type { NewPovItemProposal } from '@lib/debate/types/session';
 import { checkDolceCompliance } from '../../../utils/dolceCompliance';
@@ -774,8 +774,12 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
         // routed to newItemSuggestionsToProposals below. `add` is retired at the prompt
         // (t/1820), so edit_existing is revise/qualify/deprecate only.
         const rawEdits = parsed?.edits ?? [];
+        // t/3813: drop edit_existing proposals whose description is unchanged from current
+        // (whitespace-normalized) before they reach the UI — the QUALIFY/REVISE generator has
+        // no way to decline, so it can emit a no-op proposal that renders as fully approvable.
+        const filteredRawEdits = filterNoOpReflectionEdits(rawEdits, activeDebate.id);
         const edits: ReflectionEdit[] = annotateEditEvidence(
-          mapRawEditsToReflectionEdits(rawEdits, useTaxonomyStore.getState()),
+          mapRawEditsToReflectionEdits(filteredRawEdits, useTaxonomyStore.getState()),
           activeDebate.argument_network?.nodes ?? [],
           engagementById,
           pover,
