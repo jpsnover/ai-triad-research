@@ -103,14 +103,17 @@ Every check here must be **adjacent to the reset** — re-run immediately before
      comm -12 <(git diff --name-only main origin/main | sort) <(git ls-files --others --exclude-standard | sort)
      ```
 
-**2. No agent actively READING the tree.** `git status` detects writers, not readers — an agent with a perfectly clean tree can be mid-build or mid-test, about to act on file contents it read seconds ago, and the reset moves the ground under it (incident #4's shape, delivered by the sync itself). Check the fleet, adjacent to the reset:
-   ```
-   list_instances / get_agent_status  →  no instance in `working` state with an active task on this tree
-   ```
+**2. No agent actively READING the tree — gated by a per-owner explicit ACK, never by a state read.** `git status` detects writers, not readers — an agent with a perfectly clean tree can be mid-build or mid-test, about to act on file contents it read seconds ago, and the reset moves the ground under it (incident #4's shape, delivered by the sync itself).
+
+   **A fleet state read (`get_status_overview` / `list_instances`) is advisory only — it tells you *whom to ask*, never that it is safe.** Two independent reasons, both observed on 2026-10-01:
+   - **The read can be wrong when taken, not merely stale after.** A `get_status_overview` reported an instance `asleep` that a second, near-simultaneous live read showed `working (57s)` on the shared tree. "Check closer to the reset" cannot fix a read that was already false at the moment it was taken.
+   - **Pings wake sleeping agents.** A routing burst — tickets dispatched, agents woken — can move an instance into `working` *inside* your wait window, by the very mechanism that makes the fleet active. A correct read goes stale seconds later.
+
+   So the precondition is an **explicit all-clear from every owner who could be on the shared tree** ("I'm in a worktree" / "no shared-tree edits from me — proceed"); use the state read only to decide whom to ping. **The ack is required even when the agent has nothing uncommitted** — on 2026-10-01 the live agent had zero shared-tree edits and the hold was still correct, because *that fact was unknowable until the owner said it*. Gate on unknowability, not on an imminent loss: do **not** record such a hold as a near-miss "save" (there was nothing to lose) — record it as the precondition doing its one job, which is refusing to act on a belief the tree has not confirmed.
 
 **3. REDUNDANT confirmed** (Step 1), or Step 2 completed and object-level verified.
 
-**4. Announced, then WAIT.** Announcing and resetting in the same second is a formality — nobody has read it. Announce in the channel the fleet reads, then wait a quiet interval (**≥60s**) or collect explicit acks from any instance showing active work. The announcement names the owner ("DevOps syncing" / "DevOps unavailable — TL syncing").
+**4. Announced, then get the ACKS — waiting is a weak fallback, not the gate.** Announce in the channel the fleet reads, naming the owner ("DevOps syncing" / "DevOps unavailable — TL syncing"). Then **collect an explicit all-clear from every instance a state read shows non-asleep (`working`/`idle`) on the shared tree** — per precondition 2, that ack is the real gate. A bare "wait **≥60s**" is a fallback for a demonstrably quiet fleet only: it cannot close the ping-wake race (an agent can enter `working` during the wait), so never treat elapsed time as consent when any instance is — or could be woken — active. On 2026-10-01 the 60s wait had elapsed and a state read still read the one live agent as `asleep`; only the owner's direct ack ("I'm in a worktree — proceed") actually cleared the precondition.
 
 ## Step 4 — Record the rollback, then sync (in one command)
 
@@ -182,6 +185,7 @@ Divergence is not inevitable. It is the product of a gap between committing and 
 - **Push immediately after committing on shared `main`.** Not at the end of the task — in the same breath as the commit.
 - **If the push is rejected, do NOT resolve it in place.** That is the incidental rewrite. Cherry-pick to a worktree (Step 2) and land it from there. Costs seconds; a shared-tree rebase costs somebody else's uncommitted work.
 - **For anything beyond a one-file edit, start in a worktree.** Then divergence cannot arise, because you never commit on the shared tree at all.
+- **Dispatched work must name its workspace.** A ticket that assigns multi-file implementation without saying "worktree" defaults the assignee onto the shared checkout — observed 2026-10-01, when a freshly-dispatched ticket put an agent back on the shared tree within minutes of a clean sync, reopening the exposure the sync had just closed. Ticket authors: say "worktree" for any multi-file build. A sync's clean state is **ephemeral** at fleet speed — this procedure keeps the window small and safe, it does not keep the tree clean.
 
 ## Why each step is there
 
@@ -192,7 +196,7 @@ Every precondition maps to an observed failure on 2026-09-28 (anchor: t/3714, si
 | 1 — content, not ancestry | A `reset` that discards work which squash-merge made *look* unmerged |
 | 2 — rescue before reset | Destroying unique local commits; the incident-#6 shape (a local commit invisible to origin) |
 | 3.1 — tracked blocks, untracked doesn't, phantom-by-diff-only | A sync over a peer's uncommitted WIP; an unsatisfiable precondition waived on first use; the incident-#6 eyeball-judgment about a colleague's file |
-| 3.2 — fleet/readers check | A tree swapped under an agent mid-build/test whose index is clean (incident #4, via the sync) |
+| 3.2 — readers cleared by per-owner ACK, not a state read | A tree swapped under an agent mid-build/test whose index is clean (incident #4, via the sync); and a state read trusted as the gate when it was wrong-when-taken or woken-stale by a ping burst (2026-10-01) |
 | 3.4 — announce **then wait** | Two actors rewriting one tree; an announcement nobody has read yet |
 | 4 — adjacent single-command check + written rollback | A stale precondition (TOCTOU); an irreversible reset on a wrong Step-1 call with no recovery |
 | 5 — verify with a SHA | "Done" reported for an operation that did not complete |
