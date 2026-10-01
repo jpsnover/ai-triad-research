@@ -46,6 +46,16 @@ git diff <local-sha> origin/main -- <paths>  # empty ⇒ content already on orig
 - **REDUNDANT** — every local commit's content is on `origin/main`. Go to Step 3.
 - **UNIQUE** — some content exists only locally. Go to Step 2 first. **Do not reset; you would destroy it.**
 
+### Classifying UNIQUE-vs-stale when a file overlaps an incoming commit (t/3785)
+
+The content test above is right, but it has a trap when the **same file** is touched by both a local change and an incoming commit. Learned live on t/3785 — where the method misfired in both directions in one incident:
+
+1. **A file-level line-diff is UNRELIABLE when an incoming commit touches that file — in BOTH directions.** A net-deletion incoming fix makes deliberately-removed pre-fix code look line-*unique* (so you think you have novel work you don't); a restructuring incoming batch can hide genuine unique work behind an apparent-supersede (so you discard work you needed). File-overlap **narrows** the suspect set; it does **not settle** it.
+2. **Settle each suspect by a CONTENT MARKER, per-suspect** — pick a symbol/heading from the "unique" lines and count it: N× at local-HEAD vs M× on `origin/main`. If the incoming commit *removed* it (N>0, M=0), the local copy is stale pre-fix code → discard. If it exists only locally (M=0 and no incoming commit removed it), it is genuine → Step 2. **Never discard on file-overlap alone. Order: narrow by overlap → settle by content marker.**
+3. **`git cherry` / patch-id is the WRONG test for "already landed."** A squash-merge or a review edit lands identical semantic content under a *different* patch-id, so a **patch-id mismatch is INCONCLUSIVE, not negative** — it cannot distinguish *lost* from *landed-differently*. Use the `git diff <sha> origin/main -- <paths>` content test, then content-marker-settle any residual. (Same narrow-then-settle order, applied to the tool rather than the file.)
+4. **Line count measures ELAPSED TIME, not risk.** A large `behind-N` / big `-` diff means `origin` advanced a lot since the branch was cut; the reset *gains* that, it does not *lose* yours. Don't read diff size as danger — read it as "origin moved."
+5. **Preserve-first (Step 2) makes being wrong cheap.** When in any doubt, push the exact HEAD to a rescue branch *before* the reset (seconds, lossless) and classify afterward against the pushed branch. The reset is then unambiguously safe regardless of how the classification lands.
+
 ## Step 2 — Rescue unique content into a branch
 
 Never resolve unique local commits in place. Move them to a branch off current `origin/main`:
