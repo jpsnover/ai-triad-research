@@ -138,3 +138,57 @@ cheap; written after the data, it isn't credible.
 When the connection-rate / adoption-rate metric is implemented in code (not just this analysis
 script), add it to `research/comp-linguist/docs/metric-provenance-register.md` as **derived**
 (empirical, AN-edge-based; baseline values above), in the same PR — per the maintenance rule.
+
+---
+
+# PILOT RESULTS (post-data — 2026-10-01, t/3790)
+
+Everything above this line is the pre-registration, fixed before the data. This section is the result.
+Instrument: `measure_pilot_vs_matched_baseline.py` (this dir).
+
+## Design as run
+
+- **10 post-fix debates** (`ai-triad-data/debates/t3790-pilot/`, slugs t3790p01–p10), generated via the
+  headless runner on **gemini-3.5-flash-lite / structured / moderate / policymakers / 3-POV**.
+- **All three wiring surfaces live** for the run: t/3787 turn-context (#2604), t/3791 belief + t/3792
+  utility (#2606), t/3795 own-camp gift section (#2613). So this is a **fully-wired** pilot — the
+  pre-registered abandonment branch was *available* (its precondition was met), and the effect-as-floor
+  caveat does NOT apply (no open suppression).
+- **Positive control P1∧P2∧P3 passed** on the merged code before the run (t/3790#3/#5).
+- **Control = config-matched baseline subset**, not the heterogeneous full 120: the 120-corpus filtered
+  to the identical cell → 36 debates, 34 steelman nodes. (Matched-subset adoption baseline = 4%,
+  consistent with the 3/66≈5% full-corpus figure — the filter did not distort the baseline.)
+
+## Numbers
+
+| axis | matched baseline (pre-fix) | pilot (post-fix) |
+|---|---|---|
+| steelman nodes (n) | 34 | 10 |
+| connection rate (≥1 later inbound) | 15/34 = 44% [95% 29–61] | 4/10 = 40% [95% 17–69] |
+| adoption (steelmanned-camp share of later inbound) | 1/26 = 4% [95% 1–19] | 2/6 = 33% [95% 10–70] |
+| later-inbound source camp | steelmanned 1 / third 23 / author 2 | steelmanned 2 / third 4 / author 0 |
+| edges / debate | 0.72 | 0.60 |
+
+## Reading (against the pre-registered branches)
+
+1. **Connection rate: flat** (44%→40%, CIs fully overlap). Expected — "confounded, not severed";
+   total connection was never the fix's target.
+2. **Adoption: directionally positive in the predicted direction** (4%→33%, ~8×), with the mechanism
+   signature — third-camp share of engagement fell 88%→67% while steelmanned-camp share rose 4%→33%.
+   The fix *reallocates* engagement toward the steelmanned camp, which is what t/3787+t/3795 built.
+3. **Confound-bound check (ruling #6): PASS** — edges/debate comparable (0.72 vs 0.60), so the adoption
+   *share* shift is not an opportunity-drift artifact.
+4. **Underpowered — this is the "continue-to-confirm / ambiguous" branch, NOT confirmation.** Adoption
+   rests on **2 of 6** later-inbound edges across 10 nodes; the 33% CI [10–70%] is enormous and only
+   just clears the baseline upper bound. Two events cannot confirm (statistic-provenance, t/3587).
+
+## Decision
+
+**CONTINUE-TO-CONFIRM → run the ~50-debate confirmatory arm.** The pilot confirmed direction,
+demonstrated the mechanism end-to-end in live debates (beyond the unit positive control), and showed
+no sign of the null that would trigger abandonment. Do NOT re-estimate the confirmatory n downward off
+the 33% point estimate (2 events over-powers); the pre-registered ~50 (3%→20% @ 80% power) stands.
+
+**Answers the PI's original 3-way question (e/230):** not "hypothesis wrong," not merely "insufficient
+data" — it was **"work incomplete" (now fixed), and the fixed mechanism shows the predicted adoption
+effect directionally.** The confirmatory arm settles magnitude.
