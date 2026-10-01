@@ -339,6 +339,72 @@ describe('baseline load error — both arms', () => {
   });
 });
 
+// ── ARM 6b: scan-scope check — file outside baseline's --scan prefix ──────────
+// ARM A: file within scan prefix → no scanScopeMismatch.
+// ARM B: file outside scan prefix → scanScopeMismatch (not overThreshold).
+// Both arms verify the startsWith(scan+'/') guard (not bare startsWith, which matches 'srcfoo/').
+describe('scan-scope check', () => {
+  const linter = new Linter({ configType: 'flat' });
+  const scanBaseline = {
+    __meta__: { threshold: 15, scan: 'src' },
+    'src/foo.js': { max: 20, countOver: 1 },
+  };
+  // High-complexity code so overThreshold would fire if scope check were skipped.
+  const highComplexCode = `
+    function f(a,b,c,d,e,f2,g,h,i,j,k,l,m,n,o,p) {
+      if(a)if(b)if(c)if(d)if(e)if(f2)if(g)if(h)if(i)if(j)if(k)if(l)if(m)if(n)if(o)return p;
+      return 0;
+    }
+  `;
+
+  it('ARM A: file within scan prefix → no scanScopeMismatch', () => {
+    const messages = linter.verify(
+      highComplexCode,
+      {
+        plugins: { local: { rules: { 'complexity-budget': rule } } },
+        rules: { 'local/complexity-budget': ['error', { threshold: 15, baseline: scanBaseline }] },
+        languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
+      },
+      { filename: 'src/bar.js' },
+    );
+    const errs = messages.filter((m) => m.ruleId === 'local/complexity-budget');
+    if (errs.some((e) => e.messageId === 'scanScopeMismatch'))
+      throw new Error(`Unexpected scanScopeMismatch for in-scope file: ${JSON.stringify(errs.map((e) => e.message))}`);
+  });
+
+  it('ARM B: file outside scan prefix → scanScopeMismatch, not overThreshold', () => {
+    const messages = linter.verify(
+      highComplexCode,
+      {
+        plugins: { local: { rules: { 'complexity-budget': rule } } },
+        rules: { 'local/complexity-budget': ['error', { threshold: 15, baseline: scanBaseline }] },
+        languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
+      },
+      { filename: 'tools/foo.js' },
+    );
+    const errs = messages.filter((m) => m.ruleId === 'local/complexity-budget');
+    if (errs.length !== 1 || errs[0].messageId !== 'scanScopeMismatch')
+      throw new Error(`Expected scanScopeMismatch, got: ${JSON.stringify(errs.map((e) => e.message))}`);
+    if (errs.some((e) => e.messageId === 'overThreshold'))
+      throw new Error('scanScopeMismatch check must fire before overThreshold');
+  });
+
+  it('ARM B prefix guard: srcfoo/ is outside src/ scope', () => {
+    const messages = linter.verify(
+      highComplexCode,
+      {
+        plugins: { local: { rules: { 'complexity-budget': rule } } },
+        rules: { 'local/complexity-budget': ['error', { threshold: 15, baseline: scanBaseline }] },
+        languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
+      },
+      { filename: 'srcfoo/bar.js' },
+    );
+    const errs = messages.filter((m) => m.ruleId === 'local/complexity-budget');
+    if (errs.length !== 1 || errs[0].messageId !== 'scanScopeMismatch')
+      throw new Error(`Expected scanScopeMismatch for 'srcfoo/', got: ${JSON.stringify(errs.map((e) => e.message))}`);
+  });
+});
+
 // ── ARM 6: drift test — built-in `complexity` and our rule agree on max ───────
 // 18 fixtures covering: simple functions, nested ifs, ternaries, loops, switch,
 // logical expressions, async/arrow, pattern assignments, no-function files, etc.
