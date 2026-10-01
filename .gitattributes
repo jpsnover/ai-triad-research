@@ -25,6 +25,19 @@
 *.jsx  text eol=lf
 *.css  text eol=lf
 *.html text eol=lf
+# Tool-generated and remaining text formats — pin LF so autocrlf=true does not
+# mark them perpetually "about to be converted" (false-dirty) on Windows.
+# Tool writers emit LF regardless of platform; without an explicit eol they fall
+# through to `* text=auto` and go permanently dirty. See t/3825 / Pattern #78 Facet A.
+*.snap   text eol=lf
+*.py     text eol=lf
+*.mjs    text eol=lf
+*.cjs    text eol=lf
+*.mts    text eol=lf
+*.jsonl  text eol=lf
+*.prompt text eol=lf
+*.bicep  text eol=lf
+*.log    text eol=lf
 # Binary files — never normalize
 *.pdf   binary
 *.png   binary
@@ -37,4 +50,7 @@
 *.woff2 binary
 *.ttf   binary
 *.eot   binary
+# Office documents — never normalize (don't rely on binary auto-detection)
+*.pptx  binary
+*.docx  binary
 *.safetensors filter=lfs diff=lfs merge=lfs -text
