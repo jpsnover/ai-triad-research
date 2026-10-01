@@ -1,9 +1,11 @@
-**Last updated:** 2026-07-29
-**Author:** Technical Lead
+**Last updated:** 2026-10-01
+**Author:** Technical Lead; branch-protection + workflow sections corrected against the live API (t/3803)
 
 # Branch Protection & Deployment Pipeline
 
-This document explains the branch protection rules, CI pipeline, and deployment workflow for the AI Triad Research codebase — why they exist, how they interact, and when direct-to-main pushes are appropriate.
+This document explains the branch protection rules, CI pipeline, and deployment workflow for the AI Triad Research codebase — why they exist and how they interact.
+
+> **Landing code is governed elsewhere, deliberately.** How changes reach `main` — worktree vs. direct mode, the PR-flow, self-merge verification, `/land-from-worktree` — lives in the root `AGENTS.md` (sections *Feedback Rules → workflow-mode*, *Pre-Self-Merge Verification*, *PR-Flow Practice Rules*). This document does **not** restate that workflow: two copies of a landing procedure is exactly how this file came to recommend a path the platform now refuses (t/3803). It describes the *mechanism* GitHub enforces; the root `AGENTS.md` describes the *procedure* the fleet follows.
 
 ## The Theory: Defense in Depth
 
@@ -13,76 +15,79 @@ The goal is to prevent broken code from reaching production. We use three layers
 2. **CI pipeline** — validates every push and PR automatically
 3. **Blue-green deployment** — catches runtime failures that tests can't
 
-Each layer catches a different class of failure. Tests catch logic errors. Branch protection catches process errors (untested code, unreviewed changes). Blue-green deployment catches environment errors (missing env vars, container startup failures, infrastructure drift). No single layer is sufficient alone.
+Each layer catches a different class of failure. Tests catch logic errors. Branch protection catches process errors (untested code reaching `main`). Blue-green deployment catches environment errors (missing env vars, container startup failures, infrastructure drift). No single layer is sufficient alone.
 
 ## Branch Protection Rules
 
-The `main` branch has GitHub branch protection enabled with:
+**GitHub branch protection is authoritative, and this document is only a description — descriptions drift, and this one did (t/3803).** So this section deliberately does **not** transcribe the current settings: a count, a context list, or an `enforce_admins` value copied into prose here is exactly what went four facts stale and *inverted*, and a dated snapshot only resets the clock on the same failure. Read the live settings and interpret each field against the design intent below. (The strongest evidence for this: a reader with full API access and a standing rule to check authoritative sources still mis-stated the context count from a restated fact — e/227#25.)
 
-- **Required status checks (6), strict** — all must pass before a merge, and `strict`
-  means the branch must be up to date with `main` first:
-  1. `test-powershell` — Pester tests, module build, manifest validation
-  2. `test-electron (taxonomy-editor)` — npm ci, TypeScript check, vitest, coverage, build
-  3. `test-electron (poviewer)` — npm ci, TypeScript check, build
-  4. `test-electron (summary-viewer)` — npm ci, TypeScript check, build
-  5. `test-electron (workflow-app)` — npm ci, TypeScript check, build
-  6. `test-container` — Dockerfile lint, container build, smoke test
-- **Pull requests are NOT required by the platform** — `required_pull_request_reviews`
-  is not configured (required review removed 2026-07-29). PR-flow is the fleet's
-  *convention* (see `/land-from-worktree`), enforced by TL review before Done — not by
-  GitHub. Do not read green protection settings as evidence the review gate is enforced.
-- **Bypass rights** — `enforce_admins=false`, so the admin identity (`jpsnover`) bypasses
-  the required checks on a direct push. The Orca fleet commits and pushes as this same
-  identity, so agent worktree direct-pushes bypass them too.
-- **Force pushes** — disabled (`allow_force_pushes=false`).
+```
+gh api repos/jpsnover/ai-triad-research/branches/main/protection
+```
 
-### Why 6 Checks, Not 1
+The authoritative mirror of the *required-context set* is `.github/ci/required-contexts.json`, and `operations/devops/Test-RequiredContextsListDrift.ps1` validates that mirror against the live API on a daily heartbeat. Trust the API and that mirror over any list written in prose.
 
-Each check validates a different blast radius:
+How to read the settings — the field, its design-intent value, and what a deviation means:
 
-| Check | What it catches | Time |
-|---|---|---|
-| `test-powershell` | Broken cmdlets, module manifest drift, missing exports | ~30s |
-| `test-electron (taxonomy-editor)` | TypeScript errors, test failures, coverage regressions, build failures | ~2min |
-| `test-electron (poviewer/summary-viewer/workflow-app)` | Cross-app TypeScript breakage from shared lib changes | ~1min each |
-| `test-container` | Dockerfile syntax, container build failures, startup crashes, health probe failures | ~3min |
+- **`enforce_admins` — by design `true`; a `false` reading is a regression, not a baseline.** When `true`, the required status checks bind **everyone, admins included**. The Orca fleet commits and pushes as the admin `jpsnover` identity, so this is the field that denies *any* identity a bypass of the checks — it closes the direct-push-with-bypass pattern older versions of this doc wrongly described as available (turned on after an incident, t/3736). It is currently **load-bearing beyond itself**: per root `AGENTS.md` it substitutes for two inert feedback rules (`pre-self-merge-verify`, `auto-merge-jointgv-guard`), so flipping it to `false` silently re-opens two incident classes (merge-on-an-untested-head, joint-gv auto-merge) with no signal anywhere. A merge it refuses surfaces as a status-check error — e.g. `HTTP 405 Required status check "ci-gate" is failing.` (t/3736) — **not** a permissions error, so a reader who trusted a stale "bypass is available" doc is apt to misread the refusal and go looking to disable the protection. Don't; that is the failure, not the fix.
+- **Required status checks — by design the `ci-gate` aggregate plus independent guard contexts.** The merge gate is **not** a list of per-job checks (the old `test-powershell` / `test-electron (…)` / `test-container` framing is obsolete). It is a single aggregating job, `ci-gate` (see below), alongside independently-posted guards: CodeQL, `joint-gv-guard` (t/3607), and `consult-hold-guard` (t/3680). The exact set is whatever the API returns and what `required-contexts.json` mirrors — read it there, not from a number memorised here.
+- **`strict` — by design `false`.** GitHub does not force a branch to be up to date with `main` before merging.
+- **`required_pull_request_reviews` — by design NOT configured.** PR review is *not* platform-required (removed 2026-07-29). PR-flow and TL review are the fleet's *convention* (root `AGENTS.md`, `/land-from-worktree`), enforced by process, not by GitHub. **The distinction matters:** green protection settings *are* evidence that **merges** are gated (required contexts + `enforce_admins`); they are **not** evidence that **review** happened. Nothing in branch protection requires a human or TL to have looked at the diff. Merges are gated; reviews are not.
+- **`allow_force_pushes` / `allow_deletions` — by design `false`.**
 
-The `test-container` job depends on both `test-powershell` and `test-electron` completing — it only runs if the code compiles and tests pass, then validates the full container build and startup sequence. This catches failures invisible to unit tests: missing native dependencies, broken `npm ci` in the container layer, health endpoint regressions, environment variable misconfiguration.
+### The `ci-gate` aggregate (why one required context, not a list of jobs)
 
-### Why Matrix, Not Monolith
+`ci-gate` is a single **aggregating** job (`.github/workflows/ci.yml`), and it — not the individual test jobs — is the required status context. It `needs:` the full set of gated jobs and runs with `if: always()`, then fails if any gated job concluded `failure` or `cancelled`:
 
-The 4 Electron apps share code via `lib/` but have independent `package.json`, `tsconfig`, and build pipelines. A change to `lib/debate/` could break `taxonomy-editor` without breaking `poviewer`. The matrix strategy (`fail-fast: false`) runs all 4 in parallel and reports each independently — a failure in one app doesn't mask results from others.
+```yaml
+ci-gate:
+  needs: [changes, test-powershell, test-electron, test-container, python-embed-smoke,
+          test-python, dependency-coverage, lockfile-overrides-check, lib-lint,
+          renderer-tsc, contrast-check, test-server-prod-config, workflow-lint,
+          bicep-env-drift, schema-version-bump, render-smoke, bicep-aca-resources,
+          embedding-onnx-equivalence]
+  if: always()
+  steps:
+    - name: Block on any failed/cancelled gated job
+      if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+      run: exit 1
+```
+
+Why this shape rather than listing each job as its own required context:
+
+- **New gated jobs don't need a branch-protection edit.** Adding a job to `ci-gate`'s `needs` makes it merge-blocking without touching the protection config — one required context covers all of them.
+- **Path-filtered jobs skip soundly.** A `changes` job computes which subsystems a PR touches; gated jobs that don't apply **skip**, and `ci-gate` treats a *skipped* need as satisfied (only `failure`/`cancelled` block). The `changes` job is itself in `needs`, so if path-filtering itself breaks, `ci-gate` reds (t/1962). A skipped gated job is by design, not a false-green (t/2094/t/2025/t/3646).
+- **Promotion/demotion is a `needs` edit.** A warn-only job becomes blocking by being added to `needs` (e.g. `render-smoke`, t/3026); demote by removing it. No protection change, no re-trigger of open PRs.
+
+`CodeQL` (security analysis), `joint-gv-guard` (fails when a `joint-gv`-labelled PR has auto-merge armed — t/3607), and `consult-hold-guard` (the mandatory-consult hold gate — DevOps's t/3680 flip) are the other three required contexts, each posted independently of `ci-gate`.
 
 ## CI Pipeline (`ci.yml`)
 
-Triggers on every push to `main` and every PR targeting `main`.
+Triggers on every push to `main`, every PR targeting `main`, and `epic/**` bases (t/3642).
 
 ```
-Push/PR to main
+Push / PR
     |
-    ├── test-powershell (parallel)
-    │     ├── Pester tests with coverage
-    │     ├── Build module (Build-Module.ps1 -Clean)
-    │     └── Validate built manifest
+    ├── changes  (path filter — decides which gated jobs run)
     │
-    ├── test-electron × 4 apps (parallel matrix)
-    │     ├── npm ci + npm audit
-    │     ├── ESLint
-    │     ├── TypeScript check (tsc --noEmit)
-    │     ├── vitest (taxonomy-editor only: + coverage)
-    │     └── Build (taxonomy-editor only)
+    ├── test-powershell        (Pester, module build, manifest validation)
+    ├── test-electron × apps   (npm ci, ESLint, tsc, vitest+coverage, build)
+    ├── test-container         (Dockerfile lint, build, smoke test)
+    ├── render-smoke, renderer-tsc, contrast-check, lib-lint,
+    │   dependency-coverage, lockfile-overrides-check, workflow-lint,
+    │   test-python, python-embed-smoke, embedding-onnx-equivalence,
+    │   bicep-env-drift, bicep-aca-resources, schema-version-bump,
+    │   test-server-prod-config         (parallel; path-filtered)
     │
-    └── test-container (depends on both above)
-          ├── Dockerfile lint (hadolint)
-          ├── Docker build
-          └── Smoke test (health check, data availability)
+    └── ci-gate  (if: always(); needs ALL of the above)
+          └── fails if any gated job is failure/cancelled  ← the required context
 ```
 
-### CI on Direct Push vs. PR
+Gated jobs run in parallel; `ci-gate` aggregates their results into the single required status check. A skipped (path-filtered) job does not block; a failed or cancelled one does.
 
-CI runs on **both** pushes and PRs. When you push directly to `main` (via bypass), CI still runs — but it runs *after* the code is already on `main`. If CI fails, `main` is broken until the fix lands. With a PR, CI runs *before* merge — broken code never reaches `main`.
+### Why Matrix, Not Monolith
 
-This is the key tradeoff: direct push is faster (no PR overhead) but riskier (no pre-merge validation). The PR path adds ~5 minutes of latency but guarantees `main` is always green.
+The Electron apps share code via `lib/` but have independent `package.json`, `tsconfig`, and build pipelines. A change to `lib/debate/` could break `taxonomy-editor` without breaking `poviewer`. The matrix strategy (`fail-fast: false`) runs the apps in parallel and reports each independently — a failure in one app doesn't mask results from others.
 
 ## Deployment Pipeline
 
@@ -134,69 +139,29 @@ Deploying from CI without human verification would mean:
 
 The staging auto-deploy provides a safe preview. Production deploy requires explicit human action.
 
-## When Direct-to-Main Push Is Appropriate
+## How Code Lands on `main`
 
-The repo owner has bypass rights. These exist for specific scenarios:
+**Through a PR. Always.** There is no sanctioned direct-push-with-bypass path anymore — `enforce_admins: true` means even the admin identity cannot land a head the required contexts have not passed, so attempting a direct push of code to `main` is refused server-side (see Branch Protection Rules above). Earlier versions of this document described a "multi-agent case" in which agents committed to local `main` and the owner pushed with admin bypass; that pattern is **prohibited by the PR-Flow rules and refused by the platform**, and has been removed rather than restated here to keep it from drifting back in (t/3803).
 
-| Scenario | Direct push OK? | Why |
-|---|---|---|
-| Multi-agent batch (many coordinated commits) | Yes, with caution | PR overhead for 10+ agent commits is impractical; owner reviews locally |
-| Urgent hotfix (production down) | Yes | Speed matters more than process when users are affected |
-| Documentation-only changes | Acceptable | Low risk, no runtime impact |
-| CI/workflow file changes | Acceptable | Often can't be tested via PR (the PR itself needs the workflow change) |
-| Feature code, refactors, new dependencies | **No** — use a PR | These are exactly what the 6 checks protect against |
-| Infrastructure changes (Bicep, Dockerfile) | **No** — use a PR | `test-container` validates the full build; Bicep `what-if` runs in the deploy workflow |
+The procedure — worktree vs. direct workflow mode, batching, self-merge verification with `--match-head-commit`, gated/draft/`joint-gv` discipline — is owned by the root `AGENTS.md`:
 
-### The Multi-Agent Case
+- **Workflow mode** (`worktree` strict vs. `direct`) — root `AGENTS.md` → *Feedback Rules*; read with `sh .githooks/read-workflow-mode.sh`. Mode governs branching discipline in the shared checkout; it does **not** loosen branch protection — code lands via PR in either mode.
+- **Landing a change** — `/land-from-worktree` (branch-first, checks-only self-merge).
+- **Self-merge verification** — root `AGENTS.md` → *Pre-Self-Merge Verification* (base is `main`, `--match-head-commit`, CI green on the exact head).
+- **PR-flow practice** — root `AGENTS.md` → *PR-Flow Practice Rules* (batching, prompt merge on green, gated-PR draft discipline, `joint-gv` co-merge).
 
-In this project, multiple Orca agents commit to `main` concurrently. A typical feature involves 3-5 agents making coordinated changes across server, renderer, lib, and infrastructure. Running each through a separate PR would:
+### Workflow / CI file changes — the one real friction point
 
-1. Create sequencing problems (PR B depends on PR A, but PR A's CI runs without PR B's code)
-2. Add hours of CI latency for work that was already reviewed in-conversation by the Tech Lead
-3. Force artificial branch management for changes designed to land together
-
-The current pattern — agents commit locally, TL reviews, owner pushes to `main` with bypass — trades PR-based gating for in-conversation review. This works because:
-
-- The TL reviews every implementation before marking tickets Done
-- Code review sub-agents run against the changes (architecture, security, error handling)
-- The owner verifies the full commit set before pushing
-- CI still runs post-push, catching anything the review missed
-
-**The risk**: if CI fails after a direct push, `main` is broken. Mitigations:
-
-- Don't deploy until CI passes (deployment is manual and separate)
-- Watch CI results after pushing — fix immediately if red
-- For high-risk changes (new dependencies, Dockerfile changes, infrastructure), prefer a PR even in the multi-agent workflow
-
-## Recommended Workflow Going Forward
-
-### For routine multi-agent work:
-1. Agents commit to local `main`
-2. TL reviews all changes
-3. Owner pushes with bypass
-4. **Watch CI** — if it fails, fix before deploying
-5. Verify staging, then manually trigger production deploy
-
-### For high-risk changes:
-1. Create a feature branch
-2. Agents commit to the branch
-3. Open PR against `main`
-4. All 6 checks must pass
-5. Owner merges
-6. Deploy follows the same staging → production path
-
-### What qualifies as high-risk:
-- New npm packages (especially native addons — they can fail in the container)
-- Dockerfile changes (build layer ordering, base image updates)
-- Bicep infrastructure changes (new resources, role assignments, env vars)
-- Authentication or authorization changes
-- Changes to the deployment workflows themselves
+A change to `ci.yml` or a required workflow sometimes can't be fully validated by a PR, because the PR runs the *old* workflow until it merges. This is a genuine chicken-and-egg case, not a license to bypass: open the PR, let the checks that *can* run run, and coordinate with DevOps for anything that requires the new workflow to be live. Changing the **set of required contexts** has its own mandatory follow-up (`operations/devops/Invoke-ContextSwapRetrigger.ps1`; runbook `deploy/azure/runbooks/context-swap.md`) — it close-reopens open PRs so they re-trigger against the new context set.
 
 ## Key Files
 
 | File | Purpose |
 |---|---|
-| `.github/workflows/ci.yml` | CI pipeline — 6 status checks |
+| `.github/workflows/ci.yml` | CI pipeline — gated jobs aggregated by the `ci-gate` required context |
+| `.github/ci/required-contexts.json` | SSOT **mirror** of the required contexts (description; validated against the live API by `Test-RequiredContextsListDrift.ps1`) |
+| `.github/workflows/joint-gv-guard.yml` | `joint-gv-guard` required context — fails if a `joint-gv` PR has auto-merge armed |
+| `.github/workflows/codeql.yml` | CodeQL security analysis (posts the `CodeQL` required context as an app aggregate) |
 | `.github/workflows/container.yml` | Container image build + GHCR push + security scan |
 | `.github/workflows/deploy-azure.yml` | Production blue-green deployment |
 | `.github/workflows/deploy-staging.yml` | Auto-deploy to staging after container build |
