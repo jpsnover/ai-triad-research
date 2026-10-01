@@ -112,12 +112,37 @@ function buildVoiceBlock(soul: SoulDoc): string {
 const VOICE_ONLY_GROUNDING = '(none — argue from your camp voice and general knowledge)';
 const VOICE_ONLY_SITUATIONS = '(none supplied)';
 
+export function parseNodeScope(description: string): { core: string; encompasses: string; excludes: string } {
+  const eIdx = description.indexOf('\nEncompasses:');
+  const xIdx = description.indexOf('\nExcludes:');
+  const firstMarker = Math.min(
+    eIdx === -1 ? Infinity : eIdx,
+    xIdx === -1 ? Infinity : xIdx,
+  );
+  const core = firstMarker === Infinity ? description : description.slice(0, firstMarker);
+  const extract = (marker: string, after: number): string => {
+    if (after === -1) return '';
+    const valueStart = after + marker.length;
+    const nextNewline = description.indexOf('\n', valueStart);
+    return (nextNewline === -1 ? description.slice(valueStart) : description.slice(valueStart, nextNewline)).trim();
+  };
+  return {
+    core,
+    encompasses: extract('\nEncompasses:', eIdx),
+    excludes: extract('\nExcludes:', xIdx),
+  };
+}
+
 function formatGroundingNodes(nodes: ScoredPovNode[]): string {
   if (nodes.length === 0) return VOICE_ONLY_GROUNDING;
   return nodes
     .map(({ node, score: _score }) => {
-      const desc = node.description.length > 240 ? node.description.slice(0, 240) + '…' : node.description;
-      return `- [${node.id}] [${node.category}] ${node.label}: ${desc}`;
+      const { core, encompasses, excludes } = parseNodeScope(node.description);
+      const cappedCore = core.length > 240 ? core.slice(0, 240) + '…' : core;
+      const lines = [`- [${node.id}] [${node.category}] ${node.label}: ${cappedCore}`];
+      if (encompasses) lines.push(`    • Applies to: ${encompasses}`);
+      if (excludes) lines.push(`    • Does NOT extend to: ${excludes}`);
+      return lines.join('\n');
     })
     .join('\n');
 }
