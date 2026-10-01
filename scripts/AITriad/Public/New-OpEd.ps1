@@ -325,32 +325,15 @@ function New-OpEd {
                     # (PR #2649) exactly -- split Encompasses:/Excludes: out of the description
                     # BEFORE capping, so the scope carve-outs that reconcile a camp's positions
                     # survive truncation instead of being severed mid-description.
-                    $desc = [string]$n.Description
-                    $eIdx = $desc.IndexOf("`nEncompasses:")
-                    $xIdx = $desc.IndexOf("`nExcludes:")
-                    $firstMarker = [int]::MaxValue
-                    if ($eIdx -ge 0 -and $eIdx -lt $firstMarker) { $firstMarker = $eIdx }
-                    if ($xIdx -ge 0 -and $xIdx -lt $firstMarker) { $firstMarker = $xIdx }
-                    $core = if ($firstMarker -eq [int]::MaxValue) { $desc } else { $desc.Substring(0, $firstMarker) }
+                    $scope = Get-GroundingNodeScope -Description ([string]$n.Description)
 
-                    $extractScope = {
-                        param([string]$Marker, [int]$After)
-                        if ($After -lt 0) { return '' }
-                        $valueStart = $After + $Marker.Length
-                        $nextNewline = $desc.IndexOf("`n", $valueStart)
-                        $raw = if ($nextNewline -eq -1) { $desc.Substring($valueStart) } else { $desc.Substring($valueStart, $nextNewline - $valueStart) }
-                        return $raw.Trim()
-                    }
-                    $encompasses = & $extractScope "`nEncompasses:" $eIdx
-                    $excludes    = & $extractScope "`nExcludes:" $xIdx
-
-                    $cappedCore = $core
+                    $cappedCore = $scope.Core
                     if ($cappedCore.Length -gt 240) { $cappedCore = $cappedCore.Substring(0, 240) + '…' }
 
                     # Prefix the node id so the model can reference it back in grounding_usage.
                     [void]$sb.AppendLine("- [$($n.Id)] [$($n.Category)] $($n.Label): $cappedCore")
-                    if ($encompasses) { [void]$sb.AppendLine("    • Applies to: $encompasses") }
-                    if ($excludes)    { [void]$sb.AppendLine("    • Does NOT extend to: $excludes") }
+                    if ($scope.Encompasses) { [void]$sb.AppendLine("    • Applies to: $($scope.Encompasses)") }
+                    if ($scope.Excludes)    { [void]$sb.AppendLine("    • Does NOT extend to: $($scope.Excludes)") }
                     $Grounding.Add([PSCustomObject]@{
                         Id = $n.Id; Type = 'bdi'; POV = $n.POV; Category = $n.Category
                         Label = $n.Label; RelevanceScore = $n.Score; Reflection = ''

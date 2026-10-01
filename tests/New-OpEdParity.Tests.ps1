@@ -38,6 +38,39 @@
 $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Import-Module (Join-Path $script:RepoRoot 'scripts\AITriad\AITriad.psm1') -WarningAction SilentlyContinue
 
+# t/3835: fixture descriptions for the scope-line rendering arm (Arm 3). Defined at
+# discovery time (not inside BeforeAll) because It -ForEach is evaluated during
+# discovery, before BeforeAll variables exist (same gotcha this file's -Skip notes
+# already document for -Skip: evaluating before BeforeAll runs).
+# Covers: both markers, each alone, neither, reversed order, and a long core that
+# triggers the 240-cap while scope text survives uncapped.
+$script:ScopeFixtures = @(
+    @{
+        Name        = 'both markers present'
+        Description = "Mandatory pre-deployment audits for irreversible-harm systems.`nEncompasses: FTC-led audit authority, uncapped liability for high-stakes domains.`nExcludes: voluntary industry standards, indefinite framework-building."
+    }
+    @{
+        Name        = 'Encompasses alone'
+        Description = "Open-weight release policy for general-purpose models.`nEncompasses: full weight publication, permissive fine-tuning licenses."
+    }
+    @{
+        Name        = 'Excludes alone'
+        Description = "Open-weight release policy with a narrow carve-out.`nExcludes: CBRN-capable variants, offensive-cyber fine-tunes."
+    }
+    @{
+        Name        = 'neither marker present'
+        Description = 'A plain belief statement with no scope carve-outs at all, just prose.'
+    }
+    @{
+        Name        = 'reversed marker order (Excludes before Encompasses)'
+        Description = "Core statement with markers out of the usual order.`nExcludes: the narrow catastrophic-risk class.`nEncompasses: everything else in the general policy domain."
+    }
+    @{
+        Name        = 'long core triggers the 240-cap; scope text survives uncapped'
+        Description = ('X' * 300) + "`nEncompasses: " + ('Y' * 300) + "`nExcludes: " + ('Z' * 300)
+    }
+)
+
 BeforeAll {
     $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     Import-Module (Join-Path $script:RepoRoot 'scripts\AITriad\AITriad.psm1') -WarningAction SilentlyContinue
@@ -106,6 +139,16 @@ BeforeAll {
         $script:CachedSyntheticVectors = @{ '__parity-fixture-no-synthetic__' = $null }
         $script:SyntheticTimestamp     = [DateTime]::MaxValue
     }
+
+    # t/3835: PowerShell's default console capture encoding for external-process
+    # stdout is NOT UTF-8 (typically the system codepage), so any non-ASCII byte
+    # tsx/Node writes (em-dash, bullet, ellipsis) gets mis-decoded -- each 3-byte
+    # UTF-8 character splits into 2-3 garbled characters on the PS side. This is
+    # the root cause of the pre-existing Arm 1 em-dash parity failures AND would
+    # have caused false failures in Arm 3's bullet/ellipsis rendering below.
+    # Verified: without this, U+2022 (•) decodes as 3 separate wrong chars; with
+    # it, decodes correctly as a single U+2022.
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
     # Helper: write a .mts fixture to a temp file and run it via node + tsx cli.mjs.
     # Uses node + cli.mjs directly (not the .cmd shim) to bypass stale-shim version issues.
@@ -366,5 +409,88 @@ process.stdout.write(JSON.stringify(safetyistIds));
         )
         ($CanonIds -join ',') | Should -Not -Be ($DivergIds -join ',') `
             -Because 'negated embedding flips all cosine signs below 0 → empty vs non-empty selection'
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# t/3835: guards the Encompasses:/Excludes: scope-line rendering t/3827 (TS) and
+# t/3834 (PS) added to op-ed grounding. Arm 1 above does not exercise this --
+# its GROUNDING_NODES fixture is a literal string that bypasses formatGroundingNodes
+# entirely. This arm feeds raw node descriptions (the actual input shape) through
+# both languages' parse+cap+render logic and asserts byte-identical output.
+Describe 'PS↔TS parity: grounding scope-line rendering (Arm 3, t/3835)' -Tag 'parity' {
+
+    It 'PS Get-GroundingNodeScope and TS parseNodeScope assemble byte-identical rendered lines: <Name>' -ForEach $script:ScopeFixtures {
+        if (-not $script:TsxAvailable) { Set-ItResult -Skipped -Because 'tsx not available'; return }
+
+        # PS side -- Get-GroundingNodeScope is Private; invoke via InModuleScope.
+        # Render exactly as New-OpEd.ps1 does: cap Core at 240, then the
+        # "- [id] [cat] Label: core" line plus optional Applies-to/Does-NOT-extend-to bullets.
+        $PsRendered = InModuleScope AITriad -Parameters @{ Description = $Description } {
+            param([string]$Description)
+            $scope = Get-GroundingNodeScope -Description $Description
+            $core = $scope.Core
+            if ($core.Length -gt 240) { $core = $core.Substring(0, 240) + '…' }
+            $lines = [System.Collections.Generic.List[string]]::new()
+            $lines.Add("- [fix-001] [Belief] Fixture Node: $core")
+            if ($scope.Encompasses) { $lines.Add("    • Applies to: $($scope.Encompasses)") }
+            if ($scope.Excludes)    { $lines.Add("    • Does NOT extend to: $($scope.Excludes)") }
+            return ($lines -join "`n")
+        }
+
+        # TS side -- reimplements parseNodeScope (PR #2649, lib/oped/generate.ts) and
+        # formatGroundingNodes's per-node render exactly, same reason Arm 1/Arm 2 reimplement
+        # rather than import generate.ts: that module pulls in onnxEmbedding.js at import
+        # time, which is heavy/fragile for a lightweight fixture and irrelevant to this logic.
+        $DescJson = ConvertTo-Json -InputObject $Description -Compress
+        $TsCode = @"
+const description = $DescJson;
+function parseNodeScope(description) {
+  const eIdx = description.indexOf('\nEncompasses:');
+  const xIdx = description.indexOf('\nExcludes:');
+  const firstMarker = Math.min(eIdx === -1 ? Infinity : eIdx, xIdx === -1 ? Infinity : xIdx);
+  const core = firstMarker === Infinity ? description : description.slice(0, firstMarker);
+  const extract = (marker, after) => {
+    if (after === -1) return '';
+    const valueStart = after + marker.length;
+    const nextNewline = description.indexOf('\n', valueStart);
+    return (nextNewline === -1 ? description.slice(valueStart) : description.slice(valueStart, nextNewline)).trim();
+  };
+  return { core, encompasses: extract('\nEncompasses:', eIdx), excludes: extract('\nExcludes:', xIdx) };
+}
+const { core, encompasses, excludes } = parseNodeScope(description);
+const cappedCore = core.length > 240 ? core.slice(0, 240) + '…' : core;
+const lines = ['- [fix-001] [Belief] Fixture Node: ' + cappedCore];
+if (encompasses) lines.push('    • Applies to: ' + encompasses);
+if (excludes) lines.push('    • Does NOT extend to: ' + excludes);
+process.stdout.write(lines.join('\n'));
+"@
+        $TsRendered = & $script:TsxHelper $TsCode
+
+        ($PsRendered -replace '\r\n', "`n").TrimEnd() |
+            Should -Be ($TsRendered -replace '\r\n', "`n").TrimEnd()
+    }
+
+    # Deliberate-divergence proof: confirms the gate is sensitive to a PS-side
+    # cap/parse regression (e.g. capping before parsing, which would sever the
+    # scope markers -- the exact pre-t/3827 bug this whole feature fixes).
+    It 'Gate fires when PS caps before parsing (divergence sensitivity)' {
+        $Description = ('A' * 300) + "`nEncompasses: should not be reachable if capped first"
+
+        $Correct = InModuleScope AITriad -Parameters @{ Description = $Description } {
+            param([string]$Description)
+            $scope = Get-GroundingNodeScope -Description $Description
+            $scope.Encompasses
+        }
+
+        $CappedFirst = InModuleScope AITriad -Parameters @{ Description = $Description } {
+            param([string]$Description)
+            $bad = $Description
+            if ($bad.Length -gt 240) { $bad = $bad.Substring(0, 240) + '…' }
+            (Get-GroundingNodeScope -Description $bad).Encompasses
+        }
+
+        $Correct | Should -Not -Be $CappedFirst `
+            -Because 'capping before parsing severs the Encompasses marker -- the bug t/3827/t/3834 fixed'
     }
 }
