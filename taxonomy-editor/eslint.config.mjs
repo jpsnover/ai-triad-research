@@ -11,9 +11,17 @@
 //     2000, both counting blank + comment lines (skipBlankLines/skipComments:false)
 //     for one stable number. Existing offenders are baselined in Block C and the
 //     baseline shrinks monotonically to zero as the epic t/1681 Phase-2 splits land.
-//     ADR-007 §1 soft-warn tiers are deliberately deferred here: `npm run verify` caps
-//     warnings at --max-warnings=4256, so advisory warns would count against that
-//     ceiling and risk hard failures — hard-gate only (TL ruling, t/1691#2).
+//
+// t/3822 correction: ADR-007 §1 soft-warn tiers were previously deferred here because
+// "npm run verify caps warnings at --max-warnings=4256, so advisory warns would count
+// against that ceiling." That reasoning was false on both counts — package.json's
+// `verify` script is LOCAL-ONLY (0 references in ci.yml; CI lints via
+// `pnpm run --if-present lint` at ci.yml:557, errors-only, no --max-warnings), and the
+// 4256 figure was stale (measured 628 warnings on origin/main 704c8f93, 2026-10-01,
+// via `eslint src/ --max-warnings=999999` — the ceiling is now set to 650 in
+// package.json). The ceiling exists to catch a local warning-count regression before
+// it's noticed any other way; it has never gated a merge. Soft-warn tiers remain
+// deferred for now as a separate decision, not because of this (false) constraint.
 
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
