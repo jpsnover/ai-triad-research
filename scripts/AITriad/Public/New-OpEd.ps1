@@ -145,8 +145,8 @@ function New-OpEd {
         [string]$Pov,
 
         [ValidateSet('WashingtonPost', 'NYTimes', 'WallStreetJournal', 'USAToday',
-            'ForeignAffairs', 'Politico', 'Regional', 'Generic')]
-        [string]$Outlet = 'Generic',
+            'ForeignAffairs', 'Politico', 'Regional', 'Generic', 'TechPolicyPress')]
+        [string]$Outlet = 'TechPolicyPress',
 
         [ValidateRange(300, 2000)]
         [int]$WordCount,
@@ -247,6 +247,18 @@ function New-OpEd {
         Politico          = @{ Words = 1000; Guidance = 'Politico: ~1000 words, policy-mechanics focus, timely; Hill and agency audience.' }
         Regional          = @{ Words = 650;  Guidance = 'Regional / local daily: 500-800 words, direct regional relevance, local anecdotes, state-level calls to action; municipal voters and state legislators.' }
         Generic           = @{ Words = 800;  Guidance = 'General-interest opinion desk: ~800 words, strong news hook, plain language, broad public audience.' }
+        TechPolicyPress   = @{
+            Words    = 1500
+            Guidance = 'Tech Policy Press (Perspective/Analysis): 1200-2000 words in 3-5 subheaded sections. Analytical and evidence-grounded with a clear argumentative throughline; sophisticated but clear (college-level register, precise policy vocabulary — do NOT dumb down, but keep sentences disciplined). Anchor in a specific, current policy development (named legislation, institution, or event) and draw out the broader governance/democratic stakes — concrete-first, not abstract theory. Sparing first person from a stated vantage; rhetorical questions and concrete hypotheticals used sparingly; cite verifiable sources. Audience: policymakers, technologists, researchers, and informed advocates at the tech-and-democracy intersection.'
+            Style    = @{
+                Audience          = 'persuade an informed policy audience — policymakers, technologists, researchers, and advocates at the tech-and-democracy intersection'
+                ReadingLevel      = 'Write for a college-educated policy audience — Flesch-Kincaid grade ~13 (no higher than 14). Achieve clarity through sentence discipline, NOT by simplifying vocabulary: keep the precise policy and technical terms your expert readers expect.'
+                SentenceMechanics = 'average under ~24 words; no sentence over 40 words. Vary length; after a long sentence, a short one.'
+                ParagraphMechanics = 'at most ~120 words per paragraph.'
+                JargonGuidance    = 'Use the precise policy/technical vocabulary your expert audience expects; define only genuinely obscure terms. Do NOT flatten specialized terms into lay paraphrase.'
+                BodyFormat        = 'Organize the body into **3-5 sections with short Markdown `##` subheadings**; each section advances one part of the argument. Do NOT repeat the headline inside the body.'
+            }
+        }
     }
     $Band = $OutletBands[$Outlet]
     $TargetWords = if ($PSBoundParameters.ContainsKey('WordCount')) { $WordCount } else { $Band.Words }
@@ -393,12 +405,26 @@ function New-OpEd {
         '(none supplied — write a generic authority line the author can replace, e.g. "[Author], [affiliation]")'
     } else { $AuthorBio }
 
+    # ── Resolve per-outlet style vars (mirrors promptLoader.ts defaults) ────────
+    $s = $Band.Style
+    $StyleAudience   = if ($null -ne $s -and $s.ContainsKey('Audience'))          { $s.Audience }          else { 'persuade a broad, non-specialist public to act' }
+    $StyleReadLevel  = if ($null -ne $s -and $s.ContainsKey('ReadingLevel'))       { $s.ReadingLevel }      else { 'write for a general newspaper audience at roughly a 10th-grade reading level (Flesch-Kincaid grade ~10, and no higher than 11). This is the single most important constraint. If a passage would make a smart non-specialist reread it, simplify it.' }
+    $StyleSentence   = if ($null -ne $s -and $s.ContainsKey('SentenceMechanics')) { $s.SentenceMechanics } else { 'average under 18 words per sentence; NO sentence over 30 words. One idea per sentence. When a sentence carries two or three claims, split it into two or three sentences. Long, clause-chained sentences are the main reason these essays read as hard.' }
+    $StyleParagraph  = if ($null -ne $s -and $s.ContainsKey('ParagraphMechanics')){ $s.ParagraphMechanics } else { 'at most four sentences AND at most ~90 words per paragraph. The word cap matters as much as the sentence count, four long sentences is still a wall. Break a longer paragraph in two.' }
+    $StyleJargon     = if ($null -ne $s -and $s.ContainsKey('JargonGuidance'))    { $s.JargonGuidance }    else { 'Eliminate jargon and specialized acronyms. Translate every technical term into plain language without losing its meaning (e.g., "new governmental restrictions," not "legislative encroachment"; "federal engineers," not "USACE"). If a term is not universally understood by a general reader, replace it. Avoid abstract-noun pileups ("sociotechnical complexity reduced to a frictionless slogan"); say it plainly.' }
+    $StyleBodyFormat = if ($null -ne $s -and $s.ContainsKey('BodyFormat'))        { $s.BodyFormat }        else { 'No section labels or headers inside the body — it must read as continuous prose. Do NOT repeat the headline inside the body.' }
+
     # ── Load prompt templates ────────────────────────────────────────────────
     $SystemPrompt = Get-Prompt -Name 'op-ed-generation-system' -PromptsDir $OPedPromptsDir -Replacements @{
-        POV_LABEL       = $Soul.label
-        VOICE_BLOCK     = $VoiceBlock
-        WORD_COUNT      = "$TargetWords"
-        OUTLET_GUIDANCE = $Band.Guidance
+        POV_LABEL           = $Soul.label
+        VOICE_BLOCK         = $VoiceBlock
+        WORD_COUNT          = "$TargetWords"
+        OUTLET_GUIDANCE     = $Band.Guidance
+        STYLE_AUDIENCE      = $StyleAudience
+        STYLE_READING_LEVEL = $StyleReadLevel
+        STYLE_SENTENCE      = $StyleSentence
+        STYLE_PARAGRAPH     = $StyleParagraph
+        STYLE_JARGON        = $StyleJargon
     }
     $UserPrompt = Get-Prompt -Name 'op-ed-generation-user' -PromptsDir $OPedPromptsDir -Replacements @{
         TOPIC               = $Topic
@@ -423,6 +449,7 @@ function New-OpEd {
             $Claims = @($SBrief.key_claims)
             (0..($Claims.Count - 1) | ForEach-Object { "  $($_ + 1). $($Claims[$_])" }) -join "`n"
         } else { '(none extracted)' }
+        STYLE_BODY_FORMAT   = $StyleBodyFormat
     }
 
     # ── Response schema — structured output for clean field extraction ───────

@@ -142,10 +142,15 @@ Describe 'PS↔TS parity: prompt assembly (Arm 1)' -Tag 'parity' {
             param([string]$PromptsDir)
             Get-Prompt -Name 'op-ed-generation-system' -PromptsDir $PromptsDir -AllowUnresolved `
                 -Replacements @{
-                    POV_LABEL       = 'The Safetyist'
-                    VOICE_BLOCK     = 'PARITY_FIXTURE_VOICE'
-                    WORD_COUNT      = '800'
-                    OUTLET_GUIDANCE = 'Generic: ~800 words'
+                    POV_LABEL           = 'The Safetyist'
+                    VOICE_BLOCK         = 'PARITY_FIXTURE_VOICE'
+                    WORD_COUNT          = '800'
+                    OUTLET_GUIDANCE     = 'Generic: ~800 words'
+                    STYLE_AUDIENCE      = 'PARITY_FIXTURE_AUDIENCE'
+                    STYLE_READING_LEVEL = 'PARITY_FIXTURE_READING_LEVEL'
+                    STYLE_SENTENCE      = 'PARITY_FIXTURE_SENTENCE'
+                    STYLE_PARAGRAPH     = 'PARITY_FIXTURE_PARAGRAPH'
+                    STYLE_JARGON        = 'PARITY_FIXTURE_JARGON'
                 }
         }
 
@@ -155,7 +160,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 const dir = "$($script:PromptsDirFwd)";
 const tpl = readFileSync(join(dir, 'op-ed-generation-system.prompt'), 'utf-8').trimEnd();
-const vars = {"POV_LABEL":"The Safetyist","VOICE_BLOCK":"PARITY_FIXTURE_VOICE","WORD_COUNT":"800","OUTLET_GUIDANCE":"Generic: ~800 words"};
+const vars = {"POV_LABEL":"The Safetyist","VOICE_BLOCK":"PARITY_FIXTURE_VOICE","WORD_COUNT":"800","OUTLET_GUIDANCE":"Generic: ~800 words","STYLE_AUDIENCE":"PARITY_FIXTURE_AUDIENCE","STYLE_READING_LEVEL":"PARITY_FIXTURE_READING_LEVEL","STYLE_SENTENCE":"PARITY_FIXTURE_SENTENCE","STYLE_PARAGRAPH":"PARITY_FIXTURE_PARAGRAPH","STYLE_JARGON":"PARITY_FIXTURE_JARGON"};
 const out = tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
 process.stdout.write(out);
 "@
@@ -188,6 +193,7 @@ process.stdout.write(out);
                     SOURCE_STANCE          = ''
                     SOURCE_RECOMMENDATIONS = ''
                     SOURCE_KEY_CLAIMS      = "  1. Audits catch failures early`n  2. Voluntary compliance is insufficient"
+                    STYLE_BODY_FORMAT      = 'PARITY_FIXTURE_BODY_FORMAT'
                 }
         }
 
@@ -197,7 +203,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 const dir = "$($script:PromptsDirFwd)";
 const tpl = readFileSync(join(dir, 'op-ed-generation-user.prompt'), 'utf-8').trimEnd();
-const vars = {"TOPIC":"Mandatory AI audits","WORD_COUNT":"800","OUTLET_GUIDANCE":"Generic: ~800 words","NEWS_HOOK":"Senate AI bill hearing next week","THESIS":"Audits prevent catastrophic failures","AUTHOR_BIO":"A researcher at MIT","SOURCE_MATERIAL":"(no external source supplied — argue from the topic and general knowledge)","GROUNDING_NODES":"- [saf-bel-001] [Belief] AI is dangerous: Detail here.","SITUATIONS":"- [sit-001] Runaway model: Bad outcome.","SOURCE_AUTHOR":"","SOURCE_ACTOR_TYPE":"","SOURCE_THESIS":"","SOURCE_STANCE":"","SOURCE_RECOMMENDATIONS":"","SOURCE_KEY_CLAIMS":"  1. Audits catch failures early\n  2. Voluntary compliance is insufficient"};
+const vars = {"TOPIC":"Mandatory AI audits","WORD_COUNT":"800","OUTLET_GUIDANCE":"Generic: ~800 words","NEWS_HOOK":"Senate AI bill hearing next week","THESIS":"Audits prevent catastrophic failures","AUTHOR_BIO":"A researcher at MIT","SOURCE_MATERIAL":"(no external source supplied — argue from the topic and general knowledge)","GROUNDING_NODES":"- [saf-bel-001] [Belief] AI is dangerous: Detail here.","SITUATIONS":"- [sit-001] Runaway model: Bad outcome.","SOURCE_AUTHOR":"","SOURCE_ACTOR_TYPE":"","SOURCE_THESIS":"","SOURCE_STANCE":"","SOURCE_RECOMMENDATIONS":"","SOURCE_KEY_CLAIMS":"  1. Audits catch failures early\n  2. Voluntary compliance is insufficient","STYLE_BODY_FORMAT":"PARITY_FIXTURE_BODY_FORMAT"};
 const out = tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? '');
 process.stdout.write(out);
 "@
