@@ -647,11 +647,11 @@ function normalizeWs(s: string): string {
  * this is the defence-in-depth filter for when it still returns one.
  */
 export function filterNoOpReflectionEdits<T extends {
-  disposition?: string;
-  node_id?: string;
-  edit_type?: string;
-  current_description?: string;
-  proposed_description?: string;
+  disposition?: string | null;
+  node_id?: string | null;
+  edit_type?: string | null;
+  current_description?: string | null;
+  proposed_description?: string | null;
 }>(edits: T[], debateId: string): T[] {
   return edits.filter(e => {
     if (e.disposition !== 'edit_existing') return true;
