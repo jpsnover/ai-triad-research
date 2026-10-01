@@ -83,25 +83,25 @@ function Test-TaxonomyIntegrity {
 
             $SeenIds = [System.Collections.Generic.HashSet[string]]::new()
             foreach ($PA in $Node.graph_attributes.policy_actions) {
-                if ($PA.PSObject.Properties['policy_id']) { $Pid = $PA.policy_id } else { $Pid = $null }
-                if (-not $Pid) {
+                if ($PA.PSObject.Properties['policy_id']) { $PolicyId = $PA.policy_id } else { $PolicyId = $null }
+                if (-not $PolicyId) {
                     $PaAction = if ($PA.PSObject.Properties['action']) { $PA.action } else { $null }
                     $MissingPolicyId += [PSCustomObject]@{ NodeId = $Node.id; POV = $PovKey; Action = $PaAction }
                     continue
                 }
 
-                if (-not $SeenIds.Add($Pid)) {
-                    $DuplicateRefs += [PSCustomObject]@{ NodeId = $Node.id; PolicyId = $Pid }
+                if (-not $SeenIds.Add($PolicyId)) {
+                    $DuplicateRefs += [PSCustomObject]@{ NodeId = $Node.id; PolicyId = $PolicyId }
                 }
 
-                if (-not $PolicyRefs.ContainsKey($Pid)) {
-                    $PolicyRefs[$Pid] = [System.Collections.Generic.List[string]]::new()
-                    $ActualPovs[$Pid] = [System.Collections.Generic.HashSet[string]]::new()
-                    $ActualCounts[$Pid] = 0
+                if (-not $PolicyRefs.ContainsKey($PolicyId)) {
+                    $PolicyRefs[$PolicyId] = [System.Collections.Generic.List[string]]::new()
+                    $ActualPovs[$PolicyId] = [System.Collections.Generic.HashSet[string]]::new()
+                    $ActualCounts[$PolicyId] = 0
                 }
-                $PolicyRefs[$Pid].Add($Node.id)
-                [void]$ActualPovs[$Pid].Add($PovKey)
-                $ActualCounts[$Pid]++
+                $PolicyRefs[$PolicyId].Add($Node.id)
+                [void]$ActualPovs[$PolicyId].Add($PovKey)
+                $ActualCounts[$PolicyId]++
             }
         }
     }

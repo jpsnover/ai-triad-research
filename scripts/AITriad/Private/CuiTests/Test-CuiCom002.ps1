@@ -27,7 +27,7 @@ function Test-CuiCom002 {
             -Detail 'Anonymous — submission requires auth' -Ms $r.ResponseMs))
         $Sw.Stop()
         return New-CuiTestResult -CuiId 'CUI-COM-002' -Domain 'Community' -Priority 'P2' `
-            -DurationMs $Sw.ElapsedMilliseconds -Details $Checks.ToArray() -Error 'Skipped — no auth credentials'
+            -DurationMs $Sw.ElapsedMilliseconds -Details $Checks.ToArray() -ErrorMessage 'Skipped — no auth credentials'
     }
 
     $Checks.Add((New-CuiCheckResult -Check 'Auth check' -Pass $true `

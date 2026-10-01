@@ -138,13 +138,13 @@ function Invoke-PolicyRefinement {
             if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }
 
             foreach ($PA in $Node.graph_attributes.policy_actions) {
-                if ($PA.PSObject.Properties['policy_id']) { $Pid = $PA.policy_id } else { $Pid = $null }
-                if (-not $Pid) { continue }
+                if ($PA.PSObject.Properties['policy_id']) { $PolicyId = $PA.policy_id } else { $PolicyId = $null }
+                if (-not $PolicyId) { continue }
 
-                if (-not $PolicyFramings.ContainsKey($Pid)) {
-                    $PolicyFramings[$Pid] = [System.Collections.Generic.List[object]]::new()
+                if (-not $PolicyFramings.ContainsKey($PolicyId)) {
+                    $PolicyFramings[$PolicyId] = [System.Collections.Generic.List[object]]::new()
                 }
-                $PolicyFramings[$Pid].Add([PSCustomObject]@{
+                $PolicyFramings[$PolicyId].Add([PSCustomObject]@{
                     NodeId  = $Node.id
                     POV     = $PovKey
                     Action  = $PA.action
@@ -160,18 +160,18 @@ function Invoke-PolicyRefinement {
     $Results = [System.Collections.Generic.List[object]]::new()
 
     foreach ($Policy in $MultiPolicies) {
-        $Pid = $Policy.id
+        $PolicyId = $Policy.id
         $CurrentAction = $Policy.action
 
-        if (-not $PolicyFramings.ContainsKey($Pid)) {
-            Write-Warn "$Pid`: no framings found in taxonomy files"
+        if (-not $PolicyFramings.ContainsKey($PolicyId)) {
+            Write-Warn "$PolicyId`: no framings found in taxonomy files"
             $Failed++
             continue
         }
 
-        $Framings = $PolicyFramings[$Pid]
+        $Framings = $PolicyFramings[$PolicyId]
 
-        Write-Step "$Pid`: $CurrentAction ($($Framings.Count) framings)"
+        Write-Step "$PolicyId`: $CurrentAction ($($Framings.Count) framings)"
 
         # Build the refinement prompt
         $FramingBlock = ($Framings | ForEach-Object {
@@ -185,7 +185,7 @@ accelerationist, safetyist, or skeptic).
 
 CURRENT canonical action: "$CurrentAction"
 
-This policy ($Pid) is referenced by $($Framings.Count) nodes across different POVs.
+This policy ($PolicyId) is referenced by $($Framings.Count) nodes across different POVs.
 Here are all the framings:
 
 $FramingBlock
@@ -201,7 +201,7 @@ INSTRUCTIONS:
         # -- DryRun: show prompt and skip API call --
         if ($DryRun) {
             Write-Host ''
-            Write-Host "--- $Pid ---" -ForegroundColor Cyan
+            Write-Host "--- $PolicyId ---" -ForegroundColor Cyan
             Write-Host "  Current : $CurrentAction" -ForegroundColor Yellow
             Write-Host "  Framings:" -ForegroundColor Gray
             foreach ($F in $Framings) {
@@ -233,7 +233,7 @@ INSTRUCTIONS:
 
             $ResponseText = $AIResult.Text
             if (-not $ResponseText) {
-                Write-Warn "$Pid`: empty API response"
+                Write-Warn "$PolicyId`: empty API response"
                 $Failed++
                 continue
             }
@@ -247,7 +247,7 @@ INSTRUCTIONS:
                 $JsonMatch = [regex]::Match($ResponseText, '(?s)\{.*?\}')
             }
             if (-not $JsonMatch.Success) {
-                Write-Warn "$Pid`: no JSON object found in response: $($ResponseText.Substring(0, [Math]::Min(100, $ResponseText.Length)))"
+                Write-Warn "$PolicyId`: no JSON object found in response: $($ResponseText.Substring(0, [Math]::Min(100, $ResponseText.Length)))"
                 $Failed++
                 continue
             }
@@ -255,7 +255,7 @@ INSTRUCTIONS:
             $Parsed = $JsonMatch.Value | ConvertFrom-Json
 
             if (-not $Parsed.PSObject.Properties['refined_action'] -or [string]::IsNullOrWhiteSpace($Parsed.refined_action)) {
-                Write-Warn "$Pid`: LLM returned empty or missing refined_action"
+                Write-Warn "$PolicyId`: LLM returned empty or missing refined_action"
                 $Failed++
                 continue
             }
@@ -263,15 +263,15 @@ INSTRUCTIONS:
             $RefinedAction = $Parsed.refined_action.Trim()
         }
         catch {
-            Write-Fail "$Pid`: API call or parse failed -- $_"
+            Write-Fail "$PolicyId`: API call or parse failed -- $_"
             $Failed++
             continue
         }
 
-        Write-Info "$Pid`: `"$CurrentAction`" -> `"$RefinedAction`""
+        Write-Info "$PolicyId`: `"$CurrentAction`" -> `"$RefinedAction`""
 
         # -- Update policy_actions.json --
-        if ($PSCmdlet.ShouldProcess("$Pid in policy_actions.json", "Update action to '$RefinedAction'")) {
+        if ($PSCmdlet.ShouldProcess("$PolicyId in policy_actions.json", "Update action to '$RefinedAction'")) {
             $Policy.action = $RefinedAction
             # Track refinement timestamp and framing count for incremental refinement
             if ($Policy.PSObject.Properties['last_refined_at']) {
@@ -296,8 +296,8 @@ INSTRUCTIONS:
                 if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }
 
                 foreach ($PA in $Node.graph_attributes.policy_actions) {
-                    if ($PA.PSObject.Properties['policy_id'] -and $PA.policy_id -eq $Pid) {
-                        if ($PSCmdlet.ShouldProcess("$($Node.id) [$PovKey]", "Update action text for $Pid")) {
+                    if ($PA.PSObject.Properties['policy_id'] -and $PA.policy_id -eq $PolicyId) {
+                        if ($PSCmdlet.ShouldProcess("$($Node.id) [$PovKey]", "Update action text for $PolicyId")) {
                             $PA.action = $RefinedAction
                         }
                     }
@@ -307,7 +307,7 @@ INSTRUCTIONS:
 
         $Refined++
         $Results.Add([PSCustomObject]@{
-            PolicyId       = $Pid
+            PolicyId       = $PolicyId
             OriginalAction = $CurrentAction
             RefinedAction  = $RefinedAction
             FramingCount   = $Framings.Count

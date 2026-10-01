@@ -48,7 +48,8 @@ function Request-FlightRecorderDump {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory, ValueFromPipelineByPropertyName)]
-        [int]$PID,
+        [Alias('PID')]
+        [int]$ProcessId,
 
         [Parameter()]
         [switch]$Summary,
@@ -58,7 +59,7 @@ function Request-FlightRecorderDump {
     )
 
     process {
-        $pipeName = "taxonomy-flight-recorder-$PID"
+        $pipeName = "taxonomy-flight-recorder-$ProcessId"
 
         try {
             $pipe = [System.IO.Pipes.NamedPipeClientStream]::new(
@@ -72,20 +73,20 @@ function Request-FlightRecorderDump {
                 $pipe.Connect($timeoutMs)
             } catch [TimeoutException] {
                 throw (New-ActionableError `
-                    -Goal "Request flight recorder dump from PID $PID" `
+                    -Goal "Request flight recorder dump from PID $ProcessId" `
                     -Problem "Named pipe '$pipeName' did not respond within ${TimeoutSeconds}s" `
                     -Location 'Request-FlightRecorderDump' `
                     -NextSteps @(
-                        "Verify the process is running: Get-Process -Id $PID"
+                        "Verify the process is running: Get-Process -Id $ProcessId"
                         'Ensure the flight recorder pipe listener is enabled in the app'
                     ))
             } catch {
                 throw (New-ActionableError `
-                    -Goal "Request flight recorder dump from PID $PID" `
+                    -Goal "Request flight recorder dump from PID $ProcessId" `
                     -Problem "Cannot connect to pipe '$pipeName': $($_.Exception.Message)" `
                     -Location 'Request-FlightRecorderDump' `
                     -NextSteps @(
-                        "Verify the process is running: Get-Process -Id $PID"
+                        "Verify the process is running: Get-Process -Id $ProcessId"
                         'Check that the flight recorder pipe listener is active'
                         'Run Get-TaxonomyProcess to find valid PIDs'
                     ))
@@ -105,7 +106,7 @@ function Request-FlightRecorderDump {
                 $responseLine = $reader.ReadLine()
                 if (-not $responseLine) {
                     throw (New-ActionableError `
-                        -Goal "Request flight recorder $actionName from PID $PID" `
+                        -Goal "Request flight recorder $actionName from PID $ProcessId" `
                         -Problem 'Received empty response from flight recorder pipe' `
                         -Location 'Request-FlightRecorderDump' `
                         -NextSteps @('The process may have closed the connection unexpectedly'))
@@ -114,7 +115,7 @@ function Request-FlightRecorderDump {
                 $response = $responseLine | ConvertFrom-Json
 
                 $result = [PSCustomObject]@{
-                    PID        = $PID
+                    PID        = $ProcessId
                     Action     = $actionName
                     EventCount = if ($response.PSObject.Properties['event_count']) {
                                      $response.event_count
