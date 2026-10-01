@@ -31,7 +31,7 @@ function Test-CuiTax010 {
         $Sw.Stop()
         return (New-CuiTestResult -CuiId 'CUI-TAX-010' -Domain 'Taxonomy' -Priority 'P0' `
             -DurationMs $Sw.ElapsedMilliseconds -Details $Checks.ToArray() `
-            -Error 'Skipped: no auth credentials provided')
+            -ErrorMessage 'Skipped: no auth credentials provided')
     }
 
     # Check 2: Load taxonomy and pick a node

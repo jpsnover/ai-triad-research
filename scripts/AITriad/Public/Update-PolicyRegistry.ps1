@@ -74,9 +74,9 @@ function Update-PolicyRegistry {
             if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }
 
             foreach ($PA in $Node.graph_attributes.policy_actions) {
-                if ($PA.PSObject.Properties['policy_id']) { $Pid = $PA.policy_id } else { $Pid = $null }
+                if ($PA.PSObject.Properties['policy_id']) { $PolicyId = $PA.policy_id } else { $PolicyId = $null }
 
-                if (-not $Pid) {
+                if (-not $PolicyId) {
                     $Unregistered.Add([PSCustomObject]@{
                         NodeId  = $Node.id
                         POV     = $PovKey
@@ -86,12 +86,12 @@ function Update-PolicyRegistry {
                     continue
                 }
 
-                if (-not $ReferencedIds.ContainsKey($Pid)) {
-                    $ReferencedIds[$Pid] = [System.Collections.Generic.List[object]]::new()
+                if (-not $ReferencedIds.ContainsKey($PolicyId)) {
+                    $ReferencedIds[$PolicyId] = [System.Collections.Generic.List[object]]::new()
                 }
                 # Capture action/framing too (t/3435): needed to RE-ADD a referenced-but-unregistered
                 # id back into the registry (Missing set) — the node is the only place its action lives.
-                $ReferencedIds[$Pid].Add([PSCustomObject]@{
+                $ReferencedIds[$PolicyId].Add([PSCustomObject]@{
                     NodeId  = $Node.id
                     POV     = $PovKey
                     Action  = if ($PA.PSObject.Properties['action']) { $PA.action } else { $null }
@@ -252,22 +252,22 @@ function Update-PolicyRegistry {
                 if (-not $Node.PSObject.Properties['graph_attributes'] -or $null -eq $Node.graph_attributes) { continue }
                 if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }
                 foreach ($PA in $Node.graph_attributes.policy_actions) {
-                    if ($PA.PSObject.Properties['policy_id']) { $Pid = $PA.policy_id } else { $Pid = $null }
-                    if (-not $Pid) { continue }
-                    if (-not $FinalRefs.ContainsKey($Pid)) {
-                        $FinalRefs[$Pid] = @{ Count = 0; POVs = [System.Collections.Generic.HashSet[string]]::new() }
+                    if ($PA.PSObject.Properties['policy_id']) { $PolicyId = $PA.policy_id } else { $PolicyId = $null }
+                    if (-not $PolicyId) { continue }
+                    if (-not $FinalRefs.ContainsKey($PolicyId)) {
+                        $FinalRefs[$PolicyId] = @{ Count = 0; POVs = [System.Collections.Generic.HashSet[string]]::new() }
                     }
-                    $FinalRefs[$Pid].Count++
-                    [void]$FinalRefs[$Pid].POVs.Add($PovKey)
+                    $FinalRefs[$PolicyId].Count++
+                    [void]$FinalRefs[$PolicyId].POVs.Add($PovKey)
                 }
             }
         }
 
-        foreach ($Pid in $ExistingPolicies.Keys) {
-            $Pol = $ExistingPolicies[$Pid]
-            if ($FinalRefs.ContainsKey($Pid)) {
-                $Pol.member_count = $FinalRefs[$Pid].Count
-                $Pol.source_povs  = @($FinalRefs[$Pid].POVs | Sort-Object)
+        foreach ($PolicyId in $ExistingPolicies.Keys) {
+            $Pol = $ExistingPolicies[$PolicyId]
+            if ($FinalRefs.ContainsKey($PolicyId)) {
+                $Pol.member_count = $FinalRefs[$PolicyId].Count
+                $Pol.source_povs  = @($FinalRefs[$PolicyId].POVs | Sort-Object)
             }
             # Ensure new schema fields exist (preserve existing values)
             if (-not $Pol.PSObject.Properties['status'])       { $Pol | Add-Member -NotePropertyName 'status'       -NotePropertyValue 'active' }

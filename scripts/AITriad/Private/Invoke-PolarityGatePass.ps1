@@ -185,23 +185,23 @@ function Invoke-PolarityGatePass {
 
     # Tally per-rep verdicts into the counts metric; aggregate opposes-if-any per kp.
     $kpOpposes = @{}   # KpIndex -> @{ Conf; Rep } (strongest opposing rep)
-    for ($pid = 0; $pid -lt $pairs.Count; $pid++) {
-        $v   = if ($byId.ContainsKey($pid)) { $byId[$pid] } else { $null }
+    for ($pairIdx = 0; $pairIdx -lt $pairs.Count; $pairIdx++) {
+        $v   = if ($byId.ContainsKey($pairIdx)) { $byId[$pairIdx] } else { $null }
         $dir = if ($v) { [string]$v.Direction } else { 'unresolved' }
         if ($counts.ContainsKey($dir)) { $counts[$dir]++ } else { $counts['unresolved']++ }
 
         if ($dir -eq 'opposes') {
-            $kpi  = [int]$pairMeta[$pid].KpIndex
+            $kpi  = [int]$pairMeta[$pairIdx].KpIndex
             $conf = if ($v -and $v.PSObject.Properties['Confidence']) { [double]$v.Confidence } else { 0.0 }
             if (-not $kpOpposes.ContainsKey($kpi) -or $conf -gt $kpOpposes[$kpi].Conf) {
                 # carry the flagged pair's texts so stage-2 judges the SAME rep deberta flagged.
                 $kpOpposes[$kpi] = @{
                     Conf     = $conf
-                    Rep      = [string]$pairMeta[$pid].Rep
-                    Claim    = [string]$pairs[$pid].ClaimProp
-                    NodeProp = [string]$pairs[$pid].NodeProp
-                    ClaimPov = [string]$pairs[$pid].ClaimPov
-                    NodePov  = [string]$pairs[$pid].NodePov
+                    Rep      = [string]$pairMeta[$pairIdx].Rep
+                    Claim    = [string]$pairs[$pairIdx].ClaimProp
+                    NodeProp = [string]$pairs[$pairIdx].NodeProp
+                    ClaimPov = [string]$pairs[$pairIdx].ClaimPov
+                    NodePov  = [string]$pairs[$pairIdx].NodePov
                 }
             }
         }

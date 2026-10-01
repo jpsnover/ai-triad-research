@@ -99,12 +99,12 @@ function Get-Policy {
                 if (-not $Node.PSObject.Properties['graph_attributes'] -or $null -eq $Node.graph_attributes) { continue }
                 if (-not $Node.graph_attributes.PSObject.Properties['policy_actions']) { continue }
                 foreach ($PA in $Node.graph_attributes.policy_actions) {
-                    $Pid = $PA.policy_id
-                    if (-not $Pid) { continue }
-                    if (-not $UsageMap.ContainsKey($Pid)) {
-                        $UsageMap[$Pid] = [System.Collections.Generic.List[object]]::new()
+                    $PolicyId = $PA.policy_id
+                    if (-not $PolicyId) { continue }
+                    if (-not $UsageMap.ContainsKey($PolicyId)) {
+                        $UsageMap[$PolicyId] = [System.Collections.Generic.List[object]]::new()
                     }
-                    $UsageMap[$Pid].Add([PSCustomObject]@{
+                    $UsageMap[$PolicyId].Add([PSCustomObject]@{
                         NodeId  = $Node.id
                         POV     = $PovKey
                         Framing = $PA.framing

@@ -24,12 +24,12 @@ function New-CuiTestResult {
         [PSObject[]]$Details = @(),
 
         [Parameter()]
-        [string]$Error
+        [string]$ErrorMessage
     )
 
     $PassedCount = @($Details | Where-Object { $_.Pass }).Count
     $FailedCount = @($Details | Where-Object { -not $_.Pass }).Count
-    $AllPass = $FailedCount -eq 0 -and -not $Error -and @($Details).Count -gt 0
+    $AllPass = $FailedCount -eq 0 -and -not $ErrorMessage -and @($Details).Count -gt 0
 
     [PSCustomObject]@{
         PSTypeName = 'CuiTestResult'
@@ -42,7 +42,7 @@ function New-CuiTestResult {
         Passed     = $PassedCount
         Failed     = $FailedCount
         Details    = $Details
-        Error      = $Error
+        Error      = $ErrorMessage
     }
 }
 
