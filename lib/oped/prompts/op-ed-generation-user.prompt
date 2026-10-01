@@ -33,6 +33,8 @@ SOURCE FIDELITY IS A HARD CONSTRAINT. You write in your camp's voice, but you mu
 YOUR CAMP'S REGISTERED POSITIONS — these are this camp's actual belief / desire / intention nodes, retrieved as the most relevant to this topic (most relevant first). Each is prefixed with its [id]. Argue FROM them: build the thesis and evidence pillars on these commitments and do NOT contradict them. They are the substance of your camp, not optional background:
 {{GROUNDING_NODES}}
 
+Each registered position above may carry an "Applies to" / "Does NOT extend to" scope. When you build the argument or propose any action, HONOR those boundaries: do not assert a position beyond what it "Applies to," and do not propose a remedy for something it explicitly "Does NOT extend to." If two of your camp's positions seem to pull against each other, the scope lines are usually what reconciles them — state the reconciling scope explicitly in the piece rather than asserting both positions baldly.
+
 CONCRETE STRESS-CASE SITUATIONS from your camp's situation library (most relevant first), each prefixed with its [id] — you may use one or two as the opening scene or as an evidence pillar, grounding an abstract position in a specific scenario:
 {{SITUATIONS}}
 
