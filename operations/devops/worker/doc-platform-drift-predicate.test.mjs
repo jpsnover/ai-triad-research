@@ -24,9 +24,22 @@ test('extractClaims: enforce_admins=false literal, both separator forms', () => 
   assert.equal(extractClaims('enforce_admins: false', 'f.md')[0].kind, 'enforce_admins_false');
 });
 
-test('extractClaims: admin_bypass_works phrase', () => {
-  const claims = extractClaims('the admin identity bypasses the required checks on a direct push.', 'f.md');
+test('extractClaims: admin_bypass_works phrase, co-located with enforce_admins=false -> claimed', () => {
+  const claims = extractClaims('enforce_admins=false, so the admin identity bypasses the required checks on a direct push.', 'f.md');
   assert.ok(claims.some((c) => c.kind === 'admin_bypass_works'));
+});
+
+test('extractClaims: admin_bypass_works phrase with NO nearby enforce_admins=false -> NOT claimed (Lead review, PR #2623 false-positive fix)', () => {
+  // docs/LessonsLearned.md:2621-shaped: the phrase appears quoting HISTORICAL wording
+  // while narrating that it is no longer true, with no false-literal anywhere nearby.
+  const claims = extractClaims('the land-from-worktree skill separately notes "a direct push to `main` bypasses the required checks in EITHER mode" — but this was only true by convention until t/3736.', 'f.md');
+  assert.ok(!claims.some((c) => c.kind === 'admin_bypass_works'));
+});
+
+test('extractClaims: admin_bypass_works phrase far outside the proximity window -> NOT claimed', () => {
+  const far = 'enforce_admins=false. ' + 'x'.repeat(400) + ' bypasses the required checks.';
+  const claims = extractClaims(far, 'f.md');
+  assert.ok(!claims.some((c) => c.kind === 'admin_bypass_works'));
 });
 
 test('extractClaims: hardcoded_context_count captures the number', () => {
@@ -131,6 +144,15 @@ test('Fixture 2 (LessonsLearned.md #100, self-contradicts #177) — pre-fix #100
   assert.equal(r1.verdict, 'fire');
   const r2 = evaluateDocPlatformDrift({ claims: extractClaims(fixed177, 'docs/LessonsLearned.md'), live: LIVE, rangeValid: true });
   assert.equal(r2.verdict, 'clean');
+});
+
+test('Fixture 2b (LessonsLearned.md:2621, the REAL false-positive the Lead caught, PR #2623) — must PASS', () => {
+  // Verbatim from docs/LessonsLearned.md:2621 on origin/main (2026-10-01) — part of the
+  // CORRECT #177 entry. Quotes the land-from-worktree skill's historical wording while
+  // narrating that enforce_admins:true (not false) now governs; no false-literal nearby.
+  const line2621 = '**Root Cause:** Conflating two independent gates: (1) the `pre-commit` hook (Orca/local) governs whether a commit is allowed on the shared `main` branch — `direct` mode disables this gate; (2) branch protection on GitHub governs whether a push to `main` is accepted — `enforce_admins:true` means this gate is always active, regardless of mode or admin status. AGENTS.md says direct mode makes committing *permitted*; the land-from-worktree skill separately notes "a direct push to `main` bypasses the required checks in EITHER mode and remains a process violation" — but the implication ("and will be rejected") was only enforced by convention until t/3736.';
+  const r = evaluateDocPlatformDrift({ claims: extractClaims(line2621, 'docs/LessonsLearned.md'), live: LIVE, rangeValid: true });
+  assert.equal(r.verdict, 'clean');
 });
 
 test('Fixture 3 (route-enumeration.md:136, OTHER polarity) — "specified, not landed" FIRES, "landed" PASSES', () => {

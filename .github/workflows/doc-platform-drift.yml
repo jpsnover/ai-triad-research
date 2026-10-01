@@ -27,6 +27,16 @@ name: doc-platform-drift
 #
 # See operations/devops/worker/doc-platform-drift-predicate.mjs for the full claim
 # taxonomy and t/3797 for the fixture set this was built and tested against.
+#
+# TWO TRIGGERS, two different failure modes (Lead review, PR #2623):
+#   - `pull_request` catches a NEW doc edit introducing a stale platform claim —
+#     visible as this job's own red annotation on that PR.
+#   - `schedule` (daily) catches the OTHER direction: the platform itself changing
+#     underneath an UNCHANGED doc (the exact t/3736 incident — the enforce_admins
+#     flip landed with no doc edit in the same PR, so pull_request-only coverage
+#     would never have caught it). A schedule run has no PR to attach a red
+#     annotation to, so it raises its own idempotent issue instead (mirrors
+#     required-contexts-drift.yml / t/3741's pattern).
 
 on:
   pull_request:
@@ -34,9 +44,16 @@ on:
       - 'docs/**/*.md'
       - 'deploy/**/*.md'
       - 'AGENTS.md'
+  schedule:
+    - cron: '43 7 * * *'   # daily 07:43 UTC — platform-config drift is low-frequency
+  workflow_dispatch:
 
 permissions:
   contents: read
+  issues: write
+
+env:
+  DRIFT_LABEL: doc-platform-drift
 
 jobs:
   check:
@@ -45,7 +62,43 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
       - name: Run doc-platform-drift predicate (warn-only)
+        id: drift
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node operations/devops/worker/doc-platform-drift-predicate.mjs
+        run: node operations/devops/worker/doc-platform-drift-predicate.mjs | tee drift-output.txt
+
+      # Schedule-only alert: a pull_request fire is already visible as this job's own
+      # red annotation on that PR; a schedule fire has no PR, so it needs its own
+      # durable, idempotent signal or it is exactly as invisible as the bug it exists
+      # to catch (the t/3695/t/3738 "silent observability" lesson, applied here).
+      - name: Route drift verdict (schedule only)
+        if: github.event_name == 'schedule'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const fs = require('fs');
+            const outcome = '${{ steps.drift.outcome }}';
+            let output = '';
+            try { output = fs.readFileSync('drift-output.txt', 'utf8'); } catch { output = '(no output captured)'; }
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const label = process.env.DRIFT_LABEL;
+            const ts = new Date().toISOString();
+            const detail = `\`\`\`\n${output.slice(0, 4000)}\n\`\`\`\n\n- **Run:** ${runUrl}\n- **Time:** ${ts}`;
+
+            const existing = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: label, per_page: 10 });
+
+            if (outcome === 'failure') {
+              const body = `## Doc-vs-platform drift found on scheduled sweep (t/3797)\n\nA committed doc restates branch-protection config that disagrees with the live API, with no corresponding doc PR to catch it at review time — this is the platform-changed-underneath-an-unchanged-doc direction.\n\n**Scope:** drift-from-platform only (see the workflow's own header). Fix the doc's wording to match live \`gh api …/branches/main/protection\`.\n\n${detail}`;
+              if (existing.data.length > 0) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: existing.data[0].number, body: `Still present at ${ts}.\n\n${detail}` });
+              } else {
+                await github.rest.issues.create({ owner, repo, title: 'Doc-vs-platform drift detected (scheduled sweep)', body, labels: [label] });
+              }
+            } else {
+              for (const issue of existing.data) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: `Resolved — clean sweep at ${ts}.` });
+                await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'closed' });
+              }
+            }

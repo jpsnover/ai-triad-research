@@ -68,6 +68,17 @@ const CLAIM_PATTERNS = [
   },
 ];
 
+// How far around an `admin_bypass_works` match to look for a co-located
+// `enforce_admins=false` literal before treating the bypass phrase as a live claim
+// (Lead review, PR #2623): a bare "bypasses the (required) checks" is too broad on
+// its own — docs/LessonsLearned.md:2621 (the CORRECT, post-flip #177 entry) uses
+// that exact phrase to quote the land-from-worktree skill's HISTORICAL wording
+// while narrating that it is no longer true, with no enforce_admins=false anywhere
+// nearby. Requiring proximity to an actual false-literal turns the bypass phrase
+// from a standalone (noisy) signal into a corroborating one.
+const ENFORCE_ADMINS_FALSE_RE = /enforce_admins\s*[:=]\s*false\b/i;
+const BYPASS_PROXIMITY_WINDOW = 300;
+
 /** Pure: extract claims from a single doc's text. No I/O. */
 export function extractClaims(text, file) {
   const s = typeof text === 'string' ? text : '';
@@ -76,6 +87,14 @@ export function extractClaims(text, file) {
     re.lastIndex = 0;
     let m;
     while ((m = re.exec(s)) !== null) {
+      if (kind === 'admin_bypass_works') {
+        const start = Math.max(0, m.index - BYPASS_PROXIMITY_WINDOW);
+        const end = Math.min(s.length, m.index + m[0].length + BYPASS_PROXIMITY_WINDOW);
+        if (!ENFORCE_ADMINS_FALSE_RE.test(s.slice(start, end))) {
+          if (m[0].length === 0) re.lastIndex++;
+          continue; // no nearby false-claim -> likely quoted/historical framing, skip
+        }
+      }
       const line = s.slice(0, m.index).split('\n').length;
       const claim = { kind, file, line, match: m[0] };
       if (captureCount) claim.count = Number(m[1]);
