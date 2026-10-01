@@ -19,9 +19,16 @@
     "Test-RequiredContextsListDrift.ps1 reads this field and compares it against the live API (already",
     "present in the payload it queries; no endpoint change). Expected false: a stale-base PR must stay",
     "mergeable without being forced to rebase against every main push (t/3686). strict:true here would",
-    "be a REGRESSION, not a hardening someone forgot to declare."
+    "be a REGRESSION, not a hardening someone forgot to declare.",
+    "t/3804 PR-2: 'enforce_admins' is the SSOT's declared expectation for the PARENT /protection",
+    "endpoint's enforce_admins.enabled (NOT present in required_status_checks — a second gh api call",
+    "reads it; see Test-RequiredContextsListDrift.ps1). Expected true: per root AGENTS.md Pre-Self-Merge",
+    "Verification, this setting currently substitutes for two inert feedback rules (pre-self-merge-verify,",
+    "auto-merge-jointgv-guard; t/3695) by binding branch protection to admins too. enforce_admins:false",
+    "here would be a REGRESSION that silently re-opens both incident classes (t/3804)."
   ],
   "strict": false,
+  "enforce_admins": true,
   "required_contexts": [
     { "context": "ci-gate", "workflow": ".github/workflows/ci.yml" },
     { "context": "joint-gv-guard", "workflow": ".github/workflows/joint-gv-guard.yml" },

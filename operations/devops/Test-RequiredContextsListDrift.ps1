@@ -103,10 +103,46 @@ if (-not $api.PSObject.Properties['strict']) {
 }
 $apiStrict = [bool]$api.strict
 
+# t/3804 PR-2: `enforce_admins` is NOT in the required_status_checks sub-resource (confirmed:
+# [checks, contexts, contexts_url, strict, url] — no enforce_admins key). It lives on the PARENT
+# /protection endpoint. Per TL/SO's parse-trap warning: do NOT repoint the call above to /protection
+# — its contexts nest at .required_status_checks.checks[].context, not .checks[].context, so the
+# existing parse at :86-88 would silently find zero contexts and fall into the exit-2 "zero
+# contexts" arm (degraded, but with a misleading PAT/permissions-looking signature). Add a SEPARATE
+# second call instead; the working contexts parse above is untouched.
+if (-not $ssotJson.PSObject.Properties['enforce_admins']) {
+    Write-Host "::error::required-contexts drift-guard: SSOT has no 'enforce_admins' field — cannot verify (exit 2)."
+    exit 2
+}
+$ssotEnforceAdmins = [bool]$ssotJson.enforce_admins
+
+$protectionRaw = & gh api "repos/$Repo/branches/main/protection" 2>&1
+$protectionExit = $LASTEXITCODE
+if ($protectionExit -ne 0) {
+    $txt = ($protectionRaw | ForEach-Object { "$_" }) -join ' '
+    $why = if ($txt -match '(?i)404|not.*admin|must have admin|resource not accessible|403') {
+        'no admin access to branch protection (the Actions default GITHUB_TOKEN lacks it — run with an admin gh/PAT)'
+    } elseif ($txt -match '(?i)auth|login|token') { 'gh not authenticated' }
+    else { "gh error: $($txt.Substring(0,[Math]::Min(160,$txt.Length)))" }
+    Write-Host "::error::required-contexts drift-guard: could not read branch protection (parent endpoint, for enforce_admins) — $why (exit 2, NOT in-sync)."
+    exit 2
+}
+try {
+    $protection = ($protectionRaw | ForEach-Object { "$_" }) -join "`n" | ConvertFrom-Json
+} catch {
+    Write-Host "::error::required-contexts drift-guard: branch-protection (parent) payload unparseable ($($_.Exception.Message)) — cannot verify (exit 2)."
+    exit 2
+}
+if (-not $protection.PSObject.Properties['enforce_admins'] -or -not $protection.enforce_admins.PSObject.Properties['enabled']) {
+    Write-Host "::error::required-contexts drift-guard: branch-protection (parent) payload has no 'enforce_admins.enabled' field — cannot verify (exit 2)."
+    exit 2
+}
+$apiEnforceAdmins = [bool]$protection.enforce_admins.enabled
+
 # ── Compare ──────────────────────────────────────────────────────────────────
-$v = Get-RequiredContextsDriftVerdict -Ssot $ssotContexts -Api $apiContexts -SsotStrict $ssotStrict -ApiStrict $apiStrict
-Write-Host "SSOT:  $([string]::Join(', ', ($ssotContexts | Sort-Object))) | strict=$ssotStrict"
-Write-Host "API:   $([string]::Join(', ', ($apiContexts | Sort-Object))) | strict=$apiStrict"
+$v = Get-RequiredContextsDriftVerdict -Ssot $ssotContexts -Api $apiContexts -SsotStrict $ssotStrict -ApiStrict $apiStrict -SsotEnforceAdmins $ssotEnforceAdmins -ApiEnforceAdmins $apiEnforceAdmins
+Write-Host "SSOT:  $([string]::Join(', ', ($ssotContexts | Sort-Object))) | strict=$ssotStrict | enforce_admins=$ssotEnforceAdmins"
+Write-Host "API:   $([string]::Join(', ', ($apiContexts | Sort-Object))) | strict=$apiStrict | enforce_admins=$apiEnforceAdmins"
 if ($v.InSync) {
     Write-Host 'required-contexts drift-guard: IN SYNC — SSOT matches live branch protection.'
     exit 0
@@ -126,5 +162,16 @@ if (-not $v.StrictInSync) {
         ''
     }
     Write-Host "::error::required-contexts drift-guard: 'strict' mismatch — SSOT expects $ssotStrict, branch protection has $apiStrict.$regressionNote"
+}
+if (-not $v.EnforceAdminsInSync) {
+    # Anomaly direction (SO e/227#27, same discipline as strict): the SSOT's declared expectation
+    # is `true`, so `enforce_admins: false` live is the regression to name explicitly — this is
+    # the setting that currently substitutes for two inert feedback rules (root AGENTS.md, t/3695).
+    $eaRegressionNote = if ((-not $apiEnforceAdmins) -and $ssotEnforceAdmins) {
+        " — live `enforce_admins: false` is a REGRESSION from the expected `true` (this silently re-opens the merge-on-untested-head and joint-gv auto-merge-stranding incident classes; see root AGENTS.md Pre-Self-Merge Verification, t/3695)."
+    } else {
+        ''
+    }
+    Write-Host "::error::required-contexts drift-guard: 'enforce_admins' mismatch — SSOT expects $ssotEnforceAdmins, branch protection has $apiEnforceAdmins.$eaRegressionNote"
 }
 exit 1

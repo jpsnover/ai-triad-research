@@ -258,8 +258,8 @@ DISPOSITION — each suggestion chooses EXACTLY ONE (they are mutually exclusive
 - "propose_new": introduce a genuinely NEW POV item AND wire it into the taxonomy with explicit edges. Leave every existing node untouched. Use this only when the debate surfaced a position that (a) has no existing node and (b) needs to be connected to the existing taxonomy to be meaningful.
 
 Edit types (apply when disposition = "edit_existing" — all MODIFY an existing node; to CREATE a new node, use disposition "propose_new"):
-- REVISE: update an existing node's label or description to better reflect what the debate revealed
-- QUALIFY: add caveats or nuance to an existing node based on valid counterarguments
+- REVISE: update an existing node's label or description to better reflect what the debate revealed. If the revision leaves the description unchanged, **omit this edit entirely**.
+- QUALIFY: add caveats or nuance to an existing node based on valid counterarguments. If no caveat is warranted, **omit this edit entirely** — a proposed_description identical to the current description is never valid output.
 - DEPRECATE: mark a node as weak/unsupported if the debate effectively refuted it
 
 PROPOSE-NEW rules (apply when disposition = "propose_new"):

@@ -637,6 +637,35 @@ function recordReflectionDrop(debateId: string, reason: string, detail: Record<s
   });
 }
 
+function normalizeWs(s: string): string {
+  return s.trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Drop edit_existing proposals whose proposed_description matches current_description
+ * (after whitespace normalization). The prompt now instructs the model to omit these;
+ * this is the defence-in-depth filter for when it still returns one.
+ */
+export function filterNoOpReflectionEdits<T extends {
+  disposition?: string | null;
+  node_id?: string | null;
+  edit_type?: string | null;
+  current_description?: string | null;
+  proposed_description?: string | null;
+}>(edits: T[], debateId: string): T[] {
+  return edits.filter(e => {
+    if (e.disposition !== 'edit_existing') return true;
+    const cur = normalizeWs(e.current_description ?? '');
+    const prop = normalizeWs(e.proposed_description ?? '');
+    if (cur === '' || prop === '' || cur !== prop) return true;
+    recordReflectionDrop(debateId, 'noop_edit', {
+      node_id: e.node_id ?? '?',
+      edit_type: e.edit_type ?? '?',
+    });
+    return false;
+  });
+}
+
 function validateProposedEdges(
   raw: RawProposedEdge[],
   knownNodeIds: Set<string>,

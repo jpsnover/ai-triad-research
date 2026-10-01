@@ -144,6 +144,65 @@ describe('ReflectionsPanel — Revise card current-description visibility (t/340
   });
 });
 
+// ── No-op edit guard (t/3814) ──────────────────────────────────
+// Defense-in-depth backstop for t/3813: the generator can propose the current
+// description back unchanged (QUALIFY has no way to decline). A true no-op —
+// neither label nor description actually changed — must not render as a live,
+// approvable proposal. A label-only revise (description unchanged, label
+// genuinely different) is a real edit and must stay approvable (t/3402).
+
+function addNoOpGuardReflection(overrides: Partial<{ edit_type: 'revise' | 'qualify'; current_label: string; proposed_label: string; current_description: string; proposed_description: string }>) {
+  debateStore.reflections = [{
+    pover: 'accelerationist',
+    label: 'Accelerationist',
+    reflection_summary: '',
+    edits: [{
+      edit_type: 'qualify',
+      status: 'pending',
+      category: 'Beliefs',
+      node_id: 'acc-beliefs-001',
+      current_label: 'Stable label',
+      proposed_label: 'Stable label',
+      current_description: 'The original current description.',
+      proposed_description: 'The original current description.',
+      rationale: 'because the evidence qualified this claim',
+      evidence_entries: [],
+      ...overrides,
+    }],
+  }];
+}
+
+describe('ReflectionsPanel — no-op edit guard (t/3814)', () => {
+  it('shows a non-actionable "no change proposed" state when neither label nor description changed', () => {
+    addNoOpGuardReflection({});
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    expect(screen.getByText(/No change proposed/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve & Apply' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
+  });
+
+  it('tolerates incidental whitespace differences when deciding no-op', () => {
+    addNoOpGuardReflection({ proposed_description: '  The original current   description. ' });
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    expect(screen.getByText(/No change proposed/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve & Apply' })).not.toBeInTheDocument();
+  });
+
+  it('stays actionable when the description genuinely changed', () => {
+    addNoOpGuardReflection({ proposed_description: 'A meaningfully different proposed description.' });
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    expect(screen.queryByText(/No change proposed/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approve & Apply' })).toBeInTheDocument();
+  });
+
+  it('stays actionable on a label-only revise even though the description matches (t/3402 — no regression)', () => {
+    addNoOpGuardReflection({ edit_type: 'revise', proposed_label: 'A genuinely different label' });
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    expect(screen.queryByText(/No change proposed/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approve & Apply' })).toBeInTheDocument();
+  });
+});
+
 // ── propose_new item proposals (t/1773 AC1) ───────────────────
 
 function addProposalReflection() {

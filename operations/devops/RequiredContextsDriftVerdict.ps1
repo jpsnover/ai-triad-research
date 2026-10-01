@@ -28,6 +28,13 @@
     tests/RequiredContextsDrift.Tests.ps1 (which only ever passed -Ssot/-Api) continue to pass
     unchanged — when either side is omitted, strict is NOT APPLICABLE and cannot affect InSync.
     Returns StrictChecked/SsotStrict/ApiStrict/StrictInSync alongside the existing fields.
+
+    t/3804 PR-2: optional -SsotEnforceAdmins/-ApiEnforceAdmins (nullable bool), same opt-in shape
+    as -SsotStrict/-ApiStrict — omitted on either side, enforce_admins is NOT APPLICABLE and cannot
+    affect InSync. `enforce_admins` is NOT in the `required_status_checks` sub-resource; the caller
+    (Test-RequiredContextsListDrift.ps1) fetches it from a SECOND call to the parent `/protection`
+    endpoint. This function stays endpoint-agnostic — it only compares the two bools it's handed.
+    Returns EnforceAdminsChecked/SsotEnforceAdmins/ApiEnforceAdmins/EnforceAdminsInSync.
 #>
 
 function Get-RequiredContextsDriftVerdict {
@@ -36,7 +43,9 @@ function Get-RequiredContextsDriftVerdict {
         [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Ssot,
         [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Api,
         [Nullable[bool]]$SsotStrict = $null,
-        [Nullable[bool]]$ApiStrict = $null
+        [Nullable[bool]]$ApiStrict = $null,
+        [Nullable[bool]]$SsotEnforceAdmins = $null,
+        [Nullable[bool]]$ApiEnforceAdmins = $null
     )
     $ssotSet = [System.Collections.Generic.HashSet[string]]::new([string[]]@($Ssot | Where-Object { $_ } | ForEach-Object { $_.Trim() }))
     $apiSet  = [System.Collections.Generic.HashSet[string]]::new([string[]]@($Api  | Where-Object { $_ } | ForEach-Object { $_.Trim() }))
@@ -49,13 +58,20 @@ function Get-RequiredContextsDriftVerdict {
     # ENTIRE right-hand side of an assignment, not embedded inside a larger expression).
     if ($strictChecked) { $strictInSync = ($SsotStrict -eq $ApiStrict) } else { $strictInSync = $true }
 
+    $enforceAdminsChecked = ($null -ne $SsotEnforceAdmins) -and ($null -ne $ApiEnforceAdmins)
+    if ($enforceAdminsChecked) { $enforceAdminsInSync = ($SsotEnforceAdmins -eq $ApiEnforceAdmins) } else { $enforceAdminsInSync = $true }
+
     return [PSCustomObject]@{
-        InSync          = ($missingFromApi.Count -eq 0 -and $missingFromSsot.Count -eq 0 -and $strictInSync)
-        MissingFromApi  = $missingFromApi
-        MissingFromSsot = $missingFromSsot
-        StrictChecked   = $strictChecked
-        SsotStrict      = $SsotStrict
-        ApiStrict       = $ApiStrict
-        StrictInSync    = $strictInSync
+        InSync               = ($missingFromApi.Count -eq 0 -and $missingFromSsot.Count -eq 0 -and $strictInSync -and $enforceAdminsInSync)
+        MissingFromApi       = $missingFromApi
+        MissingFromSsot      = $missingFromSsot
+        StrictChecked        = $strictChecked
+        SsotStrict           = $SsotStrict
+        ApiStrict            = $ApiStrict
+        StrictInSync         = $strictInSync
+        EnforceAdminsChecked = $enforceAdminsChecked
+        SsotEnforceAdmins    = $SsotEnforceAdmins
+        ApiEnforceAdmins     = $ApiEnforceAdmins
+        EnforceAdminsInSync  = $enforceAdminsInSync
     }
 }

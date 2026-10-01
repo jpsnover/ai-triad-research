@@ -895,6 +895,8 @@ Export-ModuleMember -Function @(
     'Read-FlightRecorderDump'
     # t/3768 — structured debate-issue analysis from a flight recorder JSONL dump
     'Invoke-DebateDiagnosis'
+    # p/550 — McCabe (cyclomatic) complexity, AST-based, per function
+    'Measure-CodeComplexity'
     'Get-AITClaim'
     'Compare-EmbeddingModel'
     'Test-RerankerBaseline'
