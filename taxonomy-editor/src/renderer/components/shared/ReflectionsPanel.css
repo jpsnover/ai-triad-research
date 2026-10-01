@@ -17,8 +17,10 @@
 .rp-row-6-2 { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
 .rp-row-6 { display: flex; align-items: center; gap: 6px; }
 .rp-row-between { display: flex; align-items: center; justify-content: space-between; }
-.rp-actions-row { display: flex; gap: 6px; }
+.rp-actions-row { display: flex; gap: 6px; align-items: center; }
 .rp-flex-1 { flex: 1; }
+/* t/3814: visible "no change proposed" state in place of a live Approve & Apply. */
+.rp-no-op-notice { flex: 1; color: var(--text-muted); font-size: 0.8rem; font-style: italic; }
 .rp-bold { font-weight: 700; }
 .rp-accent-text { color: var(--color-acc, #3b82f6); }
 .rp-no-margin { margin: 0; }
