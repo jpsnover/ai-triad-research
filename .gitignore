@@ -191,3 +191,9 @@ operations/devops/junk-attribution.jsonl
 
 # pytest coverage artifact (t/3634): local build output, not committed.
 operations/devops/coverage.xml
+
+# Hourly drift-ping dedup state + telemetry (t/3801): check-shared-drift.ps1's parked-state
+# marker (current fingerprint/firstSeen/suppressedCount) and its append-only observability log.
+# Local runtime state, not committed.
+operations/devops/drift-dedup-state.json
+operations/devops/drift-dedup-telemetry.jsonl
