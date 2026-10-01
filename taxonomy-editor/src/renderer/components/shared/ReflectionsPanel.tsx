@@ -57,6 +57,12 @@ const EDIT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   deprecate: { label: 'Deprecate', color: '#ef4444' },
 };
 
+/** t/3814: compare the generated proposal against the live taxonomy text, ignoring
+ *  incidental whitespace differences that aren't a real edit. */
+function normalizeForNoOpCompare(s: string): string {
+  return s.trim().replace(/\s+/g, ' ');
+}
+
 type DiffSeg = { text: string; type: 'same' | 'added' };
 type RawDiffSeg = { text: string; type: 'same' | 'added' | 'removed' };
 
@@ -537,10 +543,12 @@ function EditCardRegenerateToggle({ showRegenerateToggle, regeneratePhrases, set
   );
 }
 
-function EditCardActions({ resolved, editing, isModified, applying, editType, setApplying, setApplyError, setTrackedEnrichNodeId, applyReflectionEdit, editedLabel, editedDescription, regeneratePhrases, pover, editIndex, handleReset, handleCancel, dismissReflectionEdit, unsupportedEvidence }: {
+function EditCardActions({ resolved, editing, isModified, isNoOpEdit, applying, editType, setApplying, setApplyError, setTrackedEnrichNodeId, applyReflectionEdit, editedLabel, editedDescription, regeneratePhrases, pover, editIndex, handleReset, handleCancel, dismissReflectionEdit, unsupportedEvidence }: {
   resolved: boolean;
   editing: boolean;
   isModified: boolean;
+  /** t/3814: generator proposed the current description back unchanged. */
+  isNoOpEdit: boolean;
   applying: boolean;
   editType: string;
   setApplying: React.Dispatch<React.SetStateAction<boolean>>;
@@ -563,6 +571,23 @@ function EditCardActions({ resolved, editing, isModified, applying, editType, se
   const isEmpty = editing && (
     (editType === 'add' && !editedLabel.trim()) || !editedDescription.trim()
   );
+  // t/3814: visible rather than silently suppressed — a disappearing card is the same
+  // invisibility that let 32 of these accumulate unnoticed (t/3813). Editing is still
+  // reachable via the pencil icon in the proposed-description box, so a genuine edit
+  // isn't blocked — only the no-op default path is.
+  if (!editing && isNoOpEdit) {
+    return (
+      <div className="rp-actions-row">
+        <span className="rp-no-op-notice">No change proposed — the suggestion matches the current description.</span>
+        <button
+          className="btn rp-btn-sm"
+          onClick={() => dismissReflectionEdit(pover, editIndex)}
+        >
+          Dismiss
+        </button>
+      </div>
+    );
+  }
   return (
         <div className="rp-actions-row">
           <button
@@ -814,6 +839,18 @@ function EditCard({ edit, pover, editIndex }: {
   const isModified = editedLabel !== edit.proposed_label
                   || editedDescription !== edit.proposed_description;
 
+  // t/3814: the generator can propose the current description back unchanged (QUALIFY gives it
+  // no way to decline — t/3813). Defense-in-depth backstop: don't render that as an actionable
+  // approval regardless of what t/3813 does upstream.
+  //
+  // Gated on BOTH fields, not description alone: a legitimate label-only revise has
+  // current_description === proposed_description by design (t/3402's comment on
+  // EditCardCurrentDesc) — the label change there is a real edit and must stay approvable.
+  const isNoOpEdit = edit.edit_type !== 'add'
+    && edit.current_description != null
+    && normalizeForNoOpCompare(edit.current_description) === normalizeForNoOpCompare(edit.proposed_description)
+    && (edit.current_label == null || normalizeForNoOpCompare(edit.current_label) === normalizeForNoOpCompare(edit.proposed_label));
+
   const complianceViolations = useMemo(
     () => checkDolceCompliance(editing ? editedDescription : edit.proposed_description, edit.node_id || ''),
     [editing, editedDescription, edit.proposed_description, edit.node_id],
@@ -876,6 +913,7 @@ function EditCard({ edit, pover, editIndex }: {
         resolved={resolved}
         editing={editing}
         isModified={isModified}
+        isNoOpEdit={isNoOpEdit}
         applying={applying}
         editType={edit.edit_type}
         setApplying={setApplying}
