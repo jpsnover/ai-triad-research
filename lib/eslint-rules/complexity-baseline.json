@@ -1,23 +1,6 @@
 {
-  "eslint-rules/no-raw-data-root-read.js": {
-    "max": 24,
-    "countOver": 1
-  },
-  "scripts/check-contrast.mjs": {
-    "max": 50,
-    "countOver": 2
-  },
-  "scripts/generate-notices.cjs": {
-    "max": 54,
-    "countOver": 1
-  },
-  "scripts/migrate-tokens.mjs": {
-    "max": 16,
-    "countOver": 1
-  },
-  "scripts/topic-refinement-experiment.ts": {
-    "max": 16,
-    "countOver": 1
+  "__meta__": {
+    "threshold": 15
   },
   "src/main/debateIO.ts": {
     "max": 16,
@@ -350,9 +333,5 @@
   "src/server/storage/githubAPIBackend.ts": {
     "max": 16,
     "countOver": 1
-  },
-  "tools/diff_match_patch.js": {
-    "max": 32,
-    "countOver": 8
   }
 }

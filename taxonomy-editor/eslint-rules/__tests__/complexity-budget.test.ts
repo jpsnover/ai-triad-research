@@ -276,6 +276,38 @@ describe('generator integrity — stale-key isolation', () => {
   });
 });
 
+// ── ARM: threshold mismatch (e/240#22, t/3838) — both arms ───────────────────
+// __meta__.threshold in baseline must match configured threshold; mismatch → error.
+// ARM A: match → clean. ARM B: mismatch → thresholdMismatch (both values in message).
+describe('threshold mismatch — both arms', () => {
+  const linter = new Linter({ configType: 'flat' });
+  const simpleCode = `function f(a) { if (a) return 1; return 2; }`;
+
+  it('ARM A: matching threshold → clean', () => {
+    const baseline = { __meta__: { threshold: 15 }, 'match.js': { max: 20, countOver: 1 } };
+    const messages = linter.verify(simpleCode, {
+      plugins: { local: { rules: { 'complexity-budget': rule } } },
+      rules: { 'local/complexity-budget': ['error', { threshold: 15, baseline }] },
+      languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
+    });
+    const errs = messages.filter((m) => m.ruleId === 'local/complexity-budget');
+    if (errs.length !== 0)
+      throw new Error(`Expected 0 errors, got: ${JSON.stringify(errs.map((e) => e.message))}`);
+  });
+
+  it('ARM B: mismatching threshold → thresholdMismatch with both values', () => {
+    const baseline = { __meta__: { threshold: 10 }, 'match.js': { max: 20, countOver: 1 } };
+    const messages = linter.verify(simpleCode, {
+      plugins: { local: { rules: { 'complexity-budget': rule } } },
+      rules: { 'local/complexity-budget': ['error', { threshold: 15, baseline }] },
+      languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
+    });
+    const errs = messages.filter((m) => m.ruleId === 'local/complexity-budget');
+    if (errs.length !== 1 || !errs[0].message.includes('10') || !errs[0].message.includes('15'))
+      throw new Error(`Expected thresholdMismatch with both values (10 and 15), got: ${JSON.stringify(errs.map((e) => e.message))}`);
+  });
+});
+
 // ── ARM 6: drift test — built-in `complexity` and our rule agree on max ───────
 // 18 fixtures covering: simple functions, nested ifs, ternaries, loops, switch,
 // logical expressions, async/arrow, pattern assignments, no-function files, etc.
