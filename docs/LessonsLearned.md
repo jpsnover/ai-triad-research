@@ -39,6 +39,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-06-17 — DebateUI: `@'...'@` in Bash tool leaked a literal `@` into a commit subject on shared branch. Part of a larger incident where amend clobbered another agent's commit (p/83#1).
 - 2026-07-15 — Computational Linguist (t/1586): inline PowerShell in Bash heredoc with backtick-escaped variables hit "unexpected EOF while looking for matching backtick" — twice in the same session. Fixed by writing script to temp file with Write tool (p/7#30).
 - 2026-07-17 — PowerShell (t/1712, p/20#23): an inline `pwsh -Command` containing a PowerShell `-split "`n"` (backtick-n) plus nested single/double quotes broke **bash's own parser** (`unexpected EOF while looking for matching quote`) before pwsh ran at all. Fixed by writing the PS snippet to a temp `.ps1` and running `pwsh -File` — the ADR-004 remedy. Reinforces that once inlined PS carries backtick escapes AND nested quotes, `-File` beats fighting the quoting.
+- 2026-10-01 — PowerShell (p/20#53): inline `pwsh -Command "..."` with nested backtick-escaped PS string interpolation threw `unexpected EOF while looking for matching '` — bash's own quote parser broke on the mixed backtick/quote nesting before pwsh received the command. Fixed: wrote PS code to temp `.ps1`, ran `pwsh -NoProfile -File <path>`. Third recurrence of the `-Command` + backtick-escaping sub-pattern (prior: p/20#3, p/20#23).
 - 2026-08-07 — DebateWorkspace (p/124#10, t/2256): `@'...'@` here-string in Bash tool with `-m` placed after `--` separator — git read the message text and the `-m` flag as filenames ("pathspec '-m' did not match"). Fixed: wrote message to file, used `git commit -F <file> -- <paths>`.
 - 2026-08-09 — Rosetta Stone 3 (p/355#3): `@'...'@` in Bash tool left a stray `@` in the commit subject (same facet as p/83#1). Fixed with `git commit --amend -F <file>` to rewrite the subject cleanly.
 - 2026-09-30 — Project Instructions (p/688#6): `git commit -m @'…'@` in Bash tool — Bash word-split the message into bogus pathspecs (`error: pathspec 'full' did not match`), commit aborted. Resolved by writing message to temp file and using `git commit -F <file>`. Note: `@'…'@` is PowerShell-only syntax; in Bash it is not a syntax error but silently mangles the arguments — the error surface is pathspec failures, not "invalid syntax."
@@ -2765,6 +2766,26 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #183 [Build] Assumed Project File Location — ENOENT on a Guessed Path; Correct Path Found Immediately via Glob
+
+**Pattern:** An agent operates on a file using an assumed path (e.g. `taxonomy-editor/eslint-rules/complexity-baseline.json`) without verifying where it actually lives. The operation fails with ENOENT; the correct path (e.g. `lib/eslint-rules/complexity-baseline.json`) is found in seconds via `Glob **/filename`.
+
+**Instances:**
+- 2026-10-01 — Shared Lib (p/5#38, t/3840): assumed baseline file was at `taxonomy-editor/eslint-rules/complexity-baseline.json`; `head` returned ENOENT. `Glob **/complexity-baseline.json` in the worktree found the correct path (`lib/eslint-rules/complexity-baseline.json`) immediately.
+
+**Root Cause:** Guessing a file's location from a plausible package name rather than verifying first. Files that look like they belong to one package (taxonomy-editor) may canonically live in a shared package (lib/) — especially config and baseline files that multiple packages reference.
+
+**Prevention:**
+1. **Before operating on any project config/baseline file, run `Glob **/filename` to confirm its actual location.** One Glob call costs milliseconds and eliminates the guess-and-ENOENT loop.
+2. For shared tooling files (ESLint rules, baselines, config), check `lib/` before assuming they live in a specific package directory.
+3. If a file genuinely doesn't exist, Glob's empty result is unambiguous — better signal than an ENOENT on a wrong path.
+
+**Status:** Active — 1 instance (Shared Lib p/5#38).
+
+**Applies To:** All agents locating project config/baseline/shared-tooling files before operating on them.
+
+---
+
 ## #118 [Build] A Platform Feature Can Be AVAILABLE While a Specific MODE/Tier of It Is Plan-Gated — Verify the Exact MODE Empirically Before Designing Around It
 
 **Pattern:** A GitHub (or any platform) feature may work on your repo while a specific MODE, tier, or sub-option of it is silently plan-gated — surfacing HTTP 422 only when you invoke that mode. Designing a gate/workflow around the plan-gated mode fails at implementation time, *after* you've built around it. The availability trap has **granularity**: "the feature works" ≠ "every mode of it works on this repo's owner-type/plan."
@@ -2848,6 +2869,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-06 — DebateUI (p/83#8, Facet B): `gh pr checks <n> --watch` exited **0** while `test-electron` jobs still showed **"pending 0"** — the checks hadn't been registered yet. `--watch` saw no failing checks and exited; later the real job results arrived. False-green signal on a PR that wasn't fully checked.
 - 2026-09-30 — DebateTool (p/70#41, **Facet C**): `gh pr checks | grep ci-gate` — grep exited 0 when other checks appeared in output while `ci-gate` was IN_PROGRESS. DebateTool merged prematurely. Fix: query ci-gate by name via `gh pr view --json statusCheckRollup`, or use bare `gh pr checks` without grep.
 - 2026-09-30 — Rosetta Stone (p/6#69): `gh pr checks 2633` exited 8 — recognized correctly as "still pending" (not failure) and re-polled. No action needed. Self-correcting once the exit-code semantics are known.
+- 2026-10-01 — Shared Lib (p/5#35, **Facet D — merge blocked by GitHub required-check enforcement**): `gh pr merge --squash --match-head-commit` returned "2 of 4 required status checks are expected" — CI was still IN_PROGRESS (CodeQL, test-powershell, test-electron, render-smoke). GitHub's branch-protection gate refused the merge atomically. Resolved by waiting for all required checks to conclude `success` before retrying. This is the downstream consequence of Facet B: `--watch` exits 0 before all checks register, merge attempt fires, GitHub blocks it.
 
 **Root Cause:** `gh pr checks`'s exit code encodes STATE, not a pass/fail boolean — exit 8 specifically means "not done yet." Same "exit code is a status indicator, not success/failure" family as #73 facet A (grep exit-1 on zero-match ≠ error). It bites hardest during a self-merge wait, when a slow check (`test-container`) hasn't finished but every other check is green — the raw exit looks like failure. **Now covered** by the `exit-code-literacy-guard` workspace rule (2026-08-03, t/2081) — the exit-8=pending branch of the exit-code-literacy family; advisory (non-blocking). **Firing OBSERVED live on THIS branch — TL saw it correctly flag exit-8=pending (not failed) on `gh pr checks 334` during the PR #334 CodeQL wait (p/8#166)** — the 2nd of two independent live firings (Sage's `grep -c` #73A branch was the 1st); systematic verification deferred per t/1625.
 
@@ -2857,8 +2879,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. **On a self-merge wait, exit 8 = "not done, re-poll"** — re-run once the pending check completes (or use a background monitor, #116); don't abort the land.
 4. **Facet B — `--watch` false-green:** after `--watch` exits 0, verify with a bare `gh pr checks <n>` (no `--watch`) to confirm all jobs have actually completed with conclusions. If any show "pending 0" or blank conclusion, `--watch` exited prematurely — wait and re-check.
 5. **Facet C — to verify a specific check, use structured JSON, not grep:** `gh pr view <n> --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name == "ci-gate") | .conclusion'` returns `SUCCESS`, `FAILURE`, or empty (still running). Never use `gh pr checks | grep <name>` as a pass/fail signal for a specific check — grep exit 0 only means a line matched, not that the check passed.
+6. **Facet D — don't attempt `gh pr merge` until all required checks conclude `success`.** GitHub blocks the merge with "N of M required status checks are expected" if any required context is still IN_PROGRESS or hasn't reported yet. The symptom of Facet B (false-green `--watch`) is this blocked merge. Fix: after `--watch` exits 0, do a final bare `gh pr checks <n>` and confirm every required context shows `pass` before issuing the merge command.
 
-**Status:** Active — `gh pr checks` text/exit-code unreliability (0 pass / 1 fail / 8 pending + Facet B false-green + Facet C grep-misread); "exit code ≠ pass/fail boolean" family (#73A). Self-correcting once recognized. CI-wait sibling of #111 (current-HEAD-gated workflow) and #116 (background monitor, not foreground poll).
+**Status:** Active — `gh pr checks` text/exit-code unreliability (0 pass / 1 fail / 8 pending + Facet B false-green + Facet C grep-misread + Facet D premature-merge GitHub block); "exit code ≠ pass/fail boolean" family (#73A). Self-correcting once recognized. CI-wait sibling of #111 (current-HEAD-gated workflow) and #116 (background monitor, not foreground poll).
 
 **Applies To:** All agents polling `gh pr checks` while waiting on PR checks (self-merge / land waits).
 
