@@ -358,16 +358,18 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-26 — Computational Linguist (p/7#36): inline Python inspector crashed calling `len()` on `policy_count` (an int) while probing `policy_actions.json` shape — **printed values before type-checking them**. Trivial + self-correcting: read the shape from the partial output and moved on. Shape learned: `policy_actions.json` keys the list under `policies`, name field is `action`. Same inspect-before-coding failure (operate-before-type-check); loud crash, no downstream cost.
 - 2026-07-26 — Computational Linguist (**8th instance, same-session recurrence**, p/7#38): scratch script threw `AttributeError: 'str' has no .get` walking `situations.json` interpretations — **1,236 nodes have `interpretations.{pov}` as a dict, 23 have it as a plain string**. Cause: assumed uniform shape instead of type-checking at the read site. `isinstance`-guarding fixed it AND *was* the diagnosis — the string form is pre-BDI-decomposition (t/1805). Recurred within hours of #7 → CL argues recording isn't preventing recurrence (hookable check > doc entry); reversed Sage's earlier not-in-#82 call (see #82 tracker).
 - 2026-07-28 — Computational Linguist (**+4, p/7#47/#49**, now 12): **3 probe errors** (t/1826 — extraction-log `nodes`=list not dict, `aliases` nullable, `policy_actions` keys under `policies`/name=`action`) = #82 offender #5 (inspect-before-coding not applied). **+1 PRODUCTION defect (t/1830):** the extraction cmdlet **char-explodes bare-string `aliases`** (13/37 records — model emits string where schema says array, iterated unguarded). **It shipped in POWERSHELL (`Invoke-EntityExtraction`), NOT TS** (CL correction p/7#49) — so `tsc`/a TS union can't catch it; the PS-side prevention is **coerce-at-read (`if ($x -is [string]) { @($x) }`) at each AI-JSON boundary as ONE shared helper (Shared Utility Rule) + a bare-string Pester fixture**. Offender #5's real defense splits by surface: TS→union types, PS→shared coerce helper.
+- 2026-10-01 — Shared Lib (p/5#33, **new variant: directory path assumption**): `FileNotFoundError` reading `taxonomy/accelerationist.json` — the file does not exist at a flat path; the actual location is `taxonomy/Origin/accelerationist.json`. Root cause: assumed all per-POV taxonomy JSON files sit in the root of `taxonomy/` without verifying the directory structure. Fix: checked actual path with PowerShell first, discovered the `Origin/` subdirectory. Same root cause as JSON schema variant (assume flat, don't inspect first) applied to filesystem layout rather than JSON content.
 
-**Root Cause:** Code written based on assumed schema/interface rather than inspecting the actual structure or function signature. Applies across all project data: taxonomy JSON, debate sessions, and tool/API returns. Field types vary — never assume string without checking.
+**Root Cause:** Code written based on assumed structure without inspecting first. Covers both JSON field layout (nested vs flat within a document) and filesystem directory layout (subdirectory vs flat). Applies across all project data: taxonomy JSON, debate sessions, and tool/API returns. Field types and file paths both vary — never assume flat without checking.
 
 **Prevention:**
 1. Always inspect a sample of the actual data before writing code that reads it — `head` a JSON file or `jq` a few records.
 2. For taxonomy data specifically: many enriched fields live under `graph_attributes`, not at the node root.
 3. Check `type()` / `isinstance()` before calling type-specific methods (`.items()` for dict, iteration for list).
 4. When a script returns 0 results, empty data, or an AttributeError, suspect a schema mismatch before debugging logic.
+5. **Don't assume flat directory layout for ai-triad-data files.** Taxonomy JSON files live under subdirectory names (e.g. `taxonomy/Origin/<pov>.json`) — verify actual path with `Get-ChildItem -Recurse` or PowerShell before constructing file paths in code.
 
-**Status:** Resolved — "Data File Convention" added to root AGENTS.md under Taxonomy Model (p/8#22).
+**Status:** Post-resolution recurrence (2026-10-01, p/5#33) — "Data File Convention" in root AGENTS.md covers JSON schema, not directory paths. Prevention #5 added.
 
 **Applies To:** All agents working with taxonomy JSON data or writing data processing scripts.
 
@@ -710,6 +712,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-09-28 — DebateTool (p/70#19): `cd C:\Users\jsnov\repos\ai-triad-research && git fetch...` in Bash — Windows backslash path invalid POSIX syntax; Bash rejected as bad command. Fixed by switching to PowerShell tool.
 - 2026-09-29 — DebateTool (p/70#31): `cd C:\Users\jsnov\repos\wt-3767 && npx vitest run` in Bash — POSIX sh can't navigate Windows absolute paths with backslashes. Resolved by switching to PowerShell tool. 2nd DebateTool instance of this same axis.
 - 2026-09-29 — PowerShell (p/20#43, **new axis: MSYS path passed into pwsh**): `Get-ChildItem -LiteralPath $SummariesDir` threw "Cannot find path 'C:\c\Users\...'" — a bash-style MSYS path (`/c/Users/...`) was passed as a PowerShell variable value from inside the Bash tool. Native `pwsh` prepended `C:\` to the leading `/c/`, producing a double-rooted `C:\c\Users\...`. Fix: always pass native Windows paths (`C:\Users\...`) to PowerShell — never MSYS `/c/...` form.
+- 2026-10-01 — Shared Lib (p/5#31, **new axis: MSYS path as python3 file argument**): `python3` (a native win32 binary) could not open a file passed as an MSYS `/c/Users/...` path argument — ENOENT, same root as node axis. Fix: pipe the content via stdin (`cat file | python3 -c "import sys; ..."`) instead of passing the path as an argument. *(t/3827)*
 
 **Root Cause:** Agents have access to both Bash and PowerShell tools. PowerShell cmdlets (`Get-ChildItem`, `Get-Item`, `Invoke-Pester`, `Select-Object`, etc.), `$var = ...` assignment, `.Property` access, and `;`-chained statements only work in the PowerShell tool. Unix commands (`ls`, `grep`, `cat`, `stat -c%s`) only work in Bash (on Windows/Git Bash). **A second axis is path format:** git-bash presents `/c/Users/...` msys paths, but native win32 programs (`node`, and anything not msys-aware) resolve `C:\...` — an msys path handed to `node require`/`fs` fails as MODULE_NOT_FOUND / ENOENT. **A third axis:** Windows backslash paths (`C:\...`) given directly to Bash fail silently — Bash treats `\` as escape characters. **A fourth axis: Bash glob over `C:\...` paths** — MSYS mangles the backslashes during expansion, producing zero matches with no error. **A fifth axis: MSYS path passed to pwsh** — `/c/Users/...` handed to native PowerShell gets double-rooted (`C:\c\Users\...`) because pwsh prepends `C:\` to the leading `/c/`.
 
@@ -719,6 +722,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. When in doubt, check if the command uses a Verb-Noun cmdlet, `$var =` assignment, or `.Property` access — if yes, it's PowerShell.
 4. **Path format:** when a native win32 program (`node`, etc.) needs a filesystem path, give it a native `C:\...` or repo-relative path — NOT a git-bash `/c/...` msys path OR a mount like **`/tmp`** (both fail as MODULE_NOT_FOUND/ENOENT; `/tmp` is a virtual msys mount Node can't resolve, and `> /tmp/…` redirects land where Node can't `require`). **For any Node-consumed temp file, use the session scratchpad's absolute Windows path, not `/tmp`.** For reading a JSON/data file on win32, the PowerShell tool with a native path is the reliable route.
 7. **(Fifth axis — MSYS path into pwsh):** Never pass a `/c/Users/...` MSYS path as a PowerShell variable value. `pwsh` prepends `C:\` to the leading `/c/`, producing a double-rooted `C:\c\Users\...`. Always use native `C:\Users\...` form when supplying paths to PowerShell cmdlets.
+8. **(Sixth axis — MSYS path as python3 file argument):** `python3` on win32 can't resolve `/c/Users/...` MSYS paths as file arguments — ENOENT. Fix: pipe content via stdin (`cat file | python3 -c "import sys; data = sys.stdin.read()"`) instead of passing the path directly (p/5#31, t/3827).
 5. **Don't use Windows backslash paths (`C:\...`) directly in the Bash tool** — Bash (POSIX sh) treats `\` as escape characters and silently mangles the path. Use the PowerShell tool for any operation that needs a `C:\...` path, or convert to a git-bash `/c/...` form (only valid for msys-aware tools) (p/5#23).
 6. **For file discovery (finding files by name pattern), use the dedicated Glob tool** — it resolves Windows paths natively without MSYS translation. `find` or shell glob expressions with `C:\...` paths in the Bash tool are silently broken (p/335#1).
 
@@ -2741,6 +2745,26 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #182 [Build] `Invoke-ScriptAnalyzer -Recurse` Throws Non-Terminating "Object reference not set" — Results Still Populate; Offending File/Rule Not Yet Isolated
+
+**Pattern:** `Invoke-ScriptAnalyzer -Path <dir> -Recurse -Settings <file>` throws a non-terminating `NullReferenceException` ("Object reference not set to an instance of an object") — an internal PSSA null-ref against some specific file/rule combination in the scanned tree. The error surfaces on stderr but does NOT abort the run: `$results` still populates with findings for the successfully-scanned files.
+
+**Instances:**
+- 2026-10-01 — PowerShell (p/20#48): `Invoke-ScriptAnalyzer -Path ./scripts/AITriad -Recurse -Settings ...` threw the null-ref twice across two different worktrees of the same commit. `$results` populated on first occurrence. Offending file/rule not yet isolated — diagnosis ongoing.
+
+**Root Cause:** PSSA internal null-ref on a specific file/rule interaction (likely an edge case in a rule's AST walk). Exact combination not yet identified.
+
+**Prevention:**
+1. **Don't abort on this error — check `$results` first.** The null-ref is non-terminating; findings for other files still land in `$results`. Treat the exception as a warning, not a fatal failure.
+2. **To isolate the offending file/rule:** narrow `-Path` to a subdirectory, or disable rules one-by-one (`-ExcludeRule`) until the error stops firing.
+3. **Once isolated:** open a PSSA issue with a minimal repro (the file + rule name + PSSA version).
+
+**Status:** Active — 1 instance (PowerShell p/20#48); results consistent (2283 findings both runs), confirming non-blocking. Root cause diagnosis deprioritized — file/rule combo not yet isolated; update this entry when recurrence blocks results.
+
+**Applies To:** PowerShell agents running `Invoke-ScriptAnalyzer -Recurse` over the `scripts/AITriad` tree.
+
+---
+
 ## #118 [Build] A Platform Feature Can Be AVAILABLE While a Specific MODE/Tier of It Is Plan-Gated — Verify the Exact MODE Empirically Before Designing Around It
 
 **Pattern:** A GitHub (or any platform) feature may work on your repo while a specific MODE, tier, or sub-option of it is silently plan-gated — surfacing HTTP 422 only when you invoke that mode. Designing a gate/workflow around the plan-gated mode fails at implementation time, *after* you've built around it. The availability trap has **granularity**: "the feature works" ≠ "every mode of it works on this repo's owner-type/plan."
@@ -2846,6 +2870,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-08-01 — DevOps (t/2091, p/26#31): a CI script built a tracked-dir set via a **`$(dirname)` subshell loop over `git ls-files` (~3k files)** → tens of thousands of subprocess spawns → **timed out (>2 min)** on Git Bash/Windows. Fixed with **pure-bash ancestor extraction via parameter expansion** — `while [[ $d == */* ]]; do d=${d%/*}; done` (zero subprocesses) → **47s**.
+- 2026-10-01 — PowerShell (p/20#47): bash loop calling `git show <commit>:<file> | wc -l` once per file × 402 files timed out at 2 min — per-file subprocess spawn overhead × file count exceeded the Bash-tool cap. Fixed with `git archive` to extract the whole tree in one shot, then counting locally in a single pass (one subprocess, not 402).
 
 **Root Cause:** each `$(...)` / backtick command substitution **forks a subprocess**; on Windows Git Bash, fork/exec is emulated and ~orders of magnitude slower than native, so N-thousand spawns dominate wall-clock. Bash **parameter expansion** (`${d%/*}` = dirname, `${f##*/}` = basename, `${f%.*}` = strip-ext) does the same string ops **in-process** — zero spawns. Ties to the "foreground op > 120s Bash-tool cap → SIGTERM" genus (#78/#95/#116), but here the cost is **spawn-count**, not a single slow op or I/O.
 
@@ -2854,7 +2879,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **On Git Bash/Windows, subprocess spawn is the bottleneck, not the work** — a loop fine on Linux CI can blow the 2m Bash-tool cap on win32 purely from spawn count. Count `$(...)`-per-iteration × tree size before running a whole-tree loop.
 3. **If you genuinely need an external tool per item, batch it** — feed all items to ONE `xargs`/`awk`/`sed` invocation instead of one spawn per item.
 
-**Status:** Active — Windows Git-Bash subprocess-spawn perf cliff; a whole-tree per-file `$(cmd)` loop times out (spawn-count-bound). Sibling of the "foreground op > 120s Bash cap" genus (#78/#95/#116) — same 2m-timeout symptom, root cause = subprocess spawns, not a single slow op.
+**Status:** Active — 2 instances. Windows Git-Bash subprocess-spawn perf cliff; a whole-tree per-file `$(cmd)` loop times out (spawn-count-bound). Sibling of the "foreground op > 120s Bash cap" genus (#78/#95/#116) — same 2m-timeout symptom, root cause = subprocess spawns, not a single slow op.
 
 **Applies To:** All agents writing bash loops over `git ls-files` / large file sets on Windows Git Bash — use parameter expansion; batch external tools.
 
