@@ -178,6 +178,11 @@ describe('drift test — built-in complexity vs our rule node set', () => {
     { label: 'no branches (trivial)', code: `function f(a) { return a + 1; }` },
     { label: 'multiple functions', code: `function a(x) { if(x) return 1; return 0; } function b(y) { return y ? 1 : 0; }` },
     { label: 'deeply nested', code: `function f(a,b,c,d,e) { if(a){ if(b){ if(c){ if(d){ return e?1:2; } return 3; } return 4; } return 5; } return 6; }` },
+    // Optional chaining: each ?. operator is a separate MemberExpression[optional=true] node.
+    // a?.b?.c has TWO optional members (+2), not one ChainExpression wrapper (+1).
+    { label: 'optional chaining single', code: `function f(a) { return a?.b; }` },
+    { label: 'optional chaining double', code: `function f(a) { return a?.b?.c; }` },
+    { label: 'optional call', code: `function f(a) { return a?.b(); }` },
   ];
 
   function builtinComplexities(code: string): number[] {
