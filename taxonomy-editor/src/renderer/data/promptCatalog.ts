@@ -1266,6 +1266,30 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: [],
     promptFiles: ['op-ed-readability-edit'],
   },
+  {
+    id: 'ps-oped-coherence-judge',
+    title: 'Op-Ed Coherence Judge',
+    description: 'Adversarial coherence auditor that checks for internal contradictions between thesis, solution, mechanism, and scope — flags with verbatim span quotes.',
+    source: 'lib/oped/prompts/op-ed-coherence-judge.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'First half of the coherence pass (t/3826). Runs BEFORE the readability pass. Returns flat {check1, check2, check3} — each check carries flagged + span_a + span_b + why. Empty spans = not flagged. Accepts {{BODY}}, {{THESIS}}, {{VALUE_HIERARCHY}}.',
+    applicableDataSources: [],
+    promptFiles: ['op-ed-coherence-judge'],
+  },
+  {
+    id: 'ps-oped-coherence-rewrite',
+    title: 'Op-Ed Coherence Rewrite',
+    description: 'Bounded rewrite prompt that resolves flagged internal contradictions without changing the argument, voice, or facts.',
+    source: 'lib/oped/prompts/op-ed-coherence-rewrite.prompt',
+    template: '(Loading from disk...)',
+    group: 'oped' as const,
+    promptDir: 'oped' as const,
+    purpose: 'Second half of the coherence pass (t/3826). Fires only when the judge flags at least one valid contradiction. Returns raw Markdown (no JSON wrapper). Accepts {{BODY}}, {{FLAGGED_CONTRADICTIONS}}, {{VALUE_HIERARCHY}}.',
+    applicableDataSources: [],
+    promptFiles: ['op-ed-coherence-rewrite'],
+  },
 
   // === Opening narrative voicing (h3) ===
   {
