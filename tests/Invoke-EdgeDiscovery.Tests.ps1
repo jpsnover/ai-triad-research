@@ -14,6 +14,218 @@ BeforeAll {
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
 }
 
+Describe 'Mode-dispatch characterization (t/3837 pre-refactor safety net)' -Tag 'taxonomy' {
+    # These tests pin CURRENT behavior of Invoke-EdgeDiscovery's three execution
+    # modes (EmbeddingFirst, BatchSize, per-node sequential/parallel) before any
+    # decomposition. The existing "Edge validation" Describe below already covers
+    # per-node sequential via Invoke-NodeEdgeDiscovery; these add the paths it
+    # doesn't reach. See t/3837#1/#5/#7 for the scoping rationale.
+
+    It 'EmbeddingFirst mode: computes pairwise similarity from embeddings.json (no cache), classifies via Invoke-AIByUsage, and writes edges above threshold' {
+        InModuleScope AITriad {
+            $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "edge-ef-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+            New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+
+            $TaxJson = @{
+                nodes = @(
+                    @{ id = 'acc-beliefs-001'; label = 'A'; description = 'A' }
+                    @{ id = 'saf-beliefs-001'; label = 'B'; description = 'B' }
+                    @{ id = 'skp-beliefs-001'; label = 'C'; description = 'C' }
+                )
+            } | ConvertTo-Json -Depth 5
+            Set-Content -Path (Join-Path $TempDir 'accelerationist.json') -Value $TaxJson
+            Set-Content -Path (Join-Path $TempDir 'safetyist.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $TempDir 'skeptic.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $TempDir 'situations.json') -Value '{"nodes":[]}'
+
+            # acc-beliefs-001 and saf-beliefs-001 are near-identical vectors (sim ~1.0,
+            # above the 0.30 default threshold); skp-beliefs-001 is near-orthogonal to
+            # both (sim ~0.0, below threshold) — deterministic, no Python/cache needed.
+            @{
+                nodes = [ordered]@{
+                    'acc-beliefs-001' = @{ vector = @(1.0, 0.0, 0.0) }
+                    'saf-beliefs-001' = @{ vector = @(0.99, 0.01, 0.0) }
+                    'skp-beliefs-001' = @{ vector = @(0.0, 1.0, 0.0) }
+                }
+            } | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $TempDir 'embeddings.json')
+
+            Mock Get-TaxonomyDir { $TempDir }
+            Mock Resolve-AIApiKey { 'fake-key' }
+            $script:CapturedEdgesJson = $null
+            Mock Write-Utf8NoBom { if ($Path -like '*edges.json') { $script:CapturedEdgesJson = $Value } }
+
+            Mock Invoke-AIByUsage {
+                [PSCustomObject]@{
+                    Text = '{"edges":[{"source":"acc-beliefs-001","target":"saf-beliefs-001","type":"SUPPORTS","confidence":0.9,"weight":0.8,"rationale":"similar beliefs"}]}'
+                }
+            } -ParameterFilter { $UsageId -eq 'enrichment.edge-discovery.classify' }
+
+            $null = Invoke-EdgeDiscovery -EmbeddingFirst -Force -RepoRoot $TempDir -WarningAction SilentlyContinue 3>$null 6>$null
+
+            $written = $script:CapturedEdgesJson | ConvertFrom-Json
+            $written.edges.Count | Should -Be 1 -Because 'only the above-threshold pair should be classified and written'
+            $written.edges[0].source | Should -Be 'acc-beliefs-001'
+            $written.edges[0].target | Should -Be 'saf-beliefs-001'
+            $written.edges[0].discovered_by | Should -Be 'embedding-first'
+
+            Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'BatchSize mode: clusters nodes and writes edges via Invoke-NodeEdgeDiscovery with a pseudo-node' {
+        InModuleScope AITriad {
+            $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "edge-batch-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+            New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+
+            $TaxJson = @{
+                nodes = @(
+                    @{ id = 'acc-beliefs-001'; label = 'A'; description = 'A' }
+                    @{ id = 'acc-beliefs-002'; label = 'B'; description = 'B' }
+                )
+            } | ConvertTo-Json -Depth 5
+            Set-Content -Path (Join-Path $TempDir 'accelerationist.json') -Value $TaxJson
+            Set-Content -Path (Join-Path $TempDir 'safetyist.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $TempDir 'skeptic.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $TempDir 'situations.json') -Value '{"nodes":[]}'
+            @{
+                nodes = [ordered]@{
+                    'acc-beliefs-001' = @{ vector = @(1.0, 0.0) }
+                    'acc-beliefs-002' = @{ vector = @(0.9, 0.1) }
+                }
+            } | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $TempDir 'embeddings.json')
+
+            Mock Get-TaxonomyDir { $TempDir }
+            Mock Resolve-AIApiKey { 'fake-key' }
+            $script:CapturedEdgesJson = $null
+            Mock Write-Utf8NoBom { if ($Path -like '*edges.json') { $script:CapturedEdgesJson = $Value } }
+
+            Mock Invoke-NodeEdgeDiscovery {
+                [PSCustomObject]@{
+                    NodeId       = $Node.id
+                    RawEdges     = @(
+                        [PSCustomObject]@{ source = 'acc-beliefs-001'; target = 'acc-beliefs-002'; type = 'SUPPORTS'; confidence = 0.8; rationale = 'batch-discovered' }
+                    )
+                    NewEdgeTypes = @()
+                    Error        = $null
+                    ElapsedSec   = 0.5
+                }
+            }
+
+            $null = Invoke-EdgeDiscovery -BatchSize 5 -Force -MaxConcurrent 1 -RepoRoot $TempDir -WarningAction SilentlyContinue 3>$null 6>$null
+
+            # Pseudo-node id passed to Invoke-NodeEdgeDiscovery must look like "batch-N",
+            # not a real taxonomy node — pins the reuse-existing-infrastructure contract.
+            Should -Invoke Invoke-NodeEdgeDiscovery -ParameterFilter { $Node.id -like 'batch-*' }
+
+            $written = $script:CapturedEdgesJson | ConvertFrom-Json
+            $written.edges.Count | Should -Be 1
+            $written.edges[0].source | Should -Be 'acc-beliefs-001'
+            $written.edges[0].target | Should -Be 'acc-beliefs-002'
+
+            Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'TwoPhase mode: screens candidates via Invoke-AIByUsage before full per-node classification' {
+        InModuleScope AITriad {
+            $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "edge-2p-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+            New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+
+            $TaxJson = @{
+                nodes = @(
+                    @{ id = 'acc-beliefs-001'; label = 'A'; description = 'A' }
+                    @{ id = 'saf-beliefs-001'; label = 'B'; description = 'B' }
+                    @{ id = 'skp-beliefs-001'; label = 'C'; description = 'C' }
+                )
+            } | ConvertTo-Json -Depth 5
+            Set-Content -Path (Join-Path $TempDir 'accelerationist.json') -Value $TaxJson
+            Set-Content -Path (Join-Path $TempDir 'safetyist.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $TempDir 'skeptic.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $TempDir 'situations.json') -Value '{"nodes":[]}'
+
+            Mock Get-TaxonomyDir { $TempDir }
+            Mock Resolve-AIApiKey { 'fake-key' }
+            $script:CapturedEdgesJson = $null
+            Mock Write-Utf8NoBom { if ($Path -like '*edges.json') { $script:CapturedEdgesJson = $Value } }
+
+            # Screen says only saf-beliefs-001 is related; skp-beliefs-001 must be
+            # filtered out before the full classification call ever sees it.
+            Mock Invoke-AIByUsage {
+                [PSCustomObject]@{ Text = '{"source_id":"acc-beliefs-001","related_ids":["saf-beliefs-001"]}' }
+            } -ParameterFilter { $UsageId -eq 'enrichment.edge-discovery.screen' }
+
+            Mock Invoke-NodeEdgeDiscovery {
+                # Pin: the screened-out candidate never reaches the full prompt.
+                $FullPrompt | Should -Not -Match 'skp-beliefs-001'
+                $FullPrompt | Should -Match 'saf-beliefs-001'
+                [PSCustomObject]@{
+                    NodeId = $Node.id
+                    RawEdges = @([PSCustomObject]@{ target = 'saf-beliefs-001'; type = 'SUPPORTS'; confidence = 0.8; rationale = 'post-screen' })
+                    NewEdgeTypes = @(); Error = $null; ElapsedSec = 0.5
+                }
+            }
+
+            $null = Invoke-EdgeDiscovery -NodeId 'acc-beliefs-001' -TwoPhase -Force -MaxConcurrent 1 -RepoRoot $TempDir -WarningAction SilentlyContinue 3>$null 6>$null
+
+            $written = $script:CapturedEdgesJson | ConvertFrom-Json
+            $written.edges.Count | Should -Be 1
+            $written.edges[0].target | Should -Be 'saf-beliefs-001'
+
+            Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'Parallel path (MaxConcurrent > 1): writes edges equivalently to sequential for the same discovery result' {
+        InModuleScope AITriad {
+            $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "edge-par-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+            New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+
+            $TaxJson = @{
+                nodes = @(
+                    @{ id = 'acc-beliefs-001'; label = 'A'; description = 'A' }
+                    @{ id = 'acc-beliefs-002'; label = 'B'; description = 'B' }
+                    @{ id = 'saf-beliefs-001'; label = 'C'; description = 'C' }
+                )
+            } | ConvertTo-Json -Depth 5
+            Set-Content -Path (Join-Path $TempDir 'accelerationist.json') -Value $TaxJson
+            Set-Content -Path (Join-Path $TempDir 'safetyist.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $TempDir 'skeptic.json') -Value '{"nodes":[]}'
+            Set-Content -Path (Join-Path $TempDir 'situations.json') -Value '{"nodes":[]}'
+
+            Mock Get-TaxonomyDir { $TempDir }
+            Mock Resolve-AIApiKey { 'fake-key' }
+            $script:CapturedEdgesJson = $null
+            Mock Write-Utf8NoBom { if ($Path -like '*edges.json') { $script:CapturedEdgesJson = $Value } }
+
+            # NOTE: ForEach-Object -Parallel runs in separate runspaces and does not
+            # honor Pester's Mock — this exercises the REAL Invoke-NodeEdgeDiscovery,
+            # which attempts a real Invoke-AIApi call with no reachable backend.
+            # FINDING (t/3837): this does NOT degrade gracefully the way sequential
+            # mode does. Invoke-NodeEdgeDiscovery's own try/catch around Invoke-AIApi
+            # sets $Result.Error and returns normally on an API-level failure, but
+            # something upstream of that — inside the -Parallel runspace, before a
+            # proper $Response is ever assigned — throws "Cannot index into a null
+            # array" at Invoke-NodeEdgeDiscovery.ps1:90, and that exception escapes
+            # the parallel scriptblock and propagates all the way out of
+            # Invoke-EdgeDiscovery itself. Sequential mode's per-node continue-on-
+            # error path and parallel mode's crash-the-whole-run path are NOT
+            # equivalent today. Pinning the current (surprising) behavior rather
+            # than asserting what seems like it should happen — this is exactly
+            # the kind of divergence t/3837's decomposition must not silently fix
+            # or silently preserve without naming it in the extraction PR.
+            if ($PSVersionTable.PSVersion.Major -lt 7) {
+                Set-ItResult -Skipped -Because 'ForEach-Object -Parallel requires PS7+'
+                return
+            }
+
+            { Invoke-EdgeDiscovery -Force -MaxConcurrent 2 -RepoRoot $TempDir -WarningAction SilentlyContinue 3>$null 6>$null } |
+                Should -Throw -Because 'current behavior: an unreachable AI backend in parallel mode throws out of the cmdlet rather than degrading per-node like sequential mode does'
+
+            Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 Describe 'Edge validation (gaps 7.1-7.4)' -Tag 'taxonomy' {
 
     It 'Rejects edges with invalid type, self-loop, unknown target, and duplicates' {
