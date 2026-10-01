@@ -82,6 +82,31 @@ rt.run('complexity-budget — ARM 2/3: baselined file', rule, {
   ],
 });
 
+// ── ARM 4b: decomposition via RULE — baseline has one large function; after
+//    split into four smaller ones max drops but countOver rises → zero errors ──
+// threshold=5: each 7-complexity function (1+6 ifs) is countOver; baseline recorded
+// one 20-complexity function (countOver=1). After split: max=7<20, countOver=4>1.
+// isAcceptable({max:7,countOver:4},{max:20,countOver:1}) → max<existing.max → true → clean.
+const BASELINE_SPLIT = {
+  'split.js': { max: 20, countOver: 1 },
+};
+rt.run('complexity-budget — ARM 4b: decomposition rule clean', rule, {
+  valid: [
+    {
+      filename: 'split.js',
+      // Four functions each with complexity 7 (1 + 6 ifs). max=7<20, countOver=4>1.
+      code: [
+        'function a(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+        'function b(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+        'function c(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+        'function d(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+      ].join('\n'),
+      options: [{ baseline: BASELINE_SPLIT, threshold: 5 }],
+    },
+  ],
+  invalid: [],
+});
+
 // ── shouldWrite semantics (re-implemented inline for unit coverage) ────────────
 // The generator .mjs exports shouldWrite but cannot be imported in vitest, so we
 // replicate the function here and assert the TL-corrected logic directly.
