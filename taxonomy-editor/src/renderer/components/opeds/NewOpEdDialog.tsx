@@ -33,6 +33,7 @@ const OUTLETS: { value: string; label: string; band: string }[] = [
   { value: 'USAToday',          label: 'USA Today',             band: '550–750 words, plain and direct' },
   { value: 'ForeignAffairs',    label: 'Foreign Affairs',       band: '800–1500 words, structural analysis' },
   { value: 'Politico',          label: 'Politico',              band: '~1000 words, policy-mechanics focus' },
+  { value: 'TechPolicyPress',   label: 'Tech Policy Press',     band: '1200–2000 words, analytical and evidence-grounded' },
   { value: 'Regional',          label: 'Regional / local daily', band: '500–800 words, local relevance' },
   { value: 'Generic',           label: 'Generic',               band: '~800 words, strong news hook' },
 ];
@@ -40,7 +41,7 @@ const OUTLETS: { value: string; label: string; band: string }[] = [
 // ── Screen-B defaults (must equal New-OpEd's parameter defaults) ──────────────
 
 const DEFAULTS = {
-  outlet: 'Generic',
+  outlet: 'TechPolicyPress',
   wordCount: null as number | null, // null ⇒ use the outlet band (cmdlet default)
   thesis: '',
   authorBio: '',
