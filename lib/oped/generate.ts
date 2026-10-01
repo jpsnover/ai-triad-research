@@ -14,7 +14,7 @@ import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef, EditingMeta } f
 import { resolveOutletBand } from './outletBands.js';
 import { loadAndAssemblePrompt, assembleReflectionPrompt, assembleSourceBriefPrompt, assembleReadabilityEditPrompt, type SourceBrief } from './promptLoader.js';
 import { FABRICATED_LEDE_GUARD } from './opedGuards.js';
-import { measureReadability, needsEdit, buildViolationsText, findIntroducedTells, splitLongParagraphs } from './readabilityMeasure.js';
+import { measureReadability, needsEdit, buildViolationsText, findIntroducedTells, splitLongParagraphs, DEFAULT_READABILITY_TARGETS } from './readabilityMeasure.js';
 
 // ── Public request / deps types ───────────────────────────────────────────────
 
@@ -250,6 +250,7 @@ async function runVoiceGeneration(
 ): Promise<OpEdMember> {
   const soul = loadSoulDoc(deps.repoRoot, pov);
   const band = resolveOutletBand(request.params.outlet);
+  const readTargets = band.readability ?? DEFAULT_READABILITY_TARGETS;
   const targetWords = request.params.wordCount > 0 ? request.params.wordCount : band.words;
   const maxTokens = Math.ceil(targetWords * 3) + 5000;
 
@@ -265,6 +266,7 @@ async function runVoiceGeneration(
     sourceBrief,
     outletGuidance: band.guidance,
     targetWords,
+    style: band.style,
   });
 
   // Prepend system to prompt — generateText has no separate system channel;
@@ -313,11 +315,11 @@ async function runVoiceGeneration(
 
   if (body.trim()) {
     const beforeChecks = measureReadability(body);
-    if (needsEdit(beforeChecks)) {
+    if (needsEdit(beforeChecks, readTargets)) {
       const origWordCount = (body.match(/\b\S+\b/g) ?? []).length;
 
       const attemptEdit = async (temperature: number): Promise<string | null> => {
-        const violations = buildViolationsText(beforeChecks);
+        const violations = buildViolationsText(beforeChecks, readTargets);
         const editPrompt = assembleReadabilityEditPrompt(deps.promptsDir, body, violations);
         const editRaw = await deps.adapter.generateText(editPrompt, request.params.model, {
           maxTokens,
@@ -373,19 +375,19 @@ async function runVoiceGeneration(
             finalBody = chosenBody;
             let afterChecks = measureReadability(chosenBody);
             const failedChecks: string[] = [];
-            if (afterChecks.fkGrade > 11) failedChecks.push(`fk_grade=${afterChecks.fkGrade.toFixed(1)}`);
-            if (afterChecks.maxParaWords > 90) failedChecks.push(`max_para_words=${afterChecks.maxParaWords}`);
-            if (afterChecks.maxSentWords > 30) failedChecks.push(`max_sent_words=${afterChecks.maxSentWords}`);
+            if (afterChecks.fkGrade > readTargets.fkMax) failedChecks.push(`fk_grade=${afterChecks.fkGrade.toFixed(1)}`);
+            if (afterChecks.maxParaWords > readTargets.maxParaWords) failedChecks.push(`max_para_words=${afterChecks.maxParaWords}`);
+            if (afterChecks.maxSentWords > readTargets.maxSentWords) failedChecks.push(`max_sent_words=${afterChecks.maxSentWords}`);
 
             // Deterministic post-split backstop (t/3710): if the LLM edit pass still leaves an
             // over-long paragraph, split it at sentence boundaries and re-measure.
-            if (afterChecks.maxParaWords > 90) {
-              finalBody = splitLongParagraphs(finalBody);
+            if (afterChecks.maxParaWords > readTargets.maxParaWords) {
+              finalBody = splitLongParagraphs(finalBody, readTargets.maxParaWords);
               afterChecks = measureReadability(finalBody);
               failedChecks.length = 0;
-              if (afterChecks.fkGrade > 11) failedChecks.push(`fk_grade=${afterChecks.fkGrade.toFixed(1)}`);
-              if (afterChecks.maxParaWords > 90) failedChecks.push(`max_para_words=${afterChecks.maxParaWords}`);
-              if (afterChecks.maxSentWords > 30) failedChecks.push(`max_sent_words=${afterChecks.maxSentWords}`);
+              if (afterChecks.fkGrade > readTargets.fkMax) failedChecks.push(`fk_grade=${afterChecks.fkGrade.toFixed(1)}`);
+              if (afterChecks.maxParaWords > readTargets.maxParaWords) failedChecks.push(`max_para_words=${afterChecks.maxParaWords}`);
+              if (afterChecks.maxSentWords > readTargets.maxSentWords) failedChecks.push(`max_sent_words=${afterChecks.maxSentWords}`);
             }
 
             if (failedChecks.length > 0) {
