@@ -110,12 +110,71 @@ rt.run('complexity-budget — ARM 4b: decomposition rule clean', rule, {
 // ── shouldWrite semantics (re-implemented inline for unit coverage) ────────────
 // The generator .mjs exports shouldWrite but cannot be imported in vitest, so we
 // replicate the function here and assert the TL-corrected logic directly.
+// Ceiling constants mirror complexity-budget-predicate.js (SO condition 2, e/240#9).
+const DECOMP_CEIL_MULT = 2;
+const DECOMP_CEIL_ADD  = 5;
 function shouldWrite(observed: { max: number; countOver: number }, existing: { max: number; countOver: number } | undefined): boolean {
   if (!existing) return true;
-  if (observed.max < existing.max) return true; // decomposition
+  if (observed.max < existing.max) {
+    // Decomposition: max strictly fell — allow countOver to rise, but cap pathological growth.
+    const ceiling = Math.max(existing.countOver * DECOMP_CEIL_MULT, existing.countOver + DECOMP_CEIL_ADD);
+    return observed.countOver <= ceiling;
+  }
   if (observed.max === existing.max && observed.countOver <= existing.countOver) return true; // Pareto
   return false;
 }
+
+// ── ARM 4c: ceiling PASSES via rule — honest decomposition stays within ceiling ───
+// Baseline: {max:20, countOver:1}, threshold=5.
+// After split: 2 functions each at complexity 7 → {max:7, countOver:2}.
+// ceiling = max(1×2, 1+5) = 6; countOver=2 ≤ 6 → PASS.
+const BASELINE_CEIL_PASS = {
+  'ceil-pass.js': { max: 20, countOver: 1 },
+};
+rt.run('complexity-budget — ARM 4c: ceiling passes (honest decomposition)', rule, {
+  valid: [
+    {
+      filename: 'ceil-pass.js',
+      // Two functions each with complexity 7 (1 + 6 nested ifs). max=7<20, countOver=2.
+      // ceiling = max(1*2, 1+5) = 6; 2 ≤ 6 → acceptable.
+      code: [
+        'function a(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+        'function b(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+      ].join('\n'),
+      options: [{ baseline: BASELINE_CEIL_PASS, threshold: 5 }],
+    },
+  ],
+  invalid: [],
+});
+
+// ── ARM 4d: ceiling FAILS via rule — pathological growth rejected ─────────────
+// Baseline: {max:100, countOver:1}, threshold=5.
+// After "split": 7 functions each at complexity 7 → {max:7, countOver:7}.
+// ceiling = max(1×2, 1+5) = 6; countOver=7 > 6 → FAIL → countOverExceeded.
+const BASELINE_CEIL_FAIL = {
+  'ceil-fail.js': { max: 100, countOver: 1 },
+};
+rt.run('complexity-budget — ARM 4d: ceiling fails (pathological growth)', rule, {
+  valid: [],
+  invalid: [
+    {
+      filename: 'ceil-fail.js',
+      // Seven functions each with complexity 7. max=7<100 (looks like decomposition),
+      // countOver=7 > ceiling(6) → rejected.
+      code: [
+        'function a(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+        'function b(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+        'function c(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+        'function d(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+        'function e(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+        'function f(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+        'function g(x){if(x>0)if(x>1)if(x>2)if(x>3)if(x>4)if(x>5)return 1;return 0;}',
+      ].join('\n'),
+      options: [{ baseline: BASELINE_CEIL_FAIL, threshold: 5 }],
+      errors: [{ messageId: 'countOverExceeded' }],
+    },
+  ],
+});
 
 // ── ARM 4: decomposition (max strictly down, countOver may rise) → shouldWrite=true ──
 describe('shouldWrite — ARM 4: decomposition', () => {
@@ -150,6 +209,22 @@ describe('shouldWrite — ARM 5: regression', () => {
   it('no existing → true (new file)', () => {
     const result = shouldWrite({ max: 10, countOver: 2 }, undefined);
     if (!result) throw new Error('Expected shouldWrite to return true for new file');
+  });
+});
+
+// ── shouldWrite ceiling arms (SO condition 2, e/240#9) ───────────────────────
+// ceiling = max(existing.countOver * 2, existing.countOver + 5)
+describe('shouldWrite — ceiling arms', () => {
+  it('decomp + countOver within ceiling → true', () => {
+    // {max:40, countOver:2} vs {max:100, countOver:1}: ceiling=max(2,6)=6; 2≤6 → true
+    const result = shouldWrite({ max: 40, countOver: 2 }, { max: 100, countOver: 1 });
+    if (!result) throw new Error('Expected true: honest decomposition within ceiling');
+  });
+
+  it('decomp + countOver exceeds ceiling → false', () => {
+    // {max:99, countOver:500} vs {max:100, countOver:1}: ceiling=max(2,6)=6; 500>6 → false
+    const result = shouldWrite({ max: 99, countOver: 500 }, { max: 100, countOver: 1 });
+    if (result) throw new Error('Expected false: pathological countOver growth rejected by ceiling');
   });
 });
 

@@ -23,6 +23,7 @@ import noActionableErrorMessageNesting from '../lib/eslint-rules/no-actionable-e
 import noUnmanagedModuleResources from './eslint-rules/no-unmanaged-module-resources.js';
 import noInlineStyle from './eslint-rules/no-inline-style.js';
 import noRawDataRootRead from './eslint-rules/no-raw-data-root-read.js';
+import complexityBudget from '../lib/eslint-rules/complexity-budget.js';
 
 const localPlugin = {
   rules: {
@@ -32,6 +33,7 @@ const localPlugin = {
     'no-inline-style': noInlineStyle,
     'no-actionable-error-message-nesting': noActionableErrorMessageNesting,
     'no-raw-data-root-read': noRawDataRootRead,
+    'complexity-budget': complexityBudget,
   },
 };
 
@@ -77,7 +79,16 @@ export default tseslint.config(
         variables: true,
         allowNamedExports: false,
       }],
+      // Built-in stays at 'warn' (condition 3, SO e/240): it warns per-function when any
+      // single function exceeds 15 — advisory only, does not count against --max-warnings
+      // in a meaningful way today. Our complexity-budget rule at 'error' below is the gate:
+      // it enforces per-file ratchet semantics against a recorded baseline (t/3821).
       'complexity': ['warn', { max: 15 }],
+      // Per-file cyclomatic complexity budget gate (t/3821 SO condition 1).
+      // Errors when any file regresses its baseline max or countOver.
+      // Baseline is write-only-downward: auto-shrinks on decomposition, never grows on regression.
+      // Built-in `complexity` above stays at 'warn' — both rules coexist without conflict.
+      'local/complexity-budget': ['error', { baseline: '../lib/eslint-rules/complexity-baseline.json', threshold: 15 }],
       // ADR-003 enforcement (t/1323, repo-review B-401): every catch records to the
       // flight recorder. Flipped warn→error once the tree was clean (0 violations).
       'local/require-flight-recorder-in-catch': 'error',
