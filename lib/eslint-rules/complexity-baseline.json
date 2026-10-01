@@ -1,6 +1,7 @@
 {
   "__meta__": {
-    "threshold": 15
+    "threshold": 15,
+    "scan": "src"
   },
   "src/main/debateIO.ts": {
     "max": 16,
