@@ -32,15 +32,13 @@ function Measure-CodeComplexity {
         File glob patterns. Default: @('*.ps1', '*.psm1').
     .PARAMETER MinComplexity
         Only report functions at or above this complexity. Default: 0 (report everything).
-    .PARAMETER AsObject
-        Return structured output instead of formatted text.
     .OUTPUTS
         [pscustomobject[]] { File; Function; Complexity; StartLine }, sorted by Complexity
         descending within each file.
     .EXAMPLE
         Measure-CodeComplexity -MinComplexity 15
     .EXAMPLE
-        Measure-CodeComplexity -Path ./scripts/AITriad/Public -Verbose -AsObject |
+        Measure-CodeComplexity -Path ./scripts/AITriad/Public -Verbose |
             Sort-Object Complexity -Descending | Select-Object -First 10
     .LINK
         Show-AITriadHelp
@@ -56,10 +54,7 @@ function Measure-CodeComplexity {
 
         [Parameter()]
         [ValidateRange(0, [int]::MaxValue)]
-        [int]$MinComplexity = 0,
-
-        [Parameter()]
-        [switch]$AsObject
+        [int]$MinComplexity = 0
     )
 
     Set-StrictMode -Version Latest
@@ -170,25 +165,5 @@ function Measure-CodeComplexity {
     $filtered = @($allResults | Where-Object { $_.Complexity -ge $MinComplexity } | Sort-Object File, @{Expression='Complexity'; Descending=$true})
     Write-Verbose "Reporting $($filtered.Count) of $($allResults.Count) function(s) at or above MinComplexity=$MinComplexity"
 
-    if ($AsObject) { $filtered } else { _Format-CodeComplexity $filtered $MinComplexity }
-}
-
-function _Format-CodeComplexity {
-    param([object[]]$Results, [int]$MinComplexity)
-
-    $sb = [System.Text.StringBuilder]::new()
-    [void]$sb.AppendLine("=== Cyclomatic Complexity ($($Results.Count) function(s) >= $MinComplexity) ===")
-    if ($Results.Count -eq 0) {
-        [void]$sb.AppendLine("  (none at or above threshold)")
-        return $sb.ToString()
-    }
-    $byFile = $Results | Group-Object File
-    foreach ($grp in $byFile) {
-        [void]$sb.AppendLine("")
-        [void]$sb.AppendLine("$($grp.Name):")
-        foreach ($r in ($grp.Group | Sort-Object Complexity -Descending)) {
-            [void]$sb.AppendLine("  [$($r.Complexity)] $($r.Function) (line $($r.StartLine))")
-        }
-    }
-    $sb.ToString()
+    $filtered
 }
