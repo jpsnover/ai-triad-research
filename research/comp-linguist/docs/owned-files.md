@@ -19,6 +19,9 @@ Files the Computational Linguist holds **mandatory review authority** over. Chan
 | `taxonomy-editor/src/renderer/prompts/research.ts` | Research prompts | Mandatory |
 | `taxonomy-editor/src/renderer/prompts/vernacular.ts` | Vernacular rewriting prompt | Mandatory |
 | `taxonomy-editor/src/renderer/data/promptCatalog.ts` | Prompt catalog | Mandatory |
+| `lib/oped/prompts/*.prompt` | Op-ed generation/edit/source-brief prompts (outlet-aware `{{STYLE_*}}` slots, t/3796) | Mandatory |
+| `lib/oped/outletBands.ts` | Op-ed outlet bands: word targets, per-outlet `guidance` + `style` wording + readability thresholds (register §16); default outlet = TechPolicyPress (t/3796) | Mandatory |
+| `lib/oped/readabilityMeasure.ts` | Op-ed readability edit-pass thresholds + banned-tell list (register §16, t/3707/t/3796) | Mandatory |
 | **Metric definitions & calibration** | | |
 | `lib/debate/calibrationLogger.ts` + `lib/debate/calibrationLogger/**` (barrel + sub-modules post-t/1686: `schema.ts`, `extract.ts`, `extract-metrics.ts` — incl. semantic crux matching t/1853 — `coverage.ts`, `history.ts`, `io.ts`, `replicationGate.ts`) | Metric extraction logic | Mandatory |
 | `lib/debate/aif/**` (`types.ts`, `graph.ts`; AIF v1 node/edge shapes, SO-cleared t/3589) | AIF data-model substrate for crux/convergence metrics (B5) | Mandatory |
