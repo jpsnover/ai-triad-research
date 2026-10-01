@@ -59,7 +59,7 @@ Describe 'New-OpEd' -Tag 'oped' {
             $r.Subtitle  | Should -Match 'trust'
             $r.Body      | Should -Match 'First paragraph'
             $r.Pov       | Should -Be 'safetyist'
-            $r.Outlet    | Should -Be 'Generic'
+            $r.Outlet    | Should -Be 'TechPolicyPress'
             $r.Backend   | Should -Be 'gemini'
         }
 

@@ -406,7 +406,7 @@ function New-OpEd {
     } else { $AuthorBio }
 
     # ── Resolve per-outlet style vars (mirrors promptLoader.ts defaults) ────────
-    $s = $Band.Style
+    $s = $Band['Style']
     $StyleAudience   = if ($null -ne $s -and $s.ContainsKey('Audience'))          { $s.Audience }          else { 'persuade a broad, non-specialist public to act' }
     $StyleReadLevel  = if ($null -ne $s -and $s.ContainsKey('ReadingLevel'))       { $s.ReadingLevel }      else { 'write for a general newspaper audience at roughly a 10th-grade reading level (Flesch-Kincaid grade ~10, and no higher than 11). This is the single most important constraint. If a passage would make a smart non-specialist reread it, simplify it.' }
     $StyleSentence   = if ($null -ne $s -and $s.ContainsKey('SentenceMechanics')) { $s.SentenceMechanics } else { 'average under 18 words per sentence; NO sentence over 30 words. One idea per sentence. When a sentence carries two or three claims, split it into two or three sentences. Long, clause-chained sentences are the main reason these essays read as hard.' }
