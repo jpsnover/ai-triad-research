@@ -1,6 +1,6 @@
 # Shared-Tree Divergence — Cleanup Procedure
 
-**Scope:** the shared checkout's local `main` has diverged from `origin/main` (N ahead, M behind) and cannot fast-forward. Referenced from root `AGENTS.md` → Workflow Mode.
+**Scope:** the shared checkout's local `main` is **out of sync** with `origin/main` — either **diverged** (N ahead, M behind; cannot fast-forward) or **behind-only** (0 ahead, M behind; fast-forwardable). Referenced from root `AGENTS.md` → Workflow Mode. The two cases take **different operations** (`reset --hard` vs `merge --ff-only`); **classify which you are in before doing anything else** (Step 0) — choosing the wrong arm is the failure the behind-only addition (t/3806) exists to prevent.
 
 ## The distinction this procedure exists to make
 
@@ -25,6 +25,18 @@ Same git commands, different acts, opposite risk profiles. The incidental one in
 Blast radius is a function of **M** (how many commits the tree moves at once), not of how often you sync. Rarity *maximises* M: defer a sync an afternoon and the reset rewrites dozens of commits under everyone; sync on detection and M is 1–2, close to harmless. So **sync promptly whenever divergence appears — the hourly drift check is the natural trigger — precisely so no individual sync is large.** Frequency is the safety property once the preconditions are mechanical, and it keeps the operation routine rather than an event: a procedure run hourly gets followed; one run monthly gets improvised.
 
 > **The first sync after this procedure is adopted is the largest one you will ever run** — it clears whatever accumulated before the cadence existed. It is the least-representative sample there is: a rough first sync does not discredit the cadence, and a smooth one does not validate it.
+
+## Step 0 — Classify the sync state (run this first, before choosing an arm)
+
+The two cases need different operations, and picking the wrong one is the failure this doc's behind-only arm (t/3806) exists to prevent. One command decides:
+
+```sh
+git fetch origin
+git rev-list --left-right --count HEAD...origin/main   #  <left: local-ahead>  <right: behind>
+```
+
+- **Left > 0 — diverged.** Local commits exist that must be classified and possibly rescued before the tree can be reset. Use **Steps 1–5** below.
+- **Left == 0 — behind-only.** No local commits; the tree only needs to fast-forward. Use the **[Behind-only arm](#behind-only-arm--fast-forward-0-ahead-n-behind)** (after Step 5). Do **not** use `reset --hard` here: Steps 1–3 exist to classify and rescue local commits, and there are none, so their entire precondition set is vacuous — `reset --hard` would be strictly more destructive than the fast-forward that does the job.
 
 ## Step 1 — Classify the local commits
 
@@ -85,7 +97,7 @@ Every check here must be **adjacent to the reset** — re-run immediately before
    git status --short --untracked-files=no   # TRACKED mods — these BLOCK absolutely
    git status --short                         # full picture, including untracked
    ```
-   - **Any tracked modification → STOP.** Classify real WIP vs phantom **mechanically, never by inspection** — a judgment call about a colleague's file, made by the one person whose next command destroys it, is exactly incident #6. A path is a phantom **only** if `git diff --ignore-cr-at-eol --ignore-all-space -- <path>` is empty, or it matches a declared generated-file glob. Restore phantoms; anything that needs the diff eyeballed to decide is real WIP by definition → `resolve_owner` the path, ping the owner, wait.
+   - **Any tracked modification → STOP.** Classify real WIP vs phantom **mechanically, never by inspection** — a judgment call about a colleague's file, made by the one person whose next command destroys it, is exactly incident #6. A path is a phantom **only** if `git diff --ignore-cr-at-eol --ignore-all-space -- <path>` is empty, or it matches a declared generated-file glob. Restore phantoms; anything that needs the diff eyeballed to decide is real WIP by definition → `resolve_owner` the path, ping the owner, wait. (If `resolve_owner` returns `match_type: implicit` — the path has no explicit owner and resolves to the root **Project Instructions** role — then *that* role is the responsible party to ping, not nobody. An implicitly-owned path is not owner-less; treating it as such is how a blocking WIP sat with no actor on 2026-10-01. The durable fix is explicit ownership for these infra paths — tracked separately in the e/227 explicit-scope work.)
    - **Untracked files do NOT block.** `reset --hard` will not delete them, and this tree permanently carries `.cache/`, `.fol-eval-corr*/`, `scripts/batch-configs-t3411/`, etc. — blocking on untracked makes this precondition unsatisfiable, and an unsatisfiable precondition gets waived on first use. **Exception:** an untracked path that *collides* with a path the incoming commits add can be clobbered — check explicitly and STOP on any overlap:
      ```sh
      comm -12 <(git diff --name-only main origin/main | sort) <(git ls-files --others --exclude-standard | sort)
@@ -127,6 +139,41 @@ git rev-list --left-right --count origin/main...main   # must be 0  0
 ```
 
 Report the SHA. "Synced" without a SHA is indistinguishable from a sync that silently failed.
+
+## Behind-only arm — fast-forward (0 ahead, N behind)
+
+Reached from **Step 0** when `rev-list --left-right` shows **left == 0**: no local commits, the tree only needs to catch up to `origin/main`. This is the live 2026-10-01 case (`0  23`) and the one t/3801's grant is actually for.
+
+**Same owner and announcement as the diverged arm — do not weaken either.** DevOps performs it; the TL fallback in *Owner* above applies identically, with the same explicit announcement line. And announce-then-wait exactly as Step 3.4: **a fast-forward rewrites the working tree under concurrent readers exactly as a `reset` does.** The verb sounds gentle, and the belief that `--ff-only` "rewrites nothing under readers" is false — it was asserted and disproved (t/3801#1). An agent mid-build does not expect the tree at `origin/main`; it expects the tree where it last read it. So the readers check (Step 3.2) and announce-then-wait (Step 3.4) are **not** optional here, and the announcement must not read as lighter than the divergence arm's.
+
+**Preconditions: reuse Step 3 verbatim — all four, unchanged.** Do not restate them here (restating a procedure is the drift defect of t/3803). The only thing that differs is the operation Step 3 gates: a fast-forward instead of a reset.
+
+**Ordering is load-bearing: restore phantoms → verify clean → fast-forward.** `git merge --ff-only` **aborts** if any phantom file is present in the working tree, *even though its content is byte-identical to the merge target* — git compares working-tree-against-**index**, not working-tree-against-destination, so a file that is clean relative to `origin/main` still blocks the merge. Worse, its error — `error: Your local changes to the following files would be overwritten by merge` — actively argues against the correct diagnosis for a reader who already knows the files are phantoms. Clear them first (abort output and proof: t/3801#7).
+
+**The phantom test here runs against `origin/main`, not `HEAD`.** Step 3.1's mechanical rule catches CR/whitespace-only diffs, but behind-only adds a second way a file looks dirty-but-isn't: it can differ from the *stale local HEAD* and be byte-identical to the *merge target*. Test against the target:
+
+```sh
+git fetch origin
+git diff origin/main -- <path>                             # empty ⇒ phantom relative to the merge target → restorable
+git diff --ignore-cr-at-eol --ignore-all-space -- <path>   # Step 3.1's CR/WS test (vs index)
+```
+
+A path empty against `origin/main` is restored with `git restore -- <path>` (equivalently `git checkout -- <path>`). Anything that still needs the diff eyeballed is real WIP by definition → `resolve_owner`, ping the owner (or the root role if implicit), wait.
+
+**Remedy** (after Step 3's four preconditions pass and phantoms are restored) — one command, same TOCTOU-closing adjacency as Step 4:
+
+```sh
+git status --short --untracked-files=no && git fetch origin && git merge --ff-only origin/main
+```
+
+If any tracked modification remains, the `&&` chain stops before the merge. `--ff-only` cannot create a merge commit — it either fast-forwards or aborts — so unlike `reset --hard` it can never itself produce the diverged state. Record the pre-sync SHA first (Step 4's `pre-sync-main.txt`) if you want a rollback anchor, though a fast-forward of a 0-ahead tree loses no local commits by construction.
+
+**Verify as Step 5** and report the SHA:
+
+```sh
+git rev-parse HEAD origin/main                         # must match
+git rev-list --left-right --count HEAD...origin/main   # must be 0  0
+```
 
 ## Prevention — the cheap path that avoids all of the above
 
