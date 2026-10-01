@@ -6,6 +6,7 @@ import { describe, it, afterAll, beforeAll } from 'vitest';
 import { writeFileSync, unlinkSync } from 'fs';
 import { RuleTester, Linter } from 'eslint';
 import rule from '../../../lib/eslint-rules/complexity-budget.js';
+import { isAcceptable } from '../../../lib/eslint-rules/complexity-budget-predicate.js';
 
 RuleTester.describe = describe;
 RuleTester.it = it;
@@ -108,19 +109,11 @@ rt.run('complexity-budget — ARM 4b: decomposition rule clean', rule, {
   invalid: [],
 });
 
-// ── shouldWrite semantics (re-implemented inline for unit coverage) ────────────
-// The generator .mjs exports shouldWrite but cannot be imported in vitest, so we
-// replicate the function here and assert the corrected logic directly.
-// Formula mirrors complexity-budget-predicate.js (t/3821 predicate fix, e/240#30).
+// ── shouldWrite — thin generator wrapper (delegates to isAcceptable) ──────────
+// Generator's only extra branch vs isAcceptable: !existing → true (new file).
 function shouldWrite(observed: { max: number; countOver: number }, existing: { max: number; countOver: number } | undefined, threshold = 15): boolean {
   if (!existing) return true;
-  if (observed.max < existing.max) {
-    // Decomposition: max strictly fell. ceiling = max(existing.countOver+5, ceil(existing.max/threshold))
-    const ceiling = Math.max(existing.countOver + 5, Math.ceil(existing.max / threshold));
-    return observed.countOver <= ceiling;
-  }
-  if (observed.max === existing.max && observed.countOver <= existing.countOver) return true; // Pareto
-  return false;
+  return isAcceptable(observed, existing, threshold);
 }
 
 // ── ARM 4c: ceiling PASSES via rule — honest decomposition stays within ceiling ───
@@ -233,19 +226,13 @@ describe('shouldWrite — ceiling arms', () => {
 // The generator's replace semantics (updated={} rather than {...existing}) ensure only
 // visited keys appear in the output. This test proves the invariant inline.
 describe('generator integrity — stale-key isolation', () => {
-  // Inline shouldWrite mirrors the generator's shouldWrite, which delegates to isAcceptable.
   function generatorShouldWrite(
     observed: { max: number; countOver: number },
     existing: { max: number; countOver: number } | undefined,
     threshold = 15,
   ): boolean {
     if (!existing) return true;
-    if (observed.max < existing.max) {
-      const ceiling = Math.max(existing.countOver + 5, Math.ceil(existing.max / threshold));
-      return observed.countOver <= ceiling;
-    }
-    if (observed.max === existing.max && observed.countOver <= existing.countOver) return true;
-    return false;
+    return isAcceptable(observed, existing, threshold);
   }
 
   it('second run from different cwd does not double keys in output', () => {
@@ -400,13 +387,13 @@ describe('drift test — built-in complexity vs our rule node set', () => {
 
   function ourMaxComplexity(code: string, filename: string): number {
     const linter = new Linter({ configType: 'flat' });
-    // Use a very low threshold so every function is reported via overThreshold
-    // if it has any complexity > 0; baseline is empty (no file in baseline).
+    // threshold=1: every function with complexity>1 is reported via overThreshold.
+    // Complexity=1 (no branches) is not reported; the fallback return 1 below handles it.
     const messages = linter.verify(
       code,
       {
         plugins: { local: { rules: { 'complexity-budget': rule } } },
-        rules: { 'local/complexity-budget': ['error', { threshold: 0 }] },
+        rules: { 'local/complexity-budget': ['error', { threshold: 1 }] },
         languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
       },
       { filename },
