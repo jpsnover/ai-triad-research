@@ -67,6 +67,22 @@ describe('NewOpEdDialog — visibility', () => {
   });
 });
 
+describe('NewOpEdDialog — outlet dropdown (t/3818)', () => {
+  it('includes Tech Policy Press as an option', () => {
+    open();
+    const select = screen.getByLabelText('Outlet') as HTMLSelectElement;
+    const values = Array.from(select.options).map(o => o.value);
+    expect(values).toContain('TechPolicyPress');
+    expect(screen.getByRole('option', { name: 'Tech Policy Press' })).toBeTruthy();
+  });
+
+  it('defaults the selection to TechPolicyPress, matching the backend default', () => {
+    open();
+    const select = screen.getByLabelText('Outlet') as HTMLSelectElement;
+    expect(select.value).toBe('TechPolicyPress');
+  });
+});
+
 describe('NewOpEdDialog — voices + live count', () => {
   it('defaults to all three voices and updates the live count on toggle', () => {
     open();
