@@ -1,0 +1,337 @@
+{
+  "__meta__": {
+    "threshold": 15
+  },
+  "src/main/debateIO.ts": {
+    "max": 16,
+    "countOver": 2
+  },
+  "src/main/embeddings.ts": {
+    "max": 21,
+    "countOver": 2
+  },
+  "src/main/ipc/aiHandlers.ts": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/main/ipc/briefExportHandlers.ts": {
+    "max": 19,
+    "countOver": 1
+  },
+  "src/main/ipc/opedHandlers.ts": {
+    "max": 28,
+    "countOver": 1
+  },
+  "src/main/ipc/taxonomyHandlers.ts": {
+    "max": 24,
+    "countOver": 1
+  },
+  "src/renderer/App.tsx": {
+    "max": 58,
+    "countOver": 3
+  },
+  "src/renderer/bridge/instrumentBridge.ts": {
+    "max": 29,
+    "countOver": 2
+  },
+  "src/renderer/bridge/resilience.ts": {
+    "max": 22,
+    "countOver": 1
+  },
+  "src/renderer/bridge/web-bridge.ts": {
+    "max": 46,
+    "countOver": 3
+  },
+  "src/renderer/components/analysis/EngagementDashboard.tsx": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/renderer/components/analysis/GroundingPanel.tsx": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/renderer/components/debate/BriefExportDialog.tsx": {
+    "max": 40,
+    "countOver": 2
+  },
+  "src/renderer/components/debate/DebateTab.tsx": {
+    "max": 20,
+    "countOver": 3
+  },
+  "src/renderer/components/debate/NewDebateDialog.tsx": {
+    "max": 34,
+    "countOver": 4
+  },
+  "src/renderer/components/debate-diagnostics/window/EntryDetailRouter.parts.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/debate-diagnostics/window/overview-tabs/ArgumentNetworkTab.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/debate-diagnostics/window/overview-tabs/ReflectionsTab.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/debate-workspace/DebateSetupDialog.tsx": {
+    "max": 40,
+    "countOver": 1
+  },
+  "src/renderer/components/debate-workspace/DebateWorkspace.tsx": {
+    "max": 20,
+    "countOver": 3
+  },
+  "src/renderer/components/debate-workspace/StatementCard.tsx": {
+    "max": 17,
+    "countOver": 2
+  },
+  "src/renderer/components/inquiry/InquiryAnswerPanel.tsx": {
+    "max": 21,
+    "countOver": 1
+  },
+  "src/renderer/components/opeds/OpEdTab.tsx": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/renderer/components/organizations/OrganizationDetail.tsx": {
+    "max": 23,
+    "countOver": 1
+  },
+  "src/renderer/components/organizations/OrganizationsTab.tsx": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/renderer/components/PovProgression/PovProgressionView.tsx": {
+    "max": 19,
+    "countOver": 3
+  },
+  "src/renderer/components/shared/DetailPrimitives.tsx": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/DiffWindow.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/HarvestDialog.tsx": {
+    "max": 50,
+    "countOver": 3
+  },
+  "src/renderer/components/shared/LineageDetailView.tsx": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/LinkedNodePreview.tsx": {
+    "max": 19,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/ReflectionsPanel.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/Toolbar.tsx": {
+    "max": 27,
+    "countOver": 2
+  },
+  "src/renderer/components/shared/ToolbarPaneRenderer.tsx": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/renderer/components/shared/VocabularyPanel.tsx": {
+    "max": 19,
+    "countOver": 1
+  },
+  "src/renderer/components/support/SupportCaseForm.tsx": {
+    "max": 24,
+    "countOver": 1
+  },
+  "src/renderer/components/sync/SyncDiagnosticsDialog.tsx": {
+    "max": 22,
+    "countOver": 2
+  },
+  "src/renderer/components/taxonomy/ArgumentGraph.tsx": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/GraphAttributesPanel.tsx": {
+    "max": 30,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/NodeDescriptionSection.tsx": {
+    "max": 22,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/NodeDetail.tsx": {
+    "max": 24,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/NodeTree.tsx": {
+    "max": 21,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/PovTab.tsx": {
+    "max": 52,
+    "countOver": 2
+  },
+  "src/renderer/components/taxonomy/QbafOverlay.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/taxonomy/TaxonomyRefDetail.tsx": {
+    "max": 75,
+    "countOver": 4
+  },
+  "src/renderer/hooks/useDebateStore/shared/argumentNetwork.ts": {
+    "max": 55,
+    "countOver": 6
+  },
+  "src/renderer/hooks/useDebateStore/shared/diagnostics.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/renderer/hooks/useDebateStore/shared/generation.ts": {
+    "max": 19,
+    "countOver": 2
+  },
+  "src/renderer/hooks/useDebateStore/shared/neutralCheckpoint.ts": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/hooks/useDebateStore/shared/taxonomyContext.ts": {
+    "max": 30,
+    "countOver": 1
+  },
+  "src/renderer/hooks/useDebateStore/slices/buildDebateDelta.ts": {
+    "max": 38,
+    "countOver": 1
+  },
+  "src/renderer/hooks/useDebateStore/slices/clarificationSlice.ts": {
+    "max": 102,
+    "countOver": 7
+  },
+  "src/renderer/hooks/useDebateStore/slices/debateLoopSlice.ts": {
+    "max": 39,
+    "countOver": 1
+  },
+  "src/renderer/hooks/useDebateStore/slices/debatePhaseSlice.ts": {
+    "max": 94,
+    "countOver": 6
+  },
+  "src/renderer/hooks/useDebateStore/slices/debateReflectionSlice.ts": {
+    "max": 31,
+    "countOver": 3
+  },
+  "src/renderer/hooks/useDebateStore/slices/explorationSlice.ts": {
+    "max": 21,
+    "countOver": 1
+  },
+  "src/renderer/hooks/useDebateStore/slices/sessionSlice.ts": {
+    "max": 43,
+    "countOver": 5
+  },
+  "src/renderer/hooks/useDebateStore/slices/synthesisSlice.ts": {
+    "max": 30,
+    "countOver": 8
+  },
+  "src/renderer/hooks/useDebateStore/slices/topicCritiqueSlice.ts": {
+    "max": 47,
+    "countOver": 2
+  },
+  "src/renderer/hooks/useInquiryStore.ts": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/renderer/hooks/useTaxonomyStore/slices/analysisSlice.ts": {
+    "max": 43,
+    "countOver": 3
+  },
+  "src/renderer/hooks/useTaxonomyStore/slices/searchSlice.ts": {
+    "max": 19,
+    "countOver": 1
+  },
+  "src/renderer/hooks/useTaxonomyStore/slices/taxonomyDataSlice.ts": {
+    "max": 56,
+    "countOver": 5
+  },
+  "src/renderer/lib/flightRecorderInit.ts": {
+    "max": 66,
+    "countOver": 2
+  },
+  "src/renderer/utils/clustering.ts": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/renderer/utils/convergenceScoring.ts": {
+    "max": 23,
+    "countOver": 2
+  },
+  "src/renderer/utils/errorMessages.ts": {
+    "max": 55,
+    "countOver": 1
+  },
+  "src/renderer/utils/localEmbedding.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/renderer/utils/promptPreview.ts": {
+    "max": 44,
+    "countOver": 1
+  },
+  "src/renderer/utils/qbafExplain.ts": {
+    "max": 21,
+    "countOver": 1
+  },
+  "src/server/ai/aiBackends.ts": {
+    "max": 19,
+    "countOver": 1
+  },
+  "src/server/community/analytics.ts": {
+    "max": 28,
+    "countOver": 2
+  },
+  "src/server/routes/ai.ts": {
+    "max": 36,
+    "countOver": 3
+  },
+  "src/server/routes/briefExports.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/server/routes/chat.ts": {
+    "max": 30,
+    "countOver": 1
+  },
+  "src/server/routes/diagnostics.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/server/routes/inquiry.ts": {
+    "max": 20,
+    "countOver": 1
+  },
+  "src/server/routes/publicShare.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "src/server/routes/relevantNodes.ts": {
+    "max": 23,
+    "countOver": 1
+  },
+  "src/server/security/accessControl.ts": {
+    "max": 19,
+    "countOver": 1
+  },
+  "src/server/security/githubAppAuth.ts": {
+    "max": 21,
+    "countOver": 1
+  },
+  "src/server/storage/fileIO.ts": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/server/storage/githubAPIBackend.ts": {
+    "max": 16,
+    "countOver": 1
+  }
+}
