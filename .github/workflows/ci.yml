@@ -173,6 +173,7 @@ jobs:
               - '.github/workflows/ci.yml'
             lib:
               - 'lib/**'
+              - 'pnpm-lock.yaml'        # ESLint version bump skips lib-lint otherwise (t/3443 shape)
               - '.github/workflows/ci.yml'
             # 'embeddings' gates embedding-onnx-equivalence (t/3198): the real-ONNX bit-exact
             # worker↔in-thread check. Narrower than 'lib' — only the embeddings subtree (worker,
