@@ -170,6 +170,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Get-LatestFlightRecorderDump` | Find the most recent *non-stub* flight recorder dump (>10KB) for triage — skips the tiny startup/shutdown stubs that can be newer than the real dump (t/1712) |
 | `Read-FlightRecorderDump` | Structured error/retry summary from a dump — error grouping by (component,type), retry-chain reconstruction with computed backoff intervals, preceding-warning lookback, client/server split (t/3726) |
 | `Invoke-DebateDiagnosis` | Structured debate-issue analysis from a dump — per-run phase/round progression, COMMIT-intervention receipt per POVer, derived closure status, deduped errors/warnings, best-effort steelman text scan (t/3768) |
+| `Measure-CodeComplexity` | McCabe (cyclomatic) complexity per function, AST-based over PS source — defaults to `scripts/`, filterable by `-MinComplexity` (p/550) |
 | `Get-AICostReport` | Token/cost usage report |
 | `Get-ViteDevStatus` | Vite dev server diagnostic — port owner, working dir, HTTP health, main/worktree/orphan classification (t/2196) |
 | `Get-DebateSessionState` | Read phase, transcript length, run_id, and updated_at from a debate JSON on disk — one-liner for interrupted-turn recovery diagnosis (t/2330) |
