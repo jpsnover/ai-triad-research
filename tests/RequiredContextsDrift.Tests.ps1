@@ -88,4 +88,44 @@ Describe 'Get-RequiredContextsDriftVerdict (t/3646)' -Tag 'devops' {
             $v.InSync | Should -BeFalse
         }
     }
+
+    Context '"enforce_admins" assertion (t/3804 PR-2)' {
+        It 'BACKWARD COMPAT: omitting -SsotEnforceAdmins/-ApiEnforceAdmins does not affect InSync' {
+            $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate') -Api @('ci-gate') -SsotStrict $false -ApiStrict $false
+            $v.InSync | Should -BeTrue
+            $v.EnforceAdminsChecked | Should -BeFalse
+        }
+
+        It 'IN SYNC on contexts, strict, AND matching enforce_admins (both true)' {
+            $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate') -Api @('ci-gate') -SsotStrict $false -ApiStrict $false -SsotEnforceAdmins $true -ApiEnforceAdmins $true
+            $v.InSync | Should -BeTrue
+            $v.EnforceAdminsChecked | Should -BeTrue
+            $v.EnforceAdminsInSync | Should -BeTrue
+        }
+
+        It 'LOAD-BEARING: contexts and strict in sync but enforce_admins MISMATCHES (SSOT true, live false) -> NOT in sync' {
+            $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate') -Api @('ci-gate') -SsotStrict $false -ApiStrict $false -SsotEnforceAdmins $true -ApiEnforceAdmins $false
+            $v.InSync | Should -BeFalse
+            $v.EnforceAdminsChecked | Should -BeTrue
+            $v.EnforceAdminsInSync | Should -BeFalse
+            $v.SsotEnforceAdmins | Should -BeTrue
+            $v.ApiEnforceAdmins | Should -BeFalse
+        }
+
+        It 'an enforce_admins mismatch alone (contexts and strict otherwise in sync) is the ONLY reason InSync is false' {
+            $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate', 'CodeQL') -Api @('ci-gate', 'CodeQL') -SsotStrict $false -ApiStrict $false -SsotEnforceAdmins $true -ApiEnforceAdmins $false
+            @($v.MissingFromApi).Count | Should -Be 0
+            @($v.MissingFromSsot).Count | Should -Be 0
+            $v.StrictInSync | Should -BeTrue
+            $v.InSync | Should -BeFalse
+        }
+
+        It 'enforce_admins mismatch is INDEPENDENT of strict mismatch and context drift — all three can fire together' {
+            $v = Get-RequiredContextsDriftVerdict -Ssot @('ci-gate', 'ghost-gate') -Api @('ci-gate') -SsotStrict $false -ApiStrict $true -SsotEnforceAdmins $true -ApiEnforceAdmins $false
+            $v.MissingFromApi | Should -Be @('ghost-gate')
+            $v.StrictInSync | Should -BeFalse
+            $v.EnforceAdminsInSync | Should -BeFalse
+            $v.InSync | Should -BeFalse
+        }
+    }
 }
