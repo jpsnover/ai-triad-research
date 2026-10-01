@@ -61,7 +61,7 @@ export const OUTLET_BANDS: Readonly<Record<string, OutletBand>> = {
   TechPolicyPress: {
     words: 1500,
     guidance: 'Tech Policy Press (Perspective/Analysis): 1200-2000 words in 3-5 subheaded sections. Analytical and evidence-grounded with a clear argumentative throughline; sophisticated but clear (college-level register, precise policy vocabulary — do NOT dumb down, but keep sentences disciplined). Anchor in a specific, current policy development (named legislation, institution, or event) and draw out the broader governance/democratic stakes — concrete-first, not abstract theory. Sparing first person from a stated vantage; rhetorical questions and concrete hypotheticals used sparingly; cite verifiable sources. Audience: policymakers, technologists, researchers, and informed advocates at the tech-and-democracy intersection.',
-    readability: { fkMax: 14, maxSentWords: 40, maxParaWords: 120 },
+    readability: { fkMax: 16, maxSentWords: 40, maxParaWords: 120 },
     style: {
       audience: 'persuade an informed policy audience — policymakers, technologists, researchers, and advocates at the tech-and-democracy intersection',
       readingLevel: 'Write for a college-educated policy audience — Flesch-Kincaid grade ~13 (no higher than 14). Achieve clarity through sentence discipline, NOT by simplifying vocabulary: keep the precise policy and technical terms your expert readers expect.',

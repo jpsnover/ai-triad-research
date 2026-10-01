@@ -258,6 +258,7 @@ function New-OpEd {
                 JargonGuidance    = 'Use the precise policy/technical vocabulary your expert audience expects; define only genuinely obscure terms. Do NOT flatten specialized terms into lay paraphrase.'
                 BodyFormat        = 'Organize the body into **3-5 sections with short Markdown `##` subheadings**; each section advances one part of the argument. Do NOT repeat the headline inside the body.'
             }
+            Readability = @{ fkMax = 16.0; maxSentWords = 40; maxParaWords = 120 }
         }
     }
     $Band = $OutletBands[$Outlet]
@@ -513,9 +514,163 @@ function New-OpEd {
         $Body = [string]$Result.Text
     }
 
+    # ── Readability edit pass (mirrors generate.ts t/3707) ───────────────────
+    # Outlet-aware targets; grade-10 defaults for outlets without a Readability block.
+    $ReadTarget    = $Band['Readability']
+    $RtFkMax       = if ($null -ne $ReadTarget) { [double]$ReadTarget['fkMax']       } else { 11.0 }
+    $RtSentWords   = if ($null -ne $ReadTarget) { [int]   $ReadTarget['maxSentWords'] } else { 30 }
+    $RtParaWords   = if ($null -ne $ReadTarget) { [int]   $ReadTarget['maxParaWords'] } else { 90 }
+
+    $FinalBody   = $Body
+    $EditingMeta = $null
+
+    if (-not [string]::IsNullOrWhiteSpace($Body)) {
+        # Measure readability: FK grade, max-sentence words, max-paragraph words.
+        $MeasureBody = {
+            param([string]$Txt)
+            $sylW = {
+                param([string]$W)
+                $c = $W.ToLower() -replace '[^a-z]', ''
+                if (-not $c) { return 0 }
+                $g = ([regex]::Matches($c, '[aeiouy]+')).Count
+                if ($c.EndsWith('e') -and $g -gt 1) { $g-- }
+                [Math]::Max(1, $g)
+            }
+            $words = [regex]::Matches($Txt, "\b[a-zA-Z'-]+\b")
+            $sents = @($Txt -split '[.!?]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '[a-zA-Z]' })
+            $paras = @($Txt -split '\n\n+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '[a-zA-Z]' })
+            $fk    = if ($words.Count -gt 0 -and @($sents).Count -gt 0) {
+                $syl = ($words | ForEach-Object { & $sylW $_.Value } | Measure-Object -Sum).Sum
+                0.39 * ($words.Count / @($sents).Count) + 11.8 * ($syl / $words.Count) - 15.59
+            } else { 0.0 }
+            $maxSW = if (@($sents).Count -gt 0) { ($sents | ForEach-Object { ([regex]::Matches($_, '\b\S+\b')).Count } | Measure-Object -Maximum).Maximum } else { 0 }
+            $maxPW = if (@($paras).Count -gt 0) { ($paras | ForEach-Object { ([regex]::Matches($_, '\b\S+\b')).Count } | Measure-Object -Maximum).Maximum } else { 0 }
+            [PSCustomObject]@{ FkGrade = $fk; MaxSentWords = $maxSW; MaxParaWords = $maxPW }
+        }
+
+        $Checks = & $MeasureBody $Body
+
+        if ($Checks.FkGrade -gt $RtFkMax -or $Checks.MaxSentWords -gt $RtSentWords -or $Checks.MaxParaWords -gt $RtParaWords) {
+            $ViolParts = [System.Collections.Generic.List[string]]::new()
+            if ($Checks.FkGrade     -gt $RtFkMax)    { [void]$ViolParts.Add("Flesch-Kincaid grade: $([Math]::Round($Checks.FkGrade,1)) (target: no higher than $RtFkMax)") }
+            if ($Checks.MaxParaWords -gt $RtParaWords) { [void]$ViolParts.Add("Longest paragraph: $($Checks.MaxParaWords) words (target: at most ~$RtParaWords words)") }
+            if ($Checks.MaxSentWords  -gt $RtSentWords) { [void]$ViolParts.Add("Longest sentence: $($Checks.MaxSentWords) words (target: no sentence over $RtSentWords words)") }
+            $Violations    = $ViolParts -join "`n"
+            $OrigWordCount = @($Body -split '\s+' | Where-Object { $_ -ne '' }).Count
+            $EditSchema    = @{
+                type = 'object'
+                properties = @{
+                    body_markdown = @{ type = 'string' }
+                    changed       = @{ type = 'boolean' }
+                    edit_notes    = @{ type = 'string' }
+                }
+                required = @('body_markdown', 'changed', 'edit_notes')
+            }
+            $BannedTells = @('in conclusion','furthermore','moreover','ultimately',
+                'it is important to note','mitigate','robust','leverage','utilize','ensure')
+            $BodyLower = $Body.ToLower()
+
+            $AttemptEdit = {
+                param([double]$Temp)
+                $EP = Get-Prompt -Name 'op-ed-readability-edit' -PromptsDir $OPedPromptsDir `
+                    -Replacements @{ BODY = $Body; VIOLATIONS = $Violations }
+                $ER = Invoke-AIApi -Prompt $EP -Model $Model -Temperature $Temp `
+                    -MaxTokens $MaxTokens -JsonMode -ResponseSchema $EditSchema
+                if (-not $ER -or [string]::IsNullOrWhiteSpace($ER.Text)) { return $null }
+                $Ep = $ER.Text | ConvertFrom-Json
+                $Cand = [string]$Ep.body_markdown
+                if (-not $Cand.Trim()) { return $null }
+                $CW = @($Cand -split '\s+' | Where-Object { $_ -ne '' }).Count
+                if ($CW -lt ($OrigWordCount * 0.6)) { return $null }  # collapse guard
+                return $Cand
+            }
+
+            try {
+                $FirstCand = & $AttemptEdit 0.3
+                if ($null -eq $FirstCand) {
+                    Write-Warning 'Op-ed edit pass discarded (word-count collapse) — using original body'
+                    $EditingMeta = [PSCustomObject]@{ edited = $false; fk_before = $Checks.FkGrade; fk_after = $Checks.FkGrade; checks_failed_after = @(); reverted_reason = 'word-count-collapse' }
+                } else {
+                    $FirstLower  = $FirstCand.ToLower()
+                    $IntrTells   = @($BannedTells | Where-Object { $BodyLower -notlike "*$_*" -and $FirstLower -like "*$_*" })
+                    if ($IntrTells.Count -gt 0) {
+                        Write-Warning "Op-ed edit pass introduced banned tells [$($IntrTells -join ', ')] — reverting"
+                        $EditingMeta = [PSCustomObject]@{ edited = $false; fk_before = $Checks.FkGrade; fk_after = $Checks.FkGrade; checks_failed_after = @(); reverted_reason = "introduced-banned-tells: $($IntrTells -join ', ')" }
+                    } else {
+                        $ChosenBody  = $FirstCand
+                        $FirstChecks = & $MeasureBody $FirstCand
+                        if ($FirstChecks.FkGrade -gt $Checks.FkGrade) {
+                            try {
+                                $RetryCand = & $AttemptEdit 0.2
+                                if ($null -ne $RetryCand) {
+                                    $RetryLower  = $RetryCand.ToLower()
+                                    $RetryTells  = @($BannedTells | Where-Object { $BodyLower -notlike "*$_*" -and $RetryLower -like "*$_*" })
+                                    $RetryChecks = & $MeasureBody $RetryCand
+                                    if ($RetryTells.Count -eq 0 -and $RetryChecks.FkGrade -le $FirstChecks.FkGrade) {
+                                        $ChosenBody = $RetryCand
+                                    }
+                                }
+                            } catch { <# retry failed — keep first attempt #> }
+                        }
+
+                        $FinalBody   = $ChosenBody
+                        $AfterChecks = & $MeasureBody $ChosenBody
+                        $FailedChecks = [System.Collections.Generic.List[string]]::new()
+                        if ($AfterChecks.FkGrade     -gt $RtFkMax)    { [void]$FailedChecks.Add("fk_grade=$([Math]::Round($AfterChecks.FkGrade,1))") }
+                        if ($AfterChecks.MaxParaWords -gt $RtParaWords) { [void]$FailedChecks.Add("max_para_words=$($AfterChecks.MaxParaWords)") }
+                        if ($AfterChecks.MaxSentWords  -gt $RtSentWords) { [void]$FailedChecks.Add("max_sent_words=$($AfterChecks.MaxSentWords)") }
+
+                        # Deterministic para-split backstop (t/3710)
+                        if ($AfterChecks.MaxParaWords -gt $RtParaWords) {
+                            $SplitResult = ($FinalBody -split '\n\n+') | ForEach-Object {
+                                $Para = $_
+                                if (([regex]::Matches($Para, '\b\S+\b')).Count -le $RtParaWords) {
+                                    $Para
+                                } else {
+                                    $Sents  = @($Para -split '(?<=[.!?])\s+' | Where-Object { $_.Trim() })
+                                    $Chunks = [System.Collections.Generic.List[string]]::new()
+                                    $Chunk  = ''; $CW2 = 0
+                                    foreach ($S in $Sents) {
+                                        $SW2 = ([regex]::Matches($S, '\b\S+\b')).Count
+                                        if ($Chunk -and ($CW2 + $SW2) -gt $RtParaWords) {
+                                            $Chunks.Add($Chunk.Trim()); $Chunk = $S; $CW2 = $SW2
+                                        } else {
+                                            $Chunk = if ($Chunk) { "$Chunk $S" } else { $S }; $CW2 += $SW2
+                                        }
+                                    }
+                                    if ($Chunk.Trim()) { $Chunks.Add($Chunk.Trim()) }
+                                    if ($Chunks.Count -gt 0) { $Chunks } else { $Para }
+                                }
+                            }
+                            $FinalBody   = $SplitResult -join "`n`n"
+                            $AfterChecks = & $MeasureBody $FinalBody
+                            $FailedChecks.Clear()
+                            if ($AfterChecks.FkGrade     -gt $RtFkMax)    { [void]$FailedChecks.Add("fk_grade=$([Math]::Round($AfterChecks.FkGrade,1))") }
+                            if ($AfterChecks.MaxParaWords -gt $RtParaWords) { [void]$FailedChecks.Add("max_para_words=$($AfterChecks.MaxParaWords)") }
+                            if ($AfterChecks.MaxSentWords  -gt $RtSentWords) { [void]$FailedChecks.Add("max_sent_words=$($AfterChecks.MaxSentWords)") }
+                        }
+
+                        if ($FailedChecks.Count -gt 0) {
+                            Write-Warning "Op-ed edit pass still misses target: $($FailedChecks -join ', ') (FK before=$([Math]::Round($Checks.FkGrade,1)) after=$([Math]::Round($AfterChecks.FkGrade,1)))"
+                        }
+                        $EditingMeta = [PSCustomObject]@{
+                            edited              = $true
+                            fk_before           = [Math]::Round($Checks.FkGrade, 2)
+                            fk_after            = [Math]::Round($AfterChecks.FkGrade, 2)
+                            checks_failed_after = $FailedChecks.ToArray()
+                        }
+                    }
+                }
+            } catch {
+                Write-Warning "Op-ed edit pass failed — using original body. ($($_.Exception.Message))"
+                $EditingMeta = [PSCustomObject]@{ edited = $false; fk_before = $Checks.FkGrade; fk_after = $Checks.FkGrade; checks_failed_after = @(); reverted_reason = "error: $($_.Exception.Message.Substring(0, [Math]::Min(120, $_.Exception.Message.Length)))" }
+            }
+        }
+    }
+
     # Prefer an actual count over the model's self-report.
-    $ActualWords = if ([string]::IsNullOrWhiteSpace($Body)) { 0 } else {
-        @($Body -split '\s+' | Where-Object { $_ -ne '' }).Count
+    $ActualWords = if ([string]::IsNullOrWhiteSpace($FinalBody)) { 0 } else {
+        @($FinalBody -split '\s+' | Where-Object { $_ -ne '' }).Count
     }
 
     # ── Reflection pass: map each grounding element to how/where it's reflected ──
@@ -525,7 +680,7 @@ function New-OpEd {
     # budget and truncates the essay (observed). Judging against the real text
     # also yields truthful placements rather than mid-write predictions.
     # Best-effort — any failure leaves Reflection as '(not reported)'.
-    if (@($Grounding).Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($Body)) {
+    if (@($Grounding).Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($FinalBody)) {
         foreach ($g in $Grounding) { $g.Reflection = '(not reported)' }
         try {
             $glb = [System.Text.StringBuilder]::new()
@@ -533,7 +688,7 @@ function New-OpEd {
                 [void]$glb.AppendLine("- [$($g.Id)] ($($g.Type)/$($g.Category)) $($g.Label)")
             }
             $ReflPrompt = Get-Prompt -Name 'op-ed-grounding-reflection' -PromptsDir $OPedPromptsDir -Replacements @{
-                OPED_BODY      = $Body
+                OPED_BODY      = $FinalBody
                 GROUNDING_LIST = $glb.ToString().TrimEnd()
                 # Mirror generate.ts:291-293 reflection pass: numbered key_claims list,
                 # "(none)" fallback when absent. Without this the shared prompt's
@@ -582,7 +737,7 @@ function New-OpEd {
     $Output = [PSCustomObject]@{
         Headline             = $Headline
         Subtitle             = $Subtitle
-        Body                 = $Body
+        Body                 = $FinalBody
         WordCount            = $ActualWords
         Pov                  = $PovKey
         Outlet               = $Outlet
@@ -595,6 +750,7 @@ function New-OpEd {
         ReadableWords        = if ($null -ne $Prep) { $Prep.ReadableWords } else { $null }
         ReadableRatio        = if ($null -ne $Prep) { $Prep.ReadableRatio } else { $null }
         SourceUnderstanding  = $SBrief
+        EditingMeta          = $EditingMeta
     }
 
     # ── Optionally write a Markdown file ─────────────────────────────────────
