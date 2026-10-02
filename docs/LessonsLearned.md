@@ -1761,6 +1761,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-11 — ServerAPI (p/79#31): `git worktree remove --force` **timed out on two worktrees** with per-worktree `node_modules`. Same resolution: re-ran with `run_in_background: true`. 5th Facet B instance; 2nd confirmation that backgrounding `--force` is the reliable Windows fix.
 - 2026-09-29 — Rosetta Stone (p/6#65, **mid-delete partial state**): `git worktree remove` timed out at 30s (shortened tool timeout) mid-delete of t3734-headline-adjacency worktree. Left a partially-deleted state: physical `.git` file gone but ref still registered. Resolved: `git worktree prune` cleared the stale ref; remaining directory removed separately in background (no `.git` state left to corrupt). Note: a timeout shorter than 2min amplifies the risk of mid-delete partial state.
 - 2026-09-30 — DebateTool (p/70#43, **Facet A — untracked `package-lock.json`**): `git worktree remove ../wt-3811` failed because `npm install` (not `npm ci`) generated `package-lock.json` inside the worktree — untracked, not gitignored. `npm install` updates/creates the lockfile; `npm ci` reads it without modifying. Resolved with `--force` (branch already merged). Prevention: use `npm ci` in worktrees (per `/land-from-worktree` step 2), or add `package-lock.json` to `.gitignore` if it should not be committed.
+- 2026-10-01 — TL (p/335#105, **Facet B variant — direct `rm -rf` on stale `.worktrees/*` node_modules**): `rm -rf` across four stale `.worktrees/*` node_modules trees timed out at the 2-min Bash ceiling (exit 143, SIGTERM) — ~10 MB across four trees = tens of thousands of tiny files, each hitting AV/indexing on Windows. Recovery: checked actual state rather than retrying blind — files were already deleted, only empty dir skeletons remained; a second pass with a raised timeout cleared the skeletons in seconds. **Key lesson:** a SIGTERM timeout leaves PARTIAL state; the retry must be preceded by a state check, not a blind re-run (see Pattern #185).
 - 2026-10-01 — DebateTool (p/70#45, **Facet C variant — remote delete timeout starves chained worktree remove**): `git push origin --delete <branch> && git worktree remove ../wt-3813b` chained in one command; the remote branch delete took >2 min on a slow remote, exhausting the Bash tool's 2-min cap before `git worktree remove` ran. Directory was already gone (no `.git`), leaving only a stale ref. Resolved with `git worktree prune`. Lesson: don't chain `push --delete` with `git worktree remove` — run them as separate commands so a slow remote delete doesn't consume the timeout budget of the local cleanup.
 
 **Root Cause:** (A) `git worktree remove` aborts on untracked files, and an in-worktree `npm ci` always leaves a large untracked `node_modules`. (B) `--force` clears the refusal but does the deletion **synchronously in the foreground**, and unlinking tens of thousands of small files is pathologically slow on Windows (each hits AV/indexing), blowing the 2-minute timeout. (C) Once the physical dir is already gone, `remove` fails ("`.git` does not exist") — only the stale ref remains, which `prune` clears. (E) The `.git` file in a linked worktree is a small plain-text pointer file (`gitdir: /path/to/.git/worktrees/...`) — unlike the main repo's `.git` directory, it's just one file that AV/OS cleanup processes may selectively delete while leaving larger content dirs (`lib/`, `node_modules/`) intact. When it's gone, the directory is no longer a git repository from any tool's perspective, but the content survives. The through-line: `remove` couples git-metadata detach (instant) with the physical delete (slow, or possibly already done); decouple them — `prune` owns the ref, a backgrounded `rm -rf` owns the files. Companion to #77 and the Windows Junction pattern.
@@ -1770,13 +1771,14 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **`git worktree remove --force` is the fallback only for small/no-deps worktrees** — where the synchronous rm is fast. With a full `node_modules` on Windows it times out synchronously; use #1 OR pass `run_in_background: true` so the slow rm doesn't block the 2-min session cap (Rosetta Stone p/6#54).
 3. **remove/rm only after your commit is pushed** — confirm the work is on `origin/main`; the sole casualty is `node_modules`. Never remove with uncommitted deliverable work.
 4. `git worktree prune` also clears stale administrative refs (same follow-up as the Junction pattern).
+7. **After a timeout on `rm -rf`, check actual state before retrying** — a SIGTERM (exit 143) may leave partial completion: some files deleted, others not. Run `ls` or `Test-Path` on the target first; retry only what remains. A blind re-run restarts from scratch and wastes time re-deleting already-gone files — or, worse, assumes nothing was done when it was. Raise `timeout` on the retry to match the actual remaining work. (p/335#105; see Pattern #185.)
 5. **Don't chain `git push origin --delete` with `git worktree remove` in a single command** — a slow remote delete can exhaust the 2-min Bash tool timeout, leaving the worktree remove never executed and a stale ref behind. Run them as separate commands; if the directory is already gone, `git worktree prune` alone clears the stale ref. (DebateTool p/70#45.)
 6. **(Facet A — CRLF intention mismatch, NOT a content diff)** `autocrlf=true` + `*.snap` falling through `* text=auto` means git thinks the file *should* be CRLF but it's LF — flagged as "LF will be replaced by CRLF." The file is **byte-identical to the index**; `git diff` is EMPTY. **`git restore` is NOT a reliable mitigation** — any rewrite re-triggers the flag by construction (git immediately re-marks it as about-to-convert). Workaround until t/3825 lands: **verify `git diff <file>` is EMPTY first** — empty diff + `M` in status = intention mismatch, `--force` is lossless. Non-empty diff = real changes, `--force` destroys them. Never force without confirming the diff is empty. Root fix: `.gitattributes` `*.snap text eol=lf` (t/3825, DevOps).
 5. **(Facet E) Verify the `.git` file exists before starting work in an existing worktree:** `Test-Path <wt>\.git` (PowerShell) or `ls <wt>/.git` — if absent, the worktree is dead; push from the main repo using the branch name, then `git worktree prune` to clear the stale ref.
 
 - 2026-09-29 — DebateTool 2 (p/234#12): `git worktree remove ../wt-3761` failed with **Permission denied** on Windows — file locked by AV/OS or another process. Unresolved; routed to user for manual cleanup. **(Facet F — Permission denied variant of the Windows locking root cause; same prune + background-rm fix applies.)**
 
-**Status:** Active — worktree-land cluster; `/land-from-worktree` step-8 guidance updated from "`remove --force`" to "**prune + `branch -D` + background rm**" for deps-installed worktrees (supersedes the earlier `--force` wording; both refusal + timeout covered). **Facet F added 2026-09-29 (DebateTool 2 p/234#12):** Permission denied on Windows — file locked by AV/OS; same prune + background-rm resolution applies. **Facet E added 2026-08-05 (DebateTool p/70#14):** `.git` pointer file silently deleted by OS/AV mid-session; worktree content survives but git is blind to it — push from main repo, then `git worktree prune`. **New instance 2026-10-01 (DebateTool p/70#45):** remote branch delete timeout starves a chained `git worktree remove` — Facet C variant; prevention #5 added. **Facet A 4th instance 2026-10-01 (Rosetta Stone p/6#71):** same CRLF snapshot noise on `routeTable.test.ts.snap` across three agents — TL pinged on `.gitattributes` fix.
+**Status:** Active — worktree-land cluster; `/land-from-worktree` step-8 guidance updated from "`remove --force`" to "**prune + `branch -D` + background rm**" for deps-installed worktrees (supersedes the earlier `--force` wording; both refusal + timeout covered). **Facet F added 2026-09-29 (DebateTool 2 p/234#12):** Permission denied on Windows — file locked by AV/OS; same prune + background-rm resolution applies. **Facet E added 2026-08-05 (DebateTool p/70#14):** `.git` pointer file silently deleted by OS/AV mid-session; worktree content survives but git is blind to it — push from main repo, then `git worktree prune`. **New instance 2026-10-01 (DebateTool p/70#45):** remote branch delete timeout starves a chained `git worktree remove` — Facet C variant; prevention #5 added. **Facet A 4th instance 2026-10-01 (Rosetta Stone p/6#71):** same CRLF snapshot noise on `routeTable.test.ts.snap` across three agents — TL pinged on `.gitattributes` fix. **Facet B variant 2026-10-01 (TL p/335#105):** direct `rm -rf` on four stale `.worktrees/*` node_modules trees timed out (exit 143); state check revealed partial completion; prevention #7 + Pattern #185 added.
 
 **Applies To:** All agents using the worktree landing procedure with an in-worktree `npm ci` — i.e. every deps-installing land.
 
@@ -2786,6 +2788,52 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (Shared Lib p/5#38).
 
 **Applies To:** All agents locating project config/baseline/shared-tooling files before operating on them.
+
+---
+
+## #184 [Process] Structural Root Cause Confirms All Siblings — Deferring Them as "Not Yet Confirmed" Is Wrong
+
+**Pattern:** When a root cause is structural — "X is on the wrong side of boundary B" — every entity in the same structural position shares the defect **by construction**. An agent scopes the fix to only the instance it observed and defers siblings as "not yet confirmed," but the root-cause analysis already confirmed them. This understates scope at the start and leads to follow-up tickets for instances that were always known.
+
+**Discriminator:** If the root-cause sentence stays true with the sibling's name substituted in, the sibling is in scope. This is the test to apply at the start of a fix, not just the one originally observed instance.
+
+**Distinction from surviving-vector rule:** The surviving-vector close-out rule governs what you *claim when finishing* (what can still fail after this fix?). This pattern governs what you *scope when starting* (which instances does this root cause already cover?). The two rules apply at different points in the task lifecycle and do not substitute for each other.
+
+**Instances:**
+- 2026-10-01 — TL observation (p/335#107, t/3843): structural root cause identified; siblings in the same structural position deferred as "not confirmed" when the root-cause sentence — unchanged — applied to each of them by substitution. Corrected: siblings were brought in scope and fixed together.
+
+**Root Cause:** Conflating "I haven't *observed* a failure in this sibling" with "this sibling is not confirmed to have the defect." Structural root causes don't require per-instance observation — the structure itself is the evidence.
+
+**Prevention:**
+1. When you write a root-cause sentence, immediately substitute each sibling's name into it. If it stays true, that sibling is in scope — add it to the fix now, not as a follow-up.
+2. Reserve "not confirmed" for cases where the root cause is *not* structural (e.g., it depends on runtime state, configuration, or a code path that may or may not be triggered per instance).
+3. Structural root causes are recognizable by the form "X is on the wrong side of Y" or "all instances of type T share property P" — any sentence whose truth depends only on structure, not on observation.
+
+**Status:** Active — 1 instance (TL p/335#107, t/3843).
+
+**Applies To:** All agents scoping fixes from a root-cause analysis.
+
+---
+
+## #185 [Process] A Timeout Leaves PARTIAL State — Check Actual State Before Retrying, Never Retry Blind
+
+**Pattern:** A tool call that exits on SIGTERM (exit 143) or times out was killed mid-execution, not before it started. The operation may be partially complete: some files deleted, a network transfer half-done, a ref deregistered without the directory removed. A blind retry re-runs the whole operation from the beginning, potentially doing redundant work or misreading the starting state — or failing because a partially-completed side-effect makes the operation invalid to restart.
+
+**Instances:**
+- 2026-09-29 — Rosetta Stone (p/6#65, #78 Facet B): `git worktree remove` timed out mid-delete — `.git` file gone, ref still registered, directory partially present. Blind retry would have re-tried `git worktree remove` on a half-deleted worktree. Correct fix: `git worktree prune` (handled the stale ref) + background `rm -rf` (handled remaining files separately).
+- 2026-10-01 — TL (p/335#105, #78 Facet B variant): `rm -rf` on four `.worktrees/*` node_modules trees exited 143 (SIGTERM). Checked actual state: files were already deleted, only empty dir skeletons remained. Second pass with raised timeout cleared the skeletons in seconds. Without the state check, a blind retry would have re-run the full deletion unnecessarily.
+
+**Root Cause:** Tools have a maximum execution time; long-running destructive operations (large deletes, big transfers, slow network calls) are interrupt-safe from the tool's perspective but not from the operation's. A SIGTERM arrives during execution and the operation stops wherever it was.
+
+**Prevention:**
+1. **After any timeout (exit 143 or tool-reported timeout), check state before retrying.** Use `ls`, `Test-Path`, `git status`, or the relevant existence check on the target. Retry only what remains — don't re-run the full operation.
+2. **Raise the timeout on the retry** to match the remaining work, not the original estimate. If half the files are already gone, the retry is cheaper than the original run.
+3. **For destructive operations, distinguish "nothing happened" from "partial completion."** A timeout on a delete is almost never "nothing happened" — it's "some happened." Treating it as a clean starting state can cause double-work or a failed restart.
+4. The corollary: for **idempotent** operations (HTTP GET, read-only query, a `git fetch`), a blind retry is safe. For **destructive or stateful** operations (delete, write, register/deregister, network push), inspect first.
+
+**Status:** Active — 2 instances; cross-reference #78 prevention #7.
+
+**Applies To:** All agents retrying any operation that exited on timeout or SIGTERM.
 
 ---
 
