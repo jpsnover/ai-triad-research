@@ -20,6 +20,28 @@
 BeforeAll {
     $ModulePath = Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1'
     Import-Module $ModulePath -Force -WarningAction SilentlyContinue
+
+    function Write-ForceThresholdFixture([string]$Dir, [int]$DanglingCount) {
+        @{
+            nodes = @(
+                @{ id = 'acc-beliefs-001'; label = 'A'; category = 'Beliefs'; parent_id = $null; children = @() }
+                @{ id = 'acc-beliefs-002'; label = 'B'; category = 'Beliefs'; parent_id = $null; children = @() }
+            )
+        } | ConvertTo-Json -Depth 10 | Set-Content -Path (Join-Path $Dir 'accelerationist.json')
+        @{ policies = @() } | ConvertTo-Json -Depth 10 | Set-Content -Path (Join-Path $Dir 'policy_actions.json')
+
+        $Edges = [System.Collections.Generic.List[object]]::new()
+        $Edges.Add([ordered]@{ source = 'acc-beliefs-001'; target = 'acc-beliefs-002'; type = 'SUPPORTS'; confidence = 0.9 })
+        for ($i = 0; $i -lt $DanglingCount; $i++) {
+            $Edges.Add([ordered]@{ source = 'acc-beliefs-001'; target = "ghost-node-$i"; type = 'SUPPORTS'; confidence = 0.5 })
+        }
+        @{
+            _schema_version = '1.0.0'
+            last_modified   = '2026-01-01'
+            edge_types      = @('SUPPORTS')
+            edges           = @($Edges)
+        } | ConvertTo-Json -Depth 10 | Set-Content -Path (Join-Path $Dir 'edges.json')
+    }
 }
 
 Describe 'Test-TaxonomyIntegrity -Repair audit' -Tag 'taxonomy' {
@@ -131,6 +153,86 @@ Describe 'Test-TaxonomyIntegrity -Repair audit' -Tag 'taxonomy' {
 
             Test-Path $AuditDir | Should -BeFalse
             @($Warn | Where-Object { $_.Message -match 'pruned' }).Count | Should -Be 0
+        }
+    }
+
+    Context '-Force threshold (N=20 edges, t/3853)' {
+
+        BeforeEach {
+            $script:ForceTempDir = Join-Path ([System.IO.Path]::GetTempPath()) "tti-force-$(Get-Random)"
+            New-Item -ItemType Directory -Path $script:ForceTempDir -Force | Out-Null
+        }
+
+        AfterEach {
+            Remove-Item -Path $script:ForceTempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+
+        It 'blocks edge repair above the threshold without -Force, but still repairs lower-risk categories' {
+            Write-ForceThresholdFixture -Dir $script:ForceTempDir -DanglingCount 21
+            InModuleScope AITriad -Parameters @{ TempDir = $script:ForceTempDir } {
+                param($TempDir)
+                Mock Get-TaxonomyDir { $TempDir }
+                $AuditDir = Join-Path $TempDir 'audit'
+
+                $Warnings = $null
+                Test-TaxonomyIntegrity -Repair -AuditDir $AuditDir -WarningVariable Warnings -WarningAction SilentlyContinue | Out-Null
+
+                $BlockWarning = @($Warnings) | Where-Object { "$_" -match 'SKIPPING edge repair' }
+                $BlockWarning | Should -Not -BeNullOrEmpty -Because 'pruning 21 edges without -Force must be blocked with an explanatory warning'
+
+                $SurvivingEdges = @((Get-Content -Raw -Path (Join-Path $TempDir 'edges.json') | ConvertFrom-Json).edges)
+                $SurvivingEdges.Count | Should -Be 22 -Because 'the edge prune must NOT have run'
+
+                Test-Path $AuditDir | Should -BeFalse -Because 'nothing was actually pruned, so nothing should be audited'
+            }
+        }
+
+        It 'leaves edges.json BYTE-IDENTICAL when blocked -- not just logically unchanged' {
+            Write-ForceThresholdFixture -Dir $script:ForceTempDir -DanglingCount 21
+            InModuleScope AITriad -Parameters @{ TempDir = $script:ForceTempDir } {
+                param($TempDir)
+                Mock Get-TaxonomyDir { $TempDir }
+
+                $EdgesFile = Join-Path $TempDir 'edges.json'
+                $BytesBefore = [System.IO.File]::ReadAllBytes($EdgesFile)
+
+                Test-TaxonomyIntegrity -Repair -AuditDir (Join-Path $TempDir 'audit') -WarningAction SilentlyContinue | Out-Null
+
+                $BytesAfter = [System.IO.File]::ReadAllBytes($EdgesFile)
+                $BytesAfter | Should -Be $BytesBefore -Because 'a blocked edge repair must not touch the file at all -- catches a future refactor that logs the skip but prunes anyway, or re-serializes harmlessly'
+            }
+        }
+
+        It 'proceeds above the threshold WITH -Force, and audits the full pruned set' {
+            Write-ForceThresholdFixture -Dir $script:ForceTempDir -DanglingCount 21
+            InModuleScope AITriad -Parameters @{ TempDir = $script:ForceTempDir } {
+                param($TempDir)
+                Mock Get-TaxonomyDir { $TempDir }
+                $AuditDir = Join-Path $TempDir 'audit'
+
+                Test-TaxonomyIntegrity -Repair -Force -AuditDir $AuditDir -WarningAction SilentlyContinue | Out-Null
+
+                $SurvivingEdges = @((Get-Content -Raw -Path (Join-Path $TempDir 'edges.json') | ConvertFrom-Json).edges)
+                $SurvivingEdges.Count | Should -Be 1 -Because '-Force must let the edge repair proceed, leaving only the one valid edge'
+
+                $Files = @(Get-ChildItem -Path $AuditDir -Filter 'integrity-repair-*.json')
+                $Files.Count | Should -Be 1
+                $Doc = Get-Content -Raw $Files[0].FullName | ConvertFrom-Json
+                $Doc.counts.dangling_edges | Should -Be 21
+            }
+        }
+
+        It 'does not block at exactly the threshold (20 edges, no -Force needed)' {
+            Write-ForceThresholdFixture -Dir $script:ForceTempDir -DanglingCount 20
+            InModuleScope AITriad -Parameters @{ TempDir = $script:ForceTempDir } {
+                param($TempDir)
+                Mock Get-TaxonomyDir { $TempDir }
+
+                Test-TaxonomyIntegrity -Repair -AuditDir (Join-Path $TempDir 'audit') -WarningAction SilentlyContinue | Out-Null
+
+                $SurvivingEdges = @((Get-Content -Raw -Path (Join-Path $TempDir 'edges.json') | ConvertFrom-Json).edges)
+                $SurvivingEdges.Count | Should -Be 1 -Because '20 is the threshold value itself, not yet over it, so no -Force is needed'
+            }
         }
     }
 }
