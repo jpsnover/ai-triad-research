@@ -74,5 +74,15 @@ export const OUTLET_BANDS: Readonly<Record<string, OutletBand>> = {
 };
 
 export function resolveOutletBand(outlet: string | undefined): OutletBand {
-  return OUTLET_BANDS[outlet ?? 'TechPolicyPress'] ?? OUTLET_BANDS['TechPolicyPress']!;
+  if (outlet === undefined) {
+    return OUTLET_BANDS['TechPolicyPress']!; // deliberate house default, no WARN
+  }
+  const band = OUTLET_BANDS[outlet];
+  if (band === undefined) {
+    console.warn(
+      `[outletBands] Unknown outlet "${outlet}" — falling back to Generic (800 words, plain). Check request.params.outlet.`,
+    );
+    return OUTLET_BANDS['Generic']!;
+  }
+  return band;
 }
