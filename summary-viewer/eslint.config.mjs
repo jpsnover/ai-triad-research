@@ -12,10 +12,12 @@
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-recorder-in-catch.js';
+import complexityBudget from '../lib/eslint-rules/complexity-budget.js';
 
 const localPlugin = {
   rules: {
     'require-flight-recorder-in-catch': requireFlightRecorderInCatch,
+    'complexity-budget': complexityBudget,
   },
 };
 
@@ -33,6 +35,12 @@ export default tseslint.config(
       // at full parity across all three renderer apps (t/2299). exhaustive-deps is left
       // off deliberately to avoid warning noise; rules-of-hooks alone covers the crash class.
       'react-hooks/rules-of-hooks': 'error',
+      // Built-in stays at 'warn' (SO e/240 condition 1): advisory per-function signal.
+      // complexity-budget below is the gate: per-file ratchet against the recorded baseline.
+      'complexity': ['warn', { max: 15 }],
+      // Per-file cyclomatic complexity budget gate (t/3848, t/3821).
+      // Baseline generated from this tree: summary-viewer/complexity-baseline.json
+      'local/complexity-budget': ['error', { baseline: './complexity-baseline.json', threshold: 15 }],
     },
   },
   {

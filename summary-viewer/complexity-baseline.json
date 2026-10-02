@@ -1,0 +1,26 @@
+{
+  "__meta__": {
+    "threshold": 15,
+    "scan": "src"
+  },
+  "src/main/fileIO.ts": {
+    "max": 32,
+    "countOver": 3
+  },
+  "src/renderer/components/DocumentPane.tsx": {
+    "max": 30,
+    "countOver": 2
+  },
+  "src/renderer/components/KeyPointsPane.tsx": {
+    "max": 24,
+    "countOver": 5
+  },
+  "src/renderer/components/PotentialEdgesPane.tsx": {
+    "max": 18,
+    "countOver": 1
+  },
+  "src/renderer/store/useStore.ts": {
+    "max": 53,
+    "countOver": 1
+  }
+}
