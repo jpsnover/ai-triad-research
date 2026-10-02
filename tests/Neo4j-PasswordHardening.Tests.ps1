@@ -108,10 +108,19 @@ Describe 'Neo4j password hardening (t/2530 M2)' -Tag 'security' {
         $src | Should -Not -Match 'NEO4J_AUTH='
     }
 
-    It 'Install-GraphDatabase verifies the credential with an authenticated request before declaring success' {
+    It 'Install-GraphDatabase verifies the credential via Test-Neo4jAuthProbe before declaring success (t/3856)' {
+        # SO cond.1 — a post-start authenticated probe that fails loudly on mismatch. t/3856: this used to
+        # route through Invoke-CypherQuery -Query 'RETURN 1', which swallows its own HTTP/auth exceptions
+        # and never rethrows, so -ErrorAction Stop there was a no-op and $AuthVerified became $true
+        # regardless of outcome (the "both arms tested" source-grep this ticket replaces could not have
+        # caught that — it asserted string presence, never executed anything). The ACTUAL behavior
+        # verification — correct credential verifies, wrong credential/unreachable does not, distinguished
+        # by reason — lives in tests/Test-Neo4jAuthProbe.Tests.ps1, which mocks Invoke-RestMethod and
+        # exercises the real function. This remains a source-grep only for the wiring (the right helper is
+        # actually called here), not the behavior.
         $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
-        # SO cond.1 — a post-start authenticated probe (reuses the sibling cmdlet) that fails loudly on mismatch.
-        $src | Should -Match "Invoke-CypherQuery -Query 'RETURN 1'"
+        $src | Should -Match 'Test-Neo4jAuthProbe -Credential \$ProbeCred'
+        $src | Should -Not -Match "Invoke-CypherQuery -Query 'RETURN 1'" -Because 'the broken probe must not come back'
         $src | Should -Match '\$AuthVerified'
     }
 

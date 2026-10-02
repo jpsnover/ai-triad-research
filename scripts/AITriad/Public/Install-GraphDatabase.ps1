@@ -210,19 +210,23 @@ function Install-GraphDatabase {
             # Step 6b (SO cond.1): the HTTP port being up does NOT prove the credential took — if the image
             # ignored NEO4J_AUTH_FILE it is running on DEFAULT creds. Make one AUTHENTICATED request with the
             # intended credential; fail LOUDLY on mismatch rather than silently shipping a default-cred DB.
-            $AuthVerified = $false
-            try {
-                # Build the probe SecureString via AppendChar (not ConvertTo-SecureString -AsPlainText, which
-                # PSSA flags) — the plaintext is one we just resolved/generated, re-typed here only to satisfy
-                # the sibling cmdlet's -Credential contract for a localhost auth check.
-                $ProbeSec = [System.Security.SecureString]::new()
-                foreach ($ch in $Neo4jPassword.ToCharArray()) { $ProbeSec.AppendChar($ch) }
-                $ProbeSec.MakeReadOnly()
-                $ProbeCred = [System.Management.Automation.PSCredential]::new($Neo4jUser, $ProbeSec)
-                $null = Invoke-CypherQuery -Query 'RETURN 1' -Credential $ProbeCred -ErrorAction Stop
-                $AuthVerified = $true
-            } catch {
-                Write-Fail "Neo4j credential verification failed: $($_.Exception.Message)"
+            #
+            # t/3856: this used to probe via Invoke-CypherQuery -ErrorAction Stop. That cmdlet catches its own
+            # HTTP/auth exceptions internally and never rethrows, so -ErrorAction Stop there was a no-op —
+            # $AuthVerified became $true regardless of whether authentication actually succeeded. Probing via
+            # Test-Neo4jAuthProbe (direct Invoke-RestMethod call) instead of through Invoke-CypherQuery means
+            # this detection is not blocked on fixing that cmdlet for its other callers (t/3855, separate).
+            # Build the probe SecureString via AppendChar (not ConvertTo-SecureString -AsPlainText, which
+            # PSSA flags) — the plaintext is one we just resolved/generated, re-typed here only to satisfy
+            # Test-Neo4jAuthProbe's -Credential contract for this one localhost auth check.
+            $ProbeSec = [System.Security.SecureString]::new()
+            foreach ($ch in $Neo4jPassword.ToCharArray()) { $ProbeSec.AppendChar($ch) }
+            $ProbeSec.MakeReadOnly()
+            $ProbeCred = [System.Management.Automation.PSCredential]::new($Neo4jUser, $ProbeSec)
+            $Probe = Test-Neo4jAuthProbe -Credential $ProbeCred
+            $AuthVerified = $Probe.Verified
+            if (-not $AuthVerified) {
+                Write-Fail "Neo4j credential verification failed: $($Probe.Message)"
             }
 
             if ($AuthVerified) {
@@ -236,9 +240,15 @@ function Install-GraphDatabase {
             } else {
                 # SO cond.2: leave the file on failure; fail loudly (fail-open is the dangerous case).
                 Write-Warn "Auth secret file LEFT at $AuthFile (contains the Neo4j password) — not removed; credential unverified."
+                # t/3856 (SO cond.5): distinguish wrong-credential from unreachable — opposite remedies.
+                $ProblemDetail = if ($Probe.Reason -eq 'unauthorized') {
+                    "The container started and port 7474 is up, but it REJECTED the intended credential (HTTP 401) — Neo4j likely did not apply NEO4J_AUTH_FILE and may be running on DEFAULT credentials (a silent credential downgrade)."
+                } else {
+                    "The container started and port 7474 is up, but the authenticated verification request could not reach it: $($Probe.Message)"
+                }
                 throw (New-ActionableError `
                         -Goal 'Install Neo4j with a hardened credential channel' `
-                        -Problem "The container started and port 7474 is up, but it REJECTED the intended credential — Neo4j likely did not apply NEO4J_AUTH_FILE and may be running on DEFAULT credentials (a silent credential downgrade)." `
+                        -Problem $ProblemDetail `
                         -Location 'Install-GraphDatabase' `
                         -NextSteps @(
                             "Check: docker logs $ContainerName (look for auth/NEO4J_AUTH_FILE errors)",
