@@ -93,16 +93,43 @@ function Invoke-CypherQuery {
             -Body $Body `
             -ErrorAction Stop
     } catch {
-        Write-Fail "Neo4j query failed: $_"
-        Write-Info 'Is Neo4j running? Try: Install-GraphDatabase'
-        return
+        # t/3855: this used to Write-Fail + bare `return` -- never rethrow, so -ErrorAction Stop
+        # at every caller's call site was a no-op and a query failure was indistinguishable from a
+        # query that legitimately returned zero rows. Distinguish 'unauthorized' (HTTP 401, wrong
+        # credential) from 'unreachable' (connection-level) -- opposite remedies, same discriminator
+        # as t/3856's Test-Neo4jAuthProbe. StrictMode guard: HttpRequestException (connection-level
+        # failures) has no .Response property at all -- check PSObject.Properties before access.
+        $Resp = if ($_.Exception.PSObject.Properties['Response']) { $_.Exception.Response } else { $null }
+        if ($Resp -and [int]$Resp.StatusCode -eq 401) {
+            throw (New-ActionableError `
+                    -Goal 'Run Cypher query' `
+                    -Problem "Neo4j rejected the credential (HTTP 401) at $HttpUri." `
+                    -Location 'Invoke-CypherQuery' `
+                    -NextSteps @(
+                        'Confirm -Credential or $env:NEO4J_PASSWORD matches the running database.',
+                        'Re-run Install-GraphDatabase -Force if the credential was lost or the database was recreated.'))
+        }
+        throw (New-ActionableError `
+                -Goal 'Run Cypher query' `
+                -Problem "Could not reach Neo4j at ${HttpUri}: $($_.Exception.Message)" `
+                -Location 'Invoke-CypherQuery' `
+                -NextSteps @(
+                    'Is Neo4j running? Try: Install-GraphDatabase',
+                    'Check docker ps / docker logs ai-triad-neo4j if a container should be running.'))
     }
 
     if ($Response.errors -and $Response.errors.Count -gt 0) {
-        foreach ($Err in $Response.errors) {
-            Write-Fail "Cypher error: $($Err.message)"
-        }
-        return
+        # t/3855: a Cypher-level error (bad syntax, missing label/property, constraint violation) is
+        # a THIRD failure mode -- Neo4j returns HTTP 200 with an `errors` array, so it never reaches
+        # the catch above. Distinct from unauthorized/unreachable: the remedy here is "fix the query."
+        $Messages = @($Response.errors | ForEach-Object { $_.message })
+        throw (New-ActionableError `
+                -Goal 'Run Cypher query' `
+                -Problem "Neo4j returned a Cypher error: $($Messages -join '; ')" `
+                -Location 'Invoke-CypherQuery' `
+                -NextSteps @(
+                    'Check the Cypher syntax and that referenced labels/properties exist.',
+                    "Query: $Query"))
     }
 
     if ($Raw) {
