@@ -18,6 +18,7 @@ function Measure-CodeComplexity {
           catch block (each)              +1
           ternary ?: (PS7)                +1
           -and / -or (each occurrence)    +1   (short-circuit boolean ops are decision points)
+          ?? / ??= (each occurrence, PS7) +1   (null-coalescing is a branch: left side vs right)
 
         Nested functions are measured as their OWN separate entries — a nested function's
         decision points are subtracted from its containing function's count so nothing is
@@ -92,7 +93,9 @@ function Measure-CodeComplexity {
             ($node -is [System.Management.Automation.Language.CatchClauseAst]) -or
             ($node -is [System.Management.Automation.Language.TernaryExpressionAst]) -or
             (($node -is [System.Management.Automation.Language.BinaryExpressionAst]) -and
-             ($node.Operator -in @([System.Management.Automation.Language.TokenKind]::And, [System.Management.Automation.Language.TokenKind]::Or)))
+             ($node.Operator -in @([System.Management.Automation.Language.TokenKind]::And, [System.Management.Automation.Language.TokenKind]::Or, [System.Management.Automation.Language.TokenKind]::QuestionQuestion))) -or
+            (($node -is [System.Management.Automation.Language.AssignmentStatementAst]) -and
+             ($node.Operator -eq [System.Management.Automation.Language.TokenKind]::QuestionQuestionEquals))
         }, $true)
     }
     function script:Get-DecisionWeight([object]$Node) {

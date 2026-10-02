@@ -131,6 +131,8 @@
         'Read-FlightRecorderDump'
         'Invoke-DebateDiagnosis'
         'Measure-CodeComplexity'
+        'Update-ComplexityBaseline'
+        'Test-ComplexityBudget'
         'Get-AITClaim'
         'Compare-EmbeddingModel'
         'Test-RerankerBaseline'
