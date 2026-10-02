@@ -146,8 +146,10 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod 
 # weekly-rebuild auto-retirement.
 # Bumped to :2026-09-29 (t/3746) — poppler-utils removed from base (eliminates
 # libX11/libXrender transitive-dep CVE class); glibc CVEs cleared by apt-get upgrade.
+# Bumped to :2026-10-02 (PR #2676) — npm-bundled undici 6.28.1 (CVE-2026-85024), ip-address
+# 10.5.1 (CVE-2026-101910/101913), brace-expansion 5.0.12; proven by the base build tripwire.
 # Gate base bumps on staging /healthz, not CI green.
-FROM ghcr.io/jpsnover/ai-triad-base:2026-09-29@sha256:4383e4ad1bbcaf01f0985645d12df815f88843926771dd2e05d1c5cf1fdcb9bd AS runtime
+FROM ghcr.io/jpsnover/ai-triad-base:2026-10-02@sha256:1f79de1027cc8217ceffa316308870065f4ac65765b383d34003629df560da32 AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
