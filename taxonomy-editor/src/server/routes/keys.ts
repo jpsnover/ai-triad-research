@@ -62,6 +62,16 @@ type KeyProbe = (key: string) => Promise<Response>;
 // a registry edit, not a second hand-maintained literal. Falls back to a WARN-logged last-known-good
 // literal only if the registry is unreadable (fallback-path-logging rule); a retirement landing on that
 // literal would reproduce this bug, but that's strictly rarer than "the registry file can't be read".
+const GEMINI_PROBE_FALLBACK_MODEL = 'gemini-2.5-flash-lite';
+
+// CodeQL #5919 (js/file-access-to-http): the probe model id is read from ai-models.json and
+// interpolated into the URL PATH of a request that carries the user's API key. Constrain it to a
+// bare model-name segment so a malformed or tampered registry value (`/`, `?`, `#`, `:`, `%`, `@`)
+// cannot redirect the key to a different Google endpoint or path. Exported for unit testing.
+export function isSafeGeminiProbeModelId(id: string): boolean {
+  return /^gemini-[a-z0-9][a-z0-9.-]{0,63}$/.test(id);
+}
+
 function resolveGeminiProbeModel(): string {
   const friendlyId = resolveDebateTierModel('basic', 'gemini');
   if (!friendlyId) {
@@ -69,9 +79,17 @@ function resolveGeminiProbeModel(): string {
       { component: 'keys', backend: 'gemini', cause: 'debate-tier-model-unresolved' },
       'Could not resolve debateTiers.basic.gemini from ai-models.json — falling back to a hardcoded probe model id, which can drift the same way t/3556 did',
     );
-    return 'gemini-2.5-flash-lite';
+    return GEMINI_PROBE_FALLBACK_MODEL;
   }
-  return getResolvedApiModelId(friendlyId); // friendly id → provider apiModelId
+  const apiModelId = getResolvedApiModelId(friendlyId); // friendly id → provider apiModelId
+  if (!isSafeGeminiProbeModelId(apiModelId)) {
+    log.server.warn(
+      { component: 'keys', backend: 'gemini', cause: 'probe-model-id-rejected', friendlyId, apiModelId },
+      'Registry gemini probe model id is not a bare gemini-* model name — refusing to put it in the key-probe URL; falling back to the hardcoded probe model id',
+    );
+    return GEMINI_PROBE_FALLBACK_MODEL;
+  }
+  return apiModelId;
 }
 
 export const KEY_VALIDATION_PROBES: Record<string, KeyProbe> = {
