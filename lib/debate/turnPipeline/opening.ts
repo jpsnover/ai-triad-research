@@ -111,6 +111,8 @@ export async function runOpeningPipeline(
   };
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();
+  let step = 0;
+  const totalStages = 4; // brief, plan, draft, cite — repair is conditional, bumped in runOpeningPipelineWithRepair
 
   // ── Stage 1: BRIEF (with parse-failure retry and configurable timeout retry) ──
   const isOpeningOuterRetry = (input.repairHints?.length ?? 0) > 0;
@@ -126,7 +128,7 @@ export async function runOpeningPipeline(
   let t0: number = Date.now();
   let elapsed: number = 0;
   for (let briefAttempt = 0; briefAttempt <= MAX_OPENING_RETRIES; briefAttempt++) {
-    onProgress?.('brief', `${input.label} is briefing${briefAttempt > 0 ? ` (retry ${briefAttempt})` : ''}...`);
+    onProgress?.('brief', `${input.label} is briefing${briefAttempt > 0 ? ` (retry ${briefAttempt})` : ''}...`, briefAttempt === 0 ? { step: ++step, total: totalStages } : undefined);
     const briefPrompt = briefOpeningStagePrompt(stageInput);
     let briefRaw!: string;
     for (let tout = 0; tout <= briefMaxRetries; tout++) {
@@ -196,7 +198,7 @@ export async function runOpeningPipeline(
   let plan: OpeningPlanWorkProduct | undefined;
   let planJson = '';
   for (let planAttempt = 0; planAttempt <= MAX_OPENING_RETRIES; planAttempt++) {
-    onProgress?.('plan', `${input.label} is planning${planAttempt > 0 ? ` (retry ${planAttempt})` : ''}...`);
+    onProgress?.('plan', `${input.label} is planning${planAttempt > 0 ? ` (retry ${planAttempt})` : ''}...`, planAttempt === 0 ? { step: ++step, total: totalStages } : undefined);
     const planPromptText = planOpeningStagePrompt(stageInput, briefJson);
     t0 = Date.now();
     const planRaw = await generate(
@@ -240,7 +242,7 @@ export async function runOpeningPipeline(
   }
 
   // ── Stage 3: DRAFT ──
-  onProgress?.('draft', `${input.label} is drafting...`);
+  onProgress?.('draft', `${input.label} is drafting...`, { step: ++step, total: totalStages });
   let draftPromptText = draftOpeningStagePrompt(stageInput, briefJson, planJson);
   if (input.repairHints && input.repairHints.length > 0) {
     const openingRepairBlock = buildRepairBlock(input.repairHints);
@@ -327,7 +329,7 @@ export async function runOpeningPipeline(
   }
 
   // ── Stage 4: CITE ──
-  onProgress?.('cite', `${input.label} is citing...`);
+  onProgress?.('cite', `${input.label} is citing...`, { step: ++step, total: totalStages });
   const citePromptText = citeOpeningStagePrompt(stageInput, briefJson, planJson, draftJson);
   t0 = Date.now();
   const citeRaw = await generate(
@@ -415,7 +417,7 @@ export async function runOpeningPipelineWithRepair(
   const repairHints = getOpeningRepairHints(result);
   if (repairHints.length > 0) {
     const issueCount = repairHints.length;
-    onProgress?.('repair', `${input.label} retrying (${issueCount} issue${issueCount > 1 ? 's' : ''})`);
+    onProgress?.('repair', `${input.label} retrying (${issueCount} issue${issueCount > 1 ? 's' : ''})`, { step: 5, total: 5 });
     try {
       result = await runOpeningPipeline({ ...floored, repairHints }, generate, onProgress, onBriefEvent);
     } catch (err) {
