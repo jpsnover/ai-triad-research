@@ -87,6 +87,23 @@ function Get-Outer {
 }
 '@
 
+    # 7: null-coalescing ?? and ??= (t/3829 fix -- these were silently uncounted before;
+    # the complexity-ratchet gate has no second counter to catch that, so Running It, not
+    # inferring, is how the gap was found in the first place).
+    # Get-NullCoalesce: 2x ?? -> 1+2=3. Get-NullCoalesceAssign: 1x ??= -> 1+1=2.
+    script:WriteFixture 'nullcoalesce.ps1' @'
+function Get-NullCoalesce {
+    param($a, $b, $c)
+    $x = $a ?? $b ?? $c
+    return $x
+}
+function Get-NullCoalesceAssign {
+    param($x, $y)
+    $x ??= $y
+    return $x
+}
+'@
+
     # A deliberately malformed file — must be skipped (warned), not fatal to the whole run.
     script:WriteFixture 'broken.ps1' @'
 function Get-Broken {
@@ -142,6 +159,14 @@ Describe 'Measure-CodeComplexity (p/550)' -Tag 'config' {
         $inner = script:Get 'nested.ps1' 'script:Get-Inner'
         $outer.Complexity | Should -Be 2
         $inner.Complexity | Should -Be 2
+    }
+
+    It '?? (null-coalescing): each occurrence +1 -> 3 (t/3829)' {
+        (script:Get 'nullcoalesce.ps1' 'Get-NullCoalesce').Complexity | Should -Be 3
+    }
+
+    It '??= (null-coalescing assignment): +1 -> 2 (t/3829)' {
+        (script:Get 'nullcoalesce.ps1' 'Get-NullCoalesceAssign').Complexity | Should -Be 2
     }
 
     It 'skips a malformed file with a warning, continues scanning the rest' {
