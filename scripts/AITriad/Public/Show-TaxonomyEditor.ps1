@@ -457,11 +457,24 @@ function Start-LegacyElectronMode {
     # Warn on orphaned worktrees (t/2769). A leftover dir under .worktrees/ that git
     # no longer tracks can pollute node_modules resolution for `npm run dev`, surfacing
     # as TS errors that look like source bugs (t/2768). Non-blocking.
+    #
+    # t/3846: Get-OrphanedWorktree finds directories present on disk but NOT
+    # registered in `git worktree list` -- the inverse of what `git worktree prune`
+    # cleans up (registered-but-missing directories). `prune` is a no-op here;
+    # the correct remedy is manual deletion, gated on the safety check below.
     $Orphaned = @(Get-OrphanedWorktree -RepoRoot $CodeRoot)
     if ($Orphaned.Count -gt 0) {
-        $OrphanRel = $Orphaned | ForEach-Object { [System.IO.Path]::GetRelativePath($CodeRoot, $_) }
-        Write-Warn "Orphaned worktrees detected (not registered): $($OrphanRel -join ', ')"
-        Write-Info '   These can pollute node_modules resolution. Run: git worktree prune'
+        foreach ($OrphanPath in $Orphaned) {
+            $OrphanRel = [System.IO.Path]::GetRelativePath($CodeRoot, $OrphanPath)
+            $Safety = Test-OrphanedWorktreeSafeToDelete -Path $OrphanPath
+            if ($Safety.SafeToDelete) {
+                Write-Warn "Orphaned worktree directory (not registered in git worktree list): $OrphanRel"
+                Write-Info "   Safe to delete ($($Safety.Reason)). Run: Remove-Item -Recurse -Force '$OrphanPath'"
+            } else {
+                Write-Warn "Orphaned worktree directory (not registered in git worktree list): $OrphanRel"
+                Write-Warn "   NOT auto-removable: $($Safety.Reason)"
+            }
+        }
     }
 
     # Clear any stale process on port 5173 (vite dev server port) before launching
