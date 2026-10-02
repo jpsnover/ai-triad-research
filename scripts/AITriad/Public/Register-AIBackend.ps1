@@ -97,8 +97,9 @@ function Register-AIBackend {
         @{ id = 'openai-gpt-5.5';                 label = 'OpenAI GPT-5.5';                  backend = 'openai' }
         @{ id = 'openai-gpt-5.5-pro';             label = 'OpenAI GPT-5.5 Pro';              backend = 'openai' }
         @{ id = 'ollama-gemma4-e4b-it-q4-k-m';    label = 'Ollama Gemma 4 E4B';              backend = 'ollama' }
-        # t/1437 — z.ai / GLM-5.2 (OpenAI-compatible, 1M-token context)
-        @{ id = 'zai-glm-5-2';                    label = 'z.ai GLM-5.2';                    backend = 'zai' }
+        # t/1437 — z.ai / GLM (OpenAI-compatible, 1M-token context)
+        @{ id = 'zai-glm-5-3';                    label = 'z.ai GLM-5.3';                    backend = 'zai' }
+        @{ id = 'zai-glm-5-3-flash';              label = 'z.ai GLM-5.3 Flash';              backend = 'zai' }
     )
 
     $ModelsJson = $Models | ConvertTo-Json -Compress
@@ -330,9 +331,9 @@ function Register-AIBackend {
       <li>Sign in or create an account</li>
       <li>Create a new key and paste it above</li>
     </ol>
-    <p>GLM-5.2 exposes an OpenAI-compatible chat/completions endpoint with a
+    <p>GLM exposes an OpenAI-compatible chat/completions endpoint with a
        <strong>1M-token context window</strong> — the largest of any registered backend.</p>
-    <p><strong>Models available:</strong> GLM-5.2 (id: <code>zai-glm-5.2</code>).</p>
+    <p><strong>Models available:</strong> GLM-5.3 (id: <code>zai-glm-5-3</code>), GLM-5.3 Flash (id: <code>zai-glm-5-3-flash</code>).</p>
   </div>
 </div>
 

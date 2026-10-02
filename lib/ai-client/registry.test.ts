@@ -488,7 +488,7 @@ describe('moonshot backend routing (t/1945)', () => {
 
   it('getDefaultTimeout stays at base for ollama/zai (same model in both tiers)', () => {
     expect(getDefaultTimeout('ollama-llama3', tierRegistry)).toBe(300_000); // 1× — no frontier distinction
-    expect(getDefaultTimeout('zai-model',     tierRegistry)).toBe(240_000); // 1× — no frontier distinction
+    expect(getDefaultTimeout('zai-model',     tierRegistry)).toBe(300_000); // 1× — no frontier distinction
   });
 
   it('getDefaultTimeout returns base when registry is omitted at runtime (untyped caller → backstop, t/3614)', () => {

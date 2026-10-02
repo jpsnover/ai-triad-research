@@ -89,15 +89,33 @@
       }
     },
     {
-      "id": "zai-glm-5-2",
+      "id": "zai-glm-5-3",
       "apiModelId": "glm-5.3",
       "label": "GLM 5.3",
       "backend": "zai",
-      "minTimeoutMs": 300000,
+      "minTimeoutMs": 400000,
       "picker": {
         "label": "GLM 5.3",
         "order": 10
       }
+    },
+    {
+      "id": "zai-glm-5-3-flash",
+      "apiModelId": "glm-5.3-flash",
+      "label": "GLM 5.3 Flash",
+      "backend": "zai",
+      "minTimeoutMs": 400000,
+      "picker": {
+        "label": "GLM 5.3 Flash",
+        "order": 20
+      }
+    },
+    {
+      "id": "zai-glm-5-2",
+      "apiModelId": "glm-5.2",
+      "label": "GLM 5.2",
+      "backend": "zai",
+      "minTimeoutMs": 400000
     },
     {
       "id": "moonshot-kimi-k3",
@@ -989,7 +1007,7 @@
     "deepseek": "deepseek-deepseek-v4-flash",
     "azure": "azure-gpt-4o",
     "ollama": "ollama-gemma4-e4b-it-q4-k-m",
-    "zai": "zai-glm-5-2",
+    "zai": "zai-glm-5-3",
     "moonshot": "moonshot-kimi-k3",
     "xai": "xai-grok-4-7"
   },
@@ -1042,6 +1060,12 @@
       "deepseek-deepseek-v4-pro"
     ],
     "zai-glm-5-2": [
+      "groq-llama-3.3-70b-versatile"
+    ],
+    "zai-glm-5-3": [
+      "groq-llama-3.3-70b-versatile"
+    ],
+    "zai-glm-5-3-flash": [
       "groq-llama-3.3-70b-versatile"
     ],
     "moonshot-kimi-k3": [
@@ -1235,7 +1259,7 @@
       "azure": "azure-gpt-4o-mini",
       "deepseek": "deepseek-deepseek-v4-flash",
       "ollama": "ollama-gemma4-e4b-it-q4-k-m",
-      "zai": "zai-glm-5-2"
+      "zai": "zai-glm-5-3-flash"
     },
     "advanced": {
       "gemini": "gemini-3.1-pro-preview",
@@ -1245,7 +1269,7 @@
       "azure": "azure-gpt-4.1",
       "deepseek": "deepseek-deepseek-v4-pro",
       "ollama": "ollama-gemma4-e4b-it-q4-k-m",
-      "zai": "zai-glm-5-2"
+      "zai": "zai-glm-5-3"
     }
   },
   "pricing": {
@@ -1348,6 +1372,16 @@
       "inputPer1M": 1.4,
       "outputPer1M": 4.4,
       "cachedInputPer1M": 0.26
+    },
+    "zai-glm-5-3": {
+      "inputPer1M": 1.4,
+      "outputPer1M": 4.4,
+      "cachedInputPer1M": 0.26
+    },
+    "zai-glm-5-3-flash": {
+      "inputPer1M": 0.15,
+      "outputPer1M": 0.5,
+      "cachedInputPer1M": 0.03
     },
     "moonshot-kimi-k3": {
       "inputPer1M": 3,

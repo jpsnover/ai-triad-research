@@ -49,8 +49,8 @@ Describe 'Get-AIDefaultTimeoutSec — base timeouts' -Tag 'enrichment' {
         Invoke-DefaultTimeout 'ollama-gemma4-e4b-it-q4-k-m' | Should -Be 300
     }
 
-    It 'Returns 240 for zai backend' {
-        Invoke-DefaultTimeout 'zai-glm-5-2' | Should -Be 240
+    It 'Returns 300 for zai backend' {
+        Invoke-DefaultTimeout 'zai-glm-5-2' | Should -Be 300
     }
 
     It 'Returns 240 for moonshot backend' {
@@ -87,8 +87,13 @@ Describe 'Get-AIDefaultTimeoutSec — frontier 2x tier (requires ai-models.json 
         Invoke-DefaultTimeout 'ollama-gemma4-e4b-it-q4-k-m' | Should -Be 300
     }
 
-    It 'Returns base (240) for zai — same model in both tiers, no 2x' {
-        Invoke-DefaultTimeout 'zai-glm-5-2' | Should -Be 240
+    It 'Returns 600 for the zai advanced-tier model (2x base)' {
+        # zai advanced = zai-glm-5-3; basic = zai-glm-5-3-flash — different, so 2x applies
+        Invoke-DefaultTimeout 'zai-glm-5-3' | Should -Be 600
+    }
+
+    It 'Returns base (300) for zai basic-tier model, no 2x' {
+        Invoke-DefaultTimeout 'zai-glm-5-3-flash' | Should -Be 300
     }
 }
 
