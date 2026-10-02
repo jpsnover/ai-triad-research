@@ -9,6 +9,7 @@
 import { MOVE_EDGE_MAP } from '../helpers.js';
 import { POVER_INFO, type SpeakerId } from '../types.js';
 import { effectiveCamp } from './utils.js';
+import { normalizeVerdict } from '../types/factVerdict.js';
 
 const SUPPORT_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .filter(([, v]) => v.edgeType === 'support')
@@ -354,7 +355,7 @@ export function formatArgumentNetworkContext(
  *  Tier 2: Unaddressed claims targeting this agent.
  *  Tier 3: Recency (fallback). */
 export function formatEstablishedPoints(
-  allNodes: { id: string; text: string; speaker: string; steelman_of?: string }[],
+  allNodes: { id: string; text: string; speaker: string; steelman_of?: string; verification_status?: string; verification_evidence?: string }[],
   currentSpeaker: string,
   maxPoints: number = 10,
   edges?: { source: string; target: string; type: 'supports' | 'attacks' }[],
@@ -397,7 +398,7 @@ export function formatEstablishedPoints(
   }
 
   // Build prioritized list
-  const result: { id: string; text: string; speaker: string; steelman_of?: string; tag: string }[] = [];
+  const result: { id: string; text: string; speaker: string; steelman_of?: string; verification_status?: string; verification_evidence?: string; tag: string }[] = [];
 
   for (const c of otherClaims) {
     if (tier1.has(c.id)) {
@@ -437,6 +438,10 @@ export function formatEstablishedPoints(
   }
 
   if (capped.length > 0) {
+    const hasFactChecked = capped.some(c => {
+      const v = c.verification_status ? normalizeVerdict(c.verification_status) : undefined;
+      return v === 'false' || v === 'disputed';
+    });
     lines.push(
       '',
       '=== POINTS ALREADY ESTABLISHED BY OTHER DEBATERS ===',
@@ -444,12 +449,24 @@ export function formatEstablishedPoints(
       'If you agree, say so briefly ("as [name] noted") and move to what you can ADD.',
       'If you disagree, attack the specific claim rather than restating it.',
     );
+    if (hasFactChecked) {
+      lines.push(
+        'Some points carry a fact-check tag. A point tagged [FACT-CHECKED FALSE] was checked against sources and found false — do NOT assert it as true or build on it; if it matters, note only that it was fact-checked false. A point tagged [FACT-CHECKED DISPUTED] has conflicting authoritative sources — you may engage it, but present it as contested, never as settled fact.',
+      );
+    }
     for (const c of capped) {
       const tag = c.tag ? ` ${c.tag}` : '';
       const campLabel = c.steelman_of
         ? `Charitable restatement of the ${POVER_INFO[c.steelman_of as Exclude<SpeakerId, 'user'>]?.label ?? c.steelman_of} position, authored by ${POVER_INFO[c.speaker as Exclude<SpeakerId, 'user'>]?.label ?? c.speaker}`
         : (POVER_INFO[c.speaker as Exclude<SpeakerId, 'user'>]?.label ?? c.speaker);
-      lines.push(`- ${c.id} (${campLabel}):${tag} ${c.text}`);
+      const normalized = c.verification_status ? normalizeVerdict(c.verification_status) : undefined;
+      let factTag = '';
+      if (normalized === 'false' || normalized === 'disputed') {
+        const raw = (c.verification_evidence ?? '').replace(/\s+/g, ' ').trim();
+        const ev = raw ? ` — ${raw.length > 120 ? raw.slice(0, 119).trimEnd() + '…' : raw}` : '';
+        factTag = normalized === 'false' ? ` [FACT-CHECKED FALSE${ev}]` : ` [FACT-CHECKED DISPUTED${ev}]`;
+      }
+      lines.push(`- ${c.id} (${campLabel}):${tag}${factTag} ${c.text}`);
     }
   }
 
