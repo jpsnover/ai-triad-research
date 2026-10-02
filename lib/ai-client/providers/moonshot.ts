@@ -15,6 +15,13 @@ const MOONSHOT_BASE = 'https://api.moonshot.ai/v1';
  *  "length"). 32_000 = the clampMaxTokens ceiling in taxonomy-editor aiHandlers.ts — mirrors zai.ts. */
 export const MOONSHOT_DEFAULT_MAX_TOKENS = 32_000;
 
+/** Every Moonshot call sends reasoning_effort:'low'. kimi-k3 always reasons and defaults to 'max'
+ *  (levels: low/high/max; it cannot be disabled). Measured live 2026-10-02 on a structured
+ *  debate-brief prompt: default effort 92s / 1596 reasoning tokens vs low 35s / 18 reasoning tokens,
+ *  both returning valid JSON. In-app at default effort, calls ran 124-269s each (~4-5h per debate).
+ *  Mirrors ZAI_REASONING_EFFORT. */
+export const MOONSHOT_REASONING_EFFORT = 'low';
+
 export async function generateViaMoonshot(
   fetchFn: FetchFn,
   prompt: string,
@@ -40,6 +47,7 @@ export async function generateViaMoonshot(
       messages,
       temperature: opts.fixedTemperature ?? opts.temperature ?? DEFAULT_TEMPERATURE,
       max_tokens: maxTokens,
+      reasoning_effort: MOONSHOT_REASONING_EFFORT,
       ...(opts.jsonMode ? {
         response_format: { type: 'json_object' },
       } : {}),
@@ -101,7 +109,7 @@ export async function generateViaMoonshot(
   if (!text && choice.finish_reason === 'length' && choice.message.reasoning_content) {
     throw new ActionableError({
       goal: 'Generate text via Moonshot',
-      problem: `Moonshot exhausted token budget on reasoning_content (finish_reason: "length", max_tokens: ${maxTokens}, completion_tokens: ${u?.completion_tokens ?? 'unknown'}), producing 0 output chars. Reasoning preview: ${choice.message.reasoning_content.slice(0, 150)}`,
+      problem: `Moonshot exhausted token budget on reasoning_content (finish_reason: "length", max_tokens: ${maxTokens}, reasoning_effort: ${MOONSHOT_REASONING_EFFORT}, completion_tokens: ${u?.completion_tokens ?? 'unknown'}), producing 0 output chars. Reasoning preview: ${choice.message.reasoning_content.slice(0, 150)}`,
       location: 'ai-client.generateViaMoonshot',
       nextSteps: ['Increase max_tokens (current budget may be too low for reasoning models)', 'Switch to a non-reasoning model', 'Simplify the prompt to reduce reasoning depth'],
     });
