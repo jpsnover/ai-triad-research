@@ -2912,10 +2912,17 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Root Cause:** In a pipeline, if the first stage (`gh api`) fails and writes error text to **stdout** (JSON APIs always do), the second stage (`base64`, `jq`, a decoder) receives the error text as its input. It emits a secondary error that names itself — pointing at the decoder layer rather than the API layer. The diagnostic actively misleads: `base64: invalid input` says nothing about a wrong path.
 
 **Prevention:**
-1. **Extract `.content` with `--jq .content` before piping to `base64 -d`:** `gh api repos/…/contents/<path> --jq .content | base64 -d`. If the path is wrong, `--jq` fails on the missing field and `gh api` exits non-zero — the error names the API call, not the decoder.
-2. **Capture first, check, then decode:** store the `gh api` response, validate it has a `content` key (or `jq -e .content`), then decode. Avoids the silent-propagation entirely.
-3. **General rule:** never pipe a command whose failure mode is "error JSON on stdout" directly into a binary decoder. Insert a validation stage (`jq -r .content`, `--jq`, `python -c "…assert 'content' in d…"`) that fails explicitly on the error object before the decoder runs.
-4. **Sibling of the pipeline-exit-code masking pattern (land-from-worktree Sage #96):** `cmd1 | tail` swallowed a non-ff reject. Same class — a downstream command's behavior hides the upstream failure. `set -o pipefail` (Bash) or `$LASTEXITCODE` checks in PowerShell catch exit-code masking; this pattern is the *stdout* variant (error text, not exit code, is the signal).
+1. **Capture, check exit, check non-empty, then decode — never pipe straight through:**
+   ```sh
+   c=$(gh api repos/…/contents/<path>?ref=… --jq '.content') || exit 1
+   [ -n "$c" ] || exit 1
+   printf '%s' "$c" | base64 -d
+   ```
+   The `|| exit 1` after the capture surfaces `gh api`'s non-zero exit. The `[ -n "$c" ]` guard catches the `--jq` yielding empty/null on a 404 body. Both checks must be explicit — a pipe swallows exit codes and passes empty strings silently.
+2. **`--jq .content` alone does NOT prevent this.** On a 404, `--jq '.content'` yields empty/null while `gh api` exits non-zero — the jq filter was present in the failing command and was useless. The real protection is capturing the exit code, not filtering the output.
+3. **`2>/dev/null` discards the diagnostic.** Adding `2>/dev/null` to suppress login noise also silently discards the "Not Found" error that names the failing layer. Remove `2>/dev/null` from API fetch lines during debugging; add it only when you are certain the call succeeds.
+4. **General rule:** never pipe a command whose failure mode is "error JSON on stdout + non-zero exit" directly into a decoder. The decoder receives empty or error-JSON, chokes, and names itself in the error — pointing at the wrong layer. Capture first; check both exit and content; then decode.
+5. **Sibling of the pipeline-exit-code masking pattern (land-from-worktree Sage #96):** `cmd1 | tail` swallowed a non-ff reject. Same exit-code-swallow class; here `2>/dev/null` also discards stderr. `set -o pipefail` (Bash) or `$LASTEXITCODE` checks in PowerShell partially help, but the full fix is always: capture → check → process.
 
 **Status:** Active — 1 instance (TL p/335#109). Pipeline stdout-masking variant of the exit-code-masking class.
 
