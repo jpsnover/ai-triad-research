@@ -186,7 +186,14 @@ vi.mock('./DebateActionBar', () => ({
   ),
   ProgressIndicator: () => <div data-testid="progress-indicator" />,
   DebaterToggles: () => <div data-testid="debater-toggles" />,
-  DebateActions: () => <div data-testid="debate-actions" />,
+  // Renders real toggle buttons (wired to the setters it's actually given) so tests
+  // can drive showEvaluation/showParamHistory without reimplementing the Tools menu.
+  DebateActions: ({ showEvaluation, setShowEvaluation, showParamHistory, setShowParamHistory }: any) => (
+    <div data-testid="debate-actions">
+      <button type="button" onClick={() => setShowEvaluation(!showEvaluation)}>Evaluation</button>
+      <button type="button" onClick={() => setShowParamHistory(!showParamHistory)}>Calibration</button>
+    </div>
+  ),
 }));
 // Controllable feature-flag mock (default: all flags off — preserves existing flag-off tests).
 const mockFlags: Record<string, boolean> = {};
@@ -338,6 +345,41 @@ describe('toolbar', () => {
   it('shows exportStatus text when exportStatus prop is provided', () => {
     render(<DebateWorkspace exportStatus="Exporting..." />);
     expect(screen.getByText('Exporting...')).toBeInTheDocument();
+  });
+});
+
+// ── Evaluation panel scroll-trap fix (t/3843) ─────────────────
+// The eval/param-history panels must render INSIDE .debate-scroll-content, not
+// as siblings after it — that's the actual defect (flex scroll-trap), so a test
+// that only checks "renders somewhere" would pass even if a future refactor
+// moved them back out.
+
+describe('evaluation + parameter-history panels (t/3843)', () => {
+  beforeEach(() => {
+    mockStore.debateLoading = false;
+    mockStore.activeDebate = makeDebate({ phase: 'debate', neutral_evaluations: [{ checkpoint: 'final' }] });
+  });
+
+  it('renders the evaluation panel inside .debate-scroll-content once toggled on via the Evaluation action', () => {
+    const { container } = render(<DebateWorkspace />);
+    expect(container.querySelector('[data-testid="eval-panel"]')).toBeNull();
+
+    fireEvent.click(screen.getByText('Evaluation'));
+
+    const scrollContent = container.querySelector('.debate-scroll-content') as HTMLElement;
+    expect(within(scrollContent).getByTestId('eval-panel')).toBeInTheDocument();
+    // Not merely present in the document — specifically a descendant of the scroll column,
+    // which is the structural fix this ticket exists to verify.
+    expect(container.querySelector(':scope > [data-testid="eval-panel"]')).toBeNull();
+  });
+
+  it('renders the parameter-history panel inside .debate-scroll-content once toggled on', () => {
+    const { container } = render(<DebateWorkspace />);
+
+    fireEvent.click(screen.getByText('Calibration'));
+
+    const scrollContent = container.querySelector('.debate-scroll-content') as HTMLElement;
+    expect(within(scrollContent).getByTestId('param-history')).toBeInTheDocument();
   });
 });
 
