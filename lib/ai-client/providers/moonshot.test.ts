@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi } from 'vitest';
-import { generateViaMoonshot, MOONSHOT_DEFAULT_MAX_TOKENS } from './moonshot.js';
+import { generateViaMoonshot, MOONSHOT_DEFAULT_MAX_TOKENS, MOONSHOT_REASONING_EFFORT } from './moonshot.js';
 import type { GenerateOptions } from '../types.js';
 
 function mockFetch(status: number, body: unknown): ReturnType<typeof vi.fn> {
@@ -65,6 +65,17 @@ describe('generateViaMoonshot — reasoning budget (2026-10-02 kimi-k3 dump)', (
     await generateViaMoonshot(fetchFn, 'p', 'kimi-k3', 'key', opts());
     expect(bodyOf(fetchFn).max_tokens).toBe(MOONSHOT_DEFAULT_MAX_TOKENS);
     expect(MOONSHOT_DEFAULT_MAX_TOKENS).toBe(32_000);
+  });
+
+  it('every request sends reasoning_effort low (kimi-k3 defaults to max — 124-269s per call in-app)', async () => {
+    const plain = mockFetch(200, OK);
+    await generateViaMoonshot(plain, 'p', 'kimi-k3', 'key', opts());
+    expect(bodyOf(plain).reasoning_effort).toBe('low');
+
+    const structured = mockFetch(200, OK);
+    await generateViaMoonshot(structured, 'p', 'kimi-k3', 'key', opts({ jsonMode: true }));
+    expect(bodyOf(structured).reasoning_effort).toBe('low');
+    expect(MOONSHOT_REASONING_EFFORT).toBe('low');
   });
 
   it('caller maxTokens is honoured', async () => {
