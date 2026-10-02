@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi } from 'vitest';
-import { generateViaMoonshot } from './moonshot.js';
+import { generateViaMoonshot, MOONSHOT_DEFAULT_MAX_TOKENS } from './moonshot.js';
 import type { GenerateOptions } from '../types.js';
 
 function mockFetch(status: number, body: unknown): ReturnType<typeof vi.fn> {
@@ -51,5 +51,39 @@ describe('generateViaMoonshot — temperature enforcement (t/2068)', () => {
     const fetchFn = mockFetch(200, OK);
     await generateViaMoonshot(fetchFn, 'p', 'moonshot-other', 'key', opts());
     expect(bodyOf(fetchFn).temperature).toBe(0.7);
+  });
+});
+
+describe('generateViaMoonshot — reasoning budget (2026-10-02 kimi-k3 dump)', () => {
+  const exhausted = {
+    choices: [{ message: { content: '', reasoning_content: 'Let me analyze the order...' }, finish_reason: 'length' }],
+    usage: { completion_tokens: 32000 },
+  };
+
+  it('default max_tokens is the 32k clampMaxTokens ceiling', async () => {
+    const fetchFn = mockFetch(200, OK);
+    await generateViaMoonshot(fetchFn, 'p', 'kimi-k3', 'key', opts());
+    expect(bodyOf(fetchFn).max_tokens).toBe(MOONSHOT_DEFAULT_MAX_TOKENS);
+    expect(MOONSHOT_DEFAULT_MAX_TOKENS).toBe(32_000);
+  });
+
+  it('caller maxTokens is honoured', async () => {
+    const fetchFn = mockFetch(200, OK);
+    await generateViaMoonshot(fetchFn, 'p', 'kimi-k3', 'key', opts({ maxTokens: 4000 }));
+    expect(bodyOf(fetchFn).max_tokens).toBe(4000);
+  });
+
+  it('names reasoning exhaustion when 0 output chars + finish_reason length + reasoning_content', async () => {
+    const fetchFn = mockFetch(200, exhausted);
+    await expect(generateViaMoonshot(fetchFn, 'p', 'kimi-k3', 'key', opts())).rejects.toMatchObject({
+      problem: expect.stringContaining('exhausted token budget on reasoning_content'),
+    });
+  });
+
+  it('plain truncation without reasoning_content is NOT relabelled — returns max_tokens stopReason', async () => {
+    const fetchFn = mockFetch(200, { choices: [{ message: { content: '{"partial":' }, finish_reason: 'length' }] });
+    const r = await generateViaMoonshot(fetchFn, 'p', 'kimi-k3', 'key', opts());
+    expect(r.stopReason).toBe('max_tokens');
+    expect(r.text).toBe('{"partial":');
   });
 });

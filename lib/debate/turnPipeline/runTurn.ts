@@ -50,6 +50,10 @@ export async function runTurnPipeline(
   const isOuterRetry = (input.repairHints?.length ?? 0) > 0;
   const MAX_STAGE_RETRIES = isOuterRetry ? 0 : 3;
   let degradedTurn = false;
+  let step = 0;
+  const totalStages =
+    6  // always: brief, plan, evidence, draft, postDraft, cite
+    + ((!isOuterRetry && !input.skipPreCheck && input.preCheckModel) ? 1 : 0); // draft_quality
 
   // Per-component char counts for prompt growth forensics (t/221)
   const hintsChars =
@@ -78,7 +82,7 @@ export async function runTurnPipeline(
     console.log(`[pipeline] Brief stage FROZEN — reusing prior output`);
   } else {
     for (let briefAttempt = 0; briefAttempt <= MAX_STAGE_RETRIES; briefAttempt++) {
-      onProgress?.('brief', `${input.label} is briefing${briefAttempt > 0 ? ` (retry ${briefAttempt})` : ''}...`);
+      onProgress?.('brief', `${input.label} is briefing${briefAttempt > 0 ? ` (retry ${briefAttempt})` : ''}...`, briefAttempt === 0 ? { step: ++step, total: totalStages } : undefined);
       getGlobalRecorder()?.record({
         type: 'turn.stage', component: 'turn-pipeline', level: 'info',
         speaker: input.label, debate_id: (input as any).debate_id, turn_id: (input as any).turn_id,
@@ -201,7 +205,7 @@ export async function runTurnPipeline(
   } else {
     let planRepairHints: string[] = [];
     for (let planAttempt = 0; planAttempt <= MAX_STAGE_RETRIES; planAttempt++) {
-      onProgress?.('plan', `${input.label} is planning${planAttempt > 0 ? ` (retry ${planAttempt})` : ''}...`);
+      onProgress?.('plan', `${input.label} is planning${planAttempt > 0 ? ` (retry ${planAttempt})` : ''}...`, planAttempt === 0 ? { step: ++step, total: totalStages } : undefined);
       getGlobalRecorder()?.record({
         type: 'turn.stage', component: 'turn-pipeline', level: 'info',
         speaker: input.label,
@@ -345,6 +349,7 @@ export async function runTurnPipeline(
 
   // ── Stage 2.5: EVIDENCE (deterministic — no LLM call) ──
   // Retrieve source document evidence for the plan's target nodes.
+  onProgress?.('evidence', `${input.label} retrieving evidence...`, { step: ++step, total: totalStages });
   // Produces a compact evidence brief injected into the DRAFT prompt.
   if (input.frozenEvidenceBlock != null) {
     evidenceBlock = input.frozenEvidenceBlock;
@@ -477,7 +482,7 @@ export async function runTurnPipeline(
 
   const MAX_DRAFT_RETRIES = isOuterRetry ? 1 : 2; // outer retry gets 1 inner retry; normal gets up to 2
   for (let draftAttempt = 0; draftAttempt <= MAX_DRAFT_RETRIES; draftAttempt++) {
-    onProgress?.('draft', `${input.label} is drafting${draftAttempt > 0 ? ` (retry ${draftAttempt})` : ''}...`);
+    onProgress?.('draft', `${input.label} is drafting${draftAttempt > 0 ? ` (retry ${draftAttempt})` : ''}...`, draftAttempt === 0 ? { step: ++step, total: totalStages } : undefined);
     getGlobalRecorder()?.record({
       type: 'turn.stage', component: 'turn-pipeline', level: 'info',
       speaker: input.label,
@@ -765,6 +770,7 @@ export async function runTurnPipeline(
   }
 
   // ── Post-draft readability edit pass ──
+  onProgress?.('postDraft', `${input.label} post-processing draft...`, { step: ++step, total: totalStages });
   if (draft?.statement) {
     const editResult = await runReadabilityEditPass(draft.statement, input.audience, generate, input.model, `${input.label}`);
     (draft as Record<string, unknown>).statement = editResult.statement;
@@ -1082,7 +1088,7 @@ export async function runTurnPipeline(
     input.preCheckModel &&
     draft?.statement
   ) {
-    onProgress?.('draft_quality', `${input.label} is quality-checking draft...`);
+    onProgress?.('draft_quality', `${input.label} is quality-checking draft...`, { step: ++step, total: totalStages });
     const preCheckPromptText = draftQualityCheckPrompt(
       draft.statement,
       input.lastOpponentStatement,
@@ -1305,9 +1311,10 @@ export async function runTurnPipeline(
     /taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i.test(h)
   ) ?? [];
   let citeParsed: ReturnType<typeof parseStageResponse<CiteWorkProduct>>;
+  let citeStep = 0; // captured on first attempt; filler-retry re-emits the same step (TL t/3845#1)
 
   for (let citeAttempt = 0; citeAttempt <= MAX_STAGE_RETRIES; citeAttempt++) {
-    onProgress?.('cite', `${input.label} is citing${citeAttempt > 0 ? ` (retry ${citeAttempt})` : ''}...`);
+    onProgress?.('cite', `${input.label} is citing${citeAttempt > 0 ? ` (retry ${citeAttempt})` : ''}...`, citeAttempt === 0 ? { step: (citeStep = ++step), total: totalStages } : { step: citeStep, total: totalStages });
     getGlobalRecorder()?.record({
       type: 'turn.stage', component: 'turn-pipeline', level: 'info',
       speaker: input.label,
@@ -1387,7 +1394,7 @@ export async function runTurnPipeline(
   );
   if (weakRefs.length > 0) {
     console.log(`[pipeline] ${weakRefs.length} weak taxonomy_refs detected, running cite retry for: ${weakRefs.map(r => r.node_id).join(', ')}`);
-    onProgress?.('cite', `${input.label} is strengthening refs...`);
+    onProgress?.('cite', `${input.label} is strengthening refs...`, { step: citeStep, total: totalStages });
     const retryPrompt = citeRetryPrompt(
       weakRefs.map(r => ({ node_id: r.node_id, relevance: r.relevance ?? '' })),
       draftJson,

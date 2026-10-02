@@ -21,6 +21,10 @@ function Show-TaxonomyEditor {
         repository) is synced with GitHub via a fast-forward-only pull. If GitHub
         is unreachable or local history has diverged, a warning is shown and the
         launch proceeds with the local copy.
+
+        In dev mode the app is rebuilt from source on every launch (npm run dev),
+        and Node dependencies are reinstalled automatically when pnpm-lock.yaml no
+        longer matches the installed node_modules.
     .PARAMETER Port
         Port for the web server. Default: 7862.
     .PARAMETER DataPath
@@ -426,21 +430,32 @@ function Start-LegacyElectronMode {
         }
     }
 
-    # Check node_modules
-    $NodeModules = Join-Path $AppDir 'node_modules'
-    if (-not (Test-Path $NodeModules)) {
-        Write-Warn "Node modules not installed in taxonomy-editor/."
-        $Choice = $Host.UI.PromptForChoice(
-            'Missing Node Modules',
-            "Run 'pnpm install' in the taxonomy-editor directory?",
-            @('&Yes', '&No'),
-            0
-        )
-        if ($Choice -eq 0) {
+    # Check node_modules against the committed lockfile. `npm run dev` rebuilds the app
+    # from source on every launch, but not its dependencies — so a pull that changed
+    # pnpm-lock.yaml would otherwise run against the stale install. A first-time install
+    # still asks; a lockfile change reinstalls without prompting.
+    $Deps = Test-NodeModulesCurrent -RepoRoot $CodeRoot
+    if (-not $Deps.Current) {
+        $DoInstall = $true
+        if ($Deps.Reason -eq 'not-installed') {
+            Write-Warn 'Node modules are not installed.'
+            $Choice = $Host.UI.PromptForChoice(
+                'Missing Node Modules',
+                "Run 'pnpm install' in the code repository?",
+                @('&Yes', '&No'),
+                0
+            )
+            $DoInstall = ($Choice -eq 0)
+        }
+        else {
+            Write-Warn 'Dependencies changed since the last install (pnpm-lock.yaml differs from node_modules) — reinstalling'
+        }
+
+        if ($DoInstall) {
             Write-Step 'Installing Node modules'
-            Push-Location $AppDir
+            Push-Location $CodeRoot
             try {
-                pnpm install
+                pnpm install --frozen-lockfile
                 if ($LASTEXITCODE -ne 0) {
                     Write-Fail "pnpm install failed (exit code $LASTEXITCODE)."
                     return
@@ -457,11 +472,24 @@ function Start-LegacyElectronMode {
     # Warn on orphaned worktrees (t/2769). A leftover dir under .worktrees/ that git
     # no longer tracks can pollute node_modules resolution for `npm run dev`, surfacing
     # as TS errors that look like source bugs (t/2768). Non-blocking.
+    #
+    # t/3846: Get-OrphanedWorktree finds directories present on disk but NOT
+    # registered in `git worktree list` -- the inverse of what `git worktree prune`
+    # cleans up (registered-but-missing directories). `prune` is a no-op here;
+    # the correct remedy is manual deletion, gated on the safety check below.
     $Orphaned = @(Get-OrphanedWorktree -RepoRoot $CodeRoot)
     if ($Orphaned.Count -gt 0) {
-        $OrphanRel = $Orphaned | ForEach-Object { [System.IO.Path]::GetRelativePath($CodeRoot, $_) }
-        Write-Warn "Orphaned worktrees detected (not registered): $($OrphanRel -join ', ')"
-        Write-Info '   These can pollute node_modules resolution. Run: git worktree prune'
+        foreach ($OrphanPath in $Orphaned) {
+            $OrphanRel = [System.IO.Path]::GetRelativePath($CodeRoot, $OrphanPath)
+            $Safety = Test-OrphanedWorktreeSafeToDelete -Path $OrphanPath
+            if ($Safety.SafeToDelete) {
+                Write-Warn "Orphaned worktree directory (not registered in git worktree list): $OrphanRel"
+                Write-Info "   Safe to delete ($($Safety.Reason)). Run: Remove-Item -Recurse -Force '$OrphanPath'"
+            } else {
+                Write-Warn "Orphaned worktree directory (not registered in git worktree list): $OrphanRel"
+                Write-Warn "   NOT auto-removable: $($Safety.Reason)"
+            }
+        }
     }
 
     # Clear any stale process on port 5173 (vite dev server port) before launching

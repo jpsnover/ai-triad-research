@@ -7,15 +7,15 @@ packages:
   - workflow-app
 
 overrides:
-  axios: ">=1.8.4"
-  brace-expansion: ">=2.0.2"
+  axios: ">=1.20.0 <2"
+  brace-expansion: ">=5.0.12 <6"
   sharp: ">=0.35.4 <0.36"
   fast-xml-parser: ">=5.10.1"
   ip-address: ">=10.3.1"
   uuid: ">=11.1.1"
   "@opentelemetry/core": ">=2.8.0"
-  js-yaml: ">=4.3.1"
-  image-size: ">=1.2.2"
+  js-yaml: ">=5.4.1 <6"
+  image-size: ">=2.0.3 <3"
   # adm-zip pinned >=0.6.1 — CLOSES two HIGH uncontrolled-memory-allocation DoS advisories on the 0.6.x
   # line. The original >=0.6.0 pin closed the first DoS (Dependabot #303/#307, range <0.6.0, fixed in
   # 0.6.0) and stops the graph regressing to 0.5.18 (onnxruntime-node 1.24.3), the t/3442 round-2 hit.
@@ -32,7 +32,7 @@ overrides:
   # converge on the SAME version (a bare ">=" let the standalone lockfile the prod image uses
   # resolve fast-uri@4.1.4 / @xmldom@0.9.12 while root resolved 3.1.7 / 0.8.15 — prod would
   # then run code CI never verified). Relax a cap only with a deliberate major/minor upgrade.
-  fast-uri: ">=3.1.6 <4"
+  fast-uri: ">=3.1.8 <4"
   "@xmldom/xmldom": ">=0.8.15 <0.9"
   browserslist: ">=4.28.7"
   # Security bumps (t/3440 root + t/3441 taxonomy-editor, Dependabot #350/#346-348 + #351/#349/#343/#342).
@@ -45,8 +45,16 @@ overrides:
   # NB — comment lines here must avoid a colon-then-space sequence; check-lockfile-overrides.mjs is
   # line-based and mis-reads any such line as an override entry (that caused the t/3440 gate red).
   hono: ">=4.13.5 <5"
-  morgan: ">=1.12.0 <2"
-  joi: ">=18.2.5 <19"
+  morgan: ">=1.12.1 <2"
+  joi: ">=18.2.6 <19"
+  # Security bumps (Dependabot #354-#406, 2026-10-02). Raised in place above for axios (1.20.0),
+  # brace-expansion (5.0.12), js-yaml (5.4.1), image-size (2.0.3), fast-uri (3.1.8), morgan (1.12.1)
+  # and joi (18.2.6); each graph already sat on that major, so the caps cost no major jump. undici
+  # is a SELECTOR override because 6.x, 7.x and 8.x coexist and only the 7.x line is affected (<7.29.1);
+  # a plain key would collapse every consumer onto one major. Colon-space-free per t/3440.
+  "@grpc/grpc-js": ">=1.14.5 <2"
+  moment: ">=2.31.0 <3"
+  "undici@>=7.0.0 <7.29.1": ">=7.29.1 <7.30"
 
 allowBuilds:
   '@google/genai': true

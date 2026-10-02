@@ -15,7 +15,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { KEY_VALIDATION_PROBES, validateProviderKey, deriveKeyErrorMessage, extractProviderReason } from '../routes/keys.js';
+import { KEY_VALIDATION_PROBES, validateProviderKey, deriveKeyErrorMessage, extractProviderReason, isSafeGeminiProbeModelId } from '../routes/keys.js';
 import { resolveDebateTierModel, getResolvedApiModelId } from '../ai/aiBackends.js';
 import { setGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
@@ -113,6 +113,24 @@ describe('gemini key probe uses generateContent, not list-models (t/1572)', () =
     expect(derivedGeminiProbeModel).toMatch(/^gemini-/);
     expect(derivedGeminiProbeModel).not.toBe('gemini-2.0-flash');
     expect(calls[0]).toContain(`${derivedGeminiProbeModel}:generateContent`);
+  });
+
+  // CodeQL #5919 — the registry-derived id lands in the URL path of a request carrying the key.
+  it('accepts only bare gemini-* model names as the probe model id (both arms)', () => {
+    for (const ok of ['gemini-2.5-flash-lite', 'gemini-3.1-pro-preview', 'gemini-3.5-flash-lite']) {
+      expect(isSafeGeminiProbeModelId(ok)).toBe(true);
+    }
+    for (const bad of [
+      '', 'gpt-4o', 'gemini-', 'gemini-x/../../v1/files', 'gemini-x?alt=media', 'gemini-x#frag',
+      'gemini-x:streamGenerateContent', 'gemini-x%2F', 'gemini-x@evil.example', 'GEMINI-X', 'gemini- x',
+      `gemini-${'a'.repeat(65)}`,
+    ]) {
+      expect(isSafeGeminiProbeModelId(bad), bad).toBe(false);
+    }
+  });
+
+  it('the live registry probe model passes the guard (so the real path never takes the fallback)', () => {
+    expect(isSafeGeminiProbeModelId(derivedGeminiProbeModel)).toBe(true);
   });
 
   it('reports valid:false with a provider-unreachable message on network error (AC#3 unchanged)', async () => {

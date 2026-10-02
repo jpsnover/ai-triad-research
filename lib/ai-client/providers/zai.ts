@@ -8,6 +8,21 @@ import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../defaults.js';
 import { normalizeStopReason } from './stopReason.js';
 
+/** GLM bills reasoning_content against max_tokens, so a 16k budget let a ~46KB debate-brief prompt
+ *  reason until the cap and return 0 output chars (2026-10-02 dump). 32_000 = the clampMaxTokens
+ *  ceiling in taxonomy-editor aiHandlers.ts. */
+export const ZAI_DEFAULT_MAX_TOKENS = 32_000;
+
+/** Every Z.AI call sends reasoning_effort:'low'. Measured live 2026-10-02 on a 46KB debate-brief
+ *  prompt: glm-5.3 at provider-default effort took 205s (12.6k reasoning tokens) per call — ~13 min
+ *  per opening statement across its brief/plan/draft/cite stages — versus 21s (15 reasoning tokens)
+ *  at low effort with a complete answer. thinking:{type:'disabled'} is NOT an option: glm-5.3 and
+ *  glm-5.3-flash reject it (error 1210, "always engages in thinking"). glm-5.2 ignores
+ *  reasoning_effort and still reasons; it relies on the 32k budget alone. */
+export const ZAI_REASONING_EFFORT = 'low';
+
+interface ZaiChoice { finish_reason?: string; message: { content: string; reasoning_content?: string } }
+
 export async function generateViaZai(
   fetchFn: FetchFn,
   prompt: string,
@@ -16,6 +31,7 @@ export async function generateViaZai(
   opts: GenerateOptions,
 ): Promise<ProviderResult> {
   const timeoutMs = opts.timeoutMs!;
+  const maxTokens = opts.maxTokens ?? ZAI_DEFAULT_MAX_TOKENS;
 
   const messages: { role: string; content: string }[] = [];
   if (opts.systemMessage) messages.push({ role: 'system', content: opts.systemMessage });
@@ -31,7 +47,8 @@ export async function generateViaZai(
       model: apiModelId,
       messages,
       temperature: opts.fixedTemperature ?? opts.temperature ?? DEFAULT_TEMPERATURE,
-      max_tokens: opts.maxTokens ?? 16384,
+      max_tokens: maxTokens,
+      reasoning_effort: ZAI_REASONING_EFFORT,
       ...(opts.responseSchema ? {
         response_format: {
           type: 'json_schema',
@@ -63,7 +80,7 @@ export async function generateViaZai(
 
   let json: {
     model?: string; // provider-reported served identity (t/3677)
-    choices?: { finish_reason?: string; message: { content: string; reasoning_content?: string } }[];
+    choices?: ZaiChoice[];
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
   try {
@@ -86,13 +103,14 @@ export async function generateViaZai(
   }
   const choice = json.choices[0];
   const text = choice.message.content;
+  const u = json.usage;
   if (!text) {
     const reasoningExhausted = choice.finish_reason === 'length' && !!choice.message.reasoning_content;
     const reasoningPreview = choice.message.reasoning_content?.slice(0, 150) ?? '';
     throw new ActionableError({
       goal: 'Generate text via Z.AI',
       problem: reasoningExhausted
-        ? `Z.AI exhausted token budget on reasoning_content (finish_reason: "length"), producing 0 output chars. Reasoning preview: ${reasoningPreview}`
+        ? `Z.AI exhausted token budget on reasoning_content (finish_reason: "length", max_tokens: ${maxTokens}, reasoning_effort: ${ZAI_REASONING_EFFORT}, completion_tokens: ${u?.completion_tokens ?? 'unknown'}), producing 0 output chars. Reasoning preview: ${reasoningPreview}`
         : `Z.AI returned empty content (0 chars) after ${response.status} — model may not support this prompt format or response_format. Raw: ${bodyText.slice(0, 300)}`,
       location: 'ai-client.generateViaZai',
       nextSteps: reasoningExhausted
@@ -100,12 +118,11 @@ export async function generateViaZai(
         : ['Try a different model', 'Check if this model supports json_schema response_format', 'Contact Z.AI support'],
     });
   }
-  const u = json.usage;
   const usage = u ? {
     promptTokens: u.prompt_tokens,
     completionTokens: u.completion_tokens,
     totalTokens: u.total_tokens,
   } : undefined;
   const rawStopReason = choice.finish_reason ?? undefined;
-  return { text, usage, rawResponsePreview: text ? undefined : bodyText.slice(0, 200), stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics, providerReportedModel: json.model };
+  return { text, usage, rawResponsePreview: undefined, stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics, providerReportedModel: json.model };
 }

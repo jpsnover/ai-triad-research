@@ -166,7 +166,7 @@ export type EnvelopeGenerateFn = (
   label: string,
 ) => Promise<GenerateResponse>;
 
-export type StageProgressFn = (stage: TurnStageId, label: string) => void;
+export type StageProgressFn = (stage: TurnStageId, label: string, meta?: { step: number; total: number }) => void;
 
 // ── Defaults ────────────────────────────────────────────
 

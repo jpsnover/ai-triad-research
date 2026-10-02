@@ -91,7 +91,7 @@ function baseTimeout(backend: string): number {
     case 'azure':     return 180_000;
     case 'claude':    return 180_000;
     case 'groq':      return 120_000;
-    case 'zai':       return 240_000;
+    case 'zai':       return 300_000;
     case 'moonshot':  return 240_000;
     case 'xai':       return 240_000;
     case 'gemini':    return 120_000;
@@ -104,7 +104,7 @@ function baseTimeout(backend: string): number {
  *
  * When a registry is provided, frontier-tier models (those in
  * debateTiers.advanced but NOT in debateTiers.basic for their backend)
- * receive 2× the backend base. Same-model tiers (ollama, zai) are
+ * receive 2× the backend base. Same-model tiers (ollama) are
  * intentionally held at 1× — they have no frontier/basic distinction (t/2495).
  */
 /**

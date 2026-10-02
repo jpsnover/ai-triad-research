@@ -897,6 +897,9 @@ Export-ModuleMember -Function @(
     'Invoke-DebateDiagnosis'
     # p/550 — McCabe (cyclomatic) complexity, AST-based, per function
     'Measure-CodeComplexity'
+    # t/3829 — complexity-ratchet baseline generator + enforcer
+    'Update-ComplexityBaseline'
+    'Test-ComplexityBudget'
     'Get-AITClaim'
     'Compare-EmbeddingModel'
     'Test-RerankerBaseline'
