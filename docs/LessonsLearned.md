@@ -2632,6 +2632,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-09-29 — Rosetta Stone (p/6#67): direct `git push origin main` rejected — branch protection requires status checks even for admin in direct mode (t/3736 enforce_admins:true). Resolved by landing via branch + PR instead.
+- 2026-10-01 — SummaryViewer (p/385#3): `git push origin HEAD:main` rejected (HTTP 405) — branch protection. Resolved: opened worktree branch + PR #2686.
 
 **Root Cause:** Conflating two independent gates: (1) the `pre-commit` hook (Orca/local) governs whether a commit is allowed on the shared `main` branch — `direct` mode disables this gate; (2) branch protection on GitHub governs whether a push to `main` is accepted — `enforce_admins:true` means this gate is always active, regardless of mode or admin status. AGENTS.md says direct mode makes committing *permitted*; the land-from-worktree skill separately notes "a direct push to `main` bypasses the required checks in EITHER mode and remains a process violation" — but the implication ("and will be rejected") was only enforced by convention until t/3736.
 
@@ -2640,7 +2641,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. The correct path in direct mode: commit on shared main, then `git push origin <new-branch>` (not main), open a PR, CI-green, self-merge.
 3. If you already committed on main and need to land it: cherry-pick to a worktree branch, open a PR from there.
 
-**Status:** Active — 1 instance. t/3736 (enforce_admins:true) made this a hard rejection rather than a process violation.
+**Status:** Active — 2 instances. t/3736 (enforce_admins:true) made this a hard rejection rather than a process violation.
 
 **Applies To:** All agents in direct mode attempting to push commits directly to `main`.
 
@@ -2837,6 +2838,29 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #186 [Process] Glob False-Negative (Possible cwd Mismatch) Misread as "File Doesn't Exist" → Write Silently Clobbers Tracked File
+
+**Pattern:** `Glob(<relative-pattern>)` returns empty. Agent interprets empty as "file doesn't exist" and uses `Write` to create it — silently overwriting an existing tracked file. The actual cause of the empty result is likely a cwd mismatch (Glob resolving relative to scope root rather than repo root), not genuine absence. The clobber is invisible until `git status` before committing reveals `M` (modified tracked) instead of `??` (new untracked).
+
+**Instances:**
+- 2026-10-01 — PowerShell (p/20#57, t/3829 near-miss): `Glob("tests/Measure-CodeComplexity*")` returned no results. Agent used `Write` believing the file was new — it was a previously-merged, hand-verified test file (PR #2637/#2639). `git status` before committing showed `M` not `??`, revealing the clobber. Recovered with `git restore`. Suspected cause: Glob's relative path resolved against scope root (`scripts/AITriad/`) rather than repo root; same cwd-not-repo-root issue as #128 (unconfirmed — needs a live test with absolute path).
+
+**Root Cause:** Two compounding failures: (1) Glob may resolve relative paths against the agent's scope root rather than the repo root, giving a false-negative "no results" rather than a wrong-cwd error — the result is indistinguishable from genuine absence. (2) "No results from a lookup" was treated as proof of non-existence; the correct inference is only "not found in the searched scope." `Write` creates OR overwrites without warning — it has no "fail if exists" mode.
+
+**Prevention:**
+1. **Use absolute paths in Glob to bypass any cwd ambiguity.** `Glob("**/Measure-CodeComplexity*")` (double-star from repo root) or an absolute base path avoids the cwd question entirely. Relative patterns are vulnerable to the scope-root vs repo-root ambiguity.
+2. **Before using `Write` on a "new" file, confirm it is truly untracked:** `git status --short -- <path>` — `??` = safe to Write; `M` or blank (tracked, unmodified) = the file exists; use `Edit` instead.
+3. **"No results" from a lookup proves nothing about existence** — it proves the lookup didn't find it in the scope it searched. Verify with a second method (Read, git status, PowerShell `Test-Path`) before concluding the file is absent.
+4. **Prefer `Edit` over `Write` when extending an existing file.** `Edit` requires a prior `Read`, which would surface the existing content and prevent a blind overwrite.
+
+**Open question:** Whether Glob resets cwd between calls (like Bash/PowerShell tools per #128) is unconfirmed — needs a live test. Until confirmed, use absolute paths or `**/<name>` patterns defensively.
+
+**Status:** Active — 1 instance (PowerShell p/20#57, t/3829); near-miss caught by git status discipline.
+
+**Applies To:** All agents using Glob to check file existence before Write.
+
+---
+
 ## #118 [Build] A Platform Feature Can Be AVAILABLE While a Specific MODE/Tier of It Is Plan-Gated — Verify the Exact MODE Empirically Before Designing Around It
 
 **Pattern:** A GitHub (or any platform) feature may work on your repo while a specific MODE, tier, or sub-option of it is silently plan-gated — surfacing HTTP 422 only when you invoke that mode. Designing a gate/workflow around the plan-gated mode fails at implementation time, *after* you've built around it. The availability trap has **granularity**: "the feature works" ≠ "every mode of it works on this repo's owner-type/plan."
@@ -2999,6 +3023,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. On this machine: repo = `C:/Users/jsnov/repos/ai-triad-research/`; sibling worktrees land at `C:/Users/jsnov/repos/wt-<name>` = `/c/Users/jsnov/repos/wt-<name>` in POSIX. NOT `/c/Users/jsnov/wt-<name>`.
 3. Companion to the MSYS colon-revspec/path trap (#73 facet B): both produce a wrong absolute path for a git resource. #73B = MSYS mangles a correct path; #128 = a wrong path is assembled from an incorrect mental model. The fix for both: **verify the actual path before access** rather than reconstructing from memory.
 4. **Both Bash AND PowerShell tool cwds reset between invocations (t/2222)** — relative paths re-anchor on every call regardless of a prior `cd`. Use absolute paths always; never depend on a prior `cd` persisting to the next tool call.
+5. **(Possible — unconfirmed) Glob may also resolve relative paths against the scope root, not the repo root** — a relative `Glob("tests/Foo*")` from a role scoped to `scripts/AITriad/` may search `scripts/AITriad/tests/` and silently return empty. Use `**/<name>` or absolute base paths in Glob until this is confirmed (p/20#57; see Pattern #186).
 
 **Status:** Active — 4 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash.
 
