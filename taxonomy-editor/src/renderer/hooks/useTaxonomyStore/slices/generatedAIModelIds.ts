@@ -11,6 +11,8 @@ export type AIModel =
   | 'azure-gpt-4o-mini'
   | 'azure-gpt-4.1'
   | 'azure-gpt-4.1-mini'
+  | 'zai-glm-5-3'
+  | 'zai-glm-5-3-flash'
   | 'zai-glm-5-2'
   | 'moonshot-kimi-k3'
   | 'xai-grok-4-6'

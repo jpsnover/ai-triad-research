@@ -443,7 +443,7 @@ function Get-AIDefaultTimeoutSec {
         'azure'     { 180 }
         'claude'    { 180 }
         'groq'      { 120 }
-        'zai'       { 240 }
+        'zai'       { 300 }
         'moonshot'  { 240 }
         'xai'       { 240 }
         'gemini'    { 120 }
