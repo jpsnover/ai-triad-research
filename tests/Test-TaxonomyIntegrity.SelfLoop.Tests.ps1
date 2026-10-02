@@ -94,7 +94,7 @@ Describe 'Test-TaxonomyIntegrity self-loop edges (t/2682)' -Tag 'taxonomy' {
             param($TempDir)
             Mock Get-TaxonomyDir { $TempDir }
 
-            Test-TaxonomyIntegrity -Repair | Out-Null
+            Test-TaxonomyIntegrity -Repair -AuditDir (Join-Path $TempDir 'audit') -WarningAction SilentlyContinue | Out-Null
 
             $EdgesFile = Join-Path $TempDir 'edges.json'
             $Bytes = [System.IO.File]::ReadAllBytes($EdgesFile)

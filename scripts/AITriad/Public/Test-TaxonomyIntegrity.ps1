@@ -20,6 +20,10 @@ function Test-TaxonomyIntegrity {
         Return a summary object.
     .PARAMETER Repair
         Auto-fix all repairable issues (dangling children, parent refs, situation refs, bad edges).
+        Every pruned reference and edge (full edge object, rationale included) is written to a
+        durable audit file before any taxonomy file is modified, and summarised as a warning.
+    .PARAMETER AuditDir
+        Directory for the -Repair audit file. Defaults to <data root>/audit/integrity-repair.
     .EXAMPLE
         Test-TaxonomyIntegrity
     .EXAMPLE
@@ -45,7 +49,8 @@ function Test-TaxonomyIntegrity {
     param(
         [switch]$Detailed,
         [switch]$PassThru,
-        [switch]$Repair
+        [switch]$Repair,
+        [string]$AuditDir
     )
 
     Set-StrictMode -Version Latest
@@ -433,10 +438,25 @@ function Test-TaxonomyIntegrity {
     }
 
     # ── Repair ──
+    # Pruning is a cascade: one deleted node silently takes its children/parent/situation
+    # refs and every edge (with its rationale) along with it — 194 edges for acc-intentions-003
+    # with no record of what ran. So every prune is collected in memory first, written to a
+    # durable audit file BEFORE any taxonomy file is touched (audit write fails → nothing is
+    # pruned), and summarised as a WARN.
     if ($Repair -and $Issues.Count -gt 0) {
         $Repaired = 0
         Write-Host ''
         Write-Host '  Repairing...' -ForegroundColor Cyan
+
+        $Audit = [ordered]@{
+            children        = [System.Collections.Generic.List[object]]::new()
+            parent_ids      = [System.Collections.Generic.List[object]]::new()
+            situation_refs  = [System.Collections.Generic.List[object]]::new()
+            linked_nodes    = [System.Collections.Generic.List[object]]::new()
+            dangling_edges  = [System.Collections.Generic.List[object]]::new()
+            self_loop_edges = [System.Collections.Generic.List[object]]::new()
+        }
+        $MissingIds = [System.Collections.Generic.SortedSet[string]]::new()
 
         # Fix dangling children
         foreach ($DC in $DanglingChildren) {
@@ -444,6 +464,8 @@ function Test-TaxonomyIntegrity {
             $Node.children = @($Node.children | Where-Object { $_ -ne $DC.ChildId })
             $Dirty[$DC.POV] = $true
             $Repaired++
+            $Audit.children.Add([ordered]@{ file = $DC.POV; node_id = $DC.NodeId; removed = $DC.ChildId })
+            [void]$MissingIds.Add($DC.ChildId)
             Write-Host "    Removed child '$($DC.ChildId)' from $($DC.NodeId)" -ForegroundColor Yellow
         }
 
@@ -453,6 +475,8 @@ function Test-TaxonomyIntegrity {
             $Node.parent_id = $null
             $Dirty[$DP.POV] = $true
             $Repaired++
+            $Audit.parent_ids.Add([ordered]@{ file = $DP.POV; node_id = $DP.NodeId; removed = $DP.ParentId })
+            [void]$MissingIds.Add($DP.ParentId)
             Write-Host "    Cleared parent_id '$($DP.ParentId)' from $($DP.NodeId)" -ForegroundColor Yellow
         }
 
@@ -462,6 +486,8 @@ function Test-TaxonomyIntegrity {
             $Node.situation_refs = @($Node.situation_refs | Where-Object { $_ -ne $DS.SitRef })
             $Dirty[$DS.POV] = $true
             $Repaired++
+            $Audit.situation_refs.Add([ordered]@{ file = $DS.POV; node_id = $DS.NodeId; removed = $DS.SitRef })
+            [void]$MissingIds.Add($DS.SitRef)
             Write-Host "    Removed situation_ref '$($DS.SitRef)' from $($DS.NodeId)" -ForegroundColor Yellow
         }
 
@@ -471,38 +497,96 @@ function Test-TaxonomyIntegrity {
             $Node.linked_nodes = @($Node.linked_nodes | Where-Object { $_ -ne $DL.LinkedId })
             $Dirty['situations'] = $true
             $Repaired++
+            $Audit.linked_nodes.Add([ordered]@{ file = 'situations'; node_id = $DL.NodeId; removed = $DL.LinkedId })
+            [void]$MissingIds.Add($DL.LinkedId)
             Write-Host "    Removed linked_node '$($DL.LinkedId)' from $($DL.NodeId)" -ForegroundColor Yellow
         }
 
-        # Fix dangling edges
+        # Fix dangling + self-loop edges in one in-memory pass; written once, after the audit.
+        # Full edge objects are kept in the audit so a wrong prune is restorable (rationale included).
         $EdgesPath = Join-Path $TaxDir 'edges.json'
-        if ($BadEdges -gt 0 -and (Test-Path $EdgesPath)) {
+        $EdgesDirty = $false
+        if (($BadEdges -gt 0 -or $SelfLoopEdges -gt 0) -and (Test-Path $EdgesPath)) {
             $EdgesData = Read-EdgesFile -Path $EdgesPath   # t/2974: coercion-free read (preserve discovered_at strings)
             $ValidIds = [System.Collections.Generic.HashSet[string]]::new($AllNodeIds)
             if ($Registry) { foreach ($Pol in $Registry.policies) { [void]$ValidIds.Add($Pol.id) } }
-            $OrigCount = $EdgesData.edges.Count
-            $EdgesData.edges = @($EdgesData.edges | Where-Object { $ValidIds.Contains($_.source) -and $ValidIds.Contains($_.target) })
-            $Removed = $OrigCount - $EdgesData.edges.Count
+            $Kept = [System.Collections.Generic.List[object]]::new()
+            foreach ($Edge in @($EdgesData.edges)) {
+                $Src = if ($Edge.PSObject.Properties['source']) { $Edge.source } else { $null }
+                $Tgt = if ($Edge.PSObject.Properties['target']) { $Edge.target } else { $null }
+                if (-not $ValidIds.Contains($Src) -or -not $ValidIds.Contains($Tgt)) {
+                    $Audit.dangling_edges.Add($Edge)
+                    foreach ($Id in @($Src, $Tgt)) { if ($null -ne $Id -and -not $ValidIds.Contains($Id)) { [void]$MissingIds.Add($Id) } }
+                }
+                elseif ($null -ne $Src -and $Src -eq $Tgt) {
+                    $Audit.self_loop_edges.Add($Edge)
+                }
+                else { $Kept.Add($Edge) }
+            }
+            if ($Audit.dangling_edges.Count -gt 0) {
+                Write-Host "    Removed $($Audit.dangling_edges.Count) dangling edges" -ForegroundColor Yellow
+            }
+            if ($Audit.self_loop_edges.Count -gt 0) {
+                Write-Host "    Removed $($Audit.self_loop_edges.Count) self-loop edges" -ForegroundColor Yellow
+            }
+            $Removed = $Audit.dangling_edges.Count + $Audit.self_loop_edges.Count
             if ($Removed -gt 0) {
-                Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
+                $EdgesData.edges = @($Kept)
+                $EdgesDirty = $true
                 $Repaired += $Removed
-                Write-Host "    Removed $Removed dangling edges" -ForegroundColor Yellow
             }
         }
 
-        # Fix self-loop edges (source == target). Re-read from disk so this composes
-        # correctly after the dangling-edge fix above may have rewritten the file.
-        if ($SelfLoopEdges -gt 0 -and (Test-Path $EdgesPath)) {
-            $EdgesData = Read-EdgesFile -Path $EdgesPath   # t/2974: coercion-free read (preserve discovered_at strings)
-            $OrigCount = @($EdgesData.edges).Count
-            $EdgesData.edges = @($EdgesData.edges | Where-Object { $_.source -ne $_.target })
-            $Removed = $OrigCount - @($EdgesData.edges).Count
-            if ($Removed -gt 0) {
-                Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath
-                $Repaired += $Removed
-                Write-Host "    Removed $Removed self-loop edges" -ForegroundColor Yellow
+        # Durable audit — written before any taxonomy file so a failed audit prunes nothing.
+        $RefCount  = $Audit.children.Count + $Audit.parent_ids.Count + $Audit.situation_refs.Count + $Audit.linked_nodes.Count
+        $EdgeCount = $Audit.dangling_edges.Count + $Audit.self_loop_edges.Count
+        if ($RefCount + $EdgeCount -gt 0) {
+            $ResolvedAuditDir = if ($AuditDir) { $AuditDir } else { Join-Path (Get-DataRoot) 'audit' 'integrity-repair' }
+            $Stamp = (Get-Date).ToUniversalTime()
+            $AuditPath = Join-Path $ResolvedAuditDir "integrity-repair-$($Stamp.ToString('yyyyMMdd-HHmmss-fff')).json"
+            $AuditDoc = [ordered]@{
+                _schema_version = '1.0.0'
+                _doc            = 'Test-TaxonomyIntegrity -Repair audit: every reference and edge pruned in one run. Edge objects are verbatim (restorable).'
+                cmdlet          = 'Test-TaxonomyIntegrity -Repair'
+                timestamp       = $Stamp.ToString('o')
+                user            = [Environment]::UserName
+                host            = [Environment]::MachineName
+                taxonomy_dir    = $TaxDir
+                missing_ids     = @($MissingIds)
+                counts          = [ordered]@{
+                    children        = $Audit.children.Count
+                    parent_ids      = $Audit.parent_ids.Count
+                    situation_refs  = $Audit.situation_refs.Count
+                    linked_nodes    = $Audit.linked_nodes.Count
+                    dangling_edges  = $Audit.dangling_edges.Count
+                    self_loop_edges = $Audit.self_loop_edges.Count
+                }
+                pruned          = $Audit
             }
+            try {
+                if (-not (Test-Path $ResolvedAuditDir)) { New-Item -ItemType Directory -Path $ResolvedAuditDir -Force | Out-Null }
+                $AuditJson = ($AuditDoc | ConvertTo-Json -Depth 20) -replace "`r`n", "`n"
+                [System.IO.File]::WriteAllText($AuditPath, $AuditJson + "`n", [System.Text.UTF8Encoding]::new($false))
+            }
+            catch {
+                throw (New-ActionableError -Goal 'Record the integrity-repair audit before pruning taxonomy references' `
+                    -Problem "Could not write the repair audit file: $($_.Exception.Message)" `
+                    -Location "Test-TaxonomyIntegrity -Repair → $AuditPath" `
+                    -NextSteps @(
+                        'No taxonomy file was modified — the repair was aborted before any write.',
+                        "Check that '$ResolvedAuditDir' is writable, or pass -AuditDir <writable dir>, then re-run."
+                    ) `
+                    -InnerError $_)
+            }
+
+            $IdList = @($MissingIds)
+            $IdText = (@($IdList | Select-Object -First 10) -join ', ') + $(if ($IdList.Count -gt 10) { " (+$($IdList.Count - 10) more)" } else { '' })
+            Write-Warning ("Test-TaxonomyIntegrity -Repair pruned $RefCount reference(s) and $EdgeCount edge(s) " +
+                "($($Audit.dangling_edges.Count) dangling, $($Audit.self_loop_edges.Count) self-loop) because these IDs no longer exist: " +
+                "$(if ($IdText) { $IdText } else { '(none — self-loops only)' }). Audit (restorable): $AuditPath")
         }
+
+        if ($EdgesDirty) { Write-EdgesFile -EdgesData $EdgesData -Path $EdgesPath }
 
         # Save modified files
         foreach ($PovKey in $Dirty.Keys) {
