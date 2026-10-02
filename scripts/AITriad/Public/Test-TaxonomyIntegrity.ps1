@@ -24,12 +24,22 @@ function Test-TaxonomyIntegrity {
         durable audit file before any taxonomy file is modified, and summarised as a warning.
     .PARAMETER AuditDir
         Directory for the -Repair audit file. Defaults to <data root>/audit/integrity-repair.
+    .PARAMETER Force
+        Required when -Repair would prune more than 20 edges (dangling + self-loop combined)
+        in one run. Without it, the edge-prune step is SKIPPED (edges.json is left untouched,
+        byte-identical) and a Write-Warning explains why; the four reference categories
+        (children, parent_id, situation_refs, linked_nodes) still repair normally, since a
+        human fixing one small dangling-parent issue shouldn't be blocked by an unrelated
+        large edge cascade. See the N=20 threshold comment at the point of use (t/3853) for
+        why that number and when to revisit it.
     .EXAMPLE
         Test-TaxonomyIntegrity
     .EXAMPLE
         Test-TaxonomyIntegrity -Detailed
     .EXAMPLE
         Test-TaxonomyIntegrity -Repair
+    .EXAMPLE
+        Test-TaxonomyIntegrity -Repair -Force
     .LINK
         Show-AITriadHelp
     .LINK
@@ -50,7 +60,8 @@ function Test-TaxonomyIntegrity {
         [switch]$Detailed,
         [switch]$PassThru,
         [switch]$Repair,
-        [string]$AuditDir
+        [string]$AuditDir,
+        [switch]$Force
     )
 
     Set-StrictMode -Version Latest
@@ -504,6 +515,13 @@ function Test-TaxonomyIntegrity {
 
         # Fix dangling + self-loop edges in one in-memory pass; written once, after the audit.
         # Full edge objects are kept in the audit so a wrong prune is restorable (rationale included).
+        #
+        # N=20: chosen WITHOUT historical data -- no -Repair log existed before this change
+        # (t/3853). Reasoned from the incident (194 edges) vs the check's structure (a
+        # dangling parent/child typically cascades to single digits, not dozens). REVISIT
+        # once the audit directory has real entries; this is the first number to re-derive
+        # from evidence, not to raise the first time it's inconvenient.
+        $EdgeForceThreshold = 20
         $EdgesPath = Join-Path $TaxDir 'edges.json'
         $EdgesDirty = $false
         if (($BadEdges -gt 0 -or $SelfLoopEdges -gt 0) -and (Test-Path $EdgesPath)) {
@@ -511,29 +529,42 @@ function Test-TaxonomyIntegrity {
             $ValidIds = [System.Collections.Generic.HashSet[string]]::new($AllNodeIds)
             if ($Registry) { foreach ($Pol in $Registry.policies) { [void]$ValidIds.Add($Pol.id) } }
             $Kept = [System.Collections.Generic.List[object]]::new()
+            $PendingDangling = [System.Collections.Generic.List[object]]::new()
+            $PendingSelfLoop = [System.Collections.Generic.List[object]]::new()
+            $PendingMissingIds = [System.Collections.Generic.SortedSet[string]]::new()
             foreach ($Edge in @($EdgesData.edges)) {
                 $Src = if ($Edge.PSObject.Properties['source']) { $Edge.source } else { $null }
                 $Tgt = if ($Edge.PSObject.Properties['target']) { $Edge.target } else { $null }
                 if (-not $ValidIds.Contains($Src) -or -not $ValidIds.Contains($Tgt)) {
-                    $Audit.dangling_edges.Add($Edge)
-                    foreach ($Id in @($Src, $Tgt)) { if ($null -ne $Id -and -not $ValidIds.Contains($Id)) { [void]$MissingIds.Add($Id) } }
+                    $PendingDangling.Add($Edge)
+                    foreach ($Id in @($Src, $Tgt)) { if ($null -ne $Id -and -not $ValidIds.Contains($Id)) { [void]$PendingMissingIds.Add($Id) } }
                 }
                 elseif ($null -ne $Src -and $Src -eq $Tgt) {
-                    $Audit.self_loop_edges.Add($Edge)
+                    $PendingSelfLoop.Add($Edge)
                 }
                 else { $Kept.Add($Edge) }
             }
-            if ($Audit.dangling_edges.Count -gt 0) {
-                Write-Host "    Removed $($Audit.dangling_edges.Count) dangling edges" -ForegroundColor Yellow
+            $PendingEdgeCount = $PendingDangling.Count + $PendingSelfLoop.Count
+
+            if ($PendingEdgeCount -gt $EdgeForceThreshold -and -not $Force) {
+                # edges.json is intentionally left COMPLETELY untouched here -- not re-read,
+                # not re-serialized, not written -- so a blocked run is byte-identical (t/3853).
+                Write-Warning "Test-TaxonomyIntegrity -Repair: $PendingEdgeCount edge(s) would be pruned, exceeding the $EdgeForceThreshold-edge safety threshold (t/3853) -- SKIPPING edge repair, edges.json left untouched. Re-run with -Repair -Force if this is intentional."
             }
-            if ($Audit.self_loop_edges.Count -gt 0) {
-                Write-Host "    Removed $($Audit.self_loop_edges.Count) self-loop edges" -ForegroundColor Yellow
-            }
-            $Removed = $Audit.dangling_edges.Count + $Audit.self_loop_edges.Count
-            if ($Removed -gt 0) {
+            elseif ($PendingEdgeCount -gt 0) {
+                foreach ($E in $PendingDangling) { $Audit.dangling_edges.Add($E) }
+                foreach ($E in $PendingSelfLoop) { $Audit.self_loop_edges.Add($E) }
+                foreach ($Id in $PendingMissingIds) { [void]$MissingIds.Add($Id) }
+
+                if ($PendingDangling.Count -gt 0) {
+                    Write-Host "    Removed $($PendingDangling.Count) dangling edges" -ForegroundColor Yellow
+                }
+                if ($PendingSelfLoop.Count -gt 0) {
+                    Write-Host "    Removed $($PendingSelfLoop.Count) self-loop edges" -ForegroundColor Yellow
+                }
                 $EdgesData.edges = @($Kept)
                 $EdgesDirty = $true
-                $Repaired += $Removed
+                $Repaired += $PendingEdgeCount
             }
         }
 
