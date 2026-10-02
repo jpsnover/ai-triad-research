@@ -2861,6 +2861,75 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #187 [Process] `gh pr merge` "Not Mergeable" — main Advanced While PR Was Open; Update Branch and Re-Push
+
+**Pattern:** `gh pr merge <N> --squash …` returns "not mergeable" because `main` advanced after the PR was opened and the resulting divergence created a merge conflict (or branch protection `strict: true` requires the PR to be up-to-date with main). The PR cannot be merged in its current state.
+
+**Instances:**
+- 2026-10-02 — Shared Lib (p/5#41, t/3854): `gh pr merge` returned "not mergeable" — main had advanced. Fixed by `git merge origin/main` in the worktree + push, which merged in the new main commits, resolved any conflicts, and brought the PR head up to date.
+
+**Root Cause:** Between PR creation and the merge attempt, one or more commits landed on `main`. If those commits touch files the PR also modifies, a merge conflict prevents GitHub from auto-merging (`not mergeable`). Even without conflict, if branch protection has `strict: true`, the PR must be up-to-date before merging.
+
+**Prevention:**
+1. **Before `gh pr merge`, check `gh pr view <N> --json mergeStateStatus`** — `BEHIND` or `CONFLICTING` means update the branch first. `CLEAN` or `UNSTABLE` means it can proceed.
+2. **To update in a worktree:** `git fetch origin && git merge origin/main` (inside the worktree), resolve any conflicts, then `git push origin <branch>`. Wait for CI to re-pass on the new head, then merge with `--match-head-commit`.
+3. Alternatively, `gh pr update-branch <N>` updates the branch via GitHub's API (merge-based). The merged head must then pass CI before merging.
+4. **The "not mergeable" state can appear silently** between a green CI run and the merge attempt. Always check `mergeStateStatus` (or look for the "not mergeable" error output) rather than assuming CI-green implies merge-ready.
+
+**Status:** Active — 1 instance (Shared Lib p/5#41, t/3854).
+
+**Applies To:** All agents running `gh pr merge` after a PR has been open for a non-trivial period while main is active.
+
+---
+
+## #188 [Build] `git merge --continue --no-edit` Fails — `--no-edit` Is Not a Valid Flag for `git merge --continue`; Use `GIT_EDITOR=true git merge --continue`
+
+**Pattern:** After resolving merge conflicts and staging the result, `git merge --continue --no-edit` exits with an error: `unknown option: --no-edit`. The `--no-edit` flag is valid for `git merge` (initial invocation) and `git commit`, but **not** for `git merge --continue`.
+
+**Instances:**
+- 2026-10-02 — Shared Lib (p/5#41, t/3854): `git merge --continue --no-edit` after conflict resolution → error `unknown option: --no-edit`. Fixed by `GIT_EDITOR=true git merge --continue`, which sets the editor to `true` (exits immediately without modification), letting `--continue` commit using the default merge message without opening an interactive editor.
+
+**Root Cause:** `git merge --continue` is a thin wrapper around `git commit` in merge-in-progress state. It does not accept `--no-edit` as a flag itself. The `--no-edit` flag suppresses the editor on `git merge <branch>` (the start) and on `git commit`, but not on the `--continue` subcommand.
+
+**Prevention:**
+1. **Never `git merge --continue --no-edit`** — the flag is rejected.
+2. **To suppress the editor on `git merge --continue`**, use `GIT_EDITOR=true git merge --continue`. Setting `GIT_EDITOR=true` makes git invoke `/usr/bin/true` (or `true.exe`) as the editor, which exits immediately without modifying the message file — equivalent to `--no-edit` in effect.
+3. Alternatively: `git commit --no-edit` after staging the resolution works if `--continue` is not needed, but `GIT_EDITOR=true git merge --continue` is the canonical path.
+
+**Status:** Active — 1 instance (Shared Lib p/5#41, t/3854).
+
+**Applies To:** All agents resolving merge conflicts with `git merge --continue`.
+
+---
+
+## #189 [Build] `gh api … | base64 -d` — API Error JSON Surfaces as Decoder Error, Pointing at the Wrong Stage; Validate First with `--jq .content`
+
+**Pattern:** `gh api repos/…/contents/<path> | base64 -d` produces `base64: invalid input` when the file path is wrong (or any other fetch error). The `gh api` call returns a JSON error object (`{"message":"Not Found",…}`) on stdout — not file content. `base64 -d` then tries to decode the JSON text as base64 and fails, emitting an error that names `base64` as the failing command, not the `gh api` call. The actual failure (wrong path, 404) is invisible.
+
+**Instances:**
+- 2026-10-02 — Tech Lead (p/335#109): `gh api …/lib/oped/outletBands.test.ts | base64 -d` → `base64: invalid input`. Actual cause: wrong path (file was at `lib/oped/__tests__/outletBands.test.ts`). `gh api` returned a 404 JSON error on stdout; `base64 -d` tried to decode the JSON and failed. Resolved by reading from `gh pr diff` instead, which requires no path guess.
+
+**Root Cause:** In a pipeline, if the first stage (`gh api`) fails and writes error text to **stdout** (JSON APIs always do), the second stage (`base64`, `jq`, a decoder) receives the error text as its input. It emits a secondary error that names itself — pointing at the decoder layer rather than the API layer. The diagnostic actively misleads: `base64: invalid input` says nothing about a wrong path.
+
+**Prevention:**
+1. **Capture, check exit, check non-empty, then decode — never pipe straight through:**
+   ```sh
+   c=$(gh api repos/…/contents/<path>?ref=… --jq '.content') || exit 1
+   [ -n "$c" ] || exit 1
+   printf '%s' "$c" | base64 -d
+   ```
+   The `|| exit 1` after the capture surfaces `gh api`'s non-zero exit. The `[ -n "$c" ]` guard catches the `--jq` yielding empty/null on a 404 body. Both checks must be explicit — a pipe swallows exit codes and passes empty strings silently.
+2. **`--jq .content` alone does NOT prevent this.** On a 404, `--jq '.content'` yields empty/null while `gh api` exits non-zero — the jq filter was present in the failing command and was useless. The real protection is capturing the exit code, not filtering the output.
+3. **`2>/dev/null` discards the diagnostic.** Adding `2>/dev/null` to suppress login noise also silently discards the "Not Found" error that names the failing layer. Remove `2>/dev/null` from API fetch lines during debugging; add it only when you are certain the call succeeds.
+4. **General rule:** never pipe a command whose failure mode is "error JSON on stdout + non-zero exit" directly into a decoder. The decoder receives empty or error-JSON, chokes, and names itself in the error — pointing at the wrong layer. Capture first; check both exit and content; then decode.
+5. **Sibling of the pipeline-exit-code masking pattern (land-from-worktree Sage #96):** `cmd1 | tail` swallowed a non-ff reject. Same exit-code-swallow class; here `2>/dev/null` also discards stderr. `set -o pipefail` (Bash) or `$LASTEXITCODE` checks in PowerShell partially help, but the full fix is always: capture → check → process.
+
+**Status:** Active — 1 instance (TL p/335#109). Pipeline stdout-masking variant of the exit-code-masking class.
+
+**Applies To:** All agents using `gh api …/contents/<path>` (or any JSON API) piped into a decoder or processor.
+
+---
+
 ## #118 [Build] A Platform Feature Can Be AVAILABLE While a Specific MODE/Tier of It Is Plan-Gated — Verify the Exact MODE Empirically Before Designing Around It
 
 **Pattern:** A GitHub (or any platform) feature may work on your repo while a specific MODE, tier, or sub-option of it is silently plan-gated — surfacing HTTP 422 only when you invoke that mode. Designing a gate/workflow around the plan-gated mode fails at implementation time, *after* you've built around it. The availability trap has **granularity**: "the feature works" ≠ "every mode of it works on this repo's owner-type/plan."
