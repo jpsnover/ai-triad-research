@@ -30,6 +30,8 @@ export function getEstablishedPointsContext(engine: DebateEngineInternals, pover
     text: n.canonical_proposition || n.text,
     speaker: n.speaker as string,
     steelman_of: n.steelman_of,
+    verification_status: n.verification_status,
+    verification_evidence: n.verification_evidence,
   }));
 
   return formatEstablishedPoints(allNodes, poverId, ESTABLISHED_POINTS_LIMIT, an.edges.filter(e => e.type !== 'revoice_of') as { source: string; target: string; type: 'supports' | 'attacks' }[]);
