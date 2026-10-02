@@ -74,5 +74,13 @@ export const OUTLET_BANDS: Readonly<Record<string, OutletBand>> = {
 };
 
 export function resolveOutletBand(outlet: string | undefined): OutletBand {
-  return OUTLET_BANDS[outlet ?? 'TechPolicyPress'] ?? OUTLET_BANDS['TechPolicyPress']!;
+  const key = outlet ?? 'TechPolicyPress';
+  const band = OUTLET_BANDS[key];
+  if (band === undefined) {
+    console.warn(
+      `[outletBands] Unknown outlet "${key}" — falling back to TechPolicyPress (1500 words, styled). Check request.params.outlet.`,
+    );
+    return OUTLET_BANDS['TechPolicyPress']!;
+  }
+  return band;
 }
