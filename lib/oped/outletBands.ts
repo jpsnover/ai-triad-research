@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { ActionableError } from '../debate/errors.js';
+
 export interface OutletBandStyle {
   /** Replaces the audience clause in the system prompt L1 ("trying to <audience>"). */
   audience: string;
@@ -74,5 +76,20 @@ export const OUTLET_BANDS: Readonly<Record<string, OutletBand>> = {
 };
 
 export function resolveOutletBand(outlet: string | undefined): OutletBand {
-  return OUTLET_BANDS[outlet ?? 'TechPolicyPress'] ?? OUTLET_BANDS['TechPolicyPress']!;
+  if (outlet === undefined) {
+    return OUTLET_BANDS['TechPolicyPress']!; // deliberate house default, no WARN
+  }
+  const band = OUTLET_BANDS[outlet];
+  if (band === undefined) {
+    throw new ActionableError({
+      goal: 'Resolve outlet band for op-ed generation',
+      problem: `Unknown outlet "${outlet}". Valid outlets: ${Object.keys(OUTLET_BANDS).join(', ')}.`,
+      location: 'lib/oped/outletBands.ts — resolveOutletBand',
+      nextSteps: [
+        `Pass one of the valid outlet names: ${Object.keys(OUTLET_BANDS).join(', ')}.`,
+        'Check request.params.outlet for a typo.',
+      ],
+    });
+  }
+  return band;
 }
