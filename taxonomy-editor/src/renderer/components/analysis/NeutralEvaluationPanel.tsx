@@ -328,6 +328,22 @@ function DiagnosticsSection({ eval: ev }: { eval: NeutralEvaluation }) {
 
 // ── Component ─────────────────────────────────────────────
 
+// Collapse toggle for the panel header — chevron + title, native <button> for
+// built-in keyboard operability (Enter/Space), aria-expanded reflects state (t/3843).
+function CollapseToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className="neutral-eval-collapse-toggle"
+      aria-expanded={!collapsed}
+      onClick={onToggle}
+    >
+      <span className={`neutral-eval-chevron ${collapsed ? 'neutral-eval-chevron-collapsed' : ''}`} aria-hidden="true">▾</span>
+      <span>Independent Evaluation</span>
+    </button>
+  );
+}
+
 export function NeutralEvaluationPanel({
   evaluations,
   speakerMapping,
@@ -339,6 +355,10 @@ export function NeutralEvaluationPanel({
   );
   const [claimFilter, setClaimFilter] = useState<string>('all');
   const [showDivergence, setShowDivergence] = useState(false);
+  // Plain component state — survives re-renders (new eval checkpoint, tab switches)
+  // while the panel stays mounted; resets to expanded on dismiss + reopen, which is
+  // the intended behavior (confirmed with Design, t/3843#7), not a gap.
+  const [collapsed, setCollapsed] = useState(false);
 
   const activeEval = useMemo(
     () => evaluations.find(e => e.checkpoint === activeTab) ?? null,
@@ -355,12 +375,14 @@ export function NeutralEvaluationPanel({
     return (
       <div className="neutral-eval-panel neutral-eval-empty">
         <div className="neutral-eval-header">
-          <h3>Independent Evaluation</h3>
+          <h3 className="neutral-eval-title-row"><CollapseToggle collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} /></h3>
           {onClose && <button className="btn btn-sm" onClick={onClose}>Close</button>}
         </div>
-        <p className="neutral-eval-placeholder">
-          No neutral evaluations available. Evaluations are generated automatically during debate.
-        </p>
+        {!collapsed && (
+          <p className="neutral-eval-placeholder">
+            No neutral evaluations available. Evaluations are generated automatically during debate.
+          </p>
+        )}
       </div>
     );
   }
@@ -368,52 +390,56 @@ export function NeutralEvaluationPanel({
   return (
     <div className="neutral-eval-panel">
       <div className="neutral-eval-header">
-        <h3>Independent Evaluation</h3>
+        <h3 className="neutral-eval-title-row"><CollapseToggle collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} /></h3>
         <span className="neutral-eval-subtitle">Persona-free reading of claims and cruxes</span>
         {onClose && <button className="btn btn-sm" onClick={onClose}>Close</button>}
       </div>
 
-      {/* Checkpoint tabs + divergence toggle */}
-      <CheckpointTabs
-        evaluations={evaluations}
-        activeTab={activeTab}
-        onSelectTab={checkpoint => { setActiveTab(checkpoint); setShowDivergence(false); }}
-        divergenceItems={divergenceItems}
-        showDivergence={showDivergence}
-        onToggleDivergence={() => setShowDivergence(!showDivergence)}
-      />
-
-      {/* Divergence view */}
-      {showDivergence && <DivergenceView items={divergenceItems} />}
-
-      {/* Checkpoint content */}
-      {!showDivergence && activeEval && (
+      {!collapsed && (
         <>
-          {/* Overall assessment */}
-          <div className="neutral-eval-overall">
-            <div className={`neutral-eval-engagement ${activeEval.overall_assessment.debate_is_engaging_real_disagreement ? 'engaging' : 'drifting'}`}>
-              {activeEval.overall_assessment.debate_is_engaging_real_disagreement
-                ? 'Engaging real disagreement'
-                : 'Drifting from core disagreements'}
-            </div>
-            <p className="neutral-eval-notes">{activeEval.overall_assessment.notes}</p>
-          </div>
-
-          {/* Cruxes */}
-          <CruxesSection cruxes={activeEval.cruxes} />
-
-          {/* Claims */}
-          <ClaimsSection
-            claimCount={activeEval.claims.length}
-            filteredClaims={filteredClaims}
-            strongestUnaddressedClaimId={activeEval.overall_assessment.strongest_unaddressed_claim_id}
-            claimFilter={claimFilter}
-            onFilterChange={setClaimFilter}
+          {/* Checkpoint tabs + divergence toggle */}
+          <CheckpointTabs
+            evaluations={evaluations}
+            activeTab={activeTab}
+            onSelectTab={checkpoint => { setActiveTab(checkpoint); setShowDivergence(false); }}
+            divergenceItems={divergenceItems}
+            showDivergence={showDivergence}
+            onToggleDivergence={() => setShowDivergence(!showDivergence)}
           />
 
-          {/* Diagnostics (prompt + raw response) */}
-          {(activeEval.diagnostics_prompt || activeEval.diagnostics_raw_response) && (
-            <DiagnosticsSection eval={activeEval} />
+          {/* Divergence view */}
+          {showDivergence && <DivergenceView items={divergenceItems} />}
+
+          {/* Checkpoint content */}
+          {!showDivergence && activeEval && (
+            <>
+              {/* Overall assessment */}
+              <div className="neutral-eval-overall">
+                <div className={`neutral-eval-engagement ${activeEval.overall_assessment.debate_is_engaging_real_disagreement ? 'engaging' : 'drifting'}`}>
+                  {activeEval.overall_assessment.debate_is_engaging_real_disagreement
+                    ? 'Engaging real disagreement'
+                    : 'Drifting from core disagreements'}
+                </div>
+                <p className="neutral-eval-notes">{activeEval.overall_assessment.notes}</p>
+              </div>
+
+              {/* Cruxes */}
+              <CruxesSection cruxes={activeEval.cruxes} />
+
+              {/* Claims */}
+              <ClaimsSection
+                claimCount={activeEval.claims.length}
+                filteredClaims={filteredClaims}
+                strongestUnaddressedClaimId={activeEval.overall_assessment.strongest_unaddressed_claim_id}
+                claimFilter={claimFilter}
+                onFilterChange={setClaimFilter}
+              />
+
+              {/* Diagnostics (prompt + raw response) */}
+              {(activeEval.diagnostics_prompt || activeEval.diagnostics_raw_response) && (
+                <DiagnosticsSection eval={activeEval} />
+              )}
+            </>
           )}
         </>
       )}

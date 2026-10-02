@@ -781,13 +781,44 @@ function PhaseActionBar({
   );
 }
 
-function NeutralEvalSlot({ showEvaluation, activeDebate }: { showEvaluation: boolean; activeDebate: ActiveDebateSession }) {
+function NeutralEvalSlot({ showEvaluation, activeDebate, onClose }: { showEvaluation: boolean; activeDebate: ActiveDebateSession; onClose: () => void }) {
   if (!showEvaluation || !activeDebate.neutral_evaluations || activeDebate.neutral_evaluations.length === 0) return null;
   return (
     <NeutralEvaluationPanel
       evaluations={activeDebate.neutral_evaluations}
       speakerMapping={activeDebate.neutral_speaker_mapping}
+      onClose={onClose}
     />
+  );
+}
+
+// Evaluation + parameter-history panels live inside the transcript's scroll column
+// (t/3843) — rendering them as siblings of .debate-scroll-content let their content
+// outgrow the fixed-height .debate-workspace and clip against its overflow:hidden,
+// while squeezing the transcript's own scroll area toward zero height.
+function DebateScrollPanels({
+  activeDebate, showEvaluation, setShowEvaluation, showParamHistory, setShowParamHistory,
+}: {
+  activeDebate: ActiveDebateSession;
+  showEvaluation: boolean;
+  setShowEvaluation: React.Dispatch<React.SetStateAction<boolean>>;
+  showParamHistory: boolean;
+  setShowParamHistory: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+  return (
+    <>
+      {/* Neutral evaluation panel — toggled via Evaluation button */}
+      <NeutralEvalSlot
+        showEvaluation={showEvaluation}
+        activeDebate={activeDebate}
+        onClose={() => setShowEvaluation(false)}
+      />
+
+      {/* Parameter calibration history */}
+      {showParamHistory && (
+        <ParameterHistoryPanel onClose={() => setShowParamHistory(false)} />
+      )}
+    </>
   );
 }
 
@@ -827,14 +858,6 @@ function DebateActionRegion({
         showEvaluation={showEvaluation}
         setShowEvaluation={setShowEvaluation}
       />
-
-      {/* Neutral evaluation panel — toggled via Evaluation button */}
-      <NeutralEvalSlot showEvaluation={showEvaluation} activeDebate={activeDebate} />
-
-      {/* Parameter calibration history */}
-      {showParamHistory && (
-        <ParameterHistoryPanel onClose={() => setShowParamHistory(false)} />
-      )}
     </>
   );
 }
@@ -1361,6 +1384,13 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           selectedDiagEntry={selectedDiagEntry}
           selectDiagEntry={selectDiagEntry}
           transcriptEndRef={transcriptEndRef}
+        />
+        <DebateScrollPanels
+          activeDebate={activeDebate}
+          showEvaluation={showEvaluation}
+          setShowEvaluation={setShowEvaluation}
+          showParamHistory={showParamHistory}
+          setShowParamHistory={setShowParamHistory}
         />
       </div>
 

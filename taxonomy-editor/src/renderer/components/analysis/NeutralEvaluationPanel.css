@@ -19,6 +19,28 @@
   margin-bottom: 8px;
 }
 .neutral-eval-header h3 { margin: 0; font-size: var(--text-lg); }
+.neutral-eval-title-row { margin: 0; }
+.neutral-eval-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: var(--text-lg);
+  font-weight: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.neutral-eval-collapse-toggle:hover { color: var(--focus-ring); }
+.neutral-eval-chevron {
+  display: inline-block;
+  font-size: var(--text-sm);
+  transition: transform 0.15s;
+}
+.neutral-eval-chevron-collapsed { transform: rotate(-90deg); }
 .neutral-eval-subtitle {
   font-size: var(--text-sm);
   color: var(--text-muted);
