@@ -31,12 +31,29 @@ function Install-GraphDatabase {
         Docker Desktop/WSL2 it is not preserved inside the container VM, which is the intended reader.)
     .PARAMETER DataPath
         Path for persistent database storage. Default: ~/ai-triad-graphdb.
+    .PARAMETER PassThru
+        Emit a [PSCredential] on the pipeline (t/3839) so the install→query handoff can skip the
+        plaintext $env:NEO4J_PASSWORD hop and pass straight to Invoke-CypherQuery/Export-TaxonomyToGraph
+        via -Credential.
+
+        SINGLE INVARIANT (SO e/242#2): a credential is emitted IF AND ONLY IF it has been
+        authenticated against the running database during THIS invocation — the value's meaning
+        never depends on which code path produced it. Every other outcome (unauthenticated,
+        unreachable, timeout, install failure) emits nothing and WARNS naming why; it does not
+        throw for this reason alone, since several of those paths are the install already
+        succeeding at a different job (e.g. an already-running container).
+    .OUTPUTS
+        [PSCredential] when -PassThru is specified and the credential verified this invocation.
+        Nothing otherwise (warnings explain why on every non-emit path).
     .EXAMPLE
         Install-GraphDatabase
     .EXAMPLE
         Install-GraphDatabase -Credential (Get-Credential neo4j)
     .EXAMPLE
         Install-GraphDatabase -Force
+    .EXAMPLE
+        $cred = Install-GraphDatabase -PassThru
+        Export-TaxonomyToGraph -Full -Credential $cred
     .LINK
         Show-AITriadHelp
     .LINK
@@ -58,7 +75,9 @@ function Install-GraphDatabase {
 
         [PSCredential]$Credential,
 
-        [string]$DataPath = (Join-Path $HOME 'ai-triad-graphdb')
+        [string]$DataPath = (Join-Path $HOME 'ai-triad-graphdb'),
+
+        [switch]$PassThru
     )
 
     Set-StrictMode -Version Latest
@@ -103,6 +122,7 @@ function Install-GraphDatabase {
     } catch {
         Write-Fail 'Docker is not installed or not running.'
         Write-Info 'Install Docker Desktop from https://www.docker.com/products/docker-desktop'
+        if ($PassThru) { Write-Warn '-PassThru: no credential emitted (docker unavailable).' }
         return
     }
 
@@ -122,6 +142,13 @@ function Install-GraphDatabase {
                 Write-OK "Container '$ContainerName' is already running"
                 Write-Info "Neo4j Browser: http://localhost:7474"
                 Write-Info "Bolt URI: bolt://localhost:7687"
+                # t/3839: this container may have been created on a prior run with a DIFFERENT
+                # credential than the one just resolved above — resolution has no way to know what
+                # it was created with. Write-PassThruCredential enforces the single invariant: probe
+                # THIS invocation and emit only on proof, never the resolved-but-unproven value.
+                if ($PassThru) {
+                    Write-PassThruCredential -Credential (ConvertTo-Neo4jCredential -Principal $Neo4jUser -Secret $Neo4jPassword)
+                }
                 return
             } else {
                 Write-Step 'Starting existing container'
@@ -129,6 +156,9 @@ function Install-GraphDatabase {
                 Write-OK "Container '$ContainerName' started"
                 Write-Info "Neo4j Browser: http://localhost:7474"
                 Write-Info "Bolt URI: bolt://localhost:7687"
+                if ($PassThru) {
+                    Write-PassThruCredential -Credential (ConvertTo-Neo4jCredential -Principal $Neo4jUser -Secret $Neo4jPassword)
+                }
                 return
             }
         }
@@ -183,6 +213,7 @@ function Install-GraphDatabase {
             # Don't leave the secret on a failed start.
             Remove-Item -LiteralPath $AuthFile -Force -ErrorAction SilentlyContinue
             Write-Fail 'Failed to start Neo4j container'
+            if ($PassThru) { Write-Warn '-PassThru: no credential emitted (container start failed).' }
             return
         }
     }
@@ -216,13 +247,10 @@ function Install-GraphDatabase {
             # $AuthVerified became $true regardless of whether authentication actually succeeded. Probing via
             # Test-Neo4jAuthProbe (direct Invoke-RestMethod call) instead of through Invoke-CypherQuery means
             # this detection is not blocked on fixing that cmdlet for its other callers (t/3855, separate).
-            # Build the probe SecureString via AppendChar (not ConvertTo-SecureString -AsPlainText, which
-            # PSSA flags) — the plaintext is one we just resolved/generated, re-typed here only to satisfy
-            # Test-Neo4jAuthProbe's -Credential contract for this one localhost auth check.
-            $ProbeSec = [System.Security.SecureString]::new()
-            foreach ($ch in $Neo4jPassword.ToCharArray()) { $ProbeSec.AppendChar($ch) }
-            $ProbeSec.MakeReadOnly()
-            $ProbeCred = [System.Management.Automation.PSCredential]::new($Neo4jUser, $ProbeSec)
+            # t/3839: ConvertTo-Neo4jCredential centralizes the AppendChar SecureString build (not
+            # ConvertTo-SecureString -AsPlainText, which PSSA flags) — the plaintext is one we just
+            # resolved/generated, re-typed here only to satisfy Test-Neo4jAuthProbe's -Credential contract.
+            $ProbeCred = ConvertTo-Neo4jCredential -Principal $Neo4jUser -Secret $Neo4jPassword
             $Probe = Test-Neo4jAuthProbe -Credential $ProbeCred
             $AuthVerified = $Probe.Verified
             if (-not $AuthVerified) {
@@ -237,6 +265,9 @@ function Install-GraphDatabase {
                 # "not a directory: mount a directory onto a file". A zero-byte file holds no secret, keeps the
                 # bind source a file, and restarts cleanly (neo4j only reads NEO4J_AUTH_FILE at first init).
                 [System.IO.File]::WriteAllBytes($AuthFile, [byte[]]@())
+                # t/3839: proof already established above (Step 6b's own probe) — emit directly
+                # rather than re-probing. Satisfies the single invariant: authenticated this invocation.
+                if ($PassThru) { Write-Output $ProbeCred }
             } else {
                 # SO cond.2: leave the file on failure; fail loudly (fail-open is the dangerous case).
                 Write-Warn "Auth secret file LEFT at $AuthFile (contains the Neo4j password) — not removed; credential unverified."
@@ -261,6 +292,7 @@ function Install-GraphDatabase {
             # still-initializing container; leave it with its path + secret note.
             Write-Warn 'Neo4j may still be starting. Check docker logs ai-triad-neo4j'
             Write-Warn "Auth secret file LEFT at $AuthFile (contains the Neo4j password) — not removed while readiness is unconfirmed; remove it once auth is confirmed, or re-run -Force."
+            if ($PassThru) { Write-Warn '-PassThru: no credential emitted (readiness timeout — nothing to authenticate against yet).' }
         }
     }
 
