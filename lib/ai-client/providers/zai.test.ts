@@ -3,8 +3,8 @@
 
 // @vitest-environment node
 // Z.AI reasoning-budget handling: GLM bills reasoning_content against max_tokens, so a debate brief
-// could reason to the cap and return 0 output chars (2026-10-02 dump). Both arms of each decision
-// (reasoning default/low, retry taken/not taken) are asserted on the wire body.
+// could reason to the cap and return 0 output chars (2026-10-02 dump), and at provider-default effort
+// glm-5.3 took ~205s per brief call. Every call now sends reasoning_effort:'low'; asserted on the wire.
 import { describe, it, expect } from 'vitest';
 import type { FetchFn } from '../types.js';
 import { generateViaZai, ZAI_DEFAULT_MAX_TOKENS } from './zai.js';
@@ -26,50 +26,32 @@ function scriptedFetch(bodies: unknown[]): { fetchFn: FetchFn; sent: Sent[] } {
 }
 
 describe('generateViaZai — reasoning budget', () => {
-  it('free-text call: provider-default reasoning (no control sent), default max_tokens is the 32k ceiling', async () => {
-    const { fetchFn, sent } = scriptedFetch([ok]);
-    const r = await generateViaZai(fetchFn, 'p', 'glm-5.3', 'k', { timeoutMs: 5000 });
-    expect(r.text).toBe('brief');
-    expect(sent).toHaveLength(1);
-    expect(sent[0].reasoning_effort).toBeUndefined();
-    expect(sent[0].thinking).toBeUndefined(); // glm-5.3 rejects thinking:disabled (1210) — never sent
-    expect(sent[0].max_tokens).toBe(ZAI_DEFAULT_MAX_TOKENS);
-    expect(ZAI_DEFAULT_MAX_TOKENS).toBe(32_000);
-  });
-
-  it('caller maxTokens is honoured', async () => {
-    const { fetchFn, sent } = scriptedFetch([ok]);
-    await generateViaZai(fetchFn, 'p', 'glm-5.3', 'k', { timeoutMs: 5000, maxTokens: 2048 });
-    expect(sent[0].max_tokens).toBe(2048);
-  });
-
-  it('structured call (jsonMode / responseSchema): reasoning_effort low', async () => {
-    for (const opts of [{ jsonMode: true }, { responseSchema: { type: 'object' } }]) {
+  it('every call (free-text, jsonMode, responseSchema) sends reasoning_effort low and never thinking', async () => {
+    for (const opts of [{}, { jsonMode: true }, { responseSchema: { type: 'object' } }]) {
       const { fetchFn, sent } = scriptedFetch([ok]);
-      await generateViaZai(fetchFn, 'p', 'glm-5.3', 'k', { timeoutMs: 5000, ...opts });
+      const r = await generateViaZai(fetchFn, 'p', 'glm-5.3', 'k', { timeoutMs: 5000, ...opts });
+      expect(r.text).toBe('brief');
+      expect(sent).toHaveLength(1);
       expect(sent[0].reasoning_effort).toBe('low');
-      expect(sent[0].thinking).toBeUndefined();
+      expect(sent[0].thinking).toBeUndefined(); // glm-5.3 rejects thinking:disabled (1210) — never sent
     }
   });
 
-  it('reasoning exhausts the budget → retries once with reasoning_effort low and returns its text', async () => {
+  it('default max_tokens is the 32k ceiling; caller maxTokens is honoured', async () => {
+    const a = scriptedFetch([ok]);
+    await generateViaZai(a.fetchFn, 'p', 'glm-5.3', 'k', { timeoutMs: 5000 });
+    expect(a.sent[0].max_tokens).toBe(ZAI_DEFAULT_MAX_TOKENS);
+    expect(ZAI_DEFAULT_MAX_TOKENS).toBe(32_000);
+
+    const b = scriptedFetch([ok]);
+    await generateViaZai(b.fetchFn, 'p', 'glm-5.3', 'k', { timeoutMs: 5000, maxTokens: 2048 });
+    expect(b.sent[0].max_tokens).toBe(2048);
+  });
+
+  it('reasoning that still exhausts the budget throws once (no retry) naming budget and effort', async () => {
     const { fetchFn, sent } = scriptedFetch([exhausted, ok]);
-    const r = await generateViaZai(fetchFn, 'p', 'glm-5.3', 'k', { timeoutMs: 5000 });
-    expect(r.text).toBe('brief');
-    expect(sent.map(s => s.reasoning_effort)).toEqual([undefined, 'low']);
-  });
-
-  it('retry also exhausted → throws the actionable error naming budget and reasoning mode', async () => {
-    const { fetchFn, sent } = scriptedFetch([exhausted, exhausted]);
-    await expect(generateViaZai(fetchFn, 'p', 'glm-5.3', 'k', { timeoutMs: 5000 }))
-      .rejects.toThrow(/max_tokens: 32000, reasoning: low/);
-    expect(sent).toHaveLength(2);
-  });
-
-  it('structured call that exhausts the budget is NOT retried (reasoning was already low)', async () => {
-    const { fetchFn, sent } = scriptedFetch([exhausted]);
-    await expect(generateViaZai(fetchFn, 'p', 'glm-5.3', 'k', { timeoutMs: 5000, jsonMode: true }))
-      .rejects.toThrow(/exhausted token budget/);
+    await expect(generateViaZai(fetchFn, 'p', 'glm-5.2', 'k', { timeoutMs: 5000 }))
+      .rejects.toThrow(/max_tokens: 32000, reasoning_effort: low/);
     expect(sent).toHaveLength(1);
   });
 });
