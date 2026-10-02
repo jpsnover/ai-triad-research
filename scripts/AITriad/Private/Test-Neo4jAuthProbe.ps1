@@ -50,6 +50,7 @@ function Test-Neo4jAuthProbe {
     $Body = @{ statements = @(@{ statement = 'RETURN 1' }) } | ConvertTo-Json -Depth 5
 
     try {
+        # fetch-allowlist: local graph DB (neo4j) HTTP auth probe, same class as Invoke-CypherQuery (t/3314 AllowedSites)
         $null = Invoke-RestMethod -Uri "$HttpUri/db/neo4j/tx/commit" -Method POST `
             -ContentType 'application/json' -Headers $AuthHeader -Body $Body `
             -TimeoutSec 5 -ErrorAction Stop
