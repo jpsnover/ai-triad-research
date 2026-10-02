@@ -2902,6 +2902,27 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #189 [Build] `gh api … | base64 -d` — API Error JSON Surfaces as Decoder Error, Pointing at the Wrong Stage; Validate First with `--jq .content`
+
+**Pattern:** `gh api repos/…/contents/<path> | base64 -d` produces `base64: invalid input` when the file path is wrong (or any other fetch error). The `gh api` call returns a JSON error object (`{"message":"Not Found",…}`) on stdout — not file content. `base64 -d` then tries to decode the JSON text as base64 and fails, emitting an error that names `base64` as the failing command, not the `gh api` call. The actual failure (wrong path, 404) is invisible.
+
+**Instances:**
+- 2026-10-02 — Tech Lead (p/335#109): `gh api …/lib/oped/outletBands.test.ts | base64 -d` → `base64: invalid input`. Actual cause: wrong path (file was at `lib/oped/__tests__/outletBands.test.ts`). `gh api` returned a 404 JSON error on stdout; `base64 -d` tried to decode the JSON and failed. Resolved by reading from `gh pr diff` instead, which requires no path guess.
+
+**Root Cause:** In a pipeline, if the first stage (`gh api`) fails and writes error text to **stdout** (JSON APIs always do), the second stage (`base64`, `jq`, a decoder) receives the error text as its input. It emits a secondary error that names itself — pointing at the decoder layer rather than the API layer. The diagnostic actively misleads: `base64: invalid input` says nothing about a wrong path.
+
+**Prevention:**
+1. **Extract `.content` with `--jq .content` before piping to `base64 -d`:** `gh api repos/…/contents/<path> --jq .content | base64 -d`. If the path is wrong, `--jq` fails on the missing field and `gh api` exits non-zero — the error names the API call, not the decoder.
+2. **Capture first, check, then decode:** store the `gh api` response, validate it has a `content` key (or `jq -e .content`), then decode. Avoids the silent-propagation entirely.
+3. **General rule:** never pipe a command whose failure mode is "error JSON on stdout" directly into a binary decoder. Insert a validation stage (`jq -r .content`, `--jq`, `python -c "…assert 'content' in d…"`) that fails explicitly on the error object before the decoder runs.
+4. **Sibling of the pipeline-exit-code masking pattern (land-from-worktree Sage #96):** `cmd1 | tail` swallowed a non-ff reject. Same class — a downstream command's behavior hides the upstream failure. `set -o pipefail` (Bash) or `$LASTEXITCODE` checks in PowerShell catch exit-code masking; this pattern is the *stdout* variant (error text, not exit code, is the signal).
+
+**Status:** Active — 1 instance (TL p/335#109). Pipeline stdout-masking variant of the exit-code-masking class.
+
+**Applies To:** All agents using `gh api …/contents/<path>` (or any JSON API) piped into a decoder or processor.
+
+---
+
 ## #118 [Build] A Platform Feature Can Be AVAILABLE While a Specific MODE/Tier of It Is Plan-Gated — Verify the Exact MODE Empirically Before Designing Around It
 
 **Pattern:** A GitHub (or any platform) feature may work on your repo while a specific MODE, tier, or sub-option of it is silently plan-gated — surfacing HTTP 422 only when you invoke that mode. Designing a gate/workflow around the plan-gated mode fails at implementation time, *after* you've built around it. The availability trap has **granularity**: "the feature works" ≠ "every mode of it works on this repo's owner-type/plan."
