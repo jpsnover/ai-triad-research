@@ -55,7 +55,7 @@ Describe 'Test-TaxonomyIntegrity -Repair edges write (t/1946)' -Tag 'taxonomy' {
 
                 Mock Get-TaxonomyDir { $TempDir }
 
-                Test-TaxonomyIntegrity -Repair | Out-Null
+                Test-TaxonomyIntegrity -Repair -AuditDir (Join-Path $TempDir 'audit') -WarningAction SilentlyContinue | Out-Null
 
                 $EdgesFile = Join-Path $TempDir 'edges.json'
                 $Bytes = [System.IO.File]::ReadAllBytes($EdgesFile)
