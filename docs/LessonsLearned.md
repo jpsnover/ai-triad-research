@@ -2861,6 +2861,47 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #187 [Process] `gh pr merge` "Not Mergeable" — main Advanced While PR Was Open; Update Branch and Re-Push
+
+**Pattern:** `gh pr merge <N> --squash …` returns "not mergeable" because `main` advanced after the PR was opened and the resulting divergence created a merge conflict (or branch protection `strict: true` requires the PR to be up-to-date with main). The PR cannot be merged in its current state.
+
+**Instances:**
+- 2026-10-02 — Shared Lib (p/5#41, t/3854): `gh pr merge` returned "not mergeable" — main had advanced. Fixed by `git merge origin/main` in the worktree + push, which merged in the new main commits, resolved any conflicts, and brought the PR head up to date.
+
+**Root Cause:** Between PR creation and the merge attempt, one or more commits landed on `main`. If those commits touch files the PR also modifies, a merge conflict prevents GitHub from auto-merging (`not mergeable`). Even without conflict, if branch protection has `strict: true`, the PR must be up-to-date before merging.
+
+**Prevention:**
+1. **Before `gh pr merge`, check `gh pr view <N> --json mergeStateStatus`** — `BEHIND` or `CONFLICTING` means update the branch first. `CLEAN` or `UNSTABLE` means it can proceed.
+2. **To update in a worktree:** `git fetch origin && git merge origin/main` (inside the worktree), resolve any conflicts, then `git push origin <branch>`. Wait for CI to re-pass on the new head, then merge with `--match-head-commit`.
+3. Alternatively, `gh pr update-branch <N>` updates the branch via GitHub's API (merge-based). The merged head must then pass CI before merging.
+4. **The "not mergeable" state can appear silently** between a green CI run and the merge attempt. Always check `mergeStateStatus` (or look for the "not mergeable" error output) rather than assuming CI-green implies merge-ready.
+
+**Status:** Active — 1 instance (Shared Lib p/5#41, t/3854).
+
+**Applies To:** All agents running `gh pr merge` after a PR has been open for a non-trivial period while main is active.
+
+---
+
+## #188 [Build] `git merge --continue --no-edit` Fails — `--no-edit` Is Not a Valid Flag for `git merge --continue`; Use `GIT_EDITOR=true git merge --continue`
+
+**Pattern:** After resolving merge conflicts and staging the result, `git merge --continue --no-edit` exits with an error: `unknown option: --no-edit`. The `--no-edit` flag is valid for `git merge` (initial invocation) and `git commit`, but **not** for `git merge --continue`.
+
+**Instances:**
+- 2026-10-02 — Shared Lib (p/5#41, t/3854): `git merge --continue --no-edit` after conflict resolution → error `unknown option: --no-edit`. Fixed by `GIT_EDITOR=true git merge --continue`, which sets the editor to `true` (exits immediately without modification), letting `--continue` commit using the default merge message without opening an interactive editor.
+
+**Root Cause:** `git merge --continue` is a thin wrapper around `git commit` in merge-in-progress state. It does not accept `--no-edit` as a flag itself. The `--no-edit` flag suppresses the editor on `git merge <branch>` (the start) and on `git commit`, but not on the `--continue` subcommand.
+
+**Prevention:**
+1. **Never `git merge --continue --no-edit`** — the flag is rejected.
+2. **To suppress the editor on `git merge --continue`**, use `GIT_EDITOR=true git merge --continue`. Setting `GIT_EDITOR=true` makes git invoke `/usr/bin/true` (or `true.exe`) as the editor, which exits immediately without modifying the message file — equivalent to `--no-edit` in effect.
+3. Alternatively: `git commit --no-edit` after staging the resolution works if `--continue` is not needed, but `GIT_EDITOR=true git merge --continue` is the canonical path.
+
+**Status:** Active — 1 instance (Shared Lib p/5#41, t/3854).
+
+**Applies To:** All agents resolving merge conflicts with `git merge --continue`.
+
+---
+
 ## #118 [Build] A Platform Feature Can Be AVAILABLE While a Specific MODE/Tier of It Is Plan-Gated — Verify the Exact MODE Empirically Before Designing Around It
 
 **Pattern:** A GitHub (or any platform) feature may work on your repo while a specific MODE, tier, or sub-option of it is silently plan-gated — surfacing HTTP 422 only when you invoke that mode. Designing a gate/workflow around the plan-gated mode fails at implementation time, *after* you've built around it. The availability trap has **granularity**: "the feature works" ≠ "every mode of it works on this repo's owner-type/plan."
