@@ -2944,6 +2944,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **Sanity-check delta loop results against a known ground truth before reporting.** If "removals" appear where you expect growth, suspect direction inversion.
 3. **In consulting / blocking-gate contexts, direction errors are especially dangerous** — the loop completing is evidence of nothing except that it ran. Validate direction before reporting a result that could block a merge.
 4. **Cross-reference with total counts:** if the total at the end doesn't match the expected final state, the loop's direction is likely wrong.
+5. **Assert the direction with an endpoint anchor.** The loop's final value must equal the current working-tree value (or whatever the known newest state is). One comparison catches inversion, off-by-one windows, and filtered-out commits — loudly, without relying on having remembered `--reverse`. Example: after the loop, assert `final_count == $(git ls-files … | wc -l)`. Generalises to any ordered-iteration delta (changelog, time series): anchor to a known endpoint, fail loud on mismatch. (p/691#7)
 
 **Status:** Active — 1 instance (Second Opinion p/691#5). Silent directional inversion; completing version produces confident wrong answer. Consulting-context risk: a wrong "N items removed" in a blocking-gate review.
 
