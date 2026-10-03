@@ -332,11 +332,16 @@ DETAIL: $($AudDir.DetailInstruction)
                 return $Repaired | ConvertFrom-Json
             }
             catch {
-                Write-Warn "Repair failed for $AgentSpeaker"
-                return [PSCustomObject]@{
-                    content       = $ResponseText
-                    taxonomy_refs = @()
-                }
+                # t/3857: this used to fabricate a PSCustomObject carrying the raw unparsed text
+                # instead of $null -- a TRUTHY value, so the call site's `if ($Response)` check
+                # (which correctly treats a genuine $null from the sibling check above as failure)
+                # instead added the raw/corrupted text to the debate transcript as if it were the
+                # agent's real statement. Return $null, matching the sibling failure path, so the
+                # existing `if ($Response) {...} else { Write-Warn "...failed..." }` call-site
+                # logic -- not a new mechanism -- does its job. Write-Warning (a real stream) in
+                # place of Write-Warn (Write-Host wrapper, not capturable) per the capturability axis.
+                Write-Warning "Repair failed for $AgentSpeaker -- discarding unparseable response: $ResponseText"
+                return $null
             }
         }
     }

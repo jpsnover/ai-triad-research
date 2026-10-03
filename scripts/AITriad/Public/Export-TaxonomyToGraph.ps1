@@ -115,9 +115,14 @@ function Export-TaxonomyToGraph {
         $null = Invoke-Cypher -Query 'RETURN 1 AS test'
         Write-OK "Connected to Neo4j at $Uri"
     } catch {
-        Write-Fail "Cannot connect to Neo4j at $Uri — $_"
-        Write-Info 'Run Install-GraphDatabase to set up Neo4j, or ensure it is running.'
-        return
+        # t/3857: this used to Write-Fail + bare `return` -- never rethrow, so a connectivity
+        # failure here was indistinguishable from a successful (silent) export. No internal
+        # caller relies on this today, but a silent $null on failure is a trap for the next one.
+        throw (New-ActionableError `
+                -Goal 'Export the taxonomy to Neo4j' `
+                -Problem "Cannot connect to Neo4j at ${Uri}: $($_.Exception.Message)" `
+                -Location 'Export-TaxonomyToGraph' `
+                -NextSteps 'Run Install-GraphDatabase to set up Neo4j, or ensure it is running.')
     }
 
     # ── Step 2: Clear database if Full ──

@@ -531,9 +531,15 @@ init();
         $Listener.Start()
     }
     catch {
-        Write-Fail "Could not start HTTP listener on port $Port — $($_.Exception.Message)"
-        Write-Info 'Try a different port with -Port or close the process using that port.'
-        return
+        # t/3857: this used to Write-Fail + bare `return` -- never rethrow, so a failure to bind
+        # the config UI's port was indistinguishable from the UI having started successfully. No
+        # internal caller relies on this today, but a silent $null on failure is a trap for the
+        # next one.
+        throw (New-ActionableError `
+                -Goal 'Open the AI backend configuration UI' `
+                -Problem "Could not start HTTP listener on port ${Port}: $($_.Exception.Message)" `
+                -Location 'Register-AIBackend' `
+                -NextSteps 'Try a different port with -Port or close the process using that port.')
     }
 
     Write-Step 'AI Backend Configuration'

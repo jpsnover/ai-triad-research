@@ -120,10 +120,14 @@ function Install-GraphDatabase {
         if ($LASTEXITCODE -ne 0) { throw 'Docker not responding' }
         Write-OK 'Docker is available'
     } catch {
-        Write-Fail 'Docker is not installed or not running.'
-        Write-Info 'Install Docker Desktop from https://www.docker.com/products/docker-desktop'
-        if ($PassThru) { Write-Warn '-PassThru: no credential emitted (docker unavailable).' }
-        return
+        # t/3857: this used to Write-Fail + bare `return` -- never rethrow, so a missing/stopped
+        # Docker daemon was indistinguishable from a successful (silent no-op) install. No internal
+        # caller relies on this today, but a silent $null on failure is a trap for the next one.
+        throw (New-ActionableError `
+                -Goal 'Install Neo4j via Docker' `
+                -Problem 'Docker is not installed or not running.' `
+                -Location 'Install-GraphDatabase' `
+                -NextSteps 'Install Docker Desktop from https://www.docker.com/products/docker-desktop')
     }
 
     # ── Step 2: Check for existing container ──
