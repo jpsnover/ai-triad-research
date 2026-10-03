@@ -47,7 +47,9 @@ import { appendGateTelemetry, gateTelemetryDir } from './gate-telemetry.mjs'; //
 // wrong repo for a -R merge — they deliberately keep the narrow regex (neither has a live caller as
 // of t/3695#17: auto-merge-jointgv-guard disabled; --base-ref-stale unwired).
 const REPO_FLAG = String.raw`(?:\s+(?:-R|--repo)(?:=|\s+)\S+)`;
-export const GH_PR_MERGE_RE = /\bgh(?:\.exe)?\s+pr\s+merge\b/; // RED-ARM GV t/3871 - DO NOT MERGE
+export const GH_PR_MERGE_RE = new RegExp(
+  String.raw`\bgh(?:\.exe)?` + REPO_FLAG + '*' + String.raw`\s+pr` + REPO_FLAG + '*' + String.raw`\s+merge\b`,
+);
 
 export function mergeGuardVerdict(command) {
   const cmd = command || '';
