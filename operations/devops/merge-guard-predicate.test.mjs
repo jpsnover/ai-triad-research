@@ -197,6 +197,44 @@ test('NO-OP: a non-merge command is never blocked', () => {
   }
 });
 
+// t/3695#19: repo-selector bypass. Every form below returned 'not-a-merge' before the fix — a bare
+// repo-scoped merge passed silently through ordinary use.
+const REPO_SCOPED_MERGES = [
+  'gh -R x/y pr merge 1901 --squash',
+  'gh --repo x/y pr merge 1901 --squash',
+  'gh --repo=x/y pr merge 1901 --squash',
+  'gh pr -R x/y merge 1901 --squash',
+  'gh.exe -R jpsnover/ai-triad-research pr merge 1901 --squash',
+];
+
+test('t/3695 BLOCK arm: bare repo-scoped merge (-R / --repo / --repo= / either side of pr) is caught', () => {
+  for (const c of REPO_SCOPED_MERGES) {
+    const v = mergeGuardVerdict(c);
+    assert.equal(v.block, true, `should fire on: ${c}`);
+    assert.equal(v.reason, 'missing-match-head-commit', `wrong reason on: ${c}`);
+  }
+});
+
+test('t/3695 ALLOW arm: repo-scoped merge WITH --match-head-commit stays silent', () => {
+  for (const c of REPO_SCOPED_MERGES) {
+    const v = mergeGuardVerdict(`${c} --match-head-commit 1578b0a0`);
+    assert.equal(v.block, false, `should not fire on pinned: ${c}`);
+    assert.equal(v.reason, 'guarded');
+  }
+});
+
+test('t/3695 ALLOW arm: repo-scoped --auto stays exempt', () => {
+  assert.equal(mergeGuardVerdict('gh -R x/y pr merge 1901 --auto --squash').reason, 'auto-exempt');
+});
+
+test('t/3695 NO-OP: repo-scoped NON-merge commands stay silent (no widening false positive)', () => {
+  for (const c of ['gh -R x/y pr view 1901', 'gh --repo x/y pr checks 1901', 'gh pr view 1901', 'gh -R x/y issue list']) {
+    const v = mergeGuardVerdict(c);
+    assert.equal(v.block, false, `should not fire on: ${c}`);
+    assert.equal(v.reason, 'not-a-merge');
+  }
+});
+
 test('robustness: gh.exe (win32 fleet) is matched', () => {
   assert.equal(mergeGuardVerdict('gh.exe pr merge 1901 --squash').block, true);
   assert.equal(mergeGuardVerdict('gh.exe pr merge 1901 --squash --match-head-commit=abc').block, false);
