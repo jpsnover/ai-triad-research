@@ -4066,3 +4066,28 @@ SO's formulation (e/243#12): *"I verify claims I'm challenging and skip claims I
 **Status:** Active — 1 instance (TL + SO, t/3851, e/243#9–#12). Structural: applies to any multi-step reasoning chain where intermediate claims serve as premises for later steps.
 
 **Applies To:** All agents reasoning multi-step, especially SO consultations and any chain where one agent's inference output becomes another agent's task input.
+
+---
+
+## #195 [Build] Shelling tsx/node from Pester on Windows — Multiple Failure Modes; Split Cross-Language Tests by Native Runner
+
+**Pattern:** Invoking `tsx` (or `npx`/`node`) from inside a Pester test process on Windows produces at least two distinct failure modes depending on how the shell-out is done — neither is a clean failure with a useful message. The root-cause fix is architectural: Pester tests PowerShell; vitest tests TypeScript. Cross-process shell-outs from one runner to the other's language runtime are unsupported on this stack.
+
+**Facet A — `Start-Process npx -WindowStyle Hidden -Wait` hangs:** `npx` is a `.cmd` wrapper. `-WindowStyle Hidden` cannot headlessly launch a `.cmd` process; `Start-Process -Wait` blocks indefinitely (2-minute Bash-tool timeout). No error — just silence, then exit 143.
+
+**Facet B — `&` / `Start-Process tsx <real .ts file>` inside `BeforeAll` crashes with `InvalidOperationException`:** Running `tsx <real-file.ts>` (any real file, not `tsx --version`) from inside a Pester `BeforeAll` on this Windows agent reproducibly triggers a spurious `InvalidOperationException: break/continue label escaped` (pester/Pester#2669-shaped) that silently aborts the whole Pester run. `tsx --version` runs fine — only real TypeScript file execution triggers it. Root cause not fully isolated; discriminated by elimination.
+
+**Instances:**
+- 2026-10-03 — DevOps (p/26#132, Facet A): `Start-Process -FilePath npx -WindowStyle Hidden -Wait` hung 2 minutes; timed out. Resolved by abandoning the shell-out entirely.
+- 2026-10-03 — DevOps (p/26#133, Facet B): `tsx <real .ts file>` inside Pester `BeforeAll` crashed with `InvalidOperationException` ("break/continue label escaped"), silently aborting the Pester run. `tsx --version` was fine. Resolved by splitting to a native vitest test for the TS side.
+
+**Root Cause:** Pester and tsx/node are separate process trees with incompatible stdio/signal models on Windows. `.cmd` wrappers for Node tooling are not designed to be launched headlessly from `-WindowStyle Hidden`. The Pester#2669 shape suggests a PS pipeline/label scope escape when tsx tears down. Both are sharp edges on a combination the codebase doesn't use by design: Pester tests PS, vitest tests TS.
+
+**Prevention:**
+1. **Never shell tsx/node from inside a Pester process.** If you need to verify TS behaviour as part of a cross-language integration check, write a vitest test for the TS side and a separate Pester test for the PS side; do not bridge them with a shell-out.
+2. **`Start-Process -WindowStyle Hidden` cannot launch `.cmd` wrappers headlessly.** Use the underlying binary directly (node, not npx), or avoid the shell-out.
+3. **`tsx --version` succeeding ≠ `tsx <file>` safe in a Pester process.** The crash is triggered by real TypeScript execution, not the binary launch itself. Don't use version-probe success as evidence that real execution will work.
+
+**Status:** Active — 2 instances (DevOps p/26#132, p/26#133). Deterministic on this Windows agent; expected to recur if cross-runner shell-outs are attempted.
+
+**Applies To:** All agents writing Pester tests that are tempted to shell out to tsx/node for cross-language validation.
