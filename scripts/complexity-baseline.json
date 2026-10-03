@@ -8,899 +8,903 @@
     "max": 141,
     "countOver": 4
   },
-  "AITriad\\Private\\Assert-EntityRelationsValid.ps1": {
+  "AITriad/Private/Assert-EntityRelationsValid.ps1": {
     "max": 22,
     "countOver": 1
   },
-  "AITriad\\Private\\Assert-TaxonomyCacheFresh.ps1": {
+  "AITriad/Private/Assert-TaxonomyCacheFresh.ps1": {
     "max": 25,
     "countOver": 1
   },
-  "AITriad\\Private\\Build-VocabularyBlock.ps1": {
+  "AITriad/Private/Build-VocabularyBlock.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Private\\ClaimEntityResolution.ps1": {
+  "AITriad/Private/ClaimEntityResolution.ps1": {
     "max": 20,
     "countOver": 1
   },
-  "AITriad\\Private\\ConvertFrom-EdgesJson.ps1": {
+  "AITriad/Private/ConvertFrom-EdgesJson.ps1": {
     "max": 25,
     "countOver": 1
   },
-  "AITriad\\Private\\ConvertFrom-JsonPreserveShape.ps1": {
+  "AITriad/Private/ConvertFrom-JsonPreserveShape.ps1": {
     "max": 25,
     "countOver": 1
   },
-  "AITriad\\Private\\ConvertTo-TaxonomyNode.ps1": {
+  "AITriad/Private/ConvertTo-TaxonomyNode.ps1": {
     "max": 22,
     "countOver": 1
   },
-  "AITriad\\Private\\CuiTests\\Test-CuiAi001.ps1": {
+  "AITriad/Private/CuiTests/Test-CuiAi001.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Private\\CuiTests\\Test-CuiAuth002.ps1": {
+  "AITriad/Private/CuiTests/Test-CuiAuth002.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Private\\CuiTests\\Test-CuiAuth003.ps1": {
+  "AITriad/Private/CuiTests/Test-CuiAuth003.ps1": {
     "max": 18,
     "countOver": 1
   },
-  "AITriad\\Private\\CuiTests\\Test-CuiData001.ps1": {
+  "AITriad/Private/CuiTests/Test-CuiData001.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Private\\CuiTests\\Test-CuiDeb002.ps1": {
+  "AITriad/Private/CuiTests/Test-CuiDeb002.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Private\\CuiTests\\Test-CuiDeb005.ps1": {
+  "AITriad/Private/CuiTests/Test-CuiDeb005.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Private\\CuiTests\\Test-CuiTax002.ps1": {
+  "AITriad/Private/CuiTests/Test-CuiTax002.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Private\\CuiTests\\Test-CuiTax003Ux.ps1": {
+  "AITriad/Private/CuiTests/Test-CuiTax003Ux.ps1": {
     "max": 19,
     "countOver": 1
   },
-  "AITriad\\Private\\CuiTests\\Test-CuiTax010.ps1": {
+  "AITriad/Private/CuiTests/Test-CuiTax010.ps1": {
     "max": 19,
     "countOver": 1
   },
-  "AITriad\\Private\\CuiTests\\Test-CuiTax011.ps1": {
+  "AITriad/Private/CuiTests/Test-CuiTax011.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Private\\Get-DebateQualityMetrics.ps1": {
+  "AITriad/Private/Get-DebateQualityMetrics.ps1": {
     "max": 33,
     "countOver": 1
   },
-  "AITriad\\Private\\Get-DebateTestedTier.ps1": {
+  "AITriad/Private/Get-DebateTestedTier.ps1": {
     "max": 22,
     "countOver": 1
   },
-  "AITriad\\Private\\Get-EmbeddingClusters.ps1": {
+  "AITriad/Private/Get-EmbeddingClusters.ps1": {
     "max": 20,
     "countOver": 1
   },
-  "AITriad\\Private\\Get-FilteredCandidates.ps1": {
+  "AITriad/Private/Get-FilteredCandidates.ps1": {
     "max": 20,
     "countOver": 1
   },
-  "AITriad\\Private\\Get-NodeBatches.ps1": {
+  "AITriad/Private/Get-NodeBatches.ps1": {
     "max": 21,
     "countOver": 1
   },
-  "AITriad\\Private\\Get-TaxonomyHealthData.ps1": {
+  "AITriad/Private/Get-TaxonomyHealthData.ps1": {
     "max": 156,
     "countOver": 1
   },
-  "AITriad\\Private\\Get-TextEmbedding.ps1": {
+  "AITriad/Private/Get-TextEmbedding.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-BatchEdgeDiscovery.ps1": {
+  "AITriad/Private/Invoke-BatchEdgeDiscovery.ps1": {
     "max": 51,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-BatchEmbeddings.ps1": {
+  "AITriad/Private/Invoke-BatchEmbeddings.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-DependencyCheck.ps1": {
+  "AITriad/Private/Invoke-DependencyCheck.ps1": {
     "max": 142,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-DocumentSummary.ps1": {
+  "AITriad/Private/Invoke-DocumentSummary.ps1": {
     "max": 117,
     "countOver": 2
   },
-  "AITriad\\Private\\Invoke-EmbeddingFirstEdgeDiscovery.ps1": {
+  "AITriad/Private/Invoke-EmbeddingFirstEdgeDiscovery.ps1": {
     "max": 83,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-IterativeExtraction.ps1": {
+  "AITriad/Private/Invoke-IterativeExtraction.ps1": {
     "max": 83,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-Mechanism5RetrievalPass.ps1": {
+  "AITriad/Private/Invoke-Mechanism5RetrievalPass.ps1": {
     "max": 49,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-PerNodeEdgeDiscovery.ps1": {
+  "AITriad/Private/Invoke-PerNodeEdgeDiscovery.ps1": {
     "max": 96,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-PolarityGatePass.ps1": {
+  "AITriad/Private/Invoke-PolarityGatePass.ps1": {
     "max": 53,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-ProposalApply.ps1": {
+  "AITriad/Private/Invoke-ProposalApply.ps1": {
     "max": 66,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-RemoteCheck.ps1": {
+  "AITriad/Private/Invoke-RemoteCheck.ps1": {
     "max": 30,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-RetrievalConfidencePass.ps1": {
+  "AITriad/Private/Invoke-RetrievalConfidencePass.ps1": {
     "max": 30,
     "countOver": 1
   },
-  "AITriad\\Private\\Invoke-SummaryPipeline.ps1": {
+  "AITriad/Private/Invoke-SummaryPipeline.ps1": {
     "max": 72,
     "countOver": 1
   },
-  "AITriad\\Private\\JsonSurgeryCore.ps1": {
+  "AITriad/Private/JsonSurgeryCore.ps1": {
     "max": 28,
     "countOver": 3
   },
-  "AITriad\\Private\\LogicalFormPass.ps1": {
+  "AITriad/Private/LogicalFormPass.ps1": {
     "max": 44,
     "countOver": 2
   },
-  "AITriad\\Private\\Merge-ChunkSummaries.ps1": {
+  "AITriad/Private/Merge-ChunkSummaries.ps1": {
     "max": 44,
     "countOver": 1
   },
-  "AITriad\\Private\\Merge-CruxQuestionForm.ps1": {
+  "AITriad/Private/Merge-CruxQuestionForm.ps1": {
     "max": 27,
     "countOver": 1
   },
-  "AITriad\\Private\\OrganizationsStore.ps1": {
+  "AITriad/Private/OrganizationsStore.ps1": {
     "max": 55,
     "countOver": 1
   },
-  "AITriad\\Private\\Remove-DuplicateClaims.ps1": {
+  "AITriad/Private/Remove-DuplicateClaims.ps1": {
     "max": 58,
     "countOver": 1
   },
-  "AITriad\\Private\\Resolve-UnmappedConcepts.ps1": {
+  "AITriad/Private/Resolve-UnmappedConcepts.ps1": {
     "max": 39,
     "countOver": 1
   },
-  "AITriad\\Private\\Save-WsbChanges.ps1": {
+  "AITriad/Private/Save-WsbChanges.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Private\\Set-SituationBdiInterpretation.ps1": {
+  "AITriad/Private/Set-SituationBdiInterpretation.ps1": {
     "max": 25,
     "countOver": 1
   },
-  "AITriad\\Private\\Split-DocumentChunks.ps1": {
+  "AITriad/Private/Split-DocumentChunks.ps1": {
     "max": 22,
     "countOver": 1
   },
-  "AITriad\\Private\\Test-DirectionalAgreement.ps1": {
+  "AITriad/Private/Test-DirectionalAgreement.ps1": {
     "max": 24,
     "countOver": 1
   },
-  "AITriad\\Private\\Test-EdgeRationaleRegression.ps1": {
+  "AITriad/Private/Test-EdgeRationaleRegression.ps1": {
     "max": 35,
     "countOver": 2
   },
-  "AITriad\\Private\\Test-EntityRelationGraph.ps1": {
+  "AITriad/Private/Test-EntityRelationGraph.ps1": {
     "max": 33,
     "countOver": 1
   },
-  "AITriad\\Private\\Test-ExcludesVeto.ps1": {
+  "AITriad/Private/Test-ExcludesVeto.ps1": {
     "max": 28,
     "countOver": 1
   },
-  "AITriad\\Private\\Test-FireRequired.ps1": {
+  "AITriad/Private/Test-FireRequired.ps1": {
     "max": 38,
     "countOver": 1
   },
-  "AITriad\\Private\\Test-OrganizationEdgeIntegrity.ps1": {
+  "AITriad/Private/Test-OrganizationEdgeIntegrity.ps1": {
     "max": 58,
     "countOver": 1
   },
-  "AITriad\\Private\\Test-OrganizationIntegrity.ps1": {
+  "AITriad/Private/Test-OrganizationIntegrity.ps1": {
     "max": 49,
     "countOver": 1
   },
-  "AITriad\\Private\\Test-SituationBdiDecomposition.ps1": {
+  "AITriad/Private/Test-SituationBdiDecomposition.ps1": {
     "max": 30,
     "countOver": 1
   },
-  "AITriad\\Private\\Test-TaxonomyNodeId.ps1": {
+  "AITriad/Private/Test-TaxonomyNodeId.ps1": {
     "max": 19,
     "countOver": 1
   },
-  "AITriad\\Private\\Update-DebateProgress.ps1": {
+  "AITriad/Private/Update-DebateProgress.ps1": {
     "max": 18,
     "countOver": 1
   },
-  "AITriad\\Private\\Update-JsonNodePath.ps1": {
+  "AITriad/Private/Update-JsonNodePath.ps1": {
     "max": 74,
     "countOver": 1
   },
-  "AITriad\\Public\\Add-SituationEvidenceLink.ps1": {
+  "AITriad/Public/Add-SituationEvidenceLink.ps1": {
     "max": 47,
     "countOver": 1
   },
-  "AITriad\\Public\\Approve-Edge.ps1": {
+  "AITriad/Public/Approve-Edge.ps1": {
     "max": 31,
     "countOver": 1
   },
-  "AITriad\\Public\\Approve-TaxonomyProposal.ps1": {
+  "AITriad/Public/Approve-TaxonomyProposal.ps1": {
     "max": 37,
     "countOver": 2
   },
-  "AITriad\\Public\\Build-NodeSourceIndex.ps1": {
+  "AITriad/Public/Build-NodeSourceIndex.ps1": {
     "max": 49,
     "countOver": 1
   },
-  "AITriad\\Public\\Compare-DebateQuality.ps1": {
+  "AITriad/Public/Compare-DebateQuality.ps1": {
     "max": 45,
     "countOver": 2
   },
-  "AITriad\\Public\\Compare-DebateRuns.ps1": {
+  "AITriad/Public/Compare-DebateRuns.ps1": {
     "max": 84,
     "countOver": 1
   },
-  "AITriad\\Public\\Compare-EmbeddingModel.ps1": {
+  "AITriad/Public/Compare-EmbeddingModel.ps1": {
     "max": 31,
     "countOver": 1
   },
-  "AITriad\\Public\\Compare-Taxonomy.ps1": {
+  "AITriad/Public/Compare-Taxonomy.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Public\\Convert-DebateToAudio.ps1": {
+  "AITriad/Public/Convert-DebateToAudio.ps1": {
     "max": 32,
     "countOver": 1
   },
-  "AITriad\\Public\\Convert-MD2PDF.ps1": {
+  "AITriad/Public/Convert-MD2PDF.ps1": {
     "max": 48,
     "countOver": 1
   },
-  "AITriad\\Public\\Deploy-TaxEditorImage.ps1": {
+  "AITriad/Public/Deploy-TaxEditorImage.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Public\\Deploy-TaxEditorInfra.ps1": {
+  "AITriad/Public/Deploy-TaxEditorInfra.ps1": {
     "max": 22,
     "countOver": 1
   },
-  "AITriad\\Public\\Export-AggregatedCruxes.ps1": {
+  "AITriad/Public/Export-AggregatedCruxes.ps1": {
     "max": 85,
     "countOver": 1
   },
-  "AITriad\\Public\\Export-TaxonomyToGraph.ps1": {
+  "AITriad/Public/Export-TaxonomyToGraph.ps1": {
     "max": 44,
     "countOver": 1
   },
-  "AITriad\\Public\\Export-TriadDebateBrief.ps1": {
+  "AITriad/Public/Export-TriadDebateBrief.ps1": {
     "max": 101,
     "countOver": 1
   },
-  "AITriad\\Public\\Find-AITSource.ps1": {
+  "AITriad/Public/Find-AITSource.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Public\\Find-Conflict.ps1": {
+  "AITriad/Public/Find-Conflict.ps1": {
     "max": 34,
     "countOver": 1
   },
-  "AITriad\\Public\\Find-GraphPath.ps1": {
+  "AITriad/Public/Find-GraphPath.ps1": {
     "max": 29,
     "countOver": 1
   },
-  "AITriad\\Public\\Find-PolicyAction.ps1": {
+  "AITriad/Public/Find-PolicyAction.ps1": {
     "max": 71,
     "countOver": 1
   },
-  "AITriad\\Public\\Find-PossibleFallacy.ps1": {
+  "AITriad/Public/Find-PossibleFallacy.ps1": {
     "max": 63,
     "countOver": 1
   },
-  "AITriad\\Public\\Find-SituationCandidates.ps1": {
+  "AITriad/Public/Find-SituationCandidates.ps1": {
     "max": 177,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-AICallLog.ps1": {
+  "AITriad/Public/Get-AICallLog.ps1": {
     "max": 29,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-AICostReport.ps1": {
+  "AITriad/Public/Get-AICostReport.ps1": {
     "max": 109,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-AITClaim.ps1": {
+  "AITriad/Public/Get-AITClaim.ps1": {
     "max": 70,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-AITDebate.ps1": {
+  "AITriad/Public/Get-AITDebate.ps1": {
     "max": 68,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-AITSBOM.ps1": {
+  "AITriad/Public/Get-AITSBOM.ps1": {
     "max": 175,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-AITSource.ps1": {
+  "AITriad/Public/Get-AITSource.ps1": {
     "max": 145,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-AzureFlightRecorder.ps1": {
+  "AITriad/Public/Get-AzureFlightRecorder.ps1": {
     "max": 31,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-CalibrationTrend.ps1": {
+  "AITriad/Public/Get-CalibrationTrend.ps1": {
     "max": 42,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-Concept.ps1": {
+  "AITriad/Public/Get-Concept.ps1": {
     "max": 33,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-ConflictEvolution.ps1": {
+  "AITriad/Public/Get-ConflictEvolution.ps1": {
     "max": 41,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-ContainerAppRevision.ps1": {
+  "AITriad/Public/Get-ContainerAppRevision.ps1": {
     "max": 24,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-CriticalInteraction.ps1": {
+  "AITriad/Public/Get-CriticalInteraction.ps1": {
     "max": 19,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-DebateIndexHealth.ps1": {
+  "AITriad/Public/Get-DebateIndexHealth.ps1": {
     "max": 37,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-DebateRateLimitSummary.ps1": {
+  "AITriad/Public/Get-DebateRateLimitSummary.ps1": {
     "max": 37,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-Edge.ps1": {
+  "AITriad/Public/Get-Edge.ps1": {
     "max": 74,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-EntityReport.ps1": {
+  "AITriad/Public/Get-EntityReport.ps1": {
     "max": 61,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-FlightRecorderReport.ps1": {
+  "AITriad/Public/Get-FlightRecorderReport.ps1": {
     "max": 60,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-GitHubWorkflowRun.ps1": {
+  "AITriad/Public/Get-GitHubWorkflowRun.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-GraphNode.ps1": {
+  "AITriad/Public/Get-GraphNode.ps1": {
     "max": 24,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-ImportReport.ps1": {
+  "AITriad/Public/Get-ImportReport.ps1": {
     "max": 62,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-IngestionPriority.ps1": {
+  "AITriad/Public/Get-IngestionPriority.ps1": {
     "max": 58,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-IntellectualLineage.ps1": {
+  "AITriad/Public/Get-IntellectualLineage.ps1": {
     "max": 50,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-NodeTestingRecord.ps1": {
+  "AITriad/Public/Get-NodeTestingRecord.ps1": {
     "max": 70,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-OrganizationEdge.ps1": {
+  "AITriad/Public/Get-OrganizationEdge.ps1": {
     "max": 20,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-Policy.ps1": {
+  "AITriad/Public/Get-Policy.ps1": {
     "max": 26,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-PovLineage.ps1": {
+  "AITriad/Public/Get-PovLineage.ps1": {
     "max": 57,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-RelevantTaxonomyNodes.ps1": {
+  "AITriad/Public/Get-RelevantTaxonomyNodes.ps1": {
     "max": 91,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-ServerLog.ps1": {
+  "AITriad/Public/Get-ServerLog.ps1": {
     "max": 51,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-Situation.ps1": {
+  "AITriad/Public/Get-Situation.ps1": {
     "max": 35,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-Summary.ps1": {
+  "AITriad/Public/Get-Summary.ps1": {
     "max": 25,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-Tax.ps1": {
+  "AITriad/Public/Get-Tax.ps1": {
     "max": 69,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-TaxEditorBlob.ps1": {
+  "AITriad/Public/Get-TaxEditorBlob.ps1": {
     "max": 26,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-TaxEditorRevision.ps1": {
+  "AITriad/Public/Get-TaxEditorRevision.ps1": {
     "max": 18,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-TaxEditorServerLogs.ps1": {
+  "AITriad/Public/Get-TaxEditorServerLogs.ps1": {
     "max": 34,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-TaxonomyHealth.ps1": {
+  "AITriad/Public/Get-TaxonomyHealth.ps1": {
     "max": 80,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-TopicFrequency.ps1": {
+  "AITriad/Public/Get-TopicFrequency.ps1": {
     "max": 75,
     "countOver": 1
   },
-  "AITriad\\Public\\Get-TriadConfig.ps1": {
+  "AITriad/Public/Get-TriadConfig.ps1": {
     "max": 24,
     "countOver": 1
   },
-  "AITriad\\Public\\Import-AITriadDocument.ps1": {
+  "AITriad/Public/Import-AITriadDocument.ps1": {
     "max": 66,
     "countOver": 2
   },
-  "AITriad\\Public\\Import-Entity.ps1": {
+  "AITriad/Public/Import-Entity.ps1": {
     "max": 79,
     "countOver": 1
   },
-  "AITriad\\Public\\Import-OrganizationEdge.ps1": {
+  "AITriad/Public/Import-OrganizationEdge.ps1": {
     "max": 26,
     "countOver": 1
   },
-  "AITriad\\Public\\Install-AITriadData.ps1": {
+  "AITriad/Public/Install-AITriadData.ps1": {
     "max": 18,
     "countOver": 1
   },
-  "AITriad\\Public\\Install-GraphDatabase.ps1": {
+  "AITriad/Public/Install-GraphDatabase.ps1": {
     "max": 23,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-AIByUsage.ps1": {
+  "AITriad/Public/Invoke-AIByUsage.ps1": {
     "max": 35,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-AITDebate.ps1": {
+  "AITriad/Public/Invoke-AITDebate.ps1": {
     "max": 98,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-AphorismBatch.ps1": {
+  "AITriad/Public/Invoke-AphorismBatch.ps1": {
     "max": 45,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-AttributeExtraction.ps1": {
+  "AITriad/Public/Invoke-AttributeExtraction.ps1": {
     "max": 37,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-BatchSummary.ps1": {
+  "AITriad/Public/Invoke-BatchSummary.ps1": {
     "max": 145,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-BDIWeightAssignment.ps1": {
+  "AITriad/Public/Invoke-BDIWeightAssignment.ps1": {
     "max": 101,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-CcToSitMigration.ps1": {
+  "AITriad/Public/Invoke-CcToSitMigration.ps1": {
     "max": 49,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-DebateBatch.ps1": {
+  "AITriad/Public/Invoke-DebateBatch.ps1": {
     "max": 36,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-DebateDiagnosis.ps1": {
+  "AITriad/Public/Invoke-DebateDiagnosis.ps1": {
     "max": 71,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-DebateGroundingBatch.ps1": {
+  "AITriad/Public/Invoke-DebateGroundingBatch.ps1": {
     "max": 33,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-EdgeDiscovery.ps1": {
+  "AITriad/Public/Invoke-EdgeDiscovery.ps1": {
     "max": 77,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-EdgeRationaleBackfill.ps1": {
+  "AITriad/Public/Invoke-EdgeRationaleBackfill.ps1": {
     "max": 57,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-EdgeWeightEvaluation.ps1": {
+  "AITriad/Public/Invoke-EdgeWeightEvaluation.ps1": {
     "max": 77,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-EntityExtraction.ps1": {
+  "AITriad/Public/Invoke-EntityExtraction.ps1": {
     "max": 182,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-GraphQuery.ps1": {
+  "AITriad/Public/Invoke-GraphQuery.ps1": {
     "max": 88,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-HierarchyProposal.ps1": {
+  "AITriad/Public/Invoke-HierarchyProposal.ps1": {
     "max": 135,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-LogicalFormPass.ps1": {
+  "AITriad/Public/Invoke-LogicalFormPass.ps1": {
     "max": 53,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-OrgClaimMatching.ps1": {
+  "AITriad/Public/Invoke-OrgClaimMatching.ps1": {
     "max": 85,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-OrgDerivedCampScores.ps1": {
+  "AITriad/Public/Invoke-OrgDerivedCampScores.ps1": {
     "max": 47,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-OrgPublishedSeeding.ps1": {
+  "AITriad/Public/Invoke-OrgPublishedSeeding.ps1": {
     "max": 47,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-OrgStanceExtraction.ps1": {
+  "AITriad/Public/Invoke-OrgStanceExtraction.ps1": {
     "max": 84,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-PolicyRefinement.ps1": {
+  "AITriad/Public/Invoke-PolicyRefinement.ps1": {
     "max": 62,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-POVSummary.ps1": {
+  "AITriad/Public/Invoke-POVSummary.ps1": {
     "max": 120,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-QbafConflictAnalysis.ps1": {
+  "AITriad/Public/Invoke-QbafConflictAnalysis.ps1": {
     "max": 79,
     "countOver": 2
   },
-  "AITriad\\Public\\Invoke-SchemaMigration.ps1": {
+  "AITriad/Public/Invoke-SchemaMigration.ps1": {
     "max": 31,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-TaxEditorSmokeTest.ps1": {
+  "AITriad/Public/Invoke-TaxEditorSmokeTest.ps1": {
     "max": 108,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-TaxonomyProposal.ps1": {
+  "AITriad/Public/Invoke-TaxonomyProposal.ps1": {
     "max": 144,
     "countOver": 1
   },
-  "AITriad\\Public\\Invoke-VernacularBatch.ps1": {
+  "AITriad/Public/Invoke-VernacularBatch.ps1": {
     "max": 27,
     "countOver": 1
   },
-  "AITriad\\Public\\Measure-CodeComplexity.ps1": {
+  "AITriad/Public/Measure-CodeComplexity.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Public\\Measure-TaxonomyBaseline.ps1": {
+  "AITriad/Public/Measure-TaxonomyBaseline.ps1": {
     "max": 117,
     "countOver": 1
   },
-  "AITriad\\Public\\Merge-FlightRecorderDumps.ps1": {
+  "AITriad/Public/Merge-FlightRecorderDumps.ps1": {
     "max": 53,
     "countOver": 1
   },
-  "AITriad\\Public\\New-OpEd.ps1": {
-    "max": 142,
+  "AITriad/Public/New-OpEd.ps1": {
+    "max": 130,
     "countOver": 1
   },
-  "AITriad\\Public\\New-SyntheticCorpus.ps1": {
+  "AITriad/Public/New-SyntheticCorpus.ps1": {
     "max": 92,
     "countOver": 1
   },
-  "AITriad\\Public\\Read-FlightRecorderDump.ps1": {
+  "AITriad/Public/Read-FlightRecorderDump.ps1": {
     "max": 76,
     "countOver": 2
   },
-  "AITriad\\Public\\Register-AIBackend.ps1": {
+  "AITriad/Public/Register-AIBackend.ps1": {
     "max": 64,
     "countOver": 1
   },
-  "AITriad\\Public\\Register-AITriadDrive.ps1": {
+  "AITriad/Public/Register-AITriadDrive.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Public\\Remove-StaleContainerImages.ps1": {
+  "AITriad/Public/Remove-StaleContainerImages.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Public\\Repair-AITSummaryMappings.ps1": {
+  "AITriad/Public/Repair-AITSummaryMappings.ps1": {
     "max": 19,
     "countOver": 1
   },
-  "AITriad\\Public\\Repair-DebateOutput.ps1": {
+  "AITriad/Public/Repair-DebateOutput.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "AITriad\\Public\\Repair-PovAttributes.ps1": {
+  "AITriad/Public/Repair-PovAttributes.ps1": {
     "max": 53,
     "countOver": 1
   },
-  "AITriad\\Public\\Repair-PovDescriptions.ps1": {
+  "AITriad/Public/Repair-PovDescriptions.ps1": {
     "max": 41,
     "countOver": 1
   },
-  "AITriad\\Public\\Repair-PovLineage.ps1": {
+  "AITriad/Public/Repair-PovLineage.ps1": {
     "max": 226,
     "countOver": 1
   },
-  "AITriad\\Public\\Repair-ResolvedBackfill.ps1": {
+  "AITriad/Public/Repair-ResolvedBackfill.ps1": {
     "max": 59,
     "countOver": 1
   },
-  "AITriad\\Public\\Repair-SituationReciprocity.ps1": {
+  "AITriad/Public/Repair-SituationReciprocity.ps1": {
     "max": 36,
     "countOver": 1
   },
-  "AITriad\\Public\\Resume-AITDebate.ps1": {
+  "AITriad/Public/Resume-AITDebate.ps1": {
     "max": 34,
     "countOver": 1
   },
-  "AITriad\\Public\\Save-JsonNodeFieldEdits.ps1": {
+  "AITriad/Public/Save-JsonNodeFieldEdits.ps1": {
     "max": 19,
     "countOver": 1
   },
-  "AITriad\\Public\\Set-Edge.ps1": {
+  "AITriad/Public/Set-Edge.ps1": {
     "max": 43,
     "countOver": 1
   },
-  "AITriad\\Public\\Set-TaxonomyHierarchy.ps1": {
+  "AITriad/Public/Set-TaxonomyHierarchy.ps1": {
     "max": 81,
     "countOver": 1
   },
-  "AITriad\\Public\\Set-TriadConfig.ps1": {
+  "AITriad/Public/Set-TriadConfig.ps1": {
     "max": 23,
     "countOver": 1
   },
-  "AITriad\\Public\\Show-AITriadHelp.ps1": {
+  "AITriad/Public/Show-AITriadHelp.ps1": {
     "max": 46,
     "countOver": 1
   },
-  "AITriad\\Public\\Show-FallacyInfo.ps1": {
+  "AITriad/Public/Show-FallacyInfo.ps1": {
     "max": 34,
     "countOver": 1
   },
-  "AITriad\\Public\\Show-FlightRecorder.ps1": {
+  "AITriad/Public/Show-FlightRecorder.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Public\\Show-GraphOverview.ps1": {
+  "AITriad/Public/Show-GraphOverview.ps1": {
     "max": 48,
     "countOver": 1
   },
-  "AITriad\\Public\\Show-Markdown.ps1": {
+  "AITriad/Public/Show-Markdown.ps1": {
     "max": 31,
     "countOver": 1
   },
-  "AITriad\\Public\\Show-TaxonomyEditor.ps1": {
+  "AITriad/Public/Show-TaxonomyEditor.ps1": {
     "max": 53,
     "countOver": 3
   },
-  "AITriad\\Public\\Show-TriadDialogue.ps1": {
+  "AITriad/Public/Show-TriadDialogue.ps1": {
     "max": 84,
     "countOver": 1
   },
-  "AITriad\\Public\\Switch-TaxEditorRevision.ps1": {
+  "AITriad/Public/Switch-TaxEditorRevision.ps1": {
     "max": 21,
     "countOver": 1
   },
-  "AITriad\\Public\\Sync-FreeTierKeys.ps1": {
+  "AITriad/Public/Sync-FreeTierKeys.ps1": {
     "max": 20,
     "countOver": 1
   },
-  "AITriad\\Public\\Sync-SyntheticCorpus.ps1": {
+  "AITriad/Public/Sync-SyntheticCorpus.ps1": {
     "max": 31,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-AIApiKey.ps1": {
+  "AITriad/Public/Test-AIApiKey.ps1": {
     "max": 29,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-AIModelsConfig.ps1": {
+  "AITriad/Public/Test-AIModelsConfig.ps1": {
     "max": 55,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-AITJudgeModel.ps1": {
+  "AITriad/Public/Test-AITJudgeModel.ps1": {
     "max": 27,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-AnalyticsBackend.ps1": {
+  "AITriad/Public/Test-AnalyticsBackend.ps1": {
     "max": 24,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-AnalyticsBlobHealth.ps1": {
+  "AITriad/Public/Test-AnalyticsBlobHealth.ps1": {
     "max": 37,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-AnonymousDebateFlow.ps1": {
+  "AITriad/Public/Test-AnonymousDebateFlow.ps1": {
     "max": 21,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-AzureHealth.ps1": {
+  "AITriad/Public/Test-AzureHealth.ps1": {
     "max": 88,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-BriefNarrationStage.ps1": {
+  "AITriad/Public/Test-BriefNarrationStage.ps1": {
     "max": 27,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-CitationLinkIntegrity.ps1": {
+  "AITriad/Public/Test-CitationLinkIntegrity.ps1": {
     "max": 52,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-ComplexityBudget.ps1": {
+  "AITriad/Public/Test-ComplexityBudget.ps1": {
     "max": 18,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-CriticalInteractions.ps1": {
+  "AITriad/Public/Test-CriticalInteractions.ps1": {
     "max": 30,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-DebateIndexIntegrity.ps1": {
+  "AITriad/Public/Test-DebateIndexIntegrity.ps1": {
     "max": 45,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-DebateSession.ps1": {
+  "AITriad/Public/Test-DebateSession.ps1": {
     "max": 20,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-EdgeDirection.ps1": {
+  "AITriad/Public/Test-EdgeDirection.ps1": {
     "max": 32,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-EmbeddingHealth.ps1": {
+  "AITriad/Public/Test-EmbeddingHealth.ps1": {
     "max": 19,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-EmbeddingsCacheHealth.ps1": {
+  "AITriad/Public/Test-EmbeddingsCacheHealth.ps1": {
     "max": 28,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-ExtractionQuality.ps1": {
+  "AITriad/Public/Test-ExtractionQuality.ps1": {
     "max": 61,
     "countOver": 2
   },
-  "AITriad\\Public\\Test-GeminiKeyPool.ps1": {
+  "AITriad/Public/Test-GeminiKeyPool.ps1": {
     "max": 21,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-GitHubHealth.ps1": {
+  "AITriad/Public/Test-GitHubHealth.ps1": {
     "max": 23,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-OntologyCompliance.ps1": {
+  "AITriad/Public/Test-OntologyCompliance.ps1": {
     "max": 97,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-PersonaEndpoints.ps1": {
+  "AITriad/Public/Test-PersonaEndpoints.ps1": {
     "max": 35,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-PreloadHealth.ps1": {
+  "AITriad/Public/Test-PreloadHealth.ps1": {
     "max": 22,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-RerankerBaseline.ps1": {
+  "AITriad/Public/Test-RerankerBaseline.ps1": {
     "max": 40,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-ServiceWorkerHealth.ps1": {
+  "AITriad/Public/Test-ServiceWorkerHealth.ps1": {
     "max": 33,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-SynthesisCompleteness.ps1": {
+  "AITriad/Public/Test-SynthesisCompleteness.ps1": {
     "max": 44,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-TaxEditorEndpoints.ps1": {
+  "AITriad/Public/Test-TaxEditorEndpoints.ps1": {
     "max": 25,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-TaxEditorHealth.ps1": {
+  "AITriad/Public/Test-TaxEditorHealth.ps1": {
     "max": 24,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-TaxEditorInquiry.ps1": {
+  "AITriad/Public/Test-TaxEditorInquiry.ps1": {
     "max": 22,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-TaxonomyDir.ps1": {
+  "AITriad/Public/Test-TaxonomyDir.ps1": {
     "max": 32,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-TaxonomyDirContents.ps1": {
+  "AITriad/Public/Test-TaxonomyDirContents.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Public\\Test-TaxonomyIntegrity.ps1": {
+  "AITriad/Public/Test-TaxonomyIntegrity.ps1": {
     "max": 149,
     "countOver": 1
   },
-  "AITriad\\Public\\Undo-TaxEditorDataCommit.ps1": {
+  "AITriad/Public/Undo-TaxEditorDataCommit.ps1": {
     "max": 25,
     "countOver": 1
   },
-  "AITriad\\Public\\Update-AITSourceIndex.ps1": {
+  "AITriad/Public/Update-AITSourceIndex.ps1": {
     "max": 45,
     "countOver": 1
   },
-  "AITriad\\Public\\Update-EntityEmbeddings.ps1": {
+  "AITriad/Public/Update-ComplexityBaseline.ps1": {
+    "max": 16,
+    "countOver": 1
+  },
+  "AITriad/Public/Update-EntityEmbeddings.ps1": {
     "max": 32,
     "countOver": 1
   },
-  "AITriad\\Public\\Update-EntityMentionIndex.ps1": {
+  "AITriad/Public/Update-EntityMentionIndex.ps1": {
     "max": 102,
     "countOver": 1
   },
-  "AITriad\\Public\\Update-NodeTestingRecord.ps1": {
+  "AITriad/Public/Update-NodeTestingRecord.ps1": {
     "max": 30,
     "countOver": 1
   },
-  "AITriad\\Public\\Update-PolicyRegistry.ps1": {
+  "AITriad/Public/Update-PolicyRegistry.ps1": {
     "max": 73,
     "countOver": 1
   },
-  "AITriad\\Public\\Update-Snapshot.ps1": {
+  "AITriad/Public/Update-Snapshot.ps1": {
     "max": 17,
     "countOver": 1
   },
-  "AITriad\\Public\\Update-SyntheticCorpus.ps1": {
+  "AITriad/Public/Update-SyntheticCorpus.ps1": {
     "max": 28,
     "countOver": 1
   },
-  "AITriad\\Public\\Watch-DebateProgress.ps1": {
+  "AITriad/Public/Watch-DebateProgress.ps1": {
     "max": 36,
     "countOver": 1
   },
-  "archive\\Invoke-BDIMigration.ps1": {
+  "archive/Invoke-BDIMigration.ps1": {
     "max": 27,
     "countOver": 1
   },
-  "archive\\Invoke-IdMigration.ps1": {
+  "archive/Invoke-IdMigration.ps1": {
     "max": 20,
     "countOver": 1
   },
-  "archive\\Invoke-SituationsMigration.ps1": {
+  "archive/Invoke-SituationsMigration.ps1": {
     "max": 23,
     "countOver": 1
   },
-  "archive\\Measure-ProjectSize.ps1": {
+  "archive/Measure-ProjectSize.ps1": {
     "max": 17,
     "countOver": 1
   },
@@ -920,23 +924,23 @@
     "max": 18,
     "countOver": 1
   },
-  "Project-Template\\Public\\Get-ADRIndex.ps1": {
+  "Project-Template/Public/Get-ADRIndex.ps1": {
     "max": 16,
     "countOver": 1
   },
-  "Project-Template\\Public\\Get-FlightRecorderDump.ps1": {
+  "Project-Template/Public/Get-FlightRecorderDump.ps1": {
     "max": 24,
     "countOver": 1
   },
-  "Project-Template\\Public\\Get-FlightRecorderReport.ps1": {
+  "Project-Template/Public/Get-FlightRecorderReport.ps1": {
     "max": 42,
     "countOver": 1
   },
-  "Project-Template\\Public\\Invoke-DependencyAudit.ps1": {
+  "Project-Template/Public/Invoke-DependencyAudit.ps1": {
     "max": 24,
     "countOver": 1
   },
-  "Project-Template\\Public\\Invoke-LicenseAudit.ps1": {
+  "Project-Template/Public/Invoke-LicenseAudit.ps1": {
     "max": 16,
     "countOver": 1
   }

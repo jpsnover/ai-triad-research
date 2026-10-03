@@ -28,7 +28,16 @@ function Update-ComplexityBaseline {
 
         Self-validates its own output before writing (t/3829#4's "make the generator
         assert its own output shape"): output key count must equal written+kept
-        decisions, and no two keys may collide case-insensitively.
+        decisions, no two keys may collide case-insensitively, and -- t/3874 -- no
+        emitted key may contain '\'. The last guard exists because Measure-CodeComplexity's
+        File (via [System.IO.Path]::GetRelativePath) is OS-native-separated; a baseline
+        generated on Windows and enforced on Linux CI never matched on ContainsKey, so
+        EVERY baselined scripts/ file read as a brand-new offender there (t/3874, found
+        via t/3871#3). Get-ComplexityScanTargets now normalizes to '/' at the source, so
+        this assertion should never fire in normal operation -- it exists to catch a
+        Windows regeneration silently reintroducing '\' if that normalization ever
+        regresses, not to handle an expected case.
+    .PARAMETER Path
     .PARAMETER Path
         Root directory to scan. Default: the scripts/ directory (same resolution as
         Measure-CodeComplexity's default) -- this IS the ratchet's scan scope; its
@@ -97,7 +106,11 @@ function Update-ComplexityBaseline {
         $raw = Get-Content -LiteralPath $BaselinePath -Raw | ConvertFrom-Json
         foreach ($prop in $raw.PSObject.Properties) {
             if ($prop.Name -eq '__meta__') { continue }
-            $existingBaseline[$prop.Name] = @{ max = [int]$prop.Value.max; countOver = [int]$prop.Value.countOver }
+            # t/3874: normalize on READ too -- tolerates a legacy/hand-edited '\'-keyed
+            # entry so it still matches the '/'-keyed observed file from the now-normalized
+            # Get-ComplexityScanTargets, rather than silently treating it as cured.
+            $key = $prop.Name.Replace('\', '/')
+            $existingBaseline[$key] = @{ max = [int]$prop.Value.max; countOver = [int]$prop.Value.countOver }
         }
     }
 
@@ -154,6 +167,21 @@ function Update-ComplexityBaseline {
             -Problem "Case-insensitive duplicate key(s) detected: $(($duplicates | ForEach-Object { $_.Name }) -join ', ')" `
             -Location 'Update-ComplexityBaseline' `
             -NextSteps @('Two different path spellings resolved to the same physical file -- check -Path and the scan for symlinks or mixed casing') `
+            -Throw
+    }
+    # t/3874: a baseline generated on Windows and enforced on Linux CI never matched on
+    # ContainsKey (OS-native separator vs '/'), so every baselined scripts/ file read as
+    # a brand-new offender there -- 177 false positives, found via t/3871#3. Get-
+    # ComplexityScanTargets normalizes to '/' at the source, so this should never fire;
+    # it exists to catch a Windows regeneration silently reintroducing '\' if that
+    # normalization ever regresses, rather than writing a baseline broken the same way.
+    $backslashKeys = @($output.Keys | Where-Object { $_.Contains('\') })
+    if ($backslashKeys.Count -gt 0) {
+        New-ActionableError `
+            -Goal 'Generate the complexity-ratchet baseline' `
+            -Problem "Emitted key(s) contain '\' instead of '/': $($backslashKeys -join ', ')" `
+            -Location 'Update-ComplexityBaseline' `
+            -NextSteps @('This indicates Get-ComplexityScanTargets stopped normalizing separators -- do not ship a baseline that failed this check', 'File a bug; do not silently proceed') `
             -Throw
     }
 
