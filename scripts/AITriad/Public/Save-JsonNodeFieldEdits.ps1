@@ -116,28 +116,13 @@ function Save-JsonNodeFieldEdits {
     }
 
     foreach ($edit in @($Edits)) {
-        if (-not $edit.ContainsKey('NodeId')) {
-            & $fail "An edit hashtable is missing required key 'NodeId'" @('Each edit needs NodeId, plus exactly one of Field (depth-1) or Path (nested)')
-        }
-        # Dispatch-only: exactly one of Field (depth-1) / Path (nested) selects the primitive. One
-        # path-walker per mode; this writer never walks paths itself (t/3438, TL steer).
-        $hasField = $edit.ContainsKey('Field')
-        $hasPath  = $edit.ContainsKey('Path')
-        $isRemove = [bool]$edit['Remove']   # absent key → $null → $false
-        if ($hasField -eq $hasPath) {
-            & $fail 'Each edit must specify EXACTLY ONE of Field (depth-1) or Path (nested-path segment array)' `
-                @('Use @{NodeId;Field;Value} OR @{NodeId;Path=@(...);Value[;Upsert]} OR @{NodeId;Path=@(...);Remove=$true}')
-        }
-        if ($isRemove) {
-            # t/3460: -Remove deletes the member — Path-only, no Value (ambiguous intent → refuse, cond 2),
-            # no Field, not with Upsert.
-            if ($hasField)                { & $fail 'A Remove edit must use Path, not Field' @('Key removal is nested-path only: @{NodeId;Path=@(...);Remove=$true}') }
-            if ($edit.ContainsKey('Value')) { & $fail 'A Remove edit must not carry a Value (ambiguous intent)' @('Use @{NodeId;Path=@(...);Remove=$true} with no Value') }
-            if ([bool]$edit['Upsert'])     { & $fail 'Remove and Upsert are mutually exclusive' @('Pick exactly one: Upsert-insert or Remove') }
-        }
-        elseif (-not $edit.ContainsKey('Value')) {
-            & $fail "An edit hashtable is missing required key 'Value'" @('Each non-Remove edit needs NodeId + Value, plus exactly one of Field (depth-1) or Path (nested)')
-        }
+        # t/3877: shape validation extracted to Private/Test-FieldEditShape.ps1 (pure, same
+        # checks/order/messages) to bring this function's complexity back under its
+        # complexity-ratchet baseline. $fail still throws here so the New-ActionableError
+        # -Goal/-Location context stays this function's, not the validator's.
+        $shapeError = Test-FieldEditShape -Edit $edit
+        if ($shapeError) { & $fail $shapeError.Problem $shapeError.Steps }
+
         $nodeId = [string]$edit['NodeId']
         if (-not $existingIds.Contains($nodeId)) {
             # Surface, never silently drop (the observability half of the sweep-class lesson).
