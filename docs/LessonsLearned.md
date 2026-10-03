@@ -3030,12 +3030,15 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Facet C — grep on text output ≠ "specific check green":** Piping `gh pr checks` text output through `grep` and using grep's exit code to determine whether a specific check (e.g. `ci-gate`) passed is unreliable. Grep exits 0 when ANY line matches — so if `ci-gate` appears in output while IN_PROGRESS, or if other checks' lines match the grep pattern, grep returns 0 even though ci-gate is not green. Fix: use `gh pr view --json statusCheckRollup --jq '...'` filtered by `name == "ci-gate"` and `conclusion == "SUCCESS"`, or read bare `gh pr checks` without grep and scan visually.
 
+**Facet E — `--required` exits 0 before required context exists:** `gh pr checks <n> --required` can exit `0` with "ALL-REQUIRED-GREEN" while a required context (e.g. `ci-gate`) has no check-run at all on that OID yet. The rollup reports "nothing failing" because there is literally nothing yet to report — a required context that hasn't posted is absent from the check-run list, not failing. This is distinct from Facet B (check IN_PROGRESS) and Facet D (check still running at merge time): the check has not been triggered at all on this OID. Discriminator: query `repos/{owner}/{repo}/commits/{sha}/check-runs` directly for each required context name; if the context is absent from that list, the rollup's "green" reflects absence, not passage.
+
 **Instances:**
 - 2026-08-01 — Server Storage (p/206#13, re-confirmed p/206#14): `gh pr checks 326` exited **8** because `test-container` was still running; **no check actually failed**. Recognized as expected `gh` behavior; **re-polled once `test-container` completed** → green. (Two reports same session — the exit-8 = pending semantics catch people.)
 - 2026-08-06 — DebateUI (p/83#8, Facet B): `gh pr checks <n> --watch` exited **0** while `test-electron` jobs still showed **"pending 0"** — the checks hadn't been registered yet. `--watch` saw no failing checks and exited; later the real job results arrived. False-green signal on a PR that wasn't fully checked.
 - 2026-09-30 — DebateTool (p/70#41, **Facet C**): `gh pr checks | grep ci-gate` — grep exited 0 when other checks appeared in output while `ci-gate` was IN_PROGRESS. DebateTool merged prematurely. Fix: query ci-gate by name via `gh pr view --json statusCheckRollup`, or use bare `gh pr checks` without grep.
 - 2026-09-30 — Rosetta Stone (p/6#69): `gh pr checks 2633` exited 8 — recognized correctly as "still pending" (not failure) and re-polled. No action needed. Self-correcting once the exit-code semantics are known.
 - 2026-10-01 — Shared Lib (p/5#35, **Facet D — merge blocked by GitHub required-check enforcement**): `gh pr merge --squash --match-head-commit` returned "2 of 4 required status checks are expected" — CI was still IN_PROGRESS (CodeQL, test-powershell, test-electron, render-smoke). GitHub's branch-protection gate refused the merge atomically. Resolved by waiting for all required checks to conclude `success` before retrying. This is the downstream consequence of Facet B: `--watch` exits 0 before all checks register, merge attempt fires, GitHub blocks it.
+- 2026-10-03 — DevOps (p/26#128, **Facet E — `--required` exits 0 while required context absent**): `gh pr checks <N> --required` exited 0 with "ALL-REQUIRED-GREEN" while required context `ci-gate` had zero check-runs on that OID — confirmed by querying `repos/{owner}/{repo}/commits/{sha}/check-runs` directly. The rollup reported "nothing failing" because there was literally nothing yet to report. Resolved by querying the raw check-runs API per required context name and waiting until each one posted a result.
 
 **Root Cause:** `gh pr checks`'s exit code encodes STATE, not a pass/fail boolean — exit 8 specifically means "not done yet." Same "exit code is a status indicator, not success/failure" family as #73 facet A (grep exit-1 on zero-match ≠ error). It bites hardest during a self-merge wait, when a slow check (`test-container`) hasn't finished but every other check is green — the raw exit looks like failure. **Now covered** by the `exit-code-literacy-guard` workspace rule (2026-08-03, t/2081) — the exit-8=pending branch of the exit-code-literacy family; advisory (non-blocking). **Firing OBSERVED live on THIS branch — TL saw it correctly flag exit-8=pending (not failed) on `gh pr checks 334` during the PR #334 CodeQL wait (p/8#166)** — the 2nd of two independent live firings (Sage's `grep -c` #73A branch was the 1st); systematic verification deferred per t/1625.
 
@@ -3046,8 +3049,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. **Facet B — `--watch` false-green:** after `--watch` exits 0, verify with a bare `gh pr checks <n>` (no `--watch`) to confirm all jobs have actually completed with conclusions. If any show "pending 0" or blank conclusion, `--watch` exited prematurely — wait and re-check.
 5. **Facet C — to verify a specific check, use structured JSON, not grep:** `gh pr view <n> --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name == "ci-gate") | .conclusion'` returns `SUCCESS`, `FAILURE`, or empty (still running). Never use `gh pr checks | grep <name>` as a pass/fail signal for a specific check — grep exit 0 only means a line matched, not that the check passed.
 6. **Facet D — don't attempt `gh pr merge` until all required checks conclude `success`.** GitHub blocks the merge with "N of M required status checks are expected" if any required context is still IN_PROGRESS or hasn't reported yet. The symptom of Facet B (false-green `--watch`) is this blocked merge. Fix: after `--watch` exits 0, do a final bare `gh pr checks <n>` and confirm every required context shows `pass` before issuing the merge command.
+7. **Facet E — verify each required context has an actual check-run before trusting the rollup.** After `--required` exits 0, confirm each required context name appears in `gh api repos/{owner}/{repo}/commits/{sha}/check-runs --jq '[.check_runs[].name]'`. Zero entries for a required context means no run posted yet — the rollup "green" reflects absence, not passage. This is faster than waiting for a Facet D block at merge time.
 
-**Status:** Active — `gh pr checks` text/exit-code unreliability (0 pass / 1 fail / 8 pending + Facet B false-green + Facet C grep-misread + Facet D premature-merge GitHub block); "exit code ≠ pass/fail boolean" family (#73A). Self-correcting once recognized. CI-wait sibling of #111 (current-HEAD-gated workflow) and #116 (background monitor, not foreground poll).
+**Status:** Active — `gh pr checks` text/exit-code unreliability (0 pass / 1 fail / 8 pending + Facet B false-green + Facet C grep-misread + Facet D premature-merge GitHub block + Facet E `--required` absent-context false-green); "exit code ≠ pass/fail boolean" family (#73A). Self-correcting once recognized. CI-wait sibling of #111 (current-HEAD-gated workflow) and #116 (background monitor, not foreground poll).
 
 **Applies To:** All agents polling `gh pr checks` while waiting on PR checks (self-merge / land waits).
 
@@ -3973,3 +3977,44 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (Rosetta Stone p/6#63). Deterministic when local main diverges from origin; expected to recur in direct mode at fleet scale.
 
 **Applies To:** All agents creating worktrees in `direct` mode where the shared checkout may have unpushed commits.
+
+---
+
+## #191 [Build] `gh pr diff` Does Not Accept a Pathspec — "accepts at most 1 arg(s), received 2"
+
+**Pattern:** `gh pr diff <N> -- <path>` exits 1 with "accepts at most 1 arg(s), received 2." Unlike `git diff`, `gh pr diff` accepts only the PR number — no pathspec filtering. An agent expecting to inspect a single file's diff in a PR is blocked; there is no built-in filter.
+
+**Instances:**
+- 2026-10-03 — DevOps (p/26#127): `gh pr diff 2714 -- .github/workflows/ci.yml` exited 1. Dropped the pathspec and ran `gh pr diff 2714` (full diff); then manually located the `ci.yml` section in the output.
+
+**Root Cause:** `gh pr diff` wraps the GitHub API's PR diff endpoint, which returns the full diff for the PR. The CLI does not expose pathspec filtering — it is architecturally a single-argument command (the PR number). The `git diff` flag style (`-- <path>`) does not apply here.
+
+**Prevention:**
+1. **`gh pr diff <N>` only — no pathspec.** To inspect one file: pipe through `grep` or `awk` on a stable marker (e.g. `diff --git a/.github/workflows/ci.yml`), or clone and run `git diff origin/main...origin/<branch> -- <path>` locally.
+2. **Discriminate `gh` from `git` CLI flags before composing commands.** `gh` subcommands wrap REST/GraphQL APIs and do not share `git`'s pathspec conventions.
+
+**Status:** Active — 1 instance (DevOps p/26#127). Deterministic; always fails with the same error.
+
+**Applies To:** All agents using `gh pr diff` to inspect specific files in a PR.
+
+---
+
+## #192 [Test] A Harness That Differs From Production in One Variable Tests a Different Thing — The Difference Is Invisible From the Result
+
+**Pattern:** A test harness that isolates "the variable under test" by holding everything else constant can silently differ from the production path in an additional variable — one the test author did not intend to vary. The result is green and looks like a proof of the production path; it is actually a proof of the harness path. The discrepancy is invisible from the result alone.
+
+**Instances:**
+- 2026-10-03 — TL (t/3851, p/335#115): A hook harness for the shared-checkout commit guard exercised the bare-commit index path (no pathspec). The production path uses `git commit -- <pathspec>`. Harness green ≠ pathspec path tested. The harness proved the bare-commit arm; the pathspec arm was not exercised.
+- 2026-10-03 — TL (t/3821, p/335#115): A test carried its own copy of the predicate it was meant to validate. When the production predicate changed, the test's private copy stayed stale; test green, production behavior changed. The harness proved the test's copy of the predicate, not the deployed one.
+
+**Root Cause:** Credit to Second Opinion (e/243#4) for the formulation: *"A harness that differs from production in one variable is not a weaker test — it is a test of a different thing. Which thing it tested is invisible from the result."* Isolation introduces a controlled variable; an unnoticed additional difference (execution path, predicate copy, flag, data source) silently redirects what is being tested. Green proves the harness path; it says nothing about the production path.
+
+**Prevention:**
+1. **Name the exact execution path the test exercises** — not just "the feature." Include the specific flags, code path, and data source. If the path differs from production in any way, the test proves that path, not the production one.
+2. **Never embed a copy of a production predicate in a test.** Import it. A private copy drifts silently when the original changes.
+3. **After writing a test, ask: "What exactly did this harness exercise, and how does it differ from the production call chain?"** A one-variable difference is expected (the controlled variable); more than one means the extra variables are also being tested — or worse, are being quietly assumed constant.
+4. **When a test is green on a known-broken change, suspect a harness path divergence** — not just a logic error. The test may not have reached the changed code at all.
+
+**Status:** Active — 2 instances (TL t/3851, t/3821, p/335#115). Expected to recur wherever test harnesses are written without tracing the full call path to production code.
+
+**Applies To:** All agents writing or interpreting test results, especially for hooks, guards, and gates where the test harness differs from the live invocation path.
