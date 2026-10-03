@@ -13,6 +13,7 @@ import type { TextareaHTMLAttributes, RefObject } from 'react';
 import { api } from '@bridge';
 import type { CreateOpEdParams, CreateOpEdPayload, OpEdProgressEvent } from '../../bridge/types';
 import type { PovKey } from '../../../../../lib/oped/types';
+import outletsData from '@lib/oped/outlets.json';
 import { POV_META } from '@lib/electron-shared/povMeta';
 import { POV_KEYS } from '@lib/debate/types';
 import { CampGlyph, povToCamp } from '../shared/CampGlyph';
@@ -24,24 +25,34 @@ import { useTierInfo, isFreeTier, type TierInfo } from '../../hooks/useTierInfo'
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import './NewOpEdDialog.css';
 
-// ── Outlets (mirror New-OpEd.ps1 ValidateSet + band hints) ────────────────────
+// ── Outlets (t/3864) ───────────────────────────────────────────────────────────
+// The option SET and the default come from the SSOT (lib/oped/outlets.json, t/3861) — never
+// a local array/literal. `label`/`band` are presentation-only (t/3864's design) and may stay
+// local; a key missing from this map still renders (falling back to the key itself), so the
+// dropdown can never silently offer a DIFFERENT set from the backend — the exact failure
+// t/3796 caused.
+const OUTLET_PRESENTATION: Record<string, { label: string; band: string }> = {
+  WashingtonPost:    { label: 'The Washington Post',   band: '~800 words, strong news hook' },
+  NYTimes:           { label: 'The New York Times',    band: '~800 words, sharp thesis' },
+  WallStreetJournal: { label: 'The Wall Street Journal', band: '600–1200 words, business/policy framing' },
+  USAToday:          { label: 'USA Today',             band: '550–750 words, plain and direct' },
+  ForeignAffairs:    { label: 'Foreign Affairs',       band: '800–1500 words, structural analysis' },
+  Politico:          { label: 'Politico',              band: '~1000 words, policy-mechanics focus' },
+  TechPolicyPress:   { label: 'Tech Policy Press',     band: '1200–2000 words, analytical and evidence-grounded' },
+  Regional:          { label: 'Regional / local daily', band: '500–800 words, local relevance' },
+  Generic:           { label: 'Generic',               band: '~800 words, strong news hook' },
+};
 
-const OUTLETS: { value: string; label: string; band: string }[] = [
-  { value: 'WashingtonPost',    label: 'The Washington Post',   band: '~800 words, strong news hook' },
-  { value: 'NYTimes',           label: 'The New York Times',    band: '~800 words, sharp thesis' },
-  { value: 'WallStreetJournal', label: 'The Wall Street Journal', band: '600–1200 words, business/policy framing' },
-  { value: 'USAToday',          label: 'USA Today',             band: '550–750 words, plain and direct' },
-  { value: 'ForeignAffairs',    label: 'Foreign Affairs',       band: '800–1500 words, structural analysis' },
-  { value: 'Politico',          label: 'Politico',              band: '~1000 words, policy-mechanics focus' },
-  { value: 'TechPolicyPress',   label: 'Tech Policy Press',     band: '1200–2000 words, analytical and evidence-grounded' },
-  { value: 'Regional',          label: 'Regional / local daily', band: '500–800 words, local relevance' },
-  { value: 'Generic',           label: 'Generic',               band: '~800 words, strong news hook' },
-];
+const OUTLETS: { value: string; label: string; band: string }[] = Object.keys(outletsData.outlets).map(value => ({
+  value,
+  label: OUTLET_PRESENTATION[value]?.label ?? value,
+  band: OUTLET_PRESENTATION[value]?.band ?? '',
+}));
 
 // ── Screen-B defaults (must equal New-OpEd's parameter defaults) ──────────────
 
 const DEFAULTS = {
-  outlet: 'TechPolicyPress',
+  outlet: outletsData.defaultOutlet,
   wordCount: null as number | null, // null ⇒ use the outlet band (cmdlet default)
   thesis: '',
   authorBio: '',
