@@ -92,6 +92,55 @@ function Resolve-DataRepoRoot {
     return [PSCustomObject]@{ Path = $full; Source = 'config'; Undetermined = $false; Reason = '.aitriad.json data_root' }
 }
 
+function Test-HooksPathWired {
+    # PURE. True when core.hooksPath points at the repo's own .githooks (relative or absolute).
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$HooksPath, [AllowNull()][string]$RepoPath)
+    $norm = $HooksPath.Trim().Replace('\', '/').TrimEnd('/')
+    $abs  = ([string]$RepoPath).Replace('\', '/').TrimEnd('/') + '/.githooks'
+    return ($norm -eq '.githooks') -or ($norm -eq './.githooks') -or ($norm -ieq $abs)
+}
+
+function Get-HookFact {
+    # PURE. Null-safe read of one key from a hook's fact hashtable.
+    param([hashtable]$Hook, [string]$Key)
+    if ($Hook.ContainsKey($Key)) { return $Hook[$Key] }
+    return $null
+}
+
+function Get-HookModeProblems {
+    # PURE. One message per expected hook that is absent or not 100755 as COMMITTED.
+    [CmdletBinding()]
+    param([hashtable]$Hooks = @{})
+    foreach ($name in ($Hooks.Keys | Sort-Object)) {
+        $h = $Hooks[$name]
+        $committed = Get-HookFact $h 'CommittedMode'
+        if (-not $h.Present) { "$name absent"; continue }
+        if ($committed -eq '100755') { continue }
+        $msg = "$name not executable as committed (HEAD mode $committed; git ignores it on Linux/macOS)"
+        if ((Get-HookFact $h 'IndexMode') -eq '100755') { $msg += " — index says 100755: +x is STAGED but was never committed (a pathspec commit with core.fileMode=false drops it)" }
+        $msg
+    }
+}
+
+function Get-HookPushGaps {
+    # PURE. Hooks whose mode on the last-fetched origin/<default> is not 100755.
+    [CmdletBinding()]
+    param([hashtable]$Hooks = @{})
+    $remoteRef = $null; $gaps = [System.Collections.Generic.List[string]]::new()
+    foreach ($name in ($Hooks.Keys | Sort-Object)) {
+        $h = $Hooks[$name]
+        $ref = Get-HookFact $h 'RemoteRef'
+        if (-not $ref) { continue }
+        $remoteRef = $ref
+        $rm = Get-HookFact $h 'RemoteMode'
+        if ($rm -eq '100755') { continue }
+        $shown = if ($rm) { $rm } else { 'absent' }
+        $gaps.Add("$name is 100755 in local HEAD but $shown on $ref")
+    }
+    return [PSCustomObject]@{ RemoteRef = $remoteRef; Gaps = $gaps }
+}
+
 function Get-DataRepoHooksVerdict {
     <#
     .SYNOPSIS
@@ -132,25 +181,11 @@ function Get-DataRepoHooksVerdict {
     if ([string]::IsNullOrWhiteSpace($HooksPath)) {
         return & $mk 'UNWIRED' 'WARN' 'core.hooksPath is unset: both data-repo guards are silently inactive in this checkout' $wire
     }
-    $norm = $HooksPath.Trim().Replace('\', '/').TrimEnd('/')
-    $abs  = ([string]$Resolution.Path).Replace('\', '/').TrimEnd('/') + '/.githooks'
-    $wired = ($norm -eq '.githooks') -or ($norm -eq './.githooks') -or ($norm -ieq $abs)
-    if (-not $wired) {
+    if (-not (Test-HooksPathWired -HooksPath $HooksPath -RepoPath $Resolution.Path)) {
         return & $mk 'MISWIRED' 'WARN' "core.hooksPath is '$HooksPath', not .githooks: the data-repo guards are not the hooks being run" $wire
     }
 
-    $bad = [System.Collections.Generic.List[string]]::new()
-    foreach ($name in ($Hooks.Keys | Sort-Object)) {
-        $h = $Hooks[$name]
-        $committed = if ($h.ContainsKey('CommittedMode')) { $h.CommittedMode } else { $null }
-        $index     = if ($h.ContainsKey('IndexMode'))     { $h.IndexMode }     else { $null }
-        if (-not $h.Present) { $bad.Add("$name absent") }
-        elseif ($committed -ne '100755') {
-            $msg = "$name not executable as committed (HEAD mode $committed; git ignores it on Linux/macOS)"
-            if ($index -eq '100755') { $msg += " — index says 100755: +x is STAGED but was never committed (a pathspec commit with core.fileMode=false drops it)" }
-            $bad.Add($msg)
-        }
-    }
+    $bad = @(Get-HookModeProblems -Hooks $Hooks)
     if ($bad.Count -gt 0) {
         # NOT `update-index --chmod=+x` + a pathspec commit: with core.fileMode=false that silently
         # commits 100644 anyway (TL p/331#1811). Use the tested private-index recipe.
@@ -161,23 +196,48 @@ function Get-DataRepoHooksVerdict {
     # Linux/macOS clone gets the mode on origin/<default>. A local 100755 commit not yet pushed would
     # otherwise read WIRED here while every new clone still gets 100644 / no hook. Compared against
     # the LAST-FETCHED remote ref — verify:config deliberately does no network fetch.
-    $remoteRef = $null; $unpushed = [System.Collections.Generic.List[string]]::new()
-    foreach ($name in ($Hooks.Keys | Sort-Object)) {
-        $h = $Hooks[$name]
-        if ($h.ContainsKey('RemoteRef') -and $h.RemoteRef) {
-            $remoteRef = $h.RemoteRef
-            $rm = if ($h.ContainsKey('RemoteMode')) { $h.RemoteMode } else { $null }
-            if ($rm -ne '100755') {
-                $shown = if ($rm) { $rm } else { 'absent' }
-                $unpushed.Add("$name is 100755 in local HEAD but $shown on $($h.RemoteRef)")
-            }
-        }
-    }
+    $push = Get-HookPushGaps -Hooks $Hooks
+    $remoteRef = $push.RemoteRef; $unpushed = $push.Gaps
     if ($unpushed.Count -gt 0) {
         return & $mk 'COMMITTED_NOT_PUSHED' 'WARN' ("wired locally, but fresh clones won't get it: " + ($unpushed -join '; ') + ' (as of last fetch)') "Push the commit that sets the mode, then verify with: git ls-tree $remoteRef -- .githooks/<hook>"
     }
     $originNote = if ($remoteRef) { "; matches $remoteRef as of last fetch" } else { '; clone-facing mode NOT checked (no origin remote ref)' }
     return & $mk 'WIRED' 'PASS' ("core.hooksPath = .githooks; expected hooks present and executable as committed" + $originNote) ''
+}
+
+function Get-GitTreeMode {
+    # First field of an ls-tree / ls-files -s line (the mode), or $null when git printed nothing.
+    param($Line)
+    if ($Line) { return (([string]$Line) -split '\s+')[0] }
+    return $null
+}
+
+function Get-OriginDefaultRef {
+    <#
+    I/O. Clone-facing ref: origin's default branch, as of the last fetch (no network).
+    NOT `rev-parse --abbrev-ref origin/HEAD`: when origin/HEAD is unset (e.g. a clone of an
+    initially-empty repo) it ECHOES the literal 'origin/HEAD' and exits non-zero, which resolved
+    to a nonexistent ref → "absent on origin" → a false COMMITTED_NOT_PUSHED that never cleared
+    even after the push (caught live).
+    #>
+    param([Parameter(Mandatory)][string]$RepoPath)
+    $sym = & git -C $RepoPath symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>$null
+    if ($LASTEXITCODE -eq 0 -and $sym) { return ([string]$sym).Trim() }
+    $null = & git -C $RepoPath rev-parse --verify --quiet refs/remotes/origin/main 2>$null
+    if ($LASTEXITCODE -eq 0) { return 'origin/main' }
+    return $null
+}
+
+function Get-HookModeFacts {
+    # I/O. COMMITTED mode decides (what every clone receives); index mode is diagnostic.
+    param([Parameter(Mandatory)][string]$RepoPath, [Parameter(Mandatory)][string]$Name, [AllowNull()][string]$RemoteRef)
+    $rel = ".githooks/$Name"
+    $present = Test-Path -LiteralPath (Join-Path $RepoPath $rel) -PathType Leaf
+    $cmode = Get-GitTreeMode (& git -C $RepoPath ls-tree HEAD -- $rel 2>$null)
+    $imode = Get-GitTreeMode (& git -C $RepoPath ls-files -s -- $rel 2>$null)
+    $rref = if ($RemoteRef) { $RemoteRef } else { $null }
+    $rmode = if ($rref) { Get-GitTreeMode (& git -C $RepoPath ls-tree $rref -- $rel 2>$null) } else { $null }
+    return @{ Present = $present; CommittedMode = $cmode; IndexMode = $imode; RemoteRef = $rref; RemoteMode = $rmode }
 }
 
 function Get-DataRepoHooksFacts {
@@ -214,33 +274,9 @@ function Get-DataRepoHooksFacts {
             if ($isRepo) {
                 $raw = & git -C $res.Path config --get core.hooksPath 2>$null
                 $hp = if ($LASTEXITCODE -eq 0 -and $raw) { ([string]$raw).Trim() } else { $null }
+                $rref = Get-OriginDefaultRef -RepoPath $res.Path
                 foreach ($name in $ExpectedHooks) {
-                    $rel = ".githooks/$name"
-                    $present = Test-Path -LiteralPath (Join-Path $res.Path $rel) -PathType Leaf
-                    # COMMITTED mode decides (what every clone receives); index mode is diagnostic.
-                    $tree  = & git -C $res.Path ls-tree HEAD -- $rel 2>$null
-                    $cmode = if ($tree) { (([string]$tree) -split '\s+')[0] } else { $null }
-                    $ls    = & git -C $res.Path ls-files -s -- $rel 2>$null
-                    $imode = if ($ls) { (([string]$ls) -split '\s+')[0] } else { $null }
-                    # Clone-facing mode: origin's default branch, as of the last fetch (no network).
-                    # NOT `rev-parse --abbrev-ref origin/HEAD`: when origin/HEAD is unset (e.g. a clone
-                    # of an initially-empty repo) it ECHOES the literal 'origin/HEAD' and exits non-zero,
-                    # which resolved to a nonexistent ref → "absent on origin" → a false
-                    # COMMITTED_NOT_PUSHED that never cleared even after the push (caught live).
-                    $rref = $null
-                    $sym = & git -C $res.Path symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>$null
-                    if ($LASTEXITCODE -eq 0 -and $sym) { $rref = ([string]$sym).Trim() }
-                    if (-not $rref) {
-                        $null = & git -C $res.Path rev-parse --verify --quiet refs/remotes/origin/main 2>$null
-                        if ($LASTEXITCODE -eq 0) { $rref = 'origin/main' }
-                    }
-                    $rmode = $null
-                    if ($rref) {
-                        $rref  = ([string]$rref).Trim()
-                        $rtree = & git -C $res.Path ls-tree $rref -- $rel 2>$null
-                        $rmode = if ($rtree) { (([string]$rtree) -split '\s+')[0] } else { $null }
-                    }
-                    $hooks[$name] = @{ Present = $present; CommittedMode = $cmode; IndexMode = $imode; RemoteRef = $rref; RemoteMode = $rmode }
+                    $hooks[$name] = Get-HookModeFacts -RepoPath $res.Path -Name $name -RemoteRef $rref
                 }
             }
         }
