@@ -118,14 +118,21 @@ Describe 'Neo4j password hardening (t/2530 M2)' -Tag 'security' {
         # by reason — lives in tests/Test-Neo4jAuthProbe.Tests.ps1, which mocks Invoke-RestMethod and
         # exercises the real function. This remains a source-grep only for the wiring (the right helper is
         # actually called here), not the behavior.
-        $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
+        # t/3877: the readiness+auth-verify block was extracted to Private/Confirm-Neo4jReadyAndAuth.ps1
+        # (complexity-ratchet decomposition, no behavior change) — the wiring this test greps for moved
+        # there with it. Install-GraphDatabase itself now just calls the extracted function.
+        $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Private' 'Confirm-Neo4jReadyAndAuth.ps1') -Raw
         $src | Should -Match 'Test-Neo4jAuthProbe -Credential \$ProbeCred'
         $src | Should -Not -Match "Invoke-CypherQuery -Query 'RETURN 1'" -Because 'the broken probe must not come back'
         $src | Should -Match '\$AuthVerified'
+
+        $callerSrc = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
+        $callerSrc | Should -Match 'Confirm-Neo4jReadyAndAuth' -Because 'Install-GraphDatabase must actually call the extracted verify step'
     }
 
     It 'Install-GraphDatabase scrubs the auth secret by TRUNCATING the file, not deleting it (t/3833#4, WSL2 bind-mount)' {
-        $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Public' 'Install-GraphDatabase.ps1') -Raw
+        # t/3877: moved to Confirm-Neo4jReadyAndAuth.ps1 along with the rest of the auth-verify block.
+        $src = Get-Content (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'Private' 'Confirm-Neo4jReadyAndAuth.ps1') -Raw
         # Docker/WSL2: deleting a live bind-mount source makes Docker recreate it as a directory, breaking
         # restart. The verified-path scrub must zero the file in place, keeping the bind source a file.
         $src | Should -Match 'WriteAllBytes\(\$AuthFile, \[byte\[\]\]@\(\)\)'

@@ -489,7 +489,7 @@
     "countOver": 1
   },
   "AITriad/Public/Install-GraphDatabase.ps1": {
-    "max": 23,
+    "max": 20,
     "countOver": 1
   },
   "AITriad/Public/Invoke-AIByUsage.ps1": {
@@ -673,7 +673,7 @@
     "countOver": 1
   },
   "AITriad/Public/Save-JsonNodeFieldEdits.ps1": {
-    "max": 19,
+    "max": 18,
     "countOver": 1
   },
   "AITriad/Public/Set-Edge.ps1": {

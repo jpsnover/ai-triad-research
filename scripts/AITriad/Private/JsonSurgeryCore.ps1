@@ -230,43 +230,13 @@ function Get-JsonValueSpan {
     return @{ Start = $i; End = $j - 1 }
 }
 
-function Find-JsonMemberValueStart {
-    # Within the object at [ObjStart='{' .. ObjEnd='}'], find the depth-1 member whose key
-    # equals $Key and return the start index of ITS VALUE (or -1 if absent). Keys are
-    # JSON-decoded (handles escapes) so a substring collision can't false-match. Nested
-    # values are skipped via Get-JsonValueSpan so iteration stays at depth 1.
-    param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][int]$ObjStart,
-          [Parameter(Mandatory)][int]$ObjEnd, [Parameter(Mandatory)][string]$Key)
-    $i = $ObjStart + 1
-    while ($i -lt $ObjEnd) {
-        while ($i -lt $ObjEnd -and ([char]::IsWhiteSpace($Text[$i]) -or $Text[$i] -eq ',')) { $i++ }
-        if ($i -ge $ObjEnd) { break }
-        if ($Text[$i] -ne '"') { return -1 }   # expected a key string
-        $keySpan = Get-JsonValueSpan -Text $Text -Start $i
-        if ($null -eq $keySpan) { return -1 }
-        $keyToken = $Text.Substring($keySpan.Start, $keySpan.End - $keySpan.Start + 1)
-        try { $decodedKey = $keyToken | ConvertFrom-Json } catch { return -1 }
-        $i = $keySpan.End + 1
-        while ($i -lt $ObjEnd -and [char]::IsWhiteSpace($Text[$i])) { $i++ }
-        if ($i -ge $ObjEnd -or $Text[$i] -ne ':') { return -1 }
-        $i++
-        while ($i -lt $ObjEnd -and [char]::IsWhiteSpace($Text[$i])) { $i++ }
-        $valSpan = Get-JsonValueSpan -Text $Text -Start $i
-        if ($null -eq $valSpan) { return -1 }
-        if ([string]$decodedKey -eq $Key) { return $valSpan.Start }
-        $i = $valSpan.End + 1
-    }
-    return -1
-}
-
-function Find-JsonMemberSpan {
-    # Within the object at [ObjStart='{' .. ObjEnd='}'], find the depth-1 member whose key
-    # equals $Key and return @{ KeyStart; ValueEnd } — KeyStart = index of the key's opening
-    # '"', ValueEnd = index of the value's LAST char (inclusive). Returns $null if absent. Same
-    # key-decode + Get-JsonValueSpan skipping as Find-JsonMemberValueStart, so it stays at depth 1
-    # and can't substring-collide. Used by Update-JsonNodePath -Remove to splice out the whole
-    # member (key..value) + one adjacent comma. Returns the FIRST match; duplicate sibling keys
-    # are outside the surgical contract (documented on Update-JsonNodePath).
+function Find-JsonMemberAt {
+    # Shared depth-1 member walk for Find-JsonMemberValueStart / Find-JsonMemberSpan (t/3877 --
+    # the two were identical except what they returned on match). Within the object at
+    # [ObjStart='{' .. ObjEnd='}'], find the depth-1 member whose key equals $Key and return
+    # @{ KeyStart; ValueStart; ValueEnd } (or $null if absent). Keys are JSON-decoded (handles
+    # escapes) so a substring collision can't false-match. Nested values are skipped via
+    # Get-JsonValueSpan so iteration stays at depth 1.
     param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][int]$ObjStart,
           [Parameter(Mandatory)][int]$ObjEnd, [Parameter(Mandatory)][string]$Key)
     $i = $ObjStart + 1
@@ -286,10 +256,36 @@ function Find-JsonMemberSpan {
         while ($i -lt $ObjEnd -and [char]::IsWhiteSpace($Text[$i])) { $i++ }
         $valSpan = Get-JsonValueSpan -Text $Text -Start $i
         if ($null -eq $valSpan) { return $null }
-        if ([string]$decodedKey -eq $Key) { return @{ KeyStart = $keyStart; ValueEnd = $valSpan.End } }
+        if ([string]$decodedKey -eq $Key) {
+            return @{ KeyStart = $keyStart; ValueStart = $valSpan.Start; ValueEnd = $valSpan.End }
+        }
         $i = $valSpan.End + 1
     }
     return $null
+}
+
+function Find-JsonMemberValueStart {
+    # Within the object at [ObjStart='{' .. ObjEnd='}'], find the depth-1 member whose key
+    # equals $Key and return the start index of ITS VALUE (or -1 if absent).
+    param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][int]$ObjStart,
+          [Parameter(Mandatory)][int]$ObjEnd, [Parameter(Mandatory)][string]$Key)
+    $m = Find-JsonMemberAt -Text $Text -ObjStart $ObjStart -ObjEnd $ObjEnd -Key $Key
+    if ($null -eq $m) { return -1 }
+    return $m.ValueStart
+}
+
+function Find-JsonMemberSpan {
+    # Within the object at [ObjStart='{' .. ObjEnd='}'], find the depth-1 member whose key
+    # equals $Key and return @{ KeyStart; ValueEnd } — KeyStart = index of the key's opening
+    # '"', ValueEnd = index of the value's LAST char (inclusive). Returns $null if absent. Used
+    # by Update-JsonNodePath -Remove to splice out the whole member (key..value) + one adjacent
+    # comma. Returns the FIRST match; duplicate sibling keys are outside the surgical contract
+    # (documented on Update-JsonNodePath).
+    param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][int]$ObjStart,
+          [Parameter(Mandatory)][int]$ObjEnd, [Parameter(Mandatory)][string]$Key)
+    $m = Find-JsonMemberAt -Text $Text -ObjStart $ObjStart -ObjEnd $ObjEnd -Key $Key
+    if ($null -eq $m) { return $null }
+    return @{ KeyStart = $m.KeyStart; ValueEnd = $m.ValueEnd }
 }
 
 function Find-JsonArrayElementStart {
