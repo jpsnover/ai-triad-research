@@ -5,7 +5,7 @@ import type { Organization, OrganizationEdge } from '@lib/organizations/types';
 import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities/types';
 import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
-import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload, StartInquiryRequest, InquiryStatusResponse, InquiryResult, InquiryResultSummary } from '../bridge/types';
+import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload, StartInquiryRequest, InquiryStatusResponse, InquiryResult, InquiryResultSummary, NodeDeleteLogEntry } from '../bridge/types';
 import type { BriefArtifactName } from '@lib/brief/types';
 import type { StopReason } from '@lib/ai-client/types';
 import type { OpEdSet, OpEdSetSummary } from '@lib/oped/types';
@@ -69,6 +69,9 @@ export interface ElectronAPI {
   saveEdges: (data: EdgesFile) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
   loadLineageCategories: () => Promise<unknown>;
+  // t/3852/t/3859: durable delete-audit log. Optional until the IPC handler lands
+  // (ElectronMain) — the bridge graceful-degrades (WARN + resolve) while absent.
+  logNodeDeletion?: (entry: NodeDeleteLogEntry) => Promise<void>;
   loadLineageInfo: () => Promise<Record<string, unknown>>;
   loadEdges: () => Promise<unknown>;
   getEdgeDetail: (index: number) => Promise<unknown>;

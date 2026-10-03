@@ -61,4 +61,15 @@ describe('DeleteConfirmDialog', () => {
     await userEvent.click(screen.getByText('Delete Node'));
     expect(onCancel).not.toHaveBeenCalled();
   });
+
+  // t/3852
+  it('renders the dangling-reference warning when provided', () => {
+    render(<DeleteConfirmDialog {...defaultProps} danglingWarning="This will orphan 194 edges, 22 situation references." />);
+    expect(screen.getByText('This will orphan 194 edges, 22 situation references.')).toBeInTheDocument();
+  });
+
+  it('renders no warning when danglingWarning is omitted', () => {
+    const { container } = render(<DeleteConfirmDialog {...defaultProps} />);
+    expect(container.querySelector('.dialog-warning')).toBeNull();
+  });
 });

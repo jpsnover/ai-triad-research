@@ -52,6 +52,19 @@
   justify-content: flex-end;
 }
 
+/* t/3852: dangling-reference warning on a delete confirm — distinct from the base
+   .dialog p so it reads as "attention" rather than ordinary body text. */
+.dialog-warning {
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--warning-border, #f59e0b);
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg, rgba(245, 158, 11, 0.1));
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
 .username-badge {
   display: inline-flex;
   align-items: center;

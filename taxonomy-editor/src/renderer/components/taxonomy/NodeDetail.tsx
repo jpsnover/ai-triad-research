@@ -8,6 +8,8 @@ import type { Pov, PovNode, Category, TabId } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import type { AggregatedCrux } from '../../hooks/useTaxonomyStore';
 import { useDebateStore } from '../../hooks/useDebateStore';
+import { useAuthStatus } from '../../hooks/useAuthStatus';
+import { countDanglingReferences, formatDanglingWarning } from '../../utils/danglingReferences';
 import { useLongPressContextMenu } from '../../hooks/useLongPressContextMenu';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { DescriptionSection, type DescriptionMention } from './NodeDescriptionSection';
@@ -137,7 +139,8 @@ function NodeLastEditedLine({ node, viewMode }: { node: PovNode; viewMode: 'simp
 }
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, onOpenSoulDoc, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
-  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail, conflicts } = useTaxonomyStore();
+  const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId, aggregatedCruxes, showCruxDetail, conflicts, accelerationist, safetyist, skeptic, situations } = useTaxonomyStore();
+  const authInfo = useAuthStatus();
   const viewMode = usePreferencesStore(state => state.viewMode);
   const [descMode, setDescMode] = useDescriptionMode();
   const [showDelete, setShowDelete] = useState(false);
@@ -533,16 +536,31 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         )}
       </div>
 
-      {showDelete && !readOnly && (
+      {showDelete && !readOnly && (() => {
+        // t/3852: exhaustive, not sampled — computed fresh at dialog-open time so a stale
+        // closure can't under-report after the user has been editing edges/situations.
+        const danglingCounts = countDanglingReferences(node.id, [accelerationist, safetyist, skeptic], situations, edgesFile);
+        return (
         <DeleteConfirmDialog
           itemLabel={node.label}
+          danglingWarning={formatDanglingWarning(danglingCounts)}
           onConfirm={() => {
             deletePovNode(pov, node.id);
+            void api.logNodeDeletion({
+              nodeId: node.id,
+              pov,
+              label: node.label,
+              user: authInfo?.user || '_anonymous', // AuthInfo is web-only; Electron falls back to '_anonymous' here (t/3859's writer can supplement with the OS username)
+              danglingEdges: danglingCounts.edges,
+              danglingSituationRefs: danglingCounts.situationRefs,
+              danglingChildren: danglingCounts.children,
+            });
             setShowDelete(false);
           }}
           onCancel={() => setShowDelete(false)}
         />
-      )}
+        );
+      })()}
     </div>
   );
 }

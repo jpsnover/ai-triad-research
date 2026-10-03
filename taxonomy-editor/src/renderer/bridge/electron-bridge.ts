@@ -111,6 +111,21 @@ export const api: AppAPI = {
   saveEdges: (data) => window.electronAPI.saveEdges?.(data) ?? Promise.reject(new Error('Edge persistence is not available in desktop mode yet (pending the save-edges IPC handler, t/1816)')),
   loadPolicyRegistry: () => window.electronAPI.loadPolicyRegistry(),
   loadLineageCategories: () => window.electronAPI.loadLineageCategories(),
+  // t/3852: durable delete-audit log. Graceful-degrade until the `log-node-deletion` IPC
+  // handler lands (ElectronMain, t/3859) — WARN-record and resolve rather than reject, since
+  // a missing audit log must never block the delete it's meant to record (same fail-safe
+  // contract as aiCallLog.ts).
+  logNodeDeletion: (entry) => {
+    if (!window.electronAPI.logNodeDeletion) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'bridge', level: 'warn',
+        message: 'logNodeDeletion IPC handler not yet available (t/3859) — delete proceeding without a durable log entry',
+        data: { nodeId: entry.nodeId },
+      });
+      return Promise.resolve();
+    }
+    return window.electronAPI.logNodeDeletion(entry);
+  },
   loadLineageInfo: () => window.electronAPI.loadLineageInfo(),
   loadEdges: () => window.electronAPI.loadEdges(),
   getEdgeDetail: (index) => window.electronAPI.getEdgeDetail(index),

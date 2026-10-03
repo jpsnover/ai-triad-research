@@ -774,6 +774,11 @@ const rawApi: AppAPI = {
   saveTaxonomyFile: (pov, data) => put(`/api/taxonomy/${encodeURIComponent(pov)}`, data).then(() => {}),
   loadPolicyRegistry: () => get('/api/policy-registry'),
   loadLineageCategories: () => get('/api/lineage-categories'),
+  // t/3852: durable delete-audit log; WARN+swallow on failure (never block the delete it records).
+  logNodeDeletion: (entry) => post('/api/taxonomy/node-delete-log', entry).then(() => {}).catch((err) =>
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'bridge', level: 'warn',
+      message: 'logNodeDeletion endpoint unavailable (t/3860) or failed', data: { nodeId: entry.nodeId },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } })),
   loadLineageInfo: () => get<Record<string, unknown>>('/api/lineage-info'),
   loadEdges: () => get('/api/edges?include=rationale'), // t/2949: load the FULL set (rationale) so a whole-file save can't drop it; server strips by default
   getEdgeDetail: (index) => get(`/api/edges/${index}`),

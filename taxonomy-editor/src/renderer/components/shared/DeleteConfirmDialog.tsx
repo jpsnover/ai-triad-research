@@ -5,9 +5,13 @@ interface DeleteConfirmDialogProps {
   itemLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  /** t/3852: pre-formatted "this will orphan N edge(s), M situation reference(s)..." text —
+   *  the caller computes its own counts (edges/situations/children mean different things
+   *  per node type) and passes ready-to-render text. Omit when there's nothing to warn about. */
+  danglingWarning?: string;
 }
 
-export function DeleteConfirmDialog({ itemLabel, onConfirm, onCancel }: DeleteConfirmDialogProps) {
+export function DeleteConfirmDialog({ itemLabel, onConfirm, onCancel, danglingWarning }: DeleteConfirmDialogProps) {
   return (
     <div className="dialog-overlay" onClick={onCancel}>
       <div className="dialog" onClick={(e) => e.stopPropagation()}>
@@ -16,6 +20,9 @@ export function DeleteConfirmDialog({ itemLabel, onConfirm, onCancel }: DeleteCo
           Are you sure you want to delete <strong>{itemLabel || '(untitled)'}</strong>?
           This action cannot be undone until you save.
         </p>
+        {danglingWarning && (
+          <p className="dialog-warning">{danglingWarning}</p>
+        )}
         <div className="dialog-actions">
           <button className="btn" onClick={onCancel}>Cancel</button>
           <button className="btn btn-danger" onClick={onConfirm}>Delete</button>
