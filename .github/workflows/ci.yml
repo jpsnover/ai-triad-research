@@ -14,7 +14,8 @@
 # FLIP-PENDING (remove continue-on-error to enforce):
 #   doc-accuracy  doc-claims + REPO_MAP steps (t/1324)
 #   schema-drift  warn-only until Phase-2 blocking flip (t/3447, t/3469)
-#   complexity-budget  PS complexity ratchet, warn-first until ≥1 green cycle (t/3829; flip gated on SO + TL-GV)
+#   complexity-budget  PS complexity ratchet (scripts/ t/3829, operations/ t/3849),
+#                      warn-first per scan scope until ≥1 green cycle each (flip gated on SO + TL-GV)
 # NEVER-FLIP (annotation-only by design — continue-on-error stays permanently):
 #   debate-eval        — nondeterministic AI scores, signal not gate (t/1329)
 #   commit-hygiene     — visibility not friction, never fails CI (t/1319)
@@ -1723,14 +1724,36 @@ jobs:
         # (ci-gate is the sole required context). The flip is a separate deliberate
         # step (mandatory Second Opinion + TL Gate-Verification), NOT this PR.
         # Scope: baseline scripts/complexity-baseline.json; __meta__.scan="scripts"
-        # covers scripts/** (operations/** is the separate t/3849 gap). Invocation +
-        # exit-code contract (0 clean / 1 on violation via New-ActionableError) owned
-        # by PowerShell (p/169#144-146).
+        # covers scripts/** (operations/** complexity is the second step below, t/3849).
+        # Invocation + exit-code contract (0 clean / 1 on violation via New-ActionableError)
+        # owned by PowerShell (p/169#144-146).
         continue-on-error: true
         shell: pwsh
         run: |
           Import-Module ./scripts/AITriad/AITriad.psd1 -Force
           Test-ComplexityBudget -FailOnViolation
+
+      - name: Test operations/ complexity budget (WARN-FIRST — t/3849)
+        # t/3849: extends the t/3829 ratchet to operations/** (28 .ps1/.psm1, incl.
+        # merge-gating scripts). Second step in the SAME job rather than a sibling job
+        # or a new `changes` filter output — the existing `powershell` filter already
+        # includes 'operations/devops/**' (ci.yml:140), which is every file in this
+        # scan's scope today, so this step's trigger condition is identical to the
+        # scripts/ step above with no new filter plumbing to keep in sync.
+        # WARN-FIRST, same Gate Promotion discipline as the scripts/ step: accrue >=1
+        # green cycle on a real operations/-touching PR, then flip to blocking by
+        # removing this step's `continue-on-error: true` — separate deliberate step
+        # (mandatory Second Opinion + TL Gate-Verification), NOT this PR. Oracle: same
+        # single Measure-CodeComplexity implementation as the scripts/ step above (no
+        # second counter to parity-check against -- the Class-8 risk t/3829#9 flagged
+        # as "inherited by this ticket" doesn't reappear, because there is still only
+        # one counter regardless of scan root).
+        # Baseline: operations/complexity-baseline.json; __meta__.scan="operations".
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Import-Module ./scripts/AITriad/AITriad.psd1 -Force
+          Test-ComplexityBudget -Path ./operations -FailOnViolation
 
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
@@ -1767,10 +1790,12 @@ jobs:
   # path-filtered to scripts/** changes, skip = OK.
   # bicep-aca-resources (t/3212) is gated here: ACA cpu:memory allowed-pair
   # validation in main.bicep; path-filtered to bicep-resources changes, skip = OK.
-  # complexity-budget (t/3829) is in needs but WARN-FIRST: continue-on-error makes a
-  # budget violation a red step in a GREEN job, so ci-gate stays green (non-blocking)
-  # until the deliberate flip (remove continue-on-error → SO + TL-GV). Path-filtered
-  # to the powershell filter (scripts/**), skip = OK. operations/** is t/3849.
+  # complexity-budget (t/3829, extended to operations/** by t/3849) is in needs but
+  # WARN-FIRST: continue-on-error on EACH step makes a budget violation a red step in
+  # a GREEN job, so ci-gate stays green (non-blocking) until each step's deliberate
+  # flip (remove its continue-on-error → SO + TL-GV, independently per scan scope).
+  # Path-filtered to the powershell filter (scripts/** and operations/devops/**),
+  # skip = OK.
   # (joint-gv-automerge-guard removed t/3607 PR B — the joint-gv auto-merge block
   # now lives in .github/workflows/joint-gv-guard.yml as its own required status
   # context, not gated through ci-gate.)
