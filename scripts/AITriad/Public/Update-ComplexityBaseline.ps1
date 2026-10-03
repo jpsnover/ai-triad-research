@@ -147,7 +147,7 @@ function Update-ComplexityBaseline {
             # t/3877: forward a justified-raise annotation across regeneration on EITHER
             # branch above (no-op if $existing doesn't have one) -- see
             # ComplexityBaselineAnnotation.ps1 for why this can't change ratchet behavior.
-            $null = Copy-ComplexityBaselineAnnotation -Existing $existing -Output $output[$file]
+            $null = Copy-ComplexityBaselineAnnotation -Existing $existing -Output $output[$file] -File $file
         } else {
             $output[$file] = $observed
             $written++

@@ -155,6 +155,64 @@ Describe 'Update-ComplexityBaseline / Test-ComplexityBudget (t/3829)' -Tag 'heal
         }
     }
 
+    Context 'justifiedRaise AUTO-LAPSE via preRaiseMax (t/3877, TL p/360#498 follow-up)' {
+        # TL: "record the pre-raise value, drop the justification when a regen writes at or
+        # below it (and log that), and test it: 74->78 raise, regen at 70, justification gone."
+        # Scaled down here: preRaiseMax=17, raised to max=21, regen at max=17 (== preRaiseMax,
+        # covering "at or below").
+
+        BeforeEach {
+            New-OffenderFixture $script:Dir 'Test-Raised' 20   # complexity 21 -- the raised value
+            $baseline = [ordered]@{
+                __meta__          = [ordered]@{ threshold = 15; scan = (Split-Path $script:Dir -Leaf); doc = 'test' }
+                'Test-Raised.ps1' = [ordered]@{
+                    max            = 21
+                    countOver      = 1
+                    justifiedRaise = [ordered]@{
+                        ticket         = 't/3877'
+                        reason         = 'test fixture'
+                        preRaiseMax    = 17
+                        lapseCondition = 'test'
+                    }
+                }
+            }
+            $baseline | ConvertTo-Json -Depth 5 | Set-Content -Path $script:BaselinePath
+        }
+
+        It 'drops justifiedRaise and LOGS it when a regen writes at or below preRaiseMax' {
+            New-OffenderFixture $script:Dir 'Test-Raised' 16   # complexity 17 == preRaiseMax ("at or below")
+
+            $written = Update-ComplexityBaseline -Path $script:Dir -Threshold 15 -WarningVariable w -WarningAction SilentlyContinue
+            @($w) | Should -Not -BeNullOrEmpty -Because 'the lapse must be logged, not silent'
+            ($w -join ' ') | Should -Match 'LAPSED'
+            $written | Out-Null
+
+            $result = Get-Content $script:BaselinePath -Raw | ConvertFrom-Json
+            $result.'Test-Raised.ps1'.max | Should -Be 17
+            $result.'Test-Raised.ps1'.PSObject.Properties['justifiedRaise'] | Should -BeNullOrEmpty -Because 'the exemption lapsed -- judged on its own merits now'
+        }
+
+        It 'keeps forwarding justifiedRaise when the regen value is still ABOVE preRaiseMax (not yet lapsed)' {
+            # No fixture change -- still at the raised value (21), well above preRaiseMax (17).
+            Update-ComplexityBaseline -Path $script:Dir -Threshold 15 | Out-Null
+            $result = Get-Content $script:BaselinePath -Raw | ConvertFrom-Json
+            $result.'Test-Raised.ps1'.PSObject.Properties['justifiedRaise'] | Should -Not -BeNullOrEmpty
+        }
+
+        It 'a justifiedRaise with NO preRaiseMax never auto-lapses (forwarded unconditionally, pre-existing behavior)' {
+            $baseline = Get-Content $script:BaselinePath -Raw | ConvertFrom-Json
+            $baseline.'Test-Raised.ps1'.justifiedRaise.PSObject.Properties.Remove('preRaiseMax')
+            $baseline | ConvertTo-Json -Depth 5 | Set-Content -Path $script:BaselinePath
+
+            # Improve well below the raised value, but stay an offender (>threshold) so "no
+            # preRaiseMax" is isolated from the separate "cured, dropped entirely" path.
+            New-OffenderFixture $script:Dir 'Test-Raised' 16   # complexity 17, offender, no preRaiseMax to compare against
+            Update-ComplexityBaseline -Path $script:Dir -Threshold 15 | Out-Null
+            $result = Get-Content $script:BaselinePath -Raw | ConvertFrom-Json
+            $result.'Test-Raised.ps1'.PSObject.Properties['justifiedRaise'] | Should -Not -BeNullOrEmpty -Because 'nothing to compare against -- never auto-lapses'
+        }
+    }
+
     Context 'Test-ComplexityBudget — Gate Verification Arm 1: new offender, non-baselined file' {
 
         It 'flags a new over-threshold function in a file absent from the baseline' {
