@@ -19,3 +19,21 @@ export const SafePath = z.string().min(1).max(500);
  * `cc-` is no longer accepted — removed in t/1316 Phase 2 after the cc→sit migration applied.
  */
 export const NodeId = z.string().regex(/^[a-z]{2,3}-[a-z]+-\d{3}$|^sit-\d{3}$|^pol-\d{3}$/);
+
+/**
+ * Node-delete audit log entry (t/3859). Deliberately STRUCTURAL ONLY — non-empty strings and
+ * non-negative integers — not NodeId/VALID_POV's stricter format/enum checks. This is an
+ * always-on audit trail whose entire point is never silently failing to record; validating
+ * against the stricter id/pov vocabularies would mean a future taxonomy id format or a new pov
+ * value silently drops the entry instead of logging it (the exact failure mode t/3852 exists to
+ * prevent, one layer up).
+ */
+export const NodeDeleteLogEntrySchema = z.object({
+  nodeId: z.string().min(1),
+  pov: z.string().min(1),
+  label: z.string().min(1),
+  user: z.string().min(1),
+  danglingEdges: z.number().int().nonnegative(),
+  danglingSituationRefs: z.number().int().nonnegative(),
+  danglingChildren: z.number().int().nonnegative(),
+});
