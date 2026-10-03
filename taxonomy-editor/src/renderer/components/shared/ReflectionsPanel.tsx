@@ -269,8 +269,22 @@ function EditCardCurrentDesc({ edit, currentNode, descMode, setDescMode }: {
   );
 }
 
-/** Review-mode content for an 'add' proposal: plain preview (with loading/error/retry) or formal fallback. */
-function EditCardAddPlainContent({ edit, descMode, plainLoading, plainError, plainPreview, runPlainPreview }: {
+/** A revise/qualify edit whose description actually changed — the case EditCardProposedBox renders as a
+ *  CURRENT→PROPOSED diff. Shared with EditCard's plain-preview effect so generation fires exactly when
+ *  that branch is on screen (t/3873). */
+function hasProposedDescDiff(edit: ReflectionEdit): edit is ReflectionEdit & { current_description: string } {
+  return !!edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description;
+}
+
+/** Edits whose PROPOSED box renders a generated plain preview: new ('add') proposals and revise/qualify diffs. */
+function wantsPlainPreview(edit: ReflectionEdit): boolean {
+  return edit.edit_type === 'add' || hasProposedDescDiff(edit);
+}
+
+/** Review-mode PROPOSED content: plain preview (with loading/error/retry) in plain mode, else formal.
+ *  Used for 'add' proposals and for revise/qualify diffs (t/3873); for any other edit EditCard never
+ *  generates, so plain mode falls through to the formal text. */
+function EditCardPlainContent({ edit, descMode, plainLoading, plainError, plainPreview, runPlainPreview }: {
   edit: ReflectionEdit;
   descMode: DescMode;
   plainLoading: boolean;
@@ -278,7 +292,7 @@ function EditCardAddPlainContent({ edit, descMode, plainLoading, plainError, pla
   plainPreview: string | null;
   runPlainPreview: () => Promise<void>;
 }) {
-  if (!(descMode === 'plain' && edit.edit_type === 'add')) return <>{edit.proposed_description}</>;
+  if (descMode !== 'plain') return <>{edit.proposed_description}</>;
   if (plainLoading) return <span className="rp-muted-italic">Generating plain description…</span>;
   if (plainError) {
     return (
@@ -314,22 +328,31 @@ function EditCardProposedBox({ edit, descMode, setDescMode, setEditing, resolved
           /* eslint-disable-next-line local/no-inline-style -- border-left only shown when there is a current-vs-proposed diff to highlight */
           style={{ borderLeft: edit.current_description && edit.edit_type !== 'add' ? '3px solid rgba(34,197,94,0.3)' : undefined }}
         >
-          {edit.current_description && edit.edit_type !== 'add' && edit.current_description !== edit.proposed_description ? (
+          {hasProposedDescDiff(edit) ? (
             <>
               <div className="rp-row-6-2">
                 <span className="rp-label-proposed">PROPOSED</span>
                 {!resolved && (
-                  <button
-                    className="btn btn-sm btn-ghost rp-edit-btn"
-                    onClick={() => setEditing(true)}
-                  >&#9998; Edit</button>
+                  <>
+                    <DescriptionToggle
+                      mode={descMode}
+                      onToggle={setDescMode}
+                      hasPlainDescription={!!plainPreview}
+                    />
+                    <button
+                      className="btn btn-sm btn-ghost rp-edit-btn"
+                      onClick={() => setEditing(true)}
+                    >&#9998; Edit</button>
+                  </>
                 )}
               </div>
               {descMode === 'formal' ? diffWords(edit.current_description, edit.proposed_description).map((seg, i) =>
                 seg.type === 'added'
                   ? <mark key={i} className="rp-diff-added">{seg.text}</mark>
                   : <span key={i}>{seg.text}</span>
-              ) : edit.proposed_description}
+              ) : (
+                <EditCardPlainContent edit={edit} descMode={descMode} plainLoading={plainLoading} plainError={plainError} plainPreview={plainPreview} runPlainPreview={runPlainPreview} />
+              )}
             </>
           ) : (
             <>
@@ -349,7 +372,7 @@ function EditCardProposedBox({ edit, descMode, setDescMode, setEditing, resolved
                   >&#9998; Edit</button>
                 </div>
               )}
-              <EditCardAddPlainContent edit={edit} descMode={descMode} plainLoading={plainLoading} plainError={plainError} plainPreview={plainPreview} runPlainPreview={runPlainPreview} />
+              <EditCardPlainContent edit={edit} descMode={descMode} plainLoading={plainLoading} plainError={plainError} plainPreview={plainPreview} runPlainPreview={runPlainPreview} />
             </>
           )}
         </div>
@@ -826,15 +849,18 @@ function EditCard({ edit, pover, editIndex }: {
     }
   }, [plainSource]);
 
-  // AC1 (t/1563): trigger generation when a new proposal is *displayed* in plain
+  // AC1 (t/1563): trigger generation when a proposal is *displayed* in plain
   // mode — not only on an explicit toggle click. Skips if already generated, in
   // flight, or previously failed (Retry clears plainError to re-arm this).
+  // t/3873: also revise/qualify edits with a real description diff — the same
+  // predicate EditCardProposedBox uses to pick its diff branch.
+  const needsPlainPreview = wantsPlainPreview(edit);
   useEffect(() => {
-    if (edit.edit_type === 'add' && descMode === 'plain' && !resolved
+    if (needsPlainPreview && descMode === 'plain' && !resolved
         && !plainPreview && !plainLoading && !plainError) {
       void runPlainPreview();
     }
-  }, [edit.edit_type, descMode, resolved, plainPreview, plainLoading, plainError, runPlainPreview]);
+  }, [needsPlainPreview, descMode, resolved, plainPreview, plainLoading, plainError, runPlainPreview]);
 
   const isModified = editedLabel !== edit.proposed_label
                   || editedDescription !== edit.proposed_description;

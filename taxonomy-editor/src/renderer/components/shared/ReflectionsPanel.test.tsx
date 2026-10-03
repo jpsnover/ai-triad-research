@@ -144,6 +144,55 @@ describe('ReflectionsPanel — Revise card current-description visibility (t/340
   });
 });
 
+// ── Plain PROPOSED view for revise/qualify (t/3873) ────────────
+// Previously only 'add' proposals generated a plain preview; a revise/qualify
+// diff in plain mode just showed the raw formal proposed text.
+
+describe('ReflectionsPanel — plain PROPOSED view for revise/qualify edits (t/3873)', () => {
+  const PROPOSED = 'A meaningfully different proposed description.';
+
+  it('generates and shows the plain preview for a revise diff in plain mode, with a toggle beside PROPOSED', async () => {
+    generatePlainPreview.mockResolvedValue('Plain version of the revision.');
+    addReviseReflection(true);
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+
+    await waitFor(() => expect(generatePlainPreview).toHaveBeenCalledWith(PROPOSED));
+    expect(await screen.findByText('Plain version of the revision.')).toBeInTheDocument();
+    // One toggle on the CURRENT box, one beside PROPOSED.
+    expect(screen.getAllByRole('radiogroup', { name: 'Description style' })).toHaveLength(2);
+  });
+
+  it('surfaces Retry on generation failure and recovers on retry', async () => {
+    generatePlainPreview.mockResolvedValue(null);
+    addNoOpGuardReflection({ proposed_description: PROPOSED }); // qualify with a real diff
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+
+    const retry = await screen.findByRole('button', { name: 'Retry' });
+    expect(screen.getByText(/Couldn't generate a plain description/)).toBeInTheDocument();
+
+    generatePlainPreview.mockResolvedValue('Recovered plain qualification.');
+    fireEvent.click(retry);
+    expect(await screen.findByText('Recovered plain qualification.')).toBeInTheDocument();
+  });
+
+  it('does not generate in formal mode — shows the word diff instead', () => {
+    localStorage.setItem('taxonomy-editor-description-mode', 'formal');
+    addReviseReflection(true);
+    const { container } = render(<ReflectionsPanel onClose={vi.fn()} />);
+
+    expect(generatePlainPreview).not.toHaveBeenCalled();
+    expect(container.querySelector('mark.rp-diff-added')).not.toBeNull();
+  });
+
+  it('does not generate for a label-only revise (no description diff to render)', async () => {
+    addReviseReflection(false);
+    render(<ReflectionsPanel onClose={vi.fn()} />);
+    // Give any (incorrect) effect a tick to fire before asserting it didn't.
+    await new Promise(r => setTimeout(r, 0));
+    expect(generatePlainPreview).not.toHaveBeenCalled();
+  });
+});
+
 // ── No-op edit guard (t/3814) ──────────────────────────────────
 // Defense-in-depth backstop for t/3813: the generator can propose the current
 // description back unchanged (QUALIFY has no way to decline). A true no-op —
