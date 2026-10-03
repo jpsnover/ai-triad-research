@@ -79,6 +79,30 @@ Describe 'Get-DataRepoHooksVerdict — every state, both arms' {
         $v.State  | Should -Be 'HOOK_MISSING' -Because 'what clones receive is the committed mode'
         $v.Reason | Should -Match 'STAGED but was never committed'
     }
+    It 'COMMITTED_NOT_PUSHED when HEAD is 100755 but origin still has 100644 (TL p/331#1813)' {
+        $v = Get-DataRepoHooksVerdict -Resolution $script:Ok -PathExists $true -IsGitRepo $true -HooksPath '.githooks' `
+            -Hooks @{ 'pre-commit' = @{ Present = $true; CommittedMode = '100755'; IndexMode = '100755'; RemoteRef = 'origin/main'; RemoteMode = '100644' } }
+        $v.State    | Should -Be 'COMMITTED_NOT_PUSHED' -Because 'a fresh Linux/macOS clone gets origin, not local HEAD'
+        $v.Severity | Should -Be 'WARN'
+        $v.Reason   | Should -Match 'as of last fetch'
+    }
+    It 'COMMITTED_NOT_PUSHED when the hook exists in HEAD but is absent on origin' {
+        $v = Get-DataRepoHooksVerdict -Resolution $script:Ok -PathExists $true -IsGitRepo $true -HooksPath '.githooks' `
+            -Hooks @{ 'commit-msg' = @{ Present = $true; CommittedMode = '100755'; IndexMode = '100755'; RemoteRef = 'origin/main'; RemoteMode = $null } }
+        $v.State  | Should -Be 'COMMITTED_NOT_PUSHED'
+        $v.Reason | Should -Match 'absent on origin/main'
+    }
+    It 'WIRED (with origin match noted) when HEAD and origin are both 100755' {
+        $v = Get-DataRepoHooksVerdict -Resolution $script:Ok -PathExists $true -IsGitRepo $true -HooksPath '.githooks' `
+            -Hooks @{ 'pre-commit' = @{ Present = $true; CommittedMode = '100755'; IndexMode = '100755'; RemoteRef = 'origin/main'; RemoteMode = '100755' } }
+        $v.State  | Should -Be 'WIRED'
+        $v.Reason | Should -Match 'matches origin/main'
+    }
+    It 'WIRED with no origin ref says so explicitly — not a silent pass on the clone-facing mode' {
+        $v = Get-DataRepoHooksVerdict -Resolution $script:Ok -PathExists $true -IsGitRepo $true -HooksPath '.githooks' -Hooks $script:Exec
+        $v.State  | Should -Be 'WIRED'
+        $v.Reason | Should -Match 'NOT checked'
+    }
     It 'WIRED requires the COMMITTED mode — index 100755 alone is not enough, HEAD 100755 is' {
         $v = Get-DataRepoHooksVerdict -Resolution $script:Ok -PathExists $true -IsGitRepo $true -HooksPath '.githooks' `
             -Hooks @{ 'pre-commit' = @{ Present = $true; CommittedMode = '100755'; IndexMode = '100644' } }

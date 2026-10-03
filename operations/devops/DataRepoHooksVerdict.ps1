@@ -17,6 +17,8 @@
 
     STATES (t/3869#2 — enumerated so blanks are visible, not just wired/unwired):
       WIRED         hooksPath = .githooks and every expected hook present + executable  → PASS
+      COMMITTED_NOT_PUSHED  wired + 100755 in local HEAD, but not 100755 on origin/<default>
+                    (last-fetched) — fresh clones still get the old mode               → WARN
       UNWIRED       hooksPath unset                                                     → WARN
       MISWIRED      hooksPath set to anything other than .githooks                      → WARN
       HOOK_MISSING  wired, but an expected hook is absent OR not executable as COMMITTED
@@ -147,7 +149,28 @@ function Get-DataRepoHooksVerdict {
         # commits 100644 anyway (TL p/331#1811). Use the tested private-index recipe.
         return & $mk 'HOOK_MISSING' 'WARN' ("wired, but: " + ($bad -join '; ')) 'Restore the hook / commit it as 100755 using the private-index + bare-commit recipe at t/3851#9 (a plain update-index --chmod=+x followed by a pathspec commit silently commits 100644 when core.fileMode=false), then verify with: git ls-tree HEAD -- .githooks/<hook>'
     }
-    return & $mk 'WIRED' 'PASS' 'core.hooksPath = .githooks; expected hooks present and executable' ''
+
+    # COMMITTED_NOT_PUSHED (TL p/331#1813): local HEAD is the operator's record, but a FRESH
+    # Linux/macOS clone gets the mode on origin/<default>. A local 100755 commit not yet pushed would
+    # otherwise read WIRED here while every new clone still gets 100644 / no hook. Compared against
+    # the LAST-FETCHED remote ref — verify:config deliberately does no network fetch.
+    $remoteRef = $null; $unpushed = [System.Collections.Generic.List[string]]::new()
+    foreach ($name in ($Hooks.Keys | Sort-Object)) {
+        $h = $Hooks[$name]
+        if ($h.ContainsKey('RemoteRef') -and $h.RemoteRef) {
+            $remoteRef = $h.RemoteRef
+            $rm = if ($h.ContainsKey('RemoteMode')) { $h.RemoteMode } else { $null }
+            if ($rm -ne '100755') {
+                $shown = if ($rm) { $rm } else { 'absent' }
+                $unpushed.Add("$name is 100755 in local HEAD but $shown on $($h.RemoteRef)")
+            }
+        }
+    }
+    if ($unpushed.Count -gt 0) {
+        return & $mk 'COMMITTED_NOT_PUSHED' 'WARN' ("wired locally, but fresh clones won't get it: " + ($unpushed -join '; ') + ' (as of last fetch)') "Push the commit that sets the mode, then verify with: git ls-tree $remoteRef -- .githooks/<hook>"
+    }
+    $originNote = if ($remoteRef) { "; matches $remoteRef as of last fetch" } else { '; clone-facing mode NOT checked (no origin remote ref)' }
+    return & $mk 'WIRED' 'PASS' ("core.hooksPath = .githooks; expected hooks present and executable as committed" + $originNote) ''
 }
 
 function Get-DataRepoHooksFacts {
@@ -183,7 +206,25 @@ function Get-DataRepoHooksFacts {
                     $cmode = if ($tree) { (([string]$tree) -split '\s+')[0] } else { $null }
                     $ls    = & git -C $res.Path ls-files -s -- $rel 2>$null
                     $imode = if ($ls) { (([string]$ls) -split '\s+')[0] } else { $null }
-                    $hooks[$name] = @{ Present = $present; CommittedMode = $cmode; IndexMode = $imode }
+                    # Clone-facing mode: origin's default branch, as of the last fetch (no network).
+                    # NOT `rev-parse --abbrev-ref origin/HEAD`: when origin/HEAD is unset (e.g. a clone
+                    # of an initially-empty repo) it ECHOES the literal 'origin/HEAD' and exits non-zero,
+                    # which resolved to a nonexistent ref → "absent on origin" → a false
+                    # COMMITTED_NOT_PUSHED that never cleared even after the push (caught live).
+                    $rref = $null
+                    $sym = & git -C $res.Path symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>$null
+                    if ($LASTEXITCODE -eq 0 -and $sym) { $rref = ([string]$sym).Trim() }
+                    if (-not $rref) {
+                        $null = & git -C $res.Path rev-parse --verify --quiet refs/remotes/origin/main 2>$null
+                        if ($LASTEXITCODE -eq 0) { $rref = 'origin/main' }
+                    }
+                    $rmode = $null
+                    if ($rref) {
+                        $rref  = ([string]$rref).Trim()
+                        $rtree = & git -C $res.Path ls-tree $rref -- $rel 2>$null
+                        $rmode = if ($rtree) { (([string]$rtree) -split '\s+')[0] } else { $null }
+                    }
+                    $hooks[$name] = @{ Present = $present; CommittedMode = $cmode; IndexMode = $imode; RemoteRef = $rref; RemoteMode = $rmode }
                 }
             }
         }
