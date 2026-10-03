@@ -2930,6 +2930,28 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## #190 [Process] `git log` Is Newest-First — A Consecutive-Commit Delta Loop Computes Deltas in Reverse; Additions Read as Deletions
+
+**Pattern:** `git log` outputs commits newest-first (reverse chronological) by default. A loop that computes the consecutive delta between adjacent commits in that order computes `new → old`, not `old → new` — so every addition appears as a deletion and vice versa. The loop completes successfully, prints results, and produces a **confident wrong answer**: no error signal, directionally inverted.
+
+**Instances:**
+- 2026-10-02 — Second Opinion (p/691#5): bash loop iterating `git log` output newest-first, labelling drops in node count as "DROP" — 8 apparent removals produced. Actual removal count: 0 (the 8 "drops" were additions read backwards). Caught before reporting because the timeout (#122) interrupted the first run; the completing re-run on a smaller range revealed the inversion. The consult was a blocking-gate review asking "did anything get removed" — a completing inverted loop would have produced a confident wrong blocking answer.
+
+**Root Cause:** `git log` default order is newest-first (newest commit at the top). Computing `commits[i] - commits[i+1]` in list order gives `newer - older` = forward delta; but labelling a *decrease* from commits[i] to commits[i+1] as "removal" is actually labelling the removal from the older commit to the newer one as seen backwards. The **semantic inversion is silent** — the loop never errors. The only signal is implausible results (all additions look like removals).
+
+**Prevention:**
+1. **When iterating `git log` output to compute forward-time deltas, always use `git log --reverse`** (or pipe through `tac`). This gives oldest-first order so consecutive delta loops compute `old → new` = the actual change over time.
+2. **Sanity-check delta loop results against a known ground truth before reporting.** If "removals" appear where you expect growth, suspect direction inversion.
+3. **In consulting / blocking-gate contexts, direction errors are especially dangerous** — the loop completing is evidence of nothing except that it ran. Validate direction before reporting a result that could block a merge.
+4. **Cross-reference with total counts:** if the total at the end doesn't match the expected final state, the loop's direction is likely wrong.
+5. **Assert the direction with an endpoint anchor.** The loop's final value must equal the current working-tree value (or whatever the known newest state is). One comparison catches inversion, off-by-one windows, and filtered-out commits — loudly, without relying on having remembered `--reverse`. Example: after the loop, assert `final_count == $(git ls-files … | wc -l)`. Generalises to any ordered-iteration delta (changelog, time series): anchor to a known endpoint, fail loud on mismatch. (p/691#7)
+
+**Status:** Active — 1 instance (Second Opinion p/691#5). Silent directional inversion; completing version produces confident wrong answer. Consulting-context risk: a wrong "N items removed" in a blocking-gate review.
+
+**Applies To:** All agents writing loops that compute consecutive-commit deltas over `git log` output.
+
+---
+
 ## #118 [Build] A Platform Feature Can Be AVAILABLE While a Specific MODE/Tier of It Is Plan-Gated — Verify the Exact MODE Empirically Before Designing Around It
 
 **Pattern:** A GitHub (or any platform) feature may work on your repo while a specific MODE, tier, or sub-option of it is silently plan-gated — surfacing HTTP 422 only when you invoke that mode. Designing a gate/workflow around the plan-gated mode fails at implementation time, *after* you've built around it. The availability trap has **granularity**: "the feature works" ≠ "every mode of it works on this repo's owner-type/plan."
@@ -3038,6 +3060,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-08-01 — DevOps (t/2091, p/26#31): a CI script built a tracked-dir set via a **`$(dirname)` subshell loop over `git ls-files` (~3k files)** → tens of thousands of subprocess spawns → **timed out (>2 min)** on Git Bash/Windows. Fixed with **pure-bash ancestor extraction via parameter expansion** — `while [[ $d == */* ]]; do d=${d%/*}; done` (zero subprocesses) → **47s**.
 - 2026-10-01 — PowerShell (p/20#47): bash loop calling `git show <commit>:<file> | wc -l` once per file × 402 files timed out at 2 min — per-file subprocess spawn overhead × file count exceeded the Bash-tool cap. Fixed with `git archive` to extract the whole tree in one shot, then counting locally in a single pass (one subprocess, not 402).
+- 2026-10-02 — Second Opinion (p/691#5): bash loop spawning `git show | grep` per commit × 4 files over 60 commits (240 subprocesses) timed out (exit 143). Re-ran at 18 commits × 1 file.
 
 **Root Cause:** each `$(...)` / backtick command substitution **forks a subprocess**; on Windows Git Bash, fork/exec is emulated and ~orders of magnitude slower than native, so N-thousand spawns dominate wall-clock. Bash **parameter expansion** (`${d%/*}` = dirname, `${f##*/}` = basename, `${f%.*}` = strip-ext) does the same string ops **in-process** — zero spawns. Ties to the "foreground op > 120s Bash-tool cap → SIGTERM" genus (#78/#95/#116), but here the cost is **spawn-count**, not a single slow op or I/O.
 
@@ -3046,7 +3069,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. **On Git Bash/Windows, subprocess spawn is the bottleneck, not the work** — a loop fine on Linux CI can blow the 2m Bash-tool cap on win32 purely from spawn count. Count `$(...)`-per-iteration × tree size before running a whole-tree loop.
 3. **If you genuinely need an external tool per item, batch it** — feed all items to ONE `xargs`/`awk`/`sed` invocation instead of one spawn per item.
 
-**Status:** Active — 2 instances. Windows Git-Bash subprocess-spawn perf cliff; a whole-tree per-file `$(cmd)` loop times out (spawn-count-bound). Sibling of the "foreground op > 120s Bash cap" genus (#78/#95/#116) — same 2m-timeout symptom, root cause = subprocess spawns, not a single slow op.
+**Status:** Active — 3 instances. Windows Git-Bash subprocess-spawn perf cliff; a whole-tree per-file `$(cmd)` loop times out (spawn-count-bound). Sibling of the "foreground op > 120s Bash cap" genus (#78/#95/#116) — same 2m-timeout symptom, root cause = subprocess spawns, not a single slow op.
 
 **Applies To:** All agents writing bash loops over `git ls-files` / large file sets on Windows Git Bash — use parameter expansion; batch external tools.
 
@@ -3612,14 +3635,15 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-08-08 — DevOps (p/26#70): `gh pr create` run from the shared checkout without `--head` aborted on uncommitted changes (other agents' WIP in the shared tree). Fix: added `--head <branch>` explicitly.
 - 2026-09-28 — DebateUI (p/689#1, **HEAD-switched variant**): branch already pushed, but another concurrent agent had switched shared HEAD to `main` between the push and `gh pr create`. CLI defaulted to `main`, errored "you must first push the current branch." Fix: `--head <my-branch>` explicitly.
+- 2026-10-02 — ServerAPI (p/504#16, **v1 repeat**): `gh pr create` without `--head` aborted — "94 uncommitted changes / must first push." The 94 files were other agents' untracked WIP on the shared tree, not the ServerAPI branch. Fix: pass `--head feat/branch --base main` explicitly.
 
 **Root Cause:** `gh pr create` without `--head` infers the head branch from the current local state. In the shared checkout, two failure variants exist: **(v1)** other agents' uncommitted changes trigger the "uncommitted changes" abort; **(v2)** another agent's checkout switches HEAD mid-flight, so the CLI targets the wrong (now-current) branch entirely. Both are instantaneous local-state races invisible to the PR author.
 
 **Prevention:**
-1. **Always pass `--head <branch>` explicitly with `gh pr create` when running from the shared checkout** — never let the CLI infer from local state; it races shared-tree drift in both variants.
+1. **Always pass `--head <branch> --base main` explicitly with `gh pr create` when running from the shared checkout** — never let the CLI infer from local state; it races shared-tree drift in both variants.
 2. Alternatively, run `gh pr create` from inside the worktree where the branch is checked out and clean.
 
-**Status:** Active — 2 instances / 2 agents; 2 variants. Both fixed by `--head <branch>`.
+**Status:** Active — 3 instances / 3 agents; 2 variants. All fixed by `--head <branch> --base main`.
 
 **Applies To:** All agents opening PRs from the shared checkout or any context where the working tree may be dirty.
 
