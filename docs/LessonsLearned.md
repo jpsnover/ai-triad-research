@@ -4006,15 +4006,39 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-10-03 — TL (t/3851, p/335#115): A hook harness for the shared-checkout commit guard exercised the bare-commit index path (no pathspec). The production path uses `git commit -- <pathspec>`. Harness green ≠ pathspec path tested. The harness proved the bare-commit arm; the pathspec arm was not exercised.
 - 2026-10-03 — TL (t/3821, p/335#115): A test carried its own copy of the predicate it was meant to validate. When the production predicate changed, the test's private copy stayed stale; test green, production behavior changed. The harness proved the test's copy of the predicate, not the deployed one.
+- 2026-10-03 — TL (t/3851, p/335#117): `GIT_INDEX_FILE=` (empty string) — git treats it as an empty index, not as unset. Harness output "1429 nodes would be REMOVED" was read as a hook defect; it was the correct output for an empty index. The extra variable was the index state, not the hook logic. Harness, not code.
 
-**Root Cause:** Credit to Second Opinion (e/243#4) for the formulation: *"A harness that differs from production in one variable is not a weaker test — it is a test of a different thing. Which thing it tested is invisible from the result."* Isolation introduces a controlled variable; an unnoticed additional difference (execution path, predicate copy, flag, data source) silently redirects what is being tested. Green proves the harness path; it says nothing about the production path.
+**Root Cause:** Credit to Second Opinion (e/243#4) for the formulation: *"A harness that differs from production in one variable is not a weaker test — it is a test of a different thing. Which thing it tested is invisible from the result."* Isolation introduces a controlled variable; an unnoticed additional difference (execution path, predicate copy, flag, index state, data source) silently redirects what is being tested. Green proves the harness path; it says nothing about the production path.
 
 **Prevention:**
 1. **Name the exact execution path the test exercises** — not just "the feature." Include the specific flags, code path, and data source. If the path differs from production in any way, the test proves that path, not the production one.
 2. **Never embed a copy of a production predicate in a test.** Import it. A private copy drifts silently when the original changes.
 3. **After writing a test, ask: "What exactly did this harness exercise, and how does it differ from the production call chain?"** A one-variable difference is expected (the controlled variable); more than one means the extra variables are also being tested — or worse, are being quietly assumed constant.
 4. **When a test is green on a known-broken change, suspect a harness path divergence** — not just a logic error. The test may not have reached the changed code at all.
+5. **`GIT_INDEX_FILE=` (empty string) ≠ unset.** Git treats it as a path to an empty index. Use `unset GIT_INDEX_FILE` or omit the variable entirely to exercise the real index.
 
-**Status:** Active — 2 instances (TL t/3851, t/3821, p/335#115). Expected to recur wherever test harnesses are written without tracing the full call path to production code.
+**Status:** Active — 3 instances (TL t/3851, t/3821, p/335#115, p/335#117). Expected to recur wherever test harnesses are written without tracing the full call path to production code.
 
 **Applies To:** All agents writing or interpreting test results, especially for hooks, guards, and gates where the test harness differs from the live invocation path.
+
+---
+
+## #193 [Test] A Reachability Arm Is the Only Test That Can Fail for an Unreachable Branch — Behaviour Tests for Dead Branches Pass Vacuously
+
+**Pattern:** A test for the *behaviour* of a branch that can never be reached always passes — because the branch never executes, it can never fail. Writing this kind of test is the natural instinct when you suspect a branch is dead, which is precisely why the instinct defeats itself: a vacuous pass reads as coverage, the suspicion is "confirmed," and the dead branch stays in production. The correct test is of the *precondition*: assert that the condition the branch guards against can (or can no longer) occur. That test can fail if the system changes.
+
+**Corollary — detection:** an arm that yields no output has not passed; it has not run. A harness arm that returns empty output (or rc=128 with zero hook output) is evidence of a dead branch, not a clean pass.
+
+**Instances:**
+- 2026-10-03 — TL (t/3851, p/335#118, e/243#8): Hook harness arm 11 was designed to test git-never-runs-hooks-on-unmerged-files. The dead-branch instinct would have been a behaviour test that silently passed. Instead, arm 11 asserts the *precondition* (git invariant), so it fails if that invariant ever changes. The dead branch was caught because the arm returned empty (rc=128, zero hook output) — the detection corollary in practice.
+
+**Root Cause:** Credit to Second Opinion (e/243#8): *"A reachability arm is the only test that can fail for an unreachable branch."* Behaviour tests exercise the branch body; a dead branch has no body to exercise. The test reads as structural coverage — "the branch is tested" — but the coverage is vacuous. The underlying confound is conflating *having a test* with *having a test that can fail*.
+
+**Prevention:**
+1. **Test the precondition, not the behaviour, of a suspected dead branch.** Assert the invariant or condition that makes the branch reachable. If the condition can no longer be met, the arm fails — which is the signal you want.
+2. **Zero output from a harness arm is a finding, not a pass.** An arm that emits nothing either reached a dead branch or did not run. Distinguish the two before moving on: check rc and add a "reached this arm" sentinel output.
+3. **When writing a test to verify a branch is dead, ask: "Can this test fail?"** If the honest answer is "no, because the branch never executes," the test proves nothing. Redesign it as a precondition assertion.
+
+**Status:** Active — 1 instance (TL t/3851, p/335#118, e/243#8). Structural: applies to any test for a branch suspected of being unreachable.
+
+**Applies To:** All agents writing tests for guard branches, hooks, gates, or error paths that may be unreachable under normal conditions.
