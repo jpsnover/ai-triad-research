@@ -22,6 +22,7 @@ export interface EmbeddingIODeps {
 }
 
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
+const PYTHON_EMBED_TIMEOUT_MS = 60_000;
 
 export function createEmbeddingIO(deps: EmbeddingIODeps) {
   let cache: EmbeddingsFile | null = null;
@@ -53,10 +54,15 @@ export function createEmbeddingIO(deps: EmbeddingIODeps) {
       execFile(
         PYTHON,
         [deps.embedScriptPath, 'encode', text],
-        { timeout: 60_000, maxBuffer: 10 * 1024 * 1024 },
+        { timeout: PYTHON_EMBED_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 },
         (err, stdout, stderr) => {
           if (err) {
-            reject(new Error(`Python embed failed: ${err.message}\n${stderr}`));
+            // A timeout kills the child with no Python traceback, so err.message alone reads as an
+            // unexplained "Command failed" — name the kill/signal/exit code so it's diagnosable.
+            const how = err.killed
+              ? `killed (signal ${err.signal ?? 'unknown'}) — likely the ${PYTHON_EMBED_TIMEOUT_MS / 1000}s timeout; each call cold-loads the model`
+              : `exit code ${err.code ?? 'unknown'}`;
+            reject(new Error(`Python embed failed: ${how}: ${err.message}\n${stderr}`));
             return;
           }
           try {

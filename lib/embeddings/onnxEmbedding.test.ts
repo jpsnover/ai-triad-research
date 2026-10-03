@@ -23,6 +23,8 @@ const h = vi.hoisted(() => {
   const SEQ = 256;
   const createEPs: string[][] = []; // executionProviders per InferenceSession.create
   const runBatches: number[] = [];  // dims[0] per run — chunk-size assertion
+  // Message the GPU (non-CPU) session throws; per-test settable to exercise each fault class.
+  const gpu = { error: 'Non-succeeded return code from onnxruntime: 8007000E : E_OUTOFMEMORY' };
   class Tensor {
     constructor(public type: string, public data: unknown, public dims: number[]) {}
   }
@@ -30,7 +32,7 @@ const h = vi.hoisted(() => {
     async run(feeds: Record<string, { dims: number[] }>) {
       const batch = feeds.input_ids.dims[0];
       runBatches.push(batch);
-      if (oom) throw new Error('Non-succeeded return code from onnxruntime: 8007000E : E_OUTOFMEMORY');
+      if (oom) throw new Error(gpu.error);
       return { last_hidden_state: { data: new Float32Array(batch * SEQ * HIDDEN).fill(0.1), dims: [batch, SEQ, HIDDEN] } };
     },
     async release() { /* no-op */ },
@@ -46,7 +48,7 @@ const h = vi.hoisted(() => {
     Tensor,
     listSupportedBackends: () => [{ name: 'cpu', bundled: true }, { name: 'dml', bundled: true }],
   };
-  return { createEPs, runBatches, fakeOrt };
+  return { createEPs, runBatches, fakeOrt, gpu };
 });
 
 vi.mock('module', async (importOriginal) => {
@@ -105,5 +107,59 @@ describe('onnxEmbedding — chunking + GPU→CPU OOM fallback (t/2060)', () => {
 
     // Every session.run was a bounded chunk (≤ CHUNK_SIZE=32), never the whole 40-batch.
     expect(Math.max(...h.runBatches)).toBeLessThanOrEqual(32);
+  });
+});
+
+// DXGI device-removed family (2026-10-03 desktop log: 887A0005 "GPU device instance has been
+// suspended" on every call after a GPU reset). The CPU pin is module-level state that outlives
+// dispose(), so each case loads a FRESH module copy to start from the GPU EP again.
+describe('onnxEmbedding — GPU fault classes recover on CPU; other errors do not', () => {
+  let modelDir: string;
+  const DEVICE_SUSPENDED = String.raw`N:\_work\1\s\onnxruntime\core\providers\dml\DmlExecutionProvider\src\ExecutionProvider.cpp(972)\onnxruntime.dll!00007FFCCB492D89: (caller: 00007FFCCB4931AA) Exception(110) tid(2a3c4) 887A0005 The GPU device instance has been suspended. Use GetDeviceRemovedReason to determine the appropriate action.`;
+
+  beforeEach(() => {
+    h.createEPs.length = 0;
+    h.runBatches.length = 0;
+    vi.resetModules();
+    modelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'onnx-mock-'));
+    const vocab = { '[PAD]': 0, '[UNK]': 100, '[CLS]': 101, '[SEP]': 102, 'ai': 1, 'policy': 2, 'node': 3 };
+    fs.writeFileSync(path.join(modelDir, 'tokenizer.json'), JSON.stringify({ model: { vocab } }));
+    fs.writeFileSync(path.join(modelDir, 'tokenizer_config.json'), '{}');
+    fs.writeFileSync(path.join(modelDir, 'model.onnx'), '');
+    process.env.AI_TRIAD_ONNX_MODEL_DIR = modelDir;
+  });
+
+  afterEach(() => {
+    delete process.env.AI_TRIAD_ONNX_MODEL_DIR;
+    fs.rmSync(modelDir, { recursive: true, force: true });
+  });
+
+  it.each([
+    ['OOM 8007000E', 'Non-succeeded return code from onnxruntime: 8007000E : E_OUTOFMEMORY'],
+    ['device suspended 887A0005 (real log text)', DEVICE_SUSPENDED],
+    ['device hung 887A0006', 'DXGI_ERROR_DEVICE_HUNG 887A0006'],
+    ['device reset 887A0007', 'DXGI_ERROR_DEVICE_RESET 887A0007'],
+    ['driver internal error 887A0020', 'Exception 887A0020 driver internal error'],
+  ])('%s: recreates the session on CPU, retries to success, and stays pinned', async (_label, message) => {
+    h.gpu.error = message;
+    const mod = await import('./onnxEmbedding.js');
+    const vecs = await mod.computeEmbeddings(['node ai policy', 'policy node']);
+    expect(vecs).toHaveLength(2);
+    expect(mod.getExecutionProvider()).toBe('cpu');
+    expect(h.createEPs[0]).toContain('dml');
+    // Subsequent calls run on the CPU session directly — no further GPU attempts or recreates.
+    const createsAfterRecovery = h.createEPs.length;
+    await mod.computeEmbedding('ai policy');
+    expect(h.createEPs.length).toBe(createsAfterRecovery);
+    await mod.dispose();
+  });
+
+  it('an unrelated inference error is NOT treated as a GPU fault (no CPU recreate, rethrown)', async () => {
+    h.gpu.error = 'Invalid input shape: expected rank 2';
+    const mod = await import('./onnxEmbedding.js');
+    await expect(mod.computeEmbeddings(['node ai policy'])).rejects.toThrow(/Invalid input shape/);
+    expect(mod.getExecutionProvider()).toBe('dml');
+    expect(h.createEPs.every((eps) => eps.includes('dml'))).toBe(true);
+    await mod.dispose();
   });
 });
