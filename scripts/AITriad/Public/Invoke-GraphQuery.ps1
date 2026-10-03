@@ -290,9 +290,17 @@ $SchemaPrompt
         try {
             $Response = $Repaired | ConvertFrom-Json
         } catch {
-            Write-Fail 'Could not parse response'
-            Write-Host $ResponseText -ForegroundColor DarkGray
-            return
+            # t/3857: this used to Write-Fail + bare `return` -- never rethrow, so a response the
+            # AI returned that couldn't be parsed even after repair was indistinguishable from a
+            # successful query. No internal caller relies on this today, but a silent $null on
+            # failure is a trap for the next one.
+            throw (New-ActionableError `
+                    -Goal 'Answer the graph query' `
+                    -Problem "The AI response could not be parsed as JSON, even after repair: $($_.Exception.Message)" `
+                    -Location 'Invoke-GraphQuery' `
+                    -NextSteps @(
+                        'Re-run the query -- this is usually a transient malformed-response issue.',
+                        "Raw response: $ResponseText"))
         }
     }
 
