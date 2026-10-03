@@ -19,8 +19,14 @@
       WIRED         hooksPath = .githooks and every expected hook present + executable  → PASS
       UNWIRED       hooksPath unset                                                     → WARN
       MISWIRED      hooksPath set to anything other than .githooks                      → WARN
-      HOOK_MISSING  wired, but an expected hook is absent OR not executable (index mode
-                    != 100755 — on Linux/macOS git IGNORES a non-executable hook)         → WARN
+      HOOK_MISSING  wired, but an expected hook is absent OR not executable as COMMITTED
+                    (HEAD tree mode != 100755 — on Linux/macOS git IGNORES a non-executable
+                    hook)                                                                → WARN
+                    Reads the COMMITTED mode (git ls-tree HEAD), not the index: with
+                    core.fileMode=false a pathspec commit silently drops a staged +x, leaving
+                    the index at 100755 while HEAD stays 100644 (TL p/331#1811, t/3851#9). An
+                    index read would report WIRED there — a false green. A staged-but-
+                    uncommitted +x is named explicitly in the reason.
       ABSENT        nothing exists at the resolved path (code-only / public-repo setup) → N/A
       UNDETERMINED  couldn't tell: malformed/missing .aitriad.json, env var pointing at a
                     path that doesn't exist, or a path that exists but isn't a git repo  → FAIL
@@ -82,7 +88,8 @@ function Get-DataRepoHooksVerdict {
     .SYNOPSIS
         PURE. Classify from gathered facts. See the header for states/severities.
     .PARAMETER Hooks
-        hashtable: hook name -> @{ Present = bool; IndexMode = '100755'|'100644'|$null }
+        hashtable: hook name -> @{ Present = bool; CommittedMode = '100755'|'100644'|$null; IndexMode = ...|$null }
+        CommittedMode (HEAD tree) decides; IndexMode is diagnostic only.
     #>
     [CmdletBinding()]
     param(
@@ -126,11 +133,19 @@ function Get-DataRepoHooksVerdict {
     $bad = [System.Collections.Generic.List[string]]::new()
     foreach ($name in ($Hooks.Keys | Sort-Object)) {
         $h = $Hooks[$name]
+        $committed = if ($h.ContainsKey('CommittedMode')) { $h.CommittedMode } else { $null }
+        $index     = if ($h.ContainsKey('IndexMode'))     { $h.IndexMode }     else { $null }
         if (-not $h.Present) { $bad.Add("$name absent") }
-        elseif ($h.IndexMode -ne '100755') { $bad.Add("$name not executable (index mode $($h.IndexMode); git ignores it on Linux/macOS)") }
+        elseif ($committed -ne '100755') {
+            $msg = "$name not executable as committed (HEAD mode $committed; git ignores it on Linux/macOS)"
+            if ($index -eq '100755') { $msg += " — index says 100755: +x is STAGED but was never committed (a pathspec commit with core.fileMode=false drops it)" }
+            $bad.Add($msg)
+        }
     }
     if ($bad.Count -gt 0) {
-        return & $mk 'HOOK_MISSING' 'WARN' ("wired, but: " + ($bad -join '; ')) 'Restore the hook / `git update-index --chmod=+x .githooks/<hook>` in the data repo.'
+        # NOT `update-index --chmod=+x` + a pathspec commit: with core.fileMode=false that silently
+        # commits 100644 anyway (TL p/331#1811). Use the tested private-index recipe.
+        return & $mk 'HOOK_MISSING' 'WARN' ("wired, but: " + ($bad -join '; ')) 'Restore the hook / commit it as 100755 using the private-index + bare-commit recipe at t/3851#9 (a plain update-index --chmod=+x followed by a pathspec commit silently commits 100644 when core.fileMode=false), then verify with: git ls-tree HEAD -- .githooks/<hook>'
     }
     return & $mk 'WIRED' 'PASS' 'core.hooksPath = .githooks; expected hooks present and executable' ''
 }
@@ -163,9 +178,12 @@ function Get-DataRepoHooksFacts {
                 foreach ($name in $ExpectedHooks) {
                     $rel = ".githooks/$name"
                     $present = Test-Path -LiteralPath (Join-Path $res.Path $rel) -PathType Leaf
-                    $ls = & git -C $res.Path ls-files -s -- $rel 2>$null
-                    $mode = if ($ls) { ([string]$ls).Split(' ')[0] } else { $null }
-                    $hooks[$name] = @{ Present = $present; IndexMode = $mode }
+                    # COMMITTED mode decides (what every clone receives); index mode is diagnostic.
+                    $tree  = & git -C $res.Path ls-tree HEAD -- $rel 2>$null
+                    $cmode = if ($tree) { (([string]$tree) -split '\s+')[0] } else { $null }
+                    $ls    = & git -C $res.Path ls-files -s -- $rel 2>$null
+                    $imode = if ($ls) { (([string]$ls) -split '\s+')[0] } else { $null }
+                    $hooks[$name] = @{ Present = $present; CommittedMode = $cmode; IndexMode = $imode }
                 }
             }
         }

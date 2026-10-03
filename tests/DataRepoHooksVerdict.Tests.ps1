@@ -9,7 +9,7 @@ BeforeAll {
     . (Join-Path $PSScriptRoot '..' 'operations' 'devops' 'DataRepoHooksVerdict.ps1')
     $script:Data = 'C:/x/ai-triad-data'
     $script:Ok   = [PSCustomObject]@{ Path = $script:Data; Source = 'config'; Undetermined = $false; Reason = '' }
-    $script:Exec = @{ 'pre-commit' = @{ Present = $true; IndexMode = '100755' } }
+    $script:Exec = @{ 'pre-commit' = @{ Present = $true; CommittedMode = '100755'; IndexMode = '100755' } }
 }
 
 Describe 'Resolve-DataRepoRoot — same priority as the runtime (env > .aitriad.json > undetermined)' {
@@ -60,13 +60,29 @@ Describe 'Get-DataRepoHooksVerdict — every state, both arms' {
     }
     It 'HOOK_MISSING when an expected hook is absent → WARN' {
         $v = Get-DataRepoHooksVerdict -Resolution $script:Ok -PathExists $true -IsGitRepo $true -HooksPath '.githooks' `
-            -Hooks @{ 'pre-commit' = @{ Present = $false; IndexMode = $null } }
+            -Hooks @{ 'pre-commit' = @{ Present = $false; CommittedMode = $null; IndexMode = $null } }
         $v.State | Should -Be 'HOOK_MISSING'; $v.Reason | Should -Match 'pre-commit absent'
     }
-    It 'HOOK_MISSING when a hook is present but NOT executable (index 100644 — git ignores it on Linux/macOS)' {
+    It 'HOOK_MISSING when a hook is present but NOT executable as committed (HEAD 100644 — git ignores it on Linux/macOS)' {
         $v = Get-DataRepoHooksVerdict -Resolution $script:Ok -PathExists $true -IsGitRepo $true -HooksPath '.githooks' `
-            -Hooks @{ 'pre-commit' = @{ Present = $true; IndexMode = '100644' } }
-        $v.State | Should -Be 'HOOK_MISSING'; $v.Reason | Should -Match 'not executable'
+            -Hooks @{ 'pre-commit' = @{ Present = $true; CommittedMode = '100644'; IndexMode = '100644' } }
+        $v.State | Should -Be 'HOOK_MISSING'; $v.Reason | Should -Match 'not executable as committed'
+        # remediation points at the tested recipe, and says how to VERIFY the committed mode
+        $v.Remediation | Should -Match 't/3851#9'
+        $v.Remediation | Should -Match 'ls-tree HEAD'
+    }
+    It 'HOOK_MISSING (not WIRED) when +x is STAGED but never committed — index 100755, HEAD 100644 (TL p/331#1811)' {
+        # The shape a pathspec commit leaves under core.fileMode=false. An INDEX-based read would
+        # report WIRED here — a false green. The committed mode must decide.
+        $v = Get-DataRepoHooksVerdict -Resolution $script:Ok -PathExists $true -IsGitRepo $true -HooksPath '.githooks' `
+            -Hooks @{ 'pre-commit' = @{ Present = $true; CommittedMode = '100644'; IndexMode = '100755' } }
+        $v.State  | Should -Be 'HOOK_MISSING' -Because 'what clones receive is the committed mode'
+        $v.Reason | Should -Match 'STAGED but was never committed'
+    }
+    It 'WIRED requires the COMMITTED mode — index 100755 alone is not enough, HEAD 100755 is' {
+        $v = Get-DataRepoHooksVerdict -Resolution $script:Ok -PathExists $true -IsGitRepo $true -HooksPath '.githooks' `
+            -Hooks @{ 'pre-commit' = @{ Present = $true; CommittedMode = '100755'; IndexMode = '100644' } }
+        $v.State | Should -Be 'WIRED' -Because 'committed 100755 is what every clone gets; a dirty index does not change that'
     }
     It 'ABSENT (no data repo at a config-resolved path) → N/A, never PASS' {
         $v = Get-DataRepoHooksVerdict -Resolution $script:Ok -PathExists $false -IsGitRepo $false
