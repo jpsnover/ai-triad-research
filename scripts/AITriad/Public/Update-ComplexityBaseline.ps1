@@ -110,7 +110,9 @@ function Update-ComplexityBaseline {
             # entry so it still matches the '/'-keyed observed file from the now-normalized
             # Get-ComplexityScanTargets, rather than silently treating it as cured.
             $key = $prop.Name.Replace('\', '/')
-            $existingBaseline[$key] = @{ max = [int]$prop.Value.max; countOver = [int]$prop.Value.countOver }
+            # t/3877: ConvertFrom-ComplexityBaselineEntry also captures an optional TL-authorized
+            # justifiedRaise annotation (t/3874#2/p/360#496) -- see ComplexityBaselineAnnotation.ps1.
+            $existingBaseline[$key] = ConvertFrom-ComplexityBaselineEntry -Value $prop.Value
         }
     }
 
@@ -142,6 +144,10 @@ function Update-ComplexityBaseline {
                 $kept++
                 Write-Warning "Update-ComplexityBaseline: '$file' regressed (observed max=$($observed.max) countOver=$($observed.countOver) vs frozen max=$($existing.max) countOver=$($existing.countOver)) -- keeping frozen value; Test-ComplexityBudget will flag this."
             }
+            # t/3877: forward a justified-raise annotation across regeneration on EITHER
+            # branch above (no-op if $existing doesn't have one) -- see
+            # ComplexityBaselineAnnotation.ps1 for why this can't change ratchet behavior.
+            $null = Copy-ComplexityBaselineAnnotation -Existing $existing -Output $output[$file]
         } else {
             $output[$file] = $observed
             $written++

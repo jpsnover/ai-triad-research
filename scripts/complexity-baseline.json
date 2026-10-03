@@ -237,8 +237,14 @@
     "countOver": 1
   },
   "AITriad/Private/Update-JsonNodePath.ps1": {
-    "max": 74,
-    "countOver": 1
+    "max": 78,
+    "countOver": 1,
+    "justifiedRaise": {
+      "ticket": "t/3877",
+      "reason": "Growth (74->78) is from the reviewed perf commit d854c879/#2725 (batch re-parse-verify, opt-in -DeferVerify), not drift -- not decomposed same-session because this is the core surgical JSON path-walker (correctness-critical splice/verify logic for live data files).",
+      "raisedTo": "the exact value measured when raised -- no headroom",
+      "lapseCondition": "Revisit when t/3878 (characterisation tests + decomposition) lands, or if this file's complexity changes again."
+    }
   },
   "AITriad/Public/Add-SituationEvidenceLink.ps1": {
     "max": 47,
@@ -601,8 +607,14 @@
     "countOver": 1
   },
   "AITriad/Public/Invoke-VernacularBatch.ps1": {
-    "max": 27,
-    "countOver": 1
+    "max": 28,
+    "countOver": 1,
+    "justifiedRaise": {
+      "ticket": "t/3877",
+      "reason": "Growth (27->28) is from the reviewed perf commit d854c879/#2725's -CheckpointEvery parallel-batch-write logic (ForEach-Object -Parallel + ConcurrentBag shared state), not drift -- not decomposed same-session: disproportionate risk to concurrent correctness for a 1-point delta.",
+      "raisedTo": "the exact value measured when raised -- no headroom",
+      "lapseCondition": "Revisit if this file's complexity changes again, or opportunistically if this file is touched for other reasons."
+    }
   },
   "AITriad/Public/Measure-CodeComplexity.ps1": {
     "max": 17,
@@ -849,8 +861,14 @@
     "countOver": 1
   },
   "AITriad/Public/Test-TaxonomyIntegrity.ps1": {
-    "max": 149,
-    "countOver": 1
+    "max": 170,
+    "countOver": 1,
+    "justifiedRaise": {
+      "ticket": "t/3877",
+      "reason": "Growth (149->170) is from t/3853's incident fix (#2691/#2693, require -Force above 20 edges), not drift -- not decomposed same-session: a single 664-line function with ~15 Check-N blocks sharing mutable state, where the addition is woven into that shared state, not a standalone unit.",
+      "raisedTo": "the exact value measured when raised -- no headroom",
+      "lapseCondition": "Revisit when t/3879 (characterisation tests + decomposition) lands, or if this file's complexity changes again."
+    }
   },
   "AITriad/Public/Undo-TaxEditorDataCommit.ps1": {
     "max": 25,
