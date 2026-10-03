@@ -1,6 +1,13 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+// TESTED vs RUNNING (t/3871): merge-guard-predicate.test.mjs now runs in CI (ci.yml
+// complexity-budget job, via run-merge-guard-tests.sh, test-count floor). That proves THIS FILE AS IT
+// IS ON main. It does NOT prove what the live `pre-self-merge-verify` feedback rule executes: the rule
+// calls this module by absolute path INTO THE SHARED CHECKOUT, so it runs whatever is on disk there —
+// a stale (unsynced) shared tree runs stale gate code, and an uncommitted edit to this file in the
+// shared tree changes fleet-wide gate behaviour without ever passing CI. Named surviving vector, not
+// fixed (TL p/331#1801); candidate fixes are a content-hash pin or running from an origin/main blob.
 import { execFileSync } from 'node:child_process'; // used only by the --jointgv CLI fetch shim
 import { appendGateTelemetry, gateTelemetryDir } from './gate-telemetry.mjs'; // shared durable sink (t/3395)
 

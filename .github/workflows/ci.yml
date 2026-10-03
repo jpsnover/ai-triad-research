@@ -1755,6 +1755,30 @@ jobs:
           Import-Module ./scripts/AITriad/AITriad.psd1 -Force
           Test-ComplexityBudget -Path ./operations -FailOnViolation
 
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+
+      - name: Merge-guard predicate tests (WARN-FIRST — t/3871)
+        # t/3871: operations/devops/merge-guard-predicate.test.mjs ran in NO workflow, so its tests
+        # were authoring-time evidence only and the NEXT change to the predicate was never re-checked
+        # — the tested-code/running-code drift behind the t/3695 bug class. Hosted in THIS job
+        # because its `powershell` filter already covers operations/devops/** (the predicate and
+        # its suite), so no new job, filter output, or required context. Built-ins only — no install.
+        # The step runs operations/devops/run-merge-guard-tests.sh, the SAME script proven locally on
+        # all arms (green / narrowed-predicate red / empty suite / missing suite / below floor). It
+        # fails on an empty or shrunk suite via a test-count FLOOR (`node --test` reports an empty
+        # file as `# tests 1`, so a `> 0` check would pass it).
+        # WARN-FIRST, same Gate Promotion discipline as the complexity steps above: flip by removing
+        # this step's `continue-on-error: true` after >=1 green cycle — separate step, SO + TL-GV.
+        # SURVIVING VECTOR (t/3871, TL p/331#1801), stated here so a green isn't over-read: CI proves
+        # the predicate on main, but the LIVE pre-self-merge-verify rule executes whatever predicate
+        # is ON DISK in the shared checkout — a stale shared tree runs stale gate code, and an
+        # uncommitted edit there changes fleet-wide gate behaviour without passing this step.
+        continue-on-error: true
+        shell: bash
+        run: bash operations/devops/run-merge-guard-tests.sh
+
   # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
   # SKIPPED by path-filtering on non-electron PRs (docs-only, PS-only); a skipped
