@@ -7,6 +7,8 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../../types/taxonomy';
 import { interpretationText } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useAuthStatus } from '../../hooks/useAuthStatus';
+import { countDanglingReferences, formatDanglingWarning } from '../../utils/danglingReferences';
 import { useLongPressContextMenu } from '../../hooks/useLongPressContextMenu';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
@@ -620,7 +622,8 @@ function SitPovTab({
 }
 
 export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, chipDepth = 0 }: SituationDetailProps) {
-  const { updateSituationNode, deleteSituationNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, getLabelForId } = useTaxonomyStore();
+  const { updateSituationNode, deleteSituationNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, getLabelForId, edgesFile, accelerationist, safetyist, skeptic, situations } = useTaxonomyStore();
+  const authInfo = useAuthStatus();
   // Bookmark (Pin-for-comparison) controls are Advanced-view only (t/2826).
   const viewMode = usePreferencesStore(s => s.viewMode);
   const [descMode, setDescMode] = useDescriptionMode();
@@ -809,16 +812,31 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
         )}
       </div>
 
-      {showDelete && !readOnly && (
+      {showDelete && !readOnly && (() => {
+        // t/3852: exhaustive, not sampled — computed fresh at dialog-open time so a stale
+        // closure can't under-report after the user has been editing edges/situations.
+        const danglingCounts = countDanglingReferences(node.id, [accelerationist, safetyist, skeptic], situations, edgesFile);
+        return (
         <DeleteConfirmDialog
           itemLabel={node.label}
+          danglingWarning={formatDanglingWarning(danglingCounts)}
           onConfirm={() => {
             deleteSituationNode(node.id);
+            void api.logNodeDeletion({
+              nodeId: node.id,
+              pov: 'situations',
+              label: node.label,
+              user: authInfo?.user || '_anonymous', // AuthInfo is web-only; Electron falls back to '_anonymous' here (t/3859's writer can supplement with the OS username)
+              danglingEdges: danglingCounts.edges,
+              danglingSituationRefs: danglingCounts.situationRefs,
+              danglingChildren: danglingCounts.children,
+            });
             setShowDelete(false);
           }}
           onCancel={() => setShowDelete(false)}
         />
-      )}
+        );
+      })()}
     </div>
   );
 }
