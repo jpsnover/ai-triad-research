@@ -1,0 +1,18 @@
+{
+  "__meta__": {
+    "threshold": 15,
+    "scan": "src"
+  },
+  "src/main/pipeline.ts": {
+    "max": 23,
+    "countOver": 1
+  },
+  "src/renderer/components/Sidebar.tsx": {
+    "max": 23,
+    "countOver": 1
+  },
+  "src/renderer/components/useRunPipeline.ts": {
+    "max": 37,
+    "countOver": 2
+  }
+}

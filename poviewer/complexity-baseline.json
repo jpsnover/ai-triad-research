@@ -1,0 +1,26 @@
+{
+  "__meta__": {
+    "threshold": 15,
+    "scan": "src"
+  },
+  "src/main/aiEngine.ts": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/main/fileIO.ts": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/AddSourceDialog.tsx": {
+    "max": 17,
+    "countOver": 1
+  },
+  "src/renderer/components/PovPanel.tsx": {
+    "max": 19,
+    "countOver": 1
+  },
+  "src/renderer/utils/pipelineAdapter.ts": {
+    "max": 20,
+    "countOver": 1
+  }
+}

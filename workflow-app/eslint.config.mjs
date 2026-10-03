@@ -1,22 +1,24 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// ESLint flat config — ADR-003 flight-recorder-in-catch enforcement.
-// Consumes the single canonical rule shared across all apps (lib/eslint-rules,
-// t/1929); no local fork. The typescript-eslint parser is wired so .ts/.tsx
-// files parse (the rule is purely syntactic — no type-aware projectService
-// needed). Rule is 'error' (ADR-003 hard gate): the mini-app catch tree is clean,
-// so this ratchets to full parity with taxonomy-editor's 'error' enforcement
-// (t/1976 warn→error, after t/1929 wired the rule to actually run here).
+// ESLint flat config (t/3847) — previously absent entirely: nothing linted this app.
+// Scoped narrowly to what t/3847 asks for: rules-of-hooks (crash-class parity with the
+// other renderer apps, t/2299) + complexity-budget (the ratchet gate this ticket exists
+// to close the gap on). Mirrors poviewer/summary-viewer's non-type-aware pattern — the
+// typescript-eslint parser is wired so .ts/.tsx files parse; no projectService needed
+// since these rules are purely syntactic.
+//
+// Deliberately NOT wired here: require-flight-recorder-in-catch (ADR-003). This app has
+// catch blocks but zero flight-recorder usage anywhere in its tree — enforcing that rule
+// at 'error' would require retrofitting those catches first, a separate and larger job
+// outside this ticket's scope (t/3847#1).
 
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
-import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-recorder-in-catch.js';
 import complexityBudget from '../lib/eslint-rules/complexity-budget.js';
 
 const localPlugin = {
   rules: {
-    'require-flight-recorder-in-catch': requireFlightRecorderInCatch,
     'complexity-budget': complexityBudget,
   },
 };
@@ -29,17 +31,15 @@ export default tseslint.config(
     },
     plugins: { local: localPlugin, 'react-hooks': reactHooks },
     rules: {
-      'local/require-flight-recorder-in-catch': 'error',
       // rules-of-hooks (ERROR) — catches conditional/looped/nested hook calls at lint
       // time, the class that crashed the debate popup in taxonomy-editor (t/2298). Kept
-      // at full parity across all three renderer apps (t/2299). exhaustive-deps is left
-      // off deliberately to avoid warning noise; rules-of-hooks alone covers the crash class.
+      // at full parity across all renderer apps (t/2299).
       'react-hooks/rules-of-hooks': 'error',
       // Built-in stays at 'warn' (SO e/240 condition 1): advisory per-function signal.
       // complexity-budget below is the gate: per-file ratchet against the recorded baseline.
       'complexity': ['warn', { max: 15 }],
       // Per-file cyclomatic complexity budget gate (t/3847, t/3821).
-      // Baseline generated from this tree: poviewer/complexity-baseline.json
+      // Baseline generated from this tree: workflow-app/complexity-baseline.json
       'local/complexity-budget': ['error', { baseline: './complexity-baseline.json', threshold: 15 }],
     },
   },
