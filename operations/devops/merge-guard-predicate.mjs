@@ -30,10 +30,25 @@ import { appendGateTelemetry, gateTelemetryDir } from './gate-telemetry.mjs'; //
  * INLINE_FOR_RULE below) and emits 'fire' to stdout iff block (the worktree-path-guard convention).
  * This module is the source of truth the both-arms test proves; the rule's inline copy must match.
  */
+// t/3695#19: `gh` accepts its repo selector on either side of `pr` — `gh -R o/r pr merge`,
+// `gh --repo o/r pr merge`, `gh --repo=o/r pr merge`, `gh pr -R o/r merge`. The old
+// `/\bgh(?:\.exe)?\s+pr\s+merge\b/` required `pr` immediately after `gh`, so every repo-scoped bare
+// merge returned 'not-a-merge' and passed silently through ordinary use. Only -R/--repo are allowed
+// between the words (not arbitrary flags) to keep false positives out. Any flag AFTER `merge` was
+// already matched. Used ONLY by the pure-string head guard below: the --jointgv and --base-ref-stale
+// paths look the PR up with `gh pr view <num>` in the CURRENT repo, so widening them would query the
+// wrong repo for a -R merge — they deliberately keep the narrow regex (neither has a live caller as
+// of t/3695#17: auto-merge-jointgv-guard disabled; --base-ref-stale unwired).
+const REPO_FLAG = String.raw`(?:\s+(?:-R|--repo)(?:=|\s+)\S+)`;
+export const GH_PR_MERGE_RE = new RegExp(
+  String.raw`\bgh(?:\.exe)?` + REPO_FLAG + '*' + String.raw`\s+pr` + REPO_FLAG + '*' + String.raw`\s+merge\b`,
+);
+
 export function mergeGuardVerdict(command) {
   const cmd = command || '';
-  // Only manual `gh pr merge` (or gh.exe) is in scope — flag order / PR-number-optional tolerant.
-  if (!/\bgh(?:\.exe)?\s+pr\s+merge\b/.test(cmd)) return { block: false, reason: 'not-a-merge' };
+  // Only manual `gh pr merge` (or gh.exe) is in scope — flag order / PR-number-optional /
+  // repo-selector (-R/--repo, either side of `pr`) tolerant.
+  if (!GH_PR_MERGE_RE.test(cmd)) return { block: false, reason: 'not-a-merge' };
   // `--auto` exempt (see header) — matches boolean `--auto` and defensively `--auto=true`.
   if (/(?:^|\s)--auto(?:[=\s]|$)/.test(cmd)) return { block: false, reason: 'auto-exempt' };
   // Guarded iff the head-match flag carries a value — BOTH `--match-head-commit SHA` and
