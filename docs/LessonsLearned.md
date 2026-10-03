@@ -4042,3 +4042,27 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Status:** Active — 1 instance (TL t/3851, p/335#118, e/243#8). Structural: applies to any test for a branch suspected of being unreachable.
 
 **Applies To:** All agents writing tests for guard branches, hooks, gates, or error paths that may be unreachable under normal conditions.
+
+---
+
+## #194 [Process] A Claim You Are Building On Never Presents as a Claim — It Presents as the Premise
+
+**Pattern:** When reasoning multi-step, the claims being *challenged* are recognised as claims and get verified. The claims being *built on* — the ones the next step assumes as input — are not recognised as claims at all; they present as premises. The asymmetry is symmetric: the author of the inference skips the built-on claim because it looks like a starting point, and the receiver of the inference skips it for the same reason.
+
+SO's formulation (e/243#12): *"I verify claims I'm challenging and skip claims I'm building on."*
+
+**Instances:**
+- 2026-10-03 — TL + SO (t/3851, e/243#9–#12): SO correctly inferred that git runs untracked hooks. SO then built on a further claim — that warn-only field evidence existed in the taxonomy commit history — and handed the collection task to TL as if the evidence existed. Neither party checked the built-on claim. The hook postdated every taxonomy commit; there were zero evaluations. The claim read as a task to both writer and receiver, not as a hypothesis requiring verification.
+
+**Root Cause:** Verification effort is directed at uncertainty. A claim presented mid-inference as a starting point for the next step is syntactically indistinguishable from an established fact — it has already been "moved past." The writer doesn't flag it because they were focused on what it enabled; the receiver doesn't question it because it arrived framed as a given.
+
+**Relation to #192/#193:** those patterns are about misreading a *result* (harness path ≠ production path, dead branch passes vacuously). This pattern is upstream — it governs which claims get checked in the first place, before any test runs.
+
+**Prevention:**
+1. **After any multi-step inference, list the built-on claims separately from the derived conclusions and verify each one.** The built-on claims are exactly the ones that weren't challenged because they didn't feel like claims.
+2. **When handing a task derived from an inference chain, state the built-on claim explicitly** — "this task assumes X is true; verify X before proceeding" — not just the task. The receiver cannot distinguish assumed-fact from verified-fact from the task description alone.
+3. **SO's discriminator:** "Am I verifying this claim, or am I building on it?" If building on it, verify it first.
+
+**Status:** Active — 1 instance (TL + SO, t/3851, e/243#9–#12). Structural: applies to any multi-step reasoning chain where intermediate claims serve as premises for later steps.
+
+**Applies To:** All agents reasoning multi-step, especially SO consultations and any chain where one agent's inference output becomes another agent's task input.
