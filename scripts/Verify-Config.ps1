@@ -93,6 +93,20 @@ function Write-Section {
 
 # ── Pester gates ────────────────────────────────────────────────────────────
 Write-Section 'Pester registry gates'
+# t/3865 owner review: $PesterGates.Count -eq 0 (e.g. an accidental clear, a bad
+# merge) must be a FAILURE, never a silent pass. Without this, an empty array
+# makes BOTH $missingPester and $foundPester empty too, so the run block below
+# never executes and adds ZERO entries to $Results for Pester -- the script
+# would still print PASSED having run no Pester gates at all. This is exactly
+# the "gate reports success over a population it can't see" class t/3819/t/3865
+# exist to prevent (t/3821's parity check over 694 files while skipping every
+# .tsx; the model-literal lint green with zero offenders while never scanning
+# .json) -- so assert the population itself, not just that every file in it
+# exists.
+if ($PesterGates.Count -eq 0) {
+    Write-Host '  FAIL Pester registry — $PesterGates is empty; zero gates would run.' -ForegroundColor Red
+    $Results['PesterGates:non-empty'] = $false
+}
 $missingPester = @($PesterGates | Where-Object { -not (Test-Path $_) })
 foreach ($m in $missingPester) {
     $name = Split-Path $m -Leaf
@@ -132,6 +146,20 @@ if ($foundPester.Count -gt 0) {
 # ── vitest gates (delegated to taxonomy-editor) ──────────────────────────────
 Write-Section 'vitest registry gates (via taxonomy-editor)'
 $Filters = @($VitestGates.Keys)
+
+# t/3865 owner review: same population-assertion as the Pester side above.
+# $VitestGates.Count -eq 0 happens to be caught downstream today too -- an
+# EMPTY @Filters makes `vitest list` collect every test file in the project
+# (confirmed: 796 on this repo, not zero), which then mismatches a 0 expected
+# count and fails the collection guard. But that protection is an ACCIDENT of
+# vitest's "no filter = everything" default, not an assertion -- it would
+# silently stop protecting if that default ever changed, or if someone added
+# a real filter elsewhere. Assert the population explicitly rather than lean
+# on a side effect.
+if ($VitestGates.Count -eq 0) {
+    Write-Host '  FAIL vitest registry — $VitestGates is empty; zero gates would run.' -ForegroundColor Red
+    $Results['VitestGates:non-empty'] = $false
+}
 
 if (-not (Test-Path (Join-Path $TaxEditor 'node_modules'))) {
     # Standalone tooling script: report as a gate failure and exit non-zero rather
