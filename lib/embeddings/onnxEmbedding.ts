@@ -567,14 +567,27 @@ export async function computeEmbedding(text: string): Promise<number[]> {
   return results[0];
 }
 
-/** DirectML / OpenVINO GPU out-of-memory signature (t/2060), matched on the thrown message. */
-function isGpuOom(err: unknown): boolean {
+/**
+ * Classify a GPU-EP inference failure that a CPU session can recover from, matched on the thrown
+ * message. 'oom' = DirectML / OpenVINO out-of-memory (t/2060). 'device-lost' = the DXGI
+ * device-removed family: 887A0005 DEVICE_REMOVED (surfaces as "The GPU device instance has been
+ * suspended" after a driver TDR, sleep/resume or driver update), 887A0006 DEVICE_HUNG,
+ * 887A0007 DEVICE_RESET, 887A0020 DRIVER_INTERNAL_ERROR. A removed device never comes back for
+ * the session that owned it, so without recovery EVERY later call re-throws on the dead session
+ * and drops to the per-call Python / Gemini fallbacks (2026-10-03 desktop log).
+ */
+function classifyGpuFault(err: unknown): 'oom' | 'device-lost' | null {
   const msg = err instanceof Error ? err.message : String(err);
-  return /8007000E|E_OUTOFMEMORY|not enough memory/i.test(msg);
+  if (/8007000E|E_OUTOFMEMORY|not enough memory/i.test(msg)) return 'oom';
+  if (/887A000[567]|887A0020|DXGI_ERROR_DEVICE_(REMOVED|HUNG|RESET)|device instance has been suspended|GetDeviceRemovedReason/i.test(msg)) {
+    return 'device-lost';
+  }
+  return null;
 }
 
 /**
- * Recreate the inference session pinned to the CPU EP after a GPU OOM (t/2060). Releases
+ * Recreate the inference session pinned to the CPU EP after a GPU fault (OOM, t/2060; or a
+ * removed/suspended device). Releases
  * the faulted session and re-inits; `_forcedCpuReason` (set by the caller) makes init()
  * select `['cpu']`, so this — and every subsequent call for the process lifetime — runs
  * on CPU and can't re-OOM.
@@ -592,11 +605,12 @@ async function recreateSessionOnCpu(): Promise<void> {
 }
 
 /**
- * Run one chunk's inference, falling back from a GPU EP to CPU on an OOM (t/2060).
+ * Run one chunk's inference, falling back from a GPU EP to CPU on a GPU fault (t/2060).
  * onnxruntime does NOT gracefully fall a failing op back to CPU — a mid-inference DML
- * OOM (8007000E) throws — so catch it, pin CPU for the process, recreate the session on
- * CPU, and retry ONCE. A non-OOM error, an OOM already on CPU, or a CPU-retry failure is
- * terminal (no further fallback). Generalized to ANY non-CPU EP (dml/openvino) per TL t/2060#4.
+ * OOM (8007000E) or removed device (887A0005) throws — so catch it, pin CPU for the process,
+ * recreate the session on CPU, and retry ONCE. Any other error, a fault already on CPU, or a
+ * CPU-retry failure is terminal (no further fallback). Generalized to ANY non-CPU EP
+ * (dml/openvino) per TL t/2060#4.
  */
 async function runInferenceWithCpuFallback(
   feeds: Record<string, OrtTensor>,
@@ -604,17 +618,19 @@ async function runInferenceWithCpuFallback(
   try {
     return await _session!.run(feeds);
   } catch (err) {
-    if (!isGpuOom(err) || _selectedEP === 'cpu') throw err;
+    const fault = classifyGpuFault(err);
+    if (!fault || _selectedEP === 'cpu') throw err;
     const prevEP = _selectedEP;
+    const what = fault === 'oom' ? 'a GPU OOM (8007000E)' : 'a removed/suspended GPU device (DXGI 887A00xx)';
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'onnx-embedding',
       level: 'warn',
-      message: `${prevEP} EP hit a GPU OOM (8007000E) during inference — pinning CPU for the process and retrying`,
-      data: { prevEP, chunkSize: CHUNK_SIZE },
+      message: `${prevEP} EP hit ${what} during inference — pinning CPU for the process and retrying`,
+      data: { prevEP, fault, chunkSize: CHUNK_SIZE, error: (err instanceof Error ? err.message : String(err)).slice(0, 300) },
     });
-    console.warn(`[onnxEmbedding] ${prevEP} EP GPU OOM — recreating session on CPU and retrying (slower but correct)`);
-    _forcedCpuReason = `${prevEP} EP GPU OOM (8007000E) during inference`;
+    console.warn(`[onnxEmbedding] ${prevEP} EP hit ${what} — recreating session on CPU and retrying (slower but correct)`);
+    _forcedCpuReason = `${prevEP} EP ${fault} during inference`;
     await recreateSessionOnCpu();
     return await _session!.run(feeds); // retry once on CPU; a further failure is terminal
   }
