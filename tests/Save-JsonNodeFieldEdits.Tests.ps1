@@ -219,3 +219,112 @@ Describe 'Save-JsonNodeFieldEdits — Remove dispatch (t/3460)' -Tag 'summary' {
         (Get-Content -Raw $script:rpath) | Should -Be $before
     }
 }
+
+Describe 'Save-JsonNodeFieldEdits — batch re-parse-verify (one verify per file, not per edit)' -Tag 'summary' {
+
+    BeforeEach {
+        # Strings carrying braces, escaped quotes and a nested "id" exercise the line-anchored span scanner.
+        $script:bfx = @'
+{
+  "nodes": [
+    { "id": "n-001", "description": "braces { and } in a string", "graph_attributes": { "type": "belief", "old": "x" } },
+    { "id": "n-002", "description": "escaped \"quote\" and \\ backslash", "plain_description": "old" },
+    { "id": "n-003", "description": "nested id below", "refs": [ { "id": "n-001" } ], "label": "keep" },
+    { "id": "n-004", "description": "plain", "graph_attributes": { "type": "desire" } }
+  ]
+}
+'@ -replace "`r`n", "`n"
+        $script:bpath = Join-Path $TestDrive 'batch-fixture.json'
+        [System.IO.File]::WriteAllText($script:bpath, $script:bfx, (New-Object System.Text.UTF8Encoding $false))
+        $script:bedits = @(
+            @{ NodeId = 'n-001'; Field = 'plain_description'; Value = 'p1' }
+            @{ NodeId = 'n-001'; Field = 'plain_description_version'; Value = 'v1' }
+            @{ NodeId = 'n-002'; Field = 'plain_description'; Value = 'has "quotes" and { braces }' }
+            @{ NodeId = 'n-003'; Field = 'plain_description'; Value = 'p3' }
+            @{ NodeId = 'n-004'; Path = @('graph_attributes', 'debate_grounding'); Value = 'We hold D.'; Upsert = $true }
+            @{ NodeId = 'n-003'; Path = @('graph_attributes', 'debate_grounding'); Value = 'We hold C.'; Upsert = $true }
+            @{ NodeId = 'n-001'; Path = @('graph_attributes', 'old'); Remove = $true }
+            @{ NodeId = 'n-004'; Path = @('graph_attributes', 'type'); Value = 'intention' }
+        )
+    }
+
+    It 'writes byte-identical output to the per-edit-verified chain (Field / Upsert / Remove / replace mix)' {
+        $expectedText = InModuleScope AITriad -Parameters @{ Raw = $script:bfx; Edits = $script:bedits } {
+            param($Raw, $Edits)
+            $t = $Raw
+            foreach ($e in $Edits) {
+                if ($e.ContainsKey('Field')) { $t = Update-JsonNodeField -RawText $t -NodeId $e.NodeId -Field $e.Field -Value $e.Value }
+                elseif ($e['Remove']) { $t = Update-JsonNodePath -RawText $t -NodeId $e.NodeId -Path $e.Path -Remove }
+                else { $t = Update-JsonNodePath -RawText $t -NodeId $e.NodeId -Path $e.Path -Value $e.Value -Upsert:([bool]$e['Upsert']) }
+            }
+            $t
+        }
+        $result = Save-JsonNodeFieldEdits -Path $script:bpath -Edits $script:bedits
+        $result.Applied | Should -Be $script:bedits.Count
+        [System.IO.File]::ReadAllText($script:bpath) | Should -BeExactly $expectedText
+    }
+
+    It 'FAILING ARM: -DeferVerify alone lets a wrong-node splice through (so the batch verify is load-bearing)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:bfx } {
+            param($Raw)
+            # Doctor the span locator to return n-002's object while editing n-004.
+            $start = $Raw.IndexOf('{ "id": "n-002"')
+            $end = $Raw.IndexOf('"old" }', $start) + 6
+            Mock Find-JsonObjectSpan { @{ Start = $start; End = $end } }.GetNewClosure()
+            $out = Update-JsonNodeField -RawText $Raw -NodeId 'n-004' -Field 'plain_description' -Value 'WRONG' -DeferVerify
+            $o = @(($out | ConvertFrom-Json).nodes)
+            (@($o | Where-Object { $_.id -eq 'n-002' })[0]).plain_description | Should -Be 'WRONG'   # corruption returned, unverified
+        }
+    }
+
+    It 'FAULT-INJECTION: the batch verify refuses that wrong-node splice — throws, warns, file byte-identical' {
+        $start = $script:bfx.IndexOf('{ "id": "n-002"')
+        $end = $script:bfx.IndexOf('"old" }', $start) + 6
+        Mock Find-JsonObjectSpan { @{ Start = $start; End = $end } }.GetNewClosure() -ModuleName AITriad
+        { Save-JsonNodeFieldEdits -Path $script:bpath -Edits @(@{ NodeId = 'n-004'; Field = 'plain_description'; Value = 'WRONG' }) -WarningVariable w -WarningAction SilentlyContinue } |
+            Should -Throw '*re-parse-verify FAILED*'
+        [System.IO.File]::ReadAllText($script:bpath) | Should -BeExactly $script:bfx
+    }
+
+    It 'surfaces the batch-verify fallback as a warning before the replay throws' {
+        $start = $script:bfx.IndexOf('{ "id": "n-002"')
+        $end = $script:bfx.IndexOf('"old" }', $start) + 6
+        Mock Find-JsonObjectSpan { @{ Start = $start; End = $end } }.GetNewClosure() -ModuleName AITriad
+        $w = $null
+        try { Save-JsonNodeFieldEdits -Path $script:bpath -Edits @(@{ NodeId = 'n-004'; Field = 'plain_description'; Value = 'WRONG' }) -WarningVariable w -WarningAction SilentlyContinue } catch { }
+        ($w -join "`n") | Should -BeLike '*batch re-parse-verify failed*replaying*'
+    }
+
+    It 'span scanner matches the innermost enclosing object, skipping braces and escaped quotes inside strings' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:bfx } {
+            param($Raw)
+            $idx = $Raw.IndexOf('"id": "n-002"')
+            $span = Find-JsonObjectSpan -Text $Raw -InnerIndex $idx
+            $Raw.Substring($span.Start, $span.End - $span.Start + 1) | Should -BeExactly '{ "id": "n-002", "description": "escaped \"quote\" and \\ backslash", "plain_description": "old" }'
+            Find-JsonObjectSpan -Text '"no object"' -InnerIndex 2 | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'span scanner finds an enclosing { several lines above the id line (pretty-printed, nested siblings, braces in strings)' {
+        InModuleScope AITriad {
+            $text = "{`n  `"nodes`": [`n    {`n      `"label`": `"has } and { inside`",`n      `"graph_attributes`": {`n        `"type`": `"belief`"`n      },`n      `"meta`": { `"a`": 1 },`n      `"id`": `"deep-001`",`n      `"tail`": `"x`"`n    }`n  ]`n}"
+            $idx = Find-JsonIdTokenIndex -Text $text -NodeId 'deep-001'
+            $span = Find-JsonObjectSpan -Text $text -InnerIndex $idx
+            $obj = $text.Substring($span.Start, $span.End - $span.Start + 1)
+            ($obj | ConvertFrom-Json).id | Should -Be 'deep-001'
+            ($obj | ConvertFrom-Json).graph_attributes.type | Should -Be 'belief'
+            $obj.TrimEnd().EndsWith('"tail": "x"' + "`n    }") | Should -BeTrue
+        }
+    }
+
+    It 'id-token locator returns the same index as the regex it replaces' {
+        InModuleScope AITriad {
+            $text = '{ "nodes": [ { "parent": "a-1", "x": "\"id\": \"a-1\"" }, { "id" :  "a-10" }, { "id":"a-1" }, { "id": "a-1" } ] }'
+            foreach ($id in 'a-1', 'a-10', 'missing') {
+                $rx = [regex]::Match($text, '"id"\s*:\s*"' + [regex]::Escape($id) + '"')
+                $expected = if ($rx.Success) { $rx.Index } else { -1 }
+                Find-JsonIdTokenIndex -Text $text -NodeId $id | Should -Be $expected -Because "id '$id'"
+            }
+        }
+    }
+}

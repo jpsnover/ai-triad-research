@@ -9,9 +9,12 @@ function Save-JsonNodeFieldEdits {
         of a whole-file `ConvertFrom-Json | ConvertTo-Json` round-trip.
     .DESCRIPTION
         Reads the target FRESH from disk (so any WIP that landed during a long, AI-bound
-        pass is preserved), applies each edit via the Private field-surgical primitive
-        Update-JsonNodeField — chaining each call's output as the next call's RawText — then
-        writes ONCE through the guarded sink (Write-Utf8NoBom) with the surgical exemption.
+        pass is preserved), applies each edit via the Private field-surgical primitives
+        (Update-JsonNodeField / Update-JsonNodePath) — chaining each call's output as the next
+        call's RawText — re-parse-verifies the whole batch ONCE against the fresh read with every
+        edit applied, then writes ONCE through the guarded sink (Write-Utf8NoBom) with the
+        surgical exemption. If the batch verify fails, the edits are replayed with per-edit
+        verify to name the faulty edit, and nothing is written.
         Because every splice preserves untouched bytes, a write cannot sweep concurrent WIP
         elsewhere in the file regardless of tree state (the sit-477 sweep, t/2896).
 
@@ -86,8 +89,31 @@ function Save-JsonNodeFieldEdits {
         if ($n.PSObject.Properties['id']) { [void]$existingIds.Add([string]$n.id) }
     }
 
+    $originalRaw = $raw
     $applied  = 0
+    $appliedEdits = [System.Collections.Generic.List[hashtable]]::new()
     $notFound = [System.Collections.Generic.List[string]]::new()
+
+    # One splice per edit. $verifyEach=$false (the normal path) chains with -DeferVerify and
+    # re-parse-verifies the WHOLE batch once below; $true replays with each primitive's own
+    # per-edit verify, used only to name the faulty edit after a batch-verify failure.
+    $applyChain = {
+        param([string]$text, [bool]$verifyEach)
+        $defer = -not $verifyEach
+        foreach ($e in $appliedEdits) {
+            $id = [string]$e['NodeId']
+            if ($e.ContainsKey('Field')) {
+                $text = Update-JsonNodeField -RawText $text -NodeId $id -Field $e['Field'] -Value $e['Value'] -DeferVerify:$defer
+            }
+            elseif ([bool]$e['Remove']) {
+                $text = Update-JsonNodePath -RawText $text -NodeId $id -Path @($e['Path']) -Remove -DeferVerify:$defer
+            }
+            else {
+                $text = Update-JsonNodePath -RawText $text -NodeId $id -Path @($e['Path']) -Value $e['Value'] -Upsert:([bool]$e['Upsert']) -DeferVerify:$defer
+            }
+        }
+        return $text
+    }
 
     foreach ($edit in @($Edits)) {
         if (-not $edit.ContainsKey('NodeId')) {
@@ -119,22 +145,40 @@ function Save-JsonNodeFieldEdits {
             Write-Warning "Save-JsonNodeFieldEdits: node '$nodeId' not found in $Path — skipped (not written)."
             continue
         }
-        # Chain: each surgical splice consumes the prior result. A verify failure THROWS
-        # (writes nothing yet) → the whole batch aborts atomically, leaving the file untouched.
-        if ($hasField) {
-            $raw = Update-JsonNodeField -RawText $raw -NodeId $nodeId -Field $edit['Field'] -Value $edit['Value']
-        }
-        elseif ($isRemove) {
-            $raw = Update-JsonNodePath -RawText $raw -NodeId $nodeId -Path @($edit['Path']) -Remove
-        }
-        else {
-            $upsert = [bool]$edit['Upsert']   # absent key → $null → $false
-            $raw = Update-JsonNodePath -RawText $raw -NodeId $nodeId -Path @($edit['Path']) -Value $edit['Value'] -Upsert:$upsert
-        }
+        $appliedEdits.Add($edit)
         $applied++
     }
 
     if ($applied -gt 0) {
+        # Chain: each surgical splice consumes the prior result. Any throw (a locate failure in a
+        # primitive, or the batch verify below) aborts before the write — the batch is atomic and
+        # the file is left untouched.
+        $raw = & $applyChain $originalRaw $false
+
+        # --- Batch re-parse-VERIFY (the safety net, once per file) ---
+        # Expected = the fresh read with every edit applied to the parsed model; actual = the
+        # spliced text re-parsed. Equal ⇒ the splices changed exactly the intended values and
+        # nothing else. Verifying per edit instead re-parsed + compared the whole file 2–3× per
+        # edit (~4s each on a 7 MB taxonomy file — hours for a full Invoke-VernacularBatch run).
+        $verifyProblem = $null
+        try {
+            $actual = $raw | ConvertFrom-Json
+            foreach ($e in $appliedEdits) { Set-JsonExpectedEdit -Root $parsed -Edit $e }
+            if (-not (Test-JsonSemanticEqual -A $parsed -B $actual)) {
+                $verifyProblem = 'the spliced file differs from the expected result beyond the intended edits'
+            }
+        }
+        catch { $verifyProblem = $_.Exception.Message }
+
+        if ($verifyProblem) {
+            # Fallback: replay with per-edit verify so the error names the faulty edit. Either way
+            # nothing is written.
+            Write-Warning "Save-JsonNodeFieldEdits: batch re-parse-verify failed for $Path ($verifyProblem) — replaying $applied edit(s) with per-edit verify to locate the faulty edit; nothing will be written."
+            $null = & $applyChain $originalRaw $true
+            & $fail "batch re-parse-verify FAILED ($verifyProblem), but no single edit failed its own verify — writing nothing" `
+                @('Splice/expected-model bug; the guard refused a corrupting write', 'Report with the input file + edit list')
+        }
+
         if ($PSCmdlet.ShouldProcess($Path, "Apply $applied field-surgical edit(s)")) {
             # Surgical exemption claimed HERE ONLY (t/2916#8): sweep-proof by construction,
             # so it proceeds even on a dirty BLOCK-tier target. Forwarded through the sink.

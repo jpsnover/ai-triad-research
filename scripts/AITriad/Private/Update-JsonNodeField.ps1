@@ -44,7 +44,11 @@ function Update-JsonNodeField {
         [Parameter(Mandatory)][string]$RawText,
         [Parameter(Mandatory)][string]$NodeId,
         [Parameter(Mandatory)][string]$Field,
-        [Parameter(Mandatory)][AllowNull()]$Value
+        [Parameter(Mandatory)][AllowNull()]$Value,
+        # Skip the per-call parse + re-parse-verify. ONLY for Save-JsonNodeFieldEdits, which
+        # verifies the whole chained batch once against the fresh read (and replays with
+        # per-call verify on mismatch). Never use it without a batch verify behind it.
+        [switch]$DeferVerify
     )
     Set-StrictMode -Version Latest
 
@@ -55,15 +59,17 @@ function Update-JsonNodeField {
     }
 
     # --- Parse (locate + verification baseline) ---
-    try { $original = $RawText | ConvertFrom-Json } catch { & $fail "Input is not valid JSON: $($_.Exception.Message)" @('Pass well-formed JSON text') }
-    if (-not $original.PSObject.Properties['nodes']) { & $fail "No nodes[] array in the JSON" @('Expected a top-level nodes[] array') }
-    $match = @($original.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $NodeId })
-    if ($match.Count -eq 0) { & $fail "Node id '$NodeId' not found in nodes[]" @("Verify the node id exists in the file") }
+    if (-not $DeferVerify) {
+        try { $original = $RawText | ConvertFrom-Json } catch { & $fail "Input is not valid JSON: $($_.Exception.Message)" @('Pass well-formed JSON text') }
+        if (-not $original.PSObject.Properties['nodes']) { & $fail "No nodes[] array in the JSON" @('Expected a top-level nodes[] array') }
+        $match = @($original.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $NodeId })
+        if ($match.Count -eq 0) { & $fail "Node id '$NodeId' not found in nodes[]" @("Verify the node id exists in the file") }
+    }
 
     # --- Locate the node object's span (parse-guided, string-aware) ---
-    $idToken = [regex]::Match($RawText, '"id"\s*:\s*"' + [regex]::Escape($NodeId) + '"')
-    if (-not $idToken.Success) { & $fail "id token for '$NodeId' not found in raw text" @('File text may not match the parsed structure') }
-    $span = Find-JsonObjectSpan -Text $RawText -InnerIndex $idToken.Index
+    $idIndex = Find-JsonIdTokenIndex -Text $RawText -NodeId $NodeId
+    if ($idIndex -lt 0) { & $fail "id token for '$NodeId' not found in raw text" @('File text may not match the parsed structure') }
+    $span = Find-JsonObjectSpan -Text $RawText -InnerIndex $idIndex
     if ($null -eq $span) { & $fail "could not locate the enclosing object span for '$NodeId'" @('Check the JSON is well-formed') }
     $objText = $RawText.Substring($span.Start, $span.End - $span.Start + 1)
 
@@ -85,6 +91,7 @@ function Update-JsonNodeField {
     $patched = $RawText.Substring(0, $span.Start) + $newObjText + $RawText.Substring($span.End + 1)
 
     # --- Re-parse-VERIFY invariant (the safety net) ---
+    if ($DeferVerify) { return $patched }   # caller verifies the whole batch once
     try { $actual = $patched | ConvertFrom-Json } catch { & $fail "patched text is not valid JSON — writing nothing: $($_.Exception.Message)" @('Splice produced invalid JSON; this is a bug in Update-JsonNodeField') }
     $expected = $RawText | ConvertFrom-Json
     $expNode = @($expected.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $NodeId })[0]
