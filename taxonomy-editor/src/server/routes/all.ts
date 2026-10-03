@@ -40,6 +40,7 @@ import { registerSyncRoutes } from './sync.js';
 import { registerSessionRoutes } from './session.js';
 import { registerPreferencesRoutes } from './preferences.js';
 import { registerCanaryRoutes } from './canary.js';
+import { registerNodeDeleteLogRoutes } from './nodeDeleteLog.js';
 
 export function registerAllRoutes(router: Router, ctx: ServerCtx): void {
   registerMetaRoutes(router, ctx);
@@ -72,6 +73,7 @@ export function registerAllRoutes(router: Router, ctx: ServerCtx): void {
   registerSyncRoutes(router, ctx);
   registerSessionRoutes(router, ctx);
   registerPreferencesRoutes(router, ctx);
+  registerNodeDeleteLogRoutes(router, ctx); // t/3860 — POST /api/node-delete-log (node-deletion audit log)
   // t/3206: canary storm-window loop-sampler control routes (/internal/canary/*). Unique prefix →
   // no collision with any group above, so appended last (order-independent). Flag-gated (404 off).
   registerCanaryRoutes(router, ctx);
