@@ -1,0 +1,174 @@
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
+<#
+.SYNOPSIS
+    t/3869 — classify whether the data repo's git hooks are wired (core.hooksPath).
+.DESCRIPTION
+    Both data-repo guards (.githooks/pre-commit rationale-drop t/2945; commit-msg node-removal
+    t/3851 once committed) enforce NOTHING unless that checkout has core.hooksPath = .githooks,
+    and core.hooksPath is per-checkout local config: a fresh clone or new worktree has both guards
+    silently absent, indistinguishable from the guards passing (Class-8).
+
+    Split pure-from-I/O (mirrors BranchStrandVerdict.ps1 / OutletKeySetVerdict.ps1):
+      Resolve-DataRepoRoot      PURE  — path resolution, same priority as the runtime
+      Get-DataRepoHooksVerdict  PURE  — state from gathered facts
+      Get-DataRepoHooksFacts    I/O   — git/filesystem reads for the live check (Verify-Config.ps1)
+
+    STATES (t/3869#2 — enumerated so blanks are visible, not just wired/unwired):
+      WIRED         hooksPath = .githooks and every expected hook present + executable  → PASS
+      UNWIRED       hooksPath unset                                                     → WARN
+      MISWIRED      hooksPath set to anything other than .githooks                      → WARN
+      HOOK_MISSING  wired, but an expected hook is absent OR not executable (index mode
+                    != 100755 — on Linux/macOS git IGNORES a non-executable hook)         → WARN
+      ABSENT        nothing exists at the resolved path (code-only / public-repo setup) → N/A
+      UNDETERMINED  couldn't tell: malformed/missing .aitriad.json, env var pointing at a
+                    path that doesn't exist, or a path that exists but isn't a git repo  → FAIL
+
+    N/A is NOT a pass: it never counts toward PASSED (t/3869#2 — "all green" over a check that
+    never ran is the empty-result-read-as-clean shape PowerShell fixed in a63244c7).
+
+    GATE PROMOTION (Gate Co-Location, t/3869#2): UNWIRED / MISWIRED / HOOK_MISSING are WARN-ONLY.
+    Making any of them FAIL is a new blocking gate → needs >=1 real warn cycle, t/3870 (push-side
+    re-check) landed, evidence the warning is actually being ignored, TL GV, and a mandatory Second
+    Opinion. LAPSE CONDITION: revisit only after all of those; until then this stays a warning.
+
+    Does NOT assert (stated so a green isn't over-read): that the hooks FIRE CORRECTLY. Only that
+    they are wired. A wired hook with a dead body passes this check (the t/3868 distinction).
+#>
+
+function Resolve-DataRepoRoot {
+    <#
+    .SYNOPSIS
+        PURE. Resolve the data-repo root with the runtime's priority (Resolve-DataPath.ps1:Get-DataRoot):
+        $env:AI_TRIAD_DATA_ROOT > .aitriad.json data_root (relative → anchored at the config's dir,
+        GetFullPath-normalized) > (no dev-install fallback here: a missing/malformed config is the
+        "couldn't determine" case — the runtime warns and falls back to '.', i.e. the CODE repo, so
+        mirroring that would silently check the wrong repo's hooks).
+    .OUTPUTS
+        { Path; Source = env|config; Undetermined; Reason }
+    #>
+    [CmdletBinding()]
+    param(
+        [AllowEmptyString()][AllowNull()][string]$EnvValue,
+        [AllowEmptyString()][AllowNull()][string]$ConfigText,   # raw .aitriad.json text; $null = file missing
+        [Parameter(Mandatory)][string]$ConfigDir                # dir holding .aitriad.json (relative anchor)
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($EnvValue)) {
+        return [PSCustomObject]@{ Path = $EnvValue; Source = 'env'; Undetermined = $false; Reason = 'AI_TRIAD_DATA_ROOT' }
+    }
+    if ($null -eq $ConfigText) {
+        return [PSCustomObject]@{ Path = $null; Source = 'config'; Undetermined = $true
+            Reason = ".aitriad.json not found in $ConfigDir (runtime would fall back to the CODE repo)" }
+    }
+    try { $cfg = $ConfigText | ConvertFrom-Json -ErrorAction Stop }
+    catch {
+        return [PSCustomObject]@{ Path = $null; Source = 'config'; Undetermined = $true
+            Reason = ".aitriad.json is not valid JSON: $($_.Exception.Message)" }
+    }
+    $root = if ($cfg -and $cfg.PSObject.Properties['data_root']) { [string]$cfg.data_root } else { '' }
+    if ([string]::IsNullOrWhiteSpace($root)) {
+        return [PSCustomObject]@{ Path = $null; Source = 'config'; Undetermined = $true
+            Reason = '.aitriad.json has no data_root' }
+    }
+    $full = if ([System.IO.Path]::IsPathRooted($root)) { [System.IO.Path]::GetFullPath($root) }
+            else { [System.IO.Path]::GetFullPath((Join-Path $ConfigDir $root)) }
+    return [PSCustomObject]@{ Path = $full; Source = 'config'; Undetermined = $false; Reason = '.aitriad.json data_root' }
+}
+
+function Get-DataRepoHooksVerdict {
+    <#
+    .SYNOPSIS
+        PURE. Classify from gathered facts. See the header for states/severities.
+    .PARAMETER Hooks
+        hashtable: hook name -> @{ Present = bool; IndexMode = '100755'|'100644'|$null }
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][PSCustomObject]$Resolution,   # Resolve-DataRepoRoot output
+        [bool]$PathExists,
+        [bool]$IsGitRepo,
+        [AllowNull()][AllowEmptyString()][string]$HooksPath, # `git config --get core.hooksPath`; $null = unset
+        [hashtable]$Hooks = @{}
+    )
+
+    $mk = {
+        param($State, $Severity, $Reason, $Remedy)
+        [PSCustomObject]@{ State = $State; Severity = $Severity; Reason = $Reason; Remediation = $Remedy; Path = $Resolution.Path }
+    }
+
+    if ($Resolution.Undetermined) {
+        return & $mk 'UNDETERMINED' 'FAIL' $Resolution.Reason 'Fix the data-root configuration (AI_TRIAD_DATA_ROOT or .aitriad.json data_root).'
+    }
+    if (-not $PathExists) {
+        # An EXPLICIT env var pointing nowhere is a broken config, not a code-only setup.
+        if ($Resolution.Source -eq 'env') {
+            return & $mk 'UNDETERMINED' 'FAIL' "AI_TRIAD_DATA_ROOT points at '$($Resolution.Path)', which does not exist" 'Unset AI_TRIAD_DATA_ROOT or point it at the data checkout.'
+        }
+        return & $mk 'ABSENT' 'NA' "no data repo at '$($Resolution.Path)' (code-only checkout)" ''
+    }
+    if (-not $IsGitRepo) {
+        return & $mk 'UNDETERMINED' 'FAIL' "'$($Resolution.Path)' exists but is not a git repo" 'Point the data root at a git checkout of ai-triad-data.'
+    }
+
+    $wire = "git -C `"$($Resolution.Path)`" config core.hooksPath .githooks"
+    if ([string]::IsNullOrWhiteSpace($HooksPath)) {
+        return & $mk 'UNWIRED' 'WARN' 'core.hooksPath is unset: both data-repo guards are silently inactive in this checkout' $wire
+    }
+    $norm = $HooksPath.Trim().Replace('\', '/').TrimEnd('/')
+    $abs  = ([string]$Resolution.Path).Replace('\', '/').TrimEnd('/') + '/.githooks'
+    $wired = ($norm -eq '.githooks') -or ($norm -eq './.githooks') -or ($norm -ieq $abs)
+    if (-not $wired) {
+        return & $mk 'MISWIRED' 'WARN' "core.hooksPath is '$HooksPath', not .githooks: the data-repo guards are not the hooks being run" $wire
+    }
+
+    $bad = [System.Collections.Generic.List[string]]::new()
+    foreach ($name in ($Hooks.Keys | Sort-Object)) {
+        $h = $Hooks[$name]
+        if (-not $h.Present) { $bad.Add("$name absent") }
+        elseif ($h.IndexMode -ne '100755') { $bad.Add("$name not executable (index mode $($h.IndexMode); git ignores it on Linux/macOS)") }
+    }
+    if ($bad.Count -gt 0) {
+        return & $mk 'HOOK_MISSING' 'WARN' ("wired, but: " + ($bad -join '; ')) 'Restore the hook / `git update-index --chmod=+x .githooks/<hook>` in the data repo.'
+    }
+    return & $mk 'WIRED' 'PASS' 'core.hooksPath = .githooks; expected hooks present and executable' ''
+}
+
+function Get-DataRepoHooksFacts {
+    <#
+    .SYNOPSIS
+        I/O. Gather the facts for Get-DataRepoHooksVerdict from the live checkout. Used by
+        scripts/Verify-Config.ps1 only — NOT from tests/ (a fresh CI data checkout never has
+        hooksPath, so a live assertion there would be permanently red, t/3869#2).
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$CodeRepoRoot,
+        [string[]]$ExpectedHooks = @('pre-commit')   # add 'commit-msg' once t/3851 commits it
+    )
+    $cfgPath = Join-Path $CodeRepoRoot '.aitriad.json'
+    $cfgText = if (Test-Path -LiteralPath $cfgPath) { Get-Content -Raw -LiteralPath $cfgPath } else { $null }
+    $res = Resolve-DataRepoRoot -EnvValue $env:AI_TRIAD_DATA_ROOT -ConfigText $cfgText -ConfigDir $CodeRepoRoot
+
+    $exists = $false; $isRepo = $false; $hp = $null; $hooks = @{}
+    if (-not $res.Undetermined) {
+        $exists = Test-Path -LiteralPath $res.Path -PathType Container
+        if ($exists) {
+            $null = & git -C $res.Path rev-parse --git-dir 2>$null
+            $isRepo = ($LASTEXITCODE -eq 0)
+            if ($isRepo) {
+                $raw = & git -C $res.Path config --get core.hooksPath 2>$null
+                $hp = if ($LASTEXITCODE -eq 0 -and $raw) { ([string]$raw).Trim() } else { $null }
+                foreach ($name in $ExpectedHooks) {
+                    $rel = ".githooks/$name"
+                    $present = Test-Path -LiteralPath (Join-Path $res.Path $rel) -PathType Leaf
+                    $ls = & git -C $res.Path ls-files -s -- $rel 2>$null
+                    $mode = if ($ls) { ([string]$ls).Split(' ')[0] } else { $null }
+                    $hooks[$name] = @{ Present = $present; IndexMode = $mode }
+                }
+            }
+        }
+    }
+    return [PSCustomObject]@{ Resolution = $res; PathExists = $exists; IsGitRepo = $isRepo; HooksPath = $hp; Hooks = $hooks }
+}

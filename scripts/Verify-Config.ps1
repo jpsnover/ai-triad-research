@@ -32,6 +32,9 @@
         - lib/ai-config/modelLiteralLint.test.ts                        TS model-literal lint unit suite
         - lib/ai-config/modelLiteralLint.conformance.test.ts            shared cross-toolchain conformance corpus
         - lib/oped/__tests__/outletsKeySetGate.test.ts                  outlets.json SSOT vs TS consumer key set (t/3865)
+      Live environment check (not a test file — see its section for why):
+        - data-repo hook wiring (t/3869)   core.hooksPath / hook presence+exec bit in the
+          operator's data checkout. PASS / WARN (warn-first) / N/A (own count) / FAIL.
 
     The vitest half is the fiddly part. taxonomy-editor's vitest include-globs
     are relative to taxonomy-editor/src/renderer, so passing repo-root-relative
@@ -219,7 +222,40 @@ else {
     }
 }
 
+# ── Data-repo hook wiring (t/3869) ─────────────────────────────────────────
+# Checks that the OPERATOR'S data checkout has core.hooksPath = .githooks, so its two guards
+# (pre-commit rationale-drop t/2945; commit-msg node-removal t/3851, added once committed) can run.
+# Lives HERE, not in tests/: CI's fresh data checkout never has hooksPath, so a live assertion
+# there would be permanently red (t/3869#2). Path resolution mirrors the runtime exactly
+# (AI_TRIAD_DATA_ROOT > .aitriad.json data_root), via DataRepoHooksVerdict.ps1.
+# Severities: WIRED → PASS · ABSENT → N/A (own count, never PASSED) · UNDETERMINED → FAIL ·
+# UNWIRED / MISWIRED / HOOK_MISSING → WARN ONLY (Gate Promotion: making these FAIL needs a real warn
+# cycle + t/3870 landed + evidence the warning is ignored + TL GV + mandatory Second Opinion).
+# Does NOT assert the hooks fire correctly — only that they are wired.
+Write-Section 'Data-repo hook wiring (t/3869)'
+$Warnings      = [ordered]@{}
+$NotApplicable = [ordered]@{}
+. (Join-Path $RepoRoot 'operations/devops/DataRepoHooksVerdict.ps1')
+$hooksFacts = Get-DataRepoHooksFacts -CodeRepoRoot $RepoRoot -ExpectedHooks @('pre-commit')
+$hooksV = Get-DataRepoHooksVerdict -Resolution $hooksFacts.Resolution -PathExists $hooksFacts.PathExists `
+    -IsGitRepo $hooksFacts.IsGitRepo -HooksPath $hooksFacts.HooksPath -Hooks $hooksFacts.Hooks
+$hooksLabel = "data-repo-hooks ($($hooksV.State))"
+switch ($hooksV.Severity) {
+    'PASS' { Write-Host "  PASS $hooksLabel — $($hooksV.Reason) [$($hooksV.Path)]" -ForegroundColor Green; $Results[$hooksLabel] = $true }
+    'FAIL' { Write-Host "  FAIL $hooksLabel — $($hooksV.Reason)" -ForegroundColor Red
+             if ($hooksV.Remediation) { Write-Host "        Fix: $($hooksV.Remediation)" -ForegroundColor DarkYellow }
+             $Results[$hooksLabel] = $false }
+    'WARN' { Write-Host "  WARN $hooksLabel — $($hooksV.Reason) [$($hooksV.Path)]" -ForegroundColor Yellow
+             if ($hooksV.Remediation) { Write-Host "        Fix: $($hooksV.Remediation)" -ForegroundColor DarkYellow }
+             $Warnings[$hooksLabel] = $hooksV.Reason }
+    'NA'   { Write-Host "  N/A  $hooksLabel — $($hooksV.Reason)" -ForegroundColor DarkGray; $NotApplicable[$hooksLabel] = $hooksV.Reason }
+    default { Write-Host "  FAIL $hooksLabel — unknown severity '$($hooksV.Severity)'" -ForegroundColor Red; $Results[$hooksLabel] = $false }
+}
+
 # ── Summary ──────────────────────────────────────────────────────────────────
+# PASS/FAIL gates live in $Results; WARN and N/A are reported on their own lines and counts and are
+# NEVER folded into the PASSED total (t/3869#2 — "all N green" must not include a check that warned
+# or never ran). Only a FAIL changes the exit code.
 Write-Section 'Summary'
 $failed = @()
 foreach ($k in $Results.Keys) {
@@ -230,13 +266,18 @@ foreach ($k in $Results.Keys) {
         $failed += $k
     }
 }
+foreach ($k in $Warnings.Keys)      { Write-Host "  [WARN] $k" -ForegroundColor Yellow }
+foreach ($k in $NotApplicable.Keys) { Write-Host "  [N/A]  $k" -ForegroundColor DarkGray }
+$tail = ''
+if ($Warnings.Count -gt 0)      { $tail += ", $($Warnings.Count) warning(s)" }
+if ($NotApplicable.Count -gt 0) { $tail += ", $($NotApplicable.Count) N/A" }
 
 if ($failed.Count -gt 0) {
     Write-Host ''
-    Write-Host "verify:config FAILED — $($failed.Count) gate(s): $($failed -join ', ')" -ForegroundColor Red
+    Write-Host "verify:config FAILED — $($failed.Count) gate(s): $($failed -join ', ')$tail" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ''
-Write-Host "verify:config PASSED — all $($Results.Count) registry gate checks green ($($PesterGates.Count) Pester files, $($VitestGates.Count) vitest files)." -ForegroundColor Green
+Write-Host "verify:config PASSED — all $($Results.Count) registry gate checks green ($($PesterGates.Count) Pester files, $($VitestGates.Count) vitest files)$tail." -ForegroundColor Green
 exit 0
