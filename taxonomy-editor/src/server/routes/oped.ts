@@ -36,6 +36,7 @@ import { resolveBackend, isRegisteredModel } from '../ai/aiBackends.js';
 import { DEFAULT_MODEL } from '../../../../lib/ai-client/index.js';
 import { getProjectRoot } from '../config.js';
 import { createWebOpEdAdapter } from '../ai/opedAdapter.js';
+import { OUTLET_BANDS } from '../../../../lib/oped/outletBands.js';
 import { randomUUID } from 'crypto';
 import path from 'path';
 
@@ -59,6 +60,15 @@ const OPED_HEARTBEAT_MS = 15_000;
 
 // ── create-request parsing (FromTopic + FromSource-URL) ──
 interface ParsedOpEdCreate { topic: string; povs: string[]; params: OpEdParams; url?: string }
+
+// t/3858: outlet is OPTIONAL (absent/empty → band default), but if supplied it must be a known key.
+// Extracted to keep parseOpEdCreate under the complexity budget.
+function validateOutlet(outlet: string | undefined): string | null {
+  if (!outlet) return null;
+  if (OUTLET_BANDS[outlet]) return null;
+  return `params.outlet "${outlet}" is not a known outlet. Valid: ${Object.keys(OUTLET_BANDS).join(', ')}`;
+}
+
 function parseOpEdCreate(body: unknown): { ok: true; value: ParsedOpEdCreate } | { ok: false; status: number; message: string } {
   const b = (body ?? {}) as { topic?: unknown; params?: OpEdParams; povs?: unknown; url?: unknown; source?: unknown };
   // t/2807: `url` sources are now supported on web — fetched via the SSRF-hardened
@@ -73,6 +83,8 @@ function parseOpEdCreate(body: unknown): { ok: true; value: ParsedOpEdCreate } |
   if (!topic || topic.length > MAX_TOPIC_LEN) return { ok: false, status: 400, message: 'topic is required (non-empty, ≤2000 chars)' };
   if (povs.length === 0) return { ok: false, status: 400, message: 'at least one voice (pov) is required' };
   if (!params || typeof params.model !== 'string') return { ok: false, status: 400, message: 'params.model is required' };
+  const outletError = validateOutlet(params.outlet);
+  if (outletError) return { ok: false, status: 400, message: outletError };
   // wordCount is OPTIONAL — the outlet band supplies the default (lib/oped/generate.ts resolveOutletBand;
   // New-OpEd.ps1 derives length from the outlet). A default create ("Use outlet band") sends no wordCount,
   // so requiring it 400'd every default web op-ed (t/2685). Coerce absent/invalid/≤0 to the band sentinel 0

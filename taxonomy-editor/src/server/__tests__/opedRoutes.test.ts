@@ -377,6 +377,40 @@ describe('POST /api/oped-sets create pre-start gate (t/2610)', () => {
     expect(finalizeOpedSet).not.toHaveBeenCalled();
   });
 
+  // t/3858: outlet validation — unknown value → 400 before the run starts; absent/known → valid
+  it('400 when params.outlet is an unrecognised value (typo stops before the run, not after) (t/3858)', async () => {
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, {
+      ...validBody, params: { ...validBody.params, outlet: 'TechPolicyPres' },
+    });
+    expect(res._status).toBe(400);
+    const body = JSON.parse(res._body!);
+    expect(body.error).toContain('TechPolicyPres');
+    expect(body.error).toContain('Valid:');
+    expect(finalizeOpedSet).not.toHaveBeenCalled();
+  });
+
+  it('absent outlet passes validation — band default applies, not a 400 (t/3858 AC: absent is valid)', async () => {
+    // The common case: a default create sends no outlet. This MUST pass the outlet check
+    // and advance to the quota gate. A strict implementation that rejects absent is the AC's
+    // named failure mode, so gate on the quota 429 (not just "not 400").
+    getOpedSetsQuotaStatus.mockResolvedValue({ allowed: false, resource: 'opeds', current: 15, limit: 15 });
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, {
+      topic: 'x', povs: ['acc'], params: { model: 'gemini-2.5-flash' },
+    });
+    expect(res._status).toBe(429);
+  });
+
+  it('known outlet passes validation (t/3858)', async () => {
+    getOpedSetsQuotaStatus.mockResolvedValue({ allowed: false, resource: 'opeds', current: 15, limit: 15 });
+    const res = fakeRes();
+    await handlers['POST /api/oped-sets'](fakeReq('/api/oped-sets'), res, {
+      ...validBody, params: { ...validBody.params, outlet: 'WashingtonPost' },
+    });
+    expect(res._status).toBe(429); // reached quota ⇒ outlet validation passed
+  });
+
   it('GET /api/oped-runs/:runId returns 404 for an unknown run', async () => {
     const res = fakeRes();
     await handlers['GET /api/oped-runs/:runId'](fakeReq('/api/oped-runs/nope-1'), res, undefined);
