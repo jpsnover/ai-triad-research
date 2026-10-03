@@ -5,6 +5,10 @@
 // merge-time condition PR-CI cannot exercise, so both arms are proven here directly. Run:
 //   node --test operations/devops/merge-guard-predicate.test.mjs
 // This proves the SAME logic the type:block feedback rule inlines (INLINE_FOR_RULE in the module).
+//
+// CI (t/3871): this suite runs via operations/devops/run-merge-guard-tests.sh, which fails if fewer
+// than MIN tests are collected. **When you add tests here, raise MIN in that script to the new count
+// in the same PR** — a floor left behind silently tolerates losing every test added since.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

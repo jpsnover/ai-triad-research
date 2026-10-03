@@ -30,8 +30,11 @@ rc=$?
 # Measured while building this (t/3871): `node --test` on a file with NO tests exits 0 and reports
 # `# tests 1` (the file itself counts as a test), so a `> 0` check PASSES an empty suite — the exact
 # silent-zero trap. A floor at the known count catches that AND a refactor that quietly drops tests.
-# RATCHET: adding tests needs no change here; lowering MIN is a deliberate, reviewed diff (same
-# pattern as workflow-lint's ALLOW_IF_EXPECTED). Override only for local arm-testing.
+# RATCHET — and it DRIFTS if you don't move it (TL p/331#1816; same failure as Verify-Config's
+# hardcoded "7 files" while running 8): when you ADD tests to merge-guard-predicate.test.mjs, RAISE
+# MIN to the new count in the same PR. A floor left at an old count silently tolerates losing every
+# test added since. Lowering MIN is a deliberate, reviewed diff (workflow-lint ALLOW_IF_EXPECTED
+# pattern). The env override is for local arm-testing only.
 MIN="${MERGE_GUARD_MIN_TESTS:-48}"
 n="$(grep -E '^# tests [0-9]+' "$tap" | tail -1 | awk '{print $3}')"
 if [ -z "$n" ]; then
