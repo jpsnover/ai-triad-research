@@ -114,7 +114,11 @@ function Test-ComplexityBudget {
     $existingBaseline = @{}
     foreach ($prop in $raw.PSObject.Properties) {
         if ($prop.Name -eq '__meta__') { continue }
-        $existingBaseline[$prop.Name] = @{ max = [int]$prop.Value.max; countOver = [int]$prop.Value.countOver }
+        # t/3874: normalize on READ (the "lookup" side) -- a '\'-keyed entry (legacy or
+        # hand-edited) must still match the '/'-keyed $file from the now-normalized
+        # Get-ComplexityScanTargets below, or every baselined file reads as new.
+        $key = $prop.Name.Replace('\', '/')
+        $existingBaseline[$key] = @{ max = [int]$prop.Value.max; countOver = [int]$prop.Value.countOver }
     }
 
     $targets = @(Get-ComplexityScanTargets -Path $Path)

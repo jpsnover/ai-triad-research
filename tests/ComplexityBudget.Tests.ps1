@@ -148,6 +148,79 @@ Describe 'Update-ComplexityBaseline / Test-ComplexityBudget (t/3829)' -Tag 'heal
         }
     }
 
+    Context 'Separator normalization (t/3874) — a baseline generated on one OS, enforced on another' {
+        # The real bug: scripts/complexity-baseline.json was generated on Windows (keys like
+        # 'AITriad\Private\Foo.ps1') and enforced on Linux CI, where Measure-CodeComplexity's
+        # File (via [System.IO.Path]::GetRelativePath) is '/'-separated. ContainsKey never
+        # matched, so all 229 baselined files read as brand-new offenders (177 surfaced over
+        # threshold). These tests hand-write a '\'-keyed entry -- the exact legacy shape --
+        # against a nested fixture, so they exercise the normalization fix regardless of which
+        # OS runs them (both Get-ComplexityScanTargets' write-side and the two cmdlets' read-side
+        # now normalize unconditionally to '/', not by checking the current OS).
+
+        It 'a legacy backslash-keyed baseline entry matches the forward-slash-produced path (Test-ComplexityBudget / lookup)' {
+            $sub = Join-Path $script:Dir 'sub'
+            New-Item -ItemType Directory -Path $sub -Force | Out-Null
+            New-OffenderFixture $sub 'Test-Nested' 20   # complexity 21
+
+            $baseline = [ordered]@{
+                __meta__              = [ordered]@{ threshold = 15; scan = (Split-Path $script:Dir -Leaf); doc = 'test' }
+                'sub\Test-Nested.ps1' = [ordered]@{ max = 21; countOver = 1 }
+            }
+            $baseline | ConvertTo-Json -Depth 5 | Set-Content -Path $script:BaselinePath
+
+            $r = Test-ComplexityBudget -Path $script:Dir
+            $r.Passed | Should -Be $true -Because 'a backslash-keyed entry must match the forward-slash-produced path, not read as a new offender'
+            $r.Violations.Count | Should -Be 0
+        }
+
+        It 'a legacy backslash-keyed baseline entry is recognized by Update-ComplexityBaseline too (generation side), not duplicated' {
+            $sub = Join-Path $script:Dir 'sub'
+            New-Item -ItemType Directory -Path $sub -Force | Out-Null
+            New-OffenderFixture $sub 'Test-Nested' 20   # complexity 21
+
+            $baseline = [ordered]@{
+                __meta__              = [ordered]@{ threshold = 15; scan = (Split-Path $script:Dir -Leaf); doc = 'test' }
+                'sub\Test-Nested.ps1' = [ordered]@{ max = 21; countOver = 1 }
+            }
+            $baseline | ConvertTo-Json -Depth 5 | Set-Content -Path $script:BaselinePath
+
+            $r = Update-ComplexityBaseline -Path $script:Dir -Threshold 15
+            $r.OffenderCount | Should -Be 1 -Because 'the legacy backslash key and the forward-slash observed path are the SAME file, not two entries'
+
+            $written = Get-Content $script:BaselinePath -Raw | ConvertFrom-Json
+            $keys = @($written.PSObject.Properties.Name | Where-Object { $_ -ne '__meta__' })
+            $keys.Count | Should -Be 1
+            $keys[0] | Should -Be 'sub/Test-Nested.ps1' -Because 'regeneration must always emit forward-slash keys'
+        }
+
+        It 'Update-ComplexityBaseline never emits a key containing a backslash, even for nested files' {
+            $sub = Join-Path $script:Dir 'sub'
+            New-Item -ItemType Directory -Path $sub -Force | Out-Null
+            New-OffenderFixture $sub 'Test-Nested' 20
+
+            Update-ComplexityBaseline -Path $script:Dir -Threshold 15 | Out-Null
+
+            $written = Get-Content $script:BaselinePath -Raw | ConvertFrom-Json
+            $keys = @($written.PSObject.Properties.Name | Where-Object { $_ -ne '__meta__' })
+            $keys | Should -Not -BeNullOrEmpty
+            @($keys | Where-Object { $_.Contains('\') }).Count | Should -Be 0
+        }
+
+        It 'Test-ComplexityBudget reports a NEW nested offender with a forward-slash File path' {
+            $sub = Join-Path $script:Dir 'sub'
+            New-Item -ItemType Directory -Path $sub -Force | Out-Null
+            New-OffenderFixture $sub 'Test-Nested' 20
+            Update-ComplexityBaseline -Path $script:Dir -Threshold 15 | Out-Null
+
+            New-OffenderFixture $sub 'Test-NewNested' 20   # not in baseline, nested
+
+            $r = Test-ComplexityBudget -Path $script:Dir
+            $r.Passed | Should -Be $false
+            ($r.Violations | Where-Object Reason -eq 'new-offender').File | Should -Contain 'sub/Test-NewNested.ps1'
+        }
+    }
+
     Context 'Test-ComplexityBudget — threshold/scan mismatch (ties the pair structurally)' {
 
         It 'reads the threshold from baseline __meta__ when -Threshold is omitted' {
