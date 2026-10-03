@@ -57,6 +57,14 @@ function New-OpEd {
         Target publication category. Sets the default word-count band and
         audience/tone guidance from real editorial specifications. Overridden by
         an explicit -WordCount.
+
+        The valid set and every outlet's data are read from lib/oped/outlets.json
+        (the single source of truth shared with the TS renderer, t/3819) on EVERY
+        call — not cached for the session, confirmed empirically (t/3863). Editing
+        the file takes effect on your very next call with no module reload needed.
+        A missing or malformed outlets.json is refused LOUDLY at parameter binding
+        (before this cmdlet's body ever runs) naming the file and the parse/schema
+        failure, rather than silently falling back to a stale or empty set.
     .PARAMETER WordCount
         Explicit target length (300-2000 words). Overrides the -Outlet default.
     .PARAMETER NewsHook
@@ -144,9 +152,13 @@ function New-OpEd {
         [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'acc', 'saf', 'skp')]
         [string]$Pov,
 
-        [ValidateSet('WashingtonPost', 'NYTimes', 'WallStreetJournal', 'USAToday',
-            'ForeignAffairs', 'Politico', 'Regional', 'Generic', 'TechPolicyPress')]
-        [string]$Outlet = 'TechPolicyPress',
+        # t/3863: dynamic set read from lib/oped/outlets.json (t/3861 SSOT) via
+        # OutletsSsotValuesGenerator, not a hardcoded literal list. Fails CLOSED —
+        # a missing/malformed SSOT throws at parameter binding (see
+        # Get-OpEdOutletsData for why). The default reads $script:RepoRoot's
+        # defaultOutlet on every call (no caching, t/3863#1), so it is live too.
+        [ValidateSet([OutletsSsotValuesGenerator])]
+        [string]$Outlet = (Get-OpEdOutletsData).defaultOutlet,
 
         [ValidateRange(300, 2000)]
         [int]$WordCount,
@@ -238,31 +250,21 @@ function New-OpEd {
     $VoiceBlock = $VoiceLines -join "`n"
 
     # ── Resolve the target word count from the outlet band (unless explicit) ─
-    $OutletBands = @{
-        WashingtonPost    = @{ Words = 800;  Guidance = 'The Washington Post: max 800 words, strong news hook, hyperlink-able sources, zero jargon; national public audience.' }
-        NYTimes           = @{ Words = 800;  Guidance = 'The New York Times Guest Essay: ~800 words, sharp thesis, general national readership.' }
-        WallStreetJournal = @{ Words = 900;  Guidance = 'The Wall Street Journal: 600-1200 words, rapid thesis, business/policy relevance, market and regulatory framing, zero jargon; executives, investors, policymakers.' }
-        USAToday          = @{ Words = 650;  Guidance = 'USA Today: 550-750 words, embed verifiable source references, plain and direct; broad national audience.' }
-        ForeignAffairs    = @{ Words = 1200; Guidance = 'Foreign Affairs / policy platform: 800-1500 words, deeper structural analysis permitted; subject specialists, Hill staff, agency officials.' }
-        Politico          = @{ Words = 1000; Guidance = 'Politico: ~1000 words, policy-mechanics focus, timely; Hill and agency audience.' }
-        Regional          = @{ Words = 650;  Guidance = 'Regional / local daily: 500-800 words, direct regional relevance, local anecdotes, state-level calls to action; municipal voters and state legislators.' }
-        Generic           = @{ Words = 800;  Guidance = 'General-interest opinion desk: ~800 words, strong news hook, plain language, broad public audience.' }
-        TechPolicyPress   = @{
-            Words    = 1500
-            Guidance = 'Tech Policy Press (Perspective/Analysis): 1200-2000 words in 3-5 subheaded sections. Analytical and evidence-grounded with a clear argumentative throughline; sophisticated but clear (college-level register, precise policy vocabulary — do NOT dumb down, but keep sentences disciplined). Anchor in a specific, current policy development (named legislation, institution, or event) and draw out the broader governance/democratic stakes — concrete-first, not abstract theory. Sparing first person from a stated vantage; rhetorical questions and concrete hypotheticals used sparingly; cite verifiable sources. Audience: policymakers, technologists, researchers, and informed advocates at the tech-and-democracy intersection.'
-            Style    = @{
-                Audience          = 'persuade an informed policy audience — policymakers, technologists, researchers, and advocates at the tech-and-democracy intersection'
-                ReadingLevel      = 'Write for a college-educated policy audience — Flesch-Kincaid grade ~13 (no higher than 14). Achieve clarity through sentence discipline, NOT by simplifying vocabulary: keep the precise policy and technical terms your expert readers expect.'
-                SentenceMechanics = 'average under ~24 words; no sentence over 40 words. Vary length; after a long sentence, a short one.'
-                ParagraphMechanics = 'at most ~120 words per paragraph.'
-                JargonGuidance    = 'Use the precise policy/technical vocabulary your expert audience expects; define only genuinely obscure terms. Do NOT flatten specialized terms into lay paraphrase.'
-                BodyFormat        = 'Organize the body into **3-5 sections with short Markdown `##` subheadings**; each section advances one part of the argument. Do NOT repeat the headline inside the body.'
-            }
-            Readability = @{ fkMax = 16.0; maxSentWords = 40; maxParaWords = 120 }
-        }
+    # t/3863: $OutletBands (literal hashtable of all 9 outlets) deleted — read from
+    # the lib/oped/outlets.json SSOT (t/3861) instead. Get-OpEdOutletsData throws
+    # (fail-closed) on a missing/malformed SSOT; the ValidateSet generator above
+    # already refused an invalid -Outlet at binding, but this is a second,
+    # independent read (no caching either layer, t/3863#1), so guard the key too.
+    $OutletsData = Get-OpEdOutletsData
+    if (-not $OutletsData.outlets.PSObject.Properties[$Outlet]) {
+        throw (New-ActionableError -PassThru `
+                -Goal 'Generate an op-ed in a POV voice' `
+                -Problem "Outlet '$Outlet' passed binding but is no longer present in outlets.json — the SSOT changed between binding and this read." `
+                -Location 'New-OpEd' `
+                -NextSteps 'Re-run the command.')
     }
-    $Band = $OutletBands[$Outlet]
-    $TargetWords = if ($PSBoundParameters.ContainsKey('WordCount')) { $WordCount } else { $Band.Words }
+    $OutletEntry = $OutletsData.outlets.$Outlet
+    $TargetWords = if ($PSBoundParameters.ContainsKey('WordCount')) { $WordCount } else { $OutletEntry.words }
 
     # ── Resolve source material via Get-OpEdSource ───────────────────────────
     # -Url builds a SourcePrep internally (single-voice path); -SourcePrep
@@ -415,21 +417,25 @@ function New-OpEd {
         '(none supplied — write a generic authority line the author can replace, e.g. "[Author], [affiliation]")'
     } else { $AuthorBio }
 
-    # ── Resolve per-outlet style vars (mirrors promptLoader.ts defaults) ────────
-    $s = $Band['Style']
-    $StyleAudience   = if ($null -ne $s -and $s.ContainsKey('Audience'))          { $s.Audience }          else { 'persuade a broad, non-specialist public to act' }
-    $StyleReadLevel  = if ($null -ne $s -and $s.ContainsKey('ReadingLevel'))       { $s.ReadingLevel }      else { 'write for a general newspaper audience at roughly a 10th-grade reading level (Flesch-Kincaid grade ~10, and no higher than 11). This is the single most important constraint. If a passage would make a smart non-specialist reread it, simplify it.' }
-    $StyleSentence   = if ($null -ne $s -and $s.ContainsKey('SentenceMechanics')) { $s.SentenceMechanics } else { 'average under 18 words per sentence; NO sentence over 30 words. One idea per sentence. When a sentence carries two or three claims, split it into two or three sentences. Long, clause-chained sentences are the main reason these essays read as hard.' }
-    $StyleParagraph  = if ($null -ne $s -and $s.ContainsKey('ParagraphMechanics')){ $s.ParagraphMechanics } else { 'at most four sentences AND at most ~90 words per paragraph. The word cap matters as much as the sentence count, four long sentences is still a wall. Break a longer paragraph in two.' }
-    $StyleJargon     = if ($null -ne $s -and $s.ContainsKey('JargonGuidance'))    { $s.JargonGuidance }    else { 'Eliminate jargon and specialized acronyms. Translate every technical term into plain language without losing its meaning (e.g., "new governmental restrictions," not "legislative encroachment"; "federal engineers," not "USACE"). If a term is not universally understood by a general reader, replace it. Avoid abstract-noun pileups ("sociotechnical complexity reduced to a frictionless slogan"); say it plainly.' }
-    $StyleBodyFormat = if ($null -ne $s -and $s.ContainsKey('BodyFormat'))        { $s.BodyFormat }        else { 'No section labels or headers inside the body — it must read as continuous prose. Do NOT repeat the headline inside the body.' }
+    # ── Resolve per-outlet style vars from the SSOT (t/3863) ────────────────────
+    # The six hardcoded `else` defaults (previously hand-mirroring promptLoader.ts)
+    # are gone — $OutletsData.styleDefaults is itself the SSOT's explicit
+    # third table (t/3819#3 Condition 1), applied to the 8 outlets that carry no
+    # per-outlet `style` block. TechPolicyPress is the only outlet with one today.
+    $StyleSource = if ($OutletEntry.PSObject.Properties['style']) { $OutletEntry.style } else { $OutletsData.styleDefaults }
+    $StyleAudience   = $StyleSource.audience
+    $StyleReadLevel  = $StyleSource.readingLevel
+    $StyleSentence   = $StyleSource.sentenceMechanics
+    $StyleParagraph  = $StyleSource.paragraphMechanics
+    $StyleJargon     = $StyleSource.jargonGuidance
+    $StyleBodyFormat = $StyleSource.bodyFormat
 
     # ── Load prompt templates ────────────────────────────────────────────────
     $SystemPrompt = Get-Prompt -Name 'op-ed-generation-system' -PromptsDir $OPedPromptsDir -Replacements @{
         POV_LABEL           = $Soul.label
         VOICE_BLOCK         = $VoiceBlock
         WORD_COUNT          = "$TargetWords"
-        OUTLET_GUIDANCE     = $Band.Guidance
+        OUTLET_GUIDANCE     = $OutletEntry.guidance
         STYLE_AUDIENCE      = $StyleAudience
         STYLE_READING_LEVEL = $StyleReadLevel
         STYLE_SENTENCE      = $StyleSentence
@@ -439,7 +445,7 @@ function New-OpEd {
     $UserPrompt = Get-Prompt -Name 'op-ed-generation-user' -PromptsDir $OPedPromptsDir -Replacements @{
         TOPIC               = $Topic
         WORD_COUNT          = "$TargetWords"
-        OUTLET_GUIDANCE     = $Band.Guidance
+        OUTLET_GUIDANCE     = $OutletEntry.guidance
         NEWS_HOOK           = $NewsHookText
         THESIS              = $ThesisText
         AUTHOR_BIO          = $AuthorBioText
@@ -523,12 +529,14 @@ function New-OpEd {
         $Body = [string]$Result.Text
     }
 
-    # ── Readability edit pass (mirrors generate.ts t/3707) ───────────────────
-    # Outlet-aware targets; grade-10 defaults for outlets without a Readability block.
-    $ReadTarget    = $Band['Readability']
-    $RtFkMax       = if ($null -ne $ReadTarget) { [double]$ReadTarget['fkMax']       } else { 11.0 }
-    $RtSentWords   = if ($null -ne $ReadTarget) { [int]   $ReadTarget['maxSentWords'] } else { 30 }
-    $RtParaWords   = if ($null -ne $ReadTarget) { [int]   $ReadTarget['maxParaWords'] } else { 90 }
+    # ── Readability edit pass ─────────────────────────────────────────────────
+    # t/3863: outlet-aware targets read from the SSOT; styleDefaults.readability
+    # (t/3819#3 Condition 1) replaces the three hardcoded grade-10 literals for
+    # the 8 outlets without a per-outlet readability block.
+    $ReadTarget  = if ($OutletEntry.PSObject.Properties['readability']) { $OutletEntry.readability } else { $OutletsData.styleDefaults.readability }
+    $RtFkMax     = [double]$ReadTarget.fkMax
+    $RtSentWords = [int]$ReadTarget.maxSentWords
+    $RtParaWords = [int]$ReadTarget.maxParaWords
 
     $FinalBody   = $Body
     $EditingMeta = $null
