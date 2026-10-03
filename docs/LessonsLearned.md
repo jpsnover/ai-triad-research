@@ -4113,3 +4113,36 @@ SO's formulation (e/243#12): *"I verify claims I'm challenging and skip claims I
 **Status:** Active — 1 instance (PowerShell p/20#60). Deterministic when local and remote ref names differ.
 
 **Applies To:** All agents deleting local branches after pushing to a differently-named remote ref.
+
+---
+
+## #197 [Build] `core.fileMode=false` + Pathspec Commit Silently Discards Index-Only Mode Changes — Hook Committed Non-Executable
+
+**Pattern:** On Windows with `core.fileMode=false`, attempting to commit an executable-bit change (`update-index --chmod=+x`, `add --chmod=+x`, or `-c core.fileMode=true`) exits 0 and appears to succeed — but the committed blob is still `100644`. On Linux/macOS, git then skips that file as a non-executable hook, so a guard or script lands in a form that never runs. The silence is total: no error, no warning, the commit log looks clean.
+
+**Collision with the pathspec-commit rule (root AGENTS.md):** The mandated pathspec form (`git commit -- <paths>`) is required to avoid sweeping in other agents' staged files. But pathspec commits also silently gate on `core.fileMode` and drop the mode change. The two house rules are in direct tension for this specific case.
+
+**Safe method (TL, t/3851#9):** Use a private `GIT_INDEX_FILE` seeded from HEAD so the commit is isolated from the shared index:
+```bash
+tmpidx=$(mktemp)
+GIT_INDEX_FILE="$tmpidx" git read-tree HEAD
+GIT_INDEX_FILE="$tmpidx" git update-index --chmod=+x -- <path>
+GIT_INDEX_FILE="$tmpidx" git commit --tree $(GIT_INDEX_FILE="$tmpidx" git write-tree) -p HEAD -m "fix: mark <path> executable"
+git restore --staged -- <path>   # ← CRITICAL: without this, the next bare commit reverts the mode fix
+```
+The `git restore --staged` step is mandatory: the shared index still has `100644`; leaving it staged means the next bare commit overwrites the mode fix silently.
+
+**Instances:**
+- 2026-10-03 — TL (t/3851#9, p/335#122): the data repo's `pre-commit` hook was committed as `100644` under `core.fileMode=false` and has been inert on Linux/macOS since it landed. Every hook invocation on non-Windows silently skipped it.
+
+**Root Cause:** `core.fileMode=false` tells git to ignore executable-bit differences in the working tree. The index-staging commands respect this setting and do not persist the mode change. A pathspec commit then has no mode delta to write. The setting exists for Windows (where the filesystem has no exec bit), so this is a per-platform silent failure: the author on Windows sees a clean commit; the Linux runner runs nothing.
+
+**Prevention:**
+1. **Never rely on `add --chmod=+x` or `update-index --chmod=+x` alone on a Windows checkout** — confirm the mode landed in the commit object: `git ls-tree HEAD <path>` must show `100755`, not `100644`.
+2. **To force a mode change from Windows: use the private-GIT_INDEX_FILE method above.** The `git restore --staged` cleanup is not optional.
+3. **After committing a hook or executable script, verify it runs on CI (Linux) before closing the ticket.** A green Windows build does not prove the hook is executable on the runner.
+4. **Relation to AGENTS.md pathspec-commit rule:** the private-index method is the exception that resolves the collision — it commits only the intended path without touching the shared index. Document the exception in the commit message.
+
+**Status:** Active — 1 instance (TL t/3851#9, p/335#122). Silently deterministic on Windows with `core.fileMode=false`; high blast radius (inert hooks pass all local checks).
+
+**Applies To:** All agents committing hook scripts, executable shell scripts, or any file requiring `100755` mode from a Windows checkout.
