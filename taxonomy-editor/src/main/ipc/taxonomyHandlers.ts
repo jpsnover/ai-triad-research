@@ -40,7 +40,7 @@ import { renameSyncWithRetry } from '../../../../lib/debate/persistence.js';
 import { recordLockHolder } from '../../../../lib/debate/lockHolder.js';
 import { stampNodeAuthorship } from '../../server/storage/editMeta.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
-import { VALID_POV } from '../ipcSchemas.js';
+import { VALID_POV, NodeDeleteLogEntrySchema } from '../ipcSchemas.js';
 import {
   assembleNodeEmbeddings,
   selectRelevantTaxonomy,
@@ -51,6 +51,7 @@ import { POVER_INFO } from '../../../../lib/debate/poverInfo.js';
 import { computeEmbeddings, computeQueryEmbedding } from '../embeddings.js';
 import { computeClaimTaxonomyAttribution } from '../../../../lib/debate/argumentNetwork/attribution.js';
 import type { ArgumentNetworkNode, ClaimTaxonomyAttribution } from '../../../../lib/debate/types.js';
+import { writeNodeDeleteLogEntry } from '../nodeDeleteLog.js';
 
 // Recorder-backed sink for the rationale re-merge's "baseline twin matched no incoming edge"
 // case: a real rationale isn't written, logged so a systematic tie-break mismatch is
@@ -619,5 +620,24 @@ export function registerTaxonomyHandlers(): void {
         decisions: summary.decisions,
       },
     };
+  });
+
+  // t/3859 (Part D of t/3852): durable local audit record for a node deletion — the renderer
+  // calls this right after confirm, fail-safe on its side (see electron-bridge.ts's
+  // logNodeDeletion wrapper), so a write failure here must never surface as a rejected delete.
+  // Validated at the IPC boundary (structural only — see NodeDeleteLogEntrySchema) rather than
+  // trusting the renderer-supplied shape; a malformed payload is WARN-recorded and dropped, not
+  // written as a corrupt record (this writer has no other caller, so the renderer IS the boundary).
+  ipcMain.handle('log-node-deletion', (_event, entry: unknown) => {
+    const parsed = NodeDeleteLogEntrySchema.safeParse(entry);
+    if (!parsed.success) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'node-delete-log', level: 'warn',
+        message: 'log-node-deletion received a malformed entry — dropped, not written',
+        data: { error: parsed.error.message },
+      });
+      return;
+    }
+    writeNodeDeleteLogEntry(parsed.data);
   });
 }

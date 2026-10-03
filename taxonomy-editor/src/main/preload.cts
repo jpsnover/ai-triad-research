@@ -17,6 +17,7 @@ import type { ClaimAttributionResult } from '../../../lib/debate/argumentNetwork
 import type { ClaimTaxonomyAttribution } from '../../../lib/debate/types.js';
 import type { UserPreferences } from '../../../lib/userPreferencesSchema.js';
 import type { InquiryRequest, InquiryResult } from '../../../lib/inquiry/index.js';
+import type { NodeDeleteLogEntry } from './nodeDeleteLog.js';
 
 // t/3532: mirrors bridge/types.ts's FetchRelevantNodesPayload/FetchClaimAttributionPayload/
 // ClaimAttributionResponse structurally (those are defined directly in bridge/types.ts, not
@@ -151,6 +152,10 @@ function buildElectronApi() {
 
   loadLineageInfo: (): Promise<Record<string, unknown>> =>
     ipcRenderer.invoke('load-lineage-info'),
+
+  // t/3859 (Part D of t/3852): durable local audit record for a node deletion.
+  logNodeDeletion: (entry: NodeDeleteLogEntry): Promise<void> =>
+    ipcRenderer.invoke('log-node-deletion', entry),
 
   loadConflictFiles: (): Promise<unknown[]> =>
     ipcRenderer.invoke('load-conflict-files'),
