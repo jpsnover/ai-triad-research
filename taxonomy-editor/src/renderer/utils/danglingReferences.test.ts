@@ -99,6 +99,14 @@ describe('countDanglingReferences', () => {
     expect(counts.children).toBe(2);
   });
 
+  it('counts situations whose parent_id references the (situation) node being deleted (t/3852#3)', () => {
+    const parent = situationNode({ id: 'sit-001' });
+    const child = situationNode({ id: 'sit-002', parent_id: 'sit-001' });
+    const counts = countDanglingReferences('sit-001', [povFile([povNode()])], situationsFile([parent, child]), edgesFile([]));
+    // SituationNode has no `children` array (unlike PovNode) — only the child's stale parent_id dangles.
+    expect(counts.children).toBe(1);
+  });
+
   it('handles null stores gracefully (file not yet loaded)', () => {
     const counts = countDanglingReferences('acc-beliefs-001', [null, null, null], null, null);
     expect(counts).toEqual({ edges: 0, situationRefs: 0, children: 0 });

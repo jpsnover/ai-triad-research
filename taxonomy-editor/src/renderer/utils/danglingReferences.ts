@@ -43,6 +43,14 @@ export function countDanglingReferences(
       if (n.children.includes(nodeId)) children++;
     }
   }
+  // t/3852#3: SituationNode has parent_id (situation-to-situation hierarchy) but no `children`
+  // array — only the parent_id side can dangle here, unlike the POV loop above.
+  if (situations) {
+    for (const s of situations.nodes) {
+      if (s.id === nodeId) continue;
+      if (s.parent_id === nodeId) children++;
+    }
+  }
 
   return { edges, situationRefs, children };
 }
