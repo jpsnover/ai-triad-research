@@ -175,6 +175,7 @@ Get-Help <CmdletName> -Full                     # full docs for any cmdlet
 | `Test-ComplexityBudget` | Enforce the complexity-ratchet baseline — new over-threshold file or a baselined file regressing both fail; reads threshold from the baseline unless `-Threshold` is explicitly passed and must then match (t/3829) |
 | `Get-AICostReport` | Token/cost usage report |
 | `Get-ViteDevStatus` | Vite dev server diagnostic — port owner, working dir, HTTP health, main/worktree/orphan classification (t/2196) |
+| `Get-WorktreeMainRoot` | Resolves the true main-checkout root from inside any worktree (nested `.worktrees/<x>` or sibling `../wt-<x>`) via `git rev-parse --git-common-dir`; use when anchoring a sibling-relative path like a data-repo root, where the calling worktree's own directory is the wrong depth (t/3869) |
 | `Get-DebateSessionState` | Read phase, transcript length, run_id, and updated_at from a debate JSON on disk — one-liner for interrupted-turn recovery diagnosis (t/2330) |
 
 ### Config

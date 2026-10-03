@@ -1026,6 +1026,8 @@ Export-ModuleMember -Function @(
     'Invoke-LogicalFormPass'
     # t/2196 — Vite dev server diagnostic
     'Get-ViteDevStatus'
+    # t/3869 — resolves the true main-checkout root from inside any worktree (nested or sibling)
+    'Get-WorktreeMainRoot'
     # t/2330 — Debate session state diagnostic
     'Get-DebateSessionState'
     # t/2335 — Debate index field-type integrity check (per-session files)
