@@ -630,8 +630,14 @@ try {
     if ($alarm) {
         $hints = @()
         if ($behind -gt 0) {
+            # Three arms, not two. A DIVERGED tree with no real WIP is correctly NOT SyncBlocked (no
+            # owner-claim needed) — but it still cannot fast-forward: the remedy is the DevOps reset-sync
+            # (docs/shared-tree-divergence.md Steps 1–5), never `merge --ff-only`. Branching on
+            # SyncBlocked alone recommended ff-only for a diverged tree, contradicting its own SyncReason.
             $hints += if ($result.SyncBlocked) {
                 "behind ($behind commit(s)) — SYNC BLOCKED: $($result.SyncReason). Do NOT ff; resolve per the real-WIP / diverged hint below (owner-claim, or the DevOps reset-sync)."
+            } elseif ($result.AheadCount -gt 0) {
+                "DIVERGED (ahead=$($result.AheadCount), behind=$behind) — ff is IMPOSSIBLE; no real WIP, so no owner-claim. DevOps reset-sync per docs/shared-tree-divergence.md: classify each local commit by CONTENT (Step 1; rescue any unique), collect per-owner acks (Step 3.2 — a state read is advisory only), then 'git status --short --untracked-files=no && git fetch origin && git reset --hard origin/main'. Do NOT run merge --ff-only (it will refuse)."
             } else {
                 "behind ($behind commit(s)) — ff-sync is SAFE ($($result.SyncReason)): git fetch && git merge --ff-only origin/main"
             }
