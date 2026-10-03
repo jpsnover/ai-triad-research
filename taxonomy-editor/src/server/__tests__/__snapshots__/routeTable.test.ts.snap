@@ -238,6 +238,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > ordere
   "POST /debug/events",
   "GET /api/preferences",
   "PUT /api/preferences",
+  "POST /api/node-delete-log",
   "POST /internal/canary/loop-sampler/start",
   "POST /internal/canary/loop-sampler/report",
 ]
@@ -446,6 +447,7 @@ exports[`server.ts route table (t/1295 — zero-behaviour-change guard) > route 
   "POST /api/keys/verify-stored",
   "POST /api/models/refresh",
   "POST /api/nli/classify",
+  "POST /api/node-delete-log",
   "POST /api/oped-sets",
   "POST /api/oped-sets/:setId/share",
   "POST /api/source-evidence",
