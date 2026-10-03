@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "outlets.schema.json",
+  "title": "OutletsData",
+  "description": "Schema for lib/oped/outlets.json — the outlet definition SSOT.",
+  "type": "object",
+  "required": ["__meta__", "defaultOutlet", "styleDefaults", "outlets"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "__meta__": {
+      "type": "object",
+      "required": ["generated", "outlets_count", "styleDefaults_fields"],
+      "additionalProperties": true,
+      "properties": {
+        "generated": { "type": "string", "description": "ISO date this file was last updated." },
+        "outlets_count": { "type": "integer", "minimum": 1, "description": "Must equal Object.keys(outlets).length. Consumers assert this." },
+        "styleDefaults_fields": { "type": "integer", "minimum": 1, "description": "Must equal the number of prose keys in styleDefaults (excluding readability)." },
+        "description": { "type": "string" }
+      }
+    },
+    "defaultOutlet": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Key of the outlet used when none is specified. Must be a key in outlets."
+    },
+    "styleDefaults": {
+      "type": "object",
+      "required": ["audience", "readingLevel", "sentenceMechanics", "paragraphMechanics", "jargonGuidance", "bodyFormat", "readability"],
+      "additionalProperties": false,
+      "properties": {
+        "audience": { "type": "string", "minLength": 1 },
+        "readingLevel": { "type": "string", "minLength": 1 },
+        "sentenceMechanics": { "type": "string", "minLength": 1 },
+        "paragraphMechanics": { "type": "string", "minLength": 1 },
+        "jargonGuidance": { "type": "string", "minLength": 1 },
+        "bodyFormat": { "type": "string", "minLength": 1 },
+        "readability": {
+          "type": "object",
+          "required": ["fkMax", "maxSentWords", "maxParaWords"],
+          "additionalProperties": false,
+          "properties": {
+            "fkMax": { "type": "number" },
+            "maxSentWords": { "type": "integer", "minimum": 1 },
+            "maxParaWords": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "outlets": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/definitions/OutletEntry"
+      }
+    }
+  },
+  "definitions": {
+    "OutletEntry": {
+      "type": "object",
+      "required": ["words", "guidance"],
+      "additionalProperties": false,
+      "properties": {
+        "words": { "type": "integer", "minimum": 1 },
+        "guidance": { "type": "string", "minLength": 1 },
+        "readability": {
+          "type": "object",
+          "required": ["fkMax", "maxSentWords", "maxParaWords"],
+          "additionalProperties": false,
+          "properties": {
+            "fkMax": { "type": "number" },
+            "maxSentWords": { "type": "integer", "minimum": 1 },
+            "maxParaWords": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "style": {
+          "type": "object",
+          "required": ["audience", "readingLevel", "sentenceMechanics", "paragraphMechanics", "jargonGuidance", "bodyFormat"],
+          "additionalProperties": false,
+          "properties": {
+            "audience": { "type": "string", "minLength": 1 },
+            "readingLevel": { "type": "string", "minLength": 1 },
+            "sentenceMechanics": { "type": "string", "minLength": 1 },
+            "paragraphMechanics": { "type": "string", "minLength": 1 },
+            "jargonGuidance": { "type": "string", "minLength": 1 },
+            "bodyFormat": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}
