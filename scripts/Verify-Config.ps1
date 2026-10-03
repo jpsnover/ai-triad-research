@@ -67,10 +67,13 @@ $VitestGates = [ordered]@{
     'registryCompleteness'  = 'hooks/useTaxonomyStore/slices/__tests__/registryCompleteness.test.ts'
     'modelLiteralLint.test' = 'lib/ai-config/modelLiteralLint.test.ts'
     'modelLiteralLint.conformance.test' = 'lib/ai-config/modelLiteralLint.conformance.test.ts'
+    'outletsKeySetGate'     = 'lib/oped/__tests__/outletsKeySetGate.test.ts'
 }
 $PesterGates = @(
     (Join-Path $RepoRoot 'tests/Test-AIModelsConfig.Tests.ps1')
     (Join-Path $RepoRoot 'tests/ModelLiteralLint.Tests.ps1')
+    (Join-Path $RepoRoot 'tests/OutletsKeySetGate.Tests.ps1')
+    (Join-Path $RepoRoot 'tests/OutletKeySetVerdict.Tests.ps1')
 )
 
 # gate name -> $true (pass) / $false (fail); preserves declaration order for the summary
