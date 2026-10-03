@@ -9,6 +9,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo/main.tsbuildinfo",
     "outDir": "dist/main",
@@ -28,7 +29,8 @@
     "../lib/debate/taxonomyContext.ts",
     "../lib/embeddings/**/*",
     "../lib/search/**/*",
-    "../lib/flight-recorder/**/*"
+    "../lib/flight-recorder/**/*",
+    "../lib/oped/**/*"
   ],
   "exclude": [
     "../lib/**/*.test.ts",

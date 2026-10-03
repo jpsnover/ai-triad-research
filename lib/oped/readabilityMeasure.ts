@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { loadOutletsData } from './loadOutlets.js';
+
 // Deterministic readability checks ported from measure_oped_quality.py (t/3707).
 // Used by the conditional edit pass in generate.ts; exported for unit tests and
 // CL's validation tooling.
@@ -59,7 +61,7 @@ export interface ReadabilityTargets {
   maxParaWords: number;
 }
 
-export const DEFAULT_READABILITY_TARGETS: ReadabilityTargets = { fkMax: 11, maxSentWords: 30, maxParaWords: 90 };
+export const DEFAULT_READABILITY_TARGETS: ReadabilityTargets = loadOutletsData().styleDefaults.readability;
 
 /** True when the draft misses any target. Defaults to grade-10 targets. */
 export function needsEdit(checks: ReadabilityChecks, targets: ReadabilityTargets = DEFAULT_READABILITY_TARGETS): boolean {
