@@ -386,3 +386,5 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('merge-guard
     sink('head-guard', command, verdict, false);
   }
 }
+
+// THROWAWAY t/3871 path-filter probe - DO NOT MERGE
