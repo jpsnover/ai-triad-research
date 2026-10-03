@@ -25,6 +25,8 @@ import { runReadabilityEditPass } from './readabilityEditPass.js';
 // the larger. Do not move this into the registry; that would over-broaden non-brief calls.
 export const DEFAULT_BRIEF_TIMEOUT_MS = 120_000;
 const DEFAULT_BRIEF_MAX_RETRIES = 3;
+/** Nominal stage count for the opening pipeline (brief, plan, draft, cite). Repair is conditional and must not extend this. */
+export const OPENING_TOTAL_STAGES = 4;
 
 function isBriefTimeout(err: unknown): boolean {
   if (err instanceof DOMException && err.name === 'AbortError') return true;
@@ -112,7 +114,7 @@ export async function runOpeningPipeline(
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();
   let step = 0;
-  const totalStages = 4; // brief, plan, draft, cite — repair is conditional, bumped in runOpeningPipelineWithRepair
+  const totalStages = OPENING_TOTAL_STAGES;
 
   // ── Stage 1: BRIEF (with parse-failure retry and configurable timeout retry) ──
   const isOpeningOuterRetry = (input.repairHints?.length ?? 0) > 0;
@@ -417,7 +419,7 @@ export async function runOpeningPipelineWithRepair(
   const repairHints = getOpeningRepairHints(result);
   if (repairHints.length > 0) {
     const issueCount = repairHints.length;
-    onProgress?.('repair', `${input.label} retrying (${issueCount} issue${issueCount > 1 ? 's' : ''})`, { step: 5, total: 5 });
+    onProgress?.('repair', `${input.label} retrying (${issueCount} issue${issueCount > 1 ? 's' : ''})`, { step: OPENING_TOTAL_STAGES, total: OPENING_TOTAL_STAGES });
     try {
       result = await runOpeningPipeline({ ...floored, repairHints }, generate, onProgress, onBriefEvent);
     } catch (err) {

@@ -707,6 +707,7 @@ export async function runTurnPipeline(
         : draftVal.errorHints.length > 0;
       if (draftShouldRetry && draftAttempt < maxDraftRetries) {
         // ── Micro-fix passes: try targeted fixes before full retry ──
+        onProgress?.('micro-fix', `${input.label} refining...`, { step, total: totalStages });
         const specFix = await trySpecificityMicroFix(
           draft, draftVal.repairHints ?? [], stageDiags, input, generate,
           evidenceBlock, citationBankBlock,
