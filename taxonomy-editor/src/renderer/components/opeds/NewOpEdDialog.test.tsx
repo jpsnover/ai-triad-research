@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { NewOpEdDialog } from './NewOpEdDialog';
+import outletsData from '@lib/oped/outlets.json';
 
 // ── Bridge / hook mocks ───────────────────────────────────────────────────────
 
@@ -80,6 +81,20 @@ describe('NewOpEdDialog — outlet dropdown (t/3818)', () => {
     open();
     const select = screen.getByLabelText('Outlet') as HTMLSelectElement;
     expect(select.value).toBe('TechPolicyPress');
+  });
+
+  // t/3864: the exact failure t/3796 caused — the dropdown rendered fine but offered a
+  // DIFFERENT set from the backend. Assert against the real SSOT, not a mirrored literal,
+  // so a future outlet added to outlets.json without a presentation-map entry still fails
+  // loudly here if the option set ever drifts.
+  it('offers exactly the SSOT outlet key set, and defaults to the SSOT default', () => {
+    open();
+    const select = screen.getByLabelText('Outlet') as HTMLSelectElement;
+    const values = Array.from(select.options).map(o => o.value);
+    const ssotKeys = Object.keys(outletsData.outlets);
+    expect(values.sort()).toEqual(ssotKeys.sort());
+    expect(values).toHaveLength(9);
+    expect(select.value).toBe(outletsData.defaultOutlet);
   });
 });
 

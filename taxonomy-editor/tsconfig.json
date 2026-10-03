@@ -38,6 +38,7 @@
       "@lib/inquiry/*": ["../lib/inquiry/*"],
       "@lib/entities/*": ["../lib/entities/*"],
       "@lib/policy/*": ["../lib/policy/*"],
+      "@lib/oped/*": ["../lib/oped/*"],
       "@lib/userPreferencesSchema": ["../lib/userPreferencesSchema.ts"],
       "zod": ["node_modules/zod"],
       "react": ["node_modules/@types/react"],

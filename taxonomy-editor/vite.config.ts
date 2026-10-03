@@ -196,6 +196,7 @@ export default defineConfig({
       '@lib/inquiry': path.resolve(import.meta.dirname, '../lib/inquiry'),
       '@lib/entities': path.resolve(import.meta.dirname, '../lib/entities'),
       '@lib/policy': path.resolve(import.meta.dirname, '../lib/policy'),
+      '@lib/oped': path.resolve(import.meta.dirname, '../lib/oped'),
       '@lib/userPreferencesSchema': path.resolve(import.meta.dirname, '../lib/userPreferencesSchema.ts'),
       // Allow lib/ files to resolve packages from taxonomy-editor's node_modules
       'zod': path.resolve(import.meta.dirname, 'node_modules/zod'),
