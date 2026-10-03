@@ -32,6 +32,10 @@ const mockTaxonomyStore = {
   aggregatedCruxes: null,
   showCruxDetail: vi.fn(),
   conflicts: [],
+  accelerationist: null,
+  safetyist: null,
+  skeptic: null,
+  situations: null,
 };
 
 vi.mock('../../hooks/useTaxonomyStore', () => ({
@@ -62,6 +66,7 @@ vi.mock('@bridge', () => ({
     openExternal: vi.fn(),
     getSourceEvidence: vi.fn().mockResolvedValue({ facts: [], keyPoints: [], formattedBlock: '', nodesCovered: [], totalCandidates: 0 }),
     getWebAppUrl: vi.fn().mockResolvedValue(null),
+    logNodeDeletion: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -356,5 +361,80 @@ describe('NodeDetail — Debate Tested chip renders on every BDI category (t/339
       />,
     );
     expect(mockDebateTestedChip).toHaveBeenCalled();
+  });
+});
+
+// ── Delete flow: dangling-reference warning + durable log (t/3852) ─────────
+
+describe('NodeDetail — delete flow warns of dangling references and logs the deletion (t/3852)', () => {
+  beforeEach(() => {
+    mockPrefsState.viewMode = 'simple';
+    vi.clearAllMocks();
+    mockTaxonomyStore.accelerationist = null;
+    mockTaxonomyStore.safetyist = null;
+    mockTaxonomyStore.skeptic = null;
+    mockTaxonomyStore.situations = null;
+    mockTaxonomyStore.edgesFile = null;
+  });
+
+  function openDeleteDialog() {
+    fireEvent.click(screen.getByTitle('More actions'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
+  }
+
+  it('shows no dangling warning and logs zero counts when nothing references the node', async () => {
+    const { api } = await import('@bridge');
+    render(
+      <NodeDetail pov="acc" node={mockNode} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />,
+    );
+    openDeleteDialog();
+    expect(screen.queryByText(/this will orphan/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(mockTaxonomyStore.deletePovNode).toHaveBeenCalledWith('acc', mockNode.id);
+    expect(api.logNodeDeletion).toHaveBeenCalledWith({
+      nodeId: mockNode.id,
+      pov: 'acc',
+      label: mockNode.label,
+      user: '_anonymous',
+      danglingEdges: 0,
+      danglingSituationRefs: 0,
+      danglingChildren: 0,
+    });
+  });
+
+  it('shows the dangling-reference count and logs it when edges and situations reference the node', async () => {
+    const { api } = await import('@bridge');
+    mockTaxonomyStore.edgesFile = {
+      _schema_version: '1', _doc: '', last_modified: '', edge_types: [],
+      edges: [
+        { source: mockNode.id, target: 'saf-beliefs-002', type: 'supports', bidirectional: false, confidence: 1 },
+        { source: 'skp-beliefs-003', target: mockNode.id, type: 'supports', bidirectional: false, confidence: 1 },
+      ],
+    } as never;
+    mockTaxonomyStore.situations = {
+      _schema_version: '1', _doc: '', last_modified: '',
+      nodes: [{ id: 'sit-001', label: 'S', description: 'd', linked_nodes: [mockNode.id], conflict_ids: [] }],
+    } as never;
+
+    render(
+      <NodeDetail pov="acc" node={mockNode} readOnly={false} onPin={vi.fn()} onSimilarSearch={vi.fn()} onRelated={vi.fn()} />,
+    );
+    openDeleteDialog();
+    expect(screen.getByText('This will orphan 2 edges, 1 situation reference.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(mockTaxonomyStore.deletePovNode).toHaveBeenCalledWith('acc', mockNode.id);
+    expect(api.logNodeDeletion).toHaveBeenCalledWith({
+      nodeId: mockNode.id,
+      pov: 'acc',
+      label: mockNode.label,
+      user: '_anonymous',
+      danglingEdges: 2,
+      danglingSituationRefs: 1,
+      danglingChildren: 0,
+    });
   });
 });

@@ -327,6 +327,20 @@ import type { ViewMode as _ViewMode, UserPreferences as _UserPreferences } from 
 export type ViewMode = _ViewMode;
 export type UserPreferences = _UserPreferences;
 
+/** t/3852: shared contract for the durable node-deletion audit log. Both the Electron
+ *  main-process writer and the server writer append this shape to node-delete-log.jsonl
+ *  under the resolved data root. */
+export interface NodeDeleteLogEntry {
+  nodeId: string;
+  pov: string;
+  label: string;
+  user: string;
+  /** Exhaustive counts (not sampled) of what dangles — see utils/danglingReferences.ts. */
+  danglingEdges: number;
+  danglingSituationRefs: number;
+  danglingChildren: number;
+}
+
 export interface AppAPI {
   // --- User preferences ---
   getPreferences: () => Promise<UserPreferences | null>;
@@ -342,6 +356,12 @@ export interface AppAPI {
   saveTaxonomyFile: (pov: string, data: unknown) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
   loadLineageCategories: () => Promise<unknown>;
+
+  /** t/3852: durable audit record for a node deletion — appended to node-delete-log.jsonl
+   *  under the data root (Electron: main-process writer via IPC; web: server endpoint).
+   *  Fail-safe like the AI call log: an IO/network failure must never block the delete it's
+   *  recording, so callers should not let a rejection here interrupt the delete flow. */
+  logNodeDeletion: (entry: NodeDeleteLogEntry) => Promise<void>;
   loadLineageInfo: () => Promise<Record<string, unknown>>;
   loadEdges: () => Promise<unknown>;
   getEdgeDetail: (index: number) => Promise<unknown>;
