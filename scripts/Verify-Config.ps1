@@ -10,14 +10,19 @@
     the tests/ Pester suite). An agent editing the root config gets no local
     signal that those suites gate it — which is how a registry edit can go green
     locally and red in CI (t/1933). This script gives that edit a single local
-    command that runs all nine gates and exits non-zero if any fails.
+    command that runs every gate below and exits non-zero if any fails.
 
-    Nine gates (t/1950#1 original inventory; t/2486 adds registryCompleteness;
+    Gates (t/1950#1 original inventory; t/2486 adds registryCompleteness;
     t/3560 adds the model-literal-lint pair; t/3657 splits the ai-config vitest
-    gate into its unit + conformance suites):
+    gate into its unit + conformance suites; t/3865 adds the outlets.json SSOT
+    key-set parity gates). Counts are NOT restated in this prose or in the
+    printed summary — they are derived from $PesterGates / $VitestGates at
+    runtime, so the output can never misreport the population it actually ran:
       Pester (run directly):
         - tests/Test-AIModelsConfig.Tests.ps1   config gate
         - tests/ModelLiteralLint.Tests.ps1      model-id literals name registered models
+        - tests/OutletsKeySetGate.Tests.ps1     outlets.json SSOT vs PS consumer key set (t/3865)
+        - tests/OutletKeySetVerdict.Tests.ps1   key-set comparator, both GV arms on synthetic fixtures
       vitest (delegated to taxonomy-editor's suite):
         - taxonomy-editor/src/server/__tests__/keysValidation.test.ts   KEY_VALIDATION_PROBES completeness
         - taxonomy-editor/src/main/__tests__/modelConfigCache.test.ts   id->apiId map
@@ -26,14 +31,15 @@
         - taxonomy-editor/src/renderer/hooks/useTaxonomyStore/slices/__tests__/registryCompleteness.test.ts   renderer accessor-chain completeness
         - lib/ai-config/modelLiteralLint.test.ts                        TS model-literal lint unit suite
         - lib/ai-config/modelLiteralLint.conformance.test.ts            shared cross-toolchain conformance corpus
+        - lib/oped/__tests__/outletsKeySetGate.test.ts                  outlets.json SSOT vs TS consumer key set (t/3865)
 
     The vitest half is the fiddly part. taxonomy-editor's vitest include-globs
     are relative to taxonomy-editor/src/renderer, so passing repo-root-relative
     paths as filters silently matches ZERO tests and exits 0 — a false green that
     looks exactly like success (t/1950#1). This script defends against that by:
       1. filtering with bare basenames (CWD-independent substring match), and
-      2. verifying `vitest list` collects EXACTLY the seven expected files before
-         running — a collected count other than seven is a FAILURE, not success.
+      2. verifying `vitest list` collects EXACTLY the expected files ($VitestGates)
+         before running — any other collected count is a FAILURE, not success.
 .EXAMPLE
     npm run verify:config
 .EXAMPLE
@@ -67,10 +73,13 @@ $VitestGates = [ordered]@{
     'registryCompleteness'  = 'hooks/useTaxonomyStore/slices/__tests__/registryCompleteness.test.ts'
     'modelLiteralLint.test' = 'lib/ai-config/modelLiteralLint.test.ts'
     'modelLiteralLint.conformance.test' = 'lib/ai-config/modelLiteralLint.conformance.test.ts'
+    'outletsKeySetGate'     = 'lib/oped/__tests__/outletsKeySetGate.test.ts'
 }
 $PesterGates = @(
     (Join-Path $RepoRoot 'tests/Test-AIModelsConfig.Tests.ps1')
     (Join-Path $RepoRoot 'tests/ModelLiteralLint.Tests.ps1')
+    (Join-Path $RepoRoot 'tests/OutletsKeySetGate.Tests.ps1')
+    (Join-Path $RepoRoot 'tests/OutletKeySetVerdict.Tests.ps1')
 )
 
 # gate name -> $true (pass) / $false (fail); preserves declaration order for the summary
@@ -84,6 +93,20 @@ function Write-Section {
 
 # ── Pester gates ────────────────────────────────────────────────────────────
 Write-Section 'Pester registry gates'
+# t/3865 owner review: $PesterGates.Count -eq 0 (e.g. an accidental clear, a bad
+# merge) must be a FAILURE, never a silent pass. Without this, an empty array
+# makes BOTH $missingPester and $foundPester empty too, so the run block below
+# never executes and adds ZERO entries to $Results for Pester -- the script
+# would still print PASSED having run no Pester gates at all. This is exactly
+# the "gate reports success over a population it can't see" class t/3819/t/3865
+# exist to prevent (t/3821's parity check over 694 files while skipping every
+# .tsx; the model-literal lint green with zero offenders while never scanning
+# .json) -- so assert the population itself, not just that every file in it
+# exists.
+if ($PesterGates.Count -eq 0) {
+    Write-Host '  FAIL Pester registry — $PesterGates is empty; zero gates would run.' -ForegroundColor Red
+    $Results['PesterGates:non-empty'] = $false
+}
 $missingPester = @($PesterGates | Where-Object { -not (Test-Path $_) })
 foreach ($m in $missingPester) {
     $name = Split-Path $m -Leaf
@@ -124,6 +147,20 @@ if ($foundPester.Count -gt 0) {
 Write-Section 'vitest registry gates (via taxonomy-editor)'
 $Filters = @($VitestGates.Keys)
 
+# t/3865 owner review: same population-assertion as the Pester side above.
+# $VitestGates.Count -eq 0 happens to be caught downstream today too -- an
+# EMPTY @Filters makes `vitest list` collect every test file in the project
+# (confirmed: 796 on this repo, not zero), which then mismatches a 0 expected
+# count and fails the collection guard. But that protection is an ACCIDENT of
+# vitest's "no filter = everything" default, not an assertion -- it would
+# silently stop protecting if that default ever changed, or if someone added
+# a real filter elsewhere. Assert the population explicitly rather than lean
+# on a side effect.
+if ($VitestGates.Count -eq 0) {
+    Write-Host '  FAIL vitest registry — $VitestGates is empty; zero gates would run.' -ForegroundColor Red
+    $Results['VitestGates:non-empty'] = $false
+}
+
 if (-not (Test-Path (Join-Path $TaxEditor 'node_modules'))) {
     # Standalone tooling script: report as a gate failure and exit non-zero rather
     # than throw (New-ActionableError lives in the AITriad module, and importing it
@@ -131,7 +168,7 @@ if (-not (Test-Path (Join-Path $TaxEditor 'node_modules'))) {
     Write-Host '  FAIL vitest — taxonomy-editor/node_modules is missing.' -ForegroundColor Red
     Write-Host '        Goal:  run the vitest registry gates' -ForegroundColor DarkYellow
     Write-Host "        Fix:   run 'pnpm install' in $TaxEditor, then re-run verify:config" -ForegroundColor DarkYellow
-    $Results['vitest:collection (7 files)'] = $false
+    $Results["vitest:collection ($($VitestGates.Count) files)"] = $false
     $Results['vitest:run'] = $false
 }
 else {
@@ -158,7 +195,7 @@ else {
             $collectionOk = $false
         }
     }
-    $Results['vitest:collection (7 files)'] = $collectionOk
+    $Results["vitest:collection ($($VitestGates.Count) files)"] = $collectionOk
 
     if ($collectionOk) {
         Write-Host "  PASS collection — all $($VitestGates.Count) gate files collected" -ForegroundColor Green
@@ -167,7 +204,7 @@ else {
         & npm exec --silent -- vitest run @Filters
         $runOk = ($LASTEXITCODE -eq 0)
         if ($runOk) {
-            Write-Host "  PASS vitest run — all 7 gate suites green" -ForegroundColor Green
+            Write-Host "  PASS vitest run — all $($VitestGates.Count) gate suites green" -ForegroundColor Green
         } else {
             Write-Host "  FAIL vitest run — one or more suites failed (exit $LASTEXITCODE, see output above)" -ForegroundColor Red
         }
@@ -201,5 +238,5 @@ if ($failed.Count -gt 0) {
 }
 
 Write-Host ''
-Write-Host 'verify:config PASSED — all 9 registry gates green.' -ForegroundColor Green
+Write-Host "verify:config PASSED — all $($Results.Count) registry gate checks green ($($PesterGates.Count) Pester files, $($VitestGates.Count) vitest files)." -ForegroundColor Green
 exit 0
