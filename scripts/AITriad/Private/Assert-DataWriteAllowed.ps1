@@ -109,9 +109,11 @@ function Assert-DataWriteAllowed {
         Distinct, semantically-honest exemption for a FIELD-SURGICAL write (t/2916,
         TL ruling t/2916#8). Its claim is NOT "ignore the dirty tree" but "this write
         is sweep-proof BY CONSTRUCTION, so the dirty-tree check is N/A." Earned only by
-        Save-JsonNodeFieldEdits, whose every write goes through Update-JsonNodeField's
-        re-parse-verify invariant + byte-identical foreign-WIP preservation (proven in
-        Update-JsonNodeField tests 5/7 and SurgicalWriteExemption.Tests.ps1). Kept
+        Save-JsonNodeFieldEdits, whose every write passes the re-parse-verify invariant
+        (once per batch, against the fresh read with all edits applied) + byte-identical
+        foreign-WIP preservation (proven in Update-JsonNodeField tests 5/7,
+        Save-JsonNodeFieldEdits.Tests.ps1 batch-verify arms, and
+        SurgicalWriteExemption.Tests.ps1). Kept
         SEPARATE from -AllowDirty on purpose: the two carry different risk profiles, and
         overloading one flag would make a `grep -AllowDirty` unable to tell "provably
         safe surgical" from "blanket override — scrutinize." Reachable only via the

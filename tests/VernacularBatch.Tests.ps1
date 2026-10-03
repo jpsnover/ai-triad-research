@@ -23,6 +23,12 @@ Describe 'Invoke-VernacularBatch' -Tag 'enrichment' {
         @($validate).Count | Should -Be 1
     }
 
+    It 'Has CheckpointEvery parameter (incremental writes survive an interrupted run)' {
+        $cmd = Get-Command Invoke-VernacularBatch -Module AITriad
+        $cmd.Parameters.ContainsKey('CheckpointEvery') | Should -Be $true
+        @($cmd.Parameters['CheckpointEvery'].Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateRangeAttribute] }).Count | Should -Be 1
+    }
+
     It 'Has Force switch parameter' {
         $cmd = Get-Command Invoke-VernacularBatch -Module AITriad
         $cmd.Parameters.ContainsKey('Force') | Should -Be $true

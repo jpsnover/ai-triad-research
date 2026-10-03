@@ -106,7 +106,11 @@ function Update-JsonNodePath {
         # behavior byte-identical (regression arm).
         [switch]$Upsert,
         # t/3460: delete the whole member at the final (object-key) segment. See .PARAMETER Remove.
-        [switch]$Remove
+        [switch]$Remove,
+        # Skip the per-call parse + re-parse-verify. ONLY for Save-JsonNodeFieldEdits, which
+        # verifies the whole chained batch once against the fresh read (and replays with
+        # per-call verify on mismatch). Never use it without a batch verify behind it.
+        [switch]$DeferVerify
     )
     Set-StrictMode -Version Latest
 
@@ -140,15 +144,17 @@ function Update-JsonNodePath {
     }
 
     # --- Parse (locate + verification baseline) ---
-    try { $original = $RawText | ConvertFrom-Json } catch { & $fail "Input is not valid JSON: $($_.Exception.Message)" @('Pass well-formed JSON text') }
-    if (-not $original.PSObject.Properties['nodes']) { & $fail 'No nodes[] array in the JSON' @('Expected a top-level nodes[] array') }
-    $match = @($original.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $NodeId })
-    if ($match.Count -eq 0) { & $fail "Node id '$NodeId' not found in nodes[]" @('Verify the node id exists in the file') }
+    if (-not $DeferVerify) {
+        try { $original = $RawText | ConvertFrom-Json } catch { & $fail "Input is not valid JSON: $($_.Exception.Message)" @('Pass well-formed JSON text') }
+        if (-not $original.PSObject.Properties['nodes']) { & $fail 'No nodes[] array in the JSON' @('Expected a top-level nodes[] array') }
+        $match = @($original.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $NodeId })
+        if ($match.Count -eq 0) { & $fail "Node id '$NodeId' not found in nodes[]" @('Verify the node id exists in the file') }
+    }
 
     # --- Locate the node object span, then descend the path to the target value span ---
-    $idToken = [regex]::Match($RawText, '"id"\s*:\s*"' + [regex]::Escape($NodeId) + '"')
-    if (-not $idToken.Success) { & $fail "id token for '$NodeId' not found in raw text" @('File text may not match the parsed structure') }
-    $nodeSpan = Find-JsonObjectSpan -Text $RawText -InnerIndex $idToken.Index
+    $idIndex = Find-JsonIdTokenIndex -Text $RawText -NodeId $NodeId
+    if ($idIndex -lt 0) { & $fail "id token for '$NodeId' not found in raw text" @('File text may not match the parsed structure') }
+    $nodeSpan = Find-JsonObjectSpan -Text $RawText -InnerIndex $idIndex
     if ($null -eq $nodeSpan) { & $fail "could not locate the enclosing object span for '$NodeId'" @('Check the JSON is well-formed') }
 
     $curStart = $nodeSpan.Start   # index of the current container's opening '{' or '['
@@ -215,6 +221,7 @@ function Update-JsonNodePath {
             if ($p -gt $curStart -and $RawText[$p] -eq ',') { $delStart = $p }   # include the leading comma
         }
         $patched = $RawText.Substring(0, $delStart) + $RawText.Substring($delEnd + 1)
+        if ($DeferVerify) { return $patched }   # caller verifies the whole batch once
 
         # Re-parse-VERIFY: baseline = parsed clone with THIS key deleted at the located parent. Any
         # deviation beyond the intended member → abort, writing nothing (the safety net).
@@ -263,6 +270,7 @@ function Update-JsonNodePath {
                 else {
                     $patched = $RawText.Substring(0, $curStart + 1) + $memberText + ',' + $RawText.Substring($curStart + 1)
                 }
+                if ($DeferVerify) { return $patched }   # caller verifies the whole batch once
                 # Re-parse-VERIFY with an expected baseline that creates the SAME structure (safety net).
                 try { $actual = $patched | ConvertFrom-Json } catch { & $fail "patched text is not valid JSON — writing nothing: $($_.Exception.Message)" @('Splice produced invalid JSON; -Upsert insert bug') }
                 $expected = $RawText | ConvertFrom-Json
@@ -295,6 +303,7 @@ function Update-JsonNodePath {
     $patched = $RawText.Substring(0, $curStart) + $encoded + $RawText.Substring($curEnd + 1)
 
     # --- Re-parse-VERIFY invariant (the safety net) ---
+    if ($DeferVerify) { return $patched }   # caller verifies the whole batch once
     try { $actual = $patched | ConvertFrom-Json } catch { & $fail "patched text is not valid JSON — writing nothing: $($_.Exception.Message)" @('Splice produced invalid JSON; this is a bug in Update-JsonNodePath') }
     $expected = $RawText | ConvertFrom-Json
     $expNode = @($expected.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $NodeId })[0]
