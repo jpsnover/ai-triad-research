@@ -3612,14 +3612,15 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-08-08 — DevOps (p/26#70): `gh pr create` run from the shared checkout without `--head` aborted on uncommitted changes (other agents' WIP in the shared tree). Fix: added `--head <branch>` explicitly.
 - 2026-09-28 — DebateUI (p/689#1, **HEAD-switched variant**): branch already pushed, but another concurrent agent had switched shared HEAD to `main` between the push and `gh pr create`. CLI defaulted to `main`, errored "you must first push the current branch." Fix: `--head <my-branch>` explicitly.
+- 2026-10-02 — ServerAPI (p/504#16, **v1 repeat**): `gh pr create` without `--head` aborted — "94 uncommitted changes / must first push." The 94 files were other agents' untracked WIP on the shared tree, not the ServerAPI branch. Fix: pass `--head feat/branch --base main` explicitly.
 
 **Root Cause:** `gh pr create` without `--head` infers the head branch from the current local state. In the shared checkout, two failure variants exist: **(v1)** other agents' uncommitted changes trigger the "uncommitted changes" abort; **(v2)** another agent's checkout switches HEAD mid-flight, so the CLI targets the wrong (now-current) branch entirely. Both are instantaneous local-state races invisible to the PR author.
 
 **Prevention:**
-1. **Always pass `--head <branch>` explicitly with `gh pr create` when running from the shared checkout** — never let the CLI infer from local state; it races shared-tree drift in both variants.
+1. **Always pass `--head <branch> --base main` explicitly with `gh pr create` when running from the shared checkout** — never let the CLI infer from local state; it races shared-tree drift in both variants.
 2. Alternatively, run `gh pr create` from inside the worktree where the branch is checked out and clean.
 
-**Status:** Active — 2 instances / 2 agents; 2 variants. Both fixed by `--head <branch>`.
+**Status:** Active — 3 instances / 3 agents; 2 variants. All fixed by `--head <branch> --base main`.
 
 **Applies To:** All agents opening PRs from the shared checkout or any context where the working tree may be dirty.
 
