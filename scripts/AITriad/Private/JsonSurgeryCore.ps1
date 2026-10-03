@@ -36,16 +36,132 @@ function Test-JsonSemanticEqual {
     return $ca -eq $cb
 }
 
+function Set-JsonExpectedEdit {
+    # Apply ONE Save-JsonNodeFieldEdits edit hashtable to a parsed (ConvertFrom-Json) document,
+    # mirroring what the surgical primitives do to the raw text — builds the EXPECTED side of
+    # the batch re-parse-verify. Throws if the model can't be descended; the caller treats any
+    # throw here as a verify failure (fail-closed), never as success.
+    param([Parameter(Mandatory)]$Root, [Parameter(Mandatory)][hashtable]$Edit)
+
+    $nodeId = [string]$Edit['NodeId']
+    $node = @($Root.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $nodeId })[0]
+    if ($null -eq $node) { throw "expected-model: node '$nodeId' not found" }
+
+    $setMember = {
+        param($obj, [string]$name, $value)
+        if ($obj.PSObject.Properties[$name]) { $obj.$name = $value }
+        else { $obj | Add-Member -NotePropertyName $name -NotePropertyValue $value -Force }
+    }
+
+    if ($Edit.ContainsKey('Field')) {
+        & $setMember $node ([string]$Edit['Field']) $Edit['Value']
+        return
+    }
+
+    $path = @($Edit['Path'])
+    $cur = $node
+    for ($k = 0; $k -lt $path.Count - 1; $k++) {
+        $seg = $path[$k]
+        if ($seg -is [int]) { $next = $cur[$seg] }
+        elseif ($cur.PSObject.Properties[[string]$seg]) { $next = $cur.([string]$seg) }
+        elseif ([bool]$Edit['Upsert']) {
+            # Upsert creates missing OBJECT containers along the path (t/3438).
+            $next = [pscustomobject]@{}
+            $cur | Add-Member -NotePropertyName ([string]$seg) -NotePropertyValue $next -Force
+        }
+        else { throw "expected-model: segment '$seg' not found on '$nodeId'" }
+        if ($null -eq $next) { throw "expected-model: segment '$seg' resolved to null on '$nodeId'" }
+        $cur = $next
+    }
+
+    $last = $path[$path.Count - 1]
+    if ([bool]$Edit['Remove']) {
+        if (-not $cur.PSObject.Properties[[string]$last]) { throw "expected-model: key '$last' not found on '$nodeId'" }
+        $cur.PSObject.Properties.Remove([string]$last)
+    }
+    elseif ($last -is [int]) { $cur[$last] = $Edit['Value'] }
+    else { & $setMember $cur ([string]$last) $Edit['Value'] }
+}
+
+function Find-JsonIdTokenIndex {
+    # Index of the first match of  "id"\s*:\s*"<NodeId>"  in Text (the start of the "id" key),
+    # or -1 — the same result as that regex, found via an ordinal search for the quoted id plus
+    # a backward check for the "id": prefix.
+    #
+    # PERF: the large text is only ever the INSTANCE of a method call here, never an argument.
+    # Passing a multi-MB string as an argument to a .NET method from PowerShell (e.g. the
+    # [regex]::Match this replaces) costs ~0.5s per call on a 7 MB taxonomy file — paid once
+    # per edit, it was most of a multi-hour Invoke-VernacularBatch write phase.
+    param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][string]$NodeId)
+
+    $needle = '"' + $NodeId + '"'
+    $from = 0
+    while ($from -lt $Text.Length) {
+        $v = $Text.IndexOf($needle, $from, [System.StringComparison]::Ordinal)
+        if ($v -lt 0) { return -1 }
+        # Walk back over  \s* : \s*  and require the literal "id" key before it.
+        $p = $v - 1
+        while ($p -ge 0 -and [char]::IsWhiteSpace($Text[$p])) { $p-- }
+        if ($p -ge 0 -and $Text[$p] -eq [char]':') {
+            $p--
+            while ($p -ge 0 -and [char]::IsWhiteSpace($Text[$p])) { $p-- }
+            if ($p -ge 3 -and $Text.Substring($p - 3, 4) -ceq '"id"') { return $p - 3 }
+        }
+        $from = $v + 1
+    }
+    return -1
+}
+
 function Find-JsonObjectSpan {
-    # Single-pass, string/escape-aware forward scan: given a char index KNOWN to be
-    # inside a { } object, return @{ Start; End } for the INNERMOST enclosing object
-    # (indices of its '{' and matching '}'). A brace stack tracks nesting; at the inner
-    # index we capture the innermost open '{', then return when its matching '}' pops.
+    # String/escape-aware scan: given a char index KNOWN to be inside a { } object, return
+    # @{ Start; End } for the INNERMOST enclosing object (indices of its '{' and matching '}').
+    #
+    # The scan starts at the beginning of InnerIndex's LINE rather than at offset 0: a raw
+    # newline can't occur inside a JSON string, so a line start is always outside a string and
+    # the brace scan is valid from there. If the enclosing '{' lies above that line, the start
+    # moves back (doubling the line count) and rescans. Cost is proportional to the node, not
+    # the file — scanning from offset 0 cost ~0.8s per edit on a 7 MB taxonomy file. Minified
+    # (single-line) JSON degrades to the old full-file scan. A wrong span can't reach disk:
+    # every caller re-parse-verifies before writing.
     param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][int]$InnerIndex)
 
-    $stack = New-Object System.Collections.Generic.Stack[int]
-    $inStr = $false; $esc = $false; $targetOpen = -1
-    for ($i = 0; $i -lt $Text.Length; $i++) {
+    if ($InnerIndex -lt 0 -or $InnerIndex -ge $Text.Length) { return $null }
+
+    $lines = 1
+    while ($true) {
+        # Start of the line $lines lines above (and including) InnerIndex's line; 0 at the top.
+        $scanFrom = $InnerIndex
+        for ($k = 0; $k -lt $lines -and $scanFrom -gt 0; $k++) {
+            $nl = $Text.LastIndexOf([char]10, $scanFrom - 1)
+            $scanFrom = if ($nl -lt 0) { 0 } else { $nl }
+        }
+        if ($scanFrom -gt 0) { $scanFrom++ }   # step past the newline itself
+
+        # Innermost '{' still open at InnerIndex, among those opened at/after $scanFrom. A '}'
+        # with an empty local stack closes an object opened above $scanFrom — not ours.
+        $stack = New-Object System.Collections.Generic.Stack[int]
+        $inStr = $false; $esc = $false
+        for ($i = $scanFrom; $i -le $InnerIndex; $i++) {
+            $c = $Text[$i]
+            if ($inStr) {
+                if ($esc) { $esc = $false }
+                elseif ($c -eq '\') { $esc = $true }
+                elseif ($c -eq '"') { $inStr = $false }
+            }
+            else {
+                if ($c -eq '"') { $inStr = $true }
+                elseif ($c -eq '{') { $stack.Push($i) }
+                elseif ($c -eq '}' -and $stack.Count -gt 0) { [void]$stack.Pop() }
+            }
+        }
+        if ($stack.Count -gt 0) { $open = $stack.Peek(); break }
+        if ($scanFrom -eq 0) { return $null }
+        $lines *= 2
+    }
+
+    # Matching '}' for the '{' at $open.
+    $depth = 0; $inStr = $false; $esc = $false
+    for ($i = $open; $i -lt $Text.Length; $i++) {
         $c = $Text[$i]
         if ($inStr) {
             if ($esc) { $esc = $false }
@@ -54,17 +170,8 @@ function Find-JsonObjectSpan {
         }
         else {
             if ($c -eq '"') { $inStr = $true }
-            elseif ($c -eq '{') { $stack.Push($i) }
-            elseif ($c -eq '}') {
-                if ($stack.Count -eq 0) { return $null }
-                $popped = $stack.Pop()
-                if ($targetOpen -ge 0 -and $popped -eq $targetOpen) { return @{ Start = $targetOpen; End = $i } }
-            }
-        }
-        # Once we reach the inner index, the innermost currently-open '{' is our object.
-        if ($i -eq $InnerIndex -and $targetOpen -lt 0) {
-            if ($stack.Count -eq 0) { return $null }
-            $targetOpen = $stack.Peek()
+            elseif ($c -eq '{') { $depth++ }
+            elseif ($c -eq '}') { $depth--; if ($depth -eq 0) { return @{ Start = $open; End = $i } } }
         }
     }
     return $null

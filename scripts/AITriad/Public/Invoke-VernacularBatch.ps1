@@ -19,6 +19,10 @@
     Default: flash-lite:v1.
 .PARAMETER Concurrency
     Number of parallel AI calls. Default: 10.
+.PARAMETER CheckpointEvery
+    Write results to disk after every N generated nodes (default 100). A run interrupted with
+    Ctrl-C keeps everything flushed so far; a re-run skips those nodes (their version tag is
+    current) and only regenerates the rest.
 .PARAMETER Force
     Regenerate all nodes, even those with up-to-date plain_description.
 .PARAMETER Id
@@ -47,6 +51,7 @@ function Invoke-VernacularBatch {
         [Parameter()][string]$Model = (Get-AITierModel -Tier basic),
         [Parameter()][string]$Version = 'flash-lite:v1',
         [Parameter()][ValidateRange(1, 50)][int]$Concurrency = 10,
+        [Parameter()][ValidateRange(1, [int]::MaxValue)][int]$CheckpointEvery = 100,
         [switch]$Force,
         [Parameter()]
         [Alias('NodeId')]
@@ -170,7 +175,6 @@ Rules:
 
     $Generated = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
     $Failed    = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
-    $Results   = [System.Collections.Concurrent.ConcurrentDictionary[string, System.Collections.Concurrent.ConcurrentDictionary[int, PSCustomObject]]]::new()
 
     $ModulePath   = Join-Path $script:ModuleRoot 'AITriad.psm1'
     $EnrichPath   = Join-Path $script:ModuleRoot '..' 'AIEnrich.psm1'
@@ -182,95 +186,101 @@ Rules:
 
     Write-Progress -Id $ProgressId -Activity 'Generating plain descriptions' -Status "0 / $Total" -PercentComplete 0
 
-    $NodesToProcess | ForEach-Object -Parallel {
-        Import-Module $using:ModulePath -Force -WarningAction SilentlyContinue
-        Import-Module $using:EnrichPath -Force -WarningAction SilentlyContinue
-        $Item        = $_
-        $SysPrompt   = $using:SystemPrompt
-        $ModelName   = $using:Model
-        $VersionTag  = $using:Version
-        $GenBag      = $using:Generated
-        $FailBag     = $using:Failed
-        $ResultsDict = $using:Results
-        $CompRef     = $using:Completed
-        $TotalCount  = $using:Total
-        $ProgId      = $using:ProgressId
+    # Generate + flush in checkpoint-sized batches (mirrors Invoke-DebateGroundingBatch, t/3457).
+    # Results used to be held in memory until every AI call finished and then written in one long,
+    # silent pass, so a Ctrl-C during that pass lost the whole run. Now each batch is written as
+    # soon as it completes; Save-JsonNodeFieldEdits re-reads each file FRESH, so per-batch writes
+    # to the same file accumulate.
+    $WrittenTotal = 0
+    for ($BatchStart = 0; $BatchStart -lt $Total; $BatchStart += $CheckpointEvery) {
+        $BatchEnd = [math]::Min($BatchStart + $CheckpointEvery, $Total) - 1
+        $Batch = @($NodesToProcess[$BatchStart..$BatchEnd])
 
-        $UserPrompt = "Rewrite this node description:`n`n$($Item.Desc)"
+        # Per-batch results: FilePath -> (NodeId -> plain text). Fresh each batch.
+        $Results = [System.Collections.Concurrent.ConcurrentDictionary[string, System.Collections.Concurrent.ConcurrentDictionary[string, string]]]::new()
 
-        Write-Verbose "Processing node $($Item.NodeId)" # Added verbose inside parallel loop
+        $Batch | ForEach-Object -Parallel {
+            Import-Module $using:ModulePath -Force -WarningAction SilentlyContinue
+            Import-Module $using:EnrichPath -Force -WarningAction SilentlyContinue
+            $Item        = $_
+            $SysPrompt   = $using:SystemPrompt
+            $ModelName   = $using:Model
+            $GenBag      = $using:Generated
+            $FailBag     = $using:Failed
+            $ResultsDict = $using:Results
+            $CompRef     = $using:Completed
+            $TotalCount  = $using:Total
+            $ProgId      = $using:ProgressId
 
-        try {
-            $AIResult = Invoke-AIApi -Prompt $UserPrompt -SystemInstruction $SysPrompt `
-                -Model $ModelName -Temperature 0.2 -MaxTokens 400
+            $UserPrompt = "Rewrite this node description:`n`n$($Item.Desc)"
 
-            if ($null -ne $AIResult -and -not [string]::IsNullOrWhiteSpace($AIResult.Text)) {
-                $PlainText = $AIResult.Text.Trim()
+            Write-Verbose "Processing node $($Item.NodeId)"
 
-                $FileDict = $ResultsDict.GetOrAdd($Item.FilePath,
-                    [System.Collections.Concurrent.ConcurrentDictionary[int, PSCustomObject]]::new())
-                [void]$FileDict.TryAdd($Item.NodeIndex, [PSCustomObject]@{
-                    NodeId           = $Item.NodeId
-                    PlainDescription = $PlainText
-                    Version          = $VersionTag
-                })
-                [void]$GenBag.Add($Item.NodeId)
-                Write-Verbose "Generated plain description for $($Item.NodeId)" # Added verbose
-            } else {
-                Write-Warning "$($Item.NodeId): AI returned empty response"
+            try {
+                $AIResult = Invoke-AIApi -Prompt $UserPrompt -SystemInstruction $SysPrompt `
+                    -Model $ModelName -Temperature 0.2 -MaxTokens 400
+
+                if ($null -ne $AIResult -and -not [string]::IsNullOrWhiteSpace($AIResult.Text)) {
+                    $FileDict = $ResultsDict.GetOrAdd($Item.FilePath,
+                        [System.Collections.Concurrent.ConcurrentDictionary[string, string]]::new())
+                    [void]$FileDict.TryAdd($Item.NodeId, $AIResult.Text.Trim())
+                    [void]$GenBag.Add($Item.NodeId)
+                    Write-Verbose "Generated plain description for $($Item.NodeId)"
+                } else {
+                    Write-Warning "$($Item.NodeId): AI returned empty response"
+                    [void]$FailBag.Add($Item.NodeId)
+                }
+            } catch {
+                Write-Warning "$($Item.NodeId): $($_.Exception.Message)"
                 [void]$FailBag.Add($Item.NodeId)
-                Write-Verbose "Failed to generate plain description for $($Item.NodeId): AI returned empty response." # Added verbose
             }
-        } catch {
-            Write-Warning "$($Item.NodeId): $($_.Exception.Message)"
-            [void]$FailBag.Add($Item.NodeId)
-            Write-Verbose "Failed to generate plain description for $($Item.NodeId): $($_.Exception.Message)." # Added verbose
+
+            $Done = [System.Threading.Interlocked]::Increment($CompRef)
+            $Pct  = [math]::Min(100, [math]::Round(($Done / $TotalCount) * 100))
+            Write-Progress -Id $ProgId -Activity 'Generating plain descriptions' -Status "$Done / $TotalCount" -PercentComplete $Pct
+
+        } -ThrottleLimit $Concurrency
+
+        # ── Flush this batch via the field-surgical writer (t/2926) ──────────────
+        # One Save-JsonNodeFieldEdits per file the batch touched: each edit is an explicit
+        # scalar-field splice that preserves every untouched byte. plain_description and
+        # plain_description_version are depth-1 scalars; absent-key INSERT is supported (t/2916).
+        foreach ($FilePath in $Results.Keys) {
+            $FileResults = $Results[$FilePath]
+            if ($FileResults.Count -eq 0) { continue }
+
+            $Edits = [System.Collections.Generic.List[hashtable]]::new()
+            foreach ($NodeId in $FileResults.Keys) {
+                $Edits.Add(@{ NodeId = $NodeId; Field = 'plain_description';         Value = $FileResults[$NodeId] })
+                $Edits.Add(@{ NodeId = $NodeId; Field = 'plain_description_version'; Value = $Version })
+            }
+
+            $SurgResult = Save-JsonNodeFieldEdits -Path $FilePath -Edits $Edits.ToArray()
+            $WrittenTotal += [Math]::Floor($SurgResult.Applied / 2)
+            $FileName = Split-Path $FilePath -Leaf
+            Write-Verbose "Updated $([Math]::Floor($SurgResult.Applied / 2)) nodes in $FileName"
+            if (@($SurgResult.NotFound).Count -gt 0) {
+                Write-Warning "Invoke-VernacularBatch: nodes not found in ${FileName} (removed since the run started?) — not written: $(@($SurgResult.NotFound | Select-Object -Unique) -join ', ')"
+            }
         }
 
-        $Done = [System.Threading.Interlocked]::Increment($CompRef)
-        $Pct  = [math]::Min(100, [math]::Round(($Done / $TotalCount) * 100))
-        Write-Progress -Id $ProgId -Activity 'Generating plain descriptions' -Status "$Done / $TotalCount" -PercentComplete $Pct
-
-    } -ThrottleLimit $Concurrency
+        # Checkpoint line survives stdout capture — shows how far an interrupted run got.
+        Write-Host "Checkpoint: wrote $WrittenTotal / $Total node(s) to disk."
+    }
 
     Write-Progress -Id $ProgressId -Activity 'Generating plain descriptions' -Completed
-
-    # ── Apply via field-surgical writer (t/2926) ─────────────────────────────
-    # Replaces the whole-file ConvertTo-Json round-trip: each edit is an explicit
-    # scalar-field splice via Save-JsonNodeFieldEdits → Update-JsonNodeField, which
-    # re-reads the file FRESH before writing and preserves every untouched byte.
-    # plain_description and plain_description_version are both depth-1 scalars;
-    # absent-key INSERT is supported by Update-JsonNodeField (t/2916).
-    foreach ($FilePath in $Results.Keys) {
-        $FileResults = $Results[$FilePath]
-        if ($FileResults.Count -eq 0) { continue }
-
-        $Edits = [System.Collections.Generic.List[hashtable]]::new()
-        foreach ($Idx in $FileResults.Keys) {
-            $Entry = $FileResults[$Idx]
-            $Edits.Add(@{ NodeId = $Entry.NodeId; Field = 'plain_description';         Value = $Entry.PlainDescription })
-            $Edits.Add(@{ NodeId = $Entry.NodeId; Field = 'plain_description_version'; Value = $Entry.Version })
-        }
-
-        $SurgResult = Save-JsonNodeFieldEdits -Path $FilePath -Edits $Edits.ToArray()
-        $FileName = Split-Path $FilePath -Leaf
-        Write-Verbose "Updated $([Math]::Floor($SurgResult.Applied / 2)) nodes in $FileName"
-        if (@($SurgResult.NotFound).Count -gt 0) {
-            Write-Warning "Invoke-VernacularBatch: nodes not found in ${FileName}: $($SurgResult.NotFound -join ', ')"
-            Write-Verbose "WARN: surgical write fallback — node IDs not found; REASON: NodeId/index mismatch from concurrent node removal"
-        }
-    }
 
     $GenCount  = @($Generated).Count
     $FailCount = @($Failed).Count
     $SkipCount = $SkippedExisting + $SkippedDeprecated + $SkippedEmpty + $SkippedByIdFilter # Updated skip count
 
     Write-Host ""
-    Write-Host "Done. Generated: $GenCount | Skipped: $SkipCount | Failed: $FailCount"
+    Write-Host "Done. Generated: $GenCount | Skipped: $SkipCount | Failed: $FailCount | Written: $WrittenTotal"
 
     [PSCustomObject]@{
         Generated = $GenCount
         Skipped   = $SkipCount
         Failed    = $FailCount
+        Written   = $WrittenTotal
     }
 }
