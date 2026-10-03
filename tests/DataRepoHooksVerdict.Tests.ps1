@@ -9,6 +9,11 @@ BeforeAll {
     . (Join-Path $PSScriptRoot '..' 'operations' 'devops' 'DataRepoHooksVerdict.ps1')
     $script:Data = 'C:/x/ai-triad-data'
     $script:Ok   = [PSCustomObject]@{ Path = $script:Data; Source = 'config'; Undetermined = $false; Reason = '' }
+    # Rooted on ANY OS (CI runs Linux, where Join-Path rejects a 'C:' drive). Only the tests that
+    # reach Join-Path need a real rooted base; pure string-passthrough fixtures can stay literal.
+    $script:Base = Join-Path ([System.IO.Path]::GetTempPath()) 't3869-code'
+    $script:Code = Join-Path $script:Base 'ai-triad-research'
+    $script:Want = [System.IO.Path]::GetFullPath((Join-Path $script:Base 'ai-triad-data'))
     $script:Exec = @{ 'pre-commit' = @{ Present = $true; CommittedMode = '100755'; IndexMode = '100755' } }
 }
 
@@ -19,21 +24,21 @@ Describe 'Resolve-DataRepoRoot — same priority as the runtime (env > .aitriad.
         $r.Path   | Should -Be 'D:/elsewhere'
     }
     It 'relative data_root is anchored at the config dir and normalized (no embedded ..)' {
-        $r = Resolve-DataRepoRoot -EnvValue '' -ConfigText '{"data_root":"../ai-triad-data"}' -ConfigDir 'C:/code/ai-triad-research'
+        $r = Resolve-DataRepoRoot -EnvValue '' -ConfigText '{"data_root":"../ai-triad-data"}' -ConfigDir $script:Code
         $r.Undetermined | Should -BeFalse
-        $r.Path | Should -Be ([System.IO.Path]::GetFullPath('C:/code/ai-triad-data'))
+        $r.Path | Should -Be $script:Want
         $r.Path | Should -Not -Match '\.\.'
     }
     It 'relative data_root anchors at AnchorRoot (main-checkout root) when given — the nested-worktree fix (#2732)' {
         # From a nested worktree, ConfigDir is <main>/.worktrees/x; anchoring there gives
         # <main>/.worktrees/ai-triad-data (nonexistent). The main root gives the real sibling.
         $r = Resolve-DataRepoRoot -EnvValue $null -ConfigText '{"data_root":"../ai-triad-data"}' `
-            -ConfigDir 'C:/code/ai-triad-research/.worktrees/x' -AnchorRoot 'C:/code/ai-triad-research'
-        $r.Path | Should -Be ([System.IO.Path]::GetFullPath('C:/code/ai-triad-data'))
+            -ConfigDir (Join-Path (Join-Path $script:Code '.worktrees') 'x') -AnchorRoot $script:Code
+        $r.Path | Should -Be $script:Want
     }
     It 'falls back to ConfigDir when AnchorRoot is unresolvable (non-git install) — same as the runtime' {
-        $r = Resolve-DataRepoRoot -EnvValue $null -ConfigText '{"data_root":"../ai-triad-data"}' -ConfigDir 'C:/code/ai-triad-research' -AnchorRoot $null
-        $r.Path | Should -Be ([System.IO.Path]::GetFullPath('C:/code/ai-triad-data'))
+        $r = Resolve-DataRepoRoot -EnvValue $null -ConfigText '{"data_root":"../ai-triad-data"}' -ConfigDir $script:Code -AnchorRoot $null
+        $r.Path | Should -Be $script:Want
     }
     It 'missing .aitriad.json is UNDETERMINED (runtime would silently fall back to the CODE repo)' {
         (Resolve-DataRepoRoot -EnvValue $null -ConfigText $null -ConfigDir 'C:/code').Undetermined | Should -BeTrue
