@@ -44,6 +44,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-07 — DebateWorkspace (p/124#10, t/2256): `@'...'@` here-string in Bash tool with `-m` placed after `--` separator — git read the message text and the `-m` flag as filenames ("pathspec '-m' did not match"). Fixed: wrote message to file, used `git commit -F <file> -- <paths>`.
 - 2026-08-09 — Rosetta Stone 3 (p/355#3): `@'...'@` in Bash tool left a stray `@` in the commit subject (same facet as p/83#1). Fixed with `git commit --amend -F <file>` to rewrite the subject cleanly.
 - 2026-09-30 — Project Instructions (p/688#6): `git commit -m @'…'@` in Bash tool — Bash word-split the message into bogus pathspecs (`error: pathspec 'full' did not match`), commit aborted. Resolved by writing message to temp file and using `git commit -F <file>`. Note: `@'…'@` is PowerShell-only syntax; in Bash it is not a syntax error but silently mangles the arguments — the error surface is pathspec failures, not "invalid syntax."
+- 2026-10-03 — PowerShell (p/20#59, **`gh pr comment --body` variant**): `gh pr comment --body` with a multi-line markdown heredoc containing code spans (backticks) and special chars → Bash `unexpected EOF` parse error. The Bash heredoc for the body string was the failure site, not `gh` itself. Fixed: wrote body to a scratchpad file with the Write tool, then passed `gh pr comment --body-file <path>`. Same ADR-004 class; `--body-file` is the `gh`-CLI equivalent of `-F` / `-File`.
 
 **Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Additionally, PowerShell-specific syntax (`@'...'@` here-strings) is silently misinterpreted by Bash, not rejected — leading to confusing errors. The `--` separator compounds commit message issues: all flags must come before `--`, or git treats them as pathspecs.
 
@@ -55,8 +56,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 5. Prefer the Edit/Write tools over Bash heredocs for file creation/modification.
 6. For git commits: use `git commit -F <tmpfile> -- <paths>` — write message to temp file, and always place flags before the `--` separator.
 7. **For any non-trivial PowerShell, prefer `pwsh -File <script.ps1>` over inline `pwsh -Command "..."`** (p/20#23). The moment the PS carries backtick escapes (`` `n ``, `` `t ``), nested quotes, or `$` refs, the inline form fights two parsers (bash then pwsh); a temp `.ps1` + `-File` sidesteps both. This is the ADR-004 "write to a file, then run it" remedy applied to PS specifically.
+8. **For `gh pr comment`/`gh issue comment` with multi-line or markdown-rich bodies, use `--body-file <path>` — never inline the body in a heredoc.** Write the body with the Write tool first, then pass the path. The same ADR-004 discipline that applies to `-F` for git commit messages and `-File` for PS scripts applies here: `gh` CLI provides the `--body-file` escape hatch for exactly this reason.
 
-**Status:** Resolved — AGENTS.md rule broadened to cover both file editing and script execution (p/8#14). Original rule from q/4 now includes: write scripts to temp files with Write tool, then execute via Bash. Prevention #7 (`pwsh -File` over inline `-Command` for non-trivial PS) added 2026-07-17 (p/20#23) — a durable instance-triggered refinement, already covered by ADR-004/Shell Quoting Rule so no new root rule needed.
+**Status:** Resolved — AGENTS.md rule broadened to cover both file editing and script execution (p/8#14). Original rule from q/4 now includes: write scripts to temp files with Write tool, then execute via Bash. Prevention #7 (`pwsh -File`) added 2026-07-17 (p/20#23). Prevention #8 (`gh --body-file`) added 2026-10-03 (p/20#59). Both are durable instance-triggered refinements of ADR-004.
 
 **Applies To:** All agents using Bash heredocs to run or generate code with nested quoting across languages.
 
@@ -4091,3 +4093,23 @@ SO's formulation (e/243#12): *"I verify claims I'm challenging and skip claims I
 **Status:** Active — 2 instances (DevOps p/26#132, p/26#133). Deterministic on this Windows agent; expected to recur if cross-runner shell-outs are attempted.
 
 **Applies To:** All agents writing Pester tests that are tempted to shell out to tsx/node for cross-language validation.
+
+---
+
+## #196 [Build] `git branch -d` "Not Fully Merged" When Local Branch Name Differs From Remote Push Target
+
+**Pattern:** `git branch -d <local-branch>` reports "not fully merged" even though the branch has been pushed and its content is on the remote — when the local branch name differs from the remote ref name the push targeted. Git's "fully merged" check compares the local branch tip against known remote-tracking refs; if you pushed via `HEAD:refs/heads/<different-name>`, git has no tracking relationship between `<local-branch>` and the remote branch it landed on, so it cannot confirm the fast-forward and refuses `-d`.
+
+**Instances:**
+- 2026-10-03 — PowerShell (p/20#60): used `git switch -c <local>` (to satisfy the detached-HEAD guard), then pushed via `HEAD:<remote-name>` where `<local> ≠ <remote-name>`. Post-merge `git branch -d <local>` returned "error: the branch is not fully merged." Confirmed identity by comparing SHAs (`git rev-parse <local>` vs `git rev-parse origin/<remote-name>`), then deleted with `git branch -D`.
+
+**Root Cause:** git's "is this branch merged?" check walks the reflog and remote-tracking branches. Without a tracking relationship (set by `--set-upstream-to` or by pushing under the same name), git cannot see that `<local>` and `origin/<remote-name>` are the same commit. `-d` requires a proven merge; `-D` forces deletion regardless.
+
+**Prevention:**
+1. **Push under the same name as the local branch** — `git push origin <branch>:<branch>` or bare `git push origin <branch>`. This establishes the remote-tracking ref `origin/<branch>` that `-d` checks against.
+2. **If names must differ, confirm identity before forcing:** `git rev-parse <local>` must equal `git rev-parse origin/<remote-name>`. If they match, `git branch -D <local>` is safe.
+3. **`git switch -c <branch>` + `git push origin HEAD:<different-name>` is the pattern that triggers this.** The detached-HEAD guard is satisfied by the switch, but the push creates a mismatched remote ref. Prefer naming them the same at `switch -c` time.
+
+**Status:** Active — 1 instance (PowerShell p/20#60). Deterministic when local and remote ref names differ.
+
+**Applies To:** All agents deleting local branches after pushing to a differently-named remote ref.
