@@ -60,7 +60,13 @@ function Resolve-DataRepoRoot {
     param(
         [AllowEmptyString()][AllowNull()][string]$EnvValue,
         [AllowEmptyString()][AllowNull()][string]$ConfigText,   # raw .aitriad.json text; $null = file missing
-        [Parameter(Mandatory)][string]$ConfigDir                # dir holding .aitriad.json (relative anchor)
+        [Parameter(Mandatory)][string]$ConfigDir,               # dir holding .aitriad.json
+        # The anchor for a RELATIVE data_root. Same precedence as the runtime's Get-DataRoot
+        # (PR #2732): the main-checkout root from Get-WorktreeMainRoot when resolvable (correct
+        # from nested AND sibling worktrees), else $ConfigDir. Passed in — not computed here — so
+        # this function stays pure; the I/O layer obtains it by calling the SAME shared
+        # Get-WorktreeMainRoot the runtime calls (no second implementation to drift).
+        [AllowEmptyString()][AllowNull()][string]$AnchorRoot
     )
 
     if (-not [string]::IsNullOrWhiteSpace($EnvValue)) {
@@ -80,8 +86,9 @@ function Resolve-DataRepoRoot {
         return [PSCustomObject]@{ Path = $null; Source = 'config'; Undetermined = $true
             Reason = '.aitriad.json has no data_root' }
     }
+    $anchor = if (-not [string]::IsNullOrWhiteSpace($AnchorRoot)) { $AnchorRoot } else { $ConfigDir }
     $full = if ([System.IO.Path]::IsPathRooted($root)) { [System.IO.Path]::GetFullPath($root) }
-            else { [System.IO.Path]::GetFullPath((Join-Path $ConfigDir $root)) }
+            else { [System.IO.Path]::GetFullPath((Join-Path $anchor $root)) }
     return [PSCustomObject]@{ Path = $full; Source = 'config'; Undetermined = $false; Reason = '.aitriad.json data_root' }
 }
 
@@ -187,7 +194,16 @@ function Get-DataRepoHooksFacts {
     )
     $cfgPath = Join-Path $CodeRepoRoot '.aitriad.json'
     $cfgText = if (Test-Path -LiteralPath $cfgPath) { Get-Content -Raw -LiteralPath $cfgPath } else { $null }
-    $res = Resolve-DataRepoRoot -EnvValue $env:AI_TRIAD_DATA_ROOT -ConfigText $cfgText -ConfigDir $CodeRepoRoot
+    # Call the runtime's OWN anchor resolver (PR #2732) rather than reimplementing it — the same
+    # file Get-DataRoot uses, dot-sourced standalone (zero module-scope deps), so Verify-Config.ps1
+    # still never imports the AITriad module.
+    $mainRoot = $null
+    $wmr = Join-Path $CodeRepoRoot 'scripts/AITriad/Public/Get-WorktreeMainRoot.ps1'
+    if (Test-Path -LiteralPath $wmr) {
+        . $wmr
+        $mainRoot = Get-WorktreeMainRoot -Path $CodeRepoRoot
+    }
+    $res = Resolve-DataRepoRoot -EnvValue $env:AI_TRIAD_DATA_ROOT -ConfigText $cfgText -ConfigDir $CodeRepoRoot -AnchorRoot $mainRoot
 
     $exists = $false; $isRepo = $false; $hp = $null; $hooks = @{}
     if (-not $res.Undetermined) {

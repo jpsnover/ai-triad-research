@@ -24,6 +24,17 @@ Describe 'Resolve-DataRepoRoot — same priority as the runtime (env > .aitriad.
         $r.Path | Should -Be ([System.IO.Path]::GetFullPath('C:/code/ai-triad-data'))
         $r.Path | Should -Not -Match '\.\.'
     }
+    It 'relative data_root anchors at AnchorRoot (main-checkout root) when given — the nested-worktree fix (#2732)' {
+        # From a nested worktree, ConfigDir is <main>/.worktrees/x; anchoring there gives
+        # <main>/.worktrees/ai-triad-data (nonexistent). The main root gives the real sibling.
+        $r = Resolve-DataRepoRoot -EnvValue $null -ConfigText '{"data_root":"../ai-triad-data"}' `
+            -ConfigDir 'C:/code/ai-triad-research/.worktrees/x' -AnchorRoot 'C:/code/ai-triad-research'
+        $r.Path | Should -Be ([System.IO.Path]::GetFullPath('C:/code/ai-triad-data'))
+    }
+    It 'falls back to ConfigDir when AnchorRoot is unresolvable (non-git install) — same as the runtime' {
+        $r = Resolve-DataRepoRoot -EnvValue $null -ConfigText '{"data_root":"../ai-triad-data"}' -ConfigDir 'C:/code/ai-triad-research' -AnchorRoot $null
+        $r.Path | Should -Be ([System.IO.Path]::GetFullPath('C:/code/ai-triad-data'))
+    }
     It 'missing .aitriad.json is UNDETERMINED (runtime would silently fall back to the CODE repo)' {
         (Resolve-DataRepoRoot -EnvValue $null -ConfigText $null -ConfigDir 'C:/code').Undetermined | Should -BeTrue
     }
