@@ -3988,6 +3988,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-10-03 — DevOps (p/26#127): `gh pr diff 2714 -- .github/workflows/ci.yml` exited 1. Dropped the pathspec and ran `gh pr diff 2714` (full diff); then manually located the `ci.yml` section in the output.
+- 2026-10-03 — Quality/TL (p/447#22): `gh pr diff 2738 -- file1 file2 …` failed with same error. Resolved by downloading full diff with no path filter.
 
 **Root Cause:** `gh pr diff` wraps the GitHub API's PR diff endpoint, which returns the full diff for the PR. The CLI does not expose pathspec filtering — it is architecturally a single-argument command (the PR number). The `git diff` flag style (`-- <path>`) does not apply here.
 
@@ -3995,7 +3996,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 1. **`gh pr diff <N>` only — no pathspec.** To inspect one file: pipe through `grep` or `awk` on a stable marker (e.g. `diff --git a/.github/workflows/ci.yml`), or clone and run `git diff origin/main...origin/<branch> -- <path>` locally.
 2. **Discriminate `gh` from `git` CLI flags before composing commands.** `gh` subcommands wrap REST/GraphQL APIs and do not share `git`'s pathspec conventions.
 
-**Status:** Active — 1 instance (DevOps p/26#127). Deterministic; always fails with the same error.
+**Status:** Active — 2 instances. Deterministic; always fails with the same error.
 
 **Applies To:** All agents using `gh pr diff` to inspect specific files in a PR.
 
@@ -4146,3 +4147,66 @@ The `git restore --staged` step is mandatory: the shared index still has `100644
 **Status:** Active — 1 instance (TL t/3851#9, p/335#122). Silently deterministic on Windows with `core.fileMode=false`; high blast radius (inert hooks pass all local checks).
 
 **Applies To:** All agents committing hook scripts, executable shell scripts, or any file requiring `100755` mode from a Windows checkout.
+
+---
+
+## #198 [PowerShell] Private Module Functions Not Exported — Invoke in Module Scope
+
+**Pattern:** After `Import-Module AITriad`, calling a Private function (one in the `Private/` folder, not listed in `FunctionsToExport`) from the host session fails with `"term not recognized as the name of a cmdlet, function, script file, or operable program"`. The function exists and works; it is simply not exported to the caller's scope.
+
+**Instances:**
+- 2026-10-03 — DevOps Lead (p/26#139): `Get-ComplexityScanTargets` is a Private helper; calling it directly after import gave "term not recognized".
+
+**Root Cause:** PowerShell module exports are controlled by `FunctionsToExport` in the manifest (or by `Export-ModuleMember`). Private functions are intentionally omitted. The module session has them; the caller's session does not.
+
+**Prevention:**
+1. **Invoke Private functions in module scope:** `& (Get-Module AITriad) { Get-ComplexityScanTargets -Path ./operations }` — the script block runs inside the loaded module's session state where Private functions are visible.
+2. **Don't add Private functions to `FunctionsToExport` just to reach them from tests.** Use the `& (Get-Module …) { … }` form in test scripts instead.
+3. **"Term not recognized" after a successful import = scope issue, not a missing function.** Confirm with `(Get-Module AITriad).ExportedFunctions.Keys` (shows Public) vs `& (Get-Module AITriad) { Get-Command Get-ComplexityScanTargets }` (shows Private if present).
+
+**Status:** Active — 1 instance (DevOps Lead p/26#139). Deterministic whenever a Private function is called from outside the module.
+
+**Applies To:** All agents invoking Private PowerShell module functions from test scripts, Pester suites, or ad-hoc sessions.
+
+---
+
+## #199 [PowerShell] `Invoke-ScriptAnalyzer -Path` Rejects Array Literal — Pipe via `ForEach-Object`
+
+**Pattern:** Passing a comma-separated array literal to `-Path` — e.g. `Invoke-ScriptAnalyzer -Path 'a.ps1','b.ps1','c.ps1'` — throws `"Cannot convert 'System.Object[]' to the type 'System.String'"`. The `-Path` parameter is typed as a singular `[string]` in this version of PSScriptAnalyzer, not `[string[]]`.
+
+**Instances:**
+- 2026-10-03 — PowerShell (p/20#62): analyzing multiple files in one call with a comma array literal; resolved by piping via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }`.
+
+**Root Cause:** PSScriptAnalyzer's `-Path` parameter binding does not accept an array. The PowerShell engine attempts automatic coercion from `Object[]` to `String` and fails.
+
+**Prevention:**
+1. **Always pipe multi-file invocations:** `'a.ps1','b.ps1','c.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }` — one call per file.
+2. **Alternatively, use `-Path` with a directory and `-Recurse`** when analyzing a subtree: `Invoke-ScriptAnalyzer -Path ./scripts -Recurse`.
+3. **`"Cannot convert … to the type 'System.String'"` on a cmdlet that looks like it should accept arrays = check the actual parameter type** with `(Get-Command Invoke-ScriptAnalyzer).Parameters['Path'].ParameterType`.
+
+**Status:** Active — 1 instance (PowerShell p/20#62). Deterministic.
+
+**Applies To:** All agents running `Invoke-ScriptAnalyzer` across multiple files in a single call.
+
+---
+
+## #200 [Test] Type-Level Assertions in `*.test.ts` Are Inert — tsconfig Excludes Test Files
+
+**Pattern:** A `@ts-expect-error` comment used as a *compile-time assertion* ("this expression must not type-check") inside a `*.test.ts` file enforces nothing. The lib tsconfigs exclude `**/*.test.ts`, and vitest does not have `typecheck` enabled — so TypeScript never sees those files. Widening the type under test leaves everything green; the "assertion" is silently vacuous.
+
+Distinction: `@ts-expect-error` used as a *suppression* in test files (silencing a known error to let the test compile) is harmless. Only the *assertion* use — expecting the error to prove a type boundary — is inert here.
+
+**Instances:**
+- 2026-10-04 — TL/Rosetta Stone (t/3889#7-8, p/335#124): a type assertion in a `.test.ts` was intended to prove a type was correctly narrowed; it passed Gate Verification without the GV checking whether tsc actually ran on the file. The lib tsconfig's `exclude: ["**/*.test.ts"]` silently dropped the assertion from type-checking.
+
+**Root Cause:** `lib/tsconfig.json` (and sibling lib tsconfigs) exclude `**/*.test.ts` from compilation. Vitest runs tests but does not invoke `tsc --noEmit` on them. There is no path by which a `@ts-expect-error` assertion in a test file reaches the TypeScript compiler.
+
+**Prevention:**
+1. **For type boundary assertions, use a dedicated `*.typecheck.ts` file** inside tsconfig's `include` glob — not a `*.test.ts` file. Name it `<feature>.typecheck.ts` so its purpose is clear.
+2. **Prove both arms with `tsc`:** confirm the assertion file produces an error when the type is widened, and no error when the type is correct. Both arms must be run — a green-only proof does not verify the assertion is live (Pattern #193).
+3. **Gate Verification for type assertions must include `tsc --noEmit` on the specific file**, not just a passing vitest run. A passing test suite does not prove tsc saw the assertion.
+4. **`@ts-expect-error` in a test file is a suppression, not an assertion**, unless tsc is explicitly configured to include test files. Default to treating it as suppression-only.
+
+**Status:** Active — 1 instance (TL/Rosetta Stone t/3889#7-8, p/335#124). Silent; no error, no warning, always green.
+
+**Applies To:** All agents writing type-level tests or assertions in TypeScript lib/taxonomy-editor subtrees.
