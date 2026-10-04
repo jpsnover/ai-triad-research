@@ -45,12 +45,13 @@ const GOOD_SKP = { belief: 'Outcomes remain highly uncertain', desire: 'Empirica
 const REPO_ROOT = resolve(fileURLToPath(import.meta.url), '../../..');
 const PS_SCRIPT = join(REPO_ROOT, 'scripts', 'AITriad', 'Private', 'Test-SituationBdiDecomposition.ps1');
 
+// Probe once at module load — used to emit a clear error (not a skip) when absent.
 let pwshAvailable = false;
 try {
   execFileSync('pwsh', ['--version'], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
   pwshAvailable = true;
 } catch {
-  // pwsh not in PATH — TS↔PS live parity block will be skipped
+  // captured below — parity tests fail hard if pwsh is absent
 }
 
 interface PsDecompositionResult {
@@ -274,49 +275,74 @@ describe('findSituationBdiViolations — TS behaviour (t/3889)', () => {
 });
 
 // ── TS↔PS live parity — both predicates on identical fixtures ───────────────
-// Shared fixture set covers: flat string, empty field, sentinel, [DEPRECATED]
-// exemption (×2), multi-POV failure, and a clean node.
+// Shared fixtures cover ALL sentinel/exemption/edge cases so both predicates
+// are exercised against the full equivalence set (t/3889#4 condition 3).
 //
-// PS output is per-node aggregate (NonDecomposedIds ∪ EmptyIds = failing IDs).
-// TS output is per-POV detailed. Parity assertion: same set of distinct failing IDs.
+// Parity assertion: TS per-POV detail and PS per-node aggregate agree on the
+// set of distinct failing node IDs. Expected: 7 failing, 3 passing, 2 exempt.
 //
-// Skipped automatically when pwsh is not in PATH.
+// These tests FAIL (not skip) when pwsh is absent — condition 1 (t/3889#4).
 
 const PARITY_FIXTURES: SituationNode[] = [
-  // par-clean: fully compliant — both pass
-  makeNode('par-clean', { accelerationist: GOOD_ACC, safetyist: GOOD_SAF, skeptic: GOOD_SKP }),
-  // par-flat: acc interpretation is a flat string — both flag
-  makeNode('par-flat', { accelerationist: 'legacy flat string', safetyist: GOOD_SAF, skeptic: GOOD_SKP }),
-  // par-empty-belief: safetyist has empty belief — both flag
-  makeNode('par-empty-belief', { accelerationist: GOOD_ACC, safetyist: { ...GOOD_SAF, belief: '' }, skeptic: GOOD_SKP }),
-  // par-sentinel: skp intention = 'tbd' — both flag
-  makeNode('par-sentinel', { accelerationist: GOOD_ACC, safetyist: GOOD_SAF, skeptic: { ...GOOD_SKP, intention: 'tbd' } }),
-  // par-multi: acc flat + saf sentinel — both flag (PS: one NonDecomposed entry; TS: two violations)
-  makeNode('par-multi', { accelerationist: 'flat', safetyist: { ...GOOD_SAF, desire: 'N/A' }, skeptic: GOOD_SKP }),
-  // par-deprecated: [DEPRECATED] prefix — both exempt
-  makeNode('par-deprecated', { accelerationist: 'flat', safetyist: 'flat', skeptic: 'flat' }, '[DEPRECATED] Retired.'),
-  // par-dep-ws: [DEPRECATED] with leading whitespace — both exempt (trimStart)
-  makeNode('par-dep-ws', { accelerationist: 'flat', safetyist: 'flat', skeptic: 'flat' }, '   [DEPRECATED] Leading ws.'),
+  // ── Passing cases ──────────────────────────────────────
+  // Complete BDI with summary
+  makeNode('par-complete',    { accelerationist: GOOD_ACC, safetyist: GOOD_SAF, skeptic: GOOD_SKP }),
+  // Missing summary — NOT a required field; both predicates pass
+  makeNode('par-no-summary',  {
+    accelerationist: { belief: GOOD_ACC.belief, desire: GOOD_ACC.desire, intention: GOOD_ACC.intention },
+    safetyist: GOOD_SAF, skeptic: GOOD_SKP,
+  }),
+  // Text that contains a sentinel word but is not a whole-value match — passes
+  makeNode('par-non-sentinel', {
+    accelerationist: { ...GOOD_ACC, belief: 'none of the above interpretations apply fully' },
+    safetyist: GOOD_SAF, skeptic: GOOD_SKP,
+  }),
+  // ── Failing cases (sentinel / blank) ──────────────────
+  // Flat string interpretation
+  makeNode('par-flat',         { accelerationist: 'legacy flat string', safetyist: GOOD_SAF, skeptic: GOOD_SKP }),
+  // Whitespace-only belief (trims to empty)
+  makeNode('par-whitespace',   { accelerationist: { ...GOOD_ACC, belief: '   ' }, safetyist: GOOD_SAF, skeptic: GOOD_SKP }),
+  // Sentinel "null" (lowercase)
+  makeNode('par-sent-null',    { accelerationist: { ...GOOD_ACC, desire: 'null' }, safetyist: GOOD_SAF, skeptic: GOOD_SKP }),
+  // Sentinel "None" (mixed case — OrdinalIgnoreCase)
+  makeNode('par-sent-none',    { accelerationist: GOOD_ACC, safetyist: { ...GOOD_SAF, intention: 'None' }, skeptic: GOOD_SKP }),
+  // Sentinel "N/A" (uppercase)
+  makeNode('par-sent-na',      { accelerationist: GOOD_ACC, safetyist: GOOD_SAF, skeptic: { ...GOOD_SKP, belief: 'N/A' } }),
+  // Sentinel "tbd"
+  makeNode('par-sent-tbd',     { accelerationist: { ...GOOD_ACC, belief: 'tbd' }, safetyist: GOOD_SAF, skeptic: GOOD_SKP }),
+  // Sentinel "-"
+  makeNode('par-sent-dash',    { accelerationist: GOOD_ACC, safetyist: { ...GOOD_SAF, desire: '-' }, skeptic: GOOD_SKP }),
+  // ── [DEPRECATED] exemption ────────────────────────────
+  makeNode('par-deprecated',   { accelerationist: 'flat', safetyist: 'flat', skeptic: 'flat' }, '[DEPRECATED] Retired.'),
+  makeNode('par-dep-ws',       { accelerationist: 'flat', safetyist: 'flat', skeptic: 'flat' }, '   [DEPRECATED] Leading ws.'),
 ];
 
+const EXPECTED_FAILING_IDS = new Set([
+  'par-flat', 'par-whitespace',
+  'par-sent-null', 'par-sent-none', 'par-sent-na', 'par-sent-tbd', 'par-sent-dash',
+]);
+
 describe('TS↔PS live parity (t/3889)', () => {
-  it.skipIf(!pwshAvailable)('TS and PS identify identical failing node IDs over shared fixtures', () => {
+  it('TS and PS identify identical failing node IDs over shared fixtures', () => {
+    if (!pwshAvailable) throw new Error('pwsh required for parity — absent in this environment (CI misconfiguration)');
     const tsViolatingIds = new Set(findSituationBdiViolations(PARITY_FIXTURES).map(v => v.id));
     const psResult = runPsCheck(PARITY_FIXTURES);
     const psFailingIds = new Set([...psResult.NonDecomposedIds, ...psResult.EmptyIds]);
-    // Both should flag exactly: par-flat, par-empty-belief, par-sentinel, par-multi
-    expect(tsViolatingIds).toEqual(psFailingIds);
+    // Both predicates must agree on the exact failing node set
+    expect(tsViolatingIds).toEqual(EXPECTED_FAILING_IDS);
+    expect(psFailingIds).toEqual(EXPECTED_FAILING_IDS);
   });
 
-  it.skipIf(!pwshAvailable)('PS exempts both [DEPRECATED] fixtures (Deprecated count = 2)', () => {
+  it('PS exempts both [DEPRECATED] fixtures (Deprecated count = 2)', () => {
+    if (!pwshAvailable) throw new Error('pwsh required for parity — absent in this environment (CI misconfiguration)');
     const psResult = runPsCheck(PARITY_FIXTURES);
     expect(psResult.Deprecated).toBe(2);
   });
 
-  it.skipIf(!pwshAvailable)('PS passes the clean node (NonDecomposed + Empty = 0 for clean-only input)', () => {
-    const cleanOnly = [makeNode('par-clean', { accelerationist: GOOD_ACC, safetyist: GOOD_SAF, skeptic: GOOD_SKP })];
-    const psResult = runPsCheck(cleanOnly);
-    expect(psResult.NonDecomposedIds).toHaveLength(0);
-    expect(psResult.EmptyIds).toHaveLength(0);
+  it('PS passes the three clean fixtures (Pass count = 3, Fail = 7)', () => {
+    if (!pwshAvailable) throw new Error('pwsh required for parity — absent in this environment (CI misconfiguration)');
+    const psResult = runPsCheck(PARITY_FIXTURES);
+    expect(psResult.Pass).toBe(3);
+    expect(psResult.Fail).toBe(7);
   });
 });
