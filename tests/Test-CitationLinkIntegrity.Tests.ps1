@@ -198,6 +198,9 @@ Describe 'Test-CitationLinkIntegrity (t/3598)' -Tag 'config' {
         @($c.offenders.kind) | Should -Contain 'missing-key'
         (@($c.offenders) | Where-Object { $_.kind -eq 'dead-key' }).keys | Should -Contain 'acc-beliefs-999'
         (@($c.offenders) | Where-Object { $_.kind -eq 'missing-key' }).nodes | Should -Contain 'acc-beliefs-010'
+        # Prove the test's own premise (CL review note, p/23#472): the swap must actually leave
+        # keyCount == liveNodes, or this isn't exercising the count-equal blind spot at all.
+        (@($c.offenders) | Where-Object { $_.kind -eq 'dead-key' }).keyCount | Should -Be (@($c.offenders) | Where-Object { $_.kind -eq 'dead-key' }).liveNodes
     }
 
     It 'LEG B: accepted-baseline allowlist PASSES a known orphan while a NEW dangle still FAILS (t/3743)' {
