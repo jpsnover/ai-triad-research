@@ -81,57 +81,16 @@ function extractSummary(stepId: string, log: string): string {
   }
 }
 
-// Data-repo top-level surfaces each pipeline step writes, for a scoped `git add`
-// (data-repo CONTRIBUTING.md §5). Only surfaces verified to exist are listed; a step
-// whose write location isn't reliably known maps to `null`, which forces the safe
-// full-tree fallback in the main process rather than silently under-staging. `[]` =
-// read-only step (contributes no surfaces but doesn't trigger the fallback).
-const STEP_SURFACES: Record<string, string[] | null> = {
-  import: null,
-  summarize: ['summaries'],
-  conflicts: ['conflicts'],
-  health: [],
-  proposals: null,
-  review: null,
-  integrity: [],
-  backfill: null,
-  attributes: null,
-  lineage: null,
-  steelman: null,
-  embeddings: null,
-  edges: null,
-};
-
-// Builds the provenance override handed to the git-commit step (t/1333). `steps` is
-// the run's data-producing step set (the main process derives the subject workflow
-// name + `Steps:` trailer from it). `touchedDirs` is the union of mapped surfaces; if
-// ANY executed step has an unknown surface we return [] so the main process takes the
-// surfaced full-tree fallback — never a silent partial stage.
+// Provenance override handed to the git-commit step (t/1333). The main process owns
+// everything that decides WHAT is committed (which steps ran, the paths they may write,
+// the run's baseline — t/3894 C+D), so only the run id and the human summary come from here.
 function buildCommitContext(executed: string[], runId: string): Record<string, unknown> {
   const st = usePipelineStore.getState();
   const summaries = executed
     .map(id => st.steps[id]?.summary)
     .filter((x): x is string => !!x && x !== 'Skipped');
   const commitSummary = summaries.length ? summaries.join('; ') : 'automated data pipeline update';
-
-  const surfaceSets = executed.map(id => STEP_SURFACES[id]);
-  const anyUnknown = surfaceSets.some(set => set == null);
-  const touchedDirs = anyUnknown
-    ? []
-    : Array.from(new Set(surfaceSets.flat().filter((d): d is string => d != null)));
-
-  // t/3894: `steps` is the DATA-PRODUCING step set (the main process's contract). Read-only
-  // steps (surface []) are excluded, so a run that only checked health/integrity reaches the
-  // main process with no steps and is refused, instead of committing whatever is in the tree.
-  const steps = executed.filter(id => !isReadOnlyStep(id));
-  return { steps, runId, commitSummary, touchedDirs };
-}
-
-/** A step mapped to `[]` writes nothing to the data repo (health, integrity). Unknown
- *  (`null`) steps are treated as data-producing — the conservative reading. */
-function isReadOnlyStep(id: string): boolean {
-  const surfaces = STEP_SURFACES[id];
-  return Array.isArray(surfaces) && surfaces.length === 0;
+  return { runId, commitSummary };
 }
 
 export function useRunPipeline() {
@@ -247,11 +206,6 @@ export function useRunPipeline() {
       let override: Record<string, unknown> | undefined;
       if (def.id === 'git-commit') {
         override = buildCommitContext(executed, runId);
-        if (!(override.touchedDirs as string[]).length) {
-          usePipelineStore.getState().appendLog(def.id,
-            'Commit surfaces could not be scoped from this run — staging the full tree (git add -A), ' +
-            'recorded as "(unknown — full-tree add)" in the commit body.\n');
-        }
       }
 
       await runSingle(def.id, override);

@@ -4,7 +4,7 @@
     "scan": "src"
   },
   "src/main/pipeline.ts": {
-    "max": 23,
+    "max": 22,
     "countOver": 1
   },
   "src/renderer/components/Sidebar.tsx": {
