@@ -14,17 +14,17 @@ pypdf>=6.19.0
 pdfminer.six>=20260107
 
 # URL/slug utilities
-python-slugify>=9.1.1
+python-slugify>=9.1.2
 
 # Wayback Machine archival
 waybackpy>=3.0.6
 
 # AI API clients (install whichever you use)
-anthropic>=1.8.0
+anthropic>=1.10.0
 # google-generativeai>=0.7
 
 # Git inspection
-gitpython>=3.1.62
+gitpython>=3.2.0
 
 # Semantic embeddings (all-MiniLM-L6-v2) and NLI cross-encoder
 # (cross-encoder/nli-deberta-v3-small) for taxonomy search and
