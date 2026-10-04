@@ -18,8 +18,10 @@ import type {
   ConflictNote,
   TextHistoryEntry,
   TextEditSource,
+  Interpretation,
 } from '../../../types/taxonomy';
 import { interpretationText } from '../../../types/taxonomy';
+import { buildSituationBaseline, checkSituationBdi, type SituationBdiRefusal } from '../../../utils/situationBdiGate';
 import { coerceSituationDivergence } from '../../../bridge/coerceSituationDivergence';
 import {
   povTaxonomyFileSchema,
@@ -187,11 +189,44 @@ export interface AggregatedCrux extends LibAggregatedCrux {
 
 // ── Slice interface ──
 
+/** Write-API patch for a situation (t/3888). The store holds `RawInterpretation` (flat legacy
+ *  nodes exist on disk), but the editor may only WRITE the strict BDI shape, so a string
+ *  interpretation is a compile error here. Interpretations merge per POV. */
+export type SituationNodeUpdate = Omit<Partial<SituationNode>, 'interpretations'> & {
+  interpretations?: Partial<Record<keyof SituationNode['interpretations'], Interpretation>>;
+};
+
+/** A blank per-POV interpretation in the required BDI shape (t/3888). */
+const emptyBdi = (): Interpretation => ({ belief: '', desire: '', intention: '', summary: '' });
+
+// t/3888 save-gate helpers. Kept at module scope so save() doesn't grow past its
+// complexity-budget baseline; the rule itself lives in lib (findSituationBdiViolations).
+const NO_BDI_REFUSAL: SituationBdiRefusal = { errors: {}, message: '' };
+
+function situationBdiOutcome(nodes: SituationNode[], baseline: Record<string, string>): SituationBdiRefusal {
+  return checkSituationBdi(nodes, baseline) ?? NO_BDI_REFUSAL;
+}
+
+/** The save banner: the BDI refusal names node/POV/fields; schema errors keep the generic text. */
+function saveFailureMessage(bdi: SituationBdiRefusal, totalErrors: number): string {
+  if (!bdi.message) return 'Validation failed. Fix errors before saving.';
+  const other = totalErrors - Object.keys(bdi.errors).length;
+  return other > 0 ? `${bdi.message}\nAlso fix the ${other} other highlighted field${other === 1 ? '' : 's'}.` : bdi.message;
+}
+
+/** After a successful save, the saved situations become the gate's new baseline. */
+function baselineAfterSave(dirtyKeys: Set<string>, situations: SituationsFile | null): { situationsBaseline?: Record<string, string> } {
+  return dirtyKeys.has('situations') && situations ? { situationsBaseline: buildSituationBaseline(situations.nodes) } : {};
+}
+
 export interface TaxonomyDataSlice {
   accelerationist: PovTaxonomyFile | null;
   safetyist: PovTaxonomyFile | null;
   skeptic: PovTaxonomyFile | null;
   situations: SituationsFile | null;
+  /** t/3888: interpretations as last loaded/saved (id → key), so the save gate checks only
+   *  situations whose interpretations changed. See utils/situationBdiGate.ts. */
+  situationsBaseline: Record<string, string>;
   policyRegistry: PolicyRegistryEntry[] | null;
   conflicts: ConflictFile[];
   aggregatedCruxes: AggregatedCrux[] | null;
@@ -234,7 +269,7 @@ export interface TaxonomyDataSlice {
   movePovNodeCategory: (pov: Pov, nodeId: string, newCategory: Category) => string | null;
   movePovNode: (sourcePov: Pov, nodeId: string, targetPov: Pov, targetCategory: Category) => void;
 
-  updateSituationNode: (nodeId: string, updates: Partial<SituationNode>) => void;
+  updateSituationNode: (nodeId: string, updates: SituationNodeUpdate) => void;
   createSituationNode: () => string;
   deleteSituationNode: (nodeId: string) => void;
 
@@ -282,6 +317,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   safetyist: null,
   skeptic: null,
   situations: null,
+  situationsBaseline: {},
   policyRegistry: null,
   conflicts: [],
   aggregatedCruxes: null,
@@ -424,10 +460,12 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
           recordLogicalFormStripSummary(povFile.pov, povStrippedCount);
         }
       }
+      const situationsFile = coerceSituationDivergence(cc) as SituationsFile; // t/3002: guard interpretation_divergence type at load
       set({
         safetyist: saf as PovTaxonomyFile,
         skeptic: skp as PovTaxonomyFile,
-        situations: coerceSituationDivergence(cc) as SituationsFile, // t/3002: guard interpretation_divergence type at load
+        situations: situationsFile,
+        situationsBaseline: buildSituationBaseline(situationsFile?.nodes ?? []),
         policyRegistry: regData?.policies ?? null,
         backgroundLoading: false,
         embeddingDirty: true,
@@ -514,6 +552,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.called', data: { dirty: [...dirtyKeys] } });
     if (dirtyKeys.size === 0) return;
+    let bdi = NO_BDI_REFUSAL; // t/3888 — set in the situations branch below
 
     for (const key of dirtyKeys) {
       if ((POV_KEYS as readonly string[]).includes(key)) {
@@ -530,6 +569,11 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         if (!result.success) {
           Object.assign(errors, extractPovErrors(result.error, file.nodes));
         }
+        // t/3888: BDI gate on situations whose interpretations changed since load/save. The
+        // structural Zod check above stays permissive on purpose (SO e/244#2 Finding 1): flat
+        // legacy nodes exist on disk, so whole-file strictness would block every save.
+        bdi = situationBdiOutcome(file.nodes, state.situationsBaseline);
+        Object.assign(errors, bdi.errors);
       } else if (key.startsWith('conflict-')) {
         const conflict = state.conflicts.find(c => c.claim_id === key);
         if (!conflict) continue;
@@ -541,8 +585,8 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     }
 
     if (Object.keys(errors).length > 0) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.validation', data: { stage: 'schema', error_count: Object.keys(errors).length, errors, duration_ms: Math.round(performance.now() - saveStart) } });
-      set({ validationErrors: errors, saveError: 'Validation failed. Fix errors before saving.' });
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.validation', data: { stage: 'schema', error_count: Object.keys(errors).length, situation_bdi_error_count: Object.keys(bdi.errors).length, errors, duration_ms: Math.round(performance.now() - saveStart) } });
+      set({ validationErrors: errors, saveError: saveFailureMessage(bdi, Object.keys(errors).length) });
       return;
     }
 
@@ -635,7 +679,8 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       // BEFORE this event — never after it. (t/1710; the non-fatal boundary is t/1707.)
       getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.completed', data: { files_written: promises.length, duration_ms: Math.round(performance.now() - saveStart), commitSha: commitResult.commitSha, filesCommitted: commitResult.filesCommitted } });
       api.trackEvent('taxonomy_save', 'taxonomy', { files: promises.length });
-      set({ dirty: new Set() });
+      // t/3888: the saved snapshot is now what's on disk, so it becomes the gate's baseline.
+      set({ dirty: new Set(), ...baselineAfterSave(dirtyKeys, state.situations) });
 
       // Post-save embedding refresh — NON-FATAL, own boundary (t/1707).
       // The file write, commit, and `dirty` clear above have already succeeded. A throw
@@ -1005,9 +1050,14 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     set((state) => {
       const file = state.situations;
       if (!file) return state;
+      const { interpretations: interpPatch, ...rest } = updates;
       const newNodes = file.nodes.map(n => {
         if (n.id !== nodeId) return n;
-        const patched = { ...n, ...updates };
+        // t/3888: interpretations merge per POV; untouched POVs keep their stored (Raw) value.
+        const patched: SituationNode = {
+          ...n, ...rest,
+          ...(interpPatch ? { interpretations: { ...n.interpretations, ...interpPatch } } : {}),
+        };
         if ('description' in updates && updates.description !== n.description) {
           patched.plain_description = null;
         }
@@ -1034,7 +1084,9 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       id: newId,
       label: '',
       description: '',
-      interpretations: { accelerationist: '', safetyist: '', skeptic: '' },
+      // t/3888: mint the BDI shape so the editor opens its four-field BDI editor. Typed strict:
+      // a string here is a compile error. The save gate refuses it until B/D/I are filled.
+      interpretations: { accelerationist: emptyBdi(), safetyist: emptyBdi(), skeptic: emptyBdi() },
       linked_nodes: [],
       conflict_ids: [],
     };

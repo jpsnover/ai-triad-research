@@ -122,6 +122,10 @@ vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
 import { useTaxonomyStore } from './useTaxonomyStore';
 import type { PovTaxonomyFile, CrossCuttingFile, ConflictFile, PovNode, Edge, EdgesFile } from '../types/taxonomy';
+import { buildSituationBaseline } from '../utils/situationBdiGate';
+
+/** A complete, compliant per-POV interpretation (t/3888). */
+const fullBdi = (tag: string) => ({ belief: `${tag} belief`, desire: `${tag} desire`, intention: `${tag} intention`, summary: `${tag} summary` });
 
 // ── Factories ──
 
@@ -181,6 +185,7 @@ function resetStore() {
     safetyist: null,
     skeptic: null,
     situations: null,
+    situationsBaseline: {},
     policyRegistry: null,
     conflicts: [],
     aggregatedCruxes: null,
@@ -882,6 +887,15 @@ describe('useTaxonomyStore', () => {
         useTaxonomyStore.setState({ situations: null });
         expect(useTaxonomyStore.getState().createSituationNode()).toBe('');
       });
+
+      // t/3888: the flat '' it used to mint routed the editor to a free-text box that wrote prose.
+      it('mints the BDI shape for every POV, not a flat string', () => {
+        const newId = useTaxonomyStore.getState().createSituationNode();
+        const node = useTaxonomyStore.getState().situations!.nodes.find(n => n.id === newId)!;
+        for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+          expect(node.interpretations[pov]).toEqual({ belief: '', desire: '', intention: '', summary: '' });
+        }
+      });
     });
 
     describe('updateSituationNode', () => {
@@ -890,6 +904,15 @@ describe('useTaxonomyStore', () => {
         const node = useTaxonomyStore.getState().situations!.nodes.find(n => n.id === 'sit-001')!;
         expect(node.label).toBe('Updated situation');
         expect(useTaxonomyStore.getState().dirty.has('situations')).toBe(true);
+      });
+
+      // t/3888: the patch carries only the edited POV; the others keep their stored value.
+      it('merges interpretations per POV, leaving untouched POVs (even legacy flat ones) as stored', () => {
+        useTaxonomyStore.getState().updateSituationNode('sit-001', { interpretations: { safetyist: fullBdi('saf') } });
+        const node = useTaxonomyStore.getState().situations!.nodes.find(n => n.id === 'sit-001')!;
+        expect(node.interpretations.safetyist).toEqual(fullBdi('saf'));
+        expect(node.interpretations.accelerationist).toBe('acc view');
+        expect(node.interpretations.skeptic).toBe('skp view');
       });
     });
 
@@ -1352,13 +1375,105 @@ describe('useTaxonomyStore', () => {
     });
 
     it('saves dirty situations file', async () => {
+      // t/3888: a real store always has the baseline that load sets. Without it every node looks
+      // new and is BDI-gated, and this fixture's flat (legacy) interpretations are refused.
+      const situations = makeSituationsFile();
       useTaxonomyStore.setState({
-        situations: makeSituationsFile(),
+        situations,
+        situationsBaseline: buildSituationBaseline(situations.nodes),
         dirty: new Set(['situations']),
       });
 
       await useTaxonomyStore.getState().save();
       expect(mockApi.saveTaxonomyFile).toHaveBeenCalledWith('situations', expect.any(Object));
+    });
+
+    // ── t/3888: BDI save gate on changed situations ──────────────────────────
+    describe('situation BDI gate (t/3888)', () => {
+      /** Load-equivalent state: file + the baseline loadAll would set, then dirty. */
+      function loadSituations(nodes: CrossCuttingFile['nodes']) {
+        const file = { ...makeSituationsFile(), nodes };
+        useTaxonomyStore.setState({ situations: file, situationsBaseline: buildSituationBaseline(nodes), dirty: new Set(['situations']) });
+      }
+      const sit = (id: string, interpretations: CrossCuttingFile['nodes'][number]['interpretations'], description = 'A situation that tests the gate.') =>
+        ({ id, label: `Label ${id}`, description, interpretations, linked_nodes: [], conflict_ids: [] });
+      const flat = { accelerationist: 'acc prose', safetyist: 'saf prose', skeptic: 'skp prose' };
+      const full = { accelerationist: fullBdi('acc'), safetyist: fullBdi('saf'), skeptic: fullBdi('skp') };
+
+      it('refuses a new situation left with empty B/D/I, names node/POV/fields, and writes nothing', async () => {
+        loadSituations([sit('sit-001', full)]);
+        const newId = useTaxonomyStore.getState().createSituationNode();
+
+        await useTaxonomyStore.getState().save();
+
+        expect(mockApi.saveTaxonomyFile).not.toHaveBeenCalled();
+        const { saveError, validationErrors } = useTaxonomyStore.getState();
+        expect(saveError).toContain(newId);
+        expect(saveError).toContain('accelerationist: belief, desire, intention are empty or a placeholder');
+        expect(validationErrors[`nodes.${newId}.interpretations.skeptic`]).toMatch(/belief, desire, intention/);
+      });
+
+      it('refuses a flat string written into a changed situation', async () => {
+        loadSituations([sit('sit-001', full)]);
+        const node = useTaxonomyStore.getState().situations!.nodes[0];
+        useTaxonomyStore.setState({ situations: { ...useTaxonomyStore.getState().situations!, nodes: [{ ...node, interpretations: { ...full, safetyist: 'flat prose' } }] } });
+
+        await useTaxonomyStore.getState().save();
+
+        expect(mockApi.saveTaxonomyFile).not.toHaveBeenCalled();
+        expect(useTaxonomyStore.getState().validationErrors['nodes.sit-001.interpretations.safetyist']).toMatch(/not broken into belief, desire and intention/);
+      });
+
+      it('refuses a null-sentinel placeholder and names only that field', async () => {
+        loadSituations([sit('sit-001', full)]);
+        useTaxonomyStore.getState().updateSituationNode('sit-001', { interpretations: { accelerationist: { ...fullBdi('acc'), desire: 'N/A' } } });
+
+        await useTaxonomyStore.getState().save();
+
+        expect(mockApi.saveTaxonomyFile).not.toHaveBeenCalled();
+        expect(useTaxonomyStore.getState().validationErrors['nodes.sit-001.interpretations.accelerationist']).toBe('accelerationist: desire is empty or a placeholder (N/A, TBD, none…)');
+      });
+
+      it('saves a complete BDI change and makes the saved state the new baseline', async () => {
+        loadSituations([sit('sit-001', full)]);
+        useTaxonomyStore.getState().updateSituationNode('sit-001', { interpretations: { skeptic: fullBdi('skp2') } });
+
+        await useTaxonomyStore.getState().save();
+
+        expect(mockApi.saveTaxonomyFile).toHaveBeenCalledWith('situations', expect.any(Object));
+        const { situations, situationsBaseline } = useTaxonomyStore.getState();
+        expect(situationsBaseline).toEqual(buildSituationBaseline(situations!.nodes));
+      });
+
+      // SO e/244#2 Q1, arm 2: an unchanged live flat node must not block an unrelated save.
+      it('lets an untouched legacy flat node through while another node changes', async () => {
+        loadSituations([sit('sit-001', flat), sit('sit-002', full)]);
+        useTaxonomyStore.getState().updateSituationNode('sit-002', { interpretations: { accelerationist: fullBdi('acc2') } });
+
+        await useTaxonomyStore.getState().save();
+
+        expect(mockApi.saveTaxonomyFile).toHaveBeenCalledWith('situations', expect.any(Object));
+      });
+
+      // SO Q1, condition 1: "changed" is defined over interpretations only.
+      it('does not gate a label-only edit of a legacy flat node', async () => {
+        loadSituations([sit('sit-001', flat)]);
+        useTaxonomyStore.getState().updateSituationNode('sit-001', { label: 'Renamed label' });
+
+        await useTaxonomyStore.getState().save();
+
+        expect(mockApi.saveTaxonomyFile).toHaveBeenCalledWith('situations', expect.any(Object));
+      });
+
+      it('exempts a [DEPRECATED] situation even when its flat interpretation changed', async () => {
+        loadSituations([sit('sit-154', flat, '[DEPRECATED] A situation that was retired.')]);
+        const node = useTaxonomyStore.getState().situations!.nodes[0];
+        useTaxonomyStore.setState({ situations: { ...useTaxonomyStore.getState().situations!, nodes: [{ ...node, interpretations: { ...flat, skeptic: 'edited prose' } }] } });
+
+        await useTaxonomyStore.getState().save();
+
+        expect(mockApi.saveTaxonomyFile).toHaveBeenCalledWith('situations', expect.any(Object));
+      });
     });
 
     it('saves dirty conflict files', async () => {

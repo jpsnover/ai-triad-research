@@ -68,6 +68,13 @@
   font-style: italic;
 }
 
+/* t/3888: note under a legacy flat (non-BDI) interpretation, which is shown read-only. */
+.sit-legacy-note {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .situation-detail-bdi-edit-actions {
   display: flex;
   gap: 8px;
