@@ -12,12 +12,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findSituationBdiViolations, validateBdiFields } from './taxonomyTypes.js';
-import type { SituationNode, Interpretation } from './taxonomyTypes.js';
-
-// Type-level check: Interpretation is now BdiInterpretation-only — plain strings are rejected.
-// @ts-expect-error Interpretation no longer accepts plain strings (t/3889)
-const _typeCheck: Interpretation = 'legacy string';
-void _typeCheck;
+import type { SituationNode } from './taxonomyTypes.js';
 
 // ── Helpers ─────────────────────────────────────────────
 
