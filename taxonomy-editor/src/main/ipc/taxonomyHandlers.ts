@@ -34,7 +34,8 @@ import {
   getDataRootPath,
   loadDataConfig,
 } from '../fileIO.js';
-import { ActionableError } from '../../../../lib/debate/errors.js';
+import { ActionableError, errorMessage } from '../../../../lib/debate/errors.js';
+import { findSituationBdiViolations, validateBdiFields, type SituationNode } from '../../../../lib/debate/taxonomyTypes.js';
 import { mergeEdgesPreservingRationale, ABSENT_BASELINE, type EdgesData, type EdgeMergeWarn } from '../../../../lib/edges/mergeEdgesPreservingRationale.js';
 import { renameSyncWithRetry } from '../../../../lib/debate/persistence.js';
 import { recordLockHolder } from '../../../../lib/debate/lockHolder.js';
@@ -63,31 +64,50 @@ const onEdgeMergeWarn: EdgeMergeWarn = (e) =>
   });
 
 /**
+ * Read the on-disk nodes for `pov` before a save — the one read shared by authorship
+ * diffing (stampSaveNodes, below) and the situations BDI save-gate (t/3891). Classifies the
+ * outcome rather than reacting to it: each caller decides how a missing vs. unreadable
+ * baseline should behave, because they have different risk profiles (losing edit-history
+ * attribution is low-stakes; silently accepting a non-BDI situation write is not).
+ */
+function readOldNodesForDiff(pov: string): { status: 'ok'; nodes: unknown[] } | { status: 'missing' } | { status: 'corrupt'; err: unknown } {
+  try {
+    const existing = readTaxonomyFile(pov);
+    // Existing file may also be either shape — extract nodes from either.
+    const nodes = Array.isArray(existing)
+      ? existing
+      : ((existing as { nodes?: unknown[] })?.nodes ?? []);
+    return { status: 'ok', nodes };
+  } catch (err) {
+    // ENOENT (missing file, first write) is not logged — it's the normal, benign case, not a
+    // degraded fallback. Anything else is a genuine read/parse failure; record it here (ADR-003
+    // requires the record() call stay literally in the catch) so both callers' reactions to
+    // 'corrupt' are covered by one entry, not a duplicate per caller.
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return { status: 'missing' };
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'ipc-save-taxonomy',
+      level: 'warn',
+      message: `Could not read existing ${pov} taxonomy file for save-time diffing`,
+      error: { name: (err as Error)?.name ?? 'Error', message: errorMessage(err), stack: (err as Error)?.stack },
+    });
+    return { status: 'corrupt', err };
+  }
+}
+
+/**
  * Stamp _edit_meta / _edit_history authorship onto a save's nodes (mirroring the server's
  * PUT /api/taxonomy/:pov), preserving on-disk metadata for nodes this save did NOT change
  * (t/828) and recording the save.stamp observability event. Returns the stamped node list.
  * Extracted verbatim from the save-taxonomy-file handler (t/1914 complexity split).
  */
 function stampSaveNodes(pov: string, newNodes: unknown[]): unknown[] {
-  let oldNodes: unknown[] = [];
-  try {
-    const existing = readTaxonomyFile(pov);
-    // Existing file may also be either shape — extract nodes from either.
-    oldNodes = Array.isArray(existing)
-      ? existing
-      : ((existing as { nodes?: unknown[] })?.nodes ?? []);
-  } catch (err) {
-    // Missing file on first write is benign (ENOENT); a corrupt existing file means we
-    // can't diff for history — record it but still save against an empty baseline so the
-    // edit is never blocked.
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'ipc-save-taxonomy',
-      level: 'warn',
-      message: 'Could not read existing taxonomy for edit-history diff; stamping against empty baseline',
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-  }
+  // readOldNodesForDiff already records a WARN for a genuine read failure ('corrupt'); here we
+  // just fall back to an empty baseline so the edit-history stamp is never what blocks the edit
+  // (unlike the BDI gate below, losing authorship attribution is recoverable; the data itself
+  // isn't at risk).
+  const diff = readOldNodesForDiff(pov);
+  const oldNodes: unknown[] = diff.status === 'ok' ? diff.nodes : [];
   const stamped = stampNodeAuthorship(
     oldNodes as Parameters<typeof stampNodeAuthorship>[0],
     newNodes as Parameters<typeof stampNodeAuthorship>[1],
@@ -125,6 +145,98 @@ function stampSaveNodes(pov: string, newNodes: unknown[]): unknown[] {
   return stamped;
 }
 
+// ── Situations BDI save-gate (t/3891, boundary guard for t/3888 — recurrence #5 class) ──
+//
+// The rule itself lives in ONE place — findSituationBdiViolations/validateBdiFields in
+// lib/debate/taxonomyTypes.ts (t/3889), pinned to the PowerShell classifier
+// Test-SituationBdiDecomposition by a parity test. This section only decides WHICH situations
+// to check (changed-only, SO e/244#2 Q1) and formats the refusal — mirrors the renderer's
+// utils/situationBdiGate.ts (t/3888) for the same reasoning, duplicated per-writer by design
+// (route table, t/3888#5): the diffing wrapper is per-host, the rule is not.
+
+/** Order-independent key of a node's interpretations — the deep compare behind changed-only.
+ *  Mirrors renderer utils/situationBdiGate.ts's interpretationsKey exactly. */
+function interpretationsKey(interpretations: unknown): string {
+  return JSON.stringify(interpretations, (_key, value: unknown) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const obj = value as Record<string, unknown>;
+      return Object.fromEntries(Object.keys(obj).sort().map(k => [k, obj[k]]));
+    }
+    return value;
+  });
+}
+
+/** Situations whose interpretations changed vs `baseline`. A node absent from the baseline
+ *  (new, or renamed) counts as changed (SO Q1 condition 2). Other field edits don't count —
+ *  "changed" is defined over `interpretations` only (SO Q1 condition 1). */
+function changedSituations(nodes: SituationNode[], baseline: Record<string, string>): SituationNode[] {
+  return nodes.filter(n => baseline[n.id] !== interpretationsKey(n.interpretations));
+}
+
+/** Every failing B/D/I field of one interpretation, found by probing the shared rule one field
+ *  at a time — so the error can name all of them without re-encoding the rule itself. */
+function failingBdiFields(interp: unknown): string[] {
+  if (typeof interp !== 'object' || interp === null) return ['belief', 'desire', 'intention'];
+  const obj = interp as Record<string, unknown>;
+  const valid = { belief: 'ok', desire: 'ok', intention: 'ok' };
+  return (['belief', 'desire', 'intention'] as const).filter(f => validateBdiFields({ ...valid, [f]: obj[f] }) !== null);
+}
+
+/**
+ * Refuse a situations save that writes a non-BDI-compliant interpretation on a CHANGED node.
+ * Fail-closed per TL/SO (t/3888#2, t/3888#4): a missing baseline (ENOENT — first write) means
+ * every node is new, so validate all of them and let the save proceed if they're compliant; an
+ * UNREADABLE baseline (corrupt file, permission error, anything else) refuses the save outright
+ * rather than silently treating "couldn't diff" as "nothing changed." Writes nothing on refusal.
+ */
+function guardSituationsBdiSave(newNodes: unknown[]): void {
+  const diff = readOldNodesForDiff('situations');
+  if (diff.status === 'corrupt') {
+    throw new ActionableError({
+      goal: 'Save the situations taxonomy file',
+      problem: `Could not read the existing situations file to determine which situations changed: ${errorMessage(diff.err)}`,
+      location: 'ipc/taxonomyHandlers.ts → save-taxonomy-file (situations BDI gate)',
+      nextSteps: [
+        'Inspect situations.json (or cross-cutting.json) for corruption',
+        'Restore the file from backup or git history',
+        'Retry the save once the existing file is readable',
+      ],
+      innerError: diff.err,
+    });
+  }
+  const oldNodes = (diff.status === 'ok' ? diff.nodes : []) as SituationNode[];
+  const baseline = Object.fromEntries(oldNodes.map(n => [n.id, interpretationsKey(n.interpretations)]));
+  const changed = changedSituations(newNodes as SituationNode[], baseline);
+  const violations = findSituationBdiViolations(changed);
+  if (violations.length === 0) return;
+
+  const byId = new Map((newNodes as SituationNode[]).map(n => [n.id, n]));
+  const lines = violations.map(v => {
+    const node = byId.get(v.id);
+    const fields = failingBdiFields(node?.interpretations[v.pov as keyof SituationNode['interpretations']]);
+    const problem = fields.length > 0
+      ? `${fields.join(', ')} ${fields.length === 1 ? 'is' : 'are'} empty or a placeholder (N/A, TBD, none…)`
+      : 'is not broken into belief, desire and intention';
+    return `${v.id} "${node?.label || '(no label)'}" — ${v.pov}: ${problem}`;
+  });
+
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'ipc-save-taxonomy',
+    level: 'warn',
+    message: 'save-taxonomy-file (situations): refused — non-BDI interpretation on a changed node',
+    data: { violations },
+  });
+
+  throw new ActionableError({
+    goal: 'Save the situations taxonomy file',
+    problem: `${violations.length} changed interpretation${violations.length === 1 ? '' : 's'} aren't fully broken into belief, desire and intention:\n`
+      + lines.map(l => `• ${l}`).join('\n'),
+    location: 'ipc/taxonomyHandlers.ts → save-taxonomy-file (situations BDI gate)',
+    nextSteps: ['Complete the listed belief/desire/intention fields, or delete the situation', 'Retry the save'],
+  });
+}
+
 export function registerTaxonomyHandlers(): void {
   ipcMain.handle('get-taxonomy-dirs', () => {
     return getTaxonomyDirs();
@@ -152,6 +264,9 @@ export function registerTaxonomyHandlers(): void {
     const newNodes: unknown[] | null = Array.isArray(incoming.nodes)
       ? incoming.nodes
       : Array.isArray(data) ? (data as unknown[]) : null;
+    // t/3891: boundary guard for recurrence #5 (t/3888) — refuse a non-BDI situation
+    // interpretation on a changed node before anything is written. Writes nothing on refusal.
+    if (parsed.data === 'situations' && newNodes) guardSituationsBdiSave(newNodes);
     let toWrite: unknown = data;
     if (newNodes) {
       const stamped = stampSaveNodes(parsed.data, newNodes);
