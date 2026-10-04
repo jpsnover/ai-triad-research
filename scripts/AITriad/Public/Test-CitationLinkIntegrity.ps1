@@ -215,9 +215,12 @@ function Test-CitationLinkIntegrity {
         if ($stored -ne $recomputed) {
             $cOff.Add([pscustomobject]@{ kind = 'stale-hash'; stored = $stored; recomputed = $recomputed })
         }
-        $keyCount = @($ix.index.PSObject.Properties).Count
-        if ($keyCount -ne $liveCount) {
-            $cOff.Add([pscustomobject]@{ kind = 'key-count'; keys = $keyCount; liveNodes = $liveCount })
+        # t/3896 (CL predicate correction): compare the index key SET to the live-node SET, not
+        # just the count -- a swap (remove one POV node, add another) keeps counts equal while
+        # the index carries a dead key and is missing the new node's key. A count-only check
+        # passes exactly where leg (c) is meant to catch a regen that didn't happen or went wrong.
+        foreach ($off in (Compare-NodeSourceIndexKeySet -IndexObject $ix.index -LiveNodeIds $beliefLive)) {
+            $cOff.Add($off)
         }
     }
     else {
