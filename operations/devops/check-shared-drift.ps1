@@ -546,9 +546,15 @@ try {
         $category = Get-DriftReasonCategory -Behind $behind -Ahead $ahead -RealWipFiles $realWipFiles -PhantomFiles $phantomFiles `
             -JunkPaths $remainingJunk -SuspiciousPaths $suspiciousPaths -ShellFragmentPaths $shellFragmentPaths `
             -NestedWorktrees $nestedWorktrees -StrandedBranches $result.StrandedBranches -StrandedBranchesStatus $result.StrandedBranchesStatus
-        $fingerprint = Get-DriftFingerprint -ReasonCategory $category -DirtyFileStates $dirtyFileStates `
-            -JunkPaths $remainingJunk -SuspiciousPaths $suspiciousPaths -ShellFragmentPaths $shellFragmentPaths `
-            -NestedWorktrees $nestedWorktrees -StrandedBranches $result.StrandedBranches -StrandedBranchesStatus $result.StrandedBranchesStatus
+        $fpArgs = @{
+            ReasonCategory = $category; DirtyFileStates = $dirtyFileStates
+            JunkPaths = $remainingJunk; SuspiciousPaths = $suspiciousPaths; ShellFragmentPaths = $shellFragmentPaths
+            NestedWorktrees = $nestedWorktrees; StrandedBranches = $result.StrandedBranches; StrandedBranchesStatus = $result.StrandedBranchesStatus
+        }
+        $fingerprint = Get-DriftFingerprint @fpArgs
+        # t/3880: the readable inputs behind the hash, logged on every fingerprint CHANGE so the
+        # telemetry can say WHY a parked condition re-pinged (hash-only records could not).
+        $fpComposite = Get-DriftFingerprintComposite @fpArgs
         $result.DedupCategory = $category
         $result.DedupFingerprint = $fingerprint
 
@@ -612,7 +618,7 @@ try {
         # surface reads this to tell parked-and-watched apart from silently-stopped-running.
         try {
             $telemetryPath = Join-Path $RepoRoot 'operations/devops/drift-dedup-telemetry.jsonl'
-            [PSCustomObject]@{
+            $record = [ordered]@{
                 ts              = (Get-Date).ToString('o')
                 alarm           = $alarm
                 category        = $category
@@ -620,7 +626,9 @@ try {
                 shouldPing      = $shouldPing
                 suppressedCount = $result.DedupSuppressedCount
                 parkedSince     = $result.DedupParkedSince
-            } | ConvertTo-Json -Compress | Add-Content -LiteralPath $telemetryPath -ErrorAction Stop
+            }
+            if ($storedFingerprint -ne $fingerprint) { $record.components = $fpComposite }
+            [PSCustomObject]$record | ConvertTo-Json -Compress | Add-Content -LiteralPath $telemetryPath -ErrorAction Stop
         } catch { }   # best-effort; never let telemetry logging break the guard
     } catch {
         # Dedup logic itself failed — fail-safe means ShouldPing stays $true (its declared
