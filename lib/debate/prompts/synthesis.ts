@@ -3,7 +3,7 @@
 
 import type { DebateAudience } from '../types.js';
 import { interpretationText, isBdiInterpretation } from '../taxonomyTypes.js';
-import type { Interpretation } from '../taxonomyTypes.js';
+import type { RawInterpretation } from '../taxonomyTypes.js';
 import { stripExcludes } from '../helpers.js';
 import { DOC_TRUNCATION_LIMIT } from '../constants.js';
 import { getReadingLevel } from './shared-helpers.js';
@@ -459,7 +459,7 @@ export interface SituationDebateInput {
   id: string;
   label: string;
   description: string;
-  interpretations: { accelerationist: Interpretation; safetyist: Interpretation; skeptic: Interpretation };
+  interpretations: { accelerationist: RawInterpretation; safetyist: RawInterpretation; skeptic: RawInterpretation };
   disagreementType?: 'definitional' | 'interpretive' | 'structural';
   interpretationDivergence?: number;
   assumes?: string[];
@@ -472,7 +472,7 @@ export interface SituationDebateInput {
 export interface SituationTopicSynthesisInput {
   label: string;
   description: string;
-  interpretations: { accelerationist: Interpretation; safetyist: Interpretation; skeptic: Interpretation };
+  interpretations: { accelerationist: RawInterpretation; safetyist: RawInterpretation; skeptic: RawInterpretation };
   disagreementType?: 'definitional' | 'interpretive' | 'structural';
   assumes?: string[];
   conflictSummaries?: string[];
@@ -493,7 +493,7 @@ export function situationTopicSynthesisPrompt(
   cc: SituationTopicSynthesisInput,
   audience?: DebateAudience,
 ): string {
-  const bdi = (i: Interpretation) => isBdiInterpretation(i)
+  const bdi = (i: RawInterpretation) => isBdiInterpretation(i)
     ? `belief: ${i.belief}\n  desire: ${i.desire}\n  intention: ${i.intention}`
     : `summary: ${interpretationText(i)}`;
 
@@ -541,7 +541,7 @@ Respond ONLY with JSON (no markdown, no code fences):
 
 /** Build a rich source-content block from a situation node for prompt injection */
 export function formatSituationDebateContext(cc: SituationDebateInput): string {
-  const bdiBlock = (label: string, i: Interpretation): string[] => {
+  const bdiBlock = (label: string, i: RawInterpretation): string[] => {
     if (isBdiInterpretation(i)) {
       return [
         `${label}:`,
