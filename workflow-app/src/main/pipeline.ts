@@ -180,13 +180,30 @@ function getToolVersion(): string {
  * determined, rather than silently scoping or hard-failing the commit step (t/1333).
  *
  * Caller-supplied context (via the git-commit step config, threaded by the renderer):
- *   steps: string[]        — pipeline steps that produced data this run
+ *   steps: string[]        — pipeline steps that produced data this run; empty → REFUSED (t/3894)
  *   runId: string          — stable id for the run
  *   commitSummary: string  — one-line what-changed
  *   touchedDirs: string[]  — data-repo surfaces to stage; empty → full-tree fallback
+ *
+ * Throws (surfacing as a failed git-commit step, like buildPsCommand's other config
+ * errors) when no data-producing step ran — see the refusal below.
  */
 export function buildGitCommitCommand(dataRoot: string, config: Record<string, unknown>): string {
   const steps = Array.isArray(config.steps) ? (config.steps as string[]) : [];
+  // t/3894 fix A: refuse a commit when no data-producing step ran this run. Anything staged
+  // then was written by someone else — other agents, the editor's harvest-on-save, stray
+  // files in the shared data checkout. That is exactly how f9cb8ef4 (09-29) committed 78
+  // files (~1.2M lines) of other writers' work as "pipeline(adhoc)": the git-commit step was
+  // run on its own (Run-Id: no-run-id), so no steps were threaded here, and the full-tree
+  // fallback below staged everything. Do not relax this to a warning.
+  if (steps.length === 0) {
+    throw new Error(
+      'Refusing to commit: no data-producing pipeline step ran in this run, so anything staged now '
+      + 'was written by someone else (other agents, the editor, stray files in the shared data checkout). '
+      + 'Run the steps that produce the data, then commit; or commit by hand with an explicit pathspec '
+      + '(data-repo CONTRIBUTING.md section 5). (t/3894)',
+    );
+  }
   const runId = (config.runId as string) || 'no-run-id';
   const summary =
     (config.commitSummary as string) ||
@@ -197,8 +214,10 @@ export function buildGitCommitCommand(dataRoot: string, config: Record<string, u
     : `user:${os.userInfo().username}`;
 
   // workflowName: '+'-joined executed step set, truncated ~40 chars (TL t/1333#2).
-  // The full list is preserved in the `Steps:` trailer (PowerShell t/1333).
-  let workflowName = steps.join('+') || 'adhoc';
+  // The full list is preserved in the `Steps:` trailer (PowerShell t/1333). The old
+  // `|| 'adhoc'` fallback is gone: steps is non-empty here, so a `pipeline(...)` subject
+  // always names real steps (t/3894 fix E, enforced by fix A above).
+  let workflowName = steps.join('+');
   if (workflowName.length > 40) workflowName = `${steps[0]}+${steps.length - 1}-more`;
 
   const touchedDirs = Array.isArray(config.touchedDirs) ? (config.touchedDirs as string[]) : [];
@@ -212,7 +231,7 @@ export function buildGitCommitCommand(dataRoot: string, config: Record<string, u
     `Triggered-By: ${triggeredBy}`,
     `Surfaces: ${surfaces}`,
   ];
-  if (steps.length) trailers.push(`Steps: ${steps.join(', ')}`);
+  trailers.push(`Steps: ${steps.join(', ')}`);
   trailers.push(`Tool: workflow-app v${getToolVersion()}`);
   const message = `${subject}${trailers.join('\n')}`.replace(/'/g, "''");
 

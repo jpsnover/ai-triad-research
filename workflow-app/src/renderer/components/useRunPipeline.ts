@@ -120,7 +120,18 @@ function buildCommitContext(executed: string[], runId: string): Record<string, u
     ? []
     : Array.from(new Set(surfaceSets.flat().filter((d): d is string => d != null)));
 
-  return { steps: executed, runId, commitSummary, touchedDirs };
+  // t/3894: `steps` is the DATA-PRODUCING step set (the main process's contract). Read-only
+  // steps (surface []) are excluded, so a run that only checked health/integrity reaches the
+  // main process with no steps and is refused, instead of committing whatever is in the tree.
+  const steps = executed.filter(id => !isReadOnlyStep(id));
+  return { steps, runId, commitSummary, touchedDirs };
+}
+
+/** A step mapped to `[]` writes nothing to the data repo (health, integrity). Unknown
+ *  (`null`) steps are treated as data-producing — the conservative reading. */
+function isReadOnlyStep(id: string): boolean {
+  const surfaces = STEP_SURFACES[id];
+  return Array.isArray(surfaces) && surfaces.length === 0;
 }
 
 export function useRunPipeline() {
