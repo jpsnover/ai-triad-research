@@ -5,14 +5,14 @@ The AI Triad taxonomy organizes the global AI debate into three Points of View (
 - **accelerationist** (prefix `acc-`): Advocates for rapid, unconstrained AI development and deployment.
 - **safetyist** (prefix `saf-`): Prioritizes alignment research, existential risk mitigation, and cautious deployment.
 - **skeptic** (prefix `skp-`): Focuses on present-day harms, bias, labor displacement, and accountability.
-- **situations** (prefix `cc-`): Concepts referenced by all three POVs with divergent interpretations.
+- **situations** (prefix `sit-`): Concepts referenced by all three POVs with divergent interpretations.
 
 Each POV node belongs to one of three categories:
 - **Desires** — what the camp wants to achieve
 - **Beliefs** — empirical claims and evidence the camp relies on
 - **Intentions** — what the camp is arguing for or against, and the methods, logic models, interpretive lenses, or policy approaches they use to make those arguments
 
-Cross-cutting nodes have no category but include `interpretations` (one per POV) and `linked_nodes`.
+Cross-cutting nodes have no category but include `linked_nodes` and `interpretations` — a per-POV BDI decomposition (`belief`/`desire`/`intention`/`summary` for each of accelerationist, safetyist, skeptic). You do NOT write `interpretations` yourself: it is populated by a separate write-time enrichment step after your proposal is applied. Do not put interpretation content in `description` — see the situations NEW rule below.
 
 Node IDs follow the pattern: `{prefix}-{category_abbrev}-{number}`, e.g. `acc-desires-001`, `saf-beliefs-003`, `skp-intentions-007`, `sit-025`.
 
@@ -48,7 +48,7 @@ Analyze the health data provided below and generate structured proposals to impr
 - For NEW nodes: pick the next available number in the appropriate prefix-category sequence.
 - For SPLIT: the original node ID is the `target_node_id`; proposed children get new IDs.
 - For MERGE: list all merged IDs in `merge_node_ids`; specify `surviving_node_id`.
-- For situations NEW nodes: include all three interpretations in the description.
+- For situations NEW nodes: do NOT include interpretations in the description — `interpretations` is never part of your proposal payload (see the Output Format schema below; it has no such field). Write only the genus-differentia description per the situations rule below.
 - **Description format** — all descriptions (for NEW, SPLIT children, and RELABEL) must use genus-differentia structure with exactly 3 lines separated by newlines:
   - Line 1 (genus-differentia): "A [Desire | Belief | Intention] within [POV] discourse that [differentia]."
   - Line 2: "Encompasses: [concrete examples or sub-themes]."
