@@ -92,6 +92,24 @@ Describe 'Get-SituationBdiViolationsFromJson (t/3901)' -Tag 'taxonomy' {
         $violations.id | Should -Contain 'sit-bad-1'
     }
 
+    It 'a literal leading U+FEFF (BOM character) on the candidate string does not break parsing (t/3901#2, TL)' {
+        # Get-Content -Raw strips a file's BOM, so this proves the function handles a
+        # literal BOM CHARACTER in the string itself (e.g. from `git show` of a BOM'd
+        # blob) -- PS7's ConvertFrom-Json otherwise rejects a leading U+FEFF outright.
+        $bomChar = [char]0xFEFF
+        $candidate = $bomChar + ('{ "nodes": [ ' + $script:BadNode + ' ] }')
+        $violations = Get-SituationBdiViolationsFromJson -BaselineJson '' -CandidateJson $candidate
+        $violations.id | Should -Contain 'sit-bad-1'
+    }
+
+    It 'a literal leading U+FEFF (BOM character) on the baseline string does not break parsing (t/3901#2, TL)' {
+        $bomChar = [char]0xFEFF
+        $baseline  = $bomChar + ('{ "nodes": [ ' + $script:CleanNode + ' ] }')
+        $candidate = script:New-SitJsonString -NodeJson @($script:CleanNode, $script:CleanNode2)
+        $violations = Get-SituationBdiViolationsFromJson -BaselineJson $baseline -CandidateJson $candidate
+        @($violations).Count | Should -Be 0
+    }
+
     It 'unparseable candidate JSON THROWS (not an empty pass)' {
         $baseline = script:New-SitJsonString -NodeJson @($script:CleanNode)
         { Get-SituationBdiViolationsFromJson -BaselineJson $baseline -CandidateJson '{ not valid json' } |

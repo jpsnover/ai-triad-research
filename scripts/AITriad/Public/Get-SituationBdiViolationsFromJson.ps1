@@ -130,6 +130,16 @@ function ConvertTo-SituationNodeArray {
 
     Set-StrictMode -Version Latest
 
+    # Strip a single leading U+FEFF (UTF-8 BOM carried through as a literal character,
+    # e.g. from Get-Content -Raw on a BOM'd file, or `git show` of a BOM'd blob) --
+    # PS7's ConvertFrom-Json (System.Text.Json underneath) rejects a leading BOM
+    # character outright (verified: "Unexpected character ... line 0, position 0"),
+    # so a BOM'd snapshot would otherwise throw here even though the JSON itself is
+    # well-formed (TL review, t/3901#2).
+    if ($Json.Length -gt 0 -and $Json[0] -eq [char]0xFEFF) {
+        $Json = $Json.Substring(1)
+    }
+
     try {
         $Data = $Json | ConvertFrom-Json
     }
