@@ -250,7 +250,7 @@ function Get-DataRepoHooksFacts {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$CodeRepoRoot,
-        [string[]]$ExpectedHooks = @('pre-commit')   # add 'commit-msg' once t/3851 commits it
+        [string[]]$ExpectedHooks = @('pre-commit', 'commit-msg')   # commit-msg committed 100755 by t/3851 (data de75ca34)
     )
     $cfgPath = Join-Path $CodeRepoRoot '.aitriad.json'
     $cfgText = if (Test-Path -LiteralPath $cfgPath) { Get-Content -Raw -LiteralPath $cfgPath } else { $null }

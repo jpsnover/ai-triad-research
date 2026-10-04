@@ -236,7 +236,7 @@ Write-Section 'Data-repo hook wiring (t/3869)'
 $Warnings      = [ordered]@{}
 $NotApplicable = [ordered]@{}
 . (Join-Path $RepoRoot 'operations/devops/DataRepoHooksVerdict.ps1')
-$hooksFacts = Get-DataRepoHooksFacts -CodeRepoRoot $RepoRoot -ExpectedHooks @('pre-commit')
+$hooksFacts = Get-DataRepoHooksFacts -CodeRepoRoot $RepoRoot -ExpectedHooks @('pre-commit', 'commit-msg')
 $hooksV = Get-DataRepoHooksVerdict -Resolution $hooksFacts.Resolution -PathExists $hooksFacts.PathExists `
     -IsGitRepo $hooksFacts.IsGitRepo -HooksPath $hooksFacts.HooksPath -Hooks $hooksFacts.Hooks
 $hooksLabel = "data-repo-hooks ($($hooksV.State))"
