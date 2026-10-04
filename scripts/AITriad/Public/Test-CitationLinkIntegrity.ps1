@@ -53,7 +53,9 @@ function Test-CitationLinkIntegrity {
               not delete) PASSES and is reported separately as `accepted`, not an offender. Any
               dangle NOT on that closed, explicit list is still an offender.
           (c) Staleness — source_index.json header inputHash == Get-SummariesInputHash over the
-              current summaries, AND the index key count == the live-node count.
+              current summaries, AND the index key SET == the live-node SET (t/3896 — a count-only
+              comparison misses a swap: dead keys reported as `dead-key`, missing keys as
+              `missing-key`).
 
         Advisory: failing legs emit a WARN with offender detail and set the returned .pass to
         $false, but the cmdlet NEVER throws on offenders. When $script:CitationIntegrityBlocking
@@ -206,7 +208,7 @@ function Test-CitationLinkIntegrity {
         }
     }
 
-    # ── Leg (c): staleness — header hash + key count vs live nodes ──────────────
+    # ── Leg (c): staleness — header hash + key SET vs live-node SET (t/3896) ──────────────
     $cOff = [System.Collections.Generic.List[object]]::new()
     if ($indexExists) {
         $liveCount = $beliefLive.Count
@@ -215,9 +217,12 @@ function Test-CitationLinkIntegrity {
         if ($stored -ne $recomputed) {
             $cOff.Add([pscustomobject]@{ kind = 'stale-hash'; stored = $stored; recomputed = $recomputed })
         }
-        $keyCount = @($ix.index.PSObject.Properties).Count
-        if ($keyCount -ne $liveCount) {
-            $cOff.Add([pscustomobject]@{ kind = 'key-count'; keys = $keyCount; liveNodes = $liveCount })
+        # t/3896 (CL predicate correction): compare the index key SET to the live-node SET, not
+        # just the count -- a swap (remove one POV node, add another) keeps counts equal while
+        # the index carries a dead key and is missing the new node's key. A count-only check
+        # passes exactly where leg (c) is meant to catch a regen that didn't happen or went wrong.
+        foreach ($off in (Compare-NodeSourceIndexKeySet -IndexObject $ix.index -LiveNodeIds $beliefLive)) {
+            $cOff.Add($off)
         }
     }
     else {

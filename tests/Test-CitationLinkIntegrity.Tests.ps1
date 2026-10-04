@@ -154,16 +154,53 @@ Describe 'Test-CitationLinkIntegrity (t/3598)' -Tag 'config' {
         @($c.offenders.kind) | Should -Contain 'stale-hash'
     }
 
-    It 'LEG C FAILS (key count) when the index key count != live-node count' {
+    It 'LEG C FAILS (missing-key) when a key is removed from the index but the node is still live (pure remove)' {
         $f = script:New-CliFixture; $script:Fixtures.Add($f.Fx)
-        # drop a key from the built index so keyCount(1) != liveNodes(2)
+        # drop a key from the built index — the live node still exists, so this is a missing-key,
+        # not a dead-key (t/3896: set comparison, not count).
         $ix = Get-Content -Raw -LiteralPath $f.Index | ConvertFrom-Json
         $ix.index.PSObject.Properties.Remove('acc-beliefs-010')
         Set-Content -LiteralPath $f.Index -Value ($ix | ConvertTo-Json -Depth 12) -Encoding utf8NoBOM
         $r = script:RunCli $f
         $c = script:Leg $r 'c'
         $c.pass | Should -BeFalse
-        @($c.offenders.kind) | Should -Contain 'key-count'
+        @($c.offenders.kind) | Should -Contain 'missing-key'
+        @($c.offenders.kind) | Should -Not -Contain 'dead-key'
+        (@($c.offenders) | Where-Object { $_.kind -eq 'missing-key' }).nodes | Should -Contain 'acc-beliefs-010'
+    }
+
+    It 'LEG C FAILS (dead-key) when the index carries an extra key for a non-live node (pure add of a stale key)' {
+        $f = script:New-CliFixture; $script:Fixtures.Add($f.Fx)
+        # add a key to the index for a node that doesn't exist live — keyCount(3) > liveNodes(2).
+        $ix = Get-Content -Raw -LiteralPath $f.Index | ConvertFrom-Json
+        $ix.index | Add-Member -NotePropertyName 'acc-beliefs-999' -NotePropertyValue @() -Force
+        Set-Content -LiteralPath $f.Index -Value ($ix | ConvertTo-Json -Depth 12) -Encoding utf8NoBOM
+        $r = script:RunCli $f
+        $c = script:Leg $r 'c'
+        $c.pass | Should -BeFalse
+        @($c.offenders.kind) | Should -Contain 'dead-key'
+        @($c.offenders.kind) | Should -Not -Contain 'missing-key'
+        (@($c.offenders) | Where-Object { $_.kind -eq 'dead-key' }).keys | Should -Contain 'acc-beliefs-999'
+    }
+
+    It 'LEG C FAILS with BOTH dead-key and missing-key on a swap (remove one key, add an unrelated one) -- same key count throughout (t/3896)' {
+        $f = script:New-CliFixture; $script:Fixtures.Add($f.Fx)
+        # Swap: remove acc-beliefs-010's key, add a key for a non-live node. keyCount stays 2 ==
+        # liveNodes(2) -- the old count-only check would have PASSED this; it must now FAIL both arms.
+        $ix = Get-Content -Raw -LiteralPath $f.Index | ConvertFrom-Json
+        $ix.index.PSObject.Properties.Remove('acc-beliefs-010')
+        $ix.index | Add-Member -NotePropertyName 'acc-beliefs-999' -NotePropertyValue @() -Force
+        Set-Content -LiteralPath $f.Index -Value ($ix | ConvertTo-Json -Depth 12) -Encoding utf8NoBOM
+        $r = script:RunCli $f
+        $c = script:Leg $r 'c'
+        $c.pass | Should -BeFalse
+        @($c.offenders.kind) | Should -Contain 'dead-key'
+        @($c.offenders.kind) | Should -Contain 'missing-key'
+        (@($c.offenders) | Where-Object { $_.kind -eq 'dead-key' }).keys | Should -Contain 'acc-beliefs-999'
+        (@($c.offenders) | Where-Object { $_.kind -eq 'missing-key' }).nodes | Should -Contain 'acc-beliefs-010'
+        # Prove the test's own premise (CL review note, p/23#472): the swap must actually leave
+        # keyCount == liveNodes, or this isn't exercising the count-equal blind spot at all.
+        (@($c.offenders) | Where-Object { $_.kind -eq 'dead-key' }).keyCount | Should -Be (@($c.offenders) | Where-Object { $_.kind -eq 'dead-key' }).liveNodes
     }
 
     It 'LEG B: accepted-baseline allowlist PASSES a known orphan while a NEW dangle still FAILS (t/3743)' {
