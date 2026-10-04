@@ -156,6 +156,27 @@ Describe 'Test-TaxonomyIntegrity -Repair audit' -Tag 'taxonomy' {
         }
     }
 
+    It 'defaults the audit dir under the repaired taxonomy dir, not the global data root, when -AuditDir is omitted (t/3885)' {
+        InModuleScope AITriad -Parameters @{ TempDir = $script:TempDir } {
+            param($TempDir)
+            Mock Get-TaxonomyDir { $TempDir }
+
+            # Real data root is NOT mocked here -- this proves the default audit
+            # write never reaches it, same as a real operator run would see.
+            $RealAuditDir = Join-Path (Get-DataRoot) 'audit' 'integrity-repair'
+            $Before = if (Test-Path $RealAuditDir) { @(Get-ChildItem -Path $RealAuditDir -Filter '*.json' -File).Name } else { @() }
+
+            Test-TaxonomyIntegrity -Repair -WarningAction SilentlyContinue | Out-Null
+
+            $After = if (Test-Path $RealAuditDir) { @(Get-ChildItem -Path $RealAuditDir -Filter '*.json' -File).Name } else { @() }
+            @($After) | Should -Be @($Before) -Because 'the real data root''s audit dir must gain zero files from a fixture repair'
+
+            $FixtureAuditDir = Join-Path $TempDir 'audit' 'integrity-repair'
+            $Files = @(Get-ChildItem -Path $FixtureAuditDir -Filter 'integrity-repair-*.json')
+            $Files.Count | Should -Be 1 -Because 'the audit must land under the repaired (fixture) taxonomy dir by default'
+        }
+    }
+
     Context '-Force threshold (N=20 edges, t/3853)' {
 
         BeforeEach {

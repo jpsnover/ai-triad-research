@@ -23,7 +23,9 @@ function Test-TaxonomyIntegrity {
         Every pruned reference and edge (full edge object, rationale included) is written to a
         durable audit file before any taxonomy file is modified, and summarised as a warning.
     .PARAMETER AuditDir
-        Directory for the -Repair audit file. Defaults to <data root>/audit/integrity-repair.
+        Directory for the -Repair audit file. Defaults to <taxonomy dir>/audit/integrity-repair
+        (t/3885 -- follows the taxonomy directory actually being repaired, not the global data
+        root, so repairing a test fixture never writes into the real data checkout).
     .PARAMETER Force
         Required when -Repair would prune more than 20 edges (dangling + self-loop combined)
         in one run. Without it, the edge-prune step is SKIPPED (edges.json is left untouched,
@@ -367,7 +369,10 @@ function Test-TaxonomyIntegrity {
         $RefCount  = $Audit.children.Count + $Audit.parent_ids.Count + $Audit.situation_refs.Count + $Audit.linked_nodes.Count
         $EdgeCount = $Audit.dangling_edges.Count + $Audit.self_loop_edges.Count
         if ($RefCount + $EdgeCount -gt 0) {
-            $ResolvedAuditDir = if ($AuditDir) { $AuditDir } else { Join-Path (Get-DataRoot) 'audit' 'integrity-repair' }
+            # t/3885: default follows the taxonomy dir actually being repaired ($TaxDir),
+            # not the global data root -- repairing a test fixture (Mock Get-TaxonomyDir)
+            # must not write its audit into the real ai-triad-data checkout.
+            $ResolvedAuditDir = if ($AuditDir) { $AuditDir } else { Join-Path $TaxDir 'audit' 'integrity-repair' }
             $Stamp = (Get-Date).ToUniversalTime()
             $AuditPath = Join-Path $ResolvedAuditDir "integrity-repair-$($Stamp.ToString('yyyyMMdd-HHmmss-fff')).json"
             $AuditDoc = [ordered]@{
