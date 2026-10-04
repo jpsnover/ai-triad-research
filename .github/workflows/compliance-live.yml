@@ -129,7 +129,11 @@ jobs:
       - name: Alarm — open/reopen the alarm on regression (OPEN authority, same issue as push)
         # Gate on the compliance STEP's failure, not job failure() (t/3671#8) — so a token/infra
         # failure (which skips the compliance step) does NOT manufacture a data-violation alarm.
-        if: steps.compliance.outcome == 'failure'
+        # `failure() &&` is REQUIRED: an `if:` with no status function gets an implicit success(),
+        # so after the compliance step fails this arm was SKIPPED -- the open arm could never fire
+        # (live: run 37118348887, compliance=failure, this step=skipped). failure() is true here
+        # only because a step failed; the outcome check still pins it to the COMPLIANCE step.
+        if: failure() && steps.compliance.outcome == 'failure'
         env:
           GH_TOKEN: ${{ secrets.AI_TRIAD_DATA_ALARM_TOKEN }}
           DATA_REPO: jpsnover/ai-triad-data
