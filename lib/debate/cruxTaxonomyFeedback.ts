@@ -3,6 +3,7 @@
 
 import type { CruxRegistry, CruxRegistryEntry } from './types.js';
 import type { SituationNode, PovNode, WeightHistoryEntry, BdiInterpretation } from './taxonomyTypes.js';
+import { validateBdiFields } from './taxonomyTypes.js';
 import { nowISO } from './helpers.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
@@ -71,7 +72,6 @@ export function buildDraftSituationNode(entry: CruxRegistryEntry): DraftSituatio
   };
 }
 
-const BDI_FIELDS = ['belief', 'desire', 'intention', 'summary'] as const;
 const POV_KEYS_BDI = ['accelerationist', 'safetyist', 'skeptic'] as const;
 
 export async function enrichDraftWithBDI(
@@ -88,10 +88,8 @@ export async function enrichDraftWithBDI(
     });
     const parsed = JSON.parse(text) as BdiInterpretations;
     for (const pov of POV_KEYS_BDI) {
-      const interp = parsed[pov];
-      if (!interp || BDI_FIELDS.some(f => typeof interp[f] !== 'string' || !interp[f])) {
-        throw new Error(`Missing or empty BDI field(s) for ${pov}`);
-      }
+      const reason = validateBdiFields(parsed[pov]);
+      if (reason) throw new Error(`BDI violation for ${pov}: ${reason}`);
     }
     draft.interpretations = parsed;
     return true;

@@ -22,7 +22,7 @@ import { execFileSync } from 'child_process';
 import { resolveRepoRoot, resolveDataRoot } from './taxonomyLoader.js';
 import { cosineSimilarity } from './taxonomyRelevance.js';
 import { isBdiInterpretation } from './taxonomyTypes.js';
-import type { SituationNode, Interpretation } from './taxonomyTypes.js';
+import type { SituationNode, RawInterpretation } from './taxonomyTypes.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Helpers ─────────────────────────────────────────────
@@ -68,7 +68,7 @@ function batchEncodeLocal(script: string, items: { id: string; text: string }[])
  * For BDI-decomposed: concatenates belief + desire + intention + summary.
  * For legacy string: uses the string directly.
  */
-function interpretationToEmbedText(interp: Interpretation): string {
+function interpretationToEmbedText(interp: RawInterpretation): string {
   if (isBdiInterpretation(interp)) {
     return [interp.belief, interp.desire, interp.intention, interp.summary]
       .filter(Boolean)

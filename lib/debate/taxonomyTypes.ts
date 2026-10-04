@@ -240,19 +240,60 @@ export interface BdiInterpretation {
   summary: string;
 }
 
-/** Interpretation is either a plain string (legacy) or BDI-decomposed object. */
-export type Interpretation = string | BdiInterpretation;
+/** Raw interpretation as stored on disk — either a legacy plain string or BDI-decomposed object. */
+export type RawInterpretation = string | BdiInterpretation;
+
+/** Strict interpretation type — BDI-decomposed only, for validated code paths. */
+export type Interpretation = BdiInterpretation;
 
 /** Extract the display text from an interpretation (handles both formats). */
-export function interpretationText(interp: Interpretation | undefined): string {
+export function interpretationText(interp: RawInterpretation | undefined): string {
   if (!interp) return '';
   if (typeof interp === 'string') return interp;
   return interp.summary;
 }
 
 /** Check if an interpretation is BDI-decomposed. */
-export function isBdiInterpretation(interp: Interpretation | undefined): interp is BdiInterpretation {
+export function isBdiInterpretation(interp: RawInterpretation | undefined): interp is BdiInterpretation {
   return typeof interp === 'object' && interp !== null && 'belief' in interp;
+}
+
+// Whole-value null sentinels (case-insensitive) — from t/3018.
+const NULL_SENTINELS = new Set(['null', 'none', 'n/a', 'tbd', '-']);
+
+/**
+ * Check a single interpretation value for BDI compliance — matches Test-SituationBdiCompliance exactly.
+ * Checks belief, desire, intention (not summary). Returns a violation reason string, or null if compliant.
+ */
+export function validateBdiFields(interp: unknown): string | null {
+  if (typeof interp !== 'object' || interp === null) return 'not-object';
+  const obj = interp as Record<string, unknown>;
+  for (const field of ['belief', 'desire', 'intention'] as const) {
+    const val = typeof obj[field] === 'string' ? (obj[field] as string).trim() : '';
+    if (!val || NULL_SENTINELS.has(val.toLowerCase())) {
+      return `${field}: blank or sentinel`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Validate a set of situation nodes for BDI compliance, matching PS Test-SituationBdiCompliance exactly.
+ * Nodes whose description starts with [DEPRECATED] (after trimming leading whitespace) are exempted.
+ * Returns an array of violations — empty means all nodes are compliant.
+ */
+export function findSituationBdiViolations(
+  nodes: SituationNode[],
+): Array<{ id: string; pov: string; reason: string }> {
+  const out: Array<{ id: string; pov: string; reason: string }> = [];
+  for (const node of nodes) {
+    if (node.description.trimStart().startsWith('[DEPRECATED]')) continue;
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const reason = validateBdiFields(node.interpretations[pov]);
+      if (reason) out.push({ id: node.id, pov, reason });
+    }
+  }
+  return out;
 }
 
 export interface SituationNode {
@@ -262,9 +303,9 @@ export interface SituationNode {
   parent_id?: string | null;
   parent_relationship?: ParentRelationship | null;
   interpretations: {
-    accelerationist: Interpretation;
-    safetyist: Interpretation;
-    skeptic: Interpretation;
+    accelerationist: RawInterpretation;
+    safetyist: RawInterpretation;
+    skeptic: RawInterpretation;
   };
   linked_nodes: string[];
   conflict_ids: string[];
