@@ -160,41 +160,17 @@ function Test-TaxonomyIntegrity {
     $EmbResult = Get-EmbeddingCoverageIssue -EmbPath $EmbPath -AllNodeIds $AllNodeIds -Registry $Registry
     if ($EmbResult.Passed) { $Passed++ } else { $Issues.Add($EmbResult.Issue) }
 
-    # ── Check 6: Dangling children ──
+    # ── Check 6: Dangling children ── t/3879 decomposition: Get-DanglingChildIssue
     $Checks++
-    $DanglingChildren = @()
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
-        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
-        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
-            if (-not $Node.PSObject.Properties['children'] -or $null -eq $Node.children) { continue }
-            foreach ($ChildId in @($Node.children)) {
-                if (-not $PovNodeIds.Contains($ChildId)) {
-                    $DanglingChildren += [PSCustomObject]@{ NodeId = $Node.id; ChildId = $ChildId; POV = $PovKey }
-                }
-            }
-        }
-    }
-    if ($DanglingChildren.Count -gt 0) {
-        $Detail = ($DanglingChildren | ForEach-Object { "$($_.NodeId) -> $($_.ChildId)" }) -join '; '
-        $Issues.Add([PSCustomObject]@{ Check = 'DanglingChild'; Severity = 'Error'; Count = $DanglingChildren.Count; Detail = "children ref non-existent nodes: $Detail" })
-    } else { $Passed++ }
+    $ChildResult = Get-DanglingChildIssue -LoadedFiles $LoadedFiles -PovNodeIds $PovNodeIds
+    $DanglingChildren = $ChildResult.DanglingChildren
+    if ($ChildResult.Passed) { $Passed++ } else { $Issues.Add($ChildResult.Issue) }
 
-    # ── Check 7: Dangling parent_id ──
+    # ── Check 7: Dangling parent_id ── t/3879 decomposition: Get-DanglingParentIssue
     $Checks++
-    $DanglingParents = @()
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
-        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
-        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
-            $ParentId = if ($Node.PSObject.Properties['parent_id']) { $Node.parent_id } else { $null }
-            if ($ParentId -and -not $PovNodeIds.Contains($ParentId)) {
-                $DanglingParents += [PSCustomObject]@{ NodeId = $Node.id; ParentId = $ParentId; POV = $PovKey }
-            }
-        }
-    }
-    if ($DanglingParents.Count -gt 0) {
-        $Detail = ($DanglingParents | ForEach-Object { "$($_.NodeId) -> $($_.ParentId)" }) -join '; '
-        $Issues.Add([PSCustomObject]@{ Check = 'DanglingParent'; Severity = 'Error'; Count = $DanglingParents.Count; Detail = "parent_id refs non-existent nodes: $Detail" })
-    } else { $Passed++ }
+    $ParentResult = Get-DanglingParentIssue -LoadedFiles $LoadedFiles -PovNodeIds $PovNodeIds
+    $DanglingParents = $ParentResult.DanglingParents
+    if ($ParentResult.Passed) { $Passed++ } else { $Issues.Add($ParentResult.Issue) }
 
     # ── Check 7b: Parent BDI category mismatch ──
     #$Checks++
@@ -230,46 +206,20 @@ function Test-TaxonomyIntegrity {
     #    $Issues.Add([PSCustomObject]@{ Check = 'ParentCategoryMismatch'; Severity = 'Warning'; Count = $CategoryMismatches.Count; Detail = "parent_id points to different BDI category: $Detail" })
     #} else { $Passed++ }
 
-    # ── Check 8: Dangling situation_refs ──
+    # ── Check 8: Dangling situation_refs ── t/3879 decomposition: Get-DanglingSitRefIssue
+    # $SitIds threaded back explicitly -- Check 10 reuses it (dangling situation_ref is
+    # Check 8's job, not a reciprocity asymmetry).
     $Checks++
-    $SitIds = [System.Collections.Generic.HashSet[string]]::new()
-    if ($LoadedFiles.ContainsKey('situations')) {
-        foreach ($N in $LoadedFiles['situations'].Data.nodes) { [void]$SitIds.Add($N.id) }
-    }
-    $DanglingSitRefs = @()
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
-        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
-        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
-            if (-not $Node.PSObject.Properties['situation_refs'] -or $null -eq $Node.situation_refs) { continue }
-            foreach ($Ref in @($Node.situation_refs)) {
-                if (-not $SitIds.Contains($Ref)) {
-                    $DanglingSitRefs += [PSCustomObject]@{ NodeId = $Node.id; SitRef = $Ref; POV = $PovKey }
-                }
-            }
-        }
-    }
-    if ($DanglingSitRefs.Count -gt 0) {
-        $Detail = ($DanglingSitRefs | ForEach-Object { "$($_.NodeId) -> $($_.SitRef)" }) -join '; '
-        $Issues.Add([PSCustomObject]@{ Check = 'DanglingSitRef'; Severity = 'Error'; Count = $DanglingSitRefs.Count; Detail = "situation_refs non-existent nodes: $Detail" })
-    } else { $Passed++ }
+    $SitRefResult = Get-DanglingSitRefIssue -LoadedFiles $LoadedFiles
+    $SitIds = $SitRefResult.SitIds
+    $DanglingSitRefs = $SitRefResult.DanglingSitRefs
+    if ($SitRefResult.Passed) { $Passed++ } else { $Issues.Add($SitRefResult.Issue) }
 
-    # ── Check 9: Dangling linked_nodes in situations ──
+    # ── Check 9: Dangling linked_nodes in situations ── t/3879 decomposition: Get-DanglingLinkedIssue
     $Checks++
-    $DanglingLinked = @()
-    if ($LoadedFiles.ContainsKey('situations')) {
-        foreach ($Node in $LoadedFiles['situations'].Data.nodes) {
-            if (-not $Node.PSObject.Properties['linked_nodes'] -or $null -eq $Node.linked_nodes) { continue }
-            foreach ($Linked in @($Node.linked_nodes)) {
-                if (-not $AllNodeIds.Contains($Linked)) {
-                    $DanglingLinked += [PSCustomObject]@{ NodeId = $Node.id; LinkedId = $Linked }
-                }
-            }
-        }
-    }
-    if ($DanglingLinked.Count -gt 0) {
-        $Detail = ($DanglingLinked | ForEach-Object { "$($_.NodeId) -> $($_.LinkedId)" }) -join '; '
-        $Issues.Add([PSCustomObject]@{ Check = 'DanglingLinked'; Severity = 'Warning'; Count = $DanglingLinked.Count; Detail = "linked_nodes ref non-existent nodes: $Detail" })
-    } else { $Passed++ }
+    $LinkedResult = Get-DanglingLinkedIssue -LoadedFiles $LoadedFiles -AllNodeIds $AllNodeIds
+    $DanglingLinked = $LinkedResult.DanglingLinked
+    if ($LinkedResult.Passed) { $Passed++ } else { $Issues.Add($LinkedResult.Issue) }
 
     # ── Check 10: Situation <-> POV-node reciprocity (t/2979) ──
     # linked_nodes (situation -> POV node) and situation_refs (POV node -> situation) must be
