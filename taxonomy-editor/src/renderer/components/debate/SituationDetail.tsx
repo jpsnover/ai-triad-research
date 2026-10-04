@@ -7,6 +7,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../../types/taxonomy';
 import { interpretationText } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import type { SituationNodeUpdate } from '../../hooks/useTaxonomyStore/slices/taxonomyDataSlice';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { countDanglingReferences, formatDanglingWarning } from '../../utils/danglingReferences';
 import { useLongPressContextMenu } from '../../hooks/useLongPressContextMenu';
@@ -50,8 +51,9 @@ function isPovTab(tab: SitTab): tab is SitPov {
 }
 
 type ErrFn = (field: string) => string | undefined;
-type UpdateFn = (updates: Partial<SituationNode>) => void;
-type UpdateSituationNodeFn = (id: string, updates: Partial<SituationNode>) => void;
+// t/3888: the store's strict write-API type — interpretations can only be written as BDI objects.
+type UpdateFn = (updates: SituationNodeUpdate) => void;
+type UpdateSituationNodeFn = (id: string, updates: SituationNodeUpdate) => void;
 
 const SIT_TABS: { id: SitTab; label: string; color: string }[] = [
   { id: 'overview', label: 'Overview', color: 'var(--text-primary)' },
@@ -458,7 +460,6 @@ interface SitPovTabProps {
   setEditing: (v: boolean) => void;
   err: ErrFn;
   update: UpdateFn;
-  updateInterpretation: (pov: SitPov, value: string) => void;
   allPovIds: string[];
   addLinked: (id: string) => void;
   removeLinked: (id: string) => void;
@@ -467,7 +468,7 @@ interface SitPovTabProps {
 
 /** POV tab (accelerationist/safetyist/skeptic): interpretation editor + supporting evidence. */
 function SitPovTab({
-  node, activeTab, readOnly, editing, setEditing, err, update, updateInterpretation,
+  node, activeTab, readOnly, editing, setEditing, err, update,
   allPovIds, addLinked, removeLinked, chipDepth,
 }: SitPovTabProps) {
   // Filter linked nodes by POV prefix for the supporting evidence sidebar
@@ -496,13 +497,10 @@ function SitPovTab({
                 </div>
               );
             }
+            // t/3888: patch only this POV — the store merges per POV, and spreading every POV
+            // would also re-write any untouched legacy (flat) POV through the strict type.
             const updateBdiField = (field: 'summary' | 'belief' | 'desire' | 'intention', value: string) => {
-              update({
-                interpretations: {
-                  ...node.interpretations,
-                  [activeTab]: { ...bdi, [field]: value },
-                },
-              });
+              update({ interpretations: { [activeTab]: { ...bdi, [field]: value } } });
             };
             const bdiFields: { key: 'summary' | 'belief' | 'desire' | 'intention'; label: string }[] = [
               { key: 'summary', label: 'Summary' },
@@ -512,6 +510,8 @@ function SitPovTab({
             ];
             return (
               <>
+                {/* t/3888: the save gate's refusal for this POV (names the empty fields). */}
+                {err(`interpretations.${activeTab}`) && <div className="error-text">{err(`interpretations.${activeTab}`)}</div>}
                 {!editing && (
                   <div className="situation-detail-bdi-view">
                     {bdiFields.map(({ key, label }) => (
@@ -570,17 +570,12 @@ function SitPovTab({
               </>
             );
           }
-          // Legacy plain-string interpretation
-          if (readOnly) {
-            return <div className="sit-pov-text">{interpretationText(interp)}</div>;
-          }
+          // Legacy flat (non-BDI) interpretation: read-only (t/3888). The free-text editor that
+          // used to be here wrote flat prose back to disk — the source of five hand backfills.
           return (
             <div className={`form-group ${err(`interpretations.${activeTab}`) ? 'has-error' : ''}`}>
-              <HighlightedTextarea
-                value={interpretationText(interp)}
-                onChange={(v) => updateInterpretation(activeTab, v)}
-                rows={8}
-              />
+              <div className="sit-pov-text">{interpretationText(interp)}</div>
+              <div className="sit-legacy-note">Not broken into belief, desire and intention — read-only.</div>
               {err(`interpretations.${activeTab}`) && <div className="error-text">{err(`interpretations.${activeTab}`)}</div>}
             </div>
           );
@@ -676,15 +671,9 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
     }
   }, [hasErrors]);
 
-  const update = (updates: Partial<SituationNode>) => {
+  const update = (updates: SituationNodeUpdate) => {
     if (readOnly) return;
     updateSituationNode(node.id, updates);
-  };
-
-  const updateInterpretation = (pov: 'accelerationist' | 'safetyist' | 'skeptic', value: string) => {
-    update({
-      interpretations: { ...node.interpretations, [pov]: value },
-    });
   };
 
   const addLinked = (id: string) => {
@@ -803,7 +792,6 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
             setEditing={setEditing}
             err={err}
             update={update}
-            updateInterpretation={updateInterpretation}
             allPovIds={allPovIds}
             addLinked={addLinked}
             removeLinked={removeLinked}
