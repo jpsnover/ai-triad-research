@@ -167,58 +167,11 @@ function Update-JsonNodePath {
             -Fail $fail -CurStart $curStart -CurEnd $curEnd -DeferVerify:$DeferVerify
     }
 
-    for ($k = 0; $k -lt $Path.Count; $k++) {
-        $seg = $Path[$k]
-        $curChar = $RawText[$curStart]
-        if ($seg -is [int]) {
-            if ($curChar -ne '[') { & $fail "segment [$seg] expects an array but the container at that level is not an array" @('Check the path matches the document shape') }
-            $vStart = Find-JsonArrayElementStart -Text $RawText -ArrStart $curStart -ArrEnd $curEnd -Index $seg
-            if ($vStart -lt 0) { & $fail "array index [$seg] is out of range (path-not-found)" @('Verify the index exists; no insert-at-depth in this phase (t/2921 Q2)') }
-        }
-        else {
-            if ($curChar -ne '{') { & $fail "segment '$seg' expects an object but the container at that level is not an object" @('Check the path matches the document shape') }
-            $vStart = Find-JsonMemberValueStart -Text $RawText -ObjStart $curStart -ObjEnd $curEnd -Key ([string]$seg)
-            if ($vStart -lt 0) {
-                if (-not $Upsert) { & $fail "key '$seg' not found at this level (path-not-found)" @('Verify the key exists, or pass -Upsert to create it') }
-                # ── INSERT (t/3438, -Upsert): create Path[k..last] as nested OBJECT containers wrapping the
-                #    scalar leaf, spliced into THIS object. Remaining segments MUST be string keys — a
-                #    remaining array index fails closed (container-key create is object-only, TL cond 1).
-                for ($m = $k; $m -lt $Path.Count; $m++) {
-                    if ($Path[$m] -is [int]) { & $fail "cannot -Upsert: remaining segment [$($Path[$m])] is an array index; container-key create is object-only" @('Insert only creates missing OBJECT containers + the scalar leaf') }
-                }
-                # Member value = remaining segments after k nested around the leaf.
-                $insVal = $Value
-                for ($m = $Path.Count - 1; $m -gt $k; $m--) { $insVal = [ordered]@{ ([string]$Path[$m]) = $insVal } }
-                $memberJson = ([ordered]@{ ([string]$seg) = $insVal } | ConvertTo-Json -Depth 100 -Compress)
-                $memberText = $memberJson.Substring(1, $memberJson.Length - 2)   # strip the outer { }
-                # Splice into the current object: empty {} → no comma; non-empty → prepend member + comma.
-                $inner = $RawText.Substring($curStart + 1, $curEnd - $curStart - 1)
-                if ([string]::IsNullOrWhiteSpace($inner)) {
-                    $patched = $RawText.Substring(0, $curStart + 1) + $memberText + $RawText.Substring($curEnd)
-                }
-                else {
-                    $patched = $RawText.Substring(0, $curStart + 1) + $memberText + ',' + $RawText.Substring($curStart + 1)
-                }
-                if ($DeferVerify) { return $patched }   # caller verifies the whole batch once
-                # Re-parse-VERIFY with an expected baseline that creates the SAME structure (safety net).
-                try { $actual = $patched | ConvertFrom-Json } catch { & $fail "patched text is not valid JSON — writing nothing: $($_.Exception.Message)" @('Splice produced invalid JSON; -Upsert insert bug') }
-                $expected = $RawText | ConvertFrom-Json
-                $expNode = @($expected.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $NodeId })[0]
-                $curBase = $expNode
-                for ($m = 0; $m -lt $k; $m++) { if ($Path[$m] -is [int]) { $curBase = $curBase[$Path[$m]] } else { $curBase = $curBase.($Path[$m]) } }
-                $bv = $Value
-                for ($m = $Path.Count - 1; $m -gt $k; $m--) { $bv = [pscustomobject]@{ ([string]$Path[$m]) = $bv } }
-                $curBase | Add-Member -NotePropertyName ([string]$seg) -NotePropertyValue $bv -Force
-                if (-not (Test-JsonSemanticEqual -A $expected -B $actual)) {
-                    & $fail "re-parse-verify FAILED: the -Upsert splice changed more than the intended path '$pathDisplay' on '$NodeId' — writing nothing" @('Splice bug; the guard refused a corrupting write')
-                }
-                return $patched
-            }
-        }
-        $vSpan = Get-JsonValueSpan -Text $RawText -Start $vStart
-        if ($null -eq $vSpan) { & $fail "could not span-scan the value at segment '$seg'" @('Report with the input file + path') }
-        $curStart = $vSpan.Start; $curEnd = $vSpan.End
-    }
+    # t/3878 decomposition: Resolve-JsonNodePathTarget (extracted verbatim, no behavior change).
+    $target = Resolve-JsonNodePathTarget -RawText $RawText -NodeId $NodeId -Path $Path -PathDisplay $pathDisplay `
+        -Value $Value -Upsert:$Upsert -Fail $fail -CurStart $curStart -CurEnd $curEnd -DeferVerify:$DeferVerify
+    if ($target.Handled) { return $target.Patched }
+    $curStart = $target.Start; $curEnd = $target.End
 
     # --- Target must be a SCALAR (in-place scalar replacement only, t/2921 Q2) ---
     $targetChar = $RawText[$curStart]
