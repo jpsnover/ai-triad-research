@@ -154,30 +154,11 @@ function Test-TaxonomyIntegrity {
     $Passed += $EdgeResult.Passed
     foreach ($EdgeIssue in $EdgeResult.Issues) { $Issues.Add($EdgeIssue) }
 
-    # ── Check 5: Embedding coverage ──
+    # ── Check 5: Embedding coverage ── t/3879 decomposition: Get-EmbeddingCoverageIssue
     $Checks++
     $EmbPath = Join-Path $TaxDir 'embeddings.json'
-    $MissingEmb = 0
-    if (Test-Path $EmbPath) {
-        $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
-        $EmbIds = [System.Collections.Generic.HashSet[string]]::new()
-        foreach ($Prop in $EmbData.nodes.PSObject.Properties) { [void]$EmbIds.Add($Prop.Name) }
-
-        foreach ($Nid in $AllNodeIds) {
-            if (-not $EmbIds.Contains($Nid)) { $MissingEmb++ }
-        }
-        if ($Registry) {
-            foreach ($Pol in $Registry.policies) {
-                if (-not $EmbIds.Contains($Pol.id)) { $MissingEmb++ }
-            }
-        }
-    }
-    else {
-        $MissingEmb = $AllNodeIds.Count
-    }
-    if ($MissingEmb -gt 0) {
-        $Issues.Add([PSCustomObject]@{ Check = 'Embeddings'; Severity = 'Warning'; Count = $MissingEmb; Detail = "$MissingEmb nodes/policies missing embeddings" })
-    } else { $Passed++ }
+    $EmbResult = Get-EmbeddingCoverageIssue -EmbPath $EmbPath -AllNodeIds $AllNodeIds -Registry $Registry
+    if ($EmbResult.Passed) { $Passed++ } else { $Issues.Add($EmbResult.Issue) }
 
     # ── Check 6: Dangling children ──
     $Checks++
