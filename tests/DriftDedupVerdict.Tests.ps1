@@ -110,3 +110,26 @@ Describe 'Get-ShouldPing' {
         Get-ShouldPing -Alarm $true -CurrentFingerprint 'same' -StoredFingerprint 'same' -StoredStateValid $false | Should -BeTrue
     }
 }
+
+Describe 'Get-DriftFingerprintComposite (t/3880)' {
+    It 'is the exact preimage of Get-DriftFingerprint (hash unchanged by the split)' {
+        $a = @{ ReasonCategory = 'diverged'; StrandedBranches = @('b2', 'b1'); SuspiciousPaths = @('x') }
+        $composite = Get-DriftFingerprintComposite @a
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        $expected = -join ($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($composite)) | ForEach-Object { $_.ToString('x2') })
+        $sha.Dispose()
+        Get-DriftFingerprint @a | Should -Be $expected
+    }
+    It 'names the input that changed, so telemetry can say WHY a parked condition re-pinged' {
+        $before = Get-DriftFingerprintComposite -ReasonCategory 'diverged' -StrandedBranches @('b1')
+        $after  = Get-DriftFingerprintComposite -ReasonCategory 'diverged' -StrandedBranches @('b1', 'b2')
+        $changed = @(Compare-Object ($before -split "`n") ($after -split "`n") | ForEach-Object { $_.InputObject })
+        $changed | Should -Contain 'stranded=[b1,b2]'
+        @($changed | Where-Object { $_ -notlike 'stranded=*' }).Count | Should -Be 0
+    }
+    It 'has no behind-count input: a diverged tree that only falls further behind keeps its fingerprint' {
+        # The original t/3880 hypothesis (BehindCount churn) is structurally impossible; pin it.
+        (Get-Command Get-DriftFingerprint).Parameters.Keys | Should -Not -Contain 'Behind'
+        (Get-Command Get-DriftFingerprint).Parameters.Keys | Should -Not -Contain 'BehindCount'
+    }
+}

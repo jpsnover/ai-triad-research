@@ -75,10 +75,13 @@ function Get-DriftReasonCategory {
     return 'none'
 }
 
-function Get-DriftFingerprint {
+function Get-DriftFingerprintComposite {
     <#
     .SYNOPSIS
-        Pure: deterministic fingerprint of the FULL alarm-contributing state (not just the
+        Pure: the human-readable composite that Get-DriftFingerprint hashes. Exposed separately so
+        telemetry can record WHICH input changed when the fingerprint changes (t/3880: a parked
+        DIVERGED tree re-pinged hourly and the hash-only telemetry could not say why).
+        Deterministic fingerprint input for the FULL alarm-contributing state (not just the
         TL-named "dirty-tracked-set" — every category check-shared-drift.ps1 can alarm on is
         folded in, since any of them changing should re-fire just as much as a dirty-file flip).
     .DESCRIPTION
@@ -90,10 +93,10 @@ function Get-DriftFingerprint {
         junk file's content IS its classification; a path appearing/disappearing IS the signal),
         so the path alone is sufficient for those -- the content-state requirement is specific to
         tracked dirty files, which is where "WIP silently swapped for something dangerous" lives.
-        SHA-256 the composite, return lowercase hex (not security-sensitive; collision-resistance
-        for determinism, matching Get-SummariesInputHash's conventions elsewhere in this repo).
+        Get-DriftFingerprint SHA-256s this (not security-sensitive; collision-resistance for
+        determinism, matching Get-SummariesInputHash's conventions elsewhere in this repo).
     .OUTPUTS
-        [string] 64-char lowercase hex sha256.
+        [string] newline-joined "key=[values]" lines.
     #>
     param(
         [string]$ReasonCategory = 'none',
@@ -135,7 +138,27 @@ function Get-DriftFingerprint {
         "stranded=[$([string]::Join(',', @(& $sortedSet $StrandedBranches)))]",
         "strandedStatus=$StrandedBranchesStatus"
     )
-    $composite = [string]::Join("`n", $parts)
+    [string]::Join("`n", $parts)
+}
+
+function Get-DriftFingerprint {
+    <#
+    .SYNOPSIS
+        Pure: SHA-256 (lowercase hex) of Get-DriftFingerprintComposite. Same parameters.
+    .OUTPUTS
+        [string] 64-char lowercase hex sha256.
+    #>
+    param(
+        [string]$ReasonCategory = 'none',
+        [PSCustomObject[]]$DirtyFileStates = @(),
+        [string[]]$JunkPaths = @(),
+        [string[]]$SuspiciousPaths = @(),
+        [string[]]$ShellFragmentPaths = @(),
+        [string[]]$NestedWorktrees = @(),
+        [string[]]$StrandedBranches = @(),
+        [string]$StrandedBranchesStatus = 'OK'
+    )
+    $composite = Get-DriftFingerprintComposite @PSBoundParameters
 
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try {
