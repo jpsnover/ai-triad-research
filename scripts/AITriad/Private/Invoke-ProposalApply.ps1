@@ -63,18 +63,17 @@ function Invoke-ProposalApply {
             }
 
             if ($IsCrossCutting) {
-                $NewNode = [ordered]@{
-                    id              = $Proposal.suggested_id
-                    label           = $Proposal.label
-                    description     = $Proposal.description
-                    interpretations = [ordered]@{
-                        accelerationist = ''
-                        safetyist       = ''
-                        skeptic         = ''
-                    }
-                    linked_nodes    = @()
-                    conflict_ids    = @()
+                # t/2332 gate + t/3887 shared creator — FAIL-CLOSED (TL t/2332#4): on
+                # persistent enrichment failure, skip this single proposal (additive)
+                # rather than commit an empty-interpretation node. The scheduled
+                # trip-wire (t/3671) is a backstop, not the primary guard.
+                try {
+                    $NodeObj = New-SituationNode -Id $Proposal.suggested_id -Label $Proposal.label -Description $Proposal.description
                 }
+                catch {
+                    return [PSCustomObject]@{ Success = $false; Error = $_.Exception.Message }
+                }
+                $HistoryFields = @('label', 'description', 'interpretations', 'linked_nodes', 'conflict_ids')
             } else {
                 $NewNode = [ordered]@{
                     id                 = $Proposal.suggested_id
@@ -85,10 +84,11 @@ function Invoke-ProposalApply {
                     children           = @()
                     situation_refs = @()
                 }
+                $NodeObj = [PSCustomObject]$NewNode
+                $HistoryFields = @($NewNode.Keys | Where-Object { $_ -ne 'id' })
             }
 
-            $NodeObj = [PSCustomObject]$NewNode
-            Add-ChangeHistoryEntry -Node $NodeObj -Action 'created' -Fields @($NewNode.Keys | Where-Object { $_ -ne 'id' })
+            Add-ChangeHistoryEntry -Node $NodeObj -Action 'created' -Fields $HistoryFields
             Add-TextHistoryEntry -Node $NodeObj -Field 'label' -Value $Proposal.label -Source 'initial'
             if ($Proposal.description) {
                 Add-TextHistoryEntry -Node $NodeObj -Field 'description' -Value $Proposal.description -Source 'initial'
@@ -97,21 +97,6 @@ function Invoke-ProposalApply {
             # skips situations/pillars and returns without mutating on AI failure).
             Set-NodeAphorism -Node $NodeObj -Pov $Proposal.pov -Reason 'proposal-NEW'
 
-            # t/2332 — write-time BDI-decomposition enforcement for new situations.
-            # A cross-cutting node is minted with empty interpretations above; decompose
-            # it into per-POV BDI at creation so a non-compliant situation is never
-            # committed (the sit-471..475 / t/2323 regression). FAIL-CLOSED (TL t/2332#4):
-            # on persistent enrichment failure, skip this single proposal (additive) rather
-            # than commit an empty-interpretation node. The scheduled trip-wire is a
-            # backstop, not the primary guard.
-            if ($IsCrossCutting) {
-                try {
-                    Set-SituationBdiInterpretation -Node $NodeObj
-                }
-                catch {
-                    return [PSCustomObject]@{ Success = $false; Error = $_.Exception.Message }
-                }
-            }
             $Raw.nodes += $NodeObj
         }
 

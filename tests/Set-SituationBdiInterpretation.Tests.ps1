@@ -122,20 +122,37 @@ Describe 'Set-SituationBdiInterpretation — fail-closed paths (t/2332)' -Tag 't
         }
     }
 
-    It 'Throws on an incomplete decomposition (a POV missing intention)' {
+    It 'Throws when a POV block is entirely missing from the response' {
+        $node = New-FixtureSituationNode
+        $missingPov = @'
+{
+  "accelerationist": { "belief": "b", "desire": "d", "intention": "i", "summary": "s" },
+  "skeptic":         { "belief": "b", "desire": "d", "intention": "i", "summary": "s" }
+}
+'@
+        InModuleScope AITriad -Parameters @{ Node = $node; MissingPov = $missingPov } {
+            param($Node, $MissingPov)
+            Mock Invoke-AIByUsage { [pscustomobject]@{ Text = $MissingPov } }
+            { Set-SituationBdiInterpretation -Node $Node } | Should -Throw -ExpectedMessage "*missing the 'safetyist' POV*"
+        }
+    }
+
+    It 'Does NOT throw on an empty/sentinel belief-desire-intention (t/3887, TL review condition 3) -- that completeness check moved to New-SituationNode + Test-SituationBdiDecomposition' {
         $node = New-FixtureSituationNode
         $partial = @'
 {
-  "accelerationist": { "belief": "b", "desire": "d", "intention": "i", "summary": "s" },
-  "safetyist":       { "belief": "b", "desire": "d", "intention": "",  "summary": "s" },
-  "skeptic":         { "belief": "b", "desire": "d", "intention": "i", "summary": "s" }
+  "accelerationist": { "belief": "b", "desire": "d", "intention": "i",   "summary": "s" },
+  "safetyist":       { "belief": "b", "desire": "d", "intention": "",    "summary": "s" },
+  "skeptic":         { "belief": "b", "desire": "d", "intention": "N/A", "summary": "s" }
 }
 '@
         InModuleScope AITriad -Parameters @{ Node = $node; Partial = $partial } {
             param($Node, $Partial)
             Mock Invoke-AIByUsage { [pscustomobject]@{ Text = $Partial } }
-            { Set-SituationBdiInterpretation -Node $Node } | Should -Throw
+            { Set-SituationBdiInterpretation -Node $Node } | Should -Not -Throw
         }
+        $node.interpretations.safetyist.intention | Should -Be ''
+        $node.interpretations.skeptic.intention   | Should -Be 'N/A'
     }
 }
 

@@ -95,8 +95,13 @@ function Set-SituationBdiInterpretation {
         & $fail "AI response was not valid JSON: $($_.Exception.Message)"
     }
 
-    # Validate + build the compliant interpretations block. Every POV must carry a
-    # non-empty belief + desire + intention (the exact predicate the gate enforces).
+    # Build the interpretations block. This only checks each POV block is PRESENT
+    # (t/3887, TL review condition 3): a Trim()-empty check here would miss
+    # non-empty-but-meaningless sentinel values ("N/A", "none", "tbd", "-") --
+    # those require the whole-value, case-insensitive sentinel match that only
+    # Test-SituationBdiDecomposition (the compliance classifier, t/3018) carries.
+    # New-SituationNode runs that classifier against the result and fails closed;
+    # do not re-add a belief/desire/intention completeness check here.
     $newInterps = [ordered]@{}
     foreach ($pov in 'accelerationist', 'safetyist', 'skeptic') {
         if (-not $bdi.PSObject.Properties[$pov] -or -not $bdi.$pov) {
@@ -107,9 +112,6 @@ function Set-SituationBdiInterpretation {
         $desire    = if ($p.PSObject.Properties['desire'])    { [string]$p.desire }    else { '' }
         $intention = if ($p.PSObject.Properties['intention']) { [string]$p.intention } else { '' }
         $summary   = if ($p.PSObject.Properties['summary'])   { [string]$p.summary }   else { '' }
-        if (-not $belief.Trim() -or -not $desire.Trim() -or -not $intention.Trim()) {
-            & $fail "POV '$pov' is missing a non-empty belief, desire, or intention."
-        }
         $newInterps[$pov] = [pscustomobject][ordered]@{
             belief    = $belief
             desire    = $desire
