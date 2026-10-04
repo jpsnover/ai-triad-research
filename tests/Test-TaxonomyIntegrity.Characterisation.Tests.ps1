@@ -26,6 +26,22 @@
     (they all pass -Repair). One dedicated test confirms this explicitly across multiple
     defect types at once.
 
+    OUT OF SCOPE: console (Write-Host) output. Every assertion in this file reads -PassThru's
+    Details[] (Check/Severity/Count/Detail); none inspect what the function prints to the
+    host. That is deliberate, not an oversight -- Write-Host text is not a stable contract
+    (free-form strings, ForegroundColor-only distinctions, no structured shape), and pinning
+    it would make this suite brittle against the decomposition's cosmetic refactors rather
+    than its behavior. If console output ever needs characterising, that is a separate,
+    explicitly-scoped suite, not an extension of this one.
+
+    MUTATION-TESTED (t/3879, TL ruling p/360#503): this suite proves it catches a changed
+    FUNCTION, not just defective data. 6 one-at-a-time mutations to Test-TaxonomyIntegrity.ps1
+    -- a severity flip, an off-by-one issue count, a disabled check, a swapped reciprocity
+    direction, a dropped -Repair guard (report-only mode would then write), and an inverted
+    registry-resolution condition -- each independently turned at least one of the 38 tests
+    (this file + the four existing Test-TaxonomyIntegrity.*.Tests.ps1 files) red, with zero
+    survivors. Full mutation -> failing-test table: t/3879#4.
+
     GOTCHA (found writing this file, cost a long debugging detour): a Pester v6 block title
     (Describe/Context/It) containing the literal substring "<->" makes the WHOLE block fail
     with "InvalidOperationException: A 'break' or 'continue' statement with a label that does
