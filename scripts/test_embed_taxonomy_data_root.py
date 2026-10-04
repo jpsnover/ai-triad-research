@@ -3,11 +3,17 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-"""Regression tests for t/3898: embed_taxonomy.py's data-root resolution must
-honour AI_TRIAD_DATA_ROOT first, matching Get-DataRoot (PS)'s documented
-priority (root AGENTS.md, Two-Repo Split): env var > .aitriad.json > fallback.
+"""Regression tests for embed_taxonomy.py's data-root resolution:
 
-Pure — no model encode — so both arms run fast under pytest or standalone:
+- t/3898: must honour AI_TRIAD_DATA_ROOT first, matching Get-DataRoot (PS)'s
+  documented priority (root AGENTS.md, Two-Repo Split): env var > .aitriad.json
+  > fallback.
+- t/3899: a relative data_root in .aitriad.json must anchor at the true
+  main-checkout root (git-common-dir), not the immediate checkout dir -- so it
+  resolves correctly from inside a nested worktree (.worktrees/<x>), matching
+  Get-WorktreeMainRoot (PS, t/3869).
+
+Pure — no model encode — so all arms run fast under pytest or standalone:
 `python test_embed_taxonomy_data_root.py`.
 """
 
@@ -118,6 +124,120 @@ def test_taxonomy_dir_override_still_wins_over_env_var():
         _restore_state(saved)
 
 
+def _run_git(args, cwd):
+    result = subprocess.run(["git"] + args, cwd=str(cwd), capture_output=True, text=True)
+    assert result.returncode == 0, f"git {args} failed: {result.stderr}"
+    return result
+
+
+def _init_main_repo(path):
+    path.mkdir(parents=True, exist_ok=True)
+    _run_git(["init"], cwd=path)
+    _run_git(["config", "user.email", "test@test.invalid"], cwd=path)
+    _run_git(["config", "user.name", "test"], cwd=path)
+
+
+def test_worktree_anchor_resolves_nested_worktree_to_main_root():
+    """ARM 1 (t/3899): from a NESTED worktree (.worktrees/<x>), the git-common-dir
+    resolver must return the MAIN checkout's root, not the worktree's own dir."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        main_repo = tmp_path / "main-repo"
+        _init_main_repo(main_repo)
+        (main_repo / "placeholder.txt").write_text("x")
+        _run_git(["add", "-A"], cwd=main_repo)
+        _run_git(["commit", "-m", "init"], cwd=main_repo)
+
+        nested_wt = main_repo / ".worktrees" / "wt-x"
+        _run_git(["worktree", "add", str(nested_wt)], cwd=main_repo)
+
+        resolved = embed_taxonomy._resolve_worktree_main_root(nested_wt)
+        assert resolved == main_repo.resolve(), f"expected main-repo root, got {resolved}"
+
+
+def test_worktree_anchor_non_git_dir_returns_none():
+    """ARM 2: an ordinary (non-git) directory resolves to None, so callers fall back."""
+    with tempfile.TemporaryDirectory() as tmp:
+        plain_dir = Path(tmp) / "not-a-repo"
+        plain_dir.mkdir()
+        resolved = embed_taxonomy._resolve_worktree_main_root(plain_dir)
+        assert resolved is None
+
+
+def test_nested_worktree_data_root_anchors_at_main_repo_not_worktree():
+    """THE core t/3899 fix: from a NESTED worktree, a sibling-relative data_root in
+    .aitriad.json must anchor at the main-repo root, not the worktree's own dir --
+    pre-fix this resolved to "<nested-worktree>/../ai-triad-data", which doesn't exist."""
+    saved = _save_state()
+    saved_script_dir = embed_taxonomy._SCRIPT_DIR
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            main_repo = tmp_path / "main-repo"
+            _init_main_repo(main_repo)
+            (main_repo / ".aitriad.json").write_text(json.dumps({"data_root": "../ai-triad-data"}))
+            _run_git(["add", "-A"], cwd=main_repo)
+            _run_git(["commit", "-m", "init"], cwd=main_repo)
+
+            sibling_data_dir = tmp_path / "ai-triad-data"
+            sibling_data_dir.mkdir()
+
+            nested_wt = main_repo / ".worktrees" / "wt-x"
+            _run_git(["worktree", "add", str(nested_wt)], cwd=main_repo)
+
+            os.environ.pop(_SAVED_ENV_KEY, None)
+            # Simulate scripts/ living inside the nested worktree.
+            embed_taxonomy._SCRIPT_DIR = nested_wt / "scripts"
+            resolved, cfg = embed_taxonomy._resolve_data_root()
+            assert resolved == sibling_data_dir.resolve(), (
+                f"expected anchor at the main repo's sibling ({sibling_data_dir}), "
+                f"got {resolved} -- anchored one level too deep at the nested worktree"
+            )
+    finally:
+        embed_taxonomy._SCRIPT_DIR = saved_script_dir
+        _restore_state(saved)
+
+
+def test_parity_with_get_worktreemainroot_ps():
+    """PARITY: Python's git-common-dir resolver must match Get-WorktreeMainRoot (PS)
+    exactly, for the identical nested-worktree input. Dot-sources the standalone
+    cmdlet file directly (it is deliberately zero-module-scope-dependency, per its
+    own docstring), so this doesn't need a full AITriad module import.
+    Skipped (not failed) if pwsh isn't on PATH.
+    """
+    pwsh = shutil.which("pwsh")
+    if not pwsh:
+        print("SKIP: pwsh not found on PATH -- parity check not run")
+        return
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        main_repo = tmp_path / "main-repo"
+        _init_main_repo(main_repo)
+        (main_repo / "placeholder.txt").write_text("x")
+        _run_git(["add", "-A"], cwd=main_repo)
+        _run_git(["commit", "-m", "init"], cwd=main_repo)
+
+        nested_wt = main_repo / ".worktrees" / "wt-x"
+        _run_git(["worktree", "add", str(nested_wt)], cwd=main_repo)
+
+        py_root = embed_taxonomy._resolve_worktree_main_root(nested_wt)
+
+        cmdlet_path = embed_taxonomy._SCRIPT_DIR / "AITriad" / "Public" / "Get-WorktreeMainRoot.ps1"
+        ps_cmd = f". '{cmdlet_path}'; Get-WorktreeMainRoot -Path '{nested_wt}'"
+        result = subprocess.run(
+            [pwsh, "-NoProfile", "-Command", ps_cmd],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, f"pwsh Get-WorktreeMainRoot failed: {result.stderr}"
+        stdout_lines = [ln.strip() for ln in result.stdout.splitlines() if ln.strip()]
+        assert stdout_lines, f"pwsh produced no usable output: stdout={result.stdout!r} stderr={result.stderr!r}"
+        ps_root = Path(stdout_lines[-1])
+        assert py_root == ps_root, f"PARITY MISMATCH: python={py_root} vs Get-WorktreeMainRoot={ps_root}"
+
+
 def test_parity_with_get_dataroot():
     """PARITY: under the same env, Python's DATA_ROOT must match Get-DataRoot (PS) exactly.
 
@@ -169,4 +289,8 @@ if __name__ == "__main__":
     test_resolve_taxonomy_dir_sets_data_root_from_env()
     test_taxonomy_dir_override_still_wins_over_env_var()
     test_parity_with_get_dataroot()
-    print("OK: all t/3898 data-root-resolution tests passed")
+    test_worktree_anchor_resolves_nested_worktree_to_main_root()
+    test_worktree_anchor_non_git_dir_returns_none()
+    test_nested_worktree_data_root_anchors_at_main_repo_not_worktree()
+    test_parity_with_get_worktreemainroot_ps()
+    print("OK: all t/3898 + t/3899 data-root-resolution tests passed")
