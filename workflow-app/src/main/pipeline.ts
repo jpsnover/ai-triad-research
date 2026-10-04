@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { type Baseline, executeCommit, planCommit, snapshotDirty } from './commitScope';
 
 export interface StepDefinition {
   id: string;
@@ -10,7 +11,30 @@ export interface StepDefinition {
   phase: string;
   canSkip: boolean;
   requiresConfig: boolean;
+  /**
+   * Data-repo paths (directories or files, relative to the data root) this step writes.
+   * `[]` = read-only. The single source of the commit's allowed surfaces (t/3894 fix D):
+   * a path changed during the run outside the union of the ran steps' `writes` refuses
+   * the commit. Under-declaring refuses a legitimate commit (loud); over-declaring only
+   * widens what D can't see, so list what the cmdlet actually writes and no more.
+   */
+  writes: string[];
 }
+
+// Data-repo write paths per cmdlet, as the workflow invokes them (mapped 2026-10-04 for
+// t/3894 from scripts/AITriad). Writes to the sources repo and the code repo are not listed:
+// they are outside the data repo this commit covers. Not listed on purpose: data-root
+// ai-call-log.jsonl (only when AI_CALL_LOG_ENABLED is set) — per-machine telemetry, so a run
+// with it enabled is refused by D, naming the file, rather than committing it.
+const POV_FILES = ['accelerationist', 'safetyist', 'skeptic', 'situations'].map(p => `taxonomy/Origin/${p}.json`);
+const SUMMARIZE_WRITES = [
+  'summaries',
+  'qbaf-conflicts', // one analysis per summarized doc (Invoke-QbafConflictAnalysis)
+  'calibration/core/extraction-metrics.jsonl',
+  'taxonomy/Origin/policy_actions.json', // Update-PolicyRegistry -Fix
+  ...POV_FILES, // when unassigned policy actions get new policy_ids
+];
+const QUEUE_FILE = '.summarise-queue.json';
 
 export const PIPELINE_STEPS: StepDefinition[] = [
   {
@@ -20,6 +44,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Ingest',
     canSkip: false,
     requiresConfig: true,
+    writes: [QUEUE_FILE, ...SUMMARIZE_WRITES],
   },
   {
     id: 'summarize',
@@ -28,6 +53,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Summarize',
     canSkip: false,
     requiresConfig: false,
+    writes: SUMMARIZE_WRITES,
   },
   {
     id: 'conflicts',
@@ -36,6 +62,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Summarize',
     canSkip: true,
     requiresConfig: false,
+    writes: ['qbaf-conflicts'],
   },
   {
     id: 'health',
@@ -44,6 +71,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Analyze',
     canSkip: true,
     requiresConfig: false,
+    writes: [],
   },
   {
     id: 'proposals',
@@ -52,6 +80,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Improve',
     canSkip: true,
     requiresConfig: false,
+    writes: [] /* writes the code repo's taxonomy/proposals/, not the data repo */,
   },
   {
     id: 'review',
@@ -60,6 +89,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Improve',
     canSkip: true,
     requiresConfig: false,
+    writes: POV_FILES,
   },
   {
     id: 'integrity',
@@ -68,6 +98,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Validate',
     canSkip: false,
     requiresConfig: false,
+    writes: [] /* read-only without -Repair */,
   },
   {
     id: 'backfill',
@@ -76,6 +107,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Validate',
     canSkip: true,
     requiresConfig: false,
+    writes: ['summaries'],
   },
   {
     id: 'attributes',
@@ -84,6 +116,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Enrich',
     canSkip: true,
     requiresConfig: false,
+    writes: POV_FILES,
   },
   {
     id: 'lineage',
@@ -92,6 +125,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Enrich',
     canSkip: true,
     requiresConfig: false,
+    writes: ['calibration/core/lineage-enrichments.json', ...POV_FILES],
   },
   {
     id: 'steelman',
@@ -100,6 +134,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Enrich',
     canSkip: true,
     requiresConfig: false,
+    writes: POV_FILES.filter(f => !f.endsWith('situations.json')),
   },
   {
     id: 'embeddings',
@@ -108,6 +143,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Enrich',
     canSkip: true,
     requiresConfig: false,
+    writes: ['taxonomy/Origin/embeddings.json'],
   },
   {
     id: 'edges',
@@ -116,6 +152,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Enrich',
     canSkip: true,
     requiresConfig: false,
+    writes: ['taxonomy/Origin/edges.json', 'taxonomy/Origin/edge_discovery_log.json'],
   },
   {
     id: 'git-commit',
@@ -124,6 +161,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Publish',
     canSkip: false,
     requiresConfig: true,
+    writes: [],
   },
   {
     id: 'git-push',
@@ -132,6 +170,7 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     phase: 'Publish',
     canSkip: true,
     requiresConfig: false,
+    writes: [],
   },
 ];
 
@@ -171,89 +210,48 @@ function getToolVersion(): string {
   }
 }
 
+export interface CommitProvenance {
+  /** Steps that ran since the baseline (main-process record, not renderer-supplied). */
+  steps: string[];
+  /** Union of those steps' declared `writes`. */
+  surfaces: string[];
+  runId?: string;
+  commitSummary?: string;
+  /** ISO time the run's baseline was taken (t/3894#6 condition). */
+  baselineAt: string;
+}
+
 /**
- * Builds the data-repo commit command with a self-describing subject + provenance
- * trailers (data-repo CONTRIBUTING.md §3) and an explicit-pathspec stage when the
- * orchestrator supplies the touched surfaces (§5). Falls back to a full-tree
- * `git add -A` — with the surface explicitly flagged `(unknown — full-tree add)` in
- * the commit body AND a warning echoed to the run log — when scope can't be
- * determined, rather than silently scoping or hard-failing the commit step (t/1333).
- *
- * Caller-supplied context (via the git-commit step config, threaded by the renderer):
- *   steps: string[]        — pipeline steps that produced data this run; empty → REFUSED (t/3894)
- *   runId: string          — stable id for the run
- *   commitSummary: string  — one-line what-changed
- *   touchedDirs: string[]  — data-repo surfaces to stage; empty → full-tree fallback
- *
- * Throws (surfacing as a failed git-commit step, like buildPsCommand's other config
- * errors) when no data-producing step ran — see the refusal below.
+ * Self-describing subject + provenance trailers (data-repo CONTRIBUTING.md §3). Pure.
+ * Refuses (throws) when no data-producing step ran — t/3894 fix A: that is exactly how
+ * f9cb8ef4 (09-29) committed 78 files (~1.2M lines) of other writers' work as
+ * "pipeline(adhoc)". Do not relax this to a warning.
  */
-export function buildGitCommitCommand(dataRoot: string, config: Record<string, unknown>): string {
-  const steps = Array.isArray(config.steps) ? (config.steps as string[]) : [];
-  // t/3894 fix A: refuse a commit when no data-producing step ran this run. Anything staged
-  // then was written by someone else — other agents, the editor's harvest-on-save, stray
-  // files in the shared data checkout. That is exactly how f9cb8ef4 (09-29) committed 78
-  // files (~1.2M lines) of other writers' work as "pipeline(adhoc)": the git-commit step was
-  // run on its own (Run-Id: no-run-id), so no steps were threaded here, and the full-tree
-  // fallback below staged everything. Do not relax this to a warning.
-  if (steps.length === 0) {
+export function buildCommitMessage(p: CommitProvenance): string {
+  if (p.steps.length === 0) {
     throw new Error(
-      'Refusing to commit: no data-producing pipeline step ran in this run, so anything staged now '
+      'Refusing to commit: no data-producing pipeline step ran in this run, so anything changed now '
       + 'was written by someone else (other agents, the editor, stray files in the shared data checkout). '
       + 'Run the steps that produce the data, then commit; or commit by hand with an explicit pathspec '
       + '(data-repo CONTRIBUTING.md section 5). (t/3894)',
     );
   }
-  const runId = (config.runId as string) || 'no-run-id';
-  const summary =
-    (config.commitSummary as string) ||
-    (config.commitMessage as string) ||
-    'automated data pipeline update';
   const triggeredBy = process.env.ORCA_AGENT_ID
     ? `agent:${process.env.ORCA_AGENT_ID}`
     : `user:${os.userInfo().username}`;
-
-  // workflowName: '+'-joined executed step set, truncated ~40 chars (TL t/1333#2).
-  // The full list is preserved in the `Steps:` trailer (PowerShell t/1333). The old
-  // `|| 'adhoc'` fallback is gone: steps is non-empty here, so a `pipeline(...)` subject
-  // always names real steps (t/3894 fix E, enforced by fix A above).
-  let workflowName = steps.join('+');
-  if (workflowName.length > 40) workflowName = `${steps[0]}+${steps.length - 1}-more`;
-
-  const touchedDirs = Array.isArray(config.touchedDirs) ? (config.touchedDirs as string[]) : [];
-  const scoped = touchedDirs.length > 0;
-  const surfaces = scoped ? touchedDirs.join(', ') : '(unknown — full-tree add)';
-
-  const subject = `pipeline(${workflowName}): ${summary}`;
-  const trailers = [
+  // workflowName: '+'-joined step set, truncated ~40 chars (TL t/1333#2); full list in `Steps:`.
+  let workflowName = p.steps.join('+');
+  if (workflowName.length > 40) workflowName = `${p.steps[0]}+${p.steps.length - 1}-more`;
+  return [
+    `pipeline(${workflowName}): ${p.commitSummary || 'automated data pipeline update'}`,
     '',
-    `Run-Id: ${runId}`,
+    `Run-Id: ${p.runId || 'no-run-id'}`,
     `Triggered-By: ${triggeredBy}`,
-    `Surfaces: ${surfaces}`,
-  ];
-  trailers.push(`Steps: ${steps.join(', ')}`);
-  trailers.push(`Tool: workflow-app v${getToolVersion()}`);
-  const message = `${subject}${trailers.join('\n')}`.replace(/'/g, "''");
-
-  // Stage: explicit pathspec when scoped (Test-Path-guarded so a listed-but-absent
-  // surface can't brick the commit); surfaced full-tree fallback otherwise.
-  let stage: string;
-  if (scoped) {
-    const surfaceList = touchedDirs.map(d => `'${d.replace(/'/g, "''")}'`).join(', ');
-    stage =
-      `$surfaces = @(${surfaceList}) | Where-Object { Test-Path $_ }; ` +
-      `if ($surfaces) { git add -- $surfaces } ` +
-      `else { Write-Warning 'None of the scoped commit surfaces exist on disk — nothing staged.' }`;
-  } else {
-    stage =
-      `Write-Warning 'Commit surfaces unknown - staging full tree (git add -A). ` +
-      `See data-repo CONTRIBUTING.md section 5.'; git add -A`;
-  }
-
-  // Activate the data-repo rationale-drop hook (t/2958 Arm 2 Option B).
-  // Idempotent; no-op if already set. Hook is warn-first until TL GV promotes it.
-  const activateHook = `git config core.hooksPath .githooks`;
-  return `Set-Location '${dataRoot}'; ${activateHook}; ${stage}; git commit -m '${message}'`;
+    `Surfaces: ${p.surfaces.join(', ')}`,
+    `Steps: ${p.steps.join(', ')}`,
+    `Baseline-At: ${p.baselineAt}`,
+    `Tool: workflow-app v${getToolVersion()}`,
+  ].join('\n');
 }
 
 function buildPsCommand(stepId: string, config: Record<string, unknown>): string {
@@ -315,8 +313,6 @@ function buildPsCommand(stepId: string, config: Record<string, unknown>): string
       return `${moduleImport}; Repair-PovLineage -Verbose`;
     case 'steelman':
       return `${moduleImport}; Repair-PovAttributes -Priority critical -Verbose`;
-    case 'git-commit':
-      return buildGitCommitCommand(getDataRoot().replace(/\\/g, '/'), config);
     case 'git-push': {
       const dataRoot = getDataRoot().replace(/\\/g, '/');
       return `Set-Location '${dataRoot}'; git push`;
@@ -334,10 +330,68 @@ let embeddingsWritten = false;
 let gitCommitAttempted = false;
 let gitCommitDone = false;
 
+// t/3894 C+D run record: the data checkout's dirty state before the first data-producing
+// step since the last successful commit, and the steps that ran since. Main-process state,
+// so a lone git-commit (the f9cb8ef4 shape) or an app restart mid-run has no baseline and
+// is refused. Cleared only by a successful commit.
+let runBaseline: Baseline | null = null;
+const stepsSinceBaseline: string[] = [];
+
+function stepWrites(stepId: string): string[] {
+  return PIPELINE_STEPS.find(s => s.id === stepId)?.writes ?? [];
+}
+
+/** Take the baseline before the run's first data-producing step; record every such step. */
+export function recordDataStep(stepId: string, dataRoot: string): void {
+  if (stepWrites(stepId).length === 0) return;
+  if (!runBaseline) runBaseline = { takenAt: new Date().toISOString(), entries: snapshotDirty(dataRoot) };
+  if (!stepsSinceBaseline.includes(stepId)) stepsSinceBaseline.push(stepId);
+}
+
+/**
+ * The git-commit step, run in-process rather than as a PowerShell string: commit exactly
+ * the paths this run changed (C), only under the ran steps' declared surfaces (D). Any
+ * refusal fails the step with the reason in the error log. Never stages with -A/a directory.
+ */
+export function runGitCommit(
+  dataRoot: string,
+  config: Record<string, unknown>,
+  onData: (text: string) => void,
+  onError: (text: string) => void,
+): { exitCode: number } {
+  try {
+    const surfaces = Array.from(new Set(stepsSinceBaseline.flatMap(stepWrites)));
+    const message = buildCommitMessage({
+      steps: [...stepsSinceBaseline],
+      surfaces,
+      runId: config.runId as string | undefined,
+      commitSummary: (config.commitSummary as string) || (config.commitMessage as string),
+      baselineAt: runBaseline?.takenAt ?? '',
+    });
+    const plan = planCommit(runBaseline, snapshotDirty(dataRoot), surfaces);
+    if (!plan.ok) {
+      onError(`${plan.reason}\n`);
+      return { exitCode: 1 };
+    }
+    for (const w of plan.warnings) onData(`WARNING: ${w}\n`);
+    onData(`Committing ${plan.paths.length} file(s) changed during this run:\n${plan.paths.map(p => `  ${p}`).join('\n')}\n\n`);
+    onData(executeCommit(dataRoot, plan.paths, message));
+    runBaseline = null;
+    stepsSinceBaseline.length = 0;
+    return { exitCode: 0 };
+  } catch (err) {
+    onError(`${err instanceof Error ? err.message : String(err)}\n`);
+    return { exitCode: 1 };
+  }
+}
+
+/** Test seam: forget the run record. */
 export function resetPipelineState(): void {
   embeddingsWritten = false;
   gitCommitAttempted = false;
   gitCommitDone = false;
+  runBaseline = null;
+  stepsSinceBaseline.length = 0;
 }
 
 /**
@@ -376,10 +430,15 @@ export function runStep(
   }
   if (stepId === 'git-commit') {
     gitCommitAttempted = true;
+    const result = runGitCommit(getDataRoot(), config, onData, onError);
+    if (result.exitCode === 0) gitCommitDone = true;
+    return Promise.resolve(result);
   }
 
   return new Promise((resolve, reject) => {
     try {
+      // Before spawning: a step that fails partway may still have written, so it counts.
+      recordDataStep(stepId, getDataRoot());
       const psCommand = buildPsCommand(stepId, config);
       const shell = getPowerShellCommand();
 
@@ -412,7 +471,6 @@ export function runStep(
         activeProcess = null;
         const exitCode = code ?? 1;
         if (stepId === 'embeddings' && exitCode === 0) embeddingsWritten = true;
-        if (stepId === 'git-commit' && exitCode === 0) gitCommitDone = true;
         resolve({ exitCode });
       });
 
