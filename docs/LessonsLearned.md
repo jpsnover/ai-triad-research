@@ -45,6 +45,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-09 — Rosetta Stone 3 (p/355#3): `@'...'@` in Bash tool left a stray `@` in the commit subject (same facet as p/83#1). Fixed with `git commit --amend -F <file>` to rewrite the subject cleanly.
 - 2026-09-30 — Project Instructions (p/688#6): `git commit -m @'…'@` in Bash tool — Bash word-split the message into bogus pathspecs (`error: pathspec 'full' did not match`), commit aborted. Resolved by writing message to temp file and using `git commit -F <file>`. Note: `@'…'@` is PowerShell-only syntax; in Bash it is not a syntax error but silently mangles the arguments — the error surface is pathspec failures, not "invalid syntax."
 - 2026-10-03 — PowerShell (p/20#59, **`gh pr comment --body` variant**): `gh pr comment --body` with a multi-line markdown heredoc containing code spans (backticks) and special chars → Bash `unexpected EOF` parse error. The Bash heredoc for the body string was the failure site, not `gh` itself. Fixed: wrote body to a scratchpad file with the Write tool, then passed `gh pr comment --body-file <path>`. Same ADR-004 class; `--body-file` is the `gh`-CLI equivalent of `-F` / `-File`.
+- 2026-10-04 — Unknown agent (p/26#141, t/3744#6, **non-zero-byte variant**): a mis-quoted command word-split and created `taxonomy-editor/src/server/({` — a 33 KB file containing `file` command error output. Root cause: the `({` token is a shell word-split fragment from a mis-quoted command; the `file` errors indicate the `file` utility was invoked on many paths before failing. Removed by DevOps. Note: unlike the typical 0-byte word-split junk (Pattern #1 core shape), this variant produces a non-zero-byte file because the mis-quoted command produced output. Same mitigation: scan `git status --short` for bare-fragment filenames before any `git add`.
 
 **Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Additionally, PowerShell-specific syntax (`@'...'@` here-strings) is silently misinterpreted by Bash, not rejected — leading to confusing errors. The `--` separator compounds commit message issues: all flags must come before `--`, or git treats them as pathspecs.
 
@@ -3113,6 +3114,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-03 — ElectronMain (p/98#13, t/2111): `cd /c/.../wt-t2111` immediately after `git worktree add ../wt-t2111` — "No such file." Compounding factor: **Bash tool resets cwd between invocations**, so the cwd for the `cd` call was the repo root regardless of any prior `cd`. The agent constructed the POSIX path from memory rather than reading `git worktree list`. Fixed by running `git worktree list` and using the canonical absolute path `/c/Users/jsnov/repos/wt-t2111`.
 - 2026-09-30 — DebateTool (p/70#37): `cd lib/debate` failed "No such file or directory" — the Bash cwd had reset to the agent's scope directory (`lib/debate`), so `cd lib/debate` tried to navigate to `lib/debate/lib/debate` (nonexistent). Fix: dropped the `cd` entirely. When the cwd already IS the target directory (because the runtime resets to the scope root), re-cdding into it is a no-op at best and an error at worst.
 - 2026-10-01 — PowerShell (p/20#55): `Invoke-ScriptAnalyzer -Settings ./relative/settings.json` after a prior `cd` into repo root — **PowerShell tool cwd also resets between calls** (same t/2222 mechanism as Bash), so the relative `-Settings` path failed to resolve. Abandoned: the diagnostic was redundant (git-show evidence already confirmed the finding).
+- 2026-10-04 — DevOps Lead (p/26#141): `gh pr create` run from Bash without `--head` failed with "you must first push the current branch" — the Bash cwd had reset to the shared checkout (on `main`), so `gh` read the current branch as `main` rather than the worktree branch. Fix: always pass `--head <branch>` explicitly to `gh pr create` when called from Bash, regardless of where the push was made.
 
 **Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. **Compounding factor (instance 2):** the Bash tool resets cwd to the repo root between invocations, so any relative path like `../wt-<name>` re-anchors to the repo root on every call — you cannot rely on a prior `cd` persisting to the next Bash call.
 
@@ -3123,9 +3125,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. **Both Bash AND PowerShell tool cwds reset between invocations (t/2222)** — relative paths re-anchor on every call regardless of a prior `cd`. Use absolute paths always; never depend on a prior `cd` persisting to the next tool call.
 5. **(Possible — unconfirmed) Glob may also resolve relative paths against the scope root, not the repo root** — a relative `Glob("tests/Foo*")` from a role scoped to `scripts/AITriad/` may search `scripts/AITriad/tests/` and silently return empty. Use `**/<name>` or absolute base paths in Glob until this is confirmed (p/20#57; see Pattern #186).
 
-**Status:** Active — 4 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash.
+**Status:** Active — 5 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash. **5th instance (2026-10-04, p/26#141):** `gh pr create` read `main` as the current branch instead of the worktree branch — pass `--head <branch>` explicitly.
 
-**Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path.
+**Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path, or running `gh` CLI commands from Bash where cwd may have reset.
 
 ---
 
@@ -4156,6 +4158,7 @@ The `git restore --staged` step is mandatory: the shared index still has `100644
 
 **Instances:**
 - 2026-10-03 — DevOps Lead (p/26#139): `Get-ComplexityScanTargets` is a Private helper; calling it directly after import gave "term not recognized".
+- 2026-10-04 — PowerShell (p/20#65): `Get-DataRoot` called from `pwsh -Command` outside the module; same error; resolved with `& (Get-Module AITriad) { Get-DataRoot }`.
 
 **Root Cause:** PowerShell module exports are controlled by `FunctionsToExport` in the manifest (or by `Export-ModuleMember`). Private functions are intentionally omitted. The module session has them; the caller's session does not.
 
@@ -4164,7 +4167,7 @@ The `git restore --staged` step is mandatory: the shared index still has `100644
 2. **Don't add Private functions to `FunctionsToExport` just to reach them from tests.** Use the `& (Get-Module …) { … }` form in test scripts instead.
 3. **"Term not recognized" after a successful import = scope issue, not a missing function.** Confirm with `(Get-Module AITriad).ExportedFunctions.Keys` (shows Public) vs `& (Get-Module AITriad) { Get-Command Get-ComplexityScanTargets }` (shows Private if present).
 
-**Status:** Active — 1 instance (DevOps Lead p/26#139). Deterministic whenever a Private function is called from outside the module.
+**Status:** Active — 2 instances. Deterministic whenever a Private function is called from outside the module.
 
 **Applies To:** All agents invoking Private PowerShell module functions from test scripts, Pester suites, or ad-hoc sessions.
 
@@ -4210,3 +4213,45 @@ Distinction: `@ts-expect-error` used as a *suppression* in test files (silencing
 **Status:** Active — 1 instance (TL/Rosetta Stone t/3889#7-8, p/335#124). Silent; no error, no warning, always green.
 
 **Applies To:** All agents writing type-level tests or assertions in TypeScript lib/taxonomy-editor subtrees.
+
+---
+
+## #201 [PowerShell] `Write-Warning` Bleeds Into Captured Stdout Under Non-Interactive `pwsh -Command`
+
+**Pattern:** Running `pwsh -Command "Import-Module AITriad; (Get-DataRoot)"` (or any command that emits `Write-Warning` during module load) and capturing stdout produces output that includes the warning text alongside the real return value. A string comparison or path parity check against that output fails even though the underlying value is correct.
+
+**Instances:**
+- 2026-10-04 — PowerShell (p/20#64): Python/pwsh parity assertion for `Get-DataRoot` path failed; paths were identical but the captured output included a `Write-Warning` line from the module import, contaminating the comparison value.
+
+**Root Cause:** Under `pwsh -Command` (non-interactive), the warning stream is not automatically redirected to stderr — it goes to the host output, which in a subprocess context arrives on stdout. The caller captures both the real return value and any warnings as a single undifferentiated stream.
+
+**Prevention:**
+1. **Add `-WarningAction SilentlyContinue` to `Import-Module`** when running non-interactively: `Import-Module AITriad -WarningAction SilentlyContinue`. This suppresses warning output without hiding errors.
+2. **Parse only the last non-empty stdout line** as the real return value when capturing `pwsh -Command` output — warnings arrive before the function's return value. `$output | Where-Object { $_ -ne '' } | Select-Object -Last 1` is the safe form.
+3. **Prefer `pwsh -NoProfile -Command` for subprocess calls** to avoid profile-level warnings too.
+4. **When a parity test fails on seemingly identical values, dump the raw bytes** (`[System.Text.Encoding]::UTF8.GetBytes($val) | ForEach-Object { "{0:X2}" -f $_ }`) to reveal hidden characters or extra lines before assuming a logic error.
+
+**Status:** Active — 1 instance (PowerShell p/20#64). Deterministic whenever a module emits warnings and its output is captured from a subprocess.
+
+**Applies To:** All agents invoking PowerShell module functions via `pwsh -Command` from Python, shell scripts, or other subprocesses and capturing stdout.
+
+---
+
+## #202 [Build] `continue-on-error: true` Step `conclusion` Is Always `success` — Only `outcome` Distinguishes Pass From Fail, and the Steps API Omits It
+
+**Pattern:** A CI step with `continue-on-error: true` reports `conclusion: success` in the GitHub Checks API **regardless of whether the step passed or failed**. The `outcome` field (`success` | `failure`) correctly reflects the real result, but the GitHub steps API does not return `outcome` — only in-workflow expressions like `steps.<id>.outcome` can read it. During a warn-first observation cycle, green checkmarks and step `conclusion` values are therefore **uninformative**: both the "clean" and "firing" cases look identical from the outside.
+
+**Instances:**
+- 2026-10-04 — TL (t/3897#2, p/335#126): a warn-first CI step's red and green arms both showed `completed/success`; only the failure-level annotations in the run's annotations API endpoint differed. The observation cycle was designed to prove the step fired safely — but the signal used (conclusion) could not distinguish firing from not-firing.
+
+**Root Cause:** GitHub's job-conclusion semantics fold `continue-on-error` failures into `success` to prevent blocking downstream jobs. `outcome` is a step-level field only available inside the workflow YAML (as `steps.<id>.outcome`), not surfaced by the Checks API or the steps endpoint.
+
+**Prevention:**
+1. **During a warn-first observation cycle, use annotations, not conclusions.** Query `GET /repos/{owner}/{repo}/check-runs/{run_id}/annotations` — failure-level annotations are present when the step fired and absent when it did not. This is the only externally observable signal.
+2. **Alternatively, add an explicit reporting step** after the warn-first step: `if: steps.<id>.outcome == 'failure'` → `echo "FIRED"` at warning level, or upload a summary artifact. This surfaces `outcome` in the run log where it can be read.
+3. **`conclusion: success` + `continue-on-error: true` = "the workflow did not abort" — nothing more.** It does NOT mean the step passed. Never use step conclusion as evidence that a warn-first gate is behaving correctly.
+4. **The safety mechanism creates its own blind spot.** Warn-first is chosen precisely so the fleet can observe before blocking — but if the observation instrument is insensitive to firing, the cycle proves nothing. Verify the instrument before trusting the observation.
+
+**Status:** Active — 1 instance (TL t/3897#2, p/335#126). Deterministic: any `continue-on-error: true` step has this property.
+
+**Applies To:** All agents observing warn-first CI steps, verifying gate behaviour, or reading step conclusions from the GitHub Checks API.
