@@ -555,6 +555,27 @@ jobs:
       # repo-wide — a gate-integrity false-green. Test must never be masked by
       # the security gate; the two are now independent jobs.
 
+      - name: Required scripts present (WARN-FIRST — t/3897)
+        # `--if-present` on Lint/Test below reads a MISSING script as a green job: workflow-app
+        # had neither until t/3847/t/3894, so every PR touching it passed checks that never ran.
+        # This step names that gap per app. WARN-FIRST: continue-on-error -> a red STEP in a
+        # green job. FLIP (separate step: mandatory Second Opinion + TL GV, root AGENTS.md):
+        # remove this continue-on-error AND drop `--if-present` from Lint/Test.
+        continue-on-error: true
+        working-directory: ${{ matrix.app }}
+        run: |
+          node -e '
+            const s = (require("./package.json").scripts) || {};
+            const missing = ["test", "lint"].filter(k => !(typeof s[k] === "string" && s[k].trim()));
+            if (missing.length) {
+              console.log(`::error::${process.env.APP}: package.json has no ${missing.join(" / ")} script -- the matching CI step is SKIPPED by --if-present and reads green (t/3897)`);
+              process.exit(1);
+            }
+            console.log(`${process.env.APP}: test + lint scripts present`);
+          '
+        env:
+          APP: ${{ matrix.app }}
+
       - name: Lint
         working-directory: ${{ matrix.app }}
         run: pnpm run --if-present lint
@@ -562,6 +583,17 @@ jobs:
       - name: TypeScript check (main)
         working-directory: ${{ matrix.app }}
         run: pnpm exec tsc --noEmit -p tsconfig.main.json
+
+      - name: TypeScript check (renderer, WARN-FIRST — t/3897)
+        # The step above checks the MAIN process only (tsconfig.main.json); renderers of the
+        # sibling apps were type-checked by nothing (workflow-app's renderer has been TS5101-red
+        # unnoticed). taxonomy-editor is excluded: its renderer is covered by the `renderer-tsc`
+        # job (check-renderer-tsc.sh). WARN-FIRST as above; flip with the same SO + TL GV step,
+        # and only after workflow-app's renderer is clean (else the gate is red on day one).
+        if: matrix.app != 'taxonomy-editor'
+        continue-on-error: true
+        working-directory: ${{ matrix.app }}
+        run: pnpm exec tsc --noEmit -p tsconfig.json
 
       - name: Test
         # Skip for taxonomy-editor: its "Test with coverage" step below already
