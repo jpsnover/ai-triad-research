@@ -19,6 +19,8 @@ import { isAnonymousUser } from '../security/userContext.js';
 import { getFlag } from '../featureFlags.js';
 import { enqueueGroundingReconcile } from '../groundingReconcileHook.js';
 import { log } from '../logger.js';
+import { findSituationBdiViolations } from '../../../../lib/debate/taxonomyTypes.js';
+import type { SituationNode } from '../../../../lib/debate/taxonomyTypes.js';
 
 // ── t/3165: serialize-once cache for /api/taxonomy/synthetic-embeddings ───────────────────────────
 // The synthetic corpus (~4144 vectors, ~400MB) is STATIC, but loadSyntheticEmbeddings() rebuilds it on
@@ -88,6 +90,41 @@ export function __invalidateSyntheticEmbeddingsCache(): void { _synthEmbeddingsB
 /** @internal t/3165 test hook — exercise the cache/dedupe path without the full Router harness. */
 export const __getSyntheticEmbeddingsBufferForTest = getSyntheticEmbeddingsBuffer;
 
+// t/3890: BDI gate helper — extracted to keep the PUT handler under complexity-15.
+// Returns null on pass, or { status, message } to send as the response.
+function situationsBdiGate(
+  oldNodesErr: Error | null,
+  oldNodes: unknown[],
+  incomingNodes: unknown[],
+): { status: 400 | 500; message: string } | null {
+  const isEnoent = (oldNodesErr as NodeJS.ErrnoException)?.code === 'ENOENT';
+  if (oldNodesErr !== null && !isEnoent) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'warn',
+      message: 'situations PUT: baseline unreadable (non-ENOENT) — failing closed (t/3890)',
+      data: { error: oldNodesErr.message },
+    });
+    return { status: 500, message: 'Baseline situations file is unreadable — write refused to prevent silent non-BDI data' };
+  }
+  let nodesToCheck: SituationNode[];
+  if (oldNodesErr === null && oldNodes.length > 0) {
+    const { added, modified } = diffNodes(
+      oldNodes as Parameters<typeof diffNodes>[0],
+      incomingNodes as Parameters<typeof diffNodes>[1],
+    );
+    const changedSet = new Set([...added, ...modified]);
+    nodesToCheck = (incomingNodes as SituationNode[]).filter(n => changedSet.has(n.id));
+  } else {
+    nodesToCheck = incomingNodes as SituationNode[]; // ENOENT or empty baseline: validate all
+  }
+  const violations = findSituationBdiViolations(nodesToCheck);
+  if (violations.length > 0) {
+    const details = violations.map(v => `${v.id} (${v.pov}): ${v.reason}`).join('; ');
+    return { status: 400, message: `BDI validation failed — ${violations.length} violation(s): ${details}` };
+  }
+  return null;
+}
+
 export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
   const { get, put } = r;
   const { ensureSessionBranch } = ctx;
@@ -152,10 +189,21 @@ export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
       let changedNodeIds: string[] = [];
       if (incoming.nodes && Array.isArray(incoming.nodes)) {
         let oldNodes: unknown[] = [];
+        let oldNodesErr: Error | null = null;
         try {
           const existing = await fileIO.readTaxonomyFile(pov) as { nodes?: unknown[] };
           oldNodes = existing?.nodes ?? [];
-        } catch { /* telemetry — silent by design: first write or missing file — treat as empty */ }
+        } catch (err) {
+          oldNodesErr = err as Error;
+          /* telemetry — silent by design: first write or missing file; situations handled in situationsBdiGate */
+        }
+
+        // t/3890: BDI gate — situations only, changed nodes only, fail-closed on unreadable baseline
+        if (pov === 'situations') {
+          const gate = situationsBdiGate(oldNodesErr, oldNodes, incoming.nodes);
+          if (gate) { error(res, gate.message, gate.status); return; }
+        }
+
         if (getFlag('grounding_reconcile_inline')) {
           const { added, modified, deleted } = diffNodes(
             oldNodes as Parameters<typeof diffNodes>[0],
