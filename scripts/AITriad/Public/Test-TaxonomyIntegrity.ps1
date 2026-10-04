@@ -143,39 +143,16 @@ function Test-TaxonomyIntegrity {
     $DuplicateRefResult = Get-SimpleCountIssue -Items $DuplicateRefs -Check 'DuplicateRef' -Severity 'Warning' -DetailFormat '{0} duplicate policy_id refs within nodes'
     if ($DuplicateRefResult.Passed) { $Passed++ } else { $Issues.Add($DuplicateRefResult.Issue) }
 
-    # ── Check 4: Edge integrity ──
-    $Checks++
+    # ── Check 4 + 4b: Edge integrity + self-loop ── t/3879 decomposition: Get-EdgeIntegrityIssues
+    # BadEdges/SelfLoopEdges threaded back explicitly -- the -Repair block (edge pruning +
+    # the Force threshold, t/3853) reads both downstream of this check.
+    $Checks += 2
     $EdgesPath = Join-Path $TaxDir 'edges.json'
-    $BadEdges = 0
-    $SelfLoopEdges = 0
-    if (Test-Path $EdgesPath) {
-        $EdgesData = Read-EdgesFile -Path $EdgesPath   # t/2974: coercion-free read (preserve discovered_at strings)
-        $ValidIds = [System.Collections.Generic.HashSet[string]]::new($AllNodeIds)
-        if ($Registry) { foreach ($Pol in $Registry.policies) { [void]$ValidIds.Add($Pol.id) } }
-
-        foreach ($Edge in @($EdgesData.edges)) {
-            $Src = if ($Edge.PSObject.Properties['source']) { $Edge.source } else { $null }
-            $Tgt = if ($Edge.PSObject.Properties['target']) { $Edge.target } else { $null }
-            if (-not $ValidIds.Contains($Src) -or -not $ValidIds.Contains($Tgt)) {
-                $BadEdges++
-            }
-            # Self-loops (source == target) are malformed: Invoke-EdgeDiscovery and
-            # Import-OrganizationEdge reject them at creation, so any in the stored
-            # graph are legacy/hand-introduced (t/2682). Count non-null sources only.
-            if ($null -ne $Src -and $Src -eq $Tgt) {
-                $SelfLoopEdges++
-            }
-        }
-    }
-    if ($BadEdges -gt 0) {
-        $Issues.Add([PSCustomObject]@{ Check = 'EdgeRef'; Severity = 'Error'; Count = $BadEdges; Detail = "$BadEdges edges reference non-existent nodes/policies" })
-    } else { $Passed++ }
-
-    # ── Check 4b: Self-loop edges ──
-    $Checks++
-    if ($SelfLoopEdges -gt 0) {
-        $Issues.Add([PSCustomObject]@{ Check = 'SelfLoopEdge'; Severity = 'Error'; Count = $SelfLoopEdges; Detail = "$SelfLoopEdges self-loop edge(s) where source == target (malformed; rejected at creation)" })
-    } else { $Passed++ }
+    $EdgeResult = Get-EdgeIntegrityIssues -EdgesPath $EdgesPath -AllNodeIds $AllNodeIds -Registry $Registry
+    $BadEdges = $EdgeResult.BadEdges
+    $SelfLoopEdges = $EdgeResult.SelfLoopEdges
+    $Passed += $EdgeResult.Passed
+    foreach ($EdgeIssue in $EdgeResult.Issues) { $Issues.Add($EdgeIssue) }
 
     # ── Check 5: Embedding coverage ──
     $Checks++
