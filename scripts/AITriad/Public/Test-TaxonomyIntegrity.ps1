@@ -133,17 +133,15 @@ function Test-TaxonomyIntegrity {
     $Passed += $PolicyRegistryResult.Passed
     foreach ($RegIssue in $PolicyRegistryResult.Issues) { $Issues.Add($RegIssue) }
 
-    # ── Check 2: Missing policy_id ──
+    # ── Check 2: Missing policy_id ── t/3879 decomposition: Get-SimpleCountIssue
     $Checks++
-    if ($MissingPolicyId.Count -gt 0) {
-        $Issues.Add([PSCustomObject]@{ Check = 'MissingPolicyId'; Severity = 'Warning'; Count = $MissingPolicyId.Count; Detail = "$($MissingPolicyId.Count) policy_actions without policy_id" })
-    } else { $Passed++ }
+    $MissingPolicyIdResult = Get-SimpleCountIssue -Items $MissingPolicyId -Check 'MissingPolicyId' -Severity 'Warning' -DetailFormat '{0} policy_actions without policy_id'
+    if ($MissingPolicyIdResult.Passed) { $Passed++ } else { $Issues.Add($MissingPolicyIdResult.Issue) }
 
-    # ── Check 3: Duplicate refs ──
+    # ── Check 3: Duplicate refs ── t/3879 decomposition: Get-SimpleCountIssue
     $Checks++
-    if ($DuplicateRefs.Count -gt 0) {
-        $Issues.Add([PSCustomObject]@{ Check = 'DuplicateRef'; Severity = 'Warning'; Count = $DuplicateRefs.Count; Detail = "$($DuplicateRefs.Count) duplicate policy_id refs within nodes" })
-    } else { $Passed++ }
+    $DuplicateRefResult = Get-SimpleCountIssue -Items $DuplicateRefs -Check 'DuplicateRef' -Severity 'Warning' -DetailFormat '{0} duplicate policy_id refs within nodes'
+    if ($DuplicateRefResult.Passed) { $Passed++ } else { $Issues.Add($DuplicateRefResult.Issue) }
 
     # ── Check 4: Edge integrity ──
     $Checks++
