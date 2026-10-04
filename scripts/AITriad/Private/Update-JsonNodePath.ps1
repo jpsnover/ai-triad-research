@@ -161,81 +161,10 @@ function Update-JsonNodePath {
     $curEnd   = $nodeSpan.End
 
     # ── REMOVE mode (t/3460): delete the whole member at the final object-key segment ──────────────
+    # t/3878 decomposition: Remove-JsonNodePathMember (extracted verbatim, no behavior change).
     if ($Remove) {
-        # Descend Path[0..last-1] to the PARENT container (navigation only — no create; a missing
-        # intermediate fails closed, same as replace).
-        for ($k = 0; $k -lt $Path.Count - 1; $k++) {
-            $seg = $Path[$k]
-            $curChar = $RawText[$curStart]
-            if ($seg -is [int]) {
-                if ($curChar -ne '[') { & $fail "segment [$seg] expects an array but the container at that level is not an array" @('Check the path matches the document shape') }
-                $vStart = Find-JsonArrayElementStart -Text $RawText -ArrStart $curStart -ArrEnd $curEnd -Index $seg
-                if ($vStart -lt 0) { & $fail "array index [$seg] is out of range (path-not-found)" @('Verify the intermediate index exists') }
-            }
-            else {
-                if ($curChar -ne '{') { & $fail "segment '$seg' expects an object but the container at that level is not an object" @('Check the path matches the document shape') }
-                $vStart = Find-JsonMemberValueStart -Text $RawText -ObjStart $curStart -ObjEnd $curEnd -Key ([string]$seg)
-                if ($vStart -lt 0) { & $fail "key '$seg' not found at this level (path-not-found)" @('Verify the intermediate path exists; -Remove does not create structure') }
-            }
-            $vSpan = Get-JsonValueSpan -Text $RawText -Start $vStart
-            if ($null -eq $vSpan) { & $fail "could not span-scan the value at segment '$seg'" @('Report with the input file + path') }
-            $curStart = $vSpan.Start; $curEnd = $vSpan.End
-        }
-
-        # Final segment: MUST be an object key. An array-index final segment reflows sibling indices
-        # (orphans addressing) → refuse fail-closed (t/3460#2 Q1).
-        $finalSeg = $Path[$Path.Count - 1]
-        if ($finalSeg -is [int]) {
-            & $fail "cannot -Remove an array element [$finalSeg]: element removal reflows sibling indices (would orphan addressing)" `
-                @('Removal targets object keys only; array indices are navigation-only segments')
-        }
-        if ($RawText[$curStart] -ne '{') {
-            & $fail "segment '$finalSeg' expects an object but the container at that level is not an object" @('Check the path matches the document shape')
-        }
-        $member = Find-JsonMemberSpan -Text $RawText -ObjStart $curStart -ObjEnd $curEnd -Key ([string]$finalSeg)
-        if ($null -eq $member) {
-            & $fail "key '$finalSeg' not found at this level (path-not-found) — nothing removed" `
-                @('Verify the key exists; -Remove refuses fail-closed on an absent key (re-derive the worklist to carriers before retry)')
-        }
-
-        # Removal span = [KeyStart .. ValueEnd] + EXACTLY ONE adjacent comma. Prefer the trailing comma
-        # (member not last); else absorb the leading comma (member is last, has predecessors); else no
-        # comma (only member → object collapses to a valid `{}`, allowed per t/3460#2 Q2).
-        $delStart = $member.KeyStart
-        $delEnd   = $member.ValueEnd
-        $t = $member.ValueEnd + 1
-        while ($t -lt $curEnd -and [char]::IsWhiteSpace($RawText[$t])) { $t++ }
-        if ($t -lt $curEnd -and $RawText[$t] -eq ',') {
-            $delEnd = $t   # include the trailing comma
-            # Absorb the preceding newline+indent so no orphan blank line is left (symmetric with
-            # the leading-comma branch below). Walk back past spaces/tabs to the newline character.
-            $q = $delStart - 1
-            while ($q -ge $curStart + 1 -and ($RawText[$q] -eq ' ' -or $RawText[$q] -eq "`t")) { $q-- }
-            if ($q -ge $curStart + 1 -and $RawText[$q] -eq "`n") {
-                $delStart = if ($q -gt $curStart -and $RawText[$q - 1] -eq "`r") { $q - 1 } else { $q }
-            }
-        }
-        else {
-            $p = $member.KeyStart - 1
-            while ($p -gt $curStart -and [char]::IsWhiteSpace($RawText[$p])) { $p-- }
-            if ($p -gt $curStart -and $RawText[$p] -eq ',') { $delStart = $p }   # include the leading comma
-        }
-        $patched = $RawText.Substring(0, $delStart) + $RawText.Substring($delEnd + 1)
-        if ($DeferVerify) { return $patched }   # caller verifies the whole batch once
-
-        # Re-parse-VERIFY: baseline = parsed clone with THIS key deleted at the located parent. Any
-        # deviation beyond the intended member → abort, writing nothing (the safety net).
-        try { $actual = $patched | ConvertFrom-Json } catch { & $fail "patched text is not valid JSON — writing nothing: $($_.Exception.Message)" @('Splice produced invalid JSON; -Remove splice bug') }
-        $expected = $RawText | ConvertFrom-Json
-        $expNode = @($expected.nodes | Where-Object { $_.PSObject.Properties['id'] -and $_.id -eq $NodeId })[0]
-        $curBase = $expNode
-        for ($m = 0; $m -lt $Path.Count - 1; $m++) { if ($Path[$m] -is [int]) { $curBase = $curBase[$Path[$m]] } else { $curBase = $curBase.($Path[$m]) } }
-        $curBase.PSObject.Properties.Remove([string]$finalSeg)
-        if (-not (Test-JsonSemanticEqual -A $expected -B $actual)) {
-            & $fail "re-parse-verify FAILED: the -Remove splice changed more than the intended key '$pathDisplay' on '$NodeId' — writing nothing" `
-                @('Splice bug; the guard refused a corrupting write', 'Report with the input file + node id + path')
-        }
-        return $patched
+        return Remove-JsonNodePathMember -RawText $RawText -NodeId $NodeId -Path $Path -PathDisplay $pathDisplay `
+            -Fail $fail -CurStart $curStart -CurEnd $curEnd -DeferVerify:$DeferVerify
     }
 
     for ($k = 0; $k -lt $Path.Count; $k++) {
