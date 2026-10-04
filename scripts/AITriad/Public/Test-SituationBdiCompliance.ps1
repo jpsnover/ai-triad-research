@@ -45,7 +45,8 @@ function Test-SituationBdiCompliance {
         Throw a New-ActionableError (non-zero exit) if any validated situation fails.
     .OUTPUTS
         [pscustomobject] with Pass, Scope ('Changed'|'Full'), Checked, NonDeprecated,
-        Fail, NonDecomposedIds, EmptyIds, ViolationIds, Detail.
+        Fail, NonDecomposedIds, EmptyIds, ViolationIds, Detail, ViolationDetail (array
+        of { id, pov, reason } — the per-POV breakdown from Get-SituationBdiViolationsFromJson, t/3901).
     .EXAMPLE
         Test-SituationBdiCompliance
         # Full-corpus check against the resolved data root; returns a result object.
@@ -124,6 +125,20 @@ function Test-SituationBdiCompliance {
     $ViolationIds = @(@($R.NonDecomposedIds) + @($R.EmptyIds))
     $Pass = ($R.Fail -eq 0)
 
+    # t/3901: delegate to Get-SituationBdiViolationsFromJson for the per-POV {id, pov,
+    # reason} breakdown, so the cmdlet and the data-repo pre-commit hook share one
+    # BDI-violation classifier instead of two. -BaselineJson '' treats every node in
+    # the already-scoped $NodesToCheck as changed (it already is, by construction
+    # above), so this does NOT re-run change detection -- only the classification.
+    # Skipped on a clean run: nothing to serialize when there's no violation to detail.
+    if ($R.Fail -gt 0) {
+        $CandidateJsonText = (@{ nodes = $NodesToCheck } | ConvertTo-Json -Depth 30)
+        $ViolationDetail = @(Get-SituationBdiViolationsFromJson -BaselineJson '' -CandidateJson $CandidateJsonText)
+    }
+    else {
+        $ViolationDetail = @()
+    }
+
     if ($Pass) {
         $Detail = "$($R.Pass) / $($R.NonDeprecated) $Scope-scope non-deprecated situation(s) carry full per-POV BDI decomposition ($($R.Deprecated) exempt via [DEPRECATED] prefix)."
     }
@@ -141,6 +156,7 @@ function Test-SituationBdiCompliance {
         EmptyIds         = @($R.EmptyIds)
         ViolationIds     = $ViolationIds
         Detail           = $Detail
+        ViolationDetail  = $ViolationDetail
     }
 
     if ($FailOnViolation -and -not $Pass) {
