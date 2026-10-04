@@ -19,6 +19,8 @@ import { isAnonymousUser } from '../security/userContext.js';
 import { getFlag } from '../featureFlags.js';
 import { enqueueGroundingReconcile } from '../groundingReconcileHook.js';
 import { log } from '../logger.js';
+import { findSituationBdiViolations } from '../../../../lib/debate/taxonomyTypes.js';
+import type { SituationNode } from '../../../../lib/debate/taxonomyTypes.js';
 
 // ── t/3165: serialize-once cache for /api/taxonomy/synthetic-embeddings ───────────────────────────
 // The synthetic corpus (~4144 vectors, ~400MB) is STATIC, but loadSyntheticEmbeddings() rebuilds it on
@@ -152,10 +154,48 @@ export function registerTaxonomyRoutes(r: Router, ctx: ServerCtx): void {
       let changedNodeIds: string[] = [];
       if (incoming.nodes && Array.isArray(incoming.nodes)) {
         let oldNodes: unknown[] = [];
+        let oldNodesErr: Error | null = null;
         try {
           const existing = await fileIO.readTaxonomyFile(pov) as { nodes?: unknown[] };
           oldNodes = existing?.nodes ?? [];
-        } catch { /* telemetry — silent by design: first write or missing file — treat as empty */ }
+        } catch (err) {
+          oldNodesErr = err as Error;
+          // non-situations: silent (first write or missing file — treat as empty)
+        }
+
+        // t/3890: BDI gate — situations only, changed nodes only, fail-closed on unreadable baseline
+        if (pov === 'situations') {
+          const isEnoent = (oldNodesErr as NodeJS.ErrnoException)?.code === 'ENOENT';
+          if (oldNodesErr !== null && !isEnoent) {
+            // Non-ENOENT read failure: fail closed — baseline unreadable, refuse the write
+            getGlobalRecorder()?.record({
+              type: 'system.error', component: 'server', level: 'warn',
+              message: 'situations PUT: baseline unreadable (non-ENOENT) — failing closed (t/3890)',
+              data: { pov, error: oldNodesErr.message },
+            });
+            error(res, 'Baseline situations file is unreadable — write refused to prevent silent non-BDI data', 500);
+            return;
+          }
+          // ENOENT (first write) or successful read: validate changed (or all on first write) nodes
+          let nodesToCheck: SituationNode[];
+          if (oldNodesErr === null && oldNodes.length > 0) {
+            const { added, modified } = diffNodes(
+              oldNodes as Parameters<typeof diffNodes>[0],
+              incoming.nodes as Parameters<typeof diffNodes>[1],
+            );
+            const changedSet = new Set([...added, ...modified]);
+            nodesToCheck = (incoming.nodes as SituationNode[]).filter(n => changedSet.has(n.id));
+          } else {
+            nodesToCheck = incoming.nodes as SituationNode[]; // ENOENT or empty baseline: validate all
+          }
+          const violations = findSituationBdiViolations(nodesToCheck);
+          if (violations.length > 0) {
+            const details = violations.map(v => `${v.id} (${v.pov}): ${v.reason}`).join('; ');
+            error(res, `BDI validation failed — ${violations.length} violation(s): ${details}`, 400);
+            return;
+          }
+        }
+
         if (getFlag('grounding_reconcile_inline')) {
           const { added, modified, deleted } = diffNodes(
             oldNodes as Parameters<typeof diffNodes>[0],
