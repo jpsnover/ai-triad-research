@@ -1,6 +1,11 @@
 {
   "ticket": "t/3886",
   "derived_from": "compliance-live run 37118348887 (2026-10-03): 450/454 non-deprecated, 4 NonDecomposed; push-gate runs 36627883333 (f9cb8ef4: sit-486, sit-487) and 36858591461 (7fee2c54: sit-488, sit-489)",
-  "authorization": "PENDING",
-  "ids": ["sit-486", "sit-487", "sit-488", "sit-489"]
+  "authorization": "t/3886#3 (TL delegation, p/349#472): sit-486..489, interpretations only, situations.json only; apply gated on PI editor-close confirmation",
+  "ids": [
+    "sit-486",
+    "sit-487",
+    "sit-488",
+    "sit-489"
+  ]
 }
