@@ -232,52 +232,10 @@ function Test-TaxonomyIntegrity {
     # is gone; any NEW drift is now a hard failure. Report BOTH asymmetry classes. Only links whose
     # BOTH endpoints exist are evaluated — a ref to a non-existent node/situation is a dangling-ref
     # issue (Checks 8/9), not an asymmetry.
+    # t/3879 decomposition: Get-SituationReciprocityIssue
     $Checks++
-    $SitLinked = @{}    # situation id -> HashSet of its linked node ids
-    if ($LoadedFiles.ContainsKey('situations')) {
-        foreach ($Node in $LoadedFiles['situations'].Data.nodes) {
-            $Set = [System.Collections.Generic.HashSet[string]]::new()
-            if ($Node.PSObject.Properties['linked_nodes'] -and $null -ne $Node.linked_nodes) {
-                foreach ($L in @($Node.linked_nodes)) { [void]$Set.Add($L) }
-            }
-            $SitLinked[$Node.id] = $Set
-        }
-    }
-    $NodeSitRefs = @{}  # POV node id -> HashSet of its situation refs
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
-        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
-        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
-            $Set = [System.Collections.Generic.HashSet[string]]::new()
-            if ($Node.PSObject.Properties['situation_refs'] -and $null -ne $Node.situation_refs) {
-                foreach ($R in @($Node.situation_refs)) { [void]$Set.Add($R) }
-            }
-            $NodeSitRefs[$Node.id] = $Set
-        }
-    }
-    # forward-only: N in S.linked_nodes (N a real POV node) but S NOT in N.situation_refs
-    $ForwardOnly = [System.Collections.Generic.List[string]]::new()
-    foreach ($SitId in $SitLinked.Keys) {
-        foreach ($N in $SitLinked[$SitId]) {
-            if (-not $PovNodeIds.Contains($N)) { continue }   # only POV nodes carry situation_refs
-            $Refs = if ($NodeSitRefs.ContainsKey($N)) { $NodeSitRefs[$N] } else { $null }
-            if ($null -eq $Refs -or -not $Refs.Contains($SitId)) { $ForwardOnly.Add("$SitId -> $N") }
-        }
-    }
-    # reverse-only: S in N.situation_refs (S a real situation) but N NOT in S.linked_nodes
-    $ReverseOnly = [System.Collections.Generic.List[string]]::new()
-    foreach ($N in $NodeSitRefs.Keys) {
-        foreach ($SitId in $NodeSitRefs[$N]) {
-            if (-not $SitIds.Contains($SitId)) { continue }   # dangling situation_ref -> Check 8
-            $Linked = if ($SitLinked.ContainsKey($SitId)) { $SitLinked[$SitId] } else { $null }
-            if ($null -eq $Linked -or -not $Linked.Contains($N)) { $ReverseOnly.Add("$N -> $SitId") }
-        }
-    }
-    $AsymCount = $ForwardOnly.Count + $ReverseOnly.Count
-    if ($AsymCount -gt 0) {
-        $FwdPart = if ($ForwardOnly.Count -gt 0) { " forward-only (in linked_nodes, missing situation_refs back-ref) [$($ForwardOnly.Count)]: $((@($ForwardOnly) | Select-Object -First 5) -join '; ')$(if ($ForwardOnly.Count -gt 5) { ' ...' })" } else { '' }
-        $RevPart = if ($ReverseOnly.Count -gt 0) { " reverse-only (in situation_refs, missing linked_nodes back-ref) [$($ReverseOnly.Count)]: $((@($ReverseOnly) | Select-Object -First 5) -join '; ')$(if ($ReverseOnly.Count -gt 5) { ' ...' })" } else { '' }
-        $Issues.Add([PSCustomObject]@{ Check = 'SituationReciprocity'; Severity = 'Error'; Count = $AsymCount; Detail = "situation.linked_nodes and POV situation_refs are not mutual (t/2979) —$FwdPart$RevPart. Fix: run Repair-SituationReciprocity -DryRun to preview, then Repair-SituationReciprocity to reconcile both directions. The two directions must stay mutual." })
-    } else { $Passed++ }
+    $ReciprocityResult = Get-SituationReciprocityIssue -LoadedFiles $LoadedFiles -PovNodeIds $PovNodeIds -SitIds $SitIds
+    if ($ReciprocityResult.Passed) { $Passed++ } else { $Issues.Add($ReciprocityResult.Issue) }
 
     # ── BDI weight range validation ──
     # Distinguishes "out-of-range" (Error — value present but violates the schema
