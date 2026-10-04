@@ -123,40 +123,15 @@ function Test-TaxonomyIntegrity {
     }
 
     # ── Check 1: Policy registry ──
-    $Checks++
+    # t/3879 decomposition: extracted to Get-PolicyRegistryIssues (Private/), verbatim logic.
+    # $Registry is threaded back explicitly -- Check 4 (edge integrity), Check 5 (embeddings),
+    # and the final report all read it downstream of this check.
     $RegistryPath = Join-Path $TaxDir 'policy_actions.json'
-    if (Test-Path $RegistryPath) {
-        $Registry = Get-Content -Raw -Path $RegistryPath | ConvertFrom-Json
-        $RegistryIds = [System.Collections.Generic.HashSet[string]]::new()
-        foreach ($Pol in $Registry.policies) { [void]$RegistryIds.Add($Pol.id) }
-
-        # Unresolved refs
-        $Unresolved = @($PolicyRefs.Keys | Where-Object { -not $RegistryIds.Contains($_) })
-        if ($Unresolved.Count -gt 0) {
-            $Issues.Add([PSCustomObject]@{ Check = 'PolicyRef'; Severity = 'Error'; Count = $Unresolved.Count; Detail = "policy_id refs not in registry: $($Unresolved -join ', ')" })
-        } else { $Passed++ }
-
-        # Orphaned
-        $Checks++
-        $Orphaned = @($RegistryIds | Where-Object { -not $PolicyRefs.ContainsKey($_) })
-        if ($Orphaned.Count -gt 0) {
-            $Issues.Add([PSCustomObject]@{ Check = 'Orphaned'; Severity = 'Warning'; Count = $Orphaned.Count; Detail = "registry entries with no node refs: $($Orphaned[0..([Math]::Min(4, $Orphaned.Count-1))] -join ', ')$(if ($Orphaned.Count -gt 5) { ' ...' })" })
-        } else { $Passed++ }
-
-        # member_count accuracy
-        $Checks++
-        $CountMismatches = 0
-        foreach ($Pol in $Registry.policies) {
-            if ($ActualCounts.ContainsKey($Pol.id)) { $Actual = $ActualCounts[$Pol.id] } else { $Actual = 0 }
-            if ($Pol.member_count -ne $Actual) { $CountMismatches++ }
-        }
-        if ($CountMismatches -gt 0) {
-            $Issues.Add([PSCustomObject]@{ Check = 'MemberCount'; Severity = 'Warning'; Count = $CountMismatches; Detail = "$CountMismatches policies have inaccurate member_count" })
-        } else { $Passed++ }
-    }
-    else {
-        $Issues.Add([PSCustomObject]@{ Check = 'Registry'; Severity = 'Error'; Count = 1; Detail = 'policy_actions.json not found' })
-    }
+    $PolicyRegistryResult = Get-PolicyRegistryIssues -RegistryPath $RegistryPath -PolicyRefs $PolicyRefs -ActualCounts $ActualCounts
+    $Registry = $PolicyRegistryResult.Registry
+    $Checks += $PolicyRegistryResult.ChecksRun
+    $Passed += $PolicyRegistryResult.Passed
+    foreach ($RegIssue in $PolicyRegistryResult.Issues) { $Issues.Add($RegIssue) }
 
     # ── Check 2: Missing policy_id ──
     $Checks++
