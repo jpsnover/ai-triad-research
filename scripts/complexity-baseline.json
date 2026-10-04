@@ -141,7 +141,7 @@
     "countOver": 1
   },
   "AITriad/Private/Invoke-ProposalApply.ps1": {
-    "max": 66,
+    "max": 65,
     "countOver": 1
   },
   "AITriad/Private/Invoke-RemoteCheck.ps1": {
@@ -189,7 +189,7 @@
     "countOver": 1
   },
   "AITriad/Private/Set-SituationBdiInterpretation.ps1": {
-    "max": 25,
+    "max": 22,
     "countOver": 1
   },
   "AITriad/Private/Split-DocumentChunks.ps1": {
@@ -237,14 +237,8 @@
     "countOver": 1
   },
   "AITriad/Private/Update-JsonNodePath.ps1": {
-    "max": 78,
-    "countOver": 1,
-    "justifiedRaise": {
-      "ticket": "t/3877",
-      "reason": "Growth (74->78) is from the reviewed perf commit d854c879/#2725 (batch re-parse-verify, opt-in -DeferVerify), not drift -- not decomposed same-session because this is the core surgical JSON path-walker (correctness-critical splice/verify logic for live data files).",
-      "preRaiseMax": 74,
-      "lapseCondition": "Auto-lapses (Update-ComplexityBaseline) once a regen writes max<=74 (preRaiseMax) -- e.g. t/3878 lands. Until then: revisit if this file's complexity changes again."
-    }
+    "max": 29,
+    "countOver": 1
   },
   "AITriad/Public/Add-SituationEvidenceLink.ps1": {
     "max": 47,
@@ -861,14 +855,8 @@
     "countOver": 1
   },
   "AITriad/Public/Test-TaxonomyIntegrity.ps1": {
-    "max": 170,
-    "countOver": 1,
-    "justifiedRaise": {
-      "ticket": "t/3877",
-      "reason": "Growth (149->170) is from t/3853's incident fix (#2691/#2693, require -Force above 20 edges), not drift -- not decomposed same-session: a single 664-line function with ~15 Check-N blocks sharing mutable state, where the addition is woven into that shared state, not a standalone unit.",
-      "preRaiseMax": 149,
-      "lapseCondition": "Auto-lapses (Update-ComplexityBaseline) once a regen writes max<=149 (preRaiseMax) -- e.g. t/3879 lands. Until then: revisit if this file's complexity changes again."
-    }
+    "max": 70,
+    "countOver": 1
   },
   "AITriad/Public/Undo-TaxEditorDataCommit.ps1": {
     "max": 25,
