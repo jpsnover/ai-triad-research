@@ -560,7 +560,13 @@ jobs:
         # had neither until t/3847/t/3894, so every PR touching it passed checks that never ran.
         # This step names that gap per app. WARN-FIRST: continue-on-error -> a red STEP in a
         # green job. FLIP (separate step: mandatory Second Opinion + TL GV, root AGENTS.md):
-        # remove this continue-on-error AND drop `--if-present` from Lint/Test.
+        # remove this continue-on-error AND drop `--if-present` from Lint/Test; the flip PR must
+        # also assert the matrix `app:` list == every package.json app with a build script
+        # (closes "new app not in the matrix gets no check", t/3897#1).
+        # READING THE WARN CYCLE (TL, t/3897#2): with continue-on-error a FAILED step reports
+        # conclusion=success -- the same checkmark as a pass. Read this step (and the renderer
+        # step below) from its failure-level ANNOTATIONS or `steps.<id>.outcome`, NEVER from the
+        # checkmark; "green warn cycle" means zero failure annotations, not all-green ticks.
         continue-on-error: true
         working-directory: ${{ matrix.app }}
         run: |
