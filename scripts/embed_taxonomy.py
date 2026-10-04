@@ -28,6 +28,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -54,6 +55,39 @@ EMBEDDINGS_FILE: Path = _FALLBACK_TAXONOMY_DIR / "embeddings.json"
 DATA_ROOT: Path = _SCRIPT_DIR.parent
 
 
+def _resolve_worktree_main_root(path):
+    """Port of Get-WorktreeMainRoot (PS, t/3869/t/3899): resolve the true
+    main-checkout root for the git worktree containing `path`, via
+    `git rev-parse --git-common-dir`. This returns the main checkout's .git
+    directory regardless of whether `path` is a nested worktree (.worktrees/x,
+    one level too deep for a sibling-relative path like "../ai-triad-data") or a
+    sibling worktree or a plain checkout -- same algorithm as the PS cmdlet, so
+    the two can't silently diverge.
+
+    Returns a resolved Path, or None if unresolvable (git unavailable, or `path`
+    isn't a git checkout at all -- e.g. a PyPI/standalone install). Callers fail
+    over to their own existing anchor in that case.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "--git-common-dir"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    common_dir = result.stdout.strip()
+    if not common_dir:
+        return None
+    common_path = Path(common_dir)
+    if not common_path.is_absolute():
+        common_path = (Path(path) / common_path).resolve()
+    return common_path.parent
+
+
 def _resolve_data_root():
     """Resolve the data root: env var > .aitriad.json > script-parent fallback.
 
@@ -62,10 +96,14 @@ def _resolve_data_root():
     so with the env var set, embeddings silently read a different checkout than
     every other step. Logs which source won (fallback-path logging, root AGENTS.md).
 
+    t/3899: a relative `data_root` in `.aitriad.json` is now anchored at the true
+    main-checkout root (via `_resolve_worktree_main_root`), not the immediate
+    checkout directory — mirrors Get-DataRoot's t/3869 fix. From a nested worktree
+    (.worktrees/<x>), anchoring at the worktree's own dir is one level too deep for
+    a sibling-relative path, and silently misses the data repo.
+
     Returns (resolved_path, cfg_dict_or_None). cfg is returned too so the caller can
-    read taxonomy_dir/conflicts_dir without re-reading/re-parsing the file. Does NOT
-    port Get-DataRoot's t/3869 worktree-anchor logic (Get-WorktreeMainRoot) — that's
-    a separate, deeper gap, scoped out of this fix (t/3899).
+    read taxonomy_dir/conflicts_dir without re-reading/re-parsing the file.
     """
     config_path = _SCRIPT_DIR.parent / ".aitriad.json"
     cfg = None
@@ -85,7 +123,23 @@ def _resolve_data_root():
     if cfg is not None:
         data_root = cfg.get("data_root", ".")
         base_path = Path(data_root)
-        base = base_path if base_path.is_absolute() else (_SCRIPT_DIR.parent / base_path)
+        if base_path.is_absolute():
+            base = base_path
+        else:
+            main_root = _resolve_worktree_main_root(_SCRIPT_DIR.parent)
+            if main_root is None:
+                print(
+                    "embed_taxonomy: git worktree-main-root resolution failed (not a "
+                    f"git checkout, or git unavailable) -- falling back to anchoring "
+                    f"relative data_root '{data_root}' at the script-parent dir "
+                    f"({_SCRIPT_DIR.parent}); this is WRONG from inside a nested "
+                    f"worktree (t/3899)",
+                    file=sys.stderr,
+                )
+                anchor = _SCRIPT_DIR.parent
+            else:
+                anchor = main_root
+            base = anchor / base_path
         resolved = base.resolve()
         print(f"embed_taxonomy: data root resolved via .aitriad.json -> {resolved}", file=sys.stderr)
         return resolved, cfg
