@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readFileSync } from 'fs';
 import {
   loadProvisionalWeights,
   resetWeightsCache,
@@ -301,10 +300,10 @@ describe('validateAdaptiveConfig', () => {
     expect(result.errors.some(e => e.includes('concludingExitThreshold'))).toBe(true);
   });
 
-  it('rejects maxTotalRounds < 6', () => {
-    const result = validateAdaptiveConfig(makeConfig({ maxTotalRounds: 5 }));
+  it('rejects maxTotalRounds < 3 (t/3882 — TIGHT is the authorized minimum)', () => {
+    const result = validateAdaptiveConfig(makeConfig({ maxTotalRounds: 2 }));
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('maxTotalRounds < 6'))).toBe(true);
+    expect(result.errors.some(e => e.includes('maxTotalRounds < 3'))).toBe(true);
   });
 
   it('warns for maxTotalRounds > 20', () => {
@@ -1377,7 +1376,7 @@ describe('max-rounds concluding starvation (t/1256)', () => {
   const speakers = 3;
   const minConcluding = Math.min(w.phase_bounds.min_concluding_rounds, w.phase_bounds.max_concluding_rounds) * speakers;
 
-  it('force-transitions argumentation → concluding at maxTotalRounds', () => {
+  it('terminates (not force_transition) in non-concluding phase at maxTotalRounds (t/3882)', () => {
     const state = makePhaseState({
       current_phase: 'argumentation',
       rounds_in_phase: 10,
@@ -1386,8 +1385,8 @@ describe('max-rounds concluding starvation (t/1256)', () => {
     const config = makeConfig({ maxTotalRounds: 10 });
     const ctx = makeSignalContext();
     const result = evaluatePhaseTransition(state, ctx, signals, config);
-    expect(result.action).toBe('force_transition');
-    expect(result.new_phase).toBe('concluding');
+    expect(result.action).toBe('terminate');
+    expect(result.reason).toContain('cap includes concluding');
   });
 
   it('does NOT terminate concluding when rounds_in_phase < min_concluding_rounds', () => {
@@ -1600,24 +1599,29 @@ describe('socratic phase model', () => {
   });
 });
 
-// ── Budget parity gate (t/2186) ───────────────────────────────
-// Asserts that the hardcoded browser fallback in loadProvisionalWeights() stays byte-for-byte
-// equal to the budget block in calibration-config.json. If either side drifts, this test fails.
-// ERR_INVALID_URL_SCHEME is caught and returns early (skip) in vite/jsdom environments where
-// import.meta.url resolves to a non-file URL at test execution time; all other errors re-throw.
-describe('calibration-config.json budget parity', () => {
+// ── Pacing preset values (t/3882) ────────────────────────────
+// Static import eliminates the two-source drift problem — loadProvisionalWeights() now
+// always reads calibration-config.json at build time (no hardcoded fallback, no runtime fs).
+// These tests assert the PI-mandated values and catch any future JSON edits that change them.
+describe('pacing preset values', () => {
   beforeEach(() => resetWeightsCache());
 
-  it('hardcoded budget fallback deep-equals calibration-config.json budget block', () => {
-    let raw: string;
-    try {
-      raw = readFileSync(new URL('./calibration-config.json', import.meta.url), 'utf-8');
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === 'ERR_INVALID_URL_SCHEME') return;
-      throw e;
-    }
-    const { budget: jsonBudget } = JSON.parse(raw) as { budget: Record<string, number> };
-    const fallback = loadProvisionalWeights();
-    expect(fallback.budget).toEqual(jsonBudget);
+  it('tight.maxTotalRounds is 3 (PI decision — t/3882)', () => {
+    expect(loadProvisionalWeights().pacing_presets.tight.maxTotalRounds).toBe(3);
+  });
+
+  it('moderate.maxTotalRounds is 10 (current JSON value)', () => {
+    expect(loadProvisionalWeights().pacing_presets.moderate.maxTotalRounds).toBe(10);
+  });
+
+  it('thorough.maxTotalRounds is 8 (current JSON value)', () => {
+    expect(loadProvisionalWeights().pacing_presets.thorough.maxTotalRounds).toBe(8);
+  });
+
+  it('all three pacing presets are present', () => {
+    const p = loadProvisionalWeights().pacing_presets;
+    expect(p).toHaveProperty('tight');
+    expect(p).toHaveProperty('moderate');
+    expect(p).toHaveProperty('thorough');
   });
 });
