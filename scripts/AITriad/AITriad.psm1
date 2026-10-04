@@ -863,6 +863,8 @@ Export-ModuleMember -Function @(
     'Test-OntologyCompliance'
     # t/3011 — data-boundary gate validator for situation per-POV BDI decomposition
     'Test-SituationBdiCompliance'
+    # t/3901 — pure, module-free BDI-violation classifier for the data-repo pre-commit hook
+    'Get-SituationBdiViolationsFromJson'
     'Get-RelevantTaxonomyNodes'
     'Invoke-QbafConflictAnalysis'
     'Test-ExtractionQuality'

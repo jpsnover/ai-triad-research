@@ -97,6 +97,7 @@
         'Get-AITSBOM'
         'Test-OntologyCompliance'
         'Test-SituationBdiCompliance'
+        'Get-SituationBdiViolationsFromJson'
         'Get-RelevantTaxonomyNodes'
         'Invoke-QbafConflictAnalysis'
         'Test-ExtractionQuality'
