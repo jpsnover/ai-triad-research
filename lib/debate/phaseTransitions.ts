@@ -36,9 +36,8 @@ import {
 import { needsGc, needsHardCap } from './networkGc.js';
 import { computeUncertaintyMetric } from './convergenceSignals.js';
 import { effectiveCamp } from './argumentNetwork/utils.js';
+import calibrationConfigJson from './calibration-config.json' with { type: 'json' };
 // ── Weight Loading ──────────────────────────────────────────
-// Node.js fs/path/url are only available in the main process. In the renderer
-// (Vite browser bundle) we fall through to the hardcoded defaults below.
 
 interface ProvisionalWeights {
   [key: string]: unknown;
@@ -58,72 +57,10 @@ interface ProvisionalWeights {
 
 let _cachedWeights: ProvisionalWeights | null = null;
 
-export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
-  if (_cachedWeights) {
-    return _cachedWeights;
+export function loadProvisionalWeights(): ProvisionalWeights {
+  if (!_cachedWeights) {
+    _cachedWeights = { ...calibrationConfigJson } as ProvisionalWeights;
   }
-
-  // Only attempt filesystem reads in Node.js (main process / server)
-  if (typeof process !== 'undefined' && process.versions?.node) {
-    try {
-      // Dynamic imports avoid Vite externalization errors in the renderer
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const fs = require('fs') as typeof import('fs');
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const path = require('path') as typeof import('path');
-
-      const candidates = [
-        debateDir ? path.join(debateDir, 'calibration-config.json') : null,
-        path.resolve(__dirname, 'calibration-config.json'),
-      ].filter(Boolean) as string[];
-
-      for (const p of candidates) {
-        try {
-          const raw = fs.readFileSync(p, 'utf-8');
-          const parsed = JSON.parse(raw) as ProvisionalWeights;
-          if (parsed.schema_version === 1) {
-            _cachedWeights = parsed;
-            return parsed;
-          }
-        } catch { /* try next candidate */ }
-      }
-    } catch { /* not in Node.js environment — fall through to defaults */ }
-  }
-
-  // Hardcoded fallback — must stay byte-for-byte equal to calibration-config.json so the
-  // browser (which cannot read files) uses the same values as the server. Drift is gated by
-  // the parity test in phaseTransitions.test.ts (t/2186).
-  _cachedWeights = {
-    schema_version: 1,
-    argumentative_saturation: {
-      recycling_pressure: 0.01, crux_maturity: 0.28, concession_plateau: 0.01,
-      engagement_fatigue: 0.01, pragmatic_convergence: 0.33, scheme_stagnation: 0.36,
-    },
-    convergence: {
-      qbaf_agreement_density: 0.35, position_stability: 0.25,
-      irreducible_disagreement_ratio: 0.25, concluding_pragmatic_signal: 0.15,
-    },
-    thresholds: { argumentation_exit: 0.72, concluding_exit: 0.70, confidence_floor: 0.40, crux_semantic_novelty: 0.70 },
-    phase_bounds: {
-      min_confrontation_rounds: 1, max_confrontation_rounds: 2,
-      min_argumentation_rounds: 2, max_argumentation_rounds: 2,
-      min_concluding_rounds: 1, max_concluding_rounds: 1,
-      max_total_rounds_default: 10, max_regressions: 2, regression_ratchet: 0.10,
-    },
-    pacing_presets: {
-      tight: { maxTotalRounds: 8, argumentationExit: 0.62, concludingExit: 0.60 },
-      moderate: { maxTotalRounds: 16, argumentationExit: 0.72, concludingExit: 0.70 },
-      thorough: { maxTotalRounds: 20, argumentationExit: 0.80, concludingExit: 0.80 },
-    },
-    network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },
-    budget: { soft_multiplier: 8, hard_multiplier: 15, max_soft_multiplier: 10 },
-    relevance: {
-      embedding_threshold: 0.48, lexical_threshold: 0.22, min_per_category: 3,
-      max_pov_nodes: 35, max_desires: 5, max_situations: 8,
-      adaptation_enabled: true, adaptation_history: [],
-    },
-    evaluator: { model: 'gemini-3.5-flash-lite', version: 1 },
-  };
   return _cachedWeights;
 }
 
@@ -185,8 +122,8 @@ export function validateAdaptiveConfig(config: PhaseTransitionConfig): { valid: 
   if (config.concludingExitThreshold < 0.30 && config.dialecticalStyle !== 'socratic') {
     errors.push('concludingExitThreshold < 0.30: synthesis will exit before meaningful convergence');
   }
-  if (config.maxTotalRounds < 6) {
-    errors.push('maxTotalRounds < 6: below the minimum sum of per-phase minimums');
+  if (config.maxTotalRounds < 3) {
+    errors.push('maxTotalRounds < 3: TIGHT is the authorized minimum (3 rounds)');
   }
   if (config.maxTotalRounds > 20) {
     warnings.push('maxTotalRounds > 20: unusually long debate');
@@ -607,7 +544,7 @@ export function evaluatePhaseTransition(
       // Already concluding — do NOT force_transition (resets rounds_in_phase → infinite loop).
       // Fall through to normal concluding evaluation below.
     } else {
-      return { action: 'force_transition', new_phase: 'concluding', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${config.maxTotalRounds})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: config.maxTotalRounds } };
+      return { action: 'terminate', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${config.maxTotalRounds}) — cap includes concluding`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: config.maxTotalRounds } };
     }
   }
 
