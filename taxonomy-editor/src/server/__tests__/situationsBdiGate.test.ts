@@ -32,10 +32,13 @@ vi.mock('../groundingReconcileHook.js', () => ({ enqueueGroundingReconcile: vi.f
 vi.mock('../storage/editMeta.js', () => ({
   stampNodeAuthorship: vi.fn((_old: unknown[], incoming: unknown[]) => incoming),
   diffNodes: vi.fn((old: Array<{ id: string }>, incoming: Array<{ id: string }>) => {
-    const oldIds = new Set(old.map(n => n.id));
-    const added = incoming.filter(n => !oldIds.has(n.id)).map(n => n.id);
-    const modified = incoming.filter(n => oldIds.has(n.id)).map(n => n.id);
-    return { added, modified, deleted: [] };
+    // Content-aware mock: unchanged nodes (same JSON) do NOT appear in modified
+    const oldMap = new Map(old.map(n => [n.id, JSON.stringify(n)]));
+    const newIds = new Set(incoming.map(n => n.id));
+    const added = incoming.filter(n => !oldMap.has(n.id)).map(n => n.id);
+    const modified = incoming.filter(n => oldMap.has(n.id) && oldMap.get(n.id) !== JSON.stringify(n)).map(n => n.id);
+    const deleted = old.filter(n => !newIds.has(n.id)).map(n => n.id);
+    return { added, modified, deleted };
   }),
 }));
 
@@ -170,6 +173,42 @@ describe('PUT /api/taxonomy/situations BDI gate (t/3890)', () => {
     await handlers['PUT /api/taxonomy/:pov'](fakeReq(), res, {
       nodes: [deprecatedNode, updatedValid],
     });
+    expect(res._status).toBe(200);
+    expect(mockWriteTaxonomy).toHaveBeenCalledOnce();
+  });
+
+  it('untouched LIVE flat node alongside valid BDI change → 200 (proves changed-only)', async () => {
+    // A live (non-deprecated) flat node that is UNCHANGED must not trigger validation.
+    // Only the modified valid node should be checked.
+    const liveFlat = {
+      id: 'sit-020',
+      label: 'Live flat',
+      description: 'A live situation with a legacy interpretation.',
+      interpretations: {
+        accelerationist: 'legacy flat string',
+        safetyist: 'legacy flat string',
+        skeptic: 'legacy flat string',
+      },
+      linked_nodes: [],
+      conflict_ids: [],
+    };
+    const validNode = makeBdiNode('sit-021');
+    mockReadTaxonomy.mockResolvedValue(makeOldFileWith([liveFlat, validNode]));
+
+    // Incoming: liveFlat unchanged (identical JSON), validNode content-changed
+    const updatedValid = makeBdiNode('sit-021', 'Updated belief.', 'Updated desire.', 'Updated intention.');
+    const res = fakeRes();
+    await handlers['PUT /api/taxonomy/:pov'](fakeReq(), res, { nodes: [liveFlat, updatedValid] });
+    expect(res._status).toBe(200);
+    expect(mockWriteTaxonomy).toHaveBeenCalledOnce();
+  });
+
+  it('ENOENT (first write) with a valid node → 200', async () => {
+    const enoentErr = Object.assign(new Error('ENOENT: no such file or directory'), { code: 'ENOENT' });
+    mockReadTaxonomy.mockRejectedValue(enoentErr);
+
+    const res = fakeRes();
+    await handlers['PUT /api/taxonomy/:pov'](fakeReq(), res, { nodes: [makeBdiNode('sit-030')] });
     expect(res._status).toBe(200);
     expect(mockWriteTaxonomy).toHaveBeenCalledOnce();
   });
