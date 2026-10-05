@@ -1,0 +1,401 @@
+{
+  "ticket": "t/3908",
+  "base": "ai-triad-data bc1d4d65",
+  "derived_from": "corpus census of unmapped_concepts shapes (861 summaries): 96 [null]-only + 1 mixed; matches t/3907#2 and the TL re-count (t/3893#8)",
+  "operation": "drop null elements from unmapped_concepts: [null] -> [] (corpus convention, 201 files), mixed -> null removed, real concepts and order kept",
+  "authorization": "PENDING",
+  "writer_fix": "PENDING (t/3907: Merge-ChunkSummaries.ps1 + Invoke-DocumentSummary finalize)",
+  "expected_files": 97,
+  "expected_nulls": 97,
+  "files": [
+    {
+      "file": "2026-antitrust-year-preview-ai-2026-1.json",
+      "class": "null_only"
+    },
+    {
+      "file": "a16zs-recommendations-national-ai-action-plan-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "accountability-ai-under-law-role-explanation-2026-1.json",
+      "class": "null_only"
+    },
+    {
+      "file": "accountability-ai-under-law-role-explanation-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "adversarial-attacks-defense-ai-systems-review-cybersecurity-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-2026-from-adoption-agentic-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-agents-could-be-worth-236-billion-by-2034-if-we-ensure-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-chatbots-digital-companions-are-reshaping-emotional-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-danger-making-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-democracy-dilemma-2026-1.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-democracy-dilemma-2026-2.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-democracy-dilemma-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-doesnt-reduce-workit-intensifies-it-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-driven-worker-displacement-is-serious-threat-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-governance-mirage-why-72-enterprises-dont-have-control-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-guidelines-exploring-points-convergence-between-faith-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-military-decision-making-harnessing-advantages-avoiding-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-models-collapse-when-trained-recursively-generated-data-2026-1.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-models-collapse-when-trained-recursively-generated-data-2026-2.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-models-collapse-when-trained-recursively-generated-data-2026-3.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-models-collapse-when-trained-recursively-generated-data-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-safety-debate-needs-ai-skeptics-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-safety-is-category-error-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ai-safety-sim-real-transfer-projects-simula-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ais-effect-writers-entertainment-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "algorithmic-accountability-act-2022-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "algorithmic-scoring-cjeu-decision-shufa-has-pandoras-box-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "anthropic-identifies-jobs-most-exposed-ai-risksis-your-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "applying-ostroms-principles-age-artificial-intelligence-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "artificial-general-intelligence-its-threat-public-health-2026-1.json",
+      "class": "null_only"
+    },
+    {
+      "file": "artificial-general-intelligence-its-threat-public-health-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "artificial-intelligence-intimacy-development-university-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "artificial-intelligence-investment-management-regulatory-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "artificial-intelligence-research-strategy-united-states-2026-1.json",
+      "class": "null_only"
+    },
+    {
+      "file": "artificial-intelligence-research-strategy-united-states-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "baumols-cost-disease-ai-economic-growth-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "belief-future-is-coming-back-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "biases-as-risk-factors-patient-security-taxonomy-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "bootleggers-baptists-ai-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "can-ai-prompt-us-ask-new-questions-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "center-ai-standards-innovation-caisi-nist-2026-1.json",
+      "class": "null_only"
+    },
+    {
+      "file": "center-ai-standards-innovation-caisi-nist-2026-2.json",
+      "class": "null_only"
+    },
+    {
+      "file": "center-ai-standards-innovation-caisi-nist-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "classified-networks-ai-agreements-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "closing-ai-accountability-gap-defining-end-end-framework-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "coding-agents-are-changing-biosecurity-risk-landscape-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "conflicting-feelings-sociological-computational-sentiment-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "copyright-labeling-ethical-ai-reporting-act-clear-act-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "counterfactual-fairness-2026-2.json",
+      "class": "null_only"
+    },
+    {
+      "file": "counterfactual-fairness-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "cross-layer-attention-probing-fine-grained-hallucination-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "curse-recursion-training-generated-data-makes-models-forget-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "data-quality-over-model-complexity-rethinking-ai-2026-1.json",
+      "class": "null_only"
+    },
+    {
+      "file": "data-quality-over-model-complexity-rethinking-ai-2026-2.json",
+      "class": "null_only"
+    },
+    {
+      "file": "data-quality-over-model-complexity-rethinking-ai-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "dead-internet-theory-myth-conspiracy-or-2026-reality-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "decodingtrust-comprehensive-assessment-trustworthiness-gpt-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "deconstructing-ai-safetyist-taxonomies-structural-gaps-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "detecting-reducing-scheming-ai-models-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "digging-into-accountability-gap-operators-civil-liability-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "does-ai-need-constitution-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "dont-call-it-intelligence-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "dual-use-foundation-models-widely-available-model-weights-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "economics-ai-training-data-research-agenda-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "effective-accelerationism-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "eight-ways-ai-will-shape-geopolitics-2026-2026-1.json",
+      "class": "null_only"
+    },
+    {
+      "file": "eight-ways-ai-will-shape-geopolitics-2026-2026-2.json",
+      "class": "null_only"
+    },
+    {
+      "file": "eight-ways-ai-will-shape-geopolitics-2026-2026-3.json",
+      "class": "null_only"
+    },
+    {
+      "file": "eight-ways-ai-will-shape-geopolitics-2026-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ensuring-national-policy-framework-artificial-intelligence-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ephemeral-tokens-advance-access-governance-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "epistemic-boundaries-macroeconomic-realities-technical-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "european-commission-withdraws-ai-liability-directive-from-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "evaluating-impact-ai-labor-market-current-state-affairs-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "explaining-womens-skepticism-toward-artificial-intelligence-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "explicitly-unbiased-large-language-models-still-form-biased-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "extreme-power-concentration-2026-1.json",
+      "class": "null_only"
+    },
+    {
+      "file": "extreme-power-concentration-2026-2.json",
+      "class": "null_only"
+    },
+    {
+      "file": "extreme-power-concentration-2026-3.json",
+      "class": "null_only"
+    },
+    {
+      "file": "extreme-power-concentration-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "faith-anthropic-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "federal-court-rules-clients-ai-generated-documents-not-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "floor-speech-artificial-intelligence-robotics-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ftc-order-will-ban-avast-from-selling-browsing-data-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "ftcs-strong-rite-aid-enforcement-order-is-warning-companies-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "google-microsoft-xai-agree-share-early-ai-models-us-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "holding-ai-accountable-addressing-ai-related-harms-through-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "layered-control-architectures-ai-safety-cybersecurity-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "merck-mastercard-are-seeing-real-agentic-ai-results-both-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "navigating-ai-vendor-contracts-future-law-guide-legal-tech-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "no-artificial-intelligence-is-not-conscious-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "open-weight-ai-models-require-proportional-evaluation-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "speed-cost-quality-impact-llm-agent-assistance-software-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "synthetic-data-new-data-frontier-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "verifiable-ai-building-trust-through-transparency-proof-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "what-pope-said-about-ai-2026.json",
+      "class": "null_only"
+    },
+    {
+      "file": "when-ai-builds-itself-2026.json",
+      "class": "mixed",
+      "kept_concepts": 5
+    }
+  ]
+}
