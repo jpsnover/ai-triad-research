@@ -1,0 +1,162 @@
+{
+  "ticket": "t/3893 (re-scoped per TL t/3893#3; blocks t/3598)",
+  "base": "ai-triad-data 83d77026",
+  "derived_from": "leg-a 17 offenders; each verified entry-by-entry as a Repair-ResolvedBackfill-appended duplicate (fingerprint + same-point null twin) re-armed by a dead top-level unmapped_concepts[].resolved_node_id (Rosetta t/3900#1, TL t/3893#3, CL 17/17).",
+  "operation": "per op: delete the appended key_point (keep its null twin); remove the key resolved_node_id from the matching unmapped_concept",
+  "authorization": "PI (Jeffrey) 2026-10-05, recorded t/3893#6; re-scope accepted by TL t/3893#5; editor closed",
+  "ops": [
+    {
+      "docId": "ai-policy-bulletin-2026",
+      "pov": "skeptic",
+      "dead_id": "skp-intentions-100",
+      "point": "The document cites Stanford HAI's call to evaluate the 'marginal risk' of open-source AI systems. This methodology requires comparing the harmful action enabled by an AI (like a cyber attack) to the current methods humans use to perform the exact same action. It is presented as a way to bring sanity and empirical grounding to the AI risk debate.",
+      "delete_index_at_base": 4,
+      "kept_null_twin_index_at_base": 3,
+      "unmapped_concept_index_at_base": 1
+    },
+    {
+      "docId": "esrbascreport202512-aiandsystemicrisken-2026",
+      "pov": "safetyist",
+      "dead_id": "saf-beliefs-081",
+      "point": "The document argues that if many institutions rely on the same AI model, a flaw in that model could lead to simultaneous failure. This is compared to a 'model monoculture' where risk managers all strive for the same best practices, amplifying market reactions to news.",
+      "delete_index_at_base": 7,
+      "kept_null_twin_index_at_base": 6,
+      "unmapped_concept_index_at_base": 0
+    },
+    {
+      "docId": "extreme-power-concentration-80000-hours-2026",
+      "pov": "safetyist",
+      "dead_id": "saf-intentions-130",
+      "point": "The document outlines an 'automated military coup' as one pathway to an AI-enabled power grab over an entire government. It details how this could happen through military AI systems being explicitly trained to be loyal to an official instead of the rule of law, AI systems developing 'secret loyalties' to a small group, or hacking into military AI systems. This scenario highlights the unique risks posed by autonomous military AI and the potential for a small group to seize power without needing a large human workforce.",
+      "delete_index_at_base": 20,
+      "kept_null_twin_index_at_base": 19,
+      "unmapped_concept_index_at_base": 1
+    },
+    {
+      "docId": "extreme-power-concentration-80000-hours-2026-1",
+      "pov": "safetyist",
+      "dead_id": "saf-beliefs-084",
+      "point": "The document describes epistemic interference as a mechanism for power concentration, where powerful actors use AI to obfuscate activities, leverage the speed of AI progress to outpace human understanding, deploy biased AI advisors, and conduct personalized persuasion campaigns. This erodes people's ability to understand what's happening and coordinate to resist power grabs.",
+      "delete_index_at_base": 41,
+      "kept_null_twin_index_at_base": 40,
+      "unmapped_concept_index_at_base": 1
+    },
+    {
+      "docId": "legal-policy-approaches-mitigate-catastrophic-harms-from-ai-2026",
+      "pov": "accelerationist",
+      "dead_id": "acc-desires-032",
+      "point": "The document suggests that voluntary standards, while potentially imperfect, serve as the 'raw material' for future policy frameworks. By establishing what constitutes 'responsibility' and 'due care,' these standards help regulators and courts build the foundation for more formal, enforceable mandates later.",
+      "delete_index_at_base": 6,
+      "kept_null_twin_index_at_base": 5,
+      "unmapped_concept_index_at_base": 0
+    },
+    {
+      "docId": "legal-policy-approaches-mitigate-catastrophic-harms-from-ai-2026",
+      "pov": "skeptic",
+      "dead_id": "skp-beliefs-105",
+      "point": "The document references specific legal scholarship on using tort law and insurance to address damages caused by AI systems. This suggests a focus on post-hoc accountability and financial risk transfer as a primary governance mechanism.",
+      "delete_index_at_base": 10,
+      "kept_null_twin_index_at_base": 9,
+      "unmapped_concept_index_at_base": 2
+    },
+    {
+      "docId": "logic-collective-action-analytical-report-theory-groups-2026",
+      "pov": "accelerationist",
+      "dead_id": "acc-beliefs-049",
+      "point": "The document describes institutional sclerosis as a condition where distributional coalitions accumulate over time in stable societies, focusing on rent-seeking rather than productivity. This leads to a thicket of regulations that reduce overall economic efficiency.",
+      "delete_index_at_base": 8,
+      "kept_null_twin_index_at_base": 7,
+      "unmapped_concept_index_at_base": 0
+    },
+    {
+      "docId": "logic-collective-action-analytical-report-theory-groups-2026",
+      "pov": "safetyist",
+      "dead_id": "saf-intentions-152",
+      "point": "The document explains that large organizations like labor unions and farm bureaus survive by providing private goods like insurance or certifications, which then fund their political lobbying efforts.",
+      "delete_index_at_base": 8,
+      "kept_null_twin_index_at_base": 7,
+      "unmapped_concept_index_at_base": 1
+    },
+    {
+      "docId": "please-dont-outsource-your-critical-thinking-2026",
+      "pov": "skeptic",
+      "dead_id": "skp-beliefs-088",
+      "point": "The document describes AI as a tool that 'trains us to trust rather than test what we read,' leading to a 'collective anesthesia' where users lose the ability to evaluate information critically. This concept grounds the argument that convenience is a primary driver of cognitive decline.",
+      "delete_index_at_base": 14,
+      "kept_null_twin_index_at_base": 13,
+      "unmapped_concept_index_at_base": 2
+    },
+    {
+      "docId": "project-iceberg-iceberg-index-measuring-skills-centered-2026-1",
+      "pov": "safetyist",
+      "dead_id": "saf-beliefs-088",
+      "point": "Some states show large differences between Surface Index (technology occupations) and Iceberg Index values (including administrative, financial, and professional service occupations). These gaps indicate substantial skill overlap in cognitive work despite minimal visible technology-sector adoption.",
+      "delete_index_at_base": 18,
+      "kept_null_twin_index_at_base": 17,
+      "unmapped_concept_index_at_base": 1
+    },
+    {
+      "docId": "pushing-limits-fairness-impossibility-whos-fairest-them-all-2026",
+      "pov": "accelerationist",
+      "dead_id": "acc-intentions-095",
+      "point": "The document introduces a post-processing framework that uses an integer-programming based approach to transform model scores into new bins, thereby satisfying multiple fairness criteria simultaneously. This method is distinct because it works on top of any existing binary classifier, providing a modular solution for fairness.",
+      "delete_index_at_base": 3,
+      "kept_null_twin_index_at_base": 2,
+      "unmapped_concept_index_at_base": 0
+    },
+    {
+      "docId": "rethinking-ai-superintelligence-preparedness-through-2026",
+      "pov": "safetyist",
+      "dead_id": "saf-desires-021",
+      "point": "Situated Precaution is defined as a justice-oriented, context-aware approach to AI governance that resists epistemic universalism and embraces plural futures. It foregrounds epistemic justice and temporal sovereignty, highlighting the importance of recognizing diverse knowledge systems, political contexts, and social vulnerabilities in shaping AI governance.",
+      "delete_index_at_base": 3,
+      "kept_null_twin_index_at_base": 2,
+      "unmapped_concept_index_at_base": 0
+    },
+    {
+      "docId": "superintelligent-agents-pose-catastrophic-risks-can-2026",
+      "pov": "safetyist",
+      "dead_id": "saf-beliefs-089",
+      "point": "The document defines computational uncertainty as uncertainty in predictions due to insufficient training data that can be reduced by throwing more computation at the learner. It distinguishes this from traditional epistemic uncertainty, noting that the two are related but distinct in the context of training neural networks.",
+      "delete_index_at_base": 23,
+      "kept_null_twin_index_at_base": 22,
+      "unmapped_concept_index_at_base": 7
+    },
+    {
+      "docId": "transform-before-you-query-privacy-preserving-approach-2026",
+      "pov": "accelerationist",
+      "dead_id": "acc-intentions-094",
+      "point": "The document introduces STEER, which computes a mapping function between local and server-side embedding spaces using non-sensitive text. This transformation allows the client to send approximate embeddings that are semantically useful for retrieval but resistant to inversion attacks.",
+      "delete_index_at_base": 4,
+      "kept_null_twin_index_at_base": 2,
+      "unmapped_concept_index_at_base": 0
+    },
+    {
+      "docId": "trust-attitudes-use-ai-global-report-2026-1",
+      "pov": "safetyist",
+      "dead_id": "saf-beliefs-079",
+      "point": "The document argues that low levels of AI literacy limit the public's ability to recognize the limitations of AI systems and guard against harm. It specifically notes that users unaware of how algorithms shape content are more vulnerable to misinformation and manipulation. This frames public education not just as an economic necessity, but as a critical safety mechanism.",
+      "delete_index_at_base": 25,
+      "kept_null_twin_index_at_base": 23,
+      "unmapped_concept_index_at_base": 6
+    },
+    {
+      "docId": "trust-attitudes-use-ai-global-report-2026-1",
+      "pov": "safetyist",
+      "dead_id": "saf-beliefs-080",
+      "point": "The document states that AI-generated misinformation is a key global concern that undermines trust in online content and threatens the integrity of elections. It notes strong public support for legislative measures and technical detection methods to combat this specific threat.",
+      "delete_index_at_base": 26,
+      "kept_null_twin_index_at_base": 24,
+      "unmapped_concept_index_at_base": 18
+    },
+    {
+      "docId": "trust-attitudes-use-ai-global-report-2026-1",
+      "pov": "skeptic",
+      "dead_id": "skp-beliefs-093",
+      "point": "The document identifies that nearly half of employees feel pressured to use AI at work out of fear of being left behind. It statistically links this anxiety and general work strain to the 'complacent use' of AI tools. This highlights a coercive dynamic in AI adoption where usage metrics may reflect peer pressure rather than actual technological value.",
+      "delete_index_at_base": 42,
+      "kept_null_twin_index_at_base": 41,
+      "unmapped_concept_index_at_base": 11
+    }
+  ]
+}
