@@ -42,7 +42,7 @@ export type CommitPlan =
 const BASELINE_STALE_MS = 24 * 60 * 60 * 1000;
 
 function git(repo: string, args: string[], input?: string): string {
-  return execFileSync('git', args, { cwd: repo, encoding: 'utf8', input, maxBuffer: 256 * 1024 * 1024 });
+  return execFileSync('git', args, { cwd: repo, encoding: 'utf8', input, maxBuffer: 256 * 1024 * 1024, windowsHide: true });
 }
 
 /** Parse `git status --porcelain=v1 -z -uall`. A rename/copy entry is followed by its source path. */
