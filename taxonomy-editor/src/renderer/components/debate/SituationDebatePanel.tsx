@@ -13,13 +13,37 @@ import { AI_POVERS } from '@lib/debate/types';
 import { DEBATE_PROTOCOLS } from '../../data/debateProtocols';
 import { api } from '@bridge';
 import { subscribeToSituationDebateStart } from './waitForSituationDebateStart';
+import { PRESET_DEFAULTS } from './NewDebateDialog';
 
 type DebatePacing = 'tight' | 'moderate' | 'thorough';
 
+// t/3928 (PI decision, t/3882#4): situation pacing maps to the SAME per-phase round bounds
+// as the normal debate presets — TIGHT=Quick, MODERATE=Deep, THOROUGH=Socratic's bounds —
+// reusing the constants (not copying the numbers) so the two paths can't drift apart.
+const PACING_TO_PRESET: Record<DebatePacing, 'quick' | 'deep' | 'socratic'> = {
+  tight: 'quick',
+  moderate: 'deep',
+  thorough: 'socratic',
+};
+
+function phaseBoundsForPacing(pacing: DebatePacing) {
+  const p = PRESET_DEFAULTS[PACING_TO_PRESET[pacing]];
+  return {
+    maxConfrontationRounds: p.confrontationRounds,
+    maxArgumentationRounds: p.argumentationRounds,
+    maxConcludingRounds: p.concludingRounds,
+  };
+}
+
+function totalRounds(pacing: DebatePacing): number {
+  const p = PRESET_DEFAULTS[PACING_TO_PRESET[pacing]];
+  return p.confrontationRounds + p.argumentationRounds + p.concludingRounds;
+}
+
 const PACING_PRESETS: { id: DebatePacing; label: string; desc: string }[] = [
-  { id: 'tight', label: 'Tight', desc: 'Shorter, focused exchanges.' },
-  { id: 'moderate', label: 'Moderate', desc: 'Balanced depth.' },
-  { id: 'thorough', label: 'Thorough', desc: 'Deep dive, longer exploration.' },
+  { id: 'tight', label: 'Tight', desc: `${totalRounds('tight')} rounds, focused exchanges.` },
+  { id: 'moderate', label: 'Moderate', desc: `${totalRounds('moderate')} rounds, balanced depth.` },
+  { id: 'thorough', label: 'Thorough', desc: `${totalRounds('thorough')} rounds, deep dive, longer exploration.` },
 ];
 
 interface SituationDebatePanelProps {
@@ -106,7 +130,7 @@ export function SituationDebatePanel({ node }: SituationDebatePanelProps) {
     // afterward — a post-creation mutate-then-save was silently discarded by
     // clarificationSlice's concurrent `set({ activeDebate: { ...fresh } })`
     // replacements during the opening/clarification pipeline (TL diagnosis, t/3783#4).
-    createSituationDebate(node.id, { effectiveModel, pacing, useAdaptiveStaging, temperature, audience, protocolId })
+    createSituationDebate(node.id, { effectiveModel, pacing, useAdaptiveStaging, temperature, audience, protocolId, phaseBoundsOverride: phaseBoundsForPacing(pacing) })
       .then(() => {
         setLaunching(false);
       })
