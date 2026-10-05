@@ -757,6 +757,14 @@ function Finalize-Summary {
         $UC = Get-Field $SummaryObject 'unmapped_concepts'
         # Force-array: ConvertFrom-Json unwraps single-element arrays to scalars; null → empty
         $UC = if ($null -ne $UC) { @($UC) } else { @() }
+        # t/3907: drop bare-null elements -- a model/merge artifact that otherwise
+        # writes unmapped_concepts: [null, ...], which a later StrictMode reader
+        # throws on when it touches .PSObject.Properties against the null entry.
+        $NullUcCount = @($UC | Where-Object { $null -eq $_ }).Count
+        if ($NullUcCount -gt 0) {
+            Write-Warning "Finalize-Summary: dropped $NullUcCount null unmapped_concepts entry/entries (t/3907, model=$Model)"
+            $UC = @($UC | Where-Object { $null -ne $_ })
+        }
         if ($SummaryObject -is [System.Collections.IDictionary]) { $SummaryObject['unmapped_concepts'] = $UC }
         else { $SummaryObject.unmapped_concepts = $UC }
     }

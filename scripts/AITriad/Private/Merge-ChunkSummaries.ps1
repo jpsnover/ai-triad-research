@@ -186,11 +186,20 @@ function Merge-ChunkSummaries {
     $AllUnmapped = [System.Collections.Generic.List[object]]::new()
     $SeenLabels  = [System.Collections.Generic.HashSet[string]]::new()
 
+    $NullConceptsDropped = 0
     foreach ($Chunk in $ChunkResults) {
         $ChunkConcepts = Get-SummaryProp $Chunk 'unmapped_concepts'
         if (-not $ChunkConcepts) { continue }
 
         foreach ($Concept in $ChunkConcepts) {
+            if ($null -eq $Concept) {
+                # t/3907: a chunk's unmapped_concepts can contain a bare null
+                # (model/serialization artifact). Carrying it through produces
+                # unmapped_concepts: [null], which later throws under
+                # StrictMode wherever a reader touches .PSObject.Properties.
+                $NullConceptsDropped++
+                continue
+            }
             $SuggestedLabel = Get-SummaryProp $Concept 'suggested_label'
             if ($SuggestedLabel) {
                 $LabelKey = $SuggestedLabel.ToLowerInvariant().Trim()
@@ -202,6 +211,9 @@ function Merge-ChunkSummaries {
                 $AllUnmapped.Add($Concept)
             }
         }
+    }
+    if ($NullConceptsDropped -gt 0) {
+        Write-Warning "Merge-ChunkSummaries: dropped $NullConceptsDropped null unmapped_concepts entry/entries during merge (t/3907)"
     }
 
     # ── Context-rot: merge/dedup metrics ─────────────────────────────────────

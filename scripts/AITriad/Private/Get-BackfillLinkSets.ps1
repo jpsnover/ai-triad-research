@@ -51,6 +51,7 @@ function Get-BackfillLinkSets {
         $PovSection = $PovSummaries.$Pov
         if (-not $PovSection.PSObject.Properties['key_points'] -or -not $PovSection.key_points) { continue }
         foreach ($Kp in @($PovSection.key_points)) {
+            if ($null -eq $Kp) { continue }
             if ($Kp.PSObject.Properties['taxonomy_node_id'] -and $Kp.taxonomy_node_id) {
                 $null = $NodeIds[$Pov].Add($Kp.taxonomy_node_id)
             }
