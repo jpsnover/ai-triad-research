@@ -6,11 +6,12 @@ pre-committed concept-anchored floor (0.636 < 0.80, t/3381), so about[] reverts 
 and term: concept refs move to `topical_candidates` — a quality-marked layer (provenance block
 carries validated:false + the 0.54 blind-golden precision so the unvalidated status is legible
 from the data alone). match_level is enum-clamped on both so a concept's sort=`universal` can never
-leak in (the t/3379 leak). The module loads entities.json at import, so we skip cleanly when the
-data repo is absent (mirrors validation.data.test.ts)."""
+leak in (the t/3379 leak). Every test here is pure: the module loads entities.json lazily (t/3940), so
+these run in CI, which has no data repo."""
 import importlib.util
 import os
-import pytest
+import subprocess
+import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -18,14 +19,23 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 def _load_module():
     spec = importlib.util.spec_from_file_location("flf", os.path.join(_HERE, "formalize_node_lf.py"))
     mod = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(mod)  # import-time load of entities.json
-    except (FileNotFoundError, OSError) as e:
-        pytest.skip(f"data repo not available for formalize_node_lf import: {e}")
+    spec.loader.exec_module(mod)
     return mod
 
 
 flf = _load_module()
+
+
+def test_imports_without_data_repo():
+    """t/3940: importing must not touch the data repo. With an import-time load of entities.json,
+    CI (no data repo) could only error or skip every test in this folder."""
+    code = ("import importlib.util as u; s = u.spec_from_file_location('f', r'%s'); m = u.module_from_spec(s); "
+            "s.loader.exec_module(m); print(m.strip_scope_notes('X. Excludes: y'))"
+            % os.path.join(_HERE, "formalize_node_lf.py"))
+    env = dict(os.environ, AI_TRIAD_DATA_ROOT=os.path.join(_HERE, "no-such-data-root"))
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == "X."
 
 # term:* concept ref -> ("universal", "exact"); ent-* -> (dolce_sort, entity_match_level)
 ALLOWED = {

@@ -21,8 +21,28 @@ PROMPT_PATH = os.path.join(REPO, "scripts", "AITriad", "Prompts", "logical-form-
 POV = {"acc": "acc", "saf": "saf", "skp": "skp"}
 CAT_ATT = {"Beliefs": "belief", "Desires": "desire", "Intentions": "intention"}
 
-ents = json.load(open(os.path.join(O, "entities.json"), encoding="utf-8"))["entities"]
-reg = {e["id"]: {"sort": e.get("dolce_category", "non-agentive-social-object"), "name": e.get("name", "")} for e in ents}
+# t/3940: the entity register is loaded on first use, not at import, so the pure functions
+# (validate, strip_discourse_wrapper, strip_scope_notes, ...) import and test without the data repo.
+# CI has no data repo; an import-time load made every test here either error or skip there.
+_REG = None
+
+
+def _registry():
+    """id -> {sort, name} from taxonomy/Origin/entities.json, loaded once on first use."""
+    global _REG
+    if _REG is None:
+        with open(os.path.join(O, "entities.json"), encoding="utf-8") as f:
+            ents = json.load(f)["entities"]
+        _REG = {e["id"]: {"sort": e.get("dolce_category", "non-agentive-social-object"), "name": e.get("name", "")}
+                for e in ents}
+    return _REG
+
+
+def __getattr__(name):
+    # Back-compat for any caller that read the old module-level `reg` (PEP 562).
+    if name == "reg":
+        return _registry()
+    raise AttributeError(name)
 
 def load_nodes():
     out = []
@@ -36,6 +56,7 @@ def load_nodes():
 
 def refs_block(n):
     lines, allowed = [], {}
+    reg = _registry()
     for r in (n.get("entity_refs") or []):
         eid = r["ref"]; sort = reg.get(eid, {}).get("sort", "non-agentive-social-object")
         ml = r.get("match_level", "exact"); nm = reg.get(eid, {}).get("name", r.get("surface", ""))
