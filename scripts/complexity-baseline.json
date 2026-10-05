@@ -176,6 +176,10 @@
     "max": 55,
     "countOver": 1
   },
+  "AITriad/Private/Read-AIUsageEntries.ps1": {
+    "max": 16,
+    "countOver": 1
+  },
   "AITriad/Private/Remove-DuplicateClaims.ps1": {
     "max": 58,
     "countOver": 1
@@ -194,6 +198,10 @@
   },
   "AITriad/Private/Split-DocumentChunks.ps1": {
     "max": 22,
+    "countOver": 1
+  },
+  "AITriad/Private/Test-AIProviderKeyStatus.ps1": {
+    "max": 16,
     "countOver": 1
   },
   "AITriad/Private/Test-DirectionalAgreement.ps1": {
@@ -326,10 +334,6 @@
   },
   "AITriad/Public/Get-AICallLog.ps1": {
     "max": 29,
-    "countOver": 1
-  },
-  "AITriad/Public/Get-AICostReport.ps1": {
-    "max": 109,
     "countOver": 1
   },
   "AITriad/Public/Get-AITClaim.ps1": {
@@ -667,7 +671,7 @@
     "countOver": 1
   },
   "AITriad/Public/Repair-ResolvedBackfill.ps1": {
-    "max": 59,
+    "max": 57,
     "countOver": 1
   },
   "AITriad/Public/Repair-SituationReciprocity.ps1": {
