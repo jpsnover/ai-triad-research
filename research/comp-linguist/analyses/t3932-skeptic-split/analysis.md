@@ -49,6 +49,19 @@ Mentions of an author or their signature term across the 862 summaries:
 
 Two of the three people the question names are absent. Any claim here about Doctorow or Marcus rests on outside sources (section 3), not on the corpus. Ingesting them is the first follow-up.
 
+**Correction (2026-10-05, t/3933).** The table above measures **mentions**: whether a summary's text names the author. It is not a count of sources **by** that author, because a summary of a Doctorow essay summarizes the argument without naming Doctorow. "No Marcus source in the corpus" was therefore wrong.
+
+Counted by authorship, from each source's `metadata.json` `authors` field in ai-triad-sources, before and after the t/3933 ingestion (d811b17, then 45bcaf3):
+
+| Author | Sources before | Sources after |
+|---|---|---|
+| Cory Doctorow | 0 | 3 |
+| Gary Marcus | 2 (one Substack essay, ingested twice) | 5 |
+| Emily M. Bender | 1 (*Stochastic Parrots*) | 2 |
+| Narayanan or Kapoor | 5 | 6 |
+
+The section's conclusion still holds: Doctorow was absent and Marcus was represented only by one blog post. The measure was wrong, though. Use the authorship count for coverage questions.
+
 ### 2.2 How the Skeptic nodes divide by intellectual lineage
 
 There are 376 Skeptic nodes: 262 beliefs, 34 desires and 80 intentions. 375 of them carry `graph_attributes.intellectual_lineage`. I bucketed each node by the *names* of its lineages, using a keyword regex. Critical covers critical theory, STS, political economy, labor, feminist and race studies. Institutional covers institutional economics, public choice, administrative law, risk management, diffusion of innovations and tort law. Capability-cognitive covers cognitive science and linguistics.
