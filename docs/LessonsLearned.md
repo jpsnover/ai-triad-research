@@ -4285,3 +4285,21 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (TL t/3892, data #17, p/335#132). Silent; git exits 0 with plausible-looking output from the wrong repo.
 
 **Applies To:** All agents writing hooks that call `git` commands targeting a repo other than the one that invoked the hook.
+
+## #204 [Build] `git worktree add` Fails on Stale Directory or Stale Branch — Two Separate Failures, Same Recreate Path
+
+**Pattern:** After `git worktree remove <path>`, the worktree registration is cleared but the **directory on disk is not deleted**. A subsequent `git worktree add -b <branch> <path> origin/main` fails with `fatal: '<path>' already exists`. Separately: if the same-named branch was left behind by a prior failed `worktree add` attempt, a second `worktree add -b` fails because the branch already exists. The two failures are independent but triggered in sequence when recreating a same-name worktree.
+
+**Instances:**
+- 2026-10-05 — DebateTool (p/70#47): recreating `wt-3882` hit both failures in sequence — directory persisted after `git worktree remove`, then a stale same-name branch (created by the failed first add) blocked the retry. Resolved by `rm -rf <path>` first, then `git branch -D <branch>`, then `git worktree add -b <branch> <path> origin/main`.
+
+**Root Cause:** `git worktree remove` deregisters the worktree and removes the `.git/worktrees/<name>` metadata but does NOT `rm -rf` the working directory — git treats that as user-owned data. The `-b` flag of `worktree add` calls `git branch` internally, so if a branch with that name already exists (from a previous failed add), the whole command fails without creating the worktree.
+
+**Prevention:**
+1. **Recreate sequence:** `rm -rf <path>` → `git branch -D <branch>` (if branch exists) → `git worktree add -b <branch> <path> origin/main`.
+2. **Check before assuming clean state:** after `git worktree remove`, verify with `git worktree list` (confirms deregistration) and `ls <path>` (confirms directory gone) and `git branch --list <branch>` (confirms branch gone) before a recreate.
+3. **Prefer unique worktree names** (e.g. include a timestamp or ticket number) to avoid stale-branch collisions across sessions.
+
+**Status:** Active — 1 instance (DebateTool, p/70#47). Loud failure (`fatal:` message); easy to fix once the two-stage nature is understood.
+
+**Applies To:** Any agent that removes and recreates a worktree with the same path or branch name.
