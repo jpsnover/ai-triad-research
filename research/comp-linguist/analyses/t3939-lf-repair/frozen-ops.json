@@ -1,0 +1,243 @@
+{
+  "ticket": "t/3939",
+  "supersedes": "t/3351 targeted 10-node class-B apply (pending PI decision, t/3351#4)",
+  "data_base": "8022a263",
+  "authorization": "PENDING",
+  "expected_ops": 11,
+  "serializer_roundtrip_byte_identical": {
+    "accelerationist.json": true,
+    "safetyist.json": true,
+    "skeptic.json": true
+  },
+  "ops": [
+    {
+      "op": "drop_discourse_agent",
+      "file": "accelerationist.json",
+      "id": "acc-intentions-008",
+      "before_sha16": "012cc8e76070cb64",
+      "predicate": "match",
+      "drop_arg": {
+        "role": "agent",
+        "ref": "lit:\"accelerationist discourse\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    },
+    {
+      "op": "drop_discourse_agent",
+      "file": "accelerationist.json",
+      "id": "acc-desires-021",
+      "before_sha16": "8176bc584fa16979",
+      "predicate": "prioritize",
+      "drop_arg": {
+        "role": "agent",
+        "ref": "lit:\"accelerationist discourse\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    },
+    {
+      "op": "drop_discourse_agent",
+      "file": "accelerationist.json",
+      "id": "acc-intentions-096",
+      "before_sha16": "ba12cf653b5929b2",
+      "predicate": "require",
+      "drop_arg": {
+        "role": "agent",
+        "ref": "lit:\"accelerationist discourse\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    },
+    {
+      "op": "drop_discourse_agent",
+      "file": "accelerationist.json",
+      "id": "acc-intentions-103",
+      "before_sha16": "e7a60908a7dc5434",
+      "predicate": "prohibit",
+      "drop_arg": {
+        "role": "agent",
+        "ref": "lit:\"accelerationist discourse\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      }
+    },
+    {
+      "op": "drop_discourse_agent",
+      "file": "accelerationist.json",
+      "id": "acc-beliefs-070",
+      "before_sha16": "b3c304bb496139f4",
+      "predicate": "evaluate",
+      "drop_arg": {
+        "role": "agent",
+        "ref": "lit:\"accelerationist discourse\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      }
+    },
+    {
+      "op": "drop_discourse_agent",
+      "file": "safetyist.json",
+      "id": "saf-intentions-048",
+      "before_sha16": "96f89b306ad0299d",
+      "predicate": "develop",
+      "drop_arg": {
+        "role": "agent",
+        "ref": "lit:\"safetyist discourse\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    },
+    {
+      "op": "replace_frame",
+      "file": "safetyist.json",
+      "id": "saf-intentions-127",
+      "before_sha16": "0394aa67583f70b3",
+      "live_predicate": "hold",
+      "new_frame": {
+        "predicate": "give",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "patient",
+            "ref": "lit:\"Stable Identities\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:saf",
+          "attitude": "intention"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "formalization_confidence": 0.8,
+        "status": "proposed",
+        "about": [],
+        "topical_candidates": {
+          "validated": false,
+          "generator": "formalize_node_lf.py",
+          "golden_ref": "t/3381",
+          "blind_golden_precision": 0.54,
+          "refs": [
+            {
+              "ref": "term:accountability_institutional",
+              "match_level": "exact"
+            },
+            {
+              "ref": "term:alignment_compliance",
+              "match_level": "exact"
+            },
+            {
+              "ref": "term:autonomy_human",
+              "match_level": "exact"
+            },
+            {
+              "ref": "term:control_human_agency",
+              "match_level": "exact"
+            },
+            {
+              "ref": "term:oversight_human_control",
+              "match_level": "exact"
+            },
+            {
+              "ref": "term:transparency_accountability",
+              "match_level": "exact"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "op": "drop_discourse_agent",
+      "file": "safetyist.json",
+      "id": "saf-intentions-149",
+      "before_sha16": "5605a630da9b471e",
+      "predicate": "combine",
+      "drop_arg": {
+        "role": "agent",
+        "ref": "lit:\"safetyist discourse\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      }
+    },
+    {
+      "op": "drop_discourse_agent",
+      "file": "safetyist.json",
+      "id": "saf-intentions-217",
+      "before_sha16": "92461f1667a41414",
+      "predicate": "require",
+      "drop_arg": {
+        "role": "agent",
+        "ref": "lit:\"safetyist discourse\"",
+        "sort": "agentive-physical-object",
+        "match_level": "exact"
+      }
+    },
+    {
+      "op": "drop_discourse_agent",
+      "file": "skeptic.json",
+      "id": "skp-intentions-055",
+      "before_sha16": "ff1dab0200840a66",
+      "predicate": "operationalize",
+      "drop_arg": {
+        "role": "agent",
+        "ref": "lit:\"skeptic discourse\"",
+        "sort": "non-agentive-social-object",
+        "match_level": "exact"
+      }
+    },
+    {
+      "op": "replace_frame",
+      "file": "skeptic.json",
+      "id": "skp-beliefs-232",
+      "before_sha16": "9ba6c9f499da1727",
+      "live_predicate": "maintain",
+      "new_frame": {
+        "predicate": "destroy",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "agent",
+            "ref": "lit:\"normal web distribution\"",
+            "sort": "perdurant",
+            "match_level": "exact"
+          },
+          {
+            "role": "patient",
+            "ref": "lit:\"Content provenance metadata embedded at the generation layer\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:skp",
+          "attitude": "belief"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "formalization_confidence": 0.9,
+        "status": "proposed",
+        "about": [],
+        "topical_candidates": {
+          "validated": false,
+          "generator": "formalize_node_lf.py",
+          "golden_ref": "t/3381",
+          "blind_golden_precision": 0.54,
+          "refs": [
+            {
+              "ref": "term:compliance_performative",
+              "match_level": "exact"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

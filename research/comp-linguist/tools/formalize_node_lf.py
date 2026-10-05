@@ -11,8 +11,11 @@ PI-directed populate (t/3162 (B)); gated post-hoc by TL data-model review + a no
 """
 import argparse, json, os, re, sys, time
 sys.stdout.reconfigure(encoding="utf-8")
-REPO = r"C:\Users\jsnov\repos\ai-triad-research"
-D = r"C:\Users\jsnov\repos\ai-triad-data"
+# t/3939: the code checkout is wherever this file lives (so the default prompt is the one shipped
+# with this code, worktrees included), and the data root honours AI_TRIAD_DATA_ROOT like the rest of
+# the toolchain (env var, then default), so a run can target a clean data worktree, not the shared checkout.
+REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+D = os.environ.get("AI_TRIAD_DATA_ROOT") or r"C:\Users\jsnov\repos\ai-triad-data"
 O = os.path.join(D, "taxonomy", "Origin")
 PROMPT_PATH = os.path.join(REPO, "scripts", "AITriad", "Prompts", "logical-form-formalization.prompt")
 POV = {"acc": "acc", "saf": "saf", "skp": "skp"}
