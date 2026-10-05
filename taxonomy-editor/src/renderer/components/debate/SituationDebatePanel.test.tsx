@@ -149,6 +149,26 @@ describe('SituationDebatePanel', () => {
     });
   });
 
+  // t/3928 (PI decision, t/3882#4): situation pacing must map to the SAME per-phase bounds
+  // as the normal debate presets, not an independent length control that can drift apart.
+  it.each([
+    ['Tight', { maxConfrontationRounds: 1, maxArgumentationRounds: 1, maxConcludingRounds: 1 }],
+    ['Moderate', { maxConfrontationRounds: 1, maxArgumentationRounds: 3, maxConcludingRounds: 1 }],
+    ['Thorough', { maxConfrontationRounds: 2, maxArgumentationRounds: 4, maxConcludingRounds: 2 }],
+  ])('maps %s pacing to the matching normal-preset phaseBoundsOverride (t/3928)', async (label, bounds) => {
+    render(<SituationDebatePanel node={mockNode} />);
+
+    fireEvent.click(screen.getByRole('radio', { name: label }));
+    fireEvent.click(screen.getByText('Start Situation Debate'));
+
+    await waitFor(() => {
+      expect(mockCreateSituationDebate).toHaveBeenCalledWith(
+        'sit-007',
+        expect.objectContaining({ phaseBoundsOverride: bounds }),
+      );
+    });
+  });
+
   it('surfaces an error and does not navigate when createSituationDebate rejects', async () => {
     mockCreateSituationDebate.mockRejectedValueOnce(new Error('node not found'));
     render(<SituationDebatePanel node={mockNode} />);

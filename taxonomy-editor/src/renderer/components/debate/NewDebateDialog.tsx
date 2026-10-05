@@ -120,7 +120,10 @@ function computeActiveModelHasKey(activeModelExcluded: boolean, hasApiKey: Recor
 type BuiltInPresetId = 'quick' | 'deep' | 'socratic';
 type PresetId = BuiltInPresetId | 'custom';
 
-const PRESET_DEFAULTS: Record<BuiltInPresetId, {
+// Exported so other debate-creation surfaces (e.g. SituationDebatePanel, t/3928) can reuse
+// the same per-phase round bounds instead of maintaining a second copy of the numbers —
+// the PI's "mirror the normal path" decision (t/3882#4) only holds if there's one source.
+export const PRESET_DEFAULTS: Record<BuiltInPresetId, {
   protocolId: string; dialecticalStyle: DialecticalStyle;
   confrontationRounds: number; argumentationRounds: number; concludingRounds: number;
   stepMode: boolean; modelTier: 'basic' | 'advanced';
