@@ -72,7 +72,7 @@ import {
   detectCruxNodes,
   buildPhaseContext,
   buildSignalTelemetry,
-  initAdaptiveDiagnostics,
+  initAdaptiveDiagnostics, effectiveRoundCap,
 } from '@lib/debate/phaseTransitions';
 import { runTurnPipeline, assemblePipelineResult } from '@lib/debate/turnPipeline';
 import { evaluateLookaheadPerClaim, buildClaimAnalysis } from '@lib/debate/lookaheadGate';
@@ -652,7 +652,7 @@ function recordPhaseSignals(
 /** Apply the phase-transition result (transcript entries + persist UI fields); skipped in step mode. */
 function applyPhaseTransitionResult(
   get: _Get, set: _Set, addTranscriptEntry: _AddEntry,
-  advanced: PhaseState, result: any, config: PhaseTransitionConfig, isStepMode: boolean | undefined,
+  advanced: PhaseState, result: any, config: PhaseTransitionConfig, isStepMode: boolean | undefined, speakers: number,
 ): void {
   const prevPhase = advanced.current_phase;
   const newState = isStepMode ? advanced : applyTransition(advanced, result);
@@ -691,7 +691,7 @@ function applyPhaseTransitionResult(
     const asObj = freshPostDebate.adaptive_staging as Record<string, unknown>;
     asObj.current_phase = newState.current_phase;
     asObj.rounds_in_phase = newState.rounds_in_phase;
-    asObj.phase_progress = newState.total_rounds_elapsed / config.maxTotalRounds;
+    asObj.phase_progress = newState.total_rounds_elapsed / effectiveRoundCap(config, speakers); // t/3937: the engine's cap, not the preset
     asObj.approaching_transition = result.action === 'transition' || result.action === 'force_transition';
     asObj.rationale = result.reason;
     set({ activeDebate: { ...freshPostDebate } });
@@ -774,7 +774,7 @@ function evaluateAdaptiveStaging(get: _Get, set: _Set, addTranscriptEntry: _AddE
   }
 
   // Apply transition (skipped in step mode — user controls phase manually)
-  applyPhaseTransitionResult(get, set, addTranscriptEntry, advanced, result, config, postDebate.adaptive_staging!.step_mode);
+  applyPhaseTransitionResult(get, set, addTranscriptEntry, advanced, result, config, postDebate.adaptive_staging!.step_mode, aiPovers.length);
 }
 
 function runPostRoundProcessing(get: _Get, set: _Set, addTranscriptEntry: _AddEntry, aiPovers: _AiPover[], crossRespondRound: number): void {
@@ -970,19 +970,18 @@ function computeRoundAndPhase(activeDebate: DebateSession, aiPovers: _AiPover[],
     if (adaptiveStaging?.enabled) {
       const weights = loadProvisionalWeights();
       const pacingPreset = weights.pacing_presets[adaptiveStaging.pacing] ?? weights.pacing_presets.moderate;
-      totalRoundsForPhase = pacingPreset.maxTotalRounds;
-      // Initialize phase state on first round if not present
-      if (!adaptiveStaging.phase_state) {
-        const config: PhaseTransitionConfig = {
-          useAdaptiveStaging: true,
-          maxTotalRounds: pacingPreset.maxTotalRounds,
-          pacing: adaptiveStaging.pacing,
-          dialecticalStyle: 'adversarial',
-          argumentationExitThreshold: pacingPreset.argumentationExit,
-          concludingExitThreshold: pacingPreset.concludingExit,
-          allowEarlyTermination: true,
-          phaseBoundsOverride: adaptiveStaging.phase_bounds_override,
-        };
+      const config: PhaseTransitionConfig = {
+        useAdaptiveStaging: true,
+        maxTotalRounds: pacingPreset.maxTotalRounds,
+        pacing: adaptiveStaging.pacing,
+        dialecticalStyle: 'adversarial',
+        argumentationExitThreshold: pacingPreset.argumentationExit,
+        concludingExitThreshold: pacingPreset.concludingExit,
+        allowEarlyTermination: true,
+        phaseBoundsOverride: adaptiveStaging.phase_bounds_override,
+      };
+      totalRoundsForPhase = effectiveRoundCap(config, aiPovers.length); // t/3937: the engine's cap, in turns
+      if (!adaptiveStaging.phase_state) { // initialize phase state on first round
         adaptiveStaging.phase_state = initPhaseState(config);
         set({ activeDebate: { ...activeDebate } });
       }

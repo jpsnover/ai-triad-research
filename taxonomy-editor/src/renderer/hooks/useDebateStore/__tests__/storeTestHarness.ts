@@ -289,6 +289,10 @@ vi.mock('@lib/debate/prompts', () => ({
 
 vi.mock('@lib/debate/phaseTransitions', () => ({
   loadProvisionalWeights: vi.fn().mockReturnValue({}),
+  // t/3937: by default the caps are the preset, so existing loop-count tests keep their meaning.
+  // adaptiveLoopCap.test.ts swaps in the real implementations via vi.importActual.
+  effectiveRoundCap: vi.fn((config: { maxTotalRounds: number }) => config.maxTotalRounds),
+  maxTurnCeiling: vi.fn((config: { maxTotalRounds: number }) => config.maxTotalRounds),
   initPhaseState: vi.fn().mockReturnValue({ current_phase: 'confrontation', rounds_in_phase: 0, total_rounds_elapsed: 0 }),
   evaluatePhaseTransition: vi.fn().mockReturnValue({ action: 'continue', reason: 'test' }),
   advanceRound: vi.fn().mockReturnValue({ current_phase: 'confrontation', rounds_in_phase: 1, total_rounds_elapsed: 1, argumentation_exit_threshold: 0.6, concluding_exit_threshold: 0.7 }),

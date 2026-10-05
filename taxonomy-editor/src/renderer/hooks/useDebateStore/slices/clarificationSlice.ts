@@ -35,7 +35,8 @@ import { runOpeningPipelineWithRepair, assembleOpeningPipelineResult } from '@li
 import { getModelMinTimeout, getDefaultTimeout } from '@lib/ai-client/index';
 import type { ModelRegistry } from '@lib/ai-client/registry';
 import aiModelsRegistry from '../../../../../../ai-models.json';
-import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
+import { loadProvisionalWeights, effectiveRoundCap, maxTurnCeiling } from '@lib/debate/phaseTransitions';
+import type { PhaseTransitionConfig } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { isLineageDataLoaded } from '../../../data/lineageCategories';
@@ -175,6 +176,21 @@ function resolveOpeningOrder(openingOrder: readonly string[], debate: DebateSess
   return AI_POVERS;
 }
 
+/** t/3937: the adaptive loop's caps, in turns. `effectiveCap` is the engine's round cap
+ *  (Σ phase bounds × speakers when a phaseBoundsOverride is set, else the preset).
+ *  `turnCeiling` adds the scaled minimum concluding rounds, so a debate force-transitioned
+ *  into concluding at the cap can still finish it. It's the engine's real terminate point
+ *  and the loop's iteration limit. Normal endings come from phase_terminated. */
+function resolveLoopCaps(
+  presetMax: number,
+  phaseBoundsOverride: PhaseTransitionConfig['phaseBoundsOverride'],
+  debate: DebateSession | null | undefined,
+): { presetMax: number; effectiveCap: number; turnCeiling: number; speakers: number } {
+  const speakers = (debate?.active_povers ?? []).filter(p => (AI_POVERS as readonly string[]).includes(p)).length;
+  const config = { maxTotalRounds: presetMax, phaseBoundsOverride } as PhaseTransitionConfig; // the only fields the cap functions read
+  return { presetMax, effectiveCap: effectiveRoundCap(config, speakers), turnCeiling: maxTurnCeiling(config, speakers), speakers };
+}
+
 /** t/3917: an openings run is valid only while BOTH its abort guard and its run lease hold.
  *  A superseded lease then stops the run at every existing isStillValid() check: after
  *  voicing, after a retry backoff, and after each speaker's pipeline, before delivery. Without
@@ -224,9 +240,11 @@ async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partia
         const weights = loadProvisionalWeights();
         const pacingPresetName = adaptive.pacing ?? 'moderate';
         const pacingPreset = weights.pacing_presets[pacingPresetName] ?? weights.pacing_presets.moderate;
-        const maxRounds = pacingPreset?.maxTotalRounds ?? 12;
+        // t/3937: loop to the engine's real terminate point (turns), not the pacing preset.
+        const caps = resolveLoopCaps(pacingPreset?.maxTotalRounds ?? 12, adaptive.phase_bounds_override, resolvedDebate);
+        const maxRounds = caps.turnCeiling;
         const loopDebateId = freshDebate?.id;
-        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: 'Adaptive loop started', data: { pacing: pacingPresetName, maxTotalRounds: maxRounds, argumentationExit: pacingPreset?.argumentationExit, concludingExit: pacingPreset?.concludingExit } });
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: 'Adaptive loop started', data: { pacing: pacingPresetName, maxTotalRounds: caps.presetMax, effectiveCap: caps.effectiveCap, turnCeiling: caps.turnCeiling, speakers: caps.speakers, argumentationExit: pacingPreset?.argumentationExit, concludingExit: pacingPreset?.concludingExit } });
         let loopExitReason = 'maxRounds_exhausted';
         let loopIterations = 0;
         let consecutiveNoStatement = 0;
