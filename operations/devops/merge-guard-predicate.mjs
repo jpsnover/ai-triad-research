@@ -315,7 +315,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('merge-guard
         const args = ['pr', 'view', ...(ref ? [ref] : []), '--json', 'labels', '-q', '.labels[].name'];
         let out = '';
         for (let attempt = 1; attempt <= 2; attempt++) {
-          try { out = execFileSync('gh', args, { encoding: 'utf8', timeout: 8000 }); break; }
+          try { out = execFileSync('gh', args, { windowsHide: true, encoding: 'utf8', timeout: 8000 }); break; }
           catch (e) { if (attempt === 2) throw e; }
         }
         labeled = out.split(/\r?\n/).some((l) => l.trim() === 'joint-gv');
@@ -351,7 +351,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('merge-guard
       const ghJson = (args) => {
         for (let attempt = 1; ; attempt++) {
           try {
-            return JSON.parse(execFileSync('gh', args, { encoding: 'utf8', timeout: 10000 }));
+            return JSON.parse(execFileSync('gh', args, { windowsHide: true, encoding: 'utf8', timeout: 10000 }));
           } catch (e) {
             const cls = classifyGhError((e && (e.stderr || e.message)) || '');
             if (!cls.retryable || attempt >= 3) {

@@ -152,7 +152,7 @@ export function classifyMainCI({ runs, healthWorkflow = HEALTH_WORKFLOW, headAge
 //    The workflow reads the JSON and does the issue open/update/close + graded role notification.
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('operations/devops/main-ci-monitor.mjs')) {
   const repo = process.argv[2] || process.env.GITHUB_REPOSITORY;
-  const gh = (args) => execFileSync('gh', args, { encoding: 'utf8', timeout: 30000 });
+  const gh = (args) => execFileSync('gh', args, { windowsHide: true, encoding: 'utf8', timeout: 30000 });
   const ghJson = (path) => JSON.parse(gh(['api', path]));
   let out;
   try {

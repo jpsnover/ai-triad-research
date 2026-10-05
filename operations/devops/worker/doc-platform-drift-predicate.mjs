@@ -205,7 +205,7 @@ function fetchLiveProtection() {
       '--jq',
       '{enforceAdmins: .enforce_admins.enabled, contexts: .required_status_checks.contexts}',
     ],
-    { encoding: 'utf8' },
+    { windowsHide: true, encoding: 'utf8' },
   );
   return JSON.parse(raw);
 }
