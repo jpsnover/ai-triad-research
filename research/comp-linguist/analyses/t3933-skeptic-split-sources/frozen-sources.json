@@ -1,0 +1,37 @@
+{
+  "ticket": "t/3933",
+  "parent": "t/3932 (analysis section 7.1)",
+  "operation": "Import-AITriadDocument -Url <url> -Pov <pov> for each entry below, then the standard summary pass. Additive only: new sources, no edits to existing data.",
+  "authorization": "PENDING (PI, routed via PM)",
+  "verified_at": "2026-10-05",
+  "verification": "Each URL resolved and its title matched (WebFetch / search). Corpus check: none of the 8 is already in summaries/ at data 778dc1e6.",
+  "pov_tags_note": "Tags seed extraction; they are not a classification. Marcus is tagged skeptic+safetyist because his capability and governance claims belong to different camps (t/3932 section 5).",
+  "expected_count": 8,
+  "sources": [
+    {"n": 1, "author": "Cory Doctorow", "title": "What kind of bubble is AI?", "date": "2023-12-19",
+     "url": "https://pluralistic.net/2023/12/19/bubblenomics/", "license": "CC BY 4.0",
+     "note": "Pluralistic mirror of his Locus column; preferred over locusmag.com for the license", "pov": ["skeptic"]},
+    {"n": 2, "author": "Cory Doctorow", "title": "The Reverse-Centaur's Guide to Criticizing AI", "date": "2025-12-05",
+     "url": "https://pluralistic.net/2025/12/05/pop-that-bubble/", "license": "CC BY 4.0", "pov": ["skeptic"]},
+    {"n": 3, "author": "Cory Doctorow", "title": "IP can't save you from AI", "date": "2026-08-18",
+     "url": "https://pluralistic.net/2026/08/18/enron-corpus/", "license": "CC BY 4.0", "pov": ["skeptic"]},
+    {"n": 4, "author": "Gary Marcus", "title": "Senate Judiciary testimony, Oversight of A.I.: Rules for Artificial Intelligence", "date": "2023-05-16",
+     "url": "https://www.judiciary.senate.gov/imo/media/doc/2023-05-16%20-%20Testimony%20-%20Marcus.pdf", "license": "Congressional hearing record",
+     "pov": ["skeptic", "safetyist"]},
+    {"n": 5, "author": "Gary Marcus", "title": "Replies to Senate Queries (QFR responses)", "date": "2023-06-13",
+     "url": "https://www.judiciary.senate.gov/imo/media/doc/2023-05-16_-_qfr_responses_-_marcus.pdf", "license": "Congressional hearing record",
+     "pov": ["skeptic", "safetyist"]},
+    {"n": 6, "author": "Gary Marcus", "title": "Deep Learning Is Hitting a Wall", "date": "2022-03",
+     "url": "https://nautil.us/deep-learning-is-hitting-a-wall-238440", "license": "All rights reserved (freely readable)",
+     "note": "Same license class as most web sources in the corpus; PI to confirm", "pov": ["skeptic"]},
+    {"n": 7, "author": "Emily M. Bender; Alexander Koller", "title": "Climbing towards NLU: On Meaning, Form, and Understanding in the Age of Data", "date": "2020-07",
+     "url": "https://aclanthology.org/2020.acl-main.463.pdf", "license": "CC BY 4.0 (ACL Anthology)", "pov": ["skeptic"]},
+    {"n": 8, "author": "Sayash Kapoor; Arvind Narayanan", "title": "Do AI Risks Require Extraordinary Government Intervention?", "date": "2026-05-21",
+     "url": "https://www.normaltech.ai/p/do-ai-risks-require-extraordinary", "license": "All rights reserved (freely readable)",
+     "note": "Also published on the Knight Institute blog", "pov": ["skeptic"]}
+  ],
+  "deferred": [
+    {"title": "The AI Con (Bender and Hanna, 2025)", "reason": "Commercial book; no open text. Ingest only a licensed excerpt or a publicly posted chapter."},
+    {"title": "Enshittification (Doctorow, 2025); Taming Silicon Valley (Marcus, 2024)", "reason": "Commercial books; the open essays above carry the same positions."}
+  ]
+}
