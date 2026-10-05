@@ -227,6 +227,7 @@ function computeEmbeddingViaPython(repoRoot: string, text: string): number[] | n
     const stdout = execFileSync(PYTHON, [script, 'encode', text], {
       timeout: 60_000,
       maxBuffer: 10 * 1024 * 1024,
+      windowsHide: true,
     }).toString('utf-8');
     const vector = JSON.parse(stdout) as number[];
     if (Array.isArray(vector) && vector.length > 0) return vector;

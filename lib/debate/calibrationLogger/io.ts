@@ -59,6 +59,7 @@ function captureRunProvenance(): { config_revision: string; working_tree_state: 
       cwd: thisDir,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
+      windowsHide: true,
     });
     working_tree_state = out.trim().length === 0 ? 'clean' : 'dirty';
   } catch { /* git unavailable (e.g. server/Azure) — leave 'unknown' */ }

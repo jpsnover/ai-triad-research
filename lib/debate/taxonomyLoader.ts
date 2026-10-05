@@ -453,7 +453,7 @@ export async function htmlToMarkdown(html: string): Promise<string> {
 async function runMarkitdown(filePath: string): Promise<string> {
   const { execFile } = await import('child_process');
   return new Promise((resolve, reject) => {
-    execFile('markitdown', [filePath], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+    execFile('markitdown', [filePath], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024, windowsHide: true }, (err, stdout) => {
       if (err) return reject(err);
       resolve(stdout);
     });
