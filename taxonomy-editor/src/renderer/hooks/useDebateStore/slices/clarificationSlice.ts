@@ -43,6 +43,7 @@ import { getConfiguredModel, getSpeakerModel, resolveBriefModel } from '../share
 import { generateTextWithProgress, summarizeTranscriptEntry, makeStageGenerate } from '../shared/generation';
 import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import type { RunLease } from '../shared/debateRunLease';
+import { isCompressionDue } from '../shared/compressionTrigger';
 import { pushWarning, recordDiagnostic } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
 import { runNarrativeVoicing, recordNarrativeCheck, finalizeNarrativeReference } from '../shared/narrativeVoicing';
@@ -183,6 +184,16 @@ function guardWithLease(debateGuard: () => boolean, lease: RunLease): () => bool
   return () => debateGuard() && lease.isValid();
 }
 
+/** t/3917: during an automatic run, the lease holder compresses between rounds. The UI effect
+ *  stands down while a run lease exists, and the owner window may not even mount the workspace
+ *  (a popped-out debate is driven by the main window under Option A), so without this a
+ *  popped-out run would produce no context summaries. Live run 2 showed exactly that. */
+async function compressIfDue(get: () => DebateStore, lease: RunLease): Promise<void> {
+  const d = get().activeDebate;
+  if (!d || !lease.isValid() || get().debateGenerating || !isCompressionDue(d)) return;
+  await get().compressOldTranscript();
+}
+
 /** Runs under the caller's run lease (t/3917): every turn is passed `lease`, and the loop
  *  exits `lease_lost` the moment the lease is superseded or lost to another window. */
 async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession, lease: RunLease): Promise<void> {
@@ -265,6 +276,7 @@ async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partia
             continue;
           }
           consecutiveNoStatement = 0;
+          await compressIfDue(get, lease);
         }
         // Log loop completion with full context
         const finalDebate = get().activeDebate;

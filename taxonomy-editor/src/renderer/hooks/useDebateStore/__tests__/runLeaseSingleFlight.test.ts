@@ -204,6 +204,38 @@ describe('debate run lease — single flight per debate (t/3917)', () => {
   });
 });
 
+describe('debate run lease — the run owns compression (t/3917 live run 2)', () => {
+  beforeEach(() => {
+    recorded.length = 0;
+    turnCounter = 0;
+  });
+
+  it('the lease holder compresses between rounds once compression is due, without any UI mounted', async () => {
+    seedAdaptiveDebate(2);
+    // 3 openings + 12 earlier statements = 15; the first turn makes it 16, which is due.
+    const d = useDebateStore.getState().activeDebate!;
+    useDebateStore.setState({ activeDebate: { ...d, transcript: [...d.transcript, ...Array.from({ length: 12 }, (_, i) => entry(`old${i}`, 'statement', 'safetyist'))] } as Store['activeDebate'] });
+    vi.spyOn(useDebateStore.getState(), '_crossRespondLeased').mockImplementation(async () => { appendStatement(); });
+    vi.spyOn(useDebateStore.getState(), 'requestSynthesis').mockResolvedValue(undefined);
+    const compress = vi.spyOn(useDebateStore.getState(), 'compressOldTranscript').mockResolvedValue(undefined);
+
+    await useDebateStore.getState().runOpeningStatements('compress-due');
+
+    expect(compress).toHaveBeenCalled();
+  });
+
+  it('control: not yet due, so no compression', async () => {
+    seedAdaptiveDebate(2); // 3 openings + 2 turns = 5 entries
+    vi.spyOn(useDebateStore.getState(), '_crossRespondLeased').mockImplementation(async () => { appendStatement(); });
+    vi.spyOn(useDebateStore.getState(), 'requestSynthesis').mockResolvedValue(undefined);
+    const compress = vi.spyOn(useDebateStore.getState(), 'compressOldTranscript').mockResolvedValue(undefined);
+
+    await useDebateStore.getState().runOpeningStatements('compress-not-due');
+
+    expect(compress).not.toHaveBeenCalled();
+  });
+});
+
 describe('debate run lease — superseded openings run (t/3917#4 code condition)', () => {
   beforeEach(() => {
     recorded.length = 0;
