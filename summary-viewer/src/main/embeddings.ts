@@ -44,7 +44,7 @@ function batchEncodeViaPython(texts: string[]): Promise<number[][]> {
     const child = execFile(
       PYTHON,
       [EMBED_SCRIPT, 'batch-encode'],
-      { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
+      { timeout: 120_000, maxBuffer: 50 * 1024 * 1024, windowsHide: true },
       (err, stdout, stderr) => {
         if (err) {
           reject(new Error(`Python batch-encode failed: ${err.message}\n${stderr}`));
