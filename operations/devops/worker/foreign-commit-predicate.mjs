@@ -140,11 +140,11 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('foreign-com
   let rangeValid = false;
   let commits = [];
   try {
-    mergeBase = execFileSync('git', ['merge-base', 'origin/main', 'HEAD'], { encoding: 'utf8' }).trim();
+    mergeBase = execFileSync('git', ['merge-base', 'origin/main', 'HEAD'], { windowsHide: true, encoding: 'utf8' }).trim();
     const raw = execFileSync(
       'git',
       ['log', '--format=%H%x1f%s%x1f%P', `${mergeBase}..HEAD`],
-      { encoding: 'utf8' },
+      { windowsHide: true, encoding: 'utf8' },
     ).trim();
     if (raw.length > 0) {
       commits = raw.split('\n').map((line) => {

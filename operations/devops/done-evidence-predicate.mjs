@@ -154,6 +154,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('done-eviden
         // which countEvidenceAcrossRepos records via warn().
         const grep = () =>
           execFileSync('git', ['-C', d, 'log', 'origin/main', `--grep=${key}`, '--oneline'], {
+            windowsHide: true, // t/3914: no console flash when spawned from a GUI/no-console parent
             encoding: 'utf8',
             timeout: 10000,
           })
@@ -163,6 +164,7 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('done-eviden
         if (local > 0) return local; // evidence already visible → allow, no network, no fetch
         // No local evidence → the only path that risks a false block. Refresh origin/main, then re-grep.
         execFileSync('git', ['-C', d, 'fetch', 'origin', '+refs/heads/main:refs/remotes/origin/main', '--quiet'], {
+          windowsHide: true,
           timeout: 15000,
           stdio: 'ignore',
         });
