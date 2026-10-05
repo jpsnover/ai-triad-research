@@ -56,6 +56,10 @@ export interface SessionSlice {
   createSituationDebate: (ccNodeId: string, config?: {
     effectiveModel?: string; pacing?: string; useAdaptiveStaging?: boolean;
     temperature?: number; audience?: DebateAudience; protocolId?: string;
+    /** t/3929: passed through to createDebate unchanged, so the engine sees the same
+     *  adaptive config from a situation debate as from a normal one (t/3882, PI: mirror
+     *  the normal path). Same field and shape as createDebate's option. */
+    phaseBoundsOverride?: NonNullable<Parameters<SessionSlice['createDebate']>[10]>['phaseBoundsOverride'];
   }) => Promise<string>;
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
@@ -621,7 +625,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     const id = await get().createDebate(
       topic, allPovers, false, 'situations', ccNodeId, sourceContent,
       config?.effectiveModel, config?.protocolId, config?.temperature, config?.audience,
-      { title: ccNode.label, useAdaptiveStaging: config?.useAdaptiveStaging, pacing: config?.pacing },
+      { title: ccNode.label, useAdaptiveStaging: config?.useAdaptiveStaging, pacing: config?.pacing, phaseBoundsOverride: config?.phaseBoundsOverride },
     );
     await get().loadDebate(id);
     await enterClarificationOrBegin(get);
