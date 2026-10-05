@@ -730,20 +730,27 @@ function Invoke-BatchSummary {
     # -- STEP 8c — Rebuild source index ----------------------------------------
     try { Update-AITSourceIndex -Quiet } catch { Write-Verbose "Index rebuild skipped: $_" }
 
-    # -- STEP 9 — Post-batch policy registry consolidation ---------------------
-    # Strategy: parallel workers each write to different source/summary files so
-    # there is no write contention on those. However, taxonomy policy_actions may
-    # have stale member_count or source_povs after the batch. Rather than adding
-    # locking to each worker, we simply rebuild the registry once after all workers
-    # finish. This is safe because Update-PolicyRegistry -Fix re-scans the
-    # authoritative taxonomy JSON files and recomputes every derived field.
-    Write-Step 'Consolidating policy registry after batch'
+    # -- STEP 9 — Post-batch policy registry drift check (read-only) ----------
+    # t/3943: this used to call `Update-PolicyRegistry -Fix`, which re-scans
+    # ALL taxonomy files corpus-wide and mints registry ids for every
+    # null-policy_id node it finds -- not just ones touched by this batch.
+    # That silently rewrote taxonomy files for pre-existing, unrelated nodes
+    # on every summarization run, with no attribution. Registry consolidation
+    # is now a deliberate, separate data change (Update-PolicyRegistry -Fix,
+    # run on its own) -- this step only WARNS if drift exists; it never
+    # writes a taxonomy file.
+    Write-Step 'Checking policy registry consistency (read-only)'
     try {
-        Update-PolicyRegistry -Fix -Confirm:$false
-        Write-OK 'Policy registry rebuilt successfully'
+        $DriftNodeIds = @(Get-UnregisteredPolicyActionNodeIds)
+        if ($DriftNodeIds.Count -gt 0) {
+            Write-Warning "Invoke-BatchSummary: $($DriftNodeIds.Count) taxonomy node(s) have a policy action with no policy_id ($($DriftNodeIds -join ', ')) -- run Update-PolicyRegistry -Fix as its own deliberate data change (t/3943); batch summarization no longer auto-fixes this."
+        }
+        else {
+            Write-OK 'Policy registry consistent -- no unregistered policy actions found'
+        }
     }
     catch {
-        Write-Warn "Policy registry consolidation failed: $_ — run Update-PolicyRegistry -Fix manually"
+        Write-Warn "Policy registry drift check failed: $_ — run Update-PolicyRegistry manually to inspect"
     }
 
     if ($TimingEnabled) { Write-StageTimingReport }
