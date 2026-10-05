@@ -143,7 +143,7 @@ async function htmlToMarkdown(html: string): Promise<string> {
     const tmpFile = path.join(tmpDir, 'input.html');
     await fs.writeFile(tmpFile, html, 'utf-8');
     return await new Promise<string>((resolve, reject) => {
-      execFile('markitdown', [tmpFile], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, out) => {
+      execFile('markitdown', [tmpFile], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024, windowsHide: true }, (err, out) => {
         if (err) reject(err); else resolve(out);
       });
     });

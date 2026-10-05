@@ -76,14 +76,14 @@ export function registerDataRoutes(r: Router, ctx: ServerCtx): void {
       // when targetPath is root-owned (e.g. /data in Azure containers).
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'data-clone-'));
       await new Promise<void>((resolve, reject) => {
-        execFile('git', ['clone', 'https://github.com/jpsnover/ai-triad-data.git', tmpDir], { timeout: getConfig().server.gitCloneTimeoutMs }, (err) => {
+        execFile('git', ['clone', 'https://github.com/jpsnover/ai-triad-data.git', tmpDir], { timeout: getConfig().server.gitCloneTimeoutMs, windowsHide: true }, (err) => {
           if (err) reject(err); else resolve();
         });
       });
       const entries = fs.readdirSync(tmpDir).filter(f => f !== '.git');
       fs.mkdirSync(targetPath, { recursive: true });
       await new Promise<void>((resolve, reject) => {
-        execFile('cp', ['-a', ...entries.map(f => path.join(tmpDir, f)), targetPath], (err) => {
+        execFile('cp', ['-a', ...entries.map(f => path.join(tmpDir, f)), targetPath], { windowsHide: true }, (err) => {
           if (err) reject(err); else resolve();
         });
       });
@@ -116,7 +116,7 @@ export function registerDataRoutes(r: Router, ctx: ServerCtx): void {
       if (!fs.existsSync(gitDir)) { json(res, { available: false, error: 'Not a git repo' }); return; }
 
       const runGit = (args: string[]): Promise<string> => new Promise((resolve, reject) => {
-        execFile('git', args, { cwd: dataRoot, timeout: 15_000 }, (err, stdout) => {
+        execFile('git', args, { cwd: dataRoot, timeout: 15_000, windowsHide: true }, (err, stdout) => {
           if (err) reject(err); else resolve(stdout.trim());
         });
       });
@@ -190,7 +190,7 @@ export function registerDataRoutes(r: Router, ctx: ServerCtx): void {
     try {
       const dataRoot = getDataRoot();
       const runGit = (args: string[], timeoutMs = getConfig().server.gitDefaultTimeoutMs): Promise<string> => new Promise((resolve, reject) => {
-        execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: getConfig().server.gitBufferLimitBytes }, (err, stdout, stderr) => {
+        execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: getConfig().server.gitBufferLimitBytes, windowsHide: true }, (err, stdout, stderr) => {
           if (err) {
             log.dataPull.error({ cmd: `git ${args.join(' ')}`, stderr: stderr?.trim() }, err.message);
             reject(new Error(`git ${args[0]}: ${err.message}${stderr ? ' — ' + stderr.trim() : ''}`));

@@ -62,7 +62,7 @@ function defaultRunner(): Promise<ReconcilerStats> {
     execFile(
       PYTHON,
       [RECONCILE_SCRIPT, '--apply'],
-      { cwd: getProjectRoot(), timeout: SWEEP_TIMEOUT_MS, maxBuffer: SWEEP_MAX_BUFFER },
+      { cwd: getProjectRoot(), timeout: SWEEP_TIMEOUT_MS, maxBuffer: SWEEP_MAX_BUFFER, windowsHide: true },
       (err, stdout, stderr) => {
         if (err) { reject(new Error(`reconcile_grounding.py (full sweep) exited non-zero/timeout: ${err.message}\n${stderr}`)); return; }
         resolve(parseStats(stdout));

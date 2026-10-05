@@ -79,7 +79,7 @@ function defaultRunner(nodeIds: string[]): Promise<ReconcilerStats> {
     execFile(
       PYTHON,
       [RECONCILE_SCRIPT, '--nodes', safe.join(','), '--apply'],
-      { timeout: RECONCILE_TIMEOUT_MS, maxBuffer: RECONCILE_MAX_BUFFER },
+      { timeout: RECONCILE_TIMEOUT_MS, maxBuffer: RECONCILE_MAX_BUFFER, windowsHide: true },
       (err, stdout, stderr) => {
         if (err) { reject(new Error(`reconcile_grounding.py exited non-zero/timeout: ${err.message}\n${stderr}`)); return; }
         // t/3265: on SUCCESS, also carry the reconciler's stderr lock-hold telemetry (previously discarded

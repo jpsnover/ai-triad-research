@@ -973,7 +973,7 @@ export async function computeEmbeddings(
 function computeBatchViaLocalPython(texts: string[], ids: string[]): Promise<number[][]> {
   const input = texts.map((text, i) => ({ id: ids[i], text }));
   return new Promise((resolve, reject) => {
-    const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
       if (err) { reject(new Error(`Python batch-encode failed: ${err.message}\n${stderr}`)); return; }
       try {
         const map = JSON.parse(stdout) as Record<string, number[]>;
@@ -1001,7 +1001,7 @@ function computeBatchViaLocalPython(texts: string[], ids: string[]): Promise<num
 function isPythonEmbeddingAvailable(): Promise<boolean> {
   if (_pythonAvailable !== null) return Promise.resolve(_pythonAvailable);
   return new Promise(resolve => {
-    execFile(PYTHON, ['-c', 'import sentence_transformers'], { timeout: 10_000 }, (err) => {
+    execFile(PYTHON, ['-c', 'import sentence_transformers'], { timeout: 10_000, windowsHide: true }, (err) => {
       _pythonAvailable = !err;
       // t/3176 (Fallback-Path Logging): unavailable Python → the compute path silently degrades to
       // the ONNX/API fallback for the process lifetime. WARN (not info) so it surfaces in prod logs.
@@ -1013,7 +1013,7 @@ function isPythonEmbeddingAvailable(): Promise<boolean> {
 
 function computeQueryViaLocalPython(text: string): Promise<number[]> {
   return new Promise((resolve, reject) => {
-    execFile(PYTHON, [EMBED_SCRIPT, 'encode', text], { timeout: 60_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile(PYTHON, [EMBED_SCRIPT, 'encode', text], { timeout: 60_000, maxBuffer: 10 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
       if (err) { reject(new Error(`Python embed failed: ${err.message}\n${stderr}`)); return; }
       try {
         const v = JSON.parse(stdout) as number[];
@@ -1264,7 +1264,7 @@ interface NliFields {
  */
 function classifyNliViaPython(pairs: { text_a: string; text_b: string }[]): Promise<unknown[]> {
   return new Promise((resolve, reject) => {
-    const child = execFile(PYTHON, [EMBED_SCRIPT, 'nli-classify'], { timeout: NLI_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const child = execFile(PYTHON, [EMBED_SCRIPT, 'nli-classify'], { timeout: NLI_TIMEOUT_MS, maxBuffer: 50 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
       if (err) {
         const isTimeout = !!(err as { killed?: boolean }).killed || /ETIMEDOUT|timed?\s*out/i.test(err.message);
         getGlobalRecorder()?.record({
