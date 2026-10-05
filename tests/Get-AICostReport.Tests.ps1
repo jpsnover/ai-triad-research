@@ -79,7 +79,10 @@ Describe 'Get-AICostReport' -Tag 'cost' {
         { Get-AICostReport -Path $script:usageFile -PassThru -WarningVariable w -WarningAction SilentlyContinue } |
             Should -Not -Throw
         $r = Get-AICostReport -Path $script:usageFile -PassThru -WarningVariable w -WarningAction SilentlyContinue
-        $w | Should -BeNullOrEmpty -Because 'the malformed line is swallowed by an empty catch, not warned about'
+        # Narrowed to the malformed-line path specifically (t/3947): the fixture's
+        # gemini/groq models legitimately warn on a DIFFERENT path (no cachedInputPer1M,
+        # ConvertTo-AIUsageCostEstimate) -- unrelated to this test's claim.
+        $w | Where-Object { $_ -match 'malformed|JSON' } | Should -BeNullOrEmpty -Because 'the malformed line is swallowed by an empty catch, not warned about'
         $r.TotalCalls | Should -Be 5 -Because '6 lines total, 1 is malformed JSON and never becomes an entry'
     }
 
