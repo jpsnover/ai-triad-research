@@ -96,11 +96,11 @@ import { enrichPolicyRefs, serializeNodeSourceMap, formatEdgeContext, formatDeba
 import { extractClaimsAndUpdateAN, commitAnNodes, detectZeroClaims } from '../shared/argumentNetwork';
 
 export interface DebatePhaseSlice {
-  crossRespond: () => Promise<void>;
+  _crossRespondLeased: () => Promise<void>; // the unguarded turn body; call `crossRespond` (runLeaseSlice, t/3917), never this
 }
 
 export const createDebatePhaseSlice: StateCreator<DebateStore, [], [], DebatePhaseSlice> = (set, get) => ({
-  crossRespond: async () => {
+  _crossRespondLeased: async () => {
 
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) {

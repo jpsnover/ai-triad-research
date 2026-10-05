@@ -442,7 +442,7 @@ function DebateSetupFooter() {
     setSubmitting(true);
     try {
       await beginDebate();
-      await runOpeningStatements();
+      await runOpeningStatements('ClarificationPanel.beginDebate');
     } finally {
       setSubmitting(false);
     }
@@ -477,7 +477,7 @@ function DebateSetupFooter() {
     store.updatePhase('clarification');
     await store.saveDebate('explore-first-setup');
     await beginDebate();
-    await runOpeningStatements();
+    await runOpeningStatements('ClarificationPanel.exploreFirst');
   };
 
   const [showOptions, setShowOptions] = useState(false);
@@ -830,7 +830,7 @@ function ClarificationQuestions() {
 
   const handleBeginDebate = async () => {
     await beginDebate();
-    await runOpeningStatements();
+    await runOpeningStatements('ClarificationPanel.answersBeginDebate');
   };
 
   return (

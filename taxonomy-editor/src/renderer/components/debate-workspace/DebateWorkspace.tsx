@@ -4,6 +4,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { api } from '@bridge';
 import { useDebateStore } from '../../hooks/useDebateStore';
+import { isRunLeaseHeldLocally, getRemoteRunLeaseHolder } from '../../hooks/useDebateStore/shared/debateRunLease';
+import { isCompressionDue } from '../../hooks/useDebateStore/shared/compressionTrigger';
 import { useLongPressSelectionMenu } from '../../hooks/useLongPressSelectionMenu';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -1045,18 +1047,15 @@ function useDebateWorkspaceEffects({
   // Phase 8: Auto-compress context when transcript grows large
   useEffect(() => {
     if (!activeDebate || debateGenerating) return;
+    // t/3917: while an automatic run owns this debate (in this window or another), the run
+    // compresses between rounds itself (clarificationSlice compressIfDue). Under Option A
+    // the owner may not even mount this workspace. A viewer compressing would waste an AI
+    // call whose save is skipped; the holder's UI compressing would race the run.
+    if (useDebateStore.getState().driverIsRemote || isRunLeaseHeldLocally(activeDebate.id) || getRemoteRunLeaseHolder(activeDebate.id)) return;
     if (Date.now() < compressionCooldownRef.current) return;
-    if (activeDebate.transcript.length >= 16) {
-      const lastSummaryIdx = activeDebate.context_summaries.length > 0
-        ? activeDebate.transcript.findIndex(
-            (e) => e.id === activeDebate.context_summaries[activeDebate.context_summaries.length - 1].up_to_entry_id,
-          )
-        : -1;
-      const uncompressed = activeDebate.transcript.length - (lastSummaryIdx + 1) - 8;
-      if (uncompressed >= 8) {
-        compressionCooldownRef.current = Date.now() + 60_000;
-        void compressOldTranscript();
-      }
+    if (isCompressionDue(activeDebate)) {
+      compressionCooldownRef.current = Date.now() + 60_000;
+      void compressOldTranscript();
     }
   }, [activeDebate?.transcript.length, debateGenerating]);
 

@@ -11,6 +11,7 @@ import { createArgumentNetworkSlice } from './slices/argumentNetworkSlice';
 import { createSynthesisSlice } from './slices/synthesisSlice';
 import { createDebateLoopSlice } from './slices/debateLoopSlice';
 import { createDebatePhaseSlice } from './slices/debatePhaseSlice';
+import { createRunLeaseSlice } from './slices/runLeaseSlice';
 import { createDebateReflectionSlice } from './slices/debateReflectionSlice';
 import { createExplorationSlice } from './slices/explorationSlice';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -26,6 +27,7 @@ export const useDebateStore = create<DebateStore>()((...a) => ({
   ...createSynthesisSlice(...a),
   ...createDebateLoopSlice(...a),
   ...createDebatePhaseSlice(...a),
+  ...createRunLeaseSlice(...a),
   ...createDebateReflectionSlice(...a),
   ...createExplorationSlice(...a),
 }));

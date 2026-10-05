@@ -18,6 +18,7 @@ import { isCircuitOpenError, getCircuitCooldownMs } from '../../../bridge/resili
 import { buildDebateDelta } from './buildDebateDelta';
 import { getDocTitles } from '../shared/docTitles';
 import { enterClarificationOrBegin } from '../shared/clarificationGuard';
+import { getRemoteRunLeaseHolder, notifyDebateSaved } from '../shared/debateRunLease';
 import type { DocMetaMap } from '@lib/debate/evidenceFromSummaries';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackDebateAbandon, trackDebateStart } from '../../../lib/analyticsEmitter';
@@ -37,6 +38,18 @@ import { resetDoctrinalAnchoringCache } from '../shared/taxonomyContext';
 import { resetNeutralMapping } from '../shared/neutralCheckpoint';
 import { resetSignalHistory, resetGapInjectionCount, setGapInjectionCount } from '../shared/diagnostics';
 import { isStateAhead } from '../shared/phaseOrder';
+
+/** Viewer-save skips already logged, one per (debate, holder run), so auto-save ticks don't flood the recorder. */
+const _viewerSaveSkipLogged = new Set<string>();
+/** Automatic saves a viewer skips quietly (t/3917): timers, coalescing/retry, background
+ *  compression, load recovery, and run-internal saves. Any OTHER caller is a user edit, and the
+ *  user is told it wasn't saved; the next refresh from the holder would otherwise silently undo
+ *  it. The live run caught compressOldTranscript missing from an earlier version of this list,
+ *  which would have shown a false "your change wasn't saved" notice. */
+const BACKGROUND_SAVE_CALLERS = new Set(['auto-save', 'DebateWorkspace:autoSave', 'coalesced-followup', 'breaker-cooldown-retry', 'compressOldTranscript', 'loadDebate:interrupted_turn_recovery', 'news-report-save-retry', 'synthesis-complete', 'updatePhase']);
+const BACKGROUND_SAVE_PREFIXES = ['crossRespond:', 'runOpeningStatements:', 'extractClaimsAndUpdateAN', 'extractTopicScope'];
+const isBackgroundSave = (caller: string): boolean =>
+  BACKGROUND_SAVE_CALLERS.has(caller) || BACKGROUND_SAVE_PREFIXES.some(p => caller.startsWith(p));
 
 declare const __APP_VERSION__: string;
 
@@ -1168,6 +1181,23 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     // bypass the subscriber — so the single source of truth lives here in the action.
     if (communityReadOnly) return;
 
+    // t/3917: one writer per running debate. While another window holds this debate's run
+    // lease, this window is a viewer whose copy trails the holder's, so its (auto-)save
+    // would roll the file back. In the 09-30 dump a pop-out auto-save wrote phase=opening /
+    // transcript 3 over the main window's debate / 6. The viewer refreshes from the holder's
+    // saves instead.
+    const runHolder = getRemoteRunLeaseHolder(activeDebate.id);
+    if (runHolder) {
+      const userEdit = !isBackgroundSave(caller);
+      const key = `${activeDebate.id}:${runHolder.windowId}:${runHolder.startedAt}`;
+      if (userEdit || !_viewerSaveSkipLogged.has(key)) {
+        _viewerSaveSkipLogged.add(key);
+        getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Save skipped — another window holds this debate\'s run lease (viewer)', data: { caller, user_edit: userEdit, holder: { window: runHolder.windowId, caller: runHolder.caller } } });
+      }
+      if (userEdit) set({ debateError: 'This debate is running in another window, so this change wasn\'t saved. Make it in that window, or after the run finishes.' });
+      return;
+    }
+
     if (_saveInFlight) {
       set({ _saveDirty: true });
       getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Save coalesced (in-flight), caller: ${caller}` });
@@ -1191,6 +1221,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       const saveDiag = buildSaveDiag(activeDebate, caller);
       // Save-path selection + post-save bookkeeping (t/1637) — see persistDebateToServer.
       await persistDebateToServer(activeDebate, saveDiag, get, set);
+      // Viewers of this run refresh from it; also a heartbeat (t/3917). No-op unless we hold the lease.
+      notifyDebateSaved(activeDebate.id);
       // Save reached the server: clear any breaker-retry degradation left by prior
       // blocked attempts (t/3073). Only touch debateError when we were actually retrying,
       // so a successful save never clobbers an unrelated error.

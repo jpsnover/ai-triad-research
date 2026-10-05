@@ -9,6 +9,7 @@ import type { ArgumentNetworkSlice } from './slices/argumentNetworkSlice';
 import type { SynthesisSlice } from './slices/synthesisSlice';
 import type { DebateLoopSlice } from './slices/debateLoopSlice';
 import type { DebatePhaseSlice } from './slices/debatePhaseSlice';
+import type { RunLeaseSlice } from './slices/runLeaseSlice';
 import type { DebateReflectionSlice } from './slices/debateReflectionSlice';
 import type { ExplorationSlice } from './slices/explorationSlice';
 import type { NewPovItemProposal } from '@lib/debate/types/session';
@@ -22,6 +23,7 @@ export type DebateStore =
   SynthesisSlice &
   DebateLoopSlice &
   DebatePhaseSlice &
+  RunLeaseSlice &
   DebateReflectionSlice &
   ExplorationSlice;
 

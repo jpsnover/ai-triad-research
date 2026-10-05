@@ -42,6 +42,8 @@ import { isLineageDataLoaded } from '../../../data/lineageCategories';
 import { getConfiguredModel, getSpeakerModel, resolveBriefModel } from '../shared/modelConfig';
 import { generateTextWithProgress, summarizeTranscriptEntry, makeStageGenerate } from '../shared/generation';
 import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
+import type { RunLease } from '../shared/debateRunLease';
+import { isCompressionDue } from '../shared/compressionTrigger';
 import { pushWarning, recordDiagnostic } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
 import { runNarrativeVoicing, recordNarrativeCheck, finalizeNarrativeReference } from '../shared/narrativeVoicing';
@@ -65,7 +67,14 @@ export interface ClarificationSlice {
   updateClaim: (claimId: string, newText: string) => void;
   deleteClaim: (claimId: string) => void;
   proceedToOpening: () => void;
-  runOpeningStatements: () => Promise<void>;
+  /**
+   * Openings, then the auto cross-respond loop, as ONE run under the debate's run lease
+   * (t/3917). `caller` names the trigger in the flight recorder. A second call while a run
+   * owns the debate is refused. `supersedeLocal` replaces this window's own run (model-switch retry).
+   */
+  runOpeningStatements: (caller?: string, opts?: { supersedeLocal?: boolean }) => Promise<void>;
+  /** Internal — the unguarded openings+loop body. Call `runOpeningStatements`, never this. */
+  _runOpeningStatementsLeased: (lease: RunLease) => Promise<void>;
   submitUserOpening: (statement: string) => Promise<void>;
 }
 
@@ -158,7 +167,36 @@ async function cacheOpeningEmbeddings(get: () => DebateStore, set: (partial: any
  *  elsewhere as a phase-labeling divisor and must stay small for that purpose. */
 const WATCH_ONLY_MAX_CROSS_RESPOND_ROUNDS = 12;
 
-async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession): Promise<void> {
+/** The user-configurable opening order (randomized at proceedToOpening).
+ *  Priority: Zustand state > persisted on the debate object > default order. */
+function resolveOpeningOrder(openingOrder: readonly string[], debate: DebateSession): readonly string[] {
+  if (openingOrder.length > 0) return openingOrder;
+  if (debate.opening_order && debate.opening_order.length > 0) return debate.opening_order;
+  return AI_POVERS;
+}
+
+/** t/3917: an openings run is valid only while BOTH its abort guard and its run lease hold.
+ *  A superseded lease then stops the run at every existing isStillValid() check: after
+ *  voicing, after a retry backoff, and after each speaker's pipeline, before delivery. Without
+ *  it, a superseded run re-delivers an opening and re-completes the openings phase alongside
+ *  its replacement, the dump's duplicate-opening shape. */
+function guardWithLease(debateGuard: () => boolean, lease: RunLease): () => boolean {
+  return () => debateGuard() && lease.isValid();
+}
+
+/** t/3917: during an automatic run, the lease holder compresses between rounds. The UI effect
+ *  stands down while a run lease exists, and the owner window may not even mount the workspace
+ *  (a popped-out debate is driven by the main window under Option A), so without this a
+ *  popped-out run would produce no context summaries. Live run 2 showed exactly that. */
+async function compressIfDue(get: () => DebateStore, lease: RunLease): Promise<void> {
+  const d = get().activeDebate;
+  if (!d || !lease.isValid() || get().debateGenerating || !isCompressionDue(d)) return;
+  await get().compressOldTranscript();
+}
+
+/** Runs under the caller's run lease (t/3917): every turn is passed `lease`, and the loop
+ *  exits `lease_lost` the moment the lease is superseded or lost to another window. */
+async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession, lease: RunLease): Promise<void> {
     // Auto-run initial cross-respond rounds if configured
     const { initialCrossRespondRounds } = get();
     if (!activeDebate.user_is_pover) {
@@ -196,11 +234,12 @@ async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partia
           loopIterations = i + 1;
           const d = get().activeDebate;
           if (!d) { loopExitReason = 'debate_null'; break; }
+          if (!lease.isValid()) { loopExitReason = 'lease_lost'; break; }
           // Stop if phase reached termination
           if (d.adaptive_staging?.phase_state?.current_phase === 'terminated') { loopExitReason = 'phase_terminated'; break; }
           const preLen = d.transcript.length;
           try {
-            await get().crossRespond();
+            await get().crossRespond({ lease, caller: 'adaptive-loop' });
           } catch (loopErr) {
             console.error(`[debate] Adaptive loop iteration ${i} failed:`, loopErr);
             getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: d.id, message: `Adaptive loop failed at iteration ${i}`, data: { iteration: i, error: String(loopErr), stack: (loopErr as Error).stack?.slice(0, 500) } });
@@ -237,6 +276,7 @@ async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partia
             continue;
           }
           consecutiveNoStatement = 0;
+          await compressIfDue(get, lease);
         }
         // Log loop completion with full context
         const finalDebate = get().activeDebate;
@@ -265,9 +305,9 @@ async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partia
         // optional-chain-to-undefined here, not a fourth working exit (TL, p/336#517).
         for (let i = 0; i < WATCH_ONLY_MAX_CROSS_RESPOND_ROUNDS; i++) {
           const d = get().activeDebate;
-          if (!d || get().dailyLimitPaused) break;
+          if (!d || get().dailyLimitPaused || !lease.isValid()) break;
           const preLen = d.transcript.length;
-          await get().crossRespond();
+          await get().crossRespond({ lease, caller: 'watch-only-loop' });
           if (get().dailyLimitPaused) break;
           const post = get().activeDebate;
           if (!post || post.transcript.length === preLen) break;
@@ -899,7 +939,16 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
 
   // ── Phase 3: Opening Statements ─────────────────────────
 
-  runOpeningStatements: async () => {
+  runOpeningStatements: async (caller = 'unspecified', opts) => {
+    if (!get().activeDebate) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', message: 'runOpeningStatements called with no activeDebate', data: { caller } }); return; }
+    // t/3917: the lease covers openings AND the loop. The 09-30 dump had two concurrent
+    // openings runs in one window (a double press on "Resume Opening Statements" while
+    // the openings were really running in the main window); each fell into its own loop.
+    // A loop-only lease would have let both reach the loop.
+    await get().runUnderDebateLease(`runOpeningStatements:${caller}`, lease => get()._runOpeningStatementsLeased(lease), opts);
+  },
+
+  _runOpeningStatementsLeased: async (lease) => {
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', message: 'runOpeningStatements called with no activeDebate' }); return; }
     if (get().debateGenerating) { getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'runOpeningStatements skipped — already generating' }); return; }
@@ -910,7 +959,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     }
 
     newAbortController();
-    const isStillValid = createDebateGuard(get);
+    const isStillValid = guardWithLease(createDebateGuard(get), lease);
     set({ debateError: null, debateWarnings: [] });
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
@@ -924,14 +973,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       return;
     }
 
-    // Use the user-configurable opening order (randomized at proceedToOpening).
-    // Priority: Zustand state > persisted on debate object > default order.
-    const { openingOrder } = get();
-    const resolvedOrder = openingOrder.length > 0
-      ? openingOrder
-      : (activeDebate.opening_order && activeDebate.opening_order.length > 0)
-        ? activeDebate.opening_order
-        : AI_POVERS;
+    const resolvedOrder = resolveOpeningOrder(get().openingOrder, activeDebate);
     const aiPovers = (resolvedOrder as readonly (typeof AI_POVERS[number])[]).filter(
       (p) => activeDebate.active_povers.includes(p),
     );
@@ -985,6 +1027,11 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       hasRetryableFailure = false;
 
     for (const poverId of aiPovers) {
+      if (!lease.isValid()) {
+        // Superseded between speakers: start no new pipeline (and no AI spend) for a dead run.
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'runOpeningStatements stopped — run lease no longer valid', data: { next_speaker: poverId } });
+        return;
+      }
       const freshTranscript = get().activeDebate?.transcript ?? [];
       if (freshTranscript.some(e => isDeliveredOpening(e) && e.speaker === poverId)) {
         console.log(`[debate-store] Skipping ${poverId} — already has a delivered opening (live check)`);
@@ -1326,7 +1373,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
 
     await saveDebate('runOpeningStatements:end');
 
-    await runInitialCrossRespondRounds(get, set, activeDebate);
+    await runInitialCrossRespondRounds(get, set, activeDebate, lease);
   },
 
   submitUserOpening: async (statement: string) => {

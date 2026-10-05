@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect, type RefObject } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
+import type { RunLease } from '../../hooks/useDebateStore/shared/debateRunLease';
 import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId, DebateAudience } from '../../types/debate';
@@ -337,11 +338,13 @@ function deriveAdaptiveState(activeDebate: any): {
 }
 
 // Adaptive (non-step) cross-respond: run the debate engine to completion with a
-// safety cap, then synthesize once enough statements exist.
+// safety cap, then synthesize once enough statements exist. Runs under the caller's run
+// lease (t/3917) and stops as soon as the lease is lost.
 async function runAdaptiveCrossRespond(
   activeDebate: any,
   crossRespond: () => Promise<void>,
   requestSynthesis: () => Promise<void>,
+  lease: RunLease,
 ): Promise<void> {
   const alreadyTerminated = isPhaseTerminated(activeDebate) || activeDebate.phase === 'closed';
   if (alreadyTerminated) {
@@ -352,7 +355,7 @@ async function runAdaptiveCrossRespond(
   let consecutiveNoStatement = 0;
   for (let i = 0; i < maxSafetyRounds; i++) {
     const d = useDebateStore.getState().activeDebate;
-    if (!d) break;
+    if (!d || !lease.isValid()) break;
     if (isPhaseTerminated(d)) break;
     const preLen = d.transcript.length;
     await crossRespond();
@@ -806,8 +809,8 @@ function DebateModals({
 }
 
 export function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation }: { showParamHistory: boolean; setShowParamHistory: (v: boolean) => void; showEvaluation: boolean; setShowEvaluation: (v: boolean) => void }) {
-  const { activeDebate, debateGenerating, debateError, debateRetryAction, dailyLimitPaused, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, toggleStepMode, setDebatePhase, setError, audience, setAudience, explorationSummary, extractAndSeedFromDebate } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, debateRetryAction: s.debateRetryAction, dailyLimitPaused: s.dailyLimitPaused, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError, audience: s.audience, setAudience: s.setAudience, explorationSummary: s.explorationSummary, extractAndSeedFromDebate: s.extractAndSeedFromDebate }))
+  const { activeDebate, debateGenerating, debateError, debateRetryAction, dailyLimitPaused, askQuestion, crossRespond, runUnderDebateLease, requestSynthesis, requestProbingQuestions, requestReflections, toggleStepMode, setDebatePhase, setError, audience, setAudience, explorationSummary, extractAndSeedFromDebate } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, debateRetryAction: s.debateRetryAction, dailyLimitPaused: s.dailyLimitPaused, askQuestion: s.askQuestion, crossRespond: s.crossRespond, runUnderDebateLease: s.runUnderDebateLease, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase, setError: s.setError, audience: s.audience, setAudience: s.setAudience, explorationSummary: s.explorationSummary, extractAndSeedFromDebate: s.extractAndSeedFromDebate }))
   );
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -905,17 +908,26 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
   const handleCrossRespond = async () => {
     if (disableAnalysis) return;
     setSending(true);
-    if (isAdaptive && isStepMode) {
-      await crossRespond();
-    } else if (isAdaptive) {
-      await runAdaptiveCrossRespond(activeDebate, crossRespond, requestSynthesis);
-    } else {
-      for (let i = 0; i < crossRespondTurns; i++) {
-        await crossRespond();
-        if (!useDebateStore.getState().activeDebate) break;
-      }
+    try {
+      // The whole click is one run under the debate's lease (t/3917): no other loop or
+      // window can interleave turns between this batch's rounds. If another run owns the
+      // debate, the store refuses with a visible error and logs both callers.
+      await runUnderDebateLease('DebateActionBar.crossRespond', async (lease) => {
+        const turn = () => crossRespond({ lease, caller: 'DebateActionBar' });
+        if (isAdaptive && isStepMode) {
+          await turn();
+        } else if (isAdaptive) {
+          await runAdaptiveCrossRespond(activeDebate, turn, requestSynthesis, lease);
+        } else {
+          for (let i = 0; i < crossRespondTurns; i++) {
+            await turn();
+            if (!useDebateStore.getState().activeDebate || !lease.isValid()) break;
+          }
+        }
+      });
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   const handleRetry = () => {

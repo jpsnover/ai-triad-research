@@ -406,6 +406,7 @@ vi.stubGlobal('XMLHttpRequest', blockNetwork('XMLHttpRequest'));
 // ── Import the store under test ─────────────────────────────
 
 import { useDebateStore } from '../../useDebateStore';
+import { __resetRunLeasesForTests, __setRunLeaseTimingForTests } from '../shared/debateRunLease';
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -472,6 +473,11 @@ function makeSession(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   resetStore();
+  // Run leases (t/3917) are module state: a lease leaked by one test would refuse the next
+  // test's run. settleMs 0 keeps the cross-window settle window off the timer queue, so
+  // fake-timer suites aren't blocked on it.
+  __resetRunLeasesForTests();
+  __setRunLeaseTimingForTests({ settleMs: 0 });
   idCounter = 0;
   vi.clearAllMocks();
   vi.mocked(generateId).mockImplementation(() => `test-id-${++idCounter}`);

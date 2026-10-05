@@ -106,9 +106,11 @@ export function useBriefTimeoutEvents(activeDebateId: string | null): UseBriefTi
     // a silent no-op. cancelAndResetAbort() lets the superseded pipeline self-discard
     // (createDebateGuard captures its own controller); clearing debateGenerating reopens the
     // guard so the fresh run proceeds. Set debateModel first so the new run picks it up.
+    // supersedeLocal (t/3917): the aborted run still holds this window's run lease until
+    // its awaits unwind; without superseding it, the restart would be refused.
     cancelAndResetAbort();
     useDebateStore.setState({ debateModel: model, debateGenerating: null });
-    void useDebateStore.getState().runOpeningStatements();
+    void useDebateStore.getState().runOpeningStatements('briefTimeout.retryWithModel', { supersedeLocal: true });
     // Log the outcome — the abort + restart we just performed — not intent. Previously this
     // fired ahead of a guard that could swallow the retry, so the FR event overstated it.
     getGlobalRecorder()?.record({

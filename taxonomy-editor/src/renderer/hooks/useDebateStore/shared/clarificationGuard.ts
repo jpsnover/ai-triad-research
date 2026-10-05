@@ -7,7 +7,7 @@ interface ClarificationGuardStore {
   activeDebate: { id: string; user_is_pover: boolean; source_type: string } | null;
   updatePhase: (phase: 'clarification') => void;
   beginDebate: () => Promise<void>;
-  runOpeningStatements: () => Promise<void>;
+  runOpeningStatements: (caller?: string) => Promise<void>;
 }
 
 /**
@@ -54,5 +54,5 @@ export async function enterClarificationOrBegin(
   }
 
   await get().beginDebate();
-  await get().runOpeningStatements();
+  await get().runOpeningStatements('enterClarificationOrBegin');
 }
