@@ -755,8 +755,14 @@ function Finalize-Summary {
         else { $SummaryObject | Add-Member -NotePropertyName 'unmapped_concepts' -NotePropertyValue @() -Force }
     } else {
         $UC = Get-Field $SummaryObject 'unmapped_concepts'
-        # Force-array: ConvertFrom-Json unwraps single-element arrays to scalars; null → empty
-        $UC = if ($null -ne $UC) { @($UC) } else { @() }
+        # Force-array via @() directly (never `$UC = if (...) {@($UC)} else {@()}`):
+        # a 0-element array captured by assignment from an if/else expression's
+        # output stream collapses to $null, not an empty array (t/3915) -- the
+        # exact class of bug this line exists to prevent. @() applied directly
+        # to a value is a literal array constructor, never pipeline-enumerated,
+        # so it always yields a real array (single-null-element if $UC was a
+        # bare null; the t/3907 filter immediately below strips that to empty).
+        $UC = @($UC)
         # t/3907: drop bare-null elements -- a model/merge artifact that otherwise
         # writes unmapped_concepts: [null, ...], which a later StrictMode reader
         # throws on when it touches .PSObject.Properties against the null entry.
@@ -764,6 +770,13 @@ function Finalize-Summary {
         if ($NullUcCount -gt 0) {
             Write-Warning "Finalize-Summary: dropped $NullUcCount null unmapped_concepts entry/entries (t/3907, model=$Model)"
             $UC = @($UC | Where-Object { $null -ne $_ })
+        }
+        # t/3915: suggested_label is a free-text display field (the editor offers it
+        # as a new node's name) -- an ID-shaped value is junk regardless of source.
+        # Caught here so no writer, now or later, can leak a node ID into it.
+        $IdShapedLabelCount = Repair-IdShapedSuggestedLabel -Concepts $UC -Model $Model
+        if ($IdShapedLabelCount -gt 0) {
+            Write-Host "  │  ⚠ ID-shaped suggested_label replaced: $IdShapedLabelCount" -ForegroundColor Yellow
         }
         if ($SummaryObject -is [System.Collections.IDictionary]) { $SummaryObject['unmapped_concepts'] = $UC }
         else { $SummaryObject.unmapped_concepts = $UC }
@@ -816,9 +829,27 @@ function Finalize-Summary {
                     if (-not $SummaryObject.PSObject.Properties['unmapped_concepts']) {
                         $SummaryObject | Add-Member -NotePropertyName 'unmapped_concepts' -NotePropertyValue @() -Force
                     }
-                    $SummaryObject.unmapped_concepts = @($SummaryObject.unmapped_concepts) + @(
+                    # t/3915: suggested_label is a free-text display field (the editor
+                    # offers it as a new node's name) -- it must never be the dead node
+                    # ID itself. Derive a short label from the point text; the ID stays
+                    # traceable in `reason`.
+                    $FallbackLabel = if ($kp.point) {
+                        $LabelWords = @(($kp.point -split '\s+') | Where-Object { $_ } | Select-Object -First 8)
+                        ($LabelWords -join ' ') + '...'
+                    } else {
+                        'Unresolved concept'
+                    }
+                    # t/3915 (found alongside the label fix): the earlier normalization's
+                    # `$UC = if (...) { @($UC) } else { @() }` assignment can itself collapse
+                    # an empty array to $null (the same return/assignment enumeration quirk
+                    # as t/3907 -- a 0-element array captured by assignment from an if/else
+                    # expression emits nothing, not an empty array). @()-wrapping that $null
+                    # here would turn it into a 1-element [$null] array and prepend a bare
+                    # null entry ahead of the new one. Filter it out before appending.
+                    $ExistingUc = @(@($SummaryObject.unmapped_concepts) | Where-Object { $null -ne $_ })
+                    $SummaryObject.unmapped_concepts = $ExistingUc + @(
                         [PSCustomObject]@{
-                            suggested_label = $BadId
+                            suggested_label = $FallbackLabel
                             concept         = $kp.point
                             reason          = "Hallucinated node ID '$BadId' not found in taxonomy — moved from $Camp key_points"
                         }
