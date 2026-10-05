@@ -8,16 +8,14 @@ function Test-AIProviderKeyStatus {
         (configured? valid? rate limit?) via a data-driven per-backend table,
         replacing a 4-arm switch.
     .DESCRIPTION
-        Preserves current behavior exactly, bug-for-bug: each backend's probe
-        result is a hashtable that only carries the rate-limit keys that
-        backend's original switch arm set (gemini: none; claude/groq: all
-        three; openai: RateLimit/RateRemaining but not RateReset). Reading a
-        missing key via dot-access under Set-StrictMode throws, caught by the
-        surrounding try/catch, which is why gemini (and openai, partially)
-        currently report Valid=false even on a successful probe -- a known,
-        separately-tracked bug (t/3926), NOT fixed here per t/3910's
-        pure-refactor rule. t/3926 will update this function once it's safe
-        to change that behavior.
+        Each backend's probe result is a hashtable that only carries the
+        rate-limit keys that backend's probe can actually populate (gemini:
+        none; claude/groq: all three; openai: RateLimit/RateRemaining but not
+        RateReset). Read via bracket indexing (t/3926) -- dot-access on a
+        hashtable key that was never set throws PropertyNotFoundException
+        under Set-StrictMode, which used to get caught by the surrounding
+        try/catch and silently flip Valid to $false even on a successful
+        probe, for gemini and (partially) openai.
     .OUTPUTS
         [System.Collections.Generic.List[PSObject]] -- one status object per
         backend (gemini, claude, groq, openai).
@@ -36,8 +34,10 @@ function Test-AIProviderKeyStatus {
     }
 
     # Per-backend probe config: how to build the URL/headers, and which
-    # rate-limit fields this backend's result hashtable carries. RateFields
-    # intentionally varies per backend to reproduce t/3926 bug-for-bug.
+    # rate-limit fields this backend's probe response actually exposes.
+    # RateFields intentionally varies per backend (gemini exposes none;
+    # openai doesn't expose RateReset) -- read via bracket indexing below,
+    # never dot-access, so an absent field returns $null instead of throwing.
     $ProbeConfig = @{
         gemini = @{
             BuildUrl     = { param($Key) "https://generativelanguage.googleapis.com/v1beta/models?key=$Key&pageSize=1" }
@@ -109,10 +109,13 @@ function Test-AIProviderKeyStatus {
                     $ProbeResult[$Field] = if ($Resp.Headers[$HeaderName]) { $Resp.Headers[$HeaderName] } else { $null }
                 }
 
-                $Status.Valid = $ProbeResult.Valid
-                if ($ProbeResult.RateLimit)     { $Status.RateLimit = $ProbeResult.RateLimit }
-                if ($ProbeResult.RateRemaining) { $Status.RateRemaining = $ProbeResult.RateRemaining }
-                if ($ProbeResult.RateReset)     { $Status.RateReset = $ProbeResult.RateReset }
+                # t/3926: bracket indexing -- dot-access on a hashtable key never
+                # set for this backend (see RateFields above) throws under
+                # Set-StrictMode, wrongly flipping Valid to $false via the catch.
+                $Status.Valid = $ProbeResult['Valid']
+                if ($ProbeResult['RateLimit'])     { $Status.RateLimit = $ProbeResult['RateLimit'] }
+                if ($ProbeResult['RateRemaining']) { $Status.RateRemaining = $ProbeResult['RateRemaining'] }
+                if ($ProbeResult['RateReset'])     { $Status.RateReset = $ProbeResult['RateReset'] }
             }
             catch {
                 $Status.Valid = $false
