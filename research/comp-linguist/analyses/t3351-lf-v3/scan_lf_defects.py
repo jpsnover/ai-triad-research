@@ -8,12 +8,21 @@ count is now reproducible from the live corpus instead of living only in one ana
 
 Two classes (both deterministic, no LLM):
 
-  A. STANCE-VERB PREDICATE — `predicate` is one of the stance/reporting verbs the prompt's
-     MANDATORY PREDICATE SELF-CHECK (logical-form-formalization.prompt, the {...} set) bans:
-     the stance is already carried in modality, so a stance verb as predicate duplicates it.
-     NOTE: `hold`/`report` have legitimate CONTENT senses (hold-liable, mandated-disclosure
-     report-to-body) — flagged separately as `borderline` so a fix cannot silently over-strip
-     them (t/3351 v3 design).
+  A. STANCE LEAK (role-based, t/3883) — the predicate carries the ATTRIBUTING CAMP's attitude
+     instead of the proposition's content. Candidates are predicates on the prompt's ban list
+     (logical-form-formalization.prompt, the {...} set), but the ban list alone is a LEXEME test:
+     most hits use the verb as content ("AI will *seek* power", "mandates *favor* incumbents");
+     1 in 14 on the live corpus was a real leak. A candidate is a leak only if it IS the
+     description's ATTRIBUTING VERB -- "A Desire within X discourse that *prioritizes* ..." ->
+     predicate `prioritize`: the model took the camp's attitude as the event.
+     A second clause ("the verb is not grounded anywhere in the proposition text") was tried and
+     DROPPED: its only motivating case turned out to be a different defect (skp-beliefs-232), so it
+     had no positive, and it has a known false-positive mode (a ban-list synonym paraphrasing the
+     content, e.g. `seek` for "pursue"). Imported reporting verbs are therefore NOT detected here.
+     The lexeme buckets (stance_pure / stance_borderline) are still emitted for continuity, but
+     CLASS A is now the role-based count.
+     Provenance: designed and checked against the same small labeled set (labeled-stance-set.json,
+     single annotator, 1 positive) -- in-sample, NOT a validated precision. See t/3883.
 
   B. DISCOURSE-AS-AGENT — an args[] entry whose ref names a meta-descriptive collective
      ("<camp> discourse", "the discourse", "the document", "the view") as an AGENT. The prompt
@@ -57,6 +66,38 @@ def norm_pred(p):
     return p
 
 
+_WRAP = re.compile(r"^An?\s+(?:Belief|Desire|Intention)\s+within\s+.+?\s+discourse\s+that\s+(\w+)", re.IGNORECASE)
+
+
+def _wrapper_verb(desc):
+    """The attributing verb right after '<cat> within <camp> discourse that' (None if the description
+    has no wrapper, or the next word is not that clause's verb -- e.g. 'that AI developers should')."""
+    m = _WRAP.match(desc or "")
+    return m.group(1).lower() if m else None
+
+
+def _is_wrapper_verb(pred, wverb):
+    # 'prioritizes' / 'advocates' / 'argues' -> base form + a short inflectional suffix
+    return bool(wverb) and wverb.startswith(pred) and len(wverb) - len(pred) <= 3
+
+
+def stance_verdict(pred, label, desc):
+    """Return (is_leak, reason) for a ban-list candidate. `label` is accepted for interface stability
+    (the formalizer's proposition is label + description) but the test reads only the wrapper."""
+    if _is_wrapper_verb(pred, _wrapper_verb(desc)):
+        return True, "attributing-verb"
+    return False, "content-use"
+
+
+def _node_text():
+    """id -> (label, description) for every POV node (the proposition text the formalizer was given)."""
+    out = {}
+    for fn in POV_FILES:
+        for n in json.load(open(os.path.join(ORIGIN, fn), encoding="utf-8"))["nodes"]:
+            out[n["id"]] = (n.get("label", ""), n.get("description", ""))
+    return out
+
+
 def _iter_frames(from_json):
     """Yield (node_id, logical_form) from the live corpus, or from a formalize_node_lf.py
     --out file ({"all"|"sample": {id: lf}}) when --from-json is given (dry-run re-scan)."""
@@ -74,6 +115,8 @@ def _iter_frames(from_json):
 
 def scan(from_json=""):
     stance, stance_borderline, discourse = [], [], []
+    stance_leak, stance_content = [], []
+    text = _node_text()
     total = 0
     for nid, lf in _iter_frames(from_json):
         if not isinstance(lf, dict) or not lf.get("predicate"):
@@ -84,6 +127,10 @@ def scan(from_json=""):
         if pred_raw in BAN_STANCE or pred in BAN_STANCE:
             (stance_borderline if (pred_raw in BORDERLINE or pred in BORDERLINE) else stance).append(
                 {"id": nid, "predicate": lf["predicate"]})
+            base = pred_raw if pred_raw in BAN_STANCE else pred
+            label, desc = text.get(nid, ("", ""))
+            leak, why = stance_verdict(base, label, desc)
+            (stance_leak if leak else stance_content).append({"id": nid, "predicate": lf["predicate"], "why": why})
         for a in (lf.get("args") or []):
             # A meta-collective ("<camp> discourse" / "the document" / "the view") is
             # never a valid arg entity in ANY role (the prompt bans it as an agent; it is
@@ -92,8 +139,8 @@ def scan(from_json=""):
             if isinstance(ref, str) and DISCOURSE_AGENT_RE.search(ref):
                 discourse.append({"id": nid, "role": a.get("role"), "ref": ref})
                 break
-    return {"total_formalized": total, "stance_pure": stance,
-            "stance_borderline": stance_borderline, "discourse_as_agent": discourse}
+    return {"total_formalized": total, "stance_leak": stance_leak, "stance_content": stance_content,
+            "stance_pure": stance, "stance_borderline": stance_borderline, "discourse_as_agent": discourse}
 
 
 def main():
@@ -103,18 +150,20 @@ def main():
                     help="scan a formalize_node_lf.py --out file (dry-run re-scan) instead of the live corpus")
     args = ap.parse_args()
     r = scan(args.from_json)
+    nleak, ncont = len(r["stance_leak"]), len(r["stance_content"])
     npure, nbord, ndisc = len(r["stance_pure"]), len(r["stance_borderline"]), len(r["discourse_as_agent"])
     print(f"formalized frames scanned: {r['total_formalized']}")
-    print(f"CLASS A stance-verb predicate: {npure + nbord}  (pure {npure} + borderline {nbord})")
-    for x in r["stance_pure"]:
-        print(f"  [pure]       {x['id']}  predicate={x['predicate']!r}")
-    for x in r["stance_borderline"]:
-        print(f"  [borderline] {x['id']}  predicate={x['predicate']!r}  (may be legitimate content)")
+    print(f"CLASS A stance leak (role-based, t/3883): {nleak}   [ban-list candidates {nleak + ncont}; "
+          f"lexeme-only view: pure {npure} + borderline {nbord}]")
+    for x in r["stance_leak"]:
+        print(f"  [leak:{x['why']}] {x['id']}  predicate={x['predicate']!r}")
+    for x in r["stance_content"]:
+        print(f"  [content-use]   {x['id']}  predicate={x['predicate']!r}  (ban-list verb used as the proposition's content)")
     print(f"CLASS B discourse-as-agent: {ndisc}")
     for x in r["discourse_as_agent"]:
         print(f"  {x['id']}  agent-ref={x['ref']!r}")
-    print(f"\nTOTAL clear-defects: {npure + nbord + ndisc}  (of {r['total_formalized']} = "
-          f"{(npure + nbord + ndisc) / max(1, r['total_formalized']):.1%})")
+    print(f"\nTOTAL clear-defects: {nleak + ndisc}  (of {r['total_formalized']} = "
+          f"{(nleak + ndisc) / max(1, r['total_formalized']):.1%})")
     if args.json:
         json.dump(r, open(args.json, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
         print(f"wrote {args.json}")

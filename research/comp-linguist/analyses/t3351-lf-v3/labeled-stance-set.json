@@ -1,0 +1,25 @@
+{
+  "ticket": "t/3883",
+  "what": "Ban-list predicate frames, labeled stance-leak vs content-use. Union of the 14 live-corpus candidates (data bc1d4d65) and the t/3351 dry-run predicates (dryrun-part2.json), deduped by (node, predicate).",
+  "label_definition": "leak = the predicate carries the attributing camp's attitude/reporting frame instead of the proposition's content; content = the verb IS (part of) the proposition's content. A frame with a different defect (e.g. wrong main act) is 'content' for class A and noted.",
+  "annotators": ["CL (Main, Computational Linguist)"],
+  "second_annotator": "PENDING: required before any precision/recall is reported as validated (statistic-provenance rule, t/3587)",
+  "in_sample_warning": "The role-based heuristic was designed after reading these same items. Scores on this set are in-sample agreement, not validated precision.",
+  "items": [
+    {"node": "acc-desires-021",    "predicate": "prioritize", "label": "leak",    "confidence": "high", "note": "predicate is the wrapper verb 'prioritizes'; camp discourse also made the agent"},
+    {"node": "skp-beliefs-232",    "predicate": "maintain",   "label": "content", "confidence": "med",  "note": "not a stance leak; a different defect: the frame formalizes the Encompasses phrase 'the performative compliance cost of maintaining systems' instead of the main proposition (metadata 'is destroyed'). First labeled 'leak' from a description truncated at 240 chars; corrected after reading the full text."},
+    {"node": "saf-desires-002",    "predicate": "maintain",   "label": "content", "confidence": "high", "note": "'advocates for the maintenance of human agency'"},
+    {"node": "saf-desires-002",    "predicate": "hold",       "label": "content", "confidence": "high", "note": "'Humans Must Always Hold the Off Switch'"},
+    {"node": "saf-desires-025",    "predicate": "maintain",   "label": "content", "confidence": "med",  "note": "'fiduciaries to maintain active oversight'; aspectual, oversee would be better, but not stance"},
+    {"node": "saf-intentions-076", "predicate": "prioritize", "label": "content", "confidence": "high", "note": "the intention IS a ranking ('framework prioritizing testable problems')"},
+    {"node": "saf-intentions-111", "predicate": "maintain",   "label": "content", "confidence": "high", "note": "'maintaining a comprehensive inventory'"},
+    {"node": "saf-intentions-127", "predicate": "hold",       "label": "content", "confidence": "med",  "note": "not a stance leak; a different defect: purpose clause 'held accountable' chosen over the main act 'give'"},
+    {"node": "saf-beliefs-095",    "predicate": "seek",       "label": "content", "confidence": "high", "note": "AI 'will predictably seek power': the AI's behavior"},
+    {"node": "skp-intentions-040", "predicate": "hold",       "label": "content", "confidence": "high", "note": "hold-liable"},
+    {"node": "skp-desires-011",    "predicate": "prioritize", "label": "content", "confidence": "high", "note": "'developers prioritize ecological health'"},
+    {"node": "skp-desires-075",    "predicate": "align",      "label": "content", "confidence": "high", "note": "'aligning AI development with public values'"},
+    {"node": "skp-intentions-079", "predicate": "report",     "label": "content", "confidence": "high", "note": "agencies report to Congress"},
+    {"node": "skp-desires-076",    "predicate": "report",     "label": "content", "confidence": "high", "note": "mandated report of training works"},
+    {"node": "skp-beliefs-196",    "predicate": "favor",      "label": "content", "confidence": "high", "note": "mandates favor dominant firms: causal content"}
+  ]
+}
