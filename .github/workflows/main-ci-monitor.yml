@@ -14,7 +14,9 @@ name: main-ci-monitor
 
 on:
   schedule:
-    - cron: '*/15 * * * *'   # every 15 min — a red is surfaced within one cadence
+    # Requested every 15 min, but OBSERVED 1.5–7.4h apart (GitHub schedule throttling, t/3912) — do not
+    # assume a red surfaces within 15 min. Event-driven triggering is the latency fix (see t/3912 follow-up).
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -70,9 +72,11 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
         with:
           script: |
+            const { pathToFileURL } = require('url');
+            const { heartbeatGap, ESCALATED_LABEL } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/operations/devops/main-ci-monitor.mjs`).href);
             const label = process.env.HEARTBEAT_LABEL;
+            const owner = context.repo.owner, repo = context.repo.repo;
             const now = new Date();
-            const STALE_MS = 3 * 15 * 60 * 1000; // 3× the 15-min cadence; a longer gap = schedule stalled
             const list = await github.rest.issues.listForRepo({
               owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: label, per_page: 1,
             });
@@ -88,11 +92,22 @@ jobs:
             } else {
               const issue = list.data[0];
               const prior = Date.parse((issue.body || '').match(/heartbeat:\s*([0-9T:.\-Z]+)/)?.[1] || '');
-              if (Number.isFinite(prior) && (now.getTime() - prior) > STALE_MS) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number,
-                  body: `⚠️ Monitor liveness GAP: previous heartbeat was ${new Date(prior).toISOString()}, ${Math.round((now.getTime()-prior)/60000)}m ago (> ${STALE_MS/60000}m). The scheduled run may have been disabled/paused in that window — main was UNMONITORED. Investigate why the schedule stopped.`,
-                });
+              // t/3912: a gap past the recalibrated threshold is its OWN escalated issue — a comment on this
+              // never-closing heartbeat issue is the quiet-update shape that hid #2551 (30 gap comments).
+              const gap = heartbeatGap({ priorMs: prior, nowMs: now.getTime() });
+              console.log(`heartbeat gap: ${gap.gapMin}m (stale=${gap.stale})`);
+              if (gap.stale) {
+                const msg = `⚠️ Monitor liveness GAP: previous heartbeat was ${new Date(prior).toISOString()}, ${gap.gapMin}m ago. The scheduled run may have been disabled/paused in that window — main was UNMONITORED. Investigate why the schedule stopped.\n\n- **Run:** ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+                const open = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: 'main-ci-monitor-stale', per_page: 1 });
+                if (open.data.length > 0) {
+                  await github.rest.issues.createComment({ owner, repo, issue_number: open.data[0].number, body: msg });
+                } else {
+                  const created = await github.rest.issues.create({ owner, repo,
+                    title: `main-ci-monitor: liveness gap of ${gap.gapMin}m`, body: msg,
+                    labels: ['main-ci-monitor-stale', ESCALATED_LABEL, 'bug'] });
+                  try { await github.rest.issues.addAssignees({ owner, repo, issue_number: created.data.number, assignees: [owner] }); }
+                  catch (e) { core.warning(`could not assign ${owner} to #${created.data.number}: ${e.message}`); }
+                }
               }
               await github.rest.issues.update({
                 owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, body: `${stamp}\n\nThis issue is the monitor's liveness heartbeat; each scheduled run updates it. Leaving it open is intentional — a stale timestamp here means the monitor stopped running.`,
@@ -105,6 +120,8 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const { pathToFileURL } = require('url');
+            const { escalationDecision, ESCALATED_LABEL } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/operations/devops/main-ci-monitor.mjs`).href);
             let v;
             try { v = JSON.parse(fs.readFileSync('verdict.json', 'utf8')); }
             catch { v = { ok: false, error: 'verdict.json missing/empty — the classifier shim did not produce output' }; }
@@ -116,8 +133,22 @@ jobs:
             async function openOrUpdate(label, title, body) {
               const ex = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: label, per_page: 1 });
               if (ex.data.length > 0) {
-                await github.rest.issues.createComment({ owner, repo, issue_number: ex.data[0].number, body: `Still present at ${ts}.\n\n${body}` });
-                console.log(`updated #${ex.data[0].number} (${label})`);
+                const issue = ex.data[0];
+                // t/3912: decide BEFORE this run's comment. Prior sightings = the opening + each "Still present".
+                const d = escalationDecision({
+                  openedAtMs: Date.parse(issue.created_at), priorOccurrences: 1 + (issue.comments || 0),
+                  labels: (issue.labels || []).map((l) => (typeof l === 'string' ? l : l.name)), nowMs: Date.now(),
+                });
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: `Still present at ${ts}.\n\n${body}` });
+                console.log(`updated #${issue.number} (${label}); escalation: ${d.escalate} — ${d.reason}`);
+                if (d.escalate) {
+                  // ONE distinguishable event per episode: the label is the latch, the assignment + @mention notify.
+                  await github.rest.issues.addLabels({ owner, repo, issue_number: issue.number, labels: [ESCALATED_LABEL] });
+                  try { await github.rest.issues.addAssignees({ owner, repo, issue_number: issue.number, assignees: [owner] }); }
+                  catch (e) { core.warning(`could not assign ${owner} to #${issue.number}: ${e.message}`); }
+                  await github.rest.issues.createComment({ owner, repo, issue_number: issue.number,
+                    body: `@${owner} 🔺 **ESCALATED** — this alert is ${d.reason}; it has not cleared on its own. Labelled \`${ESCALATED_LABEL}\` (DevOps is pinged via the local escalation bridge). This fires once per episode.` });
+                }
               } else {
                 await github.rest.issues.create({ owner, repo, title, body, labels: [label, 'bug'] });
                 console.log(`opened new (${label})`);
@@ -139,6 +170,9 @@ jobs:
                 `The monitor could not evaluate main's head — this is an infra problem with the monitor, not (necessarily) a red main.\n\n- **Error:** \`${v.error}\`\n- **Run:** ${runUrl}\n- **Time:** ${ts}`);
               return;
             }
+            // t/3912: any successful evaluation ends a CANNOT-EVALUATE episode (not only a green main), so
+            // escalation counts CONSECUTIVE failures and a transient one followed by a clean read never escalates.
+            await closeIfOpen(process.env.INFRA_LABEL, 'Resolved — monitor evaluated main cleanly');
 
             const vd = v.verdict || {};
             const head = `- **Head:** \`${v.sha}\` (${v.headAgeMin}m old)\n- **Runs observed:** ${(v.runObserved||[]).join(', ') || '(none)'}\n- **Verdict:** ${vd.reason}\n- **Run:** ${runUrl}`;
@@ -158,7 +192,6 @@ jobs:
               if (vd.state === 'green') {
                 await closeIfOpen(process.env.RED_LABEL, 'Resolved — CI green on the tip again');
                 await closeIfOpen(process.env.NOTICE_LABEL, 'Resolved — no failing push workflow on the tip');
-                await closeIfOpen(process.env.INFRA_LABEL, 'Resolved — monitor evaluated main cleanly');
               }
               console.log(`no alert: ${vd.state} — ${vd.reason}`);
             }

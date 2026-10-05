@@ -147,6 +147,51 @@ export function classifyMainCI({ runs, healthWorkflow = HEALTH_WORKFLOW, headAge
 // liveness, advisory) is tracked at t/3741. It must NOT be bolted onto this monitor's self-health —
 // coupling would make the main-CI health check assert less than it appears (the t/3737#3/#4 defect).
 
+// ── ESCALATION (t/3912) ─────────────────────────────────────────────────────────────────────────
+// The incident: CANNOT EVALUATE persisted 6 days and the route step did exactly what it was built to
+// do — 29 "Still present" comments on one open issue (#2551). An idempotent update to a long-open
+// issue notifies nobody (same shape as t/3671). So a PERSISTING alert now produces ONE distinguishable
+// event per episode: label ESCALATED_LABEL + assign the owner + an @mention comment. The label is the
+// once-per-episode latch; an episode ends when the issue auto-closes, and a recurrence opens a NEW
+// issue (a new episode). The local Orca bridge (Get-CiAlertEscalations.ps1, hourly reminder) reads
+// that label to reach the DevOps agent — GitHub notifications alone demonstrably reached no one.
+//
+// Episode = consecutive occurrences: the infra alert closes on ANY successful evaluation (not only a
+// green main), so a transient single CANNOT EVALUATE followed by a clean read never escalates.
+export const ESCALATED_LABEL = 'alert-escalated';
+export const ESCALATE_MIN_OCCURRENCES = 2;            // this run is at least the 2nd consecutive sighting
+export const ESCALATE_MIN_AGE_MS = 60 * 60 * 1000;     // ...and the episode has lasted ≥ 1h
+
+/**
+ * PURE. Should this sighting of an already-open alert escalate?
+ * @param {{openedAtMs:number, priorOccurrences:number, labels:string[], nowMs:number}} a
+ *   priorOccurrences = sightings BEFORE this run (issue creation + each "Still present" comment).
+ */
+export function escalationDecision({ openedAtMs, priorOccurrences, labels = [], nowMs,
+  minOccurrences = ESCALATE_MIN_OCCURRENCES, minAgeMs = ESCALATE_MIN_AGE_MS } = {}) {
+  if (labels.includes(ESCALATED_LABEL)) return { escalate: false, reason: 'already escalated this episode' };
+  const occurrences = priorOccurrences + 1;
+  const ageMs = nowMs - openedAtMs;
+  if (!Number.isFinite(ageMs)) return { escalate: true, reason: 'episode age unreadable — escalating (fail-safe)' };
+  if (occurrences < minOccurrences) return { escalate: false, reason: `occurrence ${occurrences} < ${minOccurrences}` };
+  if (ageMs < minAgeMs) return { escalate: false, reason: `episode ${Math.round(ageMs / 60000)}m < ${minAgeMs / 60000}m` };
+  return { escalate: true, reason: `persisting: ${occurrences} consecutive sightings over ${Math.round(ageMs / 60000)}m` };
+}
+
+// HEARTBEAT (t/3912 AC3). The original 45m threshold assumed the 15-min cron actually fires every
+// 15 min. BASELINE CHECK (t/3085): it does not — 30 scheduled runs 2026-09-29..10-05 arrived every
+// 1.5–7.4h (GitHub schedule throttling), so the gap comment fired on ~every run: 30 comments of
+// wallpaper on the heartbeat issue, the same quiet-update shape as #2551. Threshold is recalibrated
+// to the observed platform cadence; a gap past it is a distinct, escalated event (its own issue).
+export const HEARTBEAT_STALE_MS = 12 * 60 * 60 * 1000; // observed max 7.4h × ~1.6
+
+/** PURE. Is the prior heartbeat stale? Unreadable prior → not stale (first run / fresh issue). */
+export function heartbeatGap({ priorMs, nowMs, staleMs = HEARTBEAT_STALE_MS } = {}) {
+  if (!Number.isFinite(priorMs)) return { stale: false, gapMin: null };
+  const gapMin = Math.round((nowMs - priorMs) / 60000);
+  return { stale: nowMs - priorMs > staleMs, gapMin };
+}
+
 // ── CLI shim (impure — the ONLY part that touches gh). Prints a JSON verdict to stdout.
 //    node main-ci-monitor.mjs <owner/repo>
 //    The workflow reads the JSON and does the issue open/update/close + graded role notification.
