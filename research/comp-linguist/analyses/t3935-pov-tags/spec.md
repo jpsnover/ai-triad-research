@@ -1,9 +1,9 @@
 # POV tags: specification
 
 **Author:** Computational Linguist
-**Date:** 2026-10-05 (revision 2, after TL design review t/3954#1)
+**Date:** 2026-10-05 (revision 3: TL design review t/3954#1, plus a code-touchpoint map)
 **Ticket:** t/3935 (decision record t/3935#1); epic t/3954
-**Status:** Draft. Seven decisions run on proposed defaults until the PI confirms them (section 9). The TL has approved the interfaces with conditions; the schema child t/3955 goes to the mandatory Second Opinion next (section 8).
+**Status:** Draft. Six decisions run on proposed defaults until the PI confirms them (section 9); decision 7 is resolved. The TL has approved the interfaces with conditions; the schema child t/3955 goes to the mandatory Second Opinion next (section 8).
 **Background:** `research/comp-linguist/analyses/t3932-skeptic-split/analysis.md`
 
 ## 1. What the PI decided
@@ -72,6 +72,15 @@ Saved debates gain two optional fields per seat (TL review, point 3):
 
 **Absent means untagged,** so every existing saved debate still loads. The run also records the **soul file and soul version** each seat used (section 3).
 
+### 2.3a Validators that must learn the field (revision 3)
+
+- **`lib/debate/schemas.ts` `PovNodeSchema`** is a `z.object`, so it **strips unknown keys** on parse. It must declare `pov_tags`, or any parse-then-save path silently drops tags.
+- **`SituationNodeSchema`** must reject the field.
+- **The renderer's `povNodeSchema`** (`validation.ts`) passes unknown keys through, so it stays safe, but it should declare the field.
+- **`lib/debate/taxonomyTypes.ts` `PovNode`** gains `pov_tags?: string[]`.
+- **PowerShell** reads nodes as objects, so a top-level field survives round-trips. That still needs checking for any cmdlet that rebuilds node objects.
+- **Open for the TL:** `taxonomy-schema.json` currently records `graph_attributes` and node ids. Does a top-level node field belong in that record, or in the node Zod schema only?
+
 ### 2.4 Schema change control
 
 Sections 2.1 to 2.3 are one normative, additive change, declared together in t/3955:
@@ -90,9 +99,24 @@ Tags play no part in which POV or node a document's claims map to. Extraction, s
 - **Naming:** tag souls live beside the POV souls as `lib/debate/soul-docs/<pov>.<tag>.soul.json`, for example `skeptic.critical.soul.json`.
 - **Schema:** `SoulDocumentSchema` gains an optional `tag` field. A tag soul's `pov` must equal its file's POV, and its `tag` must exist in the registry.
 - **Loader (TypeScript):** `soulDocLoader` gains `getSoulDocument(pov, tag?)`. It returns the tag soul when a tag is given and the POV soul otherwise. A missing tag soul is an `ActionableError`, never a silent fallback to the POV soul. *TL-approved.*
+- **The prompt paths do not use that loader today (revision 3).**
+  - Debate (engine and renderer store), chat and diagnostics build prompts from a static `POVER_INFO` record that imports the three soul JSONs at compile time (`lib/debate/poverInfo.ts:5-13`).
+  - Op-ed reads the JSON from disk (`lib/oped/generate.ts:81-84`).
+  - `getSoulDocument` has no production caller.
+
+  So the core change is a **per-session resolver**, `resolvePoverInfo(speaker, tagSelection)`, built on the tag-aware loader. Every `POVER_INFO[x]` lookup that builds a prompt goes through it. That includes:
+  - the shared prompt helpers: `getCharacterBlock`, and `otherDebaters`, which must describe tagged opponents correctly;
+  - the engine phases;
+  - the renderer debate store slices;
+  - the chat store.
+
+  Display-only uses can stay on `POVER_INFO`. Two checks assume exactly three souls and must accept tag souls: `routes/diagnostics.ts:306-320` and `Invoke-TaxEditorSmokeTest.ps1:428,474`.
 - **Loader (PowerShell):** `New-OpEd.ps1` loads soul documents itself (lines 40 and 55). It needs the same tag-aware load and the same no-silent-fallback rule (t/3960).
 - **Provenance:** every run records **which soul file and version** each seat used, so a debate can be reproduced and calibration arms compared like with like. *TL condition.*
-- **Doctrinal anchoring** (`assignWeights.ts` and the anchoring inside `selectRelevantTaxonomy`) uses the boundaries of whichever soul is active.
+- **Doctrinal anchoring.**
+  - **Per-debate anchoring** (`lib/debate/debateEngine/doctrinal.ts`, and the anchoring inside `selectRelevantTaxonomy`) uses the active soul's boundaries.
+  - **Corpus-level weights** (`assignWeights.ts`, written to node confidence) stay on the **POV** soul, since they describe the camp, not one wing.
+  - **Pre-existing defect.** The shared selection path passes `POVER_INFO.doctrinal_boundaries`, a field no soul has. Both `relevantNodes.ts:80-83` and `taxonomyHandlers.ts:654-657` do this, so anchoring is silently off on the server and IPC paths today. That is filed separately; it should be fixed before tag souls depend on anchoring.
 
 **Rebalancing the general Skeptic soul** (default for decision 4). The live `skeptic.soul.json` already voices the Critical wing. That voice moves into `skeptic.critical.soul.json`, built from the t/3932 draft. The general Skeptic soul is rewritten as a neutral umbrella that voices what both wings share: non-exceptionalism, and evidence about deployment over claims about capability.
 
@@ -113,6 +137,23 @@ The `skeptic.institutional.soul.json` is the t/3932 Institutionalist draft. Its 
 - **Non-POV items.** Situations, cruxes and conflicts are selected as today for that POV under either mode.
 - **Pickers hide** for a POV whose registry entry has no tags.
 
+### 4.1 Where each feature selects POV items (revision 3)
+
+Each feature selects POV items differently, so Scope and Prioritize land in different places:
+
+| Feature | Selection today | Scope | Prioritize |
+|---|---|---|---|
+| Debate, app (server, IPC, renderer) | `selectRelevantTaxonomy` then `selectRelevantNodes` | the `preExcludeSet` pattern (runs before grouping, so minimum-per-category cannot readmit excluded nodes) | a `tagBoost` beside `lineageBoost` |
+| Debate, engine (CLI, headless, Inquiry) | `getRelevantTaxonomyContext` (`debateEngine/taxonomyContext.ts:154`), which does **not** go through `selectRelevantTaxonomy` | the same filter, applied here too | the same boost, applied here too |
+| Chat | no ranking: every POV node is sent (`useChatStore.ts:100-108`) | filter `getTaxonomyContext` | order and mark tagged nodes in `formatTaxonomyContext`; there is no score to boost |
+| Question (**Inquiry**) | `buildGroundingEnvelope` (`lib/debate/inquiryGrounding.ts:49`), then the engine path | filter before the per-camp sort | boost before the sort |
+| Op-ed | per-POV `selectRelevantNodes` (`lib/oped/generate.ts:775-790`); PowerShell `Get-RelevantTaxonomyNodes.ps1` | the `RelevanceOptions` filter; a PowerShell `-Tag` parameter | the boost; a PowerShell `-TagMode` parameter |
+
+**Template for the plumbing:** the existing `exclude_greatest_hits` option travels the whole chain, so tag and mode should follow the same route:
+- `DebateConfig` (`debateEngine/internals.ts`), `DebateSession` (`types/session.ts`) and the CLI config;
+- the PowerShell `Invoke-AITDebate` command;
+- the renderer `NewDebateDialog`, `sessionSlice` and `taxonomyContext.ts`.
+
 ## 5. Where the code plugs in
 
 | Concern | Location | Owner |
@@ -122,7 +163,8 @@ The `skeptic.institutional.soul.json` is the t/3932 Institutionalist draft. Its 
 | Soul schema and loader | `lib/debate/soulDocSchema.ts`, `soulDocLoader.ts`, `poverInfo.ts` | DebateTool |
 | Scope and Prioritize in ranking | `lib/debate/relevanceSelection.ts` (`selectRelevantTaxonomy`, the single selection pipeline) and `lib/debate/taxonomyRelevance.ts` (`selectRelevantNodes`) | DebateTool |
 | Debate setup | `taxonomy-editor/src/renderer/components/debate/NewDebateDialog.tsx` and the debate store | DebateUI |
-| Chat (and question) setup | `taxonomy-editor/src/renderer/components/chat/` | Chat |
+| Chat setup and context | `taxonomy-editor/src/renderer/components/chat/`, `hooks/useChatStore.ts` | Chat |
+| Question (Inquiry) | `lib/inquiry/schema.ts` (strict request schema), `lib/debate/inquiryConfig.ts`, `inquiryGrounding.ts`, `components/inquiry/` | Inquiry owner (see the t/3954 child) |
 | Op-ed | `lib/oped/generate.ts` (Shared Lib); `scripts/AITriad/Public/New-OpEd.ps1`, including its soul loading (PowerShell) | Shared Lib, PowerShell |
 | Editor filter and tag editing | `taxonomy-editor/src/renderer/components/taxonomy/PovTab.tsx`, `NodeDetail.tsx` | Rosetta Stone |
 | Calibration logging | `lib/debate/calibrationLogger.ts` | DebateTool |
@@ -174,4 +216,4 @@ The work ships as independent PRs to `main`, sequenced with `blocks` relations, 
 | 4 | Is the general Skeptic soul rewritten as a neutral umbrella? | Yes; today's voice moves to the Critical tag |
 | 5 | One optional tag per POV seat in a debate? | Yes |
 | 6 | Can the editor edit tags, and is a new tag configuration only? | Yes to both |
-| 7 | What is "question" in "debate/chat/question/op-ed"? | No separate feature exists in the code; read it as the chat modes. PI to confirm. |
+| 7 | What is "question" in "debate/chat/question/op-ed"? | **Resolved (revision 3):** the Inquiry feature, labelled "Questions" in the UI (`components/inquiry`, `lib/inquiry`). It gets the same tag and mode selection. My earlier reading, chat modes, was wrong. |
