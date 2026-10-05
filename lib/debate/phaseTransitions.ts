@@ -110,9 +110,55 @@ export function validatePhaseState(state: PhaseState): { valid: boolean; errors:
   return { valid: errors.length === 0, errors };
 }
 
+// ── Cap Helpers ──────────────────────────────────────────────
+
+/**
+ * Effective round cap in turns for a debate session.
+ * When phaseBoundsOverride is active: max(maxTotalRounds, Σ scaled max bounds).
+ * When no override: maxTotalRounds. Units: turns.
+ * Pass the real speaker count for accurate results.
+ */
+export function effectiveRoundCap(config: PhaseTransitionConfig, speakers: number): number {
+  const w = loadProvisionalWeights();
+  const rawPb = { ...w.phase_bounds };
+  const ov = config.phaseBoundsOverride;
+  if (ov == null) return config.maxTotalRounds;
+  if (ov.maxConfrontationRounds != null) rawPb.max_confrontation_rounds = ov.maxConfrontationRounds;
+  if (ov.maxArgumentationRounds != null) rawPb.max_argumentation_rounds = ov.maxArgumentationRounds;
+  if (ov.maxConcludingRounds != null) rawPb.max_concluding_rounds = ov.maxConcludingRounds;
+  const s = Math.max(1, speakers);
+  return Math.max(
+    config.maxTotalRounds,
+    (rawPb.max_confrontation_rounds + rawPb.max_argumentation_rounds + rawPb.max_concluding_rounds) * s,
+  );
+}
+
+/**
+ * The renderer loop's iteration cap; normal endings come from `phase_terminated`,
+ * this is the safety net. Adds scaled min_concluding to effectiveRoundCap so a
+ * debate force-transitioned into concluding at the cap can finish its minimum.
+ * Units: turns. Pass the real speaker count for accurate results.
+ */
+export function maxTurnCeiling(config: PhaseTransitionConfig, speakers: number): number {
+  const w = loadProvisionalWeights();
+  const rawPb = { ...w.phase_bounds };
+  const ov = config.phaseBoundsOverride;
+  if (ov?.maxConcludingRounds != null) rawPb.max_concluding_rounds = ov.maxConcludingRounds;
+  const s = Math.max(1, speakers);
+  const scaledMinConcluding = Math.min(rawPb.min_concluding_rounds, rawPb.max_concluding_rounds) * s;
+  return effectiveRoundCap(config, speakers) + scaledMinConcluding;
+}
+
 // ── Config Validation ───────────────────────────────────────
 
-export function validateAdaptiveConfig(config: PhaseTransitionConfig): { valid: boolean; errors: string[]; warnings: string[] } {
+/**
+ * Validate a PhaseTransitionConfig. Pass the real speaker count for accurate
+ * floor checking; defaults to 1 (conservative, always safe to validate).
+ */
+export function validateAdaptiveConfig(
+  config: PhaseTransitionConfig,
+  speakers = 1,
+): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -122,12 +168,23 @@ export function validateAdaptiveConfig(config: PhaseTransitionConfig): { valid: 
   if (config.concludingExitThreshold < 0.30 && config.dialecticalStyle !== 'socratic') {
     errors.push('concludingExitThreshold < 0.30: synthesis will exit before meaningful convergence');
   }
-  // Derive floor from phase bound minimums (t/3882)
+  // Floor: Σ min(min,max) per phase × speakers — same scaling as engine (t/3936 fix).
+  // Compare against effectiveRoundCap so override-extended bounds are in scope.
   const _wv = loadProvisionalWeights();
-  const _pb = _wv.phase_bounds;
-  const _minFloor = _pb.min_confrontation_rounds + _pb.min_argumentation_rounds + _pb.min_concluding_rounds;
-  if (config.maxTotalRounds < _minFloor) {
-    errors.push(`maxTotalRounds ${config.maxTotalRounds} < ${_minFloor}: below minimum phase sequence (Σ phase minimums)`);
+  const _rawPb = { ..._wv.phase_bounds };
+  const _ov = config.phaseBoundsOverride;
+  if (_ov?.maxConfrontationRounds != null) _rawPb.max_confrontation_rounds = _ov.maxConfrontationRounds;
+  if (_ov?.maxArgumentationRounds != null) _rawPb.max_argumentation_rounds = _ov.maxArgumentationRounds;
+  if (_ov?.maxConcludingRounds != null) _rawPb.max_concluding_rounds = _ov.maxConcludingRounds;
+  const _s = Math.max(1, speakers);
+  const _scaledFloor = (
+    Math.min(_rawPb.min_confrontation_rounds, _rawPb.max_confrontation_rounds) +
+    Math.min(_rawPb.min_argumentation_rounds, _rawPb.max_argumentation_rounds) +
+    Math.min(_rawPb.min_concluding_rounds, _rawPb.max_concluding_rounds)
+  ) * _s;
+  const _cap = effectiveRoundCap(config, speakers);
+  if (_cap < _scaledFloor) {
+    errors.push(`effectiveRoundCap ${_cap} < ${_scaledFloor}: below minimum phase sequence (Σ scaled phase minimums)`);
   }
   if (config.maxTotalRounds > 20) {
     warnings.push('maxTotalRounds > 20: unusually long debate');
@@ -539,15 +596,15 @@ export function evaluatePhaseTransition(
   }
 
   // Global: maxTotalRounds hard cap — safety net when per-phase signals don't converge.
-  // When phaseBoundsOverride is active, derive the effective cap from Σ(maxBounds)×speakers so
-  // the cap is never hit during normal bounded progression (t/3882).
-  const activeCap = ov != null
-    ? Math.max(config.maxTotalRounds, pb.max_confrontation_rounds + pb.max_argumentation_rounds + pb.max_concluding_rounds)
-    : config.maxTotalRounds;
+  // When phaseBoundsOverride is active, effectiveRoundCap scales up so the cap is never
+  // hit during normal bounded progression (t/3882). maxTurnCeiling adds min_concluding
+  // headroom so a forced concluding phase can always finish its minimum (t/3936).
+  const activeCap = effectiveRoundCap(config, s);
+  const ceiling = maxTurnCeiling(config, s);
   if (state.total_rounds_elapsed >= activeCap) {
     if (state.current_phase === 'concluding') {
       if (state.rounds_in_phase >= pb.min_concluding_rounds ||
-          state.total_rounds_elapsed >= activeCap + pb.min_concluding_rounds) {
+          state.total_rounds_elapsed >= ceiling) {
         return { action: 'terminate', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${activeCap})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: activeCap } };
       }
       // Already concluding — do NOT force_transition (resets rounds_in_phase → infinite loop).
