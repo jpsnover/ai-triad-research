@@ -19,9 +19,6 @@ import { buildDebateDelta } from './buildDebateDelta';
 import { getDocTitles } from '../shared/docTitles';
 import { enterClarificationOrBegin } from '../shared/clarificationGuard';
 import { getRemoteRunLeaseHolder, notifyDebateSaved } from '../shared/debateRunLease';
-
-/** Viewer-save skips already logged, one per (debate, holder run), so auto-save ticks don't flood the recorder. */
-const _viewerSaveSkipLogged = new Set<string>();
 import type { DocMetaMap } from '@lib/debate/evidenceFromSummaries';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackDebateAbandon, trackDebateStart } from '../../../lib/analyticsEmitter';
@@ -41,6 +38,12 @@ import { resetDoctrinalAnchoringCache } from '../shared/taxonomyContext';
 import { resetNeutralMapping } from '../shared/neutralCheckpoint';
 import { resetSignalHistory, resetGapInjectionCount, setGapInjectionCount } from '../shared/diagnostics';
 import { isStateAhead } from '../shared/phaseOrder';
+
+/** Viewer-save skips already logged, one per (debate, holder run), so auto-save ticks don't flood the recorder. */
+const _viewerSaveSkipLogged = new Set<string>();
+/** Background saves a viewer skips quietly (t/3917). Any OTHER caller is a user edit, and the
+ *  user is told it wasn't saved; the next refresh from the holder would otherwise silently undo it. */
+const BACKGROUND_SAVE_CALLERS = new Set(['auto-save', 'DebateWorkspace:autoSave', 'coalesced-followup', 'breaker-cooldown-retry']);
 
 declare const __APP_VERSION__: string;
 
@@ -1175,11 +1178,13 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     // saves instead.
     const runHolder = getRemoteRunLeaseHolder(activeDebate.id);
     if (runHolder) {
+      const userEdit = !BACKGROUND_SAVE_CALLERS.has(caller);
       const key = `${activeDebate.id}:${runHolder.windowId}:${runHolder.startedAt}`;
-      if (!_viewerSaveSkipLogged.has(key)) {
+      if (userEdit || !_viewerSaveSkipLogged.has(key)) {
         _viewerSaveSkipLogged.add(key);
-        getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Save skipped — another window holds this debate\'s run lease (viewer)', data: { caller, holder: { window: runHolder.windowId, caller: runHolder.caller } } });
+        getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Save skipped — another window holds this debate\'s run lease (viewer)', data: { caller, user_edit: userEdit, holder: { window: runHolder.windowId, caller: runHolder.caller } } });
       }
+      if (userEdit) set({ debateError: 'This debate is running in another window, so this change wasn\'t saved. Make it in that window, or after the run finishes.' });
       return;
     }
 

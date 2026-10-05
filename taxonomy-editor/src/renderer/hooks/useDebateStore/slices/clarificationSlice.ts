@@ -166,6 +166,23 @@ async function cacheOpeningEmbeddings(get: () => DebateStore, set: (partial: any
  *  elsewhere as a phase-labeling divisor and must stay small for that purpose. */
 const WATCH_ONLY_MAX_CROSS_RESPOND_ROUNDS = 12;
 
+/** The user-configurable opening order (randomized at proceedToOpening).
+ *  Priority: Zustand state > persisted on the debate object > default order. */
+function resolveOpeningOrder(openingOrder: readonly string[], debate: DebateSession): readonly string[] {
+  if (openingOrder.length > 0) return openingOrder;
+  if (debate.opening_order && debate.opening_order.length > 0) return debate.opening_order;
+  return AI_POVERS;
+}
+
+/** t/3917: an openings run is valid only while BOTH its abort guard and its run lease hold.
+ *  A superseded lease then stops the run at every existing isStillValid() check: after
+ *  voicing, after a retry backoff, and after each speaker's pipeline, before delivery. Without
+ *  it, a superseded run re-delivers an opening and re-completes the openings phase alongside
+ *  its replacement, the dump's duplicate-opening shape. */
+function guardWithLease(debateGuard: () => boolean, lease: RunLease): () => boolean {
+  return () => debateGuard() && lease.isValid();
+}
+
 /** Runs under the caller's run lease (t/3917): every turn is passed `lease`, and the loop
  *  exits `lease_lost` the moment the lease is superseded or lost to another window. */
 async function runInitialCrossRespondRounds(get: () => DebateStore, set: (partial: any) => void, activeDebate: DebateSession, lease: RunLease): Promise<void> {
@@ -930,7 +947,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
     }
 
     newAbortController();
-    const isStillValid = createDebateGuard(get);
+    const isStillValid = guardWithLease(createDebateGuard(get), lease);
     set({ debateError: null, debateWarnings: [] });
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
@@ -944,14 +961,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       return;
     }
 
-    // Use the user-configurable opening order (randomized at proceedToOpening).
-    // Priority: Zustand state > persisted on debate object > default order.
-    const { openingOrder } = get();
-    const resolvedOrder = openingOrder.length > 0
-      ? openingOrder
-      : (activeDebate.opening_order && activeDebate.opening_order.length > 0)
-        ? activeDebate.opening_order
-        : AI_POVERS;
+    const resolvedOrder = resolveOpeningOrder(get().openingOrder, activeDebate);
     const aiPovers = (resolvedOrder as readonly (typeof AI_POVERS[number])[]).filter(
       (p) => activeDebate.active_povers.includes(p),
     );
@@ -1005,6 +1015,11 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       hasRetryableFailure = false;
 
     for (const poverId of aiPovers) {
+      if (!lease.isValid()) {
+        // Superseded between speakers: start no new pipeline (and no AI spend) for a dead run.
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'runOpeningStatements stopped — run lease no longer valid', data: { next_speaker: poverId } });
+        return;
+      }
       const freshTranscript = get().activeDebate?.transcript ?? [];
       if (freshTranscript.some(e => isDeliveredOpening(e) && e.speaker === poverId)) {
         console.log(`[debate-store] Skipping ${poverId} — already has a delivered opening (live check)`);

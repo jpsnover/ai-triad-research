@@ -27,6 +27,7 @@ vi.mock('@lib/flight-recorder/index', async (importOriginal) => {
 import { makeSession, mockApi } from './storeTestHarness';
 import { useDebateStore } from '../../useDebateStore';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
+import { runOpeningPipelineWithRepair, assembleOpeningPipelineResult } from '@lib/debate/turnPipeline';
 import {
   __deliverRunLeaseMessageForTests,
   __setRunLeaseTimingForTests,
@@ -203,6 +204,60 @@ describe('debate run lease — single flight per debate (t/3917)', () => {
   });
 });
 
+describe('debate run lease — superseded openings run (t/3917#4 code condition)', () => {
+  beforeEach(() => {
+    recorded.length = 0;
+  });
+
+  it('a run superseded mid-openings delivers nothing more: each opening lands exactly once', async () => {
+    const LONG = 'This is a sufficiently long opening statement that clears the 50-character minimum guard.';
+    const session = makeSession({ phase: 'opening', active_povers: ['accelerationist', 'safetyist'] });
+    useDebateStore.setState({
+      activeDebate: session as unknown as Store['activeDebate'],
+      activeDebateId: session.id,
+      initialCrossRespondRounds: 0, // openings only; the loop is covered above
+      openingOrder: ['accelerationist', 'safetyist'],
+    } as unknown as Partial<Store>);
+    vi.mocked(assembleOpeningPipelineResult).mockReturnValue({ statement: LONG, taxonomyRefs: [], meta: { policy_refs: [] } } as never);
+
+    // Call 1 is the OLD run's first speaker: it parks until the replacement has finished.
+    let openOldGate!: () => void;
+    const oldGate = new Promise<void>(r => { openOldGate = r; });
+    let pipelineCalls = 0;
+    vi.mocked(runOpeningPipelineWithRepair).mockImplementation(async () => {
+      pipelineCalls++;
+      if (pipelineCalls === 1) await oldGate;
+      return { stage_diagnostics: [], total_time_ms: 1, draft: {}, topicAlignmentResult: null, qualityGateResult: null } as never;
+    });
+
+    const oldRun = useDebateStore.getState().runOpeningStatements('old');
+    await vi.waitFor(() => expect(pipelineCalls).toBe(1));
+
+    // Supersede the way retryWithModel does (it clears debateGenerating, which the old run
+    // set), but WITHOUT aborting the old controller, so only the lease can stop the old run.
+    // retryWithModel also aborts; this isolates the lease check.
+    useDebateStore.setState({ debateGenerating: null });
+    await useDebateStore.getState().runOpeningStatements('briefTimeout.retryWithModel', { supersedeLocal: true });
+    openOldGate();
+    await oldRun;
+
+    const delivered = (useDebateStore.getState().activeDebate?.transcript ?? [])
+      .filter(e => e.type === 'opening' && !!e.content && e.content.trim().length > 0);
+    // The dump-shaped signals, asserted first. Without the lease check the old run re-delivers
+    // into the SAME slot (slot-first reuses it, so the transcript alone shows one entry), then
+    // completes the openings phase a second time and enters a second loop.
+    expect(messages('Opening delivered for Accelerationist')).toHaveLength(1);
+    expect(messages('Opening delivered for Safetyist')).toHaveLength(1);
+    expect(floorOpenCount()).toBe(1);
+    expect(messages('Resolved adaptive config at debate start')).toHaveLength(1);
+
+    expect(delivered.filter(e => e.speaker === 'accelerationist')).toHaveLength(1);
+    expect(delivered.filter(e => e.speaker === 'safetyist')).toHaveLength(1);
+    expect(pipelineCalls).toBe(3); // old: acc (parked, then bails); new: acc + saf
+    expect(messages('runOpeningStatements aborted post-pipeline')).toHaveLength(1);
+  });
+});
+
 describe('debate run lease — another window owns the debate (t/3917)', () => {
   beforeEach(() => {
     recorded.length = 0;
@@ -272,6 +327,16 @@ describe('debate run lease — another window owns the debate (t/3917)', () => {
 
     expect(mockApi.saveDebateSession).not.toHaveBeenCalled();
     expect(messages('Save skipped — another window holds this debate\'s run lease (viewer)')).toHaveLength(1);
+    expect(useDebateStore.getState().debateError ?? null).toBeNull(); // background saves skip quietly
+
+    // A user edit in the viewer is not silently dropped: the user is told (TL t/3917#4 q.3).
+    await useDebateStore.getState().saveDebate('togglePover');
+    expect(mockApi.saveDebateSession).not.toHaveBeenCalled();
+    expect(useDebateStore.getState().debateError).toContain('running in another window');
+    const skips = messages('Save skipped — another window holds this debate\'s run lease (viewer)');
+    expect(skips).toHaveLength(2);
+    expect((skips[1].data as { user_edit: boolean }).user_edit).toBe(true);
+    useDebateStore.setState({ debateError: null });
 
     __deliverRunLeaseMessageForTests({ type: 'release', debateId, windowId: 'main-window' });
     await useDebateStore.getState().saveDebate('auto-save');
