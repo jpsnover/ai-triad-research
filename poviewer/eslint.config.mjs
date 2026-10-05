@@ -13,11 +13,13 @@ import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import requireFlightRecorderInCatch from '../lib/eslint-rules/require-flight-recorder-in-catch.js';
 import complexityBudget from '../lib/eslint-rules/complexity-budget.js';
+import requireWindowsHide from '../lib/eslint-rules/require-windows-hide.js';
 
 const localPlugin = {
   rules: {
     'require-flight-recorder-in-catch': requireFlightRecorderInCatch,
     'complexity-budget': complexityBudget,
+    'require-windows-hide': requireWindowsHide,
   },
 };
 
@@ -41,6 +43,9 @@ export default tseslint.config(
       // Per-file cyclomatic complexity budget gate (t/3847, t/3821).
       // Baseline generated from this tree: poviewer/complexity-baseline.json
       'local/complexity-budget': ['error', { baseline: './complexity-baseline.json', threshold: 15 }],
+      // Flashing-console prevention (t/3914, t/3922): child_process calls need windowsHide: true.
+      // Warn-first; promotion to 'error' is a new blocking gate and needs a Second Opinion.
+      'local/require-windows-hide': 'warn',
     },
   },
   {

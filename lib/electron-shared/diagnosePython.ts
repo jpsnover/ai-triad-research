@@ -10,7 +10,7 @@ export function diagnosePythonEmbeddings(): string {
   let version = '';
   for (const candidate of ['python', 'python3']) {
     try {
-      version = execFileSync(candidate, ['--version'], { encoding: 'utf-8', timeout: 5000 }).trim();
+      version = execFileSync(candidate, ['--version'], { encoding: 'utf-8', timeout: 5000, windowsHide: true }).trim();
       pythonPath = candidate;
       break;
     } catch {
@@ -26,14 +26,14 @@ export function diagnosePythonEmbeddings(): string {
   }
 
   try {
-    execFileSync(pythonPath, ['-c', 'import sentence_transformers'], { encoding: 'utf-8', timeout: 10000 });
+    execFileSync(pythonPath, ['-c', 'import sentence_transformers'], { encoding: 'utf-8', timeout: 10000, windowsHide: true });
   } catch {
     /* telemetry — silent by design */
     return `Python 3 is installed (${version}) but sentence-transformers is missing. Install it with: pip3 install sentence-transformers`;
   }
 
   try {
-    execFileSync(pythonPath, ['-c', 'import numpy'], { encoding: 'utf-8', timeout: 5000 });
+    execFileSync(pythonPath, ['-c', 'import numpy'], { encoding: 'utf-8', timeout: 5000, windowsHide: true });
   } catch {
     /* telemetry — silent by design */
     return `sentence-transformers is installed but numpy is missing. Install it with: pip3 install numpy`;

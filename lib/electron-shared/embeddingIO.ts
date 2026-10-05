@@ -54,7 +54,7 @@ export function createEmbeddingIO(deps: EmbeddingIODeps) {
       execFile(
         PYTHON,
         [deps.embedScriptPath, 'encode', text],
-        { timeout: PYTHON_EMBED_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 },
+        { timeout: PYTHON_EMBED_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024, windowsHide: true },
         (err, stdout, stderr) => {
           if (err) {
             // A timeout kills the child with no Python traceback, so err.message alone reads as an
