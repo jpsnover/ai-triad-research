@@ -3,7 +3,7 @@
 shared cross-port fixture specifies (analyses/t3389-option-c/optionc-parity-fixture.json). This is the
 Python arm of the t/3409 item-4 parity contract; PowerShell writes the mirror arm against the SAME
 fixture so both ports are proven identical (the `generator` provenance field is per-port and tolerated).
-Skips cleanly when the data repo is absent (formalize_node_lf loads entities.json at import)."""
+Pure: needs only the committed fixture, not the data repo (formalize_node_lf loads data lazily, t/3940)."""
 import importlib.util
 import json
 import os
@@ -16,10 +16,7 @@ _FIXTURE = os.path.join(_HERE, "..", "analyses", "t3389-option-c", "optionc-pari
 def _load_module():
     spec = importlib.util.spec_from_file_location("flf", os.path.join(_HERE, "formalize_node_lf.py"))
     mod = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(mod)
-    except (FileNotFoundError, OSError) as e:
-        pytest.skip(f"data repo not available for formalize_node_lf import: {e}")
+    spec.loader.exec_module(mod)
     return mod
 
 
