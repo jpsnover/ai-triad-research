@@ -25,8 +25,17 @@ export interface AIClientDeps {
   onRetryLog?: (msg: string) => void;
 }
 
+/** Running cost of a client's calls (t/3946). `unpricedCalls` is reported next to the total so a
+ *  total missing calls never looks complete: those calls had no pricing entry and aren't in it. */
+export interface AICostSummary {
+  accumulatedCostUsd: number;
+  pricedCalls: number;
+  unpricedCalls: number;
+}
+
 export interface AIClient {
   generateText(prompt: string, model: string, opts?: GenerateOptions): Promise<ProviderResult>;
+  getCostSummary(): AICostSummary;
 }
 
 function dispatchProvider(
@@ -90,7 +99,10 @@ export function createAIClient(
   retryConfig: RetryConfig = CLI_RETRY_CONFIG,
 ): AIClient {
   let accumulatedCostUsd = 0;
+  let pricedCalls = 0;
+  let unpricedCalls = 0;
   return {
+    getCostSummary: () => ({ accumulatedCostUsd, pricedCalls, unpricedCalls }),
     async generateText(prompt: string, model: string, opts?: GenerateOptions): Promise<ProviderResult> {
       if (opts?.maxCostUsd != null && accumulatedCostUsd >= opts.maxCostUsd) {
         throw new ActionableError({
@@ -119,9 +131,15 @@ export function createAIClient(
         effectiveOpts.signal,
       );
       if (result.usage) {
-        result.estimatedCostUsd = estimateCost(registry, apiModelId, result.usage);
+        // Price by the friendly id the caller invoked, never the apiModelId: pricing is keyed by
+        // models[].id, and azure and openai share GPT apiModelIds at different prices (t/3946, SO e/248).
+        result.estimatedCostUsd = estimateCost(registry, model, result.usage);
         if (result.estimatedCostUsd != null) {
           accumulatedCostUsd += result.estimatedCostUsd;
+          pricedCalls++;
+        } else {
+          // Fail closed (t/3946#5 item 5): count it so the total can't silently look complete.
+          unpricedCalls++;
         }
       }
       deps.onUsage?.(backend, apiModelId, performance.now() - t0, result.usage);

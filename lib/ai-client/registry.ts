@@ -407,15 +407,18 @@ export function validateModelConfig(registry: ModelRegistry): ConfigIssue[] {
   }
 
   if (registry.pricing) {
-    const knownApiModelIds = new Set(registry.models.map(m => m.apiModelId));
+    // Pricing is keyed by models[].id (t/3946, SO e/248). Readers resolve to an id first — TS from the
+    // model it called, PS from the usage record's modelId or its (backend, apiModelId) pair — so a key
+    // that isn't an id is never found. findPricingKeyIssues reports these as warnings in verify:config.
+    const knownIds = new Set(registry.models.map(m => m.id));
     for (const key of Object.keys(registry.pricing)) {
       if (key.startsWith('_')) continue;
-      if (knownApiModelIds.has(key)) continue;
+      if (knownIds.has(key)) continue;
       issues.push({
         severity: 'info',
         modelId: key,
         referenceSite: `pricing.${key}`,
-        message: `Pricing entry "${key}" has no matching models[].apiModelId. Pricing is keyed by apiModelId and is a superset by design, so this is unused until a matching model is discovered.`,
+        message: `Pricing entry "${key}" has no matching models[].id. Pricing is keyed by models[].id (t/3946), so no reader resolves this entry.`,
       });
     }
   }
@@ -501,29 +504,40 @@ export function findReachableModelsMissingTimeoutFloor(registry: ModelRegistry):
       });
     }
   };
+  forEachReachableReference(registry, check);
+  return issues;
+}
+
+/**
+ * The single definition of "reachable" (user-selectable): every model id referenced from
+ * `models[].picker`, `defaults`, `debateTiers` or `fallbackChains`, visited with its reference site.
+ * Shared by the timeout-floor gate and the pricing gate (t/3946) so the two can't disagree on what
+ * reachable means. The section list is pinned by the tripwire in registry.reachableFloor.test.ts.
+ * Values are passed through unvalidated; callers filter non-strings and `_` keys.
+ */
+export function forEachReachableReference(registry: ModelRegistry, visit: (id: unknown, site: string) => void): void {
   // A model carrying a `picker` field is user-selectable in the UI.
-  for (const m of registry.models) if (m.picker) check(m.id, `models[].picker (${m.id})`);
+  for (const m of registry.models) if (m.picker) visit(m.id, `models[].picker (${m.id})`);
   if (registry.defaults) {
     for (const [backend, id] of Object.entries(registry.defaults)) {
-      if (!backend.startsWith('_')) check(id, `defaults.${backend}`);
+      if (!backend.startsWith('_')) visit(id, `defaults.${backend}`);
     }
   }
   if (registry.debateTiers) {
     for (const [tier, tierMap] of Object.entries(registry.debateTiers)) {
       if (tier.startsWith('_') || typeof tierMap !== 'object' || tierMap === null) continue;
       for (const [backend, id] of Object.entries(tierMap)) {
-        if (!backend.startsWith('_')) check(id, `debateTiers.${tier}.${backend}`);
+        if (!backend.startsWith('_')) visit(id, `debateTiers.${tier}.${backend}`);
       }
     }
   }
   if (registry.fallbackChains) {
     for (const [primary, chain] of Object.entries(registry.fallbackChains)) {
       if (primary.startsWith('_')) continue;
-      check(primary, `fallbackChains.${primary}`);
-      if (Array.isArray(chain)) chain.forEach((id, i) => check(id, `fallbackChains.${primary}[${i}]`));
+      visit(primary, `fallbackChains.${primary}`);
+      if (Array.isArray(chain)) chain.forEach((id, i) => visit(id, `fallbackChains.${primary}[${i}]`));
     }
   }
-  return issues;
 }
 
 /**
@@ -564,19 +578,16 @@ export const CACHE_REPORTING_BACKENDS: ReadonlySet<string> = new Set([
  * `cachedInputPer1M === inputPer1M`. Never `null`: the PS cost path tests property presence, so a
  * null would price cached tokens at $0.
  *
- * Keys resolve by `models[].id` first, then `apiModelId`, because the pricing key contract is
- * inconsistent (t/3946). A key that resolves to no model is skipped: unpriced or unresolvable
- * models are t/3946's gap, not this check's. Pure and non-throwing. Reported WARN-only by
- * verify:config (t/3945#3); a blocking flip needs a warn cycle, TL Gate Verification and the
- * mandatory Second Opinion.
+ * Keys are `models[].id` (t/3946). A key that is not an id is skipped here; {@link findPricingKeyIssues}
+ * reports it. Pure and non-throwing. Reported WARN-only by verify:config (t/3945#3); a blocking flip
+ * needs a warn cycle, TL Gate Verification and the mandatory Second Opinion.
  */
 export function findPricingMissingCacheRate(registry: ModelRegistry): ConfigIssue[] {
   const byId = new Map(registry.models.map((m) => [m.id, m]));
-  const byApi = new Map(registry.models.map((m) => [m.apiModelId, m]));
   const issues: ConfigIssue[] = [];
   for (const [key, p] of Object.entries(registry.pricing ?? {})) {
     if (key.startsWith('_') || typeof p !== 'object' || p === null) continue;
-    const model = byId.get(key) ?? byApi.get(key);
+    const model = byId.get(key);
     if (!model || !CACHE_REPORTING_BACKENDS.has(model.backend)) continue;
     if (typeof p.cachedInputPer1M === 'number' && Number.isFinite(p.cachedInputPer1M)) continue;
     issues.push({
@@ -590,6 +601,73 @@ export function findPricingMissingCacheRate(registry: ModelRegistry): ConfigIssu
     });
   }
   return issues;
+}
+
+/**
+ * Pricing-key contract gate (t/3946, binding design t/3946#5 after SO e/248). `pricing` is keyed by
+ * `models[].id`. Warnings:
+ *   - a non-`_` pricing key that is not a `models[].id` (no reader can resolve it);
+ *   - a reachable model with no pricing entry (it costs nothing in every report);
+ *   - two models sharing a `(backend, apiModelId)` pair (the PS legacy-record map would no longer be a function).
+ * Info only: an `apiModelId` shared across backends (azure and openai serve the same GPT wire ids). Neither reader
+ * resolves by bare apiModelId any more, so it's not a hazard, but it is why they mustn't.
+ * Pure and non-throwing. WARN-only in verify:config.
+ */
+export function findPricingKeyIssues(registry: ModelRegistry): ConfigIssue[] {
+  const ids = new Map(registry.models.map((m) => [m.id, m]));
+  const pricing = registry.pricing ?? {};
+  const isKey = (k: string) => !k.startsWith('_') && typeof pricing[k] === 'object' && pricing[k] !== null;
+  const issues: ConfigIssue[] = [];
+
+  for (const key of Object.keys(pricing)) {
+    if (!isKey(key) || ids.has(key)) continue;
+    const byApi = registry.models.filter((m) => m.apiModelId === key);
+    const hint = byApi.length === 1
+      ? ` It matches the apiModelId of "${byApi[0].id}"; re-key it to that id.`
+      : byApi.length > 1 ? ` It matches the apiModelId of ${byApi.length} models (${byApi.map((m) => m.id).join(', ')}); price each by its id.` : '';
+    issues.push({ severity: 'warning', modelId: key, referenceSite: `pricing.${key}`,
+      message: `Pricing key "${key}" is not a models[].id, so no reader resolves it (t/3946).${hint}` });
+  }
+
+  const seen = new Set<string>();
+  forEachReachableReference(registry, (id, site) => {
+    if (typeof id !== 'string' || id.startsWith('_') || !ids.has(id) || seen.has(id)) return;
+    seen.add(id);
+    if (!isKey(id)) {
+      issues.push({ severity: 'warning', modelId: id, referenceSite: site,
+        message: `Reachable model "${id}" (${site}) has no pricing entry, so every report costs it at $0 or leaves it out (t/3946). Add pricing.${id} from the provider's live pricing page (explicit 0s for a local model).` });
+    }
+  });
+
+  const byPair = new Map<string, string[]>();
+  const byApiId = new Map<string, Set<string>>();
+  for (const m of registry.models) {
+    const pair = `${m.backend}|${m.apiModelId}`;
+    byPair.set(pair, [...(byPair.get(pair) ?? []), m.id]);
+    byApiId.set(m.apiModelId, (byApiId.get(m.apiModelId) ?? new Set()).add(m.backend));
+  }
+  for (const [pair, owners] of byPair) {
+    if (owners.length < 2) continue;
+    issues.push({ severity: 'warning', modelId: owners.join(', '), referenceSite: `models[] (${pair.replace('|', ', ')})`,
+      message: `Models ${owners.join(', ')} share (backend, apiModelId) = (${pair.replace('|', ', ')}). The PS cost report's legacy-record map can't tell them apart (t/3946).` });
+  }
+  for (const [apiModelId, backends] of byApiId) {
+    if (backends.size < 2) continue;
+    issues.push({ severity: 'info', modelId: apiModelId, referenceSite: `models[].apiModelId (${apiModelId})`,
+      message: `apiModelId "${apiModelId}" is served by ${[...backends].sort().join(' and ')}. Fine while readers resolve by id or (backend, apiModelId), never by bare apiModelId (t/3946).` });
+  }
+  return issues;
+}
+
+/**
+ * The pricing key for a model the caller invoked by friendly id (t/3946). Aliases such as
+ * `claude-opus-latest` resolve to their concrete entry through {@link buildModelEntryMap}. Returns
+ * `undefined` when the model is unknown or has no pricing entry. Never looks up by apiModelId.
+ */
+export function resolvePricingKey(registry: ModelRegistry, modelId: string): string | undefined {
+  const id = buildModelEntryMap(registry)[modelId]?.id ?? modelId;
+  const p = registry.pricing?.[id];
+  return !id.startsWith('_') && typeof p === 'object' && p !== null ? id : undefined;
 }
 
 // Once-per-model WARN for the full-rate fallback in estimateCost (t/3945, Fallback-Path Logging).
@@ -611,18 +689,25 @@ function warnFullRateCachedTokens(apiModelId: string, cachedTokens: number): voi
   });
 }
 
+/**
+ * Estimated USD cost of one call. `modelId` is the friendly `models[].id` (or alias) the caller
+ * invoked, NOT the apiModelId: pricing is keyed by id (t/3946), and an apiModelId can be shared by
+ * two backends at different prices (azure and openai GPT models). Returns `undefined` when the model has
+ * no pricing entry; callers must count that rather than treat it as $0 (see createAIClient).
+ */
 export function estimateCost(
   registry: ModelRegistry,
-  apiModelId: string,
+  modelId: string,
   usage: TokenUsage,
 ): number | undefined {
-  const p = registry.pricing?.[apiModelId];
-  if (!p) return undefined;
+  const key = resolvePricingKey(registry, modelId);
+  if (!key) return undefined;
+  const p = registry.pricing![key];
   const inputTokens = usage.promptTokens ?? 0;
   const outputTokens = usage.completionTokens ?? 0;
   const cachedTokens = usage.cachedTokens ?? 0;
   const nonCachedInput = Math.max(0, inputTokens - cachedTokens);
-  if (p.cachedInputPer1M == null && cachedTokens > 0) warnFullRateCachedTokens(apiModelId, cachedTokens);
+  if (p.cachedInputPer1M == null && cachedTokens > 0) warnFullRateCachedTokens(key, cachedTokens);
   const cachedCost = p.cachedInputPer1M != null
     ? (cachedTokens / 1_000_000) * p.cachedInputPer1M
     : (cachedTokens / 1_000_000) * p.inputPer1M;
