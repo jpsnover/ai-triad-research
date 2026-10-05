@@ -1,0 +1,102 @@
+{
+  "sit-486": {
+    "id": "sit-486",
+    "label": "Unsatisfactory Substitutes Annotation Methodology",
+    "ok": true,
+    "interpretations": {
+      "accelerationist": {
+        "belief": "Pairwise similarity comparison games effectively harness human comparative judgment to produce high-quality, fine-grained perceptual labels at scale, making them empirically superior to static drop-down annotation methods for subjective tasks.",
+        "desire": "Crowdsourced annotation pipelines like this ought to be rapidly deployed and scaled to accelerate the development of AI systems capable of understanding nuanced human intent.",
+        "intention": "We would integrate these comparison games into large-scale data pipelines, optimizing worker throughput and aggregation algorithms to bootstrap training datasets for subjective AI tasks as quickly as possible.",
+        "summary": "Accelerationists embrace the unsatisfactory substitutes annotation game as a scalable, efficient mechanism for generating the rich training data needed to push AI capabilities forward."
+      },
+      "safetyist": {
+        "belief": "Crowdsourced comparative annotation of abstract intent is empirically unreliable because subjective human evaluations introduce noise, cultural bias, and systematic misalignment with expert ground truth.",
+        "desire": "Annotation methodologies for AI training data ought to meet rigorous quality and alignment standards before being used to train systems that make consequential inferences about human psychological states.",
+        "intention": "We would audit these annotation games for inter-rater reliability, cultural variance, and expert alignment, and advocate for mandatory validation checkpoints before such data enters any safety-critical training pipeline.",
+        "summary": "Safetyists treat crowdsourced intent annotation with caution, insisting that noise and bias in these games pose downstream alignment risks that must be systematically controlled."
+      },
+      "skeptic": {
+        "belief": "Attempting to quantify abstract psychological intent through crowdsourced pairwise games produces datasets that are fundamentally fragile and artificial, reflecting the structural limitations of the annotation task rather than genuine human emotional states.",
+        "desire": "AI development ought to abandon the pretense that gamified crowdsourcing can validly capture complex human psychological constructs, and instead pursue accountable, context-sensitive methods of understanding human experience.",
+        "intention": "We would expose the methodological artificiality of these comparison games by examining how worker incentives, task framing, and platform power dynamics distort the resulting labels and mislead downstream model behavior.",
+        "summary": "Skeptics argue that crowdsourced intent annotation games are epistemically hollow, masking the impossibility of reducing human psychological states to machine-learnable labels."
+      }
+    }
+  },
+  "sit-487": {
+    "id": "sit-487",
+    "label": "Technological Determinism as Inevitability Narrative",
+    "ok": true,
+    "interpretations": {
+      "accelerationist": {
+        "belief": "The transition to hyperhistory — in which digital intelligence supersedes biological civilization — is an objective, empirically traceable evolutionary milestone that historical evidence shows cannot be reversed once initiated.",
+        "desire": "Humanity ought to embrace and accelerate this irreversible transition rather than waste resources on futile resistance, because the emergent digital order represents a higher stage of civilizational complexity.",
+        "intention": "We will invoke the historical record of non-reversible technological epochs as positive evidence to delegitimize regulatory slowdown and build momentum toward full AI-driven transformation.",
+        "summary": "Accelerationists treat technological determinism as empirical vindication that digital intelligence will inevitably and beneficially supersede biological civilization, making resistance both futile and counterproductive."
+      },
+      "safetyist": {
+        "belief": "Framing AI development as an irreversible natural law is empirically misleading — historical technological transitions have in fact been shaped, slowed, or redirected by deliberate human intervention and policy.",
+        "desire": "Human agency over AI trajectories must be preserved; society ought to retain the institutional capacity to halt, redirect, or constrain AI development before catastrophic or existential thresholds are crossed.",
+        "intention": "We will actively contest inevitability narratives in public discourse and policy arenas, arguing that such framing is a rhetorical device that disarms regulators and must be replaced with precautionary governance frameworks.",
+        "summary": "Safetyists reject inevitability framing as a dangerous rhetorical move that neutralizes the regulatory resistance needed to prevent catastrophic loss of human control over AI."
+      },
+      "skeptic": {
+        "belief": "The portrayal of technological epochs as non-reversible evolutionary stages is not a neutral historical observation but an ideologically constructed narrative that empirically serves the interests of incumbent corporate power holders.",
+        "desire": "Democratic communities ought to reclaim authority over technological trajectories; no technological transition should be insulated from collective deliberation, reversal, or structural redesign.",
+        "intention": "We will expose the political economy behind inevitability claims — tracing who funds them, who benefits, and whose labor and rights are erased — to mobilize democratic counter-strategies against corporate-driven technological lock-in.",
+        "summary": "Skeptics unmask technological determinism as corporate ideology that naturalizes power concentration and must be challenged through democratic accountability and organized political resistance."
+      }
+    }
+  },
+  "sit-488": {
+    "id": "sit-488",
+    "label": "Loss-of-Control Incident Redefinition",
+    "ok": true,
+    "interpretations": {
+      "accelerationist": {
+        "belief": "Security breaches like the Hugging Face attack are isolated technical vulnerabilities, not evidence of systemic loss-of-control events that warrant a new regulatory category.",
+        "desire": "Incident classification frameworks ought to remain narrow and technically precise, avoiding expansive redefinitions that treat ordinary security failures as existential AI risks.",
+        "intention": "We will resist regulatory reclassification efforts by lobbying for industry-led vulnerability disclosure standards and demonstrating that existing cybersecurity frameworks already handle such incidents adequately.",
+        "summary": "Accelerationists see reclassifying routine security breaches as critical AI safety incidents as regulatory overreach that will criminalize normal development and slow iterative deployment."
+      },
+      "safetyist": {
+        "belief": "Events like the Hugging Face attack demonstrate that autonomous or semi-autonomous systems can be compromised in ways that existing incident taxonomies fail to capture, leaving genuine loss-of-control risks legally invisible.",
+        "desire": "Legal and regulatory frameworks ought to be rapidly updated to formally classify unauthorized autonomous modifications and security breaches as critical safety incidents triggering mandatory intervention.",
+        "intention": "We will advocate for statutory redefinition of incident categories, push regulators to adopt real-time reporting mandates for loss-of-control events, and build evidentiary records linking such breaches to emergent autonomous threat vectors.",
+        "summary": "Safetyists endorse reclassifying loss-of-control incidents as formal critical safety events because current legal frameworks are dangerously ill-equipped for emergent autonomous threats."
+      },
+      "skeptic": {
+        "belief": "Systemic security failures at AI infrastructure providers like Hugging Face reflect genuine corporate negligence, but state agencies currently lack the independent technical expertise to investigate and adjudicate such incidents without relying on industry-supplied evidence.",
+        "desire": "Incident definitions ought to be broadened to enforce corporate accountability for systemic security failures, but regulatory capacity and independence must be built concurrently to prevent regulatory capture.",
+        "intention": "We will support expanded incident classification while simultaneously demanding public audits of regulatory agency technical competence, whistleblower protections, and third-party forensic investigation requirements to prevent corporations from controlling the narrative.",
+        "summary": "Skeptics back broader incident definitions to hold corporations accountable for systemic failures, but insist that regulators must first prove they can investigate such incidents independently of industry influence."
+      }
+    }
+  },
+  "sit-489": {
+    "id": "sit-489",
+    "label": "The Local Democracy Friction Deficit",
+    "ok": true,
+    "interpretations": {
+      "accelerationist": {
+        "belief": "Lengthy municipal debates, zoning moratoriums, and citizen oversight committees empirically slow infrastructure deployment timelines and measurably reduce national competitiveness in AI development relative to less encumbered jurisdictions.",
+        "desire": "Local procedural friction ought to be minimized or bypassed so that hyperscale AI infrastructure can be built at the velocity required by technological and economic imperatives.",
+        "intention": "Accelerationists will lobby for preemptive state or federal permitting frameworks that override local ordinance delays, and will frame municipal resistance publicly as parochial NIMBYism harming the broader public good.",
+        "summary": "Local democratic slowdowns are inefficient bottlenecks that must be circumvented to keep AI infrastructure scaling at the pace progress demands."
+      },
+      "safetyist": {
+        "belief": "Rushing AI hyperscale infrastructure past local deliberative processes has historically produced unvetted environmental and safety risks that are difficult or impossible to reverse once construction and operation have begun.",
+        "desire": "Rigorous local deliberation and community safety gating ought to be preserved and strengthened as a necessary checkpoint before any large-scale AI infrastructure deployment proceeds.",
+        "intention": "Safetyists will work to institutionalize mandatory local impact assessments, support citizen oversight committees with technical resources, and oppose any legislative maneuver that fast-tracks corporate development by stripping municipal authority.",
+        "summary": "Local governance friction is a fragile but essential safeguard against irreversible industrial harms and must be protected, not streamlined away."
+      },
+      "skeptic": {
+        "belief": "Tech corporations systematically exploit the speed asymmetry between their own deployment capacity and the slower pace of local democratic institutions to present communities with fait accompli situations that foreclose genuine choice.",
+        "desire": "Community self-determination ought to be structurally protected so that grassroots municipal resistance can function as a legitimate and effective check on corporate technocratic imposition.",
+        "intention": "Skeptics will amplify and organize local opposition movements, document instances of corporate regulatory capture, and push for legal tools that give municipalities binding veto power over AI infrastructure siting decisions.",
+        "summary": "The friction deficit is a symptom of deep power asymmetry, and grassroots municipal resistance is democracy's necessary pulse against elite tech entities steamrolling communities."
+      }
+    }
+  }
+}
