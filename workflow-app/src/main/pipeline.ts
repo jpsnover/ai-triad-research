@@ -405,7 +405,7 @@ export function restoreEmbeddingsIfAbandoned(): boolean {
   try {
     const { execSync } = require('child_process') as typeof import('child_process');
     const dataRoot = getDataRoot();
-    execSync('git restore taxonomy/Origin/embeddings.json', { cwd: dataRoot });
+    execSync('git restore taxonomy/Origin/embeddings.json', { cwd: dataRoot, windowsHide: true });
     console.warn('[pipeline] restoreEmbeddingsIfAbandoned: restored embeddings.json to HEAD (embeddings ran, git-commit never attempted)');
     embeddingsWritten = false;
     return true;
@@ -450,6 +450,7 @@ export function runStep(
       const child = spawn(shell, args, {
         env: { ...process.env },
         stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
       });
 
       activeProcess = child;
@@ -495,7 +496,7 @@ export function getGitStatus(): { summary: string; hasChanges: boolean } {
   const dataRoot = getDataRoot();
   try {
     const { execSync } = require('child_process');
-    const status = execSync('git status --porcelain', { cwd: dataRoot, encoding: 'utf-8' });
+    const status = execSync('git status --porcelain', { cwd: dataRoot, encoding: 'utf-8', windowsHide: true });
     const lines = status.trim().split('\n').filter((l: string) => l.trim());
     return {
       summary: status || 'No changes',
@@ -510,8 +511,8 @@ export function getGitDiffStat(): string {
   const dataRoot = getDataRoot();
   try {
     const { execSync } = require('child_process');
-    const diff = execSync('git diff --stat HEAD', { cwd: dataRoot, encoding: 'utf-8' });
-    const untracked = execSync('git ls-files --others --exclude-standard', { cwd: dataRoot, encoding: 'utf-8' });
+    const diff = execSync('git diff --stat HEAD', { cwd: dataRoot, encoding: 'utf-8', windowsHide: true });
+    const untracked = execSync('git ls-files --others --exclude-standard', { cwd: dataRoot, encoding: 'utf-8', windowsHide: true });
     let result = diff || '';
     if (untracked.trim()) {
       result += '\nNew files:\n' + untracked.trim().split('\n').map((f: string) => `  + ${f}`).join('\n');
