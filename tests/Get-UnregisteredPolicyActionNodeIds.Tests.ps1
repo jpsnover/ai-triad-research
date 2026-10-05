@@ -21,6 +21,11 @@ Describe 'Get-UnregisteredPolicyActionNodeIds' -Tag 'taxonomy-write-scope' {
     BeforeEach {
         $script:taxDir = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $taxDir -Force | Out-Null
+        # All 4 files must exist by default -- each test overwrites the one(s)
+        # it cares about. The "missing file" test below removes one deliberately.
+        foreach ($f in 'accelerationist', 'safetyist', 'skeptic', 'situations') {
+            Set-Content -Path (Join-Path $taxDir "$f.json") -Value '{"nodes":[]}' -Encoding utf8
+        }
     }
 
     It 'returns node ids with a null policy_id policy action' {
@@ -109,5 +114,16 @@ Describe 'Get-UnregisteredPolicyActionNodeIds' -Tag 'taxonomy-write-scope' {
 
         $after = Get-Content -Path $filePath -Raw
         $after | Should -Be $before -Because 'this is a read-only detector -- it must never rewrite a taxonomy file'
+    }
+
+    It 'throws (fails loud) rather than reporting "consistent" when a taxonomy file is missing' {
+        # Simulates a wrong/unreadable data root: an empty taxonomy dir must
+        # NOT be indistinguishable from "scanned everything, found nothing".
+        Remove-Item -Path (Join-Path $taxDir 'accelerationist.json') -Force
+
+        { InModuleScope AITriad -Parameters @{ taxDir = $taxDir } {
+            Mock Get-TaxonomyDir { $taxDir }
+            Get-UnregisteredPolicyActionNodeIds
+        } } | Should -Throw -Because 'a missing taxonomy file must fail the check, not silently scan the remaining files and report clean'
     }
 }

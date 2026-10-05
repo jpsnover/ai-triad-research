@@ -16,7 +16,10 @@ function Get-UnregisteredPolicyActionNodeIds {
         just run.
     .OUTPUTS
         [string[]] -- node ids with at least one null-policy_id policy action.
-        Empty array when the taxonomy is consistent or unreadable.
+        Empty array when the taxonomy is genuinely consistent. Throws
+        (New-ActionableError) if any of the 4 taxonomy files is missing --
+        a wrong/unreadable data root must surface as "check failed", never
+        silently report "consistent" from having scanned nothing.
     #>
     [CmdletBinding()]
     [OutputType([string[]])]
@@ -30,7 +33,12 @@ function Get-UnregisteredPolicyActionNodeIds {
 
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
-        if (-not (Test-Path $FilePath)) { continue }
+        if (-not (Test-Path $FilePath)) {
+            New-ActionableError -Goal 'scan the taxonomy for unregistered policy actions' `
+                -Problem "Taxonomy file missing: $FilePath" `
+                -Location 'Get-UnregisteredPolicyActionNodeIds' `
+                -NextSteps @('Verify the data root (Get-TaxonomyDir) resolves to the correct ai-triad-data checkout') -Throw
+        }
         $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
 
         foreach ($Node in $FileData.nodes) {
