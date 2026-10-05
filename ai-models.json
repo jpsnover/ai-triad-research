@@ -1272,6 +1272,7 @@
       "zai": "zai-glm-5-3"
     }
   },
+  "_pricing_provenance": "Anthropic pricing page (platform.claude.com/docs/en/about-claude/pricing), read 2026-10-05; standard global Claude API $/MTok (t/3941#4). Cache reads are 0.1x input EXCEPT claude-fable-5-1 (0.025x = 0.25) and claude-opus-5-5 (0.05x = 0.20); claude-fable-5 cache read is 1.00. Sonnet 5 is 2/10 standard — the scheduled 2026-09-01 rise to 3/15 was CANCELLED (pricing-page footnote); the prior stored 3/15 was Sonnet 4.6's price. Schema has no cache-write field; 5m/1h cache-write prices are intentionally not stored (adding one is a schema change).",
   "pricing": {
     "_comment": "USD per 1M tokens. cachedInputPer1M is the reduced rate for cache-hit input tokens. Updated 2026-05-03.",
     "gemini-3.1-pro-preview": {
@@ -1305,22 +1306,57 @@
       "outputPer1M": 0.4,
       "cachedInputPer1M": 0.025
     },
+    "claude-fable-5-1": {
+      "inputPer1M": 10,
+      "outputPer1M": 50,
+      "cachedInputPer1M": 0.25
+    },
+    "claude-fable-5": {
+      "inputPer1M": 10,
+      "outputPer1M": 50,
+      "cachedInputPer1M": 1.0
+    },
+    "claude-opus-5-5": {
+      "inputPer1M": 4,
+      "outputPer1M": 20,
+      "cachedInputPer1M": 0.2
+    },
     "claude-opus-5": {
       "inputPer1M": 5,
       "outputPer1M": 25,
       "cachedInputPer1M": 0.5
-    },
-    "claude-sonnet-5": {
-      "inputPer1M": 3,
-      "outputPer1M": 15,
-      "cachedInputPer1M": 0.3
     },
     "claude-opus-4-8": {
       "inputPer1M": 5,
       "outputPer1M": 25,
       "cachedInputPer1M": 0.5
     },
+    "claude-opus-4-7": {
+      "inputPer1M": 5,
+      "outputPer1M": 25,
+      "cachedInputPer1M": 0.5
+    },
+    "claude-opus-4-6": {
+      "inputPer1M": 5,
+      "outputPer1M": 25,
+      "cachedInputPer1M": 0.5
+    },
+    "claude-opus-4-5": {
+      "inputPer1M": 5,
+      "outputPer1M": 25,
+      "cachedInputPer1M": 0.5
+    },
+    "claude-sonnet-5": {
+      "inputPer1M": 2,
+      "outputPer1M": 10,
+      "cachedInputPer1M": 0.2
+    },
     "claude-sonnet-4-6": {
+      "inputPer1M": 3,
+      "outputPer1M": 15,
+      "cachedInputPer1M": 0.3
+    },
+    "claude-sonnet-4-5": {
       "inputPer1M": 3,
       "outputPer1M": 15,
       "cachedInputPer1M": 0.3
