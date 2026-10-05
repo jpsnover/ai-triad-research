@@ -547,6 +547,70 @@ export function assertReachableModelsHaveTimeoutFloor(registry: ModelRegistry): 
   });
 }
 
+/**
+ * Backends whose provider adapter reports `cachedTokens` (t/3945). Pinned against the provider source
+ * by a tripwire test (registry.cachePricing.test.ts): a provider that starts reporting cached tokens
+ * must be added here, or the test fails. groq and zai report none, so they're exempt.
+ */
+export const CACHE_REPORTING_BACKENDS: ReadonlySet<string> = new Set([
+  'claude', 'gemini', 'openai', 'deepseek', 'xai', 'moonshot',
+]);
+
+/**
+ * Pricing entries that need a cache-read price but don't declare one (t/3945). If `cachedInputPer1M`
+ * is missing, cost code silently charges cached tokens at the full input rate, which overstates the
+ * cost 10× for an ordinary model and 20–40× for Opus 5.5 / Fable 5.1. The convention (t/3945#1) is
+ * that every entry on a cache-reporting backend declares a finite NUMBER; "no discount" is written as
+ * `cachedInputPer1M === inputPer1M`. Never `null`: the PS cost path tests property presence, so a
+ * null would price cached tokens at $0.
+ *
+ * Keys resolve by `models[].id` first, then `apiModelId`, because the pricing key contract is
+ * inconsistent (t/3946). A key that resolves to no model is skipped: unpriced or unresolvable
+ * models are t/3946's gap, not this check's. Pure and non-throwing. Reported WARN-only by
+ * verify:config (t/3945#3); a blocking flip needs a warn cycle, TL Gate Verification and the
+ * mandatory Second Opinion.
+ */
+export function findPricingMissingCacheRate(registry: ModelRegistry): ConfigIssue[] {
+  const byId = new Map(registry.models.map((m) => [m.id, m]));
+  const byApi = new Map(registry.models.map((m) => [m.apiModelId, m]));
+  const issues: ConfigIssue[] = [];
+  for (const [key, p] of Object.entries(registry.pricing ?? {})) {
+    if (key.startsWith('_') || typeof p !== 'object' || p === null) continue;
+    const model = byId.get(key) ?? byApi.get(key);
+    if (!model || !CACHE_REPORTING_BACKENDS.has(model.backend)) continue;
+    if (typeof p.cachedInputPer1M === 'number' && Number.isFinite(p.cachedInputPer1M)) continue;
+    issues.push({
+      severity: 'warning',
+      modelId: key,
+      referenceSite: `pricing.${key}`,
+      message:
+        `Pricing "${key}" (backend ${model.backend}, which reports cached tokens) has no numeric cachedInputPer1M, ` +
+        `so cached tokens are costed at the full input rate. Set the provider's cache-read price, or ` +
+        `cachedInputPer1M = inputPer1M if it offers no discount. Never null (t/3945#1).`,
+    });
+  }
+  return issues;
+}
+
+// Once-per-model WARN for the full-rate fallback in estimateCost (t/3945, Fallback-Path Logging).
+const warnedFullRateCacheModels = new Set<string>();
+
+/** Test-only: clear the once-per-model full-rate WARN memo. */
+export function _resetCacheRateWarnMemoForTests(): void {
+  warnedFullRateCacheModels.clear();
+}
+
+function warnFullRateCachedTokens(apiModelId: string, cachedTokens: number): void {
+  if (warnedFullRateCacheModels.has(apiModelId)) return;
+  warnedFullRateCacheModels.add(apiModelId);
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'ai-client.estimateCost',
+    level: 'warn',
+    message: `estimateCost: pricing for "${apiModelId}" has no cachedInputPer1M — ${cachedTokens} cached tokens costed at the full input rate (overstated). Further occurrences for this model are not logged (t/3945).`,
+  });
+}
+
 export function estimateCost(
   registry: ModelRegistry,
   apiModelId: string,
@@ -558,6 +622,7 @@ export function estimateCost(
   const outputTokens = usage.completionTokens ?? 0;
   const cachedTokens = usage.cachedTokens ?? 0;
   const nonCachedInput = Math.max(0, inputTokens - cachedTokens);
+  if (p.cachedInputPer1M == null && cachedTokens > 0) warnFullRateCachedTokens(apiModelId, cachedTokens);
   const cachedCost = p.cachedInputPer1M != null
     ? (cachedTokens / 1_000_000) * p.cachedInputPer1M
     : (cachedTokens / 1_000_000) * p.inputPer1M;
