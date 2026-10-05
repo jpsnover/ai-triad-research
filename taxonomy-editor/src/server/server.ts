@@ -1189,6 +1189,7 @@ function handleTerminalConnection(ws: WebSocket) {
     // in the container (/app/scripts) and dev alike — never a hardcoded path.
     env: { ...safeEnv, TERM: 'xterm-256color', PTY_COLS: '120', PTY_ROWS: '30', AITRIAD_MODULE: path.join(SCRIPTS_DIR, 'AITriad', 'AITriad.psd1') },
     stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true,
   });
 
   terminalProcess.stdout?.on('data', (data: Buffer) => {
