@@ -92,14 +92,16 @@ The 12 residual class-A defects need the prompt, not code (every one is ALREADY 
 
 **The new test.** A ban-list predicate is a stance leak when it is the description's **attributing verb**, the word right after "A Desire within X discourse that …". acc-desires-021 reads "…discourse that *prioritizes* the domestic development…" and its frame's predicate is `prioritize`. That is the camp's priority, not the content act (`develop`).
 
-**Labeled set** (`labeled-stance-set.json`): 15 items, the union of the 14 corpus candidates and the dry-run's ban-verb predicates. One annotator (CL), **1 positive**.
+**Labeled set** (`labeled-stance-set.json`): 15 items, the union of the 14 corpus candidates and the dry-run's ban-verb predicates. **1 positive.** Two annotators: CL, and CL.Investigate1 blind (it read only the sheet; t/3883#2). **Raw agreement 15/15.** The second annotator marked one item borderline: saf-intentions-076/`prioritize`, as content with low confidence. The scanner agrees with content there, since the wrapper verb is "outlines".
 
 | test | flags | TP | FP | FN | TN |
 |---|---|---|---|---|---|
 | lexeme (old) | 15 | 1 | 14 | 0 | 0 |
 | attributing-verb (new) | 1 | 1 | 0 | 0 | 14 |
 
-**Read the counts, not a rate.** The test was designed after reading these same items, by a single annotator, with one positive. That is in-sample agreement. It is not a validated precision, and a second, blind annotation is pending (`second-annotator-sheet.md`).
+**Read the counts, not a rate.** The labels now rest on two annotators, but the test was still designed after reading these same items, and there is one positive. That is in-sample agreement, not a validated precision, and no κ is reported: with one positive an agreement coefficient is degenerate (t/3587). Out-of-sample evidence will come from re-scanning new frames, for example t/3884's v3.1 dry-run.
+
+The second annotator noted that several content items sit right next to a real frame verb ("advocates for the *maintenance* of…", "prioritizes *aligning*…"). A scanner keyed to proximity would over-flag them. This one requires the predicate to *be* the frame verb, which is why skp-desires-075 (frame "prioritizes", predicate `align`) correctly reads as content.
 
 **Two things the test does not detect.**
 - **Imported reporting verbs.** A second clause ("the verb appears nowhere in the proposition text") was tried and dropped. Its only motivating case turned out to be something else, and it would misfire on a ban-list synonym that paraphrases the content (`seek` for "pursue").
