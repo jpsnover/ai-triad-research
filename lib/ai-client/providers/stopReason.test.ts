@@ -26,6 +26,7 @@ describe('normalizeStopReason — bucketing', () => {
     ['RECITATION', 'content_filter'],    // Gemini
     ['content_filter', 'content_filter'],// OpenAI-compatible
     ['PROHIBITED_CONTENT', 'content_filter'],
+    ['refusal', 'content_filter'],       // Claude safety refusal (t/3942) — previously fell to 'other'
     // tool / function stop
     ['tool_calls', 'other'],             // chat completions
     ['tool_use', 'other'],               // Claude
