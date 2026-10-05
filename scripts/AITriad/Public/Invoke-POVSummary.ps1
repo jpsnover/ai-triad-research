@@ -496,7 +496,7 @@ function Invoke-POVSummary {
             $claimLabel  = $claim.claim_label
             $docPosition = $claim.doc_position
             $hintId      = $claim.potential_conflict_id
-            if ($null -ne $claim.linked_taxonomy_nodes) { $linkedNodes = ,@($claim.linked_taxonomy_nodes) } else { $linkedNodes = ,@() }
+            $linkedNodes = ConvertTo-LinkedNodesArray -Value $claim.linked_taxonomy_nodes
 
             # Normalize stance value
             if ($docPosition -in @('supports','disputes','neutral','qualifies')) { $stance = $docPosition } else { $stance = 'neutral' }
