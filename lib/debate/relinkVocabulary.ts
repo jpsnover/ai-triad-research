@@ -70,6 +70,7 @@ function embedBatchLocal(script: string, items: { id: string; text: string }[]):
     input,
     timeout: 120_000,
     maxBuffer: 50 * 1024 * 1024,
+    windowsHide: true,
   }).toString('utf-8');
   // stdout: {"id1": [vec], "id2": [vec], ...}  — may have info lines before JSON
   const jsonStart = stdout.indexOf('{');

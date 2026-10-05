@@ -42,6 +42,7 @@ function embedTextLocal(script: string, text: string): number[] {
   const stdout = execFileSync(python, [script, 'encode', text], {
     timeout: 60_000,
     maxBuffer: 10 * 1024 * 1024,
+    windowsHide: true,
   }).toString('utf-8');
   const jsonStart = stdout.indexOf('[');
   if (jsonStart === -1) throw new Error('No JSON array in embed output');
@@ -57,6 +58,7 @@ function batchEncodeLocal(script: string, items: { id: string; text: string }[])
     input,
     timeout: 300_000,
     maxBuffer: 100 * 1024 * 1024,
+    windowsHide: true,
   }).toString('utf-8');
   const jsonStart = stdout.indexOf('{');
   if (jsonStart === -1) throw new Error('No JSON object in batch-encode output');

@@ -20,7 +20,7 @@ type LockHolderInfo = {
 function queryLockHolder(filePath: string): LockHolderInfo {
   if (process.platform !== 'win32') return { unavailable: true, reason: 'non-Windows' };
   try {
-    const output = execFileSync('handle.exe', [filePath], { timeout: 2000, encoding: 'utf-8' });
+    const output = execFileSync('handle.exe', [filePath], { timeout: 2000, encoding: 'utf-8', windowsHide: true });
     // handle.exe output: "<ProcessName>  pid: <pid>  type: File  <handle>: <path>"
     const match = output.match(/^(\S+)\s+pid:\s+(\d+)\s/m);
     if (match) return { processName: match[1], pid: parseInt(match[2], 10) };

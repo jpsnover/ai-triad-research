@@ -130,6 +130,7 @@ server.tool(
           shell: false,
           timeout: 600_000,
           env: { ...process.env },
+          windowsHide: true,
         });
 
         let stdout = '';

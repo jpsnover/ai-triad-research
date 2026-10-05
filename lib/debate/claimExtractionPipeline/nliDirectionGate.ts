@@ -118,6 +118,7 @@ export function runNliDirectionGate(
     encoding: 'utf8',
     cwd: REPO_ROOT,
     maxBuffer: 10 * 1024 * 1024,
+    windowsHide: true,
   });
 
   if (proc.error || proc.status !== 0) {
