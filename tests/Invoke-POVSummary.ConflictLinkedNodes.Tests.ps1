@@ -110,4 +110,48 @@ Describe 'Invoke-POVSummary -- conflict linked_taxonomy_nodes shape' -Tag 'confl
         $linked[0] | Should -BeOfType [string] -Because 'the t/3948 bug made element 0 itself an array, not the id string'
         $linked[0] | Should -Be 'acc-ethics-004'
     }
+
+    It 'merges linked_taxonomy_nodes flat when APPENDING to an existing conflict file (lines 521-524)' {
+        # Seed an existing conflict with one linked node already attached.
+        $existingConflict = [ordered]@{
+            claim_id              = 'conflict-existing-001'
+            claim_label           = 'existing-claim'
+            description            = 'An existing conflict.'
+            status                 = 'open'
+            linked_taxonomy_nodes  = @('acc-ethics-001')
+            instances              = @()
+            human_notes            = @()
+        }
+        $existingPath = Join-Path $conflictsDir 'conflict-existing-001.json'
+        Set-Content -Path $existingPath -Value ($existingConflict | ConvertTo-Json -Depth 10) -Encoding utf8
+
+        # Claim hints at the existing conflict and links a DIFFERENT node --
+        # drives the "append to existing conflict" branch (lines 511-528),
+        # which does `$existing + $linkedNodes`. Under the t/3948 bug,
+        # $linkedNodes was a 1-element array wrapping a nested array, so `+`
+        # appended that nested array as a single element instead of merging
+        # the id in flat.
+        $script:fakeSummary.factual_claims = @(
+            [PSCustomObject]@{
+                claim                   = 'A second claim about the same conflict.'
+                claim_label             = 'second-claim'
+                doc_position            = 'disputes'
+                potential_conflict_id   = 'conflict-existing-001'
+                linked_taxonomy_nodes   = @('acc-ethics-004')
+            }
+        )
+
+        Invoke-POVSummary -DocId 'doc-1' -RepoRoot $root -Model 'gemini-3.5-flash-lite' -WarningAction SilentlyContinue | Out-Null
+
+        $rawJson = (Get-Content $existingPath -Raw).Trim()
+        $rawJson | Should -Not -Match '"linked_taxonomy_nodes"\s*:\s*\[[^\]]*\[' `
+            -Because 'the t/3948 bug appended the nested array as a single element instead of merging ids flat'
+
+        $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json -AsHashtable
+        $linked = @($conflictData['linked_taxonomy_nodes'])
+        $linked.Count | Should -Be 2 -Because 'acc-ethics-001 (pre-existing) + acc-ethics-004 (new) merged flat'
+        foreach ($n in $linked) { $n | Should -BeOfType [string] }
+        $linked | Should -Contain 'acc-ethics-001'
+        $linked | Should -Contain 'acc-ethics-004'
+    }
 }
