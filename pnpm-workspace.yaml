@@ -55,6 +55,10 @@ overrides:
   "@grpc/grpc-js": ">=1.14.5 <2"
   moment: ">=2.31.0 <3"
   "undici@>=7.0.0 <7.29.1": ">=7.29.1 <7.30"
+  # http-cache-semantics closes GHSA-ch52-4w7c-c8xp (HIGH, max-stale cross-user cache disclosure,
+  # vulnerable <=4.2.0; Dependabot #407/#408, t/3903). 4.3.0 (2026-10-04) is the first release past the
+  # range even though the advisory lists no patched version yet. Capped to the 4.3 line per policy.
+  http-cache-semantics: ">=4.3.0 <4.4.0"
 
 allowBuilds:
   '@google/genai': true
