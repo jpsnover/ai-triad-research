@@ -279,6 +279,17 @@
       }
     },
     {
+      "id": "claude-sonnet-5-5",
+      "apiModelId": "claude-sonnet-5-5",
+      "label": "Claude Sonnet 5.5",
+      "backend": "claude",
+      "minTimeoutMs": 300000,
+      "picker": {
+        "label": "Sonnet 5.5",
+        "order": 8
+      }
+    },
+    {
       "id": "claude-fable-5",
       "apiModelId": "claude-fable-5",
       "label": "Claude Fable 5",
@@ -304,7 +315,7 @@
       "minTimeoutMs": 300000,
       "picker": {
         "label": "Opus 4.7",
-        "order": 10
+        "order": 11
       }
     },
     {
@@ -978,14 +989,22 @@
       "apiModelId": "claude-opus-5-5",
       "label": "Claude Opus 5.5",
       "backend": "claude",
-      "minTimeoutMs": 300000
+      "minTimeoutMs": 300000,
+      "picker": {
+        "label": "Opus 5.5",
+        "order": 6
+      }
     },
     {
       "id": "claude-fable-5-1",
       "apiModelId": "claude-fable-5-1",
       "label": "Claude Fable 5.1",
       "backend": "claude",
-      "minTimeoutMs": 300000
+      "minTimeoutMs": 300000,
+      "picker": {
+        "label": "Fable 5.1 (most capable, $$$)",
+        "order": 10
+      }
     },
     {
       "id": "groq-qwen-qwen3.8-27b",
@@ -1021,6 +1040,13 @@
     ],
     "claude-sonnet-5": [
       "claude-haiku-4-5"
+    ],
+    "claude-sonnet-5-5": [
+      "claude-haiku-4-5"
+    ],
+    "claude-opus-5-5": [
+      "claude-sonnet-4-6",
+      "gemini-3.1-pro-preview"
     ],
     "claude-opus-4-8": [
       "claude-sonnet-4-6",
@@ -1345,6 +1371,11 @@
       "inputPer1M": 5,
       "outputPer1M": 25,
       "cachedInputPer1M": 0.5
+    },
+    "claude-sonnet-5-5": {
+      "inputPer1M": 2,
+      "outputPer1M": 10,
+      "cachedInputPer1M": 0.2
     },
     "claude-sonnet-5": {
       "inputPer1M": 2,
