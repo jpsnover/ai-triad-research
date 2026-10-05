@@ -83,3 +83,38 @@ def test_empty_about_no_topical_candidates_key():
     lf = _run([])
     assert lf["about"] == []
     assert "topical_candidates" not in lf
+
+
+# t/3884 source cleaning: the PROPOSITION is label + main clause, never the scope notes or the wrapper.
+_SCOPED = ("A Belief within skeptic discourse that provenance metadata is destroyed in distribution.\n"
+           "Encompasses: the cost of maintaining systems that fail together.\n"
+           "Excludes: the claim that provenance is impossible.")
+
+
+def test_scope_notes_stripped():
+    flf.LEGACY_SOURCE = False
+    out = flf.strip_scope_notes(flf.strip_discourse_wrapper(_SCOPED))
+    assert out == "Provenance metadata is destroyed in distribution."
+
+
+def test_scope_notes_absent_is_noop():
+    flf.LEGACY_SOURCE = False
+    assert flf.strip_scope_notes("Mandates favor incumbents.") == "Mandates favor incumbents."
+
+
+def test_multiword_camp_wrapper_stripped():
+    """skp-desires-075: 'within skeptic and safetyist discourse that' (the v3 \\w+ pattern missed it)."""
+    flf.LEGACY_SOURCE = False
+    desc = "A Desire within skeptic and safetyist discourse that prioritizes aligning AI with public values."
+    assert flf.strip_discourse_wrapper(desc) == "Prioritizes aligning AI with public values."
+
+
+def test_legacy_source_reproduces_v3_input():
+    """--legacy-source keeps the scope notes and the single-word wrapper rule, for A/B dry-run arms."""
+    flf.LEGACY_SOURCE = True
+    try:
+        assert "Encompasses:" in flf.strip_scope_notes(_SCOPED)
+        multi = "A Desire within skeptic and safetyist discourse that prioritizes X."
+        assert flf.strip_discourse_wrapper(multi) == multi
+    finally:
+        flf.LEGACY_SOURCE = False

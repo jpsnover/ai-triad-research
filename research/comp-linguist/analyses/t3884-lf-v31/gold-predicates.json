@@ -1,0 +1,31 @@
+{
+  "ticket": "t/3884",
+  "registered": "2026-10-05, before any v3.1 run. Written from each node's label + main clause (Encompasses/Excludes ignored). Not edited after seeing results.",
+  "annotator": "CL (single annotator; in-sample: the 23 are the t/3351 Part 2 defect set the v3.1 edits target)",
+  "rule": "A draft scores 1 if its predicate (lowercased lemma) is in the node's acceptable set, else 0. 'not' lists predicates that would be a known defect, reported separately.",
+  "nodes": {
+    "acc-beliefs-070":    {"ok": ["evaluate", "verify", "suffice"]},
+    "acc-desires-021":    {"ok": ["develop", "control"], "not": ["prioritize"], "why_not": "stance leak: the wrapper's attributing verb"},
+    "acc-intentions-008": {"ok": ["match", "combine", "tier", "regulate", "scale", "calibrate"]},
+    "acc-intentions-096": {"ok": ["sign", "require"]},
+    "acc-intentions-103": {"ok": ["prohibit"], "not": ["impose"], "why_not": "embedded clause, not the main act"},
+    "saf-beliefs-095":    {"ok": ["seek", "pursue"], "why": "content use: AI seeks power (over-strip guard)"},
+    "saf-desires-002":    {"ok": ["hold", "control", "retain", "maintain", "keep"]},
+    "saf-desires-025":    {"ok": ["oversee", "maintain", "supervise"], "not": ["prioritize", "address"]},
+    "saf-intentions-048": {"ok": ["develop"]},
+    "saf-intentions-076": {"ok": ["prioritize"], "not": ["outline"], "why": "the intention IS a ranking (over-strip guard); 'outline' is the reporting frame"},
+    "saf-intentions-111": {"ok": ["maintain", "inventory", "track", "catalog", "know"]},
+    "saf-intentions-127": {"ok": ["give", "define", "assign", "attribute"], "not": ["hold"], "why_not": "purpose clause ('so they can be held accountable'), not the main act"},
+    "saf-intentions-149": {"ok": ["mandate", "halt", "combine"]},
+    "saf-intentions-217": {"ok": ["condition", "require"]},
+    "skp-beliefs-125":    {"ok": ["generate", "amplify", "distort", "inflate"]},
+    "skp-beliefs-196":    {"ok": ["favor", "burden", "tax", "act"], "why": "content use: mandates favor incumbents (over-strip guard)"},
+    "skp-beliefs-232":    {"ok": ["destroy", "strip"], "not": ["maintain"], "why_not": "Encompasses phrase, not the main proposition"},
+    "skp-desires-011":    {"ok": ["prioritize", "preserve"], "why": "content use: developers prioritize ecological health"},
+    "skp-desires-075":    {"ok": ["align"], "why": "content use: aligning AI development with public values"},
+    "skp-desires-076":    {"ok": ["report", "disclose"], "why": "mandated disclosure (over-strip guard)"},
+    "skp-intentions-040": {"ok": ["hold", "apply", "evaluate"], "why": "hold-liable is content"},
+    "skp-intentions-055": {"ok": ["operationalize", "mitigate"]},
+    "skp-intentions-079": {"ok": ["report", "mandate"], "why": "agencies report to Congress (over-strip guard)"}
+  }
+}

@@ -1,0 +1,58 @@
+IN-SAMPLE (23 nodes x 3 drafts = 69 per arm)
+  A_v3         gold-match 63/69   known-defect 5/69   failed 0
+  B_v3_clean   gold-match 61/69   known-defect 4/69   failed 0
+  C_v31_clean  gold-match 63/69   known-defect 6/69   failed 0
+  D_v31b_clean gold-match 63/69   known-defect 2/69   failed 0
+
+PER NODE (drafts d1/d2/d3; * = not gold)
+  acc-beliefs-070      A: evaluate/evaluate/evaluate  |  B: evaluate/evaluate/evaluate  |  C: evaluate/evaluate/evaluate  |  D: evaluate/evaluate/evaluate
+  acc-desires-021      A: develop/develop/develop  |  B: develop/prioritize*/develop  |  C: develop/develop/develop  |  D: develop/develop/develop
+  acc-intentions-008   A: match/match/match  |  B: match/match/match  |  C: match/match/match  |  D: match/match/match
+  acc-intentions-096   A: sign/sign/sign  |  B: sign/sign/sign  |  C: sign/sign/sign  |  D: sign/sign/sign
+  acc-intentions-103   A: impose*/impose*/prohibit  |  B: impose*/impose*/impose*  |  C: impose*/impose*/impose*  |  D: prohibit/impose*/impose*
+  saf-beliefs-095      A: seek/seek/seek  |  B: predict*/seek/predict*  |  C: seek/seek/seek  |  D: seek/seek/seek
+  saf-desires-002      A: hold/hold/hold  |  B: hold/hold/hold  |  C: hold/hold/hold  |  D: hold/maintain/hold
+  saf-desires-025      A: maintain/maintain/maintain  |  B: maintain/survive*/maintain  |  C: prioritize*/address*/address*  |  D: survive*/survive*/survive*
+  saf-intentions-048   A: develop/develop/develop  |  B: maintain*/develop/develop  |  C: develop/develop/develop  |  D: maintain*/develop/develop
+  saf-intentions-076   A: prioritize/prioritize/focus*  |  B: prioritize/prioritize/prioritize  |  C: prioritize/prioritize/prioritize  |  D: prioritize/prioritize/prioritize
+  saf-intentions-111   A: track/track/track  |  B: maintain/maintain/maintain  |  C: maintain/maintain/maintain  |  D: maintain/maintain/maintain
+  saf-intentions-127   A: hold*/hold*/hold*  |  B: give/give/give  |  C: give/give/give  |  D: give/give/give
+  saf-intentions-149   A: mandate/mandate/mandate  |  B: mandate/mandate/mandate  |  C: mandate/mandate/mandate  |  D: mandate/mandate/mandate
+  saf-intentions-217   A: condition/condition/condition  |  B: require/condition/require  |  C: require/require/require  |  D: require/condition/require
+  skp-beliefs-125      A: distort/distort/distort  |  B: distort/distort/distort  |  C: distort/distort/distort  |  D: distort/distort/distort
+  skp-beliefs-196      A: favor/favor/favor  |  B: favor/favor/favor  |  C: favor/favor/favor  |  D: favor/favor/favor
+  skp-beliefs-232      A: destroy/destroy/destroy  |  B: destroy/destroy/destroy  |  C: destroy/destroy/destroy  |  D: destroy/destroy/destroy
+  skp-desires-011      A: prioritize/prioritize/prioritize  |  B: prioritize/prioritize/prioritize  |  C: prioritize/prioritize/prioritize  |  D: prioritize/prioritize/prioritize
+  skp-desires-075      A: align/align/align  |  B: align/align/align  |  C: align/align/align  |  D: align/align/align
+  skp-desires-076      A: report/report/report  |  B: report/report/report  |  C: report/report/report  |  D: report/report/report
+  skp-intentions-040   A: hold/hold/hold  |  B: hold/hold/hold  |  C: hold/hold/hold  |  D: hold/hold/hold
+  skp-intentions-055   A: operationalize/operationalize/mitigate  |  B: operationalize/operationalize/operationalize  |  C: mitigate/mitigate/mitigate  |  D: mitigate/mitigate/mitigate
+  skp-intentions-079   A: report/report/report  |  B: report/report/report  |  C: report/report/report  |  D: report/report/report
+
+OUT-OF-SAMPLE (20 nodes x 3 drafts = 60 per arm; no gold)
+  A_v3         stable nodes 19/20   agree-with-A 60/60   class-A leaks 0   class-B discourse 0
+  B_v3_clean   stable nodes 18/20   agree-with-A 43/60   class-A leaks 0   class-B discourse 0
+  C_v31_clean  stable nodes 15/20   agree-with-A 41/60   class-A leaks 0   class-B discourse 3
+  D_v31b_clean stable nodes 17/20   agree-with-A 50/60   class-A leaks 0   class-B discourse 0
+
+OOS PREDICATES (A | B | C, majority of 3)
+  acc-beliefs-028      harm | harm | impose | harm
+  acc-beliefs-034      require | require | require | require
+  acc-intentions-009   undermine | undermine | undermine | undermine
+  saf-beliefs-019      model | model | model | model
+  saf-intentions-008   evaluate | evaluate | evaluate | evaluate
+  saf-intentions-040   bind | attach | attach | attach
+  saf-intentions-049   rollback | rollback | rollback | rollback
+  saf-intentions-203   audit | audit | audit | audit
+  saf-intentions-214   mandate | mandate | mandate | mandate
+  saf-intentions-221   mandate | track | track | mandate
+  saf-intentions-225   penalize | utilize | penalize | utilize
+  skp-beliefs-002      contract | contract | contract | contract
+  skp-beliefs-042      reshape | reshape | reshape | reshape
+  skp-beliefs-075      impose | impose | impose | impose
+  skp-beliefs-142      absent | absent | absent | absent
+  skp-beliefs-143      limit | warrant | reflect | reflect
+  skp-beliefs-226      create | create | create | create
+  skp-intentions-008   replace | replace | replace | replace
+  skp-intentions-143   define | define | demarcate | define
+  skp-intentions-167   utilize | propagate | propagate | utilize
