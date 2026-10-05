@@ -32,6 +32,7 @@ import noUnmanagedModuleResources from './eslint-rules/no-unmanaged-module-resou
 import noInlineStyle from './eslint-rules/no-inline-style.js';
 import noRawDataRootRead from './eslint-rules/no-raw-data-root-read.js';
 import complexityBudget from '../lib/eslint-rules/complexity-budget.js';
+import requireWindowsHide from '../lib/eslint-rules/require-windows-hide.js';
 
 const localPlugin = {
   rules: {
@@ -42,6 +43,7 @@ const localPlugin = {
     'no-actionable-error-message-nesting': noActionableErrorMessageNesting,
     'no-raw-data-root-read': noRawDataRootRead,
     'complexity-budget': complexityBudget,
+    'require-windows-hide': requireWindowsHide,
   },
 };
 
@@ -111,6 +113,9 @@ export default tseslint.config(
       // Custom rule (not no-restricted-syntax) so it restricts to error-named identifiers
       // and unwraps TSAsExpression — no false positives on data.message HTTP response fields.
       'local/no-actionable-error-message-nesting': 'error',
+      // Flashing-console prevention (t/3914, t/3922): child_process calls need windowsHide: true.
+      // Warn-first; promotion to 'error' is a new blocking gate and needs a Second Opinion.
+      'local/require-windows-hide': 'warn',
     },
   },
   {
