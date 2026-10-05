@@ -209,6 +209,51 @@ describe('createSituationDebate', () => {
     expect(adaptive).toEqual(expect.objectContaining({ enabled: true, pacing: 'tight' }));
   });
 
+  // t/3929 (t/3882, PI: mirror the normal path): phaseBoundsOverride reaches the session's
+  // adaptive config exactly as createDebate stores it for a normal debate.
+  it('passes phaseBoundsOverride through to adaptive_staging.phase_bounds_override', async () => {
+    mockTaxonomyState.situations = {
+      nodes: [{
+        id: 'sit-004',
+        label: 'Bounds Situation',
+        description: 'A test situation',
+        interpretations: {
+          accelerationist: { text: 'acc view' },
+          safetyist: { text: 'saf view' },
+          skeptic: { text: 'skp view' },
+        },
+        linked_nodes: [],
+        conflict_ids: [],
+      }],
+    } as unknown as typeof mockTaxonomyState.situations;
+    const bounds = { maxConfrontationRounds: 1, maxArgumentationRounds: 3, maxConcludingRounds: 1 };
+
+    await useDebateStore.getState().createSituationDebate('sit-004', { useAdaptiveStaging: true, pacing: 'moderate', phaseBoundsOverride: bounds });
+
+    expect(useDebateStore.getState().activeDebate?.adaptive_staging?.phase_bounds_override).toEqual(bounds);
+  });
+
+  it('control: without phaseBoundsOverride, none is stored (unchanged behaviour)', async () => {
+    mockTaxonomyState.situations = {
+      nodes: [{
+        id: 'sit-005',
+        label: 'No Bounds Situation',
+        description: 'A test situation',
+        interpretations: {
+          accelerationist: { text: 'acc view' },
+          safetyist: { text: 'saf view' },
+          skeptic: { text: 'skp view' },
+        },
+        linked_nodes: [],
+        conflict_ids: [],
+      }],
+    } as unknown as typeof mockTaxonomyState.situations;
+
+    await useDebateStore.getState().createSituationDebate('sit-005', { useAdaptiveStaging: true, pacing: 'moderate' });
+
+    expect(useDebateStore.getState().activeDebate?.adaptive_staging?.phase_bounds_override).toBeUndefined();
+  });
+
   // t/3629: createSituationDebate always creates with user_is_pover=false (watch-only), so
   // it must reach opening directly rather than parking in clarification. Asserts the
   // TERMINAL phase, not that a function was called (a stalled flow could still "call"
