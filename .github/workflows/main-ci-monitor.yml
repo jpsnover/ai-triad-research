@@ -20,6 +20,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: read   # main-ci-monitor.mjs lists actions/runs for main's head (t/3906)
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -50,6 +51,11 @@ jobs:
       # ── Observe what ran on main's head, classify. Writes verdict.json (never inlined — Shell Quoting Rule).
       - name: Classify main's head
         id: classify
+        # The classifier shells out to `gh api`, which needs GH_TOKEN in the step env (github-script
+        # steps get a token implicitly; plain `run:` steps do not). Missing since t/3737 -> every run
+        # was CANNOT EVALUATE from 2026-09-29 (GH #2551, t/3906).
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           node operations/devops/main-ci-monitor.mjs "${{ github.repository }}" > verdict.json || true
           echo "----- verdict.json -----"; cat verdict.json
