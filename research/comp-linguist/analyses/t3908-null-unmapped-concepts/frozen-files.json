@@ -3,8 +3,8 @@
   "base": "ai-triad-data bc1d4d65",
   "derived_from": "corpus census of unmapped_concepts shapes (861 summaries): 96 [null]-only + 1 mixed; matches t/3907#2 and the TL re-count (t/3893#8)",
   "operation": "drop null elements from unmapped_concepts: [null] -> [] (corpus convention, 201 files), mixed -> null removed, real concepts and order kept",
-  "authorization": "PENDING",
-  "writer_fix": "PENDING (t/3907: Merge-ChunkSummaries.ps1 + Invoke-DocumentSummary finalize)",
+  "authorization": "PI (Jeffrey) 2026-10-05, recorded t/3908#3",
+  "writer_fix": "merged e816ff2b (PR #2782, t/3907): Merge-ChunkSummaries drops null concepts; Repair-ResolvedBackfill skips + logs nulls",
   "expected_files": 97,
   "expected_nulls": 97,
   "files": [
