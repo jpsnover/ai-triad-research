@@ -122,8 +122,12 @@ export function validateAdaptiveConfig(config: PhaseTransitionConfig): { valid: 
   if (config.concludingExitThreshold < 0.30 && config.dialecticalStyle !== 'socratic') {
     errors.push('concludingExitThreshold < 0.30: synthesis will exit before meaningful convergence');
   }
-  if (config.maxTotalRounds < 3) {
-    errors.push('maxTotalRounds < 3: TIGHT is the authorized minimum (3 rounds)');
+  // Derive floor from phase bound minimums (t/3882)
+  const _wv = loadProvisionalWeights();
+  const _pb = _wv.phase_bounds;
+  const _minFloor = _pb.min_confrontation_rounds + _pb.min_argumentation_rounds + _pb.min_concluding_rounds;
+  if (config.maxTotalRounds < _minFloor) {
+    errors.push(`maxTotalRounds ${config.maxTotalRounds} < ${_minFloor}: below minimum phase sequence (Σ phase minimums)`);
   }
   if (config.maxTotalRounds > 20) {
     warnings.push('maxTotalRounds > 20: unusually long debate');
@@ -534,17 +538,23 @@ export function evaluatePhaseTransition(
     return { action: 'force_transition', new_phase: 'concluding', reason: `Network hard cap (${ctx.network.nodeCount} >= ${w.network.hard_cap})`, veto_active: false, force_active: true, confidence_deferred: false, components: { network_size: ctx.network.nodeCount } };
   }
 
-  // Global: maxTotalRounds hard cap — safety net when per-phase signals don't converge
-  if (state.total_rounds_elapsed >= config.maxTotalRounds) {
+  // Global: maxTotalRounds hard cap — safety net when per-phase signals don't converge.
+  // When phaseBoundsOverride is active, derive the effective cap from Σ(maxBounds)×speakers so
+  // the cap is never hit during normal bounded progression (t/3882).
+  const activeCap = ov != null
+    ? Math.max(config.maxTotalRounds, pb.max_confrontation_rounds + pb.max_argumentation_rounds + pb.max_concluding_rounds)
+    : config.maxTotalRounds;
+  if (state.total_rounds_elapsed >= activeCap) {
     if (state.current_phase === 'concluding') {
       if (state.rounds_in_phase >= pb.min_concluding_rounds ||
-          state.total_rounds_elapsed >= config.maxTotalRounds + pb.min_concluding_rounds) {
-        return { action: 'terminate', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${config.maxTotalRounds})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: config.maxTotalRounds } };
+          state.total_rounds_elapsed >= activeCap + pb.min_concluding_rounds) {
+        return { action: 'terminate', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${activeCap})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: activeCap } };
       }
       // Already concluding — do NOT force_transition (resets rounds_in_phase → infinite loop).
       // Fall through to normal concluding evaluation below.
     } else {
-      return { action: 'terminate', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${config.maxTotalRounds}) — cap includes concluding`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: config.maxTotalRounds } };
+      // Cap reached before concluding — force transition rather than terminate (t/3882 regression fix).
+      return { action: 'force_transition', new_phase: 'concluding', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${activeCap}) — forcing concluding phase`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: activeCap } };
     }
   }
 

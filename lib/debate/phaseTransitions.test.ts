@@ -300,10 +300,11 @@ describe('validateAdaptiveConfig', () => {
     expect(result.errors.some(e => e.includes('concludingExitThreshold'))).toBe(true);
   });
 
-  it('rejects maxTotalRounds < 3 (t/3882 — TIGHT is the authorized minimum)', () => {
+  it('rejects maxTotalRounds below Σ(phase minimums) (t/3882)', () => {
+    // Σ minimums = min_conf(1) + min_arg(2) + min_concl(1) = 4; floor is derived not hardcoded
     const result = validateAdaptiveConfig(makeConfig({ maxTotalRounds: 2 }));
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('maxTotalRounds < 3'))).toBe(true);
+    expect(result.errors.some(e => e.includes('below minimum phase sequence'))).toBe(true);
   });
 
   it('warns for maxTotalRounds > 20', () => {
@@ -1376,7 +1377,9 @@ describe('max-rounds concluding starvation (t/1256)', () => {
   const speakers = 3;
   const minConcluding = Math.min(w.phase_bounds.min_concluding_rounds, w.phase_bounds.max_concluding_rounds) * speakers;
 
-  it('terminates (not force_transition) in non-concluding phase at maxTotalRounds (t/3882)', () => {
+  it('force_transitions to concluding (not terminate) in non-concluding phase at maxTotalRounds (t/3882)', () => {
+    // Regression: #2742 changed this to terminate, which prevented concluding phase from running.
+    // The cap must FORCE concluding, not end the debate prematurely.
     const state = makePhaseState({
       current_phase: 'argumentation',
       rounds_in_phase: 10,
@@ -1385,8 +1388,9 @@ describe('max-rounds concluding starvation (t/1256)', () => {
     const config = makeConfig({ maxTotalRounds: 10 });
     const ctx = makeSignalContext();
     const result = evaluatePhaseTransition(state, ctx, signals, config);
-    expect(result.action).toBe('terminate');
-    expect(result.reason).toContain('cap includes concluding');
+    expect(result.action).toBe('force_transition');
+    expect(result.new_phase).toBe('concluding');
+    expect(result.reason).toContain('forcing concluding phase');
   });
 
   it('does NOT terminate concluding when rounds_in_phase < min_concluding_rounds', () => {
@@ -1466,6 +1470,126 @@ describe('max-rounds concluding starvation (t/1256)', () => {
     });
     const result = evaluatePhaseTransition(state, ctx, signals, config);
     expect(result.action).toBe('terminate');
+  });
+});
+
+// ── Whole-debate: all presets must reach concluding (t/3882) ──
+
+describe('whole-debate: all presets reach concluding (t/3882)', () => {
+  beforeEach(() => resetWeightsCache());
+
+  const SPEAKERS = 3;
+
+  // Drive the phase state machine through a complete debate with no organic exits.
+  // Empty signals + low-convergence context ensure only hard caps drive phase transitions.
+  function runDebate(config: PhaseTransitionConfig): { reachedConcluding: boolean; totalTurns: number } {
+    let state: PhaseState = {
+      current_phase: 'confrontation' as DebatePhase,
+      rounds_in_phase: 0,
+      total_rounds_elapsed: 0,
+      regression_count: 0,
+      argumentation_exit_threshold: config.argumentationExitThreshold ?? 0.72,
+      concluding_exit_threshold: config.concludingExitThreshold ?? 0.70,
+      prior_crux_clusters: [],
+      veto_history: [],
+      gc_ran_this_phase: false,
+      api_calls_used: 0,
+    };
+    const emptySignals: Signal[] = [];
+    let reachedConcluding = false;
+
+    for (let iter = 0; iter < 500; iter++) {
+      const ctx = makeSignalContext({
+        transcript: {
+          currentRound: state.total_rounds_elapsed,
+          roundsInPhase: state.rounds_in_phase,
+          activePovsCount: SPEAKERS,
+          lastNRounds: (_n: number) => [],
+        },
+        phase: {
+          current: state.current_phase,
+          allPovsResponded: true,
+          cruxNodes: [],
+          cruxResolution: [],
+          priorCruxClusters: state.prior_crux_clusters,
+          regressionCount: state.regression_count,
+          argumentationExitThreshold: state.argumentation_exit_threshold,
+          concludingExitThreshold: state.concluding_exit_threshold,
+        },
+      });
+
+      const result = evaluatePhaseTransition(state, ctx, emptySignals, config);
+
+      if (result.action === 'terminate') {
+        return { reachedConcluding, totalTurns: state.total_rounds_elapsed };
+      }
+
+      state = applyTransition(state, result);
+      if (state.current_phase === 'concluding') reachedConcluding = true;
+      state = advanceRound(state);
+    }
+
+    return { reachedConcluding, totalTurns: 500 };
+  }
+
+  it('Quick (tight pacing, no override) reaches concluding', () => {
+    const config = makeConfig({ maxTotalRounds: 3, pacing: 'tight' });
+    const { reachedConcluding } = runDebate(config);
+    expect(reachedConcluding).toBe(true);
+  });
+
+  it('Deep (moderate pacing, no override) reaches concluding', () => {
+    const config = makeConfig({ maxTotalRounds: 10, pacing: 'moderate' });
+    const { reachedConcluding } = runDebate(config);
+    expect(reachedConcluding).toBe(true);
+  });
+
+  it('Socratic (thorough pacing, no override) reaches concluding', () => {
+    const config = makeConfig({ maxTotalRounds: 8, pacing: 'thorough', dialecticalStyle: 'socratic' });
+    const { reachedConcluding } = runDebate(config);
+    expect(reachedConcluding).toBe(true);
+  });
+
+  it('TIGHT situation (override 1/1/1) reaches concluding in Σ(maxBounds)×speakers turns', () => {
+    const config = makeConfig({
+      maxTotalRounds: 3,
+      phaseBoundsOverride: { maxConfrontationRounds: 1, maxArgumentationRounds: 1, maxConcludingRounds: 1 },
+    });
+    const { reachedConcluding, totalTurns } = runDebate(config);
+    expect(reachedConcluding).toBe(true);
+    expect(totalTurns).toBe((1 + 1 + 1) * SPEAKERS);
+  });
+
+  it('MODERATE situation (override 1/3/1) reaches concluding in Σ(maxBounds)×speakers turns', () => {
+    const config = makeConfig({
+      maxTotalRounds: 10,
+      phaseBoundsOverride: { maxConfrontationRounds: 1, maxArgumentationRounds: 3, maxConcludingRounds: 1 },
+    });
+    const { reachedConcluding, totalTurns } = runDebate(config);
+    expect(reachedConcluding).toBe(true);
+    expect(totalTurns).toBe((1 + 3 + 1) * SPEAKERS);
+  });
+
+  it('THOROUGH situation (override 2/4/2) reaches concluding in Σ(maxBounds)×speakers turns', () => {
+    const config = makeConfig({
+      maxTotalRounds: 8,
+      phaseBoundsOverride: { maxConfrontationRounds: 2, maxArgumentationRounds: 4, maxConcludingRounds: 2 },
+    });
+    const { reachedConcluding, totalTurns } = runDebate(config);
+    expect(reachedConcluding).toBe(true);
+    expect(totalTurns).toBe((2 + 4 + 2) * SPEAKERS);
+  });
+
+  it('validation: cap below Σ(phase minimums) fails (t/3882)', () => {
+    // Σ minimums from calibration-config: min_conf(1) + min_arg(2) + min_concl(1) = 4
+    const result = validateAdaptiveConfig(makeConfig({ maxTotalRounds: 2 }));
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('below minimum phase sequence'))).toBe(true);
+  });
+
+  it('validation: cap at Σ(phase minimums) passes (t/3882)', () => {
+    const result = validateAdaptiveConfig(makeConfig({ maxTotalRounds: 4 }));
+    expect(result.valid).toBe(true);
   });
 });
 
