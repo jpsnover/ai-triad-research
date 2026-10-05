@@ -206,3 +206,68 @@ Describe 'Repair-ResolvedBackfill (t/3900)' -Tag 'summary' {
         $result.Statistics.TotalAlreadyLinked | Should -Be 1
     }
 }
+
+Describe 'Repair-ResolvedBackfill (t/3907)' -Tag 'summary' {
+    <#
+    .SYNOPSIS
+        A bare `null` element in unmapped_concepts[] (real-incident shape:
+        when-ai-builds-itself-2026 on data main) must not abort the run under
+        StrictMode, and the writer that produces it must be fixed to emit []
+        instead -- covered by Merge-ChunkSummaries.Tests.ps1 (t/3907) and the
+        Invoke-DocumentSummary Finalize-Summary path, not here.
+    #>
+
+    BeforeAll {
+        $script:taxDir = Join-Path $TestDrive 'taxonomy-3907'
+        $script:summDir = Join-Path $TestDrive 'summaries-3907'
+        New-Item -ItemType Directory -Path $script:taxDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $script:summDir -Force | Out-Null
+
+        @{ nodes = @(@{ id = 'skp-intentions-050' }) } | ConvertTo-Json -Depth 5 |
+            Set-Content -Path (Join-Path $script:taxDir 'skeptic.json')
+        @{ nodes = @() } | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $script:taxDir 'accelerationist.json')
+        @{ nodes = @() } | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $script:taxDir 'safetyist.json')
+        @{ nodes = @() } | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $script:taxDir 'situations.json')
+
+        Mock Get-TaxonomyDir { $script:taxDir } -ModuleName AITriad
+        Mock Get-SummariesDir { $script:summDir } -ModuleName AITriad
+    }
+
+    BeforeEach {
+        InModuleScope AITriad { $script:TaxonomyNodeIdSet = $null; $script:TaxonomyNodeIdSetTimestamp = [datetime]::MinValue }
+    }
+
+    It 'does not throw on a null unmapped_concepts entry mixed with a real one, skips the null, and still backfills the valid concept' {
+        # Non-collapsing shape: ConvertFrom-Json only unwraps a SINGLE-element
+        # array to a scalar, so a null alongside a real entry stays an array
+        # and reaches the L128 filter -- this is the one shape (1 of the 97
+        # on data main) that actually aborts a whole-corpus run.
+        $docPath = Join-Path $script:summDir 'null-mixed-doc.json'
+        $json = '{"doc_id":"null-mixed-doc","unmapped_concepts":[null,{"concept":"A fresh concept.","resolved_node_id":"skp-intentions-050","suggested_pov":"skeptic","suggested_label":"Fresh Concept","suggested_category":"Intentions"}],"pov_summaries":{"skeptic":{"key_points":[]}}}'
+        Set-Content -Path $docPath -Value $json -Encoding utf8
+
+        $result = Repair-ResolvedBackfill -DocId 'null-mixed-doc' -Confirm:$false -WarningAction SilentlyContinue
+        $result.Statistics.TotalBackfilled | Should -Be 1
+        $updated = Get-Content -Raw -Path $docPath | ConvertFrom-Json
+        $updated.pov_summaries.skeptic.key_points[0].taxonomy_node_id | Should -Be 'skp-intentions-050'
+    }
+
+    It 'a whole-pattern run still processes a later file after one containing a null unmapped_concepts entry' {
+        # Regression for the abort CL reproduced: the null-mixed file sorts
+        # before the valid-only file, so a surviving abort would leave
+        # 'z-later-doc' unprocessed.
+        $nullDocPath = Join-Path $script:summDir 'a-null-mixed-doc.json'
+        $nullJson = '{"doc_id":"a-null-mixed-doc","unmapped_concepts":[null,{"concept":"Ignore me.","resolved_node_id":"does-not-matter","suggested_pov":"situations"}],"pov_summaries":{"skeptic":{"key_points":[]}}}'
+        Set-Content -Path $nullDocPath -Value $nullJson -Encoding utf8
+
+        $laterDocPath = Join-Path $script:summDir 'z-later-doc.json'
+        $laterJson = '{"doc_id":"z-later-doc","unmapped_concepts":[{"concept":"A later concept.","resolved_node_id":"skp-intentions-050","suggested_pov":"skeptic","suggested_label":"Later Concept","suggested_category":"Intentions"}],"pov_summaries":{"skeptic":{"key_points":[]}}}'
+        Set-Content -Path $laterDocPath -Value $laterJson -Encoding utf8
+
+        $null = Repair-ResolvedBackfill -DocId '*-doc' -Confirm:$false -WarningAction SilentlyContinue
+
+        $updatedLater = Get-Content -Raw -Path $laterDocPath | ConvertFrom-Json
+        $updatedLater.pov_summaries.skeptic.key_points[0].taxonomy_node_id |
+            Should -Be 'skp-intentions-050' -Because 'z-later-doc must still be processed, not left behind by an abort on a-null-mixed-doc'
+    }
+}

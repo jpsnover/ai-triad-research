@@ -43,4 +43,24 @@ Describe 'Merge-ChunkSummaries malformed-chunk resilience' -Tag 'ingestion' {
                 Should -BeGreaterThan 0 -Because 'the valid factual claim must survive'
         }
     }
+
+    It 'drops a bare null unmapped_concepts entry from a chunk and still merges the valid concept (t/3907)' {
+        InModuleScope AITriad {
+            # Real-incident shape (when-ai-builds-itself-2026): a chunk's
+            # unmapped_concepts array contains a bare null alongside real
+            # entries, so it never collapses to a scalar null and the null
+            # must be filtered here, not carried into the written file.
+            $ChunkWithNull = '{"pov_summaries":{"accelerationist":{"key_points":[]},"safetyist":{"key_points":[]},"skeptic":{"key_points":[]}},"factual_claims":[],"unmapped_concepts":[null,{"suggested_label":"real-concept","concept":"A genuinely new concept."}]}' | ConvertFrom-Json
+
+            { Merge-ChunkSummaries -ChunkResults @($ChunkWithNull) -WarningAction SilentlyContinue } |
+                Should -Not -Throw
+
+            $Merged = Merge-ChunkSummaries -ChunkResults @($ChunkWithNull) -WarningAction SilentlyContinue
+
+            @($Merged['unmapped_concepts']).Count |
+                Should -Be 1 -Because 'the null entry must be dropped, the real concept kept'
+            @($Merged['unmapped_concepts'] | Where-Object { $null -eq $_ }).Count |
+                Should -Be 0 -Because 'no null element may survive into the merged/written structure'
+        }
+    }
 }

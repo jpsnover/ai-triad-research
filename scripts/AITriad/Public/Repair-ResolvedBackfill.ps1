@@ -124,8 +124,15 @@ function Repair-ResolvedBackfill {
         $Unmapped = @($HasUnmapped.Value)
         if ($Unmapped.Count -eq 0) { continue }
 
-        # Filter to only resolved concepts
+        # Filter to only resolved concepts. t/3907: a bare `null` element (writer
+        # artifact from chunk-merge) must not reach PSObject.Properties under
+        # StrictMode -- it throws "The property 'Properties' cannot be found".
+        $NullConceptCount = @($Unmapped | Where-Object { $null -eq $_ }).Count
+        if ($NullConceptCount -gt 0) {
+            Write-Warn "$DocName — skipping $NullConceptCount null entry/entries in unmapped_concepts (t/3907)"
+        }
         $ResolvedConcepts = @($Unmapped | Where-Object {
+            $null -ne $_ -and
             $_.PSObject.Properties['resolved_node_id'] -and
             -not [string]::IsNullOrWhiteSpace($_.resolved_node_id)
         })
@@ -292,6 +299,7 @@ function Repair-ResolvedBackfill {
             if ($PovPrefixes.ContainsKey($SuggestedPov)) {
                 $Prefix = $PovPrefixes[$SuggestedPov]
                 foreach ($Claim in $FactualClaims) {
+                    if ($null -eq $Claim) { continue }
                     if (-not $Claim.PSObject.Properties['linked_taxonomy_nodes'] -or -not $Claim.linked_taxonomy_nodes) {
                         continue
                     }
