@@ -154,11 +154,13 @@ function emitUsageTelemetry(
   model: string,
   latencyMs: number,
   usage?: ProviderResult['usage'],
+  modelId?: string, // t/3946: friendly model id (e.g. "claude-sonnet-5") for cost-report lookup
 ): void {
   const entry = {
     ts: new Date().toISOString(),
     backend,
     model,
+    ...(modelId !== undefined ? { modelId } : {}),
     latencyMs: Math.round(latencyMs),
     ...usage,
   };
@@ -334,7 +336,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const result = await attemptCall();
-        emitUsageTelemetry(backend, apiModelId, performance.now() - t0, result.usage);
+        emitUsageTelemetry(backend, apiModelId, performance.now() - t0, result.usage, model);
         getGlobalRecorder()?.record({
           type: 'ai.response', component: 'ai-adapter', level: 'info',
           duration_ms: Math.round(performance.now() - t0),
@@ -405,7 +407,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
           fbTimeoutMs,
           options?.signal,
         );
-        emitUsageTelemetry(fb.backend, fb.apiModelId, performance.now() - t0, fbResult.usage);
+        emitUsageTelemetry(fb.backend, fb.apiModelId, performance.now() - t0, fbResult.usage, fbModel);
         return fbResult.text;
       } catch (err) {
         getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'ai-adapter', level: 'warn', message: `Fallback provider ${fb.backend}/${fb.apiModelId} failed`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
@@ -447,7 +449,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         outputTokens: result.usage?.completionTokens,
         cacheReadTokens: result.usage?.cachedTokens,
       });
-      emitUsageTelemetry(backend, apiModelId, latency, result.usage);
+      emitUsageTelemetry(backend, apiModelId, latency, result.usage, request.model);
       getGlobalRecorder()?.record({
         type: 'ai.response', component: 'ai-adapter', level: 'info',
         duration_ms: Math.round(latency),
