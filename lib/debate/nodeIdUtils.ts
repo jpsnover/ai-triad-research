@@ -128,6 +128,12 @@ export function sanitizeNodeIds(
   const removed: string[] = [];
 
   for (const id of ids) {
+    if (typeof id !== 'string') {
+      // LLM response is missing the node_id field or returned a non-string — drop and warn (t/3927)
+      console.warn(`[sanitizeNodeIds] dropping non-string node_id (got ${id === null ? 'null' : typeof id}); model response may be missing the node_id field`);
+      removed.push(`(non-string:${id === null ? 'null' : typeof id})`);
+      continue;
+    }
     if (knownIds.has(id)) {
       sanitized.push(id);
     } else {
