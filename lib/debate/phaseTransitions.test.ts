@@ -8,6 +8,8 @@ import {
   initPhaseState,
   validatePhaseState,
   validateAdaptiveConfig,
+  effectiveRoundCap,
+  maxTurnCeiling,
   buildSignalRegistry,
   computeSaturationScore,
   computeConvergenceScore,
@@ -317,6 +319,103 @@ describe('validateAdaptiveConfig', () => {
     const result = validateAdaptiveConfig(makeConfig({ pacing: 'tight', dialecticalStyle: 'integrative' }));
     expect(result.valid).toBe(true);
     expect(result.warnings.some(w => w.includes('tight pacing'))).toBe(true);
+  });
+});
+
+// ── effectiveRoundCap / maxTurnCeiling (t/3936) ─────────────
+
+describe('effectiveRoundCap / maxTurnCeiling', () => {
+  beforeEach(() => resetWeightsCache());
+
+  it('effectiveRoundCap with no override equals maxTotalRounds', () => {
+    const config = makeConfig({ maxTotalRounds: 12 });
+    expect(effectiveRoundCap(config, 3)).toBe(12);
+  });
+
+  it('effectiveRoundCap TIGHT override (1/1/1), 3 speakers = 9', () => {
+    const config = makeConfig({
+      maxTotalRounds: 3,
+      phaseBoundsOverride: { maxConfrontationRounds: 1, maxArgumentationRounds: 1, maxConcludingRounds: 1 },
+    });
+    expect(effectiveRoundCap(config, 3)).toBe(9);
+  });
+
+  it('effectiveRoundCap MODERATE override (1/3/1), 3 speakers = 15', () => {
+    const config = makeConfig({
+      maxTotalRounds: 10,
+      phaseBoundsOverride: { maxConfrontationRounds: 1, maxArgumentationRounds: 3, maxConcludingRounds: 1 },
+    });
+    expect(effectiveRoundCap(config, 3)).toBe(15);
+  });
+
+  it('effectiveRoundCap THOROUGH override (2/4/2), 3 speakers = 24', () => {
+    const config = makeConfig({
+      maxTotalRounds: 8,
+      phaseBoundsOverride: { maxConfrontationRounds: 2, maxArgumentationRounds: 4, maxConcludingRounds: 2 },
+    });
+    expect(effectiveRoundCap(config, 3)).toBe(24);
+  });
+
+  it('maxTurnCeiling = effectiveRoundCap + min_concluding×speakers (TIGHT/3 = 12)', () => {
+    // effectiveRoundCap=9, min_concluding=min(1,1)×3=3, ceiling=12
+    const config = makeConfig({
+      maxTotalRounds: 3,
+      phaseBoundsOverride: { maxConfrontationRounds: 1, maxArgumentationRounds: 1, maxConcludingRounds: 1 },
+    });
+    expect(maxTurnCeiling(config, 3)).toBe(12);
+  });
+
+  it('engine activeCap matches effectiveRoundCap (no override, 3 speakers)', () => {
+    const config = makeConfig({ maxTotalRounds: 12 });
+    // At total_rounds=12 in argumentation → force_transition (cap hit)
+    const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 9, total_rounds_elapsed: 12 });
+    const ctx = makeSignalContext();
+    const result = evaluatePhaseTransition(state, ctx, [], config);
+    expect(result.action).toBe('force_transition');
+    expect(result.new_phase).toBe('concluding');
+  });
+
+  it('validateAdaptiveConfig TIGHT/3 speakers passes floor check', () => {
+    // effectiveRoundCap(TIGHT,3)=9, scaledFloor=(1+1+1)×3=9 → valid
+    const config = makeConfig({
+      maxTotalRounds: 3,
+      phaseBoundsOverride: { maxConfrontationRounds: 1, maxArgumentationRounds: 1, maxConcludingRounds: 1 },
+    });
+    const result = validateAdaptiveConfig(config, 3);
+    expect(result.valid).toBe(true);
+    expect(result.errors.some(e => e.includes('below minimum phase sequence'))).toBe(false);
+  });
+
+  it('validateAdaptiveConfig maxTotalRounds=2 with no override fails floor check (t/3936)', () => {
+    // effectiveRoundCap=2, scaledFloor=(1+2+1)×1=4 → invalid
+    const result = validateAdaptiveConfig(makeConfig({ maxTotalRounds: 2 }), 1);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('below minimum phase sequence'))).toBe(true);
+  });
+
+  it('debate forced into concluding at effectiveRoundCap terminates at maxTurnCeiling (t/3936)', () => {
+    // TIGHT/3: effectiveRoundCap=9, maxTurnCeiling=12
+    const config = makeConfig({
+      maxTotalRounds: 3,
+      phaseBoundsOverride: { maxConfrontationRounds: 1, maxArgumentationRounds: 1, maxConcludingRounds: 1 },
+    });
+    const cap = effectiveRoundCap(config, 3);
+    const ceiling = maxTurnCeiling(config, 3);
+    expect(cap).toBe(9);
+    expect(ceiling).toBe(12);
+
+    // At the cap in argumentation → must force_transition
+    const atCapState = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 3, total_rounds_elapsed: cap });
+    const ctx = makeSignalContext({ transcript: { activePovsCount: 3, lastNRounds: () => [], currentRound: cap, roundsInPhase: 3 } });
+    const forceResult = evaluatePhaseTransition(atCapState, ctx, [], config);
+    expect(forceResult.action).toBe('force_transition');
+    expect(forceResult.new_phase).toBe('concluding');
+
+    // At the ceiling in concluding (min_concluding turns completed) → must terminate
+    const atCeilingState = makePhaseState({ current_phase: 'concluding', rounds_in_phase: 3, total_rounds_elapsed: ceiling });
+    const result = evaluatePhaseTransition(atCeilingState, ctx, [], config);
+    expect(result.action).toBe('terminate');
+    expect(atCeilingState.total_rounds_elapsed).toBe(ceiling);
   });
 });
 
