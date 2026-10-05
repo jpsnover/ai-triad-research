@@ -122,6 +122,7 @@ function runGetOpEdConvert(
   return new Promise((resolve, reject) => {
     const child = spawn('pwsh', ['-NoProfile', '-NonInteractive', '-File', PREP_SHIM_PATH], {
       stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
     });
 
     let settled = false;
