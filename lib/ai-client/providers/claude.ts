@@ -6,6 +6,34 @@ import { makeFetchSignal } from '../retry.js';
 import { fetchWithDiagnostics } from '../instrumentation.js';
 import type { FetchFn, GenerateOptions, ProviderResult, ProviderCallDiagnostics, ToolCall } from '../types.js';
 import { normalizeStopReason } from './stopReason.js';
+import { getGlobalRecorder } from '../../flight-recorder/index.js';
+
+// t/3942: current Claude models (Opus 4.7+, Sonnet 5+, Fable) return 400 "`temperature` is
+// deprecated for this model" for ANY temperature. The desktop path always passes one (default 0.7),
+// so without this memo every call paid a rejected request plus a retry. Per-process, per apiModelId:
+// the first rejection is logged once and recorded here; later calls omit temperature up front.
+// Deliberately NOT an ai-models.json field: that is a config-schema change (mandatory SO class).
+const samplingRejectedModels = new Set<string>();
+
+/** Test-only: clear the per-process sampling-rejection memo. */
+export function _resetClaudeSamplingMemoForTests(): void {
+  samplingRejectedModels.clear();
+}
+
+function sendsTemperature(opts: GenerateOptions, apiModelId: string): boolean {
+  return opts.temperature != null && !samplingRejectedModels.has(apiModelId);
+}
+
+/** Record the rejection and log it once (Fallback-Path Logging): later calls skip silently. */
+function memoSamplingRejection(apiModelId: string, dropped: unknown, bodyText: string): void {
+  samplingRejectedModels.add(apiModelId);
+  getGlobalRecorder()?.record({
+    type: 'ai.fallback',
+    component: 'ai-client.claude',
+    level: 'warn',
+    message: `Claude model "${apiModelId}" rejected temperature=${String(dropped)} — retrying without it; later calls to this model omit temperature for the rest of the process. API: ${bodyText.slice(0, 200)}`,
+  });
+}
 
 export async function generateViaClaude(
   fetchFn: FetchFn,
@@ -25,8 +53,8 @@ export async function generateViaClaude(
     max_tokens: opts.maxTokens ?? 8192,
     messages: [{ role: 'user', content: userContent }],
   };
-  // Only include temperature when explicitly requested — some models (e.g. claude-opus-4-7) reject it
-  if (opts.temperature != null) {
+  // Only include temperature when explicitly requested, and never for a model already known to reject it
+  if (sendsTemperature(opts, apiModelId)) {
     reqBody.temperature = opts.temperature;
   }
   if (opts.systemMessage) {
@@ -61,8 +89,9 @@ export async function generateViaClaude(
       nextSteps: ['Wait a minute and retry', 'Switch to a different AI provider (Settings → AI Model)', 'Check API quota'],
     });
   }
-  // Some models (e.g. claude-opus-4-7) reject temperature — retry without it
+  // Some models (e.g. claude-opus-4-7) reject temperature: retry without it, and memoise (t/3942)
   if (response.status === 400 && reqBody.temperature != null && bodyText.includes('temperature')) {
+    memoSamplingRejection(apiModelId, reqBody.temperature, bodyText);
     delete reqBody.temperature;
     const { response: retryResponse, bodyText: retryBodyText, diagnostics: retryDiagnostics } = await fetchWithDiagnostics(fetchFn, 'https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -128,7 +157,9 @@ function parseClaudeResponse(bodyText: string, diagnostics: ProviderCallDiagnost
       nextSteps: ['Retry the request', 'Check the API key and model ID'],
     });
   }
-  if (!json.content?.length) {
+  // A refusal may carry no content blocks (t/3942): let it through so the caller sees
+  // stopReason 'content_filter' and raises the content-policy error, not a misleading "No content".
+  if (!json.content?.length && json.stop_reason !== 'refusal') {
     throw new ActionableError({
       goal: 'Generate text via Claude',
       problem: `No content in Claude response: ${bodyText.slice(0, 300)}`,
@@ -136,8 +167,9 @@ function parseClaudeResponse(bodyText: string, diagnostics: ProviderCallDiagnost
       nextSteps: ['Retry the request', 'Try a different model'],
     });
   }
-  const text = json.content.filter(c => c.type === 'text').map(c => c.text ?? '').join('');
-  const toolUseBlocks = json.content.filter(c => c.type === 'tool_use');
+  const blocks = json.content ?? [];
+  const text = blocks.filter(c => c.type === 'text').map(c => c.text ?? '').join('');
+  const toolUseBlocks = blocks.filter(c => c.type === 'tool_use');
   const toolCalls: ToolCall[] | undefined = toolUseBlocks.length > 0
     ? toolUseBlocks.map(c => ({
         name: c.name!,

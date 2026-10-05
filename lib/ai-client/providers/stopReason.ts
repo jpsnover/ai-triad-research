@@ -25,6 +25,7 @@ const TABLE: Record<string, StopReason> = {
   completed: 'stop',                 // OpenAI Responses API (status, when not truncated)
   // ── provider policy / safety / recitation ──
   content_filter: 'content_filter',  // OpenAI-compatible
+  refusal: 'content_filter',         // Claude safety refusal (t/3942) — was 'other' → silent empty debate turn
   safety: 'content_filter',          // Gemini
   recitation: 'content_filter',      // Gemini
   blocklist: 'content_filter',       // Gemini
