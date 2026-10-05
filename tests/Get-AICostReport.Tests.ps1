@@ -166,7 +166,7 @@ Describe 'Get-AICostReport' -Tag 'cost' {
             $Claude.Valid | Should -BeFalse
         }
 
-        It 'PINS a pre-existing bug: gemini/openai report Valid=false even on a successful probe (StrictMode dot-access on a hashtable missing RateLimit/RateReset throws, caught by the catch-all) -- NOT fixed here; filed separately, see t/3910 decomposition notes' {
+        It 'reports Valid=true for gemini and openai on a successful probe, even though their rate-limit fields are absent (t/3926 fix)' {
             Mock Resolve-AIApiKey -ModuleName AITriad -MockWith { 'fake-key' }
             Mock Invoke-WebRequest -ModuleName AITriad -MockWith {
                 [PSCustomObject]@{ StatusCode = 200; Headers = @{} }
@@ -176,9 +176,9 @@ Describe 'Get-AICostReport' -Tag 'cost' {
             $Gemini = $r.Providers | Where-Object { $_.Backend -eq 'gemini' }
             $Openai = $r.Providers | Where-Object { $_.Backend -eq 'openai' }
             $Gemini.KeyConfigured | Should -BeTrue
-            $Gemini.Valid | Should -BeFalse -Because 'pinning the current (buggy) behavior, not endorsing it -- see t/3910 notes'
+            $Gemini.Valid | Should -BeTrue -Because 'gemini never exposes rate-limit fields, but a 200 response is still a valid key'
             $Openai.KeyConfigured | Should -BeTrue
-            $Openai.Valid | Should -BeFalse -Because 'same StrictMode gap, openai lacks RateReset in its hashtable literal'
+            $Openai.Valid | Should -BeTrue -Because 'openai lacks RateReset specifically, but RateLimit/RateRemaining absence (or presence) must not affect Valid'
         }
     }
 }
