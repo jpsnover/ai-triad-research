@@ -202,6 +202,9 @@ jobs:
               # merged its disjoint-scope contract untested). test-python now runs the
               # reconciler --selftest for these paths (see that job).
               - 'research/comp-linguist/scripts/**'
+              # research/comp-linguist/tools/** — formalizer / golden scorer / Option C parity
+              # tests (t/3940). Previously matched no filter, so they never ran in CI.
+              - 'research/comp-linguist/tools/**'
               - '.github/workflows/ci.yml'
             # 'container' gates test-container (t/2094). SOUNDNESS: ci-gate treats
             # a SKIPPED gated job as satisfied, so this list must cover EVERYTHING
@@ -1394,6 +1397,19 @@ jobs:
           HF_HUB_OFFLINE: '1'
           TRANSFORMERS_OFFLINE: '1'
         run: python -m pytest test_*.py -v
+      # CL tools tests (t/3940). Stdlib + pytest only; the module loads entities.json lazily
+      # (#2827) so these run WITHOUT the data repo. Same no-silent-skip floor as above:
+      # 17 collected today, floor 15 — a collection error or a module-level skip fails loud.
+      - name: CL tools tests (t/3940)
+        working-directory: research/comp-linguist/tools
+        run: |
+          COUNT=$(python -m pytest test_*.py --collect-only -q 2>&1 | grep -E "^[0-9]+ test" | awk '{print $1}')
+          echo "Collected ${COUNT:-0} tests"
+          if [ "${COUNT:-0}" -lt 15 ]; then
+            echo "::error::pytest collected fewer than 15 CL tools tests — possible silent-skip or collection error (t/3940)"
+            exit 1
+          fi
+          python -m pytest test_*.py -v
       # G7 grounding reconciler selftest (t/3189). reconcile_grounding.py ships a
       # CLI selftest (--selftest: consistency / disjoint-scope / idempotence /
       # change-detection / removal-purge — the G7 contract) that exits non-zero on
