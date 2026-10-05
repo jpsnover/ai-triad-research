@@ -1045,6 +1045,9 @@ function useDebateWorkspaceEffects({
   // Phase 8: Auto-compress context when transcript grows large
   useEffect(() => {
     if (!activeDebate || debateGenerating) return;
+    // A viewer of a run another window owns doesn't compress: the holder does, and the
+    // viewer's save of it would be skipped anyway, wasting the AI call (t/3917 live run).
+    if (useDebateStore.getState().driverIsRemote) return;
     if (Date.now() < compressionCooldownRef.current) return;
     if (activeDebate.transcript.length >= 16) {
       const lastSummaryIdx = activeDebate.context_summaries.length > 0

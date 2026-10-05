@@ -41,9 +41,15 @@ import { isStateAhead } from '../shared/phaseOrder';
 
 /** Viewer-save skips already logged, one per (debate, holder run), so auto-save ticks don't flood the recorder. */
 const _viewerSaveSkipLogged = new Set<string>();
-/** Background saves a viewer skips quietly (t/3917). Any OTHER caller is a user edit, and the
- *  user is told it wasn't saved; the next refresh from the holder would otherwise silently undo it. */
-const BACKGROUND_SAVE_CALLERS = new Set(['auto-save', 'DebateWorkspace:autoSave', 'coalesced-followup', 'breaker-cooldown-retry']);
+/** Automatic saves a viewer skips quietly (t/3917): timers, coalescing/retry, background
+ *  compression, load recovery, and run-internal saves. Any OTHER caller is a user edit, and the
+ *  user is told it wasn't saved; the next refresh from the holder would otherwise silently undo
+ *  it. The live run caught compressOldTranscript missing from an earlier version of this list,
+ *  which would have shown a false "your change wasn't saved" notice. */
+const BACKGROUND_SAVE_CALLERS = new Set(['auto-save', 'DebateWorkspace:autoSave', 'coalesced-followup', 'breaker-cooldown-retry', 'compressOldTranscript', 'loadDebate:interrupted_turn_recovery', 'news-report-save-retry', 'synthesis-complete', 'updatePhase']);
+const BACKGROUND_SAVE_PREFIXES = ['crossRespond:', 'runOpeningStatements:', 'extractClaimsAndUpdateAN', 'extractTopicScope'];
+const isBackgroundSave = (caller: string): boolean =>
+  BACKGROUND_SAVE_CALLERS.has(caller) || BACKGROUND_SAVE_PREFIXES.some(p => caller.startsWith(p));
 
 declare const __APP_VERSION__: string;
 
@@ -1178,7 +1184,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     // saves instead.
     const runHolder = getRemoteRunLeaseHolder(activeDebate.id);
     if (runHolder) {
-      const userEdit = !BACKGROUND_SAVE_CALLERS.has(caller);
+      const userEdit = !isBackgroundSave(caller);
       const key = `${activeDebate.id}:${runHolder.windowId}:${runHolder.startedAt}`;
       if (userEdit || !_viewerSaveSkipLogged.has(key)) {
         _viewerSaveSkipLogged.add(key);

@@ -324,6 +324,7 @@ describe('debate run lease — another window owns the debate (t/3917)', () => {
 
     await useDebateStore.getState().saveDebate('auto-save');
     await useDebateStore.getState().saveDebate('DebateWorkspace:autoSave');
+    await useDebateStore.getState().saveDebate('compressOldTranscript'); // background: the live run's false-notice case
 
     expect(mockApi.saveDebateSession).not.toHaveBeenCalled();
     expect(messages('Save skipped — another window holds this debate\'s run lease (viewer)')).toHaveLength(1);
