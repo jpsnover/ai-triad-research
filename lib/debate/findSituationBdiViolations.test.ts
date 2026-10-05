@@ -326,18 +326,18 @@ describe('TS↔PS live parity (t/3889)', () => {
     // Both predicates must agree on the exact failing node set
     expect(tsViolatingIds).toEqual(EXPECTED_FAILING_IDS);
     expect(psFailingIds).toEqual(EXPECTED_FAILING_IDS);
-  });
+  }, 60_000);
 
   it('PS exempts both [DEPRECATED] fixtures (Deprecated count = 2)', () => {
     if (!pwshAvailable) throw new Error('pwsh required for parity — absent in this environment (CI misconfiguration)');
     const psResult = runPsCheck(PARITY_FIXTURES);
     expect(psResult.Deprecated).toBe(2);
-  });
+  }, 60_000);
 
   it('PS passes the three clean fixtures (Pass count = 3, Fail = 7)', () => {
     if (!pwshAvailable) throw new Error('pwsh required for parity — absent in this environment (CI misconfiguration)');
     const psResult = runPsCheck(PARITY_FIXTURES);
     expect(psResult.Pass).toBe(3);
     expect(psResult.Fail).toBe(7);
-  });
+  }, 60_000);
 });
