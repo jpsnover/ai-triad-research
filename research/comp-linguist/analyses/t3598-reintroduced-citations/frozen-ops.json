@@ -3,7 +3,7 @@
   "base": "ai-triad-data 83d77026",
   "derived_from": "leg-a 17 offenders; each verified entry-by-entry as a Repair-ResolvedBackfill-appended duplicate (fingerprint + same-point null twin) re-armed by a dead top-level unmapped_concepts[].resolved_node_id (Rosetta t/3900#1, TL t/3893#3, CL 17/17).",
   "operation": "per op: delete the appended key_point (keep its null twin); remove the key resolved_node_id from the matching unmapped_concept",
-  "authorization": "PENDING",
+  "authorization": "PI (Jeffrey) 2026-10-05, recorded t/3893#6; re-scope accepted by TL t/3893#5; editor closed",
   "ops": [
     {
       "docId": "ai-policy-bulletin-2026",
