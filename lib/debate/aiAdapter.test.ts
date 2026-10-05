@@ -607,6 +607,29 @@ describe('aiAdapter', () => {
       expect(fetchUrl).toContain('api.anthropic.com');
     });
 
+    // t/3942: a Claude safety refusal (HTTP 200, stop_reason "refusal", often no content) used to
+    // normalize to 'other' and return as an empty debate turn. It must raise the content-policy error.
+    it('raises the content-policy ActionableError on a Claude refusal instead of returning empty text', async () => {
+      process.env.ANTHROPIC_API_KEY = 'test-key'; // no other keys: the fallback chain cannot answer
+      mockFetch.mockImplementation(async () => freshResponse({ content: [], stop_reason: 'refusal', usage: { input_tokens: 10, output_tokens: 0 } }, 200));
+
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+      await expect(runWithTimers(adapter.generateText('test', 'claude-sonnet-4-5')))
+        .rejects.toThrow(/content policy \(refusal\)/);
+      const errorEvents = mockRecord.mock.calls.map(c => c[0] as { type: string; message: string }).filter(e => e.type === 'ai.error');
+      expect(errorEvents.some(e => e.message.includes('refusal'))).toBe(true);
+    });
+
+    it('other arm: a normal Claude end_turn response still returns its text', async () => {
+      process.env.ANTHROPIC_API_KEY = 'test-key';
+      mockFetch.mockImplementation(async () => freshResponse({ ...claudeOkBody('fine'), stop_reason: 'end_turn' }, 200));
+
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+      await expect(adapter.generateText('test', 'claude-sonnet-4-5')).resolves.toBe('fine');
+    });
+
     it('routes groq models to Groq API', async () => {
       process.env.GROQ_API_KEY = 'test-key';
       mockFetch.mockImplementation(async () => freshResponse(groqOkBody(), 200));

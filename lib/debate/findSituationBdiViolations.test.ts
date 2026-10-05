@@ -317,7 +317,9 @@ const EXPECTED_FAILING_IDS = new Set([
   'par-sent-null', 'par-sent-none', 'par-sent-na', 'par-sent-tbd', 'par-sent-dash',
 ]);
 
-describe('TS↔PS live parity (t/3889)', () => {
+// Each test cold-starts pwsh; under CI coverage that took 9.8s, past vitest's
+// 5s default (PR #2817 / main 7561cb34). 30s keeps the arm from flaking.
+describe('TS↔PS live parity (t/3889)', { timeout: 30_000 }, () => {
   it('TS and PS identify identical failing node IDs over shared fixtures', () => {
     if (!pwshAvailable) throw new Error('pwsh required for parity — absent in this environment (CI misconfiguration)');
     const tsViolatingIds = new Set(findSituationBdiViolations(PARITY_FIXTURES).map(v => v.id));
