@@ -16,6 +16,8 @@ Closes the "the 27 defects exist only in live data, no scan code survives" gap (
 
 The 14 stance count reproduces the t/3351#1 design exactly. The count is now reproducible on demand, not stranded in one analysis.
 
+> **Superseded for class A (t/3883, 2026-10-05).** The 14 counts ban-list *lexemes*, not stance leaks. With the role-based test, live-corpus class A is **1** (acc-desires-021), so the clear-defect total is **11 / 642 = 1.7%**, not 24 / 641 = 3.7%. Class B (10) is unchanged. See "Class A restated" below.
+
 ## Part 1 (code, class B): wrapper-strip, VALIDATED by dry-run
 
 **Root cause:** node descriptions verbatim begin `A(n) <Belief|Desire|Intention> within <camp> discourse that <verb>...` (917/959 frames). The model read that literal wrapper as an AGENT (`<camp> discourse`) despite the prompt's line-37 ban, it was being asked to ignore text it was handed.
@@ -83,3 +85,26 @@ The 12 residual class-A defects need the prompt, not code (every one is ALREADY 
 **Original text (kept for the record):**
 
 `formalize_node_lf.py --apply` overwrites `logical_form` on all 641 grounded nodes across `ai-triad-data/taxonomy/Origin/{acc,saf,skp}.json`, a corpus-wide /data-mutation write (frozen list + recorded PI authorization + second-agent verify + 0-collateral proof, per the v2 precedent `6b14b701`), and re-stamps `status: proposed`, reverting the t/3239 approvals (needs a re-run of `promote_node_lf_status.py --apply`). **Low-priority + gated:** the apply-run waits for PI authorization when prioritized. This increment delivers the reproducible instrument + the validated class-B fix + the authored class-A prompt edits, all without a corpus write.
+
+## Class A restated with a role-based test (t/3883)
+
+**The old test counted words.** It flagged any predicate on the prompt's ban list. Read one by one, the 14 live-corpus hits were almost all *content*: "AI will *seek* power", "mandates *favor* dominant firms", "developers *prioritize* ecological health". A stance leak is narrower. It is the camp's attitude standing in for the event.
+
+**The new test.** A ban-list predicate is a stance leak when it is the description's **attributing verb**, the word right after "A Desire within X discourse that …". acc-desires-021 reads "…discourse that *prioritizes* the domestic development…" and its frame's predicate is `prioritize`. That is the camp's priority, not the content act (`develop`).
+
+**Labeled set** (`labeled-stance-set.json`): 15 items, the union of the 14 corpus candidates and the dry-run's ban-verb predicates. **1 positive.** Two annotators: CL, and CL.Investigate1 blind (it read only the sheet; t/3883#2). **Raw agreement 15/15.** The second annotator marked one item borderline: saf-intentions-076/`prioritize`, as content with low confidence. The scanner agrees with content there, since the wrapper verb is "outlines".
+
+| test | flags | TP | FP | FN | TN |
+|---|---|---|---|---|---|
+| lexeme (old) | 15 | 1 | 14 | 0 | 0 |
+| attributing-verb (new) | 1 | 1 | 0 | 0 | 14 |
+
+**Read the counts, not a rate.** The labels now rest on two annotators, but the test was still designed after reading these same items, and there is one positive. That is in-sample agreement, not a validated precision, and no κ is reported: with one positive an agreement coefficient is degenerate (t/3587). Out-of-sample evidence will come from re-scanning new frames, for example t/3884's v3.1 dry-run.
+
+The second annotator noted that several content items sit right next to a real frame verb ("advocates for the *maintenance* of…", "prioritizes *aligning*…"). A scanner keyed to proximity would over-flag them. This one requires the predicate to *be* the frame verb, which is why skp-desires-075 (frame "prioritizes", predicate `align`) correctly reads as content.
+
+**Two things the test does not detect.**
+- **Imported reporting verbs.** A second clause ("the verb appears nowhere in the proposition text") was tried and dropped. Its only motivating case turned out to be something else, and it would misfire on a ban-list synonym that paraphrases the content (`seek` for "pursue").
+- **Wrong main act.** Two frames formalize the wrong clause: saf-intentions-127 (`hold` from "held accountable", not "give") and skp-beliefs-232 (`maintain` from an Encompasses phrase, not "destroyed"). That is a separate defect class with no scanner yet.
+
+**One correction to my own record.** I first labeled skp-beliefs-232 a leak because "`maintain` appears nowhere in the description". I had read only the first 240 characters. The full text's Encompasses clause contains "maintaining systems", and the frame formalizes exactly that phrase.
