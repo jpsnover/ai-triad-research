@@ -52,23 +52,44 @@ def refs_block(n):
 # the camp attribution is carried by modality.holder, not by the prose. The exposed
 # content clause (e.g. "advocates X") is re-capitalized. The camp's stance is still
 # handled by the prompt's stance-strip self-check (class A), unchanged here.
+# t/3884: the camp may be multi-word ("within skeptic and safetyist discourse that"), so the
+# camp slot is non-greedy text, not a single \w+ token (the v3 pattern missed skp-desires-075).
 _DISCOURSE_WRAP = re.compile(
+    r"^An?\s+(?:Belief|Desire|Intention)\s+within\s+.+?\s+discourse\s+that\s+", re.IGNORECASE)
+_DISCOURSE_WRAP_V3 = re.compile(
     r"^An?\s+(?:Belief|Desire|Intention)\s+within\s+\w+\s+discourse\s+that\s+", re.IGNORECASE)
+
+# t/3884: 973/986 node descriptions end in "Encompasses: ..." and "Excludes: ..." scope notes.
+# They bound the node's scope for taxonomy editors; they are not the proposition. Handing them
+# to the formalizer let it pick a predicate from scope text (skp-beliefs-232's live frame
+# formalized the Encompasses phrase "maintaining systems"), and Excludes lists what the node
+# does NOT claim. Cut them at the source, as the wrapper strip does for class B.
+_SCOPE_NOTES = re.compile(r"\s*\b(?:Encompasses|Excludes)\s*:.*\Z", re.IGNORECASE | re.DOTALL)
+
+LEGACY_SOURCE = False  # --legacy-source reproduces the v3 node input exactly (for A/B arms)
 
 
 def strip_discourse_wrapper(desc):
     """Remove the leading '<cat> within <camp> discourse that ' framing prefix (t/3351).
     No-op on descriptions that don't carry it. Re-capitalizes the exposed clause."""
-    stripped = _DISCOURSE_WRAP.sub("", desc or "")
+    pat = _DISCOURSE_WRAP_V3 if LEGACY_SOURCE else _DISCOURSE_WRAP
+    stripped = pat.sub("", desc or "")
     if stripped and stripped != (desc or ""):
         return stripped[0].upper() + stripped[1:]
     return desc or ""
 
 
+def strip_scope_notes(desc):
+    """Drop the trailing Encompasses/Excludes scope notes (t/3884). No-op when absent."""
+    if LEGACY_SOURCE:
+        return desc or ""
+    return _SCOPE_NOTES.sub("", desc or "").rstrip()
+
+
 def build_prompt(tmpl, n):
     cat = n.get("category", "Beliefs")
     camp = n["id"].split("-")[0]
-    desc = strip_discourse_wrapper(n.get("description") or n.get("plain_description") or "")
+    desc = strip_scope_notes(strip_discourse_wrapper(n.get("description") or n.get("plain_description") or ""))
     prop = (n.get("label", "") + ". " + desc).strip()
     block, allowed = refs_block(n)
     p = (tmpl.replace("{{CLAIM_CATEGORY}}", cat).replace("{{CAMP}}", POV.get(camp, camp))
@@ -172,8 +193,16 @@ def main():
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "node_lf_sample.json"))
+    ap.add_argument("--prompt", default=PROMPT_PATH, help="prompt template path (dry-run a candidate prompt; t/3884)")
+    ap.add_argument("--legacy-source", action="store_true", dest="legacy_source",
+                    help="reproduce the v3 node input: single-word camp wrapper strip, scope notes kept (t/3884 A/B arms)")
     args = ap.parse_args()
-    tmpl = open(PROMPT_PATH, encoding="utf-8").read()
+    global LEGACY_SOURCE
+    LEGACY_SOURCE = args.legacy_source
+    if args.apply and (args.legacy_source or os.path.abspath(args.prompt) != os.path.abspath(PROMPT_PATH)):
+        sys.stderr.write("refusing --apply with --legacy-source or a non-shipped --prompt: those are dry-run arms only\n")
+        return 2
+    tmpl = open(args.prompt, encoding="utf-8").read()
     nodes = load_nodes()
     if args.ids:
         want = {s.strip() for s in args.ids.split(",") if s.strip()}

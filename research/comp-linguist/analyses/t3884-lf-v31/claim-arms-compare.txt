@@ -1,0 +1,10 @@
+re-formalized paired claim frames: 72; same predicate: 67 (93%); excluded as not re-run in either arm: 0
+  v3    stance-verb predicates 2  discourse-as-agent 0  rejected 0
+  v31b  stance-verb predicates 2  discourse-as-agent 0  rejected 0
+
+DIFFERENCES (doc | path | v3 -> v3.1b | claim text)
+  center-ai-standards-innovati | ummaries.accelerationist.key_points[1] | shape -> represent | CAISI is tasked with representing U.S. interests internationally to ensure American dominance in AI standards and prevent burdensome foreign regulatio
+  me-myself-ai-situational-awa | ummaries.accelerationist.key_points[7] | improve -> unlock | The document asserts that providing an AI model with information about its own nature and environment (a 'situating prompt') significantly improves it
+  revisql-achieving-human-leve | $.factual_claims[12] | outperform -> achieve | ReViSQL-235B-A22B achieves 55.58% execution accuracy on Spider 2-Snow, outperforming all open-source methods with open-weight models.
+  revisql-achieving-human-leve | ummaries.accelerationist.key_points[1] | refine -> construct | The authors advocate for the creation of high-quality, verified datasets as a foundational requirement for advancing AI reasoning. They argue that per
+  why-pentagon-wants-destroy-a | ummaries.accelerationist.key_points[4] | designate -> threaten | The document illustrates the accelerationist intention of dismissing fear-based AI criticism through the actions and rhetoric of the Trump administrat
