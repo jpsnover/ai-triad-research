@@ -44,7 +44,7 @@ export function registerDataRepoHandlers(): void {
       if (!fs.existsSync(parentDir)) {
         fs.mkdirSync(parentDir, { recursive: true });
       }
-      execFile('git', ['clone', repoUrl, resolved], { timeout: 300000 }, (err, stdout, stderr) => {
+      execFile('git', ['clone', repoUrl, resolved], { timeout: 300000, windowsHide: true }, (err, stdout, stderr) => {
         if (err) {
           resolve({ success: false, message: stderr || err.message });
         } else {

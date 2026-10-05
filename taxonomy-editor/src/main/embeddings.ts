@@ -132,7 +132,7 @@ export function warmupEmbeddingModel(): void {
       execFile(
         PYTHON,
         [EMBED_SCRIPT, 'encode', 'warmup'],
-        { timeout: 120_000, maxBuffer: 1024 * 1024 },
+        { timeout: 120_000, maxBuffer: 1024 * 1024, windowsHide: true },
         (err) => {
           if (err) {
             console.warn('[embeddings] Python warmup failed (non-fatal):', err.message);
@@ -279,7 +279,7 @@ async function embedItems(items: { id: string; text: string }[]): Promise<Record
     const child = execFile(
       PYTHON,
       [EMBED_SCRIPT, 'batch-encode'],
-      { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
+      { timeout: 120_000, maxBuffer: 50 * 1024 * 1024, windowsHide: true },
       (err, stdout, stderr) => {
         if (err) {
           reject(new Error(`Python batch-encode failed: ${err.message}\n${stderr}`));
@@ -472,7 +472,7 @@ async function classifyNliBatch(pairs: NliPair[]): Promise<NliResult[]> {
     const child = execFile(
       PYTHON,
       [EMBED_SCRIPT, 'nli-classify'],
-      { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
+      { timeout: 120_000, maxBuffer: 50 * 1024 * 1024, windowsHide: true },
       (err, stdout, stderr) => {
         if (err) {
           const combined = `${stderr || ''}${stdout || ''}`.toLowerCase();
