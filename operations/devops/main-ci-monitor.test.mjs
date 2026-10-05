@@ -8,7 +8,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyMainCI, runState, dedupeLatestByWorkflow, DEADLINE_MS, HEALTH_WORKFLOW } from './main-ci-monitor.mjs';
+import { classifyMainCI, runState, dedupeLatestByWorkflow, DEADLINE_MS, HEALTH_WORKFLOW,
+  escalationDecision, heartbeatGap, ESCALATED_LABEL, HEARTBEAT_STALE_MS } from './main-ci-monitor.mjs';
 
 // A push-event run: {name, status, conclusion}. Helpers for the common shapes.
 const passed = (name) => ({ name, status: 'completed', conclusion: 'success' });
@@ -100,4 +101,52 @@ test('UNKNOWN — CI absent with only a passing non-CI run past deadline still d
   const v = classifyMainCI({ runs: [passed('Some-Other-Push-Workflow')], headAgeMs: OLD });
   assert.equal(v.state, 'unknown');
   assert.equal(v.alert, false);
+});
+
+// ── t/3912 escalation: both arms (transient does NOT escalate; persisting DOES, exactly once) ──
+const H = 60 * 60 * 1000;
+const NOW = Date.parse('2026-10-05T12:00:00Z');
+
+test('escalation — transient: first sighting never escalates (the issue was just opened)', () => {
+  // openOrUpdate only consults escalation on an ALREADY-open issue; a brand-new episode has 0 priors.
+  assert.equal(escalationDecision({ openedAtMs: NOW, priorOccurrences: 0, nowMs: NOW }).escalate, false);
+});
+
+test('escalation — 2nd sighting within the hour does NOT escalate (age floor)', () => {
+  assert.equal(escalationDecision({ openedAtMs: NOW - 15 * 60000, priorOccurrences: 1, nowMs: NOW }).escalate, false);
+});
+
+test('escalation — persisting: 2nd consecutive sighting ≥1h after open DOES escalate', () => {
+  const d = escalationDecision({ openedAtMs: NOW - 2 * H, priorOccurrences: 1, nowMs: NOW });
+  assert.equal(d.escalate, true);
+  assert.match(d.reason, /persisting: 2 consecutive/);
+});
+
+test('escalation — the #2551 shape (30 sightings over 6 days) escalates', () => {
+  assert.equal(escalationDecision({ openedAtMs: NOW - 6 * 24 * H, priorOccurrences: 29, nowMs: NOW }).escalate, true);
+});
+
+test('escalation — once per episode: an already-labelled issue never re-escalates', () => {
+  const d = escalationDecision({ openedAtMs: NOW - 6 * 24 * H, priorOccurrences: 29, labels: ['bug', ESCALATED_LABEL], nowMs: NOW });
+  assert.equal(d.escalate, false);
+  assert.match(d.reason, /already escalated/);
+});
+
+test('escalation — unreadable open time fails SAFE (escalates), never silent', () => {
+  assert.equal(escalationDecision({ openedAtMs: NaN, priorOccurrences: 1, nowMs: NOW }).escalate, true);
+});
+
+test('heartbeat — the observed throttled cadence (7.4h gap) is NOT a stale event', () => {
+  // Baseline (t/3085): 30 scheduled runs arrived 1.5–7.4h apart; the old 45m threshold flagged every one.
+  assert.equal(heartbeatGap({ priorMs: NOW - 7.4 * H, nowMs: NOW }).stale, false);
+});
+
+test('heartbeat — a gap past the recalibrated threshold IS stale', () => {
+  const g = heartbeatGap({ priorMs: NOW - HEARTBEAT_STALE_MS - 60000, nowMs: NOW });
+  assert.equal(g.stale, true);
+  assert.equal(g.gapMin, HEARTBEAT_STALE_MS / 60000 + 1);
+});
+
+test('heartbeat — unreadable prior stamp is not stale (fresh heartbeat issue)', () => {
+  assert.deepEqual(heartbeatGap({ priorMs: NaN, nowMs: NOW }), { stale: false, gapMin: null });
 });
