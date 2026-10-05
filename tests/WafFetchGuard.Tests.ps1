@@ -90,7 +90,7 @@ BeforeAll {
         @{ File = 'scripts/AITriad/Private/Invoke-RemoteCheck.ps1';       Function = 'Invoke-RemoteCheck';        Reason = 'health-check utility for our own deployment endpoints ($BaseUrl+$Path; GV-confirmed internal, t/3314#8)' }
 
         # AI-provider APIs (called directly by key, not user-supplied URLs):
-        @{ File = 'scripts/AITriad/Public/Get-AICostReport.ps1';          Function = 'Get-AICostReport';          Reason = 'AI-provider models/pricing endpoint (provider APIs, by key)' }
+        @{ File = 'scripts/AITriad/Private/Test-AIProviderKeyStatus.ps1'; Function = 'Test-AIProviderKeyStatus'; Reason = 'AI-provider models/pricing endpoint (provider APIs, by key) -- relocated from Get-AICostReport by the t/3910 complexity decomposition' }
         @{ File = 'scripts/AITriad/Public/Register-AIBackend.ps1';        Function = 'Register-AIBackend';        Reason = 'AI-provider key-validation probes in Register-AIBackend ($OllamaUrl localhost + $Uri Gemini) — provider APIs by key, not user URLs' }
         @{ File = 'scripts/AITriad/Public/Test-AIApiKey.ps1';             Function = '_Probe-Backend';            Reason = 'AI-provider key-validation probes (provider APIs, by key)' }
 
