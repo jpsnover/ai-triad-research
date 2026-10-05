@@ -252,6 +252,63 @@ switch ($hooksV.Severity) {
     default { Write-Host "  FAIL $hooksLabel — unknown severity '$($hooksV.Severity)'" -ForegroundColor Red; $Results[$hooksLabel] = $false }
 }
 
+# ── Cache-read pricing completeness (t/3945) ────────────────────────────────
+# Pricing entries on a backend that reports cached tokens must declare a numeric cachedInputPer1M
+# (cachedInputPer1M = inputPer1M means "no discount"; never null, t/3945#1). Otherwise cost code
+# silently charges cached tokens at the full input rate. Predicate: findPricingMissingCacheRate
+# (lib/ai-client/registry.ts), run through lib/ai-client/cache-pricing-cli.ts.
+# WARN ONLY (gate promotion: blocking needs a warn cycle + TL GV + mandatory Second Opinion).
+# FAIL CLOSED (t/3945#3 cond 1): if the check can't run or its output can't be parsed, that is a
+# WARN saying so, never silence or a clean result. A clean result is printed here but kept OUT of
+# $Results, so the "all N green" count is identical whether or not this lane warns.
+Write-Section 'Cache-read pricing completeness (t/3945)'
+$cacheLabel   = 'cache-pricing'
+$cacheCli     = Join-Path $RepoRoot 'lib/ai-client/cache-pricing-cli.ts'
+$tsxBin       = Join-Path $RepoRoot 'node_modules' '.bin' 'tsx'
+$tsxCmd       = if ($IsWindows) { "$tsxBin.cmd" } else { $tsxBin }
+$cacheProblem = $null
+$cacheResult  = $null
+if (-not (Test-Path $tsxCmd))      { $cacheProblem = "tsx not found at $tsxCmd (run 'pnpm install' at the repo root)" }
+elseif (-not (Test-Path $cacheCli)) { $cacheProblem = "check script not found at $cacheCli" }
+else {
+    $cacheOut  = @(& $tsxCmd $cacheCli --repo-root $RepoRoot 2>&1)
+    $cacheExit = $LASTEXITCODE
+    if ($cacheExit -ne 0) {
+        $tail = ($cacheOut | Select-Object -Last 3 | ForEach-Object { "$_" }) -join ' | '
+        $cacheProblem = "check script exited ${cacheExit}: $tail"
+    }
+    else {
+        $lastLine = ($cacheOut | Where-Object { $_ -is [string] -and $_.Trim() } | Select-Object -Last 1)
+        try   { $cacheResult = $lastLine | ConvertFrom-Json -ErrorAction Stop }
+        catch { $cacheProblem = "check output was not JSON: '$lastLine'" }
+        if ($cacheResult -and (-not $cacheResult.PSObject.Properties['checked'] -or -not $cacheResult.PSObject.Properties['issues'])) {
+            $cacheProblem = "check output is missing 'checked' or 'issues': '$lastLine'"
+            $cacheResult  = $null
+        }
+        elseif ($cacheResult -and [int]$cacheResult.checked -eq 0) {
+            $cacheProblem = 'check evaluated 0 pricing entries on cache-reporting backends (expected many); treating as not evaluated'
+            $cacheResult  = $null
+        }
+        elseif (-not $cacheResult -and -not $cacheProblem) {
+            $cacheProblem = 'check produced no output'
+        }
+    }
+}
+if ($cacheProblem) {
+    Write-Host "  WARN $cacheLabel — could not be evaluated: $cacheProblem" -ForegroundColor Yellow
+    $Warnings["$cacheLabel (not evaluated)"] = $cacheProblem
+}
+elseif (@($cacheResult.issues).Count -gt 0) {
+    $n = @($cacheResult.issues).Count
+    Write-Host "  WARN $cacheLabel — $n of $($cacheResult.checked) pricing entries lack a numeric cachedInputPer1M:" -ForegroundColor Yellow
+    foreach ($i in @($cacheResult.issues)) { Write-Host "        $($i.referenceSite)" -ForegroundColor Yellow }
+    Write-Host '        Fix: set the provider cache-read price, or cachedInputPer1M = inputPer1M if there is no discount (never null).' -ForegroundColor DarkYellow
+    $Warnings["$cacheLabel ($n missing)"] = "$n pricing entries lack cachedInputPer1M"
+}
+else {
+    Write-Host "  OK   $cacheLabel — all $($cacheResult.checked) pricing entries on cache-reporting backends declare cachedInputPer1M (warn-only lane; not counted in the gate total)" -ForegroundColor Green
+}
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 # PASS/FAIL gates live in $Results; WARN and N/A are reported on their own lines and counts and are
 # NEVER folded into the PASSED total (t/3869#2 — "all N green" must not include a check that warned
