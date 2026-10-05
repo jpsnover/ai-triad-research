@@ -49,7 +49,7 @@ export function OpeningActions() {
         {debateError && (
           <div className="debate-error">
             <span className="debate-error-text">{debateError}</span>
-            <button className="debate-error-retry" onClick={() => { setError(null); void runOpeningStatements(); }}>Retry</button>
+            <button className="debate-error-retry" onClick={() => { setError(null); void runOpeningStatements('OpeningPanel.retry'); }}>Retry</button>
             <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss" aria-label="Dismiss">&times;</button>
           </div>
         )}
@@ -89,7 +89,7 @@ export function OpeningActions() {
         {debateError && (
           <div className="debate-error">
             <span className="debate-error-text">{debateError}</span>
-            <button className="debate-error-retry" onClick={() => { setError(null); void runOpeningStatements(); }}>Retry</button>
+            <button className="debate-error-retry" onClick={() => { setError(null); void runOpeningStatements('OpeningPanel.retry'); }}>Retry</button>
             <button className="debate-error-dismiss" onClick={() => setError(null)} title="Dismiss" aria-label="Dismiss">&times;</button>
           </div>
         )}
@@ -99,7 +99,7 @@ export function OpeningActions() {
             : `${missingPovers.length} debaters still need to deliver opening statements.`}
         </div>
         <div className="debate-action-bar-inner">
-          <button className="btn btn-primary" onClick={() => void runOpeningStatements()}>
+          <button className="btn btn-primary" onClick={() => void runOpeningStatements('OpeningPanel.resume')}>
             Resume Opening Statements
           </button>
         </div>

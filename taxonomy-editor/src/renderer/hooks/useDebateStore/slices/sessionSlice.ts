@@ -18,6 +18,10 @@ import { isCircuitOpenError, getCircuitCooldownMs } from '../../../bridge/resili
 import { buildDebateDelta } from './buildDebateDelta';
 import { getDocTitles } from '../shared/docTitles';
 import { enterClarificationOrBegin } from '../shared/clarificationGuard';
+import { getRemoteRunLeaseHolder, notifyDebateSaved } from '../shared/debateRunLease';
+
+/** Viewer-save skips already logged, one per (debate, holder run), so auto-save ticks don't flood the recorder. */
+const _viewerSaveSkipLogged = new Set<string>();
 import type { DocMetaMap } from '@lib/debate/evidenceFromSummaries';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { trackDebateAbandon, trackDebateStart } from '../../../lib/analyticsEmitter';
@@ -1164,6 +1168,21 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     // bypass the subscriber — so the single source of truth lives here in the action.
     if (communityReadOnly) return;
 
+    // t/3917: one writer per running debate. While another window holds this debate's run
+    // lease, this window is a viewer whose copy trails the holder's, so its (auto-)save
+    // would roll the file back. In the 09-30 dump a pop-out auto-save wrote phase=opening /
+    // transcript 3 over the main window's debate / 6. The viewer refreshes from the holder's
+    // saves instead.
+    const runHolder = getRemoteRunLeaseHolder(activeDebate.id);
+    if (runHolder) {
+      const key = `${activeDebate.id}:${runHolder.windowId}:${runHolder.startedAt}`;
+      if (!_viewerSaveSkipLogged.has(key)) {
+        _viewerSaveSkipLogged.add(key);
+        getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Save skipped — another window holds this debate\'s run lease (viewer)', data: { caller, holder: { window: runHolder.windowId, caller: runHolder.caller } } });
+      }
+      return;
+    }
+
     if (_saveInFlight) {
       set({ _saveDirty: true });
       getGlobalRecorder()?.record({ type: 'state.save-coalesced', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Save coalesced (in-flight), caller: ${caller}` });
@@ -1187,6 +1206,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       const saveDiag = buildSaveDiag(activeDebate, caller);
       // Save-path selection + post-save bookkeeping (t/1637) — see persistDebateToServer.
       await persistDebateToServer(activeDebate, saveDiag, get, set);
+      // Viewers of this run refresh from it; also a heartbeat (t/3917). No-op unless we hold the lease.
+      notifyDebateSaved(activeDebate.id);
       // Save reached the server: clear any breaker-retry degradation left by prior
       // blocked attempts (t/3073). Only touch debateError when we were actually retrying,
       // so a successful save never clobbers an unrelated error.
