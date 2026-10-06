@@ -79,7 +79,10 @@ Saved debates gain two optional fields per seat (TL review, point 3):
 - **The renderer's `povNodeSchema`** (`validation.ts`) passes unknown keys through, so it stays safe, but it should declare the field.
 - **`lib/debate/taxonomyTypes.ts` `PovNode`** gains `pov_tags?: string[]`.
 - **PowerShell** reads nodes as objects, so a top-level field survives round-trips. That still needs checking for any cmdlet that rebuilds node objects.
-- **Open for the TL:** `taxonomy-schema.json` currently records `graph_attributes` and node ids. Does a top-level node field belong in that record, or in the node Zod schema only?
+- **Where the field is declared** (TL decision, t/3955; p/349#491): in **both** the schema record and Zod, with the record first.
+  - `taxonomy-schema.json` gains a new `node_fields` section declaring `pov_tags` (version 4.1.0, minor), and the drift checker (`lib/schema/checkSchemaDrift.ts`) is extended to cover it.
+  - `pov_tags` goes into `PovNodeSchema` **in the same PR**. Until Zod knows the field, the editor would silently delete tags on save.
+- **Writer inventory** (TL condition): t/3955 lists every writer that rebuilds nodes from a fixed field list, and adds a round-trip test for each one proving tags survive a load-and-save.
 
 ### 2.4 Schema change control
 
