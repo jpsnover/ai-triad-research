@@ -449,6 +449,18 @@ export interface CalibrationDataPoint {
   /** Number of AN nodes primed from exploration. */
   seeded_an_node_count?: number;
 
+  // ── POV tag selection (t/3957) ──
+  /** POV tag active for this debate's accelerationist seat (absent ⇒ untagged). */
+  pov_tag?: string;
+  /** Tag mode for the active tag ('scope' | 'prioritize'). */
+  tag_mode?: string;
+  /** POV nodes that carried the active tag (SCOPE pre-filter count). */
+  in_scope_count?: number;
+  /** Selected POV nodes that carried the active tag. */
+  tagged_selected_count?: number;
+  /** POV nodes excluded because they lacked the active tag (SCOPE mode only; 0 in PRIORITIZE). */
+  excluded_untagged_count?: number;
+
   // ── Over-generate/select/rewrite pipeline (t/1581) ──
   /** Whether a coherence gate miss occurred (rewrite failed to preserve ≥3/4 selected claims). */
   coherence_gate_miss?: boolean;

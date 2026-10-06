@@ -302,6 +302,10 @@ export interface SeatTag {
   tag_mode: TagMode;
 }
 
+/** Resolved tag selection passed into the selection pipeline (t/3957). Derived from `SeatTag`; the
+ *  pipeline never reads `seat_tags` directly — callers derive this from `session.seat_tags[speaker]`. */
+export type TagSelection = { tag: string; mode: TagMode };
+
 export interface DebateSession {
   id: string;
   /** Execution run — regenerated each time the debate loop starts or resumes. */
