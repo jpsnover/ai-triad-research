@@ -256,20 +256,20 @@ Describe 'Measure-TaxonomyBaseline' -Tag 'taxonomy' {
     }
 
     It 'honors -SampleDocIds to restrict the summary set' {
-        # doc-001 (not doc-002): doc-002 has no snapshot.md, so filtering to it ALONE
-        # hits a pre-existing, unrelated crash (null-Sort-Object-on-empty-array under
-        # StrictMode when every doc in the filtered set has zero word count) -- filed
-        # separately as t/3998, not fixed here per the t/3910 epic's pure-refactor rule.
         $r = Measure-TaxonomyBaseline -SampleDocIds @('doc-001') 6>$null
         $r.metadata.summary_count | Should -Be 1
         $r.metadata.sample_doc_ids | Should -Be @('doc-001')
     }
 
-    It 'PRE-EXISTING BUG (characterized, not fixed): throws when every doc in the filtered set has zero word count' {
-        # $SortedKP = $AllKPPer1K | Sort-Object becomes $null (not @()) when $AllKPPer1K is
-        # empty, so $SortedKP.Count throws under Set-StrictMode. Pinned here so the pure
-        # refactor preserves this exact behavior; fixing it is out of scope for t/3910.
-        { Measure-TaxonomyBaseline -SampleDocIds @('doc-002') 6>$null } | Should -Throw -ExceptionType ([System.Management.Automation.PropertyNotFoundException])
+    It 'does not throw when every doc in the filtered set has zero word count (t/3998 fixed)' {
+        # Was a characterized bug: $AllKPPer1K | Sort-Object returned $null for an empty set, so
+        # $SortedKP.Count threw under StrictMode. doc-002 has no snapshot.md -> zero word count.
+        $r = Measure-TaxonomyBaseline -SampleDocIds @('doc-002') 6>$null
+        $r.metadata.summary_count | Should -Be 1
+        $r.density.doc_count | Should -Be 1
+        $r.density.median_kp_per_1k | Should -Be 0
+        $r.density.p10_kp_per_1k | Should -Be 0
+        $r.density.p90_kp_per_1k | Should -Be 0
     }
 
     It 'writes the report to -OutputPath, identical to the returned object' {
