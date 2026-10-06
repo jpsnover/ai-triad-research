@@ -83,10 +83,15 @@ function zaiOkBody(text = 'Hello from Z.AI') {
 
 // ── Mock flight recorder ─────────────────────────────────
 
-const { mockRecord } = vi.hoisted(() => ({ mockRecord: vi.fn() }));
+const { mockRecord, mockAddContextContributor } = vi.hoisted(() => ({
+  mockRecord: vi.fn(),
+  // attachServedIdentitySummary (t/4023) checks for this method and emits a second
+  // ai.model_identity event when absent — provide it to keep the count at exactly 1.
+  mockAddContextContributor: vi.fn(),
+}));
 
 vi.mock('../flight-recorder/index.js', () => ({
-  getGlobalRecorder: () => ({ record: mockRecord }),
+  getGlobalRecorder: () => ({ record: mockRecord, addContextContributor: mockAddContextContributor }),
 }));
 
 // ── Mock fs to control registry loading ─────────────────
@@ -141,6 +146,7 @@ beforeEach(() => {
   mockExistsSync.mockReset();
   mockReadFileSync.mockReset();
   mockRecord.mockReset();
+  mockAddContextContributor.mockReset();
 
   mockExistsSync.mockReturnValue(true);
   mockReadFileSync.mockReturnValue(JSON.stringify(makeRegistry()));
