@@ -11,17 +11,21 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-const { mockApi } = vi.hoisted(() => ({
+const { mockApi, mockCreateChat, mockRegistry } = vi.hoisted(() => ({
   mockApi: {
     hasApiKey: vi.fn().mockResolvedValue(false),
     getAvailableBackends: vi.fn().mockResolvedValue([]),
+    openChatWindow: vi.fn(),
   },
+  mockCreateChat: vi.fn().mockResolvedValue('chat-1'),
+  mockRegistry: { povs: {} as Record<string, { id: string; label: string }[]> },
 }));
 vi.mock('@bridge', () => ({ api: mockApi }));
 vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
+vi.mock('@lib/schema/povTags', () => ({ loadPovTagRegistry: () => mockRegistry }));
 
 vi.mock('../../hooks/useChatStore', () => ({
-  useChatStore: () => ({ createChat: vi.fn().mockResolvedValue('chat-1'), loadChat: vi.fn() }),
+  useChatStore: () => ({ createChat: mockCreateChat, loadChat: vi.fn() }),
 }));
 
 const { useTaxonomyStoreMock } = vi.hoisted(() => ({
@@ -67,6 +71,8 @@ describe('NewChatDialog backend dropdown (t/2036)', () => {
     mockTier = null;
     mockIsFree = false;
     mockApi.hasApiKey.mockResolvedValue(false);
+    mockRegistry.povs = {};
+    mockCreateChat.mockResolvedValue('chat-1');
   });
 
   it('renders all 3 states — no filtering-out; no-key selectable, tier-restricted honest', async () => {
@@ -95,5 +101,55 @@ describe('NewChatDialog backend dropdown (t/2036)', () => {
     const gemini = within(select).getByRole('option', { name: 'Google Gemini' });
     expect(gemini).not.toBeDisabled();
     expect(gemini.textContent).toBe('Google Gemini'); // no "(bring your own key)" suffix
+  });
+});
+
+describe('NewChatDialog POV tag wiring (t/3959)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockTier = null;
+    mockIsFree = false;
+    mockApi.hasApiKey.mockResolvedValue(false);
+    mockCreateChat.mockResolvedValue('chat-1');
+  });
+
+  it('passes undefined tag to createChat when no POV tag is selected', async () => {
+    mockRegistry.povs = {};
+    const user = userEvent.setup();
+    render(<NewChatDialog onClose={vi.fn()} />);
+    await user.type(screen.getByPlaceholderText(/explore/i), 'topic');
+    await user.click(screen.getByRole('button', { name: /start chat/i }));
+    expect(mockCreateChat).toHaveBeenCalledWith('brainstorm', 'accelerationist', 'topic', undefined, undefined);
+  });
+
+  it('passes the selected tag to createChat and disables Start when Scope is below the minimum', async () => {
+    mockRegistry.povs = { accelerationist: [{ id: 'critical', label: 'Critical' }] };
+    const user = userEvent.setup();
+    render(<NewChatDialog onClose={vi.fn()} />);
+    await user.type(screen.getByPlaceholderText(/explore/i), 'topic');
+    await user.selectOptions(screen.getByLabelText('accelerationist tag'), 'critical');
+
+    // Default mode is scope; mocked taxonomy store has zero nodes, so it's below the minimum.
+    expect(screen.getByRole('button', { name: /start chat/i })).toBeDisabled();
+
+    await user.click(screen.getByLabelText('Prioritize'));
+    expect(screen.getByRole('button', { name: /start chat/i })).not.toBeDisabled();
+    await user.click(screen.getByRole('button', { name: /start chat/i }));
+    expect(mockCreateChat).toHaveBeenCalledWith(
+      'brainstorm', 'accelerationist', 'topic', undefined,
+      { pov_tag: 'critical', tag_mode: 'prioritize' },
+    );
+  });
+
+  it('resets the tag when the POV changes', async () => {
+    mockRegistry.povs = {
+      accelerationist: [{ id: 'critical', label: 'Critical' }],
+      safetyist: [{ id: 'cautious', label: 'Cautious' }],
+    };
+    const user = userEvent.setup();
+    render(<NewChatDialog onClose={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText('accelerationist tag'), 'critical');
+    await user.click(screen.getByText('Safetyist'));
+    expect(screen.getByLabelText('safetyist tag')).toHaveValue('');
   });
 });

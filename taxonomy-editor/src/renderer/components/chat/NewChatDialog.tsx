@@ -81,9 +81,7 @@ export function NewChatDialog({ onClose, onCreated }: NewChatDialogProps) {
     if (!canStart || creating) return;
     setCreating(true);
     const chatModelOverride = useCustomModel && customModel !== globalModel ? customModel : undefined;
-    // t/3959: `chatTag` is captured and gated on above; `createChat` doesn't take it yet —
-    // wiring waits on t/3995 (Rosetta Stone, ChatSession.pov_tag/tag_mode + createChat's new param).
-    const id = await createChat(mode, pover, topic.trim(), chatModelOverride);
+    const id = await createChat(mode, pover, topic.trim(), chatModelOverride, chatTag);
     if (onCreated) {
       onCreated(id);
     } else {
