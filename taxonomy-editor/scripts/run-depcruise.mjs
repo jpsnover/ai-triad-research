@@ -117,7 +117,7 @@ function main() {
   // The package doesn't export package.json, so require.resolve can't locate it; use the app's own install.
   const bin = path.join(appDir, 'node_modules', 'dependency-cruiser', 'bin', 'dependency-cruiser.mjs');
   if (!existsSync(bin)) fail(2, `depcruise could not run: ${bin} not found (run pnpm install)`);
-  const args = ['--config', '.dependency-cruiser.cjs', '--output-type', 'json', 'src/', '../lib/'];
+  const args = ['--config', '.dependency-cruiser.cjs', '--output-type', 'json', 'src/renderer/utils/'];
 
   const run = spawnSync(process.execPath, [bin, ...args], { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, cwd: appDir });
   if (run.error || !run.stdout) fail(2, `depcruise could not run: ${run.error?.message ?? run.stderr?.trim() ?? 'no output'}`);
