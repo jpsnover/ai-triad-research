@@ -303,7 +303,7 @@ describe('buildGroundingEnvelope — thin-scope / no-tag refusal', () => {
     ).rejects.toThrow(/Scope is too thin/);
   });
 
-  it('scope mode: error message includes in-scope count, excluded count, and minimum', async () => {
+  it('scope mode: error message includes in-scope count, total camp count, and minimum', async () => {
     const taxonomy = makeThinTaggedTaxonomy();
     let msg = '';
     try {
@@ -312,6 +312,7 @@ describe('buildGroundingEnvelope — thin-scope / no-tag refusal', () => {
       });
     } catch (e) { msg = String(e); }
     expect(msg).toContain('1');   // in-scope count
+    expect(msg).toContain('3');   // total camp node count (makeThinTaggedTaxonomy has 3 skp nodes)
     expect(msg).toContain(String(TAG_SCOPE_MINIMUM_NODES));  // minimum
   });
 
@@ -339,6 +340,41 @@ describe('buildGroundingEnvelope — thin-scope / no-tag refusal', () => {
     await expect(
       buildGroundingEnvelope('q', taxonomy, flatEmbed, {
         tagSelection: { pov: 'skeptic', tag: 'safety', mode: 'prioritize' },
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('scope mode: refuses even when the tagged camp has no embeddings at all (pre-loop guard)', async () => {
+    // skp nodes exist in povNodes but NOT in nodeEmbeddings — byCamp never visits skp.
+    // Without the pre-loop check the refusal would silently not fire.
+    const taxonomy: GroundingTaxonomy = {
+      povNodes: [makeNode('skp-beliefs-001', 'K1', ['safety'])], // 1 tagged < floor
+      situationNodes: [],
+      nodeEmbeddings: {
+        'acc-beliefs-001': { pov: 'acc', vector: unitVec(4, 0) }, // only acc embedded
+      },
+    };
+    await expect(
+      buildGroundingEnvelope('q', taxonomy, flatEmbed, {
+        tagSelection: { pov: 'skeptic', tag: 'safety', mode: 'scope' },
+      }),
+    ).rejects.toThrow(/Scope is too thin/);
+  });
+
+  it('scope mode: unembedded tagged nodes count toward the floor (pre-loop uses povNodes)', async () => {
+    // 5 tagged skp nodes in povNodes, only 2 have embeddings.
+    // Pre-loop check counts all 5 (passes the floor); the in-loop phase works with the 2 embedded ones.
+    const povNodes = Array.from({ length: 5 }, (_, i) =>
+      makeNode(`skp-beliefs-00${i + 1}`, `K${i + 1}`, ['safety']),
+    );
+    const nodeEmbeddings: NodeEmbeddingMap = {
+      'skp-beliefs-001': { pov: 'skp', vector: unitVec(4, 0) },
+      'skp-beliefs-002': { pov: 'skp', vector: unitVec(4, 1) },
+    };
+    const taxonomy: GroundingTaxonomy = { povNodes, situationNodes: [], nodeEmbeddings };
+    await expect(
+      buildGroundingEnvelope('q', taxonomy, flatEmbed, {
+        tagSelection: { pov: 'skeptic', tag: 'safety', mode: 'scope' },
       }),
     ).resolves.toBeDefined();
   });

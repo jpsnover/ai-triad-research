@@ -144,41 +144,44 @@ export async function buildGroundingEnvelope(
   const tagCamp = opts.tagSelection ? POV_TO_CAMP[opts.tagSelection.pov] : undefined;
   let appliedTag: AppliedTag | undefined;
 
+  // Pre-flight: refuse before the embedding loop so a tagged camp with no embeddings still refuses
+  // (t/3965#13). Run over the full povNodes for the camp — embedding presence is irrelevant to
+  // whether a node is tagged.
+  if (opts.tagSelection && tagCamp) {
+    const sel = opts.tagSelection;
+    const taggedCampNodes = taxonomy.povNodes.filter(n => n.id.startsWith(`${tagCamp}-`));
+    const scopeCheck = checkTagScope(taggedCampNodes, sel);
+    if (!scopeCheck.sufficient) {
+      if (scopeCheck.reason === 'none-tagged') {
+        throw new ActionableError({
+          goal: `Ground Inquiry on ${sel.pov}/${sel.tag} in ${sel.mode} mode`,
+          problem: `No nodes carry tag "${sel.tag}" in the ${sel.pov} camp (${taggedCampNodes.length} camp nodes checked)`,
+          location: 'inquiryGrounding.ts › buildGroundingEnvelope',
+          nextSteps: [
+            `Add pov_tags: ["${sel.tag}"] to at least one node under the ${sel.pov} POV.`,
+          ],
+        });
+      } else {
+        // reason === 'below-floor' (Scope only)
+        throw new ActionableError({
+          goal: `Ground Inquiry on ${sel.pov}/${sel.tag} in Scope mode`,
+          problem: `Scope is too thin: ${scopeCheck.inScope.length} tagged nodes of ${taggedCampNodes.length} in the ${sel.pov} camp (minimum: ${TAG_SCOPE_MINIMUM_NODES})`,
+          location: 'inquiryGrounding.ts › buildGroundingEnvelope',
+          nextSteps: [
+            `Add pov_tags: ["${sel.tag}"] to at least ${TAG_SCOPE_MINIMUM_NODES} nodes under the ${sel.pov} POV.`,
+            'Or switch to Prioritize mode to boost tagged nodes without filtering the rest.',
+          ],
+        });
+      }
+    }
+  }
+
   for (const [camp, scored] of byCamp.entries()) {
     let activeScoredEntries = scored;
 
     if (opts.tagSelection && camp === tagCamp) {
       const sel = opts.tagSelection;
-      const campNodes = scored.map(s => s.node);
-
-      // Pre-flight: refuse before grounding if the tag corpus is insufficient (t/3965#13).
-      const scopeCheck = checkTagScope(campNodes, sel);
-      if (!scopeCheck.sufficient) {
-        if (scopeCheck.reason === 'none-tagged') {
-          throw new ActionableError({
-            goal: `Ground Inquiry on ${sel.pov}/${sel.tag} in ${sel.mode} mode`,
-            problem: `No nodes carry tag "${sel.tag}" in the ${sel.pov} camp — cannot ground`,
-            location: 'inquiryGrounding.ts › buildGroundingEnvelope',
-            nextSteps: [
-              `Add pov_tags: ["${sel.tag}"] to at least one node under the ${sel.pov} POV.`,
-              'No nodes have pov_tags yet on this corpus — this will be self-correcting as tagging progresses (t/3956).',
-            ],
-          });
-        } else {
-          // reason === 'below-floor' (Scope only)
-          throw new ActionableError({
-            goal: `Ground Inquiry on ${sel.pov}/${sel.tag} in Scope mode`,
-            problem: `Scope is too thin: ${scopeCheck.inScope.length} tagged nodes in scope, ${scopeCheck.excluded.length} untagged excluded (minimum: ${TAG_SCOPE_MINIMUM_NODES})`,
-            location: 'inquiryGrounding.ts › buildGroundingEnvelope',
-            nextSteps: [
-              `Add pov_tags: ["${sel.tag}"] to at least ${TAG_SCOPE_MINIMUM_NODES} nodes under the ${sel.pov} POV.`,
-              'No nodes have pov_tags yet on this corpus — this will be self-correcting as tagging progresses (t/3956).',
-            ],
-          });
-        }
-      }
-
-      const { filteredNodes, excludedCount, boostIds } = applyTagSelection(campNodes, sel);
+      const { filteredNodes, excludedCount, boostIds } = applyTagSelection(scored.map(s => s.node), sel);
 
       if (sel.mode === 'scope') {
         const filteredIds = new Set(filteredNodes.map(n => n.id));
