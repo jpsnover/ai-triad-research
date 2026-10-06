@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { type DebateSession, type DebateSourceType, type SpeakerId, type DebatePacing } from '../types.js';
-import type { SeatTags } from '../types/session.js';
+import type { SeatTag } from '../types/session.js';
 import type { DialecticalStyle } from '../types/phase.js';
 
 // ── Lifecycle stages (for stopAfterStage on resume) ─────
@@ -145,7 +145,7 @@ export interface DebateConfig {
   /** Talmudic reference corpus config — requires moderatorMode 'talmudic'. */
   talmudicReferences?: import('../types.js').TalmudicReferencesConfig;
   /** Per-seat tag assignment for one POV (t/3965). Set by deriveDebateConfig from request.tagSelection; copied verbatim to session.seat_tags by initSession. */
-  seat_tags?: SeatTags;
+  seat_tags?: Partial<Record<SpeakerId, SeatTag>>;
 }
 
 export interface DebateProgress {
