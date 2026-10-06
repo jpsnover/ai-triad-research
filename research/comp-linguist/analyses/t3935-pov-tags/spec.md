@@ -167,6 +167,9 @@ The `skeptic.institutional.soul.json` is the t/3932 Institutionalist draft. Its 
 - **SCOPE:** the POV's candidate items are filtered to those whose `pov_tags` contain the tag, **before** relevance ranking. Untagged items are excluded (default for decision 2). The setup screen shows how many items are in scope and how many are untagged.
 - **Scope never widens silently** (*TL condition*). If Scope leaves fewer POV items than the selection needs, setup refuses and shows the count. There is no quiet fallback to all items (Fallback-Path Logging rule).
   - **"Thin" means fewer than 5 tagged items** in the POV (`checkTagScope`, `lib/debate/relevanceSelection.ts`; stipulated, see the metric provenance register).
+    - **The count is of *groundable* tagged items:** tagged **and** with an embedding (CL ruling, p/736#41–#43, t/4009). The floor guards how much material an answer can draw on, and an unembedded node can't be retrieved.
+    - **The count still runs before grounding, over the camp's full node list,** so a camp with no embeddings refuses (at 0) instead of being skipped.
+    - **A tagged node with no embedding is a data-quality gap, not something to absorb.** Log a WARN with the count, and show both numbers in any refusal.
   - **One rule, two phases** (t/3957#7; SO e/254#6 condition 1):
     1. **Pre-flight, every feature: refuse.** A thin Scope is refused before anything runs, showing the count. Where the refusal lives:
        - debates: the setup screens (t/3958, t/3959);
@@ -176,6 +179,13 @@ The `skeptic.institutional.soul.json` is the t/3932 Institutionalist draft. Its 
   - **Status (2026-10-06):** this is a requirement, not yet code. No caller of `checkTagScope` exists on `main` yet; each ticket above owes its pre-flight call and a test of the refusing arm.
   - **PowerShell op-ed** (`New-OpEd.ps1`) **rejects any tag outright** (t/3960#8), so there is no second filter implementation to keep in sync with this rule.
 - **PRIORITIZE:** tagged items get a ranking boost; nothing is excluded.
+  - **A tag no node carries is refused in both modes, at pre-flight, in every feature** (CL ruling, p/736#28–#30).
+    - In Scope, the floor already covers it, since 0 < 5.
+    - In Prioritize there is no floor, because nothing is excluded, so the rule is exactly `included === 0`.
+    - **Why:** with no tagged node, Prioritize changes nothing in grounding. Its only effects are the wing's soul and the wing's label, so a whole-camp answer would be presented as one wing's. That is the misattribution the scope labels exist to prevent.
+    - Prioritize with **one or more** tagged nodes is valid.
+  - **This rule is permanent,** not only while the corpus is untagged (0 of 1,429 nodes on 2026-10-06, before t/3962). A tag can return to zero later, when nodes are re-tagged, merged or retired.
+  - **Where it lives:** op-ed, #2885 (done); Inquiry, t/3965#13; debate and chat setup, t/3958 and t/3959. Each needs a test of the refusing arm.
 - **Non-POV items.** Situations, cruxes and conflicts are selected as today for that POV under either mode.
 - **Pickers hide** for a POV whose registry entry has no tags.
 

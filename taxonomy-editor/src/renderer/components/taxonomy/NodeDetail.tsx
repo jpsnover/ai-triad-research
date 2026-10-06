@@ -29,6 +29,7 @@ import type { SourceFact } from '../analysis/FactsPanel';
 import type { SourceDocumentResolution } from '../../bridge/types';
 import { ConflictsPanel, conflictsForNode } from '../conflict';
 import { NodeEditHistory } from './NodeEditHistory';
+import { PovTagEditor } from './PovTagEditor';
 import { PovMoveTagNotice } from './PovMoveTagNotice';
 import { nodeTypeFromId, nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
@@ -976,6 +977,9 @@ function NodeDetailContentTab({ pov, node, readOnly, err, descMode, setDescMode,
       {!readOnly && err('label') && (
         <div className="error-text">{err('label')}</div>
       )}
+
+      {/* t/3961: POV tags (registry tags only; hidden when the POV has none and the node carries none). */}
+      <PovTagEditor pov={pov} tags={node.pov_tags} readOnly={!!readOnly} error={err('pov_tags')} onChange={(next) => update({ pov_tags: next })} />
 
       <DescriptionSection
         pov={pov}
