@@ -67,6 +67,32 @@ module.exports = {
       from: { path: '(^|/)hooks/useDebateStore/shared/' },
       to: { path: '(^|/)hooks/useDebateStore/slices/' },
     },
+
+    // ── soul loaders: one Node-only, one Vite-only, same resolvePoverInfo signature (t/3975) ──
+    // soulDocLoader reads souls with fs/node:crypto; in the renderer bundle those are stubbed and the
+    // first tagged lookup throws at runtime (tsc can't see it). tagSoulRegistry uses import.meta.glob,
+    // which exists only under Vite, so it throws in tsx/tsc-built Node. Importing the wrong one compiles.
+    {
+      name: 'renderer-not-to-soulDocLoader',
+      comment: 'The renderer must resolve souls via lib/debate/tagSoulRegistry (browser-safe), not soulDocLoader (fs/node:crypto) — t/3975.',
+      severity: 'error',
+      from: { path: '(^|/)src/renderer/' },
+      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]soulDocLoader\\.(ts|js)$' },
+    },
+    {
+      name: 'main-not-to-tagSoulRegistry',
+      comment: 'Electron main runs under Node, where import.meta.glob does not exist — use lib/debate/soulDocLoader (t/3975).',
+      severity: 'error',
+      from: { path: '(^|/)src/main/' },
+      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]tagSoulRegistry\\.(ts|js)$' },
+    },
+    {
+      name: 'server-not-to-tagSoulRegistry',
+      comment: 'The server runs under Node, where import.meta.glob does not exist — use lib/debate/soulDocLoader (t/3975).',
+      severity: 'error',
+      from: { path: '(^|/)src/server/' },
+      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]tagSoulRegistry\\.(ts|js)$' },
+    },
   ],
   options: {
     doNotFollow: {
