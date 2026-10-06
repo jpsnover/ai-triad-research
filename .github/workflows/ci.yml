@@ -56,6 +56,13 @@ on:
     # ^ machine-readable declaration (t/3646): every event that can change what ci-gate
     #   aggregates. workflow-lint asserts pull_request.types ⊇ this set for the required context.
     types: [opened, synchronize, reopened]
+  # Nightly FULL-suite backstop (cost fix). Pushes to main/epic/** are now path-filtered
+  # by `changes` exactly like PRs, so an unfiltered run no longer happens on every merge
+  # (~35 merges/day x ~36 jobs was the bulk of Actions minutes). This scheduled run keeps
+  # the "unconditional run on main" safety net that catches a too-narrow filter (the t/3443
+  # shape), at most one day late instead of on every merge. workflow_dispatch also runs all.
+  schedule:
+    - cron: '23 7 * * *'
   workflow_dispatch:
 
 permissions:
@@ -104,10 +111,15 @@ jobs:
   # caught. Any edit to these filters must preserve: every code path maps to the
   # job(s) that test it, and every filter includes '.github/workflows/ci.yml' so
   # ci.yml edits run the full suite.
+  # Runs on pull_request AND push (cost fix): on push to main/epic/** the filter diffs the
+  # pushed commit(s) against the previous tip (github.event.before), so a merge only re-runs
+  # the job families its files touch. schedule/workflow_dispatch skip this job and every
+  # gated job runs unconditionally (the full-suite backstop).
   changes:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: read
     outputs:
       powershell: ${{ steps.filter.outputs.powershell }}
@@ -123,6 +135,11 @@ jobs:
       bicep-resources: ${{ steps.filter.outputs.bicep-resources }}
       schema-drift: ${{ steps.filter.outputs.schema-drift }}
     steps:
+      # push events: paths-filter diffs with local git, so it needs a checkout (PR events use the API).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        if: github.event_name == 'push'
+        with:
+          fetch-depth: 0
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4.0.3
         id: filter
         with:
@@ -285,7 +302,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.powershell == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.powershell == 'true')
     # Outer hang-bound for the whole job (replaces GitHub's 360-min default — a hung suite
     # otherwise burns 6h of CI). Set 5 min above the step-level Pester timeout below so the STEP
     # timeout fires first on the common case (the Pester run), yielding the clear "has timed out"
@@ -511,7 +528,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.electron == 'true')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -720,7 +737,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.electron == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -799,7 +816,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true' || needs.changes.outputs.lib == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.electron == 'true' || needs.changes.outputs.lib == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -843,7 +860,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.electron == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -912,7 +929,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.electron == 'true')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -985,7 +1002,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.lib == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.lib == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -1027,7 +1044,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.lib == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.lib == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1119,7 +1136,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.debate == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.debate == 'true')
     runs-on: ubuntu-latest
     env:
       GEMINI_API_KEY: ${{ secrets.FREE_TIER_GEMINI_KEY }}
@@ -1162,7 +1179,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.schema == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.schema == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -1210,7 +1227,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.schema-drift == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.schema-drift == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -1282,7 +1299,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.container == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.container == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -1407,7 +1424,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.python == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.python == 'true')
     runs-on: ubuntu-latest
     env:
       PYTHONUTF8: '1'
@@ -1479,7 +1496,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.python == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.python == 'true')
     runs-on: ubuntu-latest
     # PYTHONUTF8=1: PEP 540 UTF-8 Mode — forces UTF-8 for stdio AND open() on win32.
     # Recurring 7× on the win32 fleet for non-ASCII (em-dashes, arrows, etc.) — t/2046.
@@ -1542,7 +1559,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.lockfile-sync == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.lockfile-sync == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -1566,7 +1583,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' ||
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
        needs.changes.outputs.container == 'true' ||
        needs.changes.outputs.lib == 'true')
     runs-on: ubuntu-latest
@@ -1591,7 +1608,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.container == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.container == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -1675,7 +1692,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.embeddings == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.embeddings == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -1773,7 +1790,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.bicep-env == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.bicep-env == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -1792,7 +1809,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.bicep-resources == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.bicep-resources == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
@@ -1805,7 +1822,7 @@ jobs:
     needs: [changes]
     if: >-
       always() && !cancelled() &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.powershell == 'true')
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.powershell == 'true')
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
