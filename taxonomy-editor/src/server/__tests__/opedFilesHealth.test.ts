@@ -40,15 +40,28 @@ function opedFilesHandler(): (req: unknown, res: unknown, body: unknown) => unkn
   return routes.find(r => r.method === 'GET' && r.path === '/api/health/oped-files')!.handler;
 }
 
+interface TagSoulSpec { tag: string; povs: string[] }
+
 /** Build a fake project root with the requested soul-docs + prompt files present. */
-function makeRoot(souls: string[], prompts: string[]): string {
+function makeRoot(souls: string[], prompts: string[], opts?: { tags?: TagSoulSpec[]; strayTagFiles?: string[] }): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oped-health-'));
   const soulsDir = path.join(root, 'lib', 'debate', 'soul-docs');
+  const tagsDir  = path.join(soulsDir, 'tags');
   const promptsDir = path.join(root, 'lib', 'oped', 'prompts');
   fs.mkdirSync(soulsDir, { recursive: true });
+  fs.mkdirSync(tagsDir, { recursive: true });
   fs.mkdirSync(promptsDir, { recursive: true });
   for (const s of souls) fs.writeFileSync(path.join(soulsDir, `${s}.soul.json`), '{}');
   for (const p of prompts) fs.writeFileSync(path.join(promptsDir, p), 'x');
+  // pov-tags.json registry: registered tags listed under povs
+  const registeredTags: Record<string, unknown> = {};
+  for (const t of (opts?.tags ?? [])) registeredTags[t.tag] = { povs: t.povs };
+  fs.writeFileSync(path.join(soulsDir, 'pov-tags.json'), JSON.stringify({ version: 1, povs: registeredTags }));
+  // tag soul files
+  for (const t of (opts?.tags ?? [])) {
+    for (const pov of t.povs) fs.writeFileSync(path.join(tagsDir, `${t.tag}.${pov}.soul.json`), '{}');
+  }
+  for (const f of (opts?.strayTagFiles ?? [])) fs.writeFileSync(path.join(tagsDir, f), '{}');
   return root;
 }
 
@@ -60,6 +73,7 @@ beforeAll(() => {
   // Failure fixture: skeptic soul-doc absent.
   missingRoot = makeRoot(['accelerationist', 'safetyist'], ['op-ed-generation-system.prompt']);
 });
+
 afterAll(() => {
   fs.rmSync(presentRoot, { recursive: true, force: true });
   fs.rmSync(missingRoot, { recursive: true, force: true });
@@ -100,5 +114,54 @@ describe('GET /api/health/oped-files — both-arms gate verification (t/2689 AC3
     expect(body.ok).toBe(false);
     expect(body.missing.some((m: string) => m.includes('lib/oped/prompts/'))).toBe(true);
     fs.rmSync(emptyPromptsRoot, { recursive: true, force: true });
+  });
+
+  it('CLEAN arm: registered tag souls present → 200 { ok:true }', () => {
+    const r = makeRoot(
+      ['accelerationist', 'safetyist', 'skeptic'],
+      ['op-ed-generation-system.prompt'],
+      { tags: [{ tag: 'cybersecurity', povs: ['accelerationist', 'safetyist', 'skeptic'] }] },
+    );
+    h.root = r;
+    const res = mockRes();
+    opedFilesHandler()({}, res, {});
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.ok).toBe(true);
+    expect(body.assets).toContain('lib/debate/soul-docs/tags/cybersecurity.accelerationist.soul.json');
+    fs.rmSync(r, { recursive: true, force: true });
+  });
+
+  it('FAILURE arm: registered tag soul missing → 500 (gate must fire for missing tag soul)', () => {
+    // Registry claims 'cybersecurity' but only accelerationist + safetyist files exist.
+    const r = makeRoot(
+      ['accelerationist', 'safetyist', 'skeptic'],
+      ['op-ed-generation-system.prompt'],
+      { tags: [{ tag: 'cybersecurity', povs: ['accelerationist', 'safetyist'] }] }, // skeptic file absent
+    );
+    h.root = r;
+    const res = mockRes();
+    opedFilesHandler()({}, res, {});
+    expect(res.statusCode).toBe(500);
+    const body = JSON.parse(res.body);
+    expect(body.ok).toBe(false);
+    expect(body.missing).toContain('lib/debate/soul-docs/tags/cybersecurity.skeptic.soul.json');
+    fs.rmSync(r, { recursive: true, force: true });
+  });
+
+  it('FAILURE arm: stray tag file not in registry → 500', () => {
+    const r = makeRoot(
+      ['accelerationist', 'safetyist', 'skeptic'],
+      ['op-ed-generation-system.prompt'],
+      { strayTagFiles: ['orphan.accelerationist.soul.json'] },
+    );
+    h.root = r;
+    const res = mockRes();
+    opedFilesHandler()({}, res, {});
+    expect(res.statusCode).toBe(500);
+    const body = JSON.parse(res.body);
+    expect(body.ok).toBe(false);
+    expect(body.missing.some((m: string) => m.includes('orphan.accelerationist.soul.json') && m.includes('stray'))).toBe(true);
+    fs.rmSync(r, { recursive: true, force: true });
   });
 });
