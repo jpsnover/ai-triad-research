@@ -21,6 +21,7 @@ import type {
   Interpretation,
 } from '../../../types/taxonomy';
 import { interpretationText } from '../../../types/taxonomy';
+import { buildPovTagBaseline, povTagMembershipErrors } from '../../../utils/povTagGate';
 import { buildSituationBaseline, checkSituationBdi, type SituationBdiRefusal } from '../../../utils/situationBdiGate';
 import { coerceSituationDivergence } from '../../../bridge/coerceSituationDivergence';
 import {
@@ -214,7 +215,6 @@ function saveFailureMessage(bdi: SituationBdiRefusal, totalErrors: number): stri
   return other > 0 ? `${bdi.message}\nAlso fix the ${other} other highlighted field${other === 1 ? '' : 's'}.` : bdi.message;
 }
 
-/** After a successful save, the saved situations become the gate's new baseline. */
 /** What a cross-POV move did to the node's POV tags (t/3972), shown on the moved node. */
 export interface PovMoveReport {
   fromId: string;
@@ -243,8 +243,13 @@ function stripPovTagsForMove(node: PovNode, toId: string, sourcePov: Pov, target
   return { node: rest as PovNode, strippedTags };
 }
 
-function baselineAfterSave(dirtyKeys: Set<string>, situations: SituationsFile | null): { situationsBaseline?: Record<string, string> } {
-  return dirtyKeys.has('situations') && situations ? { situationsBaseline: buildSituationBaseline(situations.nodes) } : {};
+/** After a successful save, the saved files become the gates' new baselines (t/3888 situations, t/3973 tags). */
+function baselineAfterSave(dirtyKeys: Set<string>, state: TaxonomyDataSlice): { situationsBaseline?: Record<string, string>; povTagsBaseline?: Record<string, string> } {
+  const out: { situationsBaseline?: Record<string, string>; povTagsBaseline?: Record<string, string> } = {};
+  if (dirtyKeys.has('situations') && state.situations) out.situationsBaseline = buildSituationBaseline(state.situations.nodes);
+  const savedPovNodes = POV_KEYS.filter(k => dirtyKeys.has(k)).flatMap(k => state[k]?.nodes ?? []);
+  if (savedPovNodes.length > 0) out.povTagsBaseline = { ...state.povTagsBaseline, ...buildPovTagBaseline(savedPovNodes) };
+  return out;
 }
 
 export interface TaxonomyDataSlice {
@@ -255,6 +260,8 @@ export interface TaxonomyDataSlice {
   /** t/3888: interpretations as last loaded/saved (id → key), so the save gate checks only
    *  situations whose interpretations changed. See utils/situationBdiGate.ts. */
   situationsBaseline: Record<string, string>;
+  /** t/3973: pov_tags as last loaded/saved (node id → fingerprint); gates registry membership per node. */
+  povTagsBaseline: Record<string, string>;
   policyRegistry: PolicyRegistryEntry[] | null;
   conflicts: ConflictFile[];
   aggregatedCruxes: AggregatedCrux[] | null;
@@ -349,6 +356,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   skeptic: null,
   situations: null,
   situationsBaseline: {},
+  povTagsBaseline: {},
   policyRegistry: null,
   conflicts: [],
   aggregatedCruxes: null,
@@ -438,6 +446,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       }
       set({
         accelerationist: accFile,
+        povTagsBaseline: buildPovTagBaseline((accFile as PovTaxonomyFile | null)?.nodes ?? []),
         loading: false,
         backgroundLoading: true,
         dirty: new Set(),
@@ -498,6 +507,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         skeptic: skp as PovTaxonomyFile,
         situations: situationsFile,
         situationsBaseline: buildSituationBaseline(situationsFile?.nodes ?? []),
+        povTagsBaseline: { ...get().povTagsBaseline, ...buildPovTagBaseline([...((saf as PovTaxonomyFile | null)?.nodes ?? []), ...((skp as PovTaxonomyFile | null)?.nodes ?? [])]) },
         policyRegistry: regData?.policies ?? null,
         backgroundLoading: false,
         embeddingDirty: true,
@@ -594,6 +604,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         if (!result.success) {
           Object.assign(errors, extractPovErrors(result.error, file.nodes));
         }
+        Object.assign(errors, povTagMembershipErrors(file.nodes, state.povTagsBaseline));
       } else if (key === 'situations') {
         const file = state.situations;
         if (!file) continue;
@@ -712,7 +723,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.completed', data: { files_written: promises.length, duration_ms: Math.round(performance.now() - saveStart), commitSha: commitResult.commitSha, filesCommitted: commitResult.filesCommitted } });
       api.trackEvent('taxonomy_save', 'taxonomy', { files: promises.length });
       // t/3888: the saved snapshot is now what's on disk, so it becomes the gate's baseline.
-      set({ dirty: new Set(), ...baselineAfterSave(dirtyKeys, state.situations) });
+      set({ dirty: new Set(), ...baselineAfterSave(dirtyKeys, state) });
 
       // Post-save embedding refresh — NON-FATAL, own boundary (t/1707).
       // The file write, commit, and `dirty` clear above have already succeeded. A throw
