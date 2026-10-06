@@ -68,15 +68,8 @@ function nodesOf(doc: unknown): { id: unknown; pov_tags?: unknown }[] {
   throw new Error('input must be a JSON array of { id, pov_tags } or an object with a "nodes" array');
 }
 
-try {
-  const argv = process.argv.slice(2);
-  const scanDir = flagValue(argv, '--scan-data');
-  if (scanDir !== undefined) {
-    process.exitCode = await runOrphanScan(argv, scanDir);
-  } else {
-    runValidation(argv);
-  }
-} catch (err) {
+/** Records why the check could not run and sets exit 2 (callers treat anything but 0 as "do not write"). */
+function couldNotRun(err: unknown): void {
   getGlobalRecorder()?.record({
     type: 'system.error', component: 'pov-tags-cli', level: 'error',
     message: `pov-tags-cli could not run the check: ${(err as Error).message}`,
@@ -85,6 +78,25 @@ try {
   process.stderr.write(`pov-tags-cli: could not run the check: ${(err as Error).message}\n`);
   process.exitCode = 2;
 }
+
+// No top-level await (t/4021#2): the data hook runs this file from a scratch dir under node_modules/.cache,
+// where the repo's "type":"module" isn't visible, so tsx compiles it as CJS, and CJS rejects top-level await.
+// pov-tags-cli.closure.test.ts runs the CLI that way.
+async function main(): Promise<void> {
+  try {
+    const argv = process.argv.slice(2);
+    const scanDir = flagValue(argv, '--scan-data');
+    if (scanDir !== undefined) {
+      process.exitCode = await runOrphanScan(argv, scanDir);
+    } else {
+      runValidation(argv);
+    }
+  } catch (err) {
+    couldNotRun(err);
+  }
+}
+
+void main();
 
 /** The original validation mode (t/3955), unchanged: --input <file> or JSON on stdin. */
 function runValidation(argv: string[]): void {
