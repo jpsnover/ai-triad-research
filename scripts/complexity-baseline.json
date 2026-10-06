@@ -164,6 +164,14 @@
     "max": 44,
     "countOver": 2
   },
+  "AITriad/Private/Measure-EdgeQuality.ps1": {
+    "max": 16,
+    "countOver": 1
+  },
+  "AITriad/Private/Measure-NodeAttributeCoverage.ps1": {
+    "max": 16,
+    "countOver": 1
+  },
   "AITriad/Private/Merge-ChunkSummaries.ps1": {
     "countOver": 1,
     "max": 44
@@ -616,10 +624,6 @@
   },
   "AITriad/Public/Measure-CodeComplexity.ps1": {
     "max": 17,
-    "countOver": 1
-  },
-  "AITriad/Public/Measure-TaxonomyBaseline.ps1": {
-    "max": 117,
     "countOver": 1
   },
   "AITriad/Public/Merge-FlightRecorderDumps.ps1": {
