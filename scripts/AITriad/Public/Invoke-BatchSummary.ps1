@@ -126,27 +126,16 @@ function Invoke-BatchSummary {
     if ($WhatIfPreference) { $DryRun = [switch]::new($true) }
 
     # Per-stage timing trace (opt-in). Reset the accumulator at the start of the
-    # run; the report is printed at the end. Timing aggregates per-runspace, so
-    # warn if combined with parallel workers.
+    # run; the report is printed at the end.
     $TimingEnabled = $TimingTrace -or $env:AITRIAD_TIMING
     if ($TimingEnabled) { Reset-StageTiming }
-
-    # ForEach-Object -Parallel is PS 7+ only. The AITriad module supports
-    # Windows PowerShell 5.1 as a hard requirement (see AITriad.psd1), so on
-    # 5.1 we clamp -MaxConcurrent to 1 and fall through to the sequential
-    # path below. Keep the parallel branch intact for pwsh 7 users.
-    if ($MaxConcurrent -gt 1 -and $PSVersionTable.PSVersion.Major -lt 7) {
-        Write-Warn "MaxConcurrent > 1 requires PowerShell 7+; falling back to sequential (MaxConcurrent = 1) on Windows PowerShell $($PSVersionTable.PSVersion)."
-        $MaxConcurrent = 1
-    }
-
-    if ($TimingEnabled -and $MaxConcurrent -gt 1) {
-        Write-Warn "-TimingTrace aggregates per-runspace; with -MaxConcurrent $MaxConcurrent the trace will only reflect the main runspace. Use -MaxConcurrent 1 for an accurate single-doc trace."
-    }
+    $MaxConcurrent = Resolve-BatchConcurrency -MaxConcurrent $MaxConcurrent -TimingEnabled ([bool]$TimingEnabled)
 
     # Consolidate collected IDs
-    $DocIdFilter = @(if ($DocIdList.Count -gt 0) { $DocIdList | Select-Object -Unique })
+    $DocIdFilter = @($DocIdList | Select-Object -Unique)
     $HasDocFilter = $DocIdFilter.Count -gt 0
+    # $null when -ImportedSince was not bound.
+    $ImportedSinceFilter = $PSBoundParameters['ImportedSince']
 
     # -- Paths ----------------------------------------------------------------
     $RepoRoot      = $script:RepoRoot
@@ -167,593 +156,106 @@ function Invoke-BatchSummary {
     # -- STEP 0 — Validate environment ---------------------------------------
     Write-Step "Validating environment"
 
-    if     ($Model -match '^gemini') { $Backend = 'gemini' }
-    elseif ($Model -match '^claude') { $Backend = 'claude' }
-    elseif ($Model -match '^groq')   { $Backend = 'groq'   }
-        elseif ($Model -match '^openai') { $Backend = 'openai' }
-    else                             { $Backend = 'gemini'  }
-    $ApiKey    = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
-    if (-not $DryRun -and [string]::IsNullOrWhiteSpace($ApiKey)) {
-        $EnvHint = switch ($Backend) {
-            'gemini' { 'GEMINI_API_KEY' }
-            'claude' { 'ANTHROPIC_API_KEY' }
-            'groq'   { 'GROQ_API_KEY' }
-            default  { 'AI_API_KEY' }
-        }
-        Write-Fail "No API key found. Set $EnvHint or AI_API_KEY."
-        throw "No API key found for $Backend backend."
-    }
-
-    foreach ($req in @($SourcesDir, $TaxonomyDir, $VersionFile)) {
-        if (-not (Test-Path $req)) {
-            Write-Fail "Required path not found: $req"
-            throw "Required path not found: $req"
-        }
-    }
-
-    foreach ($dir in @($SummariesDir, $ConflictsDir)) {
-        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    }
+    $Backend = Resolve-BatchSummaryBackend -Model $Model
+    $ApiKey  = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
+    Assert-BatchSummaryEnvironment -Backend $Backend -ApiKey $ApiKey -DryRun:$DryRun `
+        -RequiredPath @($SourcesDir, $TaxonomyDir, $VersionFile) -EnsureDirectory @($SummariesDir, $ConflictsDir)
 
     $TaxonomyVersion = (Get-Content -Path $VersionFile -Raw).Trim()
 
-    Write-OK "Repo root         : $RepoRoot"
-    Write-OK "Taxonomy version  : $TaxonomyVersion"
-    Write-OK "Model             : $Model"
-    Write-OK "Temperature       : $Temperature"
-    Write-OK "MaxConcurrent     : $MaxConcurrent"
-    if ($DryRun)                { Write-Warn "DRY RUN — no API calls, no file writes" }
-    if ($ForceAll)              { Write-Warn "FORCE ALL — every document will be reprocessed" }
-    if ($HasDocFilter)          { Write-Info "Doc filter ($($DocIdFilter.Count)): $($DocIdFilter -join ', ')" }
-    if ($SkipConflictDetection)                            { Write-Info "Conflict detection: skipped" }
-    if ($ImportedToday)                                    { Write-Info "Filtering to documents imported today" }
-    if ($PSBoundParameters.ContainsKey('ImportedSince'))   { Write-Info "Filtering to documents imported since $($ImportedSince.ToString('yyyy-MM-dd'))" }
+    Write-BatchSummaryBanner -RepoRoot $RepoRoot -TaxonomyVersion $TaxonomyVersion -Model $Model `
+        -Temperature $Temperature -MaxConcurrent $MaxConcurrent -DryRun:$DryRun -ForceAll:$ForceAll `
+        -DocIdFilter $DocIdFilter -SkipConflictDetection:$SkipConflictDetection `
+        -ImportedToday:$ImportedToday -ImportedSince $ImportedSinceFilter
 
     # -- STEP 1 — Load the full taxonomy -------------------------------------
     Write-Step "Loading taxonomy"
-
-    $TaxonomyContext = [ordered]@{}
-    foreach ($FileName in $PovFileMap.Keys) {
-        $FilePath = Join-Path $TaxonomyDir $FileName
-        if (-not (Test-Path $FilePath)) {
-            Write-Fail "Taxonomy file missing: $FilePath"
-            throw "Taxonomy file missing: $FileName"
-        }
-        $FileInfo = Get-Item $FilePath
-        if ($FileInfo.Length -gt 10MB) {
-            Write-Fail "  $FileName is $([math]::Round($FileInfo.Length / 1MB, 1)) MB — likely corrupted (max 10 MB). Restore with: git -C `"$TaxonomyDir`" checkout -- $FileName"
-            throw "Taxonomy file too large (corrupted): $FileName"
-        }
-        $TaxonomyContext[$FileName] = Get-Content -Path $FilePath -Raw | ConvertFrom-Json
-        $NodeCount = $TaxonomyContext[$FileName].nodes.Count
-        Write-OK "  $FileName ($NodeCount nodes)"
-    }
+    $TaxonomyContext = Read-BatchSummaryTaxonomy -TaxonomyDir $TaxonomyDir -FileName @($PovFileMap.Keys)
     $TaxonomyJson = $TaxonomyContext | ConvertTo-Json -Depth 20
 
     # -- STEP 2 — Determine which taxonomy files changed ----------------------
     Write-Step "Determining affected camps"
 
-    $ChangedTaxonomyFiles = @()
-
-    if ($ForceAll -or $HasDocFilter) {
-        $ChangedTaxonomyFiles = @($PovFileMap.Keys)
-        if ($ForceAll)      { Write-Info "Force mode — treating all taxonomy files as changed" }
-        if ($HasDocFilter)  { Write-Info "Doc filter mode — treating all taxonomy files as changed" }
-    } else {
-        $GitAvailable = $null -ne (Get-Command git -ErrorAction SilentlyContinue)
-
-        if (-not $GitAvailable) {
-            Write-Warn "git not found — falling back to ForceAll mode"
-            $ChangedTaxonomyFiles = @($PovFileMap.Keys)
-        } else {
-            try {
-                Push-Location $RepoRoot
-
-                $VersionCommits = @(git log --pretty=format:"%H" -- TAXONOMY_VERSION 2>$null |
-                                  Select-Object -First 2)
-
-                if ($VersionCommits.Count -ge 2) {
-                    $PrevCommit = $VersionCommits[1]
-                    $CurrCommit = $VersionCommits[0]
-
-                    $GitDiffOutput = git diff --name-only "${PrevCommit}..${CurrCommit}" -- taxonomy/Origin/ 2>$null
-                    Write-Info "Git diff range: $($PrevCommit.Substring(0,8))...$($CurrCommit.Substring(0,8))"
-                } else {
-                    Write-Info "No previous version commit found; treating all files as changed"
-                    $GitDiffOutput = $PovFileMap.Keys | ForEach-Object { "taxonomy/Origin/$_" }
-                }
-
-                foreach ($ChangedPath in $GitDiffOutput) {
-                    $ChangedFile = Split-Path $ChangedPath -Leaf
-                    if ($PovFileMap.Contains($ChangedFile)) {
-                        $ChangedTaxonomyFiles += $ChangedFile
-                    }
-                }
-            } catch {
-                Write-Warn "git diff failed: $_ — falling back to ForceAll mode"
-                $ChangedTaxonomyFiles = @($PovFileMap.Keys)
-            } finally {
-                Pop-Location
-            }
-        }
-    }
-
-    # @() — Select-Object -Unique returns a scalar (or $null) for 0-1 items, and .Count on
-    # that throws under StrictMode Latest (crashed every single-camp-file version bump; #2871).
-    $ChangedTaxonomyFiles = @($ChangedTaxonomyFiles | Select-Object -Unique)
-
+    $ChangedTaxonomyFiles = @(Get-BatchChangedTaxonomyFile -PovFileMap $PovFileMap -RepoRoot $RepoRoot -ForceAll:$ForceAll -HasDocFilter $HasDocFilter)
     if ($ChangedTaxonomyFiles.Count -eq 0) {
         Write-OK "No taxonomy files changed. Nothing to reprocess."
         return
     }
-
     Write-OK "Changed taxonomy files: $($ChangedTaxonomyFiles -join ', ')"
 
-    $AffectedCamps = @()
-    foreach ($File in $ChangedTaxonomyFiles) {
-        $AffectedCamps += $PovFileMap[$File]
-    }
-    $AffectedCamps = $AffectedCamps | Select-Object -Unique
+    $AffectedCamps = @($ChangedTaxonomyFiles | ForEach-Object { $PovFileMap[$_] } | Select-Object -Unique)
     Write-OK "Affected POV camps: $($AffectedCamps -join ', ')"
 
     # -- STEP 3 — Collect and triage source documents -------------------------
     Write-Step "Triaging source documents"
 
-    $AllMetaFiles = @(Get-ChildItem -Path $SourcesDir -Filter 'metadata.json' -Recurse |
-                    Where-Object { $_.FullName -notmatch '_inbox' })
-
-    if ($ImportedToday) {
-        $TodayDate = Get-Date -Format 'yyyy-MM-dd'
-        $AllMetaFiles = @($AllMetaFiles | Where-Object {
-            $m = Get-Content $_.FullName -Raw | ConvertFrom-Json
-            $m.date_ingested -eq $TodayDate
-        })
-        Write-Info "ImportedToday filter: $($AllMetaFiles.Count) documents ingested on $TodayDate"
-    }
-
-    if ($PSBoundParameters.ContainsKey('ImportedSince')) {
-        $SinceDate = $ImportedSince.Date
-        $AllMetaFiles = @($AllMetaFiles | Where-Object {
-            $m = Get-Content $_.FullName -Raw | ConvertFrom-Json
-            if ($null -ne $m.PSObject.Properties['date_ingested'] -and $m.date_ingested) {
-                try { [datetime]::ParseExact($m.date_ingested, 'yyyy-MM-dd', $null) -ge $SinceDate }
-                catch { $false }
-            } else { $false }
-        })
-        Write-Info "ImportedSince filter: $($AllMetaFiles.Count) documents ingested on or after $($SinceDate.ToString('yyyy-MM-dd'))"
-    }
-
+    $AllMetaFiles = @(Get-BatchSourceMetaFile -SourcesDir $SourcesDir -ImportedToday:$ImportedToday -ImportedSince $ImportedSinceFilter)
     if ($AllMetaFiles.Count -eq 0) {
         Write-Warn "No source documents found in $SourcesDir"
         return
     }
 
-    $DocsToProcess  = [System.Collections.Generic.List[hashtable]]::new()
-    $DocsToSkip     = [System.Collections.Generic.List[hashtable]]::new()
-
-    foreach ($MetaFile in $AllMetaFiles) {
-        $Meta     = Get-Content $MetaFile.FullName -Raw | ConvertFrom-Json
-        $ThisDocId = $Meta.id
-
-        if ($HasDocFilter -and $ThisDocId -notin $DocIdFilter) { continue }
-
-        $SnapshotFile = Join-Path $MetaFile.DirectoryName 'snapshot.md'
-        if (-not (Test-Path $SnapshotFile)) {
-            Write-Warn "  SKIP $ThisDocId — snapshot.md missing"
-            continue
-        }
-        $SnapSize = (Get-Item $SnapshotFile).Length
-        if ($SnapSize -eq 0) {
-            Write-Warn "  SKIP $ThisDocId — snapshot.md is empty (broken ingestion?)"
-            continue
-        }
-
-        if ($null -ne $Meta.PSObject.Properties['pov_tags'] -and $null -ne $Meta.pov_tags) { $DocPovTags = @($Meta.pov_tags) } else { $DocPovTags = @() }
-        $Intersects = $ForceAll -or
-                      $HasDocFilter -or
-                      @($DocPovTags | Where-Object { $_ -in $AffectedCamps }).Count -gt 0
-
-        $Entry = @{
-            DocId        = $ThisDocId
-            MetaFile     = $MetaFile.FullName
-            SnapshotFile = $SnapshotFile
-            Meta         = $Meta
-            PovTags      = $DocPovTags
-        }
-
-        if ($Intersects) {
-            $DocsToProcess.Add($Entry)
-        } else {
-            $DocsToSkip.Add($Entry)
-        }
-    }
-
-    if ($HasDocFilter -and $DocsToProcess.Count -eq 0) {
-        $Missing = $DocIdFilter -join ', '
-        Write-Fail "No matching documents found: $Missing"
-        Write-Info "Check that sources/<doc-id>/ exists and has a metadata.json"
-        throw "No matching documents found: $Missing"
-    }
+    $Triage = Select-BatchDocument -MetaFile $AllMetaFiles -DocIdFilter $DocIdFilter -AffectedCamp $AffectedCamps -ForceAll:$ForceAll
+    $DocsToProcess = $Triage.Process
+    $DocsToSkip    = $Triage.Skip
 
     Write-OK "Documents to reprocess : $($DocsToProcess.Count)"
     Write-OK "Documents to mark current (no reprocess): $($DocsToSkip.Count)"
 
     # -- DRY RUN — print plan and return --------------------------------------
     if ($DryRun) {
-        Write-Host "`n$('─' * 72)" -ForegroundColor DarkGray
-        Write-Host "  DRY RUN PLAN" -ForegroundColor Yellow
-        Write-Host "$('─' * 72)" -ForegroundColor DarkGray
-
-        Write-Host "`n  WOULD REPROCESS ($($DocsToProcess.Count) docs):" -ForegroundColor Cyan
-        foreach ($Doc in $DocsToProcess) {
-            Write-Host "    $($Doc.DocId)  [pov: $($Doc.PovTags -join ', ')]" -ForegroundColor White
-        }
-
-        Write-Host "`n  WOULD MARK CURRENT — no API call ($($DocsToSkip.Count) docs):" -ForegroundColor Gray
-        foreach ($Doc in $DocsToSkip) {
-            Write-Host "    $($Doc.DocId)  [pov: $($Doc.PovTags -join ', ')]" -ForegroundColor DarkGray
-        }
-
-        Write-Host "`n$('─' * 72)" -ForegroundColor DarkGray
-        Write-Host "  DRY RUN complete. No API calls made. No files written." -ForegroundColor Yellow
-        Write-Host "$('─' * 72)`n" -ForegroundColor DarkGray
+        Write-BatchDryRunPlan -DocsToProcess $DocsToProcess -DocsToSkip $DocsToSkip
         return
     }
 
     # -- STEP 4 — Mark non-affected docs as current ---------------------------
     Write-Step "Marking non-affected documents as current"
-
     $Now = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'
-
-    foreach ($Doc in $DocsToSkip) {
-        try {
-            $MetaRaw     = Get-Content $Doc.MetaFile -Raw
-            $MetaUpdated = $MetaRaw | ConvertFrom-Json -AsHashtable
-            $MetaUpdated['summary_version'] = $TaxonomyVersion
-            $MetaUpdated['summary_status']  = 'current'
-            $MetaUpdated['summary_updated'] = $Now
-            Write-Utf8NoBom -Path $Doc.MetaFile -Value ($MetaUpdated | ConvertTo-Json -Depth 10) 
-            Write-Info "  Marked current: $($Doc.DocId)"
-        } catch {
-            Write-Warn "  Could not update metadata for $($Doc.DocId): $_"
-        }
-    }
+    Set-BatchDocCurrent -Doc $DocsToSkip -TaxonomyVersion $TaxonomyVersion -Now $Now
 
     # -- STEP 5 — Shared prompt components ------------------------------------
-    $OutputSchema              = Get-Prompt -Name 'pov-summary-schema'
-    $SystemPromptTemplate      = Get-Prompt -Name 'pov-summary-system' -AllowUnresolved
-    $ChunkSystemPromptTemplate = Get-Prompt -Name 'pov-summary-chunk-system' -AllowUnresolved
-
-    # -- STEP 5b — Load debate context for contested nodes --------------------
-    $DebateContext = @{}
-    $HarvestsDir = Join-Path (Get-DataRoot) 'harvests'
-    if (Test-Path $HarvestsDir) {
-        foreach ($ManifestFile in (Get-ChildItem $HarvestsDir -Filter '*.json' -ErrorAction SilentlyContinue)) {
-            try {
-                $Manifest = Get-Content $ManifestFile.FullName -Raw | ConvertFrom-Json
-                $DebateTitle = $Manifest.debate_title
-                foreach ($Item in $Manifest.items) {
-                    if ($Item.type -eq 'debate_ref' -and $Item.status -eq 'applied') {
-                        $NodeId = $Item.id
-                        if (-not $DebateContext.ContainsKey($NodeId)) {
-                            $DebateContext[$NodeId] = @()
-                        }
-                        $DebateContext[$NodeId] += $DebateTitle
-                    }
-                }
-            }
-            catch {
-                Write-Verbose "Skipping harvest manifest $($ManifestFile.Name): $_"
-            }
-        }
-    }
-    if ($DebateContext.Count -gt 0) {
-        Write-Info "  Loaded debate context for $($DebateContext.Count) contested nodes"
-    }
-
-    # -- STEP 6 — Process documents -------------------------------------------
-    Write-Step "Processing $($DocsToProcess.Count) document(s)"
-
     $SharedParams = @{
         ApiKey                     = $ApiKey
         Model                      = $Model
         Temperature                = $Temperature
         TaxonomyVersion            = $TaxonomyVersion
         TaxonomyJson               = $TaxonomyJson
-        SystemPromptTemplate       = $SystemPromptTemplate
-        ChunkSystemPromptTemplate  = $ChunkSystemPromptTemplate
-        OutputSchema               = $OutputSchema
+        OutputSchema               = Get-Prompt -Name 'pov-summary-schema'
+        SystemPromptTemplate       = Get-Prompt -Name 'pov-summary-system' -AllowUnresolved
+        ChunkSystemPromptTemplate  = Get-Prompt -Name 'pov-summary-chunk-system' -AllowUnresolved
         SummariesDir               = $SummariesDir
         Now                        = $Now
     }
 
+    # -- STEP 5b — Load debate context for contested nodes --------------------
+    $DebateContext = Get-BatchDebateContext -HarvestsDir (Join-Path (Get-DataRoot) 'harvests')
+
+    # -- STEP 6 — Process documents -------------------------------------------
+    Write-Step "Processing $($DocsToProcess.Count) document(s)"
     $Results = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
-
-    # Determine if we should route through Invoke-POVSummary (FIRE modes) or
-    # Invoke-DocumentSummary (single-shot, supports chunking and parallelism)
-    $UsePOVSummaryPath = $IterativeExtraction -or $AutoFire
-
-    if ($UsePOVSummaryPath) {
-        if ($IterativeExtraction) { $FireMode = '-IterativeExtraction' } else { $FireMode = '-AutoFire' }
-        Write-Info "Using Invoke-POVSummary path ($FireMode) for each document"
-
-        foreach ($Doc in $DocsToProcess) {
-            $StartTime = Get-Date
-            try {
-                $PovParams = @{
-                    DocId    = $Doc.DocId
-                    Model    = $Model
-                    ApiKey   = $ApiKey
-                    Temperature = $Temperature
-                    Force    = $true
-                }
-                if ($IterativeExtraction) { $PovParams['IterativeExtraction'] = $true }
-                if ($AutoFire)            { $PovParams['AutoFire'] = $true }
-
-                Invoke-POVSummary @PovParams
-
-                $Elapsed = (Get-Date) - $StartTime
-                # Read back the summary to get stats for the report
-                $SumPath = Join-Path $SummariesDir "$($Doc.DocId).json"
-                if (Test-Path $SumPath) { $SumData = Get-Content -Raw $SumPath | ConvertFrom-Json } else { $SumData = $null }
-                $TotalPts = 0
-                foreach ($c in @('accelerationist','safetyist','skeptic')) {
-                    $campData465 = if ($SumData -and $SumData.PSObject.Properties['pov_summaries'] -and $SumData.pov_summaries.PSObject.Properties[$c]) { $SumData.pov_summaries.$c } else { $null }
-                    if ($campData465 -and $campData465.PSObject.Properties['key_points'] -and $campData465.key_points) {
-                        $TotalPts += @($campData465.key_points).Count
-                    }
-                }
-                if ($SumData -and $SumData.factual_claims) { $FcCount = @($SumData.factual_claims).Count } else { $FcCount = 0 }
-                if ($SumData -and $SumData.unmapped_concepts) { $UcCount = @($SumData.unmapped_concepts).Count } else { $UcCount = 0 }
-
-                $Results.Add([PSCustomObject]@{
-                    Success       = $true
-                    DocId         = $Doc.DocId
-                    TotalPoints   = $TotalPts
-                    NullNodes     = 0
-                    FactualCount  = $FcCount
-                    UnmappedCount = $UcCount
-                    ElapsedSecs   = [int]$Elapsed.TotalSeconds
-                    ChunkCount    = 0
-                })
-            }
-            catch {
-                $Results.Add([PSCustomObject]@{
-                    Success = $false
-                    DocId   = $Doc.DocId
-                    Error   = $_.Exception.Message
-                })
-            }
-        }
-    }
-    elseif ($MaxConcurrent -le 1) {
-        foreach ($Doc in $DocsToProcess) {
-            # Inject debate context for contested nodes into the system prompt
-            $DocSharedParams = $SharedParams.Clone()
-            if ($DebateContext.Count -gt 0) {
-                $DebateNotes = @()
-                foreach ($NodeId in $DebateContext.Keys) {
-                    $DebateNotes += "Node $NodeId has been contested in debates: $($DebateContext[$NodeId] -join ', '). Pay close attention to claims about this node."
-                }
-                if ($DebateNotes.Count -gt 0) {
-                    $DocSharedParams['SystemPromptTemplate'] = $SharedParams['SystemPromptTemplate'] + "`n`nDEBATE CONTEXT: The following taxonomy nodes have been the subject of structured debates. When this document makes claims relevant to these nodes, note whether the document provides evidence that could resolve the identified disagreements.`n" + ($DebateNotes -join "`n")
-                }
-            }
-            # t/1774 — shared capture: never throws, returns a failure record on error.
-            $Result = Invoke-DocSummaryWithCapture -Doc $Doc -Params $DocSharedParams
-            if ($Result.PSObject.Properties['Success'] -and -not $Result.Success) {
-                Write-Warn "  ✗ $($Doc.DocId) — $($Result.Error)"
-            }
-            $Results.Add($Result)
-        }
-    } else {
-        Write-Info "Running $MaxConcurrent parallel workers"
-
-        # Import the full module in each parallel runspace — this ensures all
-        # functions (public + private), script-scope variables ($script:TaxonomyData,
-        # $script:RepoRoot, $script:CachedEmbeddings, etc.), and prompt caches are
-        # available. Previous approach (manual function capture) broke when new
-        # functions/variables were added (RAG, CHESS, FIRE, QBAF).
-        $ModulePath = Join-Path $script:ModuleRoot 'AITriad.psm1'
-
-        $DocsToProcess | ForEach-Object -Parallel {
-            Import-Module $using:ModulePath -Force
-            # Invoke-DocumentSummary is private — call through module scope
-            $Mod = Get-Module AITriad
-            $bag = $using:Results
-            $Doc = $_
-            $Params = $using:SharedParams
-            # t/1728/t/1774 — the shared capture fn (private) runs inside this runspace
-            # via the module scope. It never throws — it records a failure PSCustomObject
-            # with the inner $_.ScriptStackTrace on error — so one doc's failure cannot
-            # terminate the whole parallel block (which would kill every in-flight doc).
-            # See Invoke-DocSummaryWithCapture.
-            $Result = & $Mod { param($D, $P) Invoke-DocSummaryWithCapture -Doc $D -Params $P } $Doc $Params
-            [void]$bag.Add($Result)
-        } -ThrottleLimit $MaxConcurrent
-    }
+    Invoke-BatchDocumentSet -Doc $DocsToProcess -SharedParams $SharedParams -DebateContext $DebateContext -Results $Results `
+        -MaxConcurrent $MaxConcurrent -IterativeExtraction:$IterativeExtraction -AutoFire:$AutoFire
 
     # -- STEP 7 — Conflict detection for successful summaries -----------------
-    if (-not $SkipConflictDetection) {
-        Write-Step "Running conflict detection (QBAF)"
-
-        $SuccessfulDocs = $Results | Where-Object { $_.Success }
-
-        foreach ($Result in $SuccessfulDocs) {
-            try {
-                Invoke-QbafConflictAnalysis -DocId $Result.DocId
-                Write-Info "  Conflict detection: $($Result.DocId)"
-            } catch {
-                Write-Warn "  Invoke-QbafConflictAnalysis failed for $($Result.DocId): $_"
-            }
-        }
-    }
+    if (-not $SkipConflictDetection) { Invoke-BatchConflictDetection -Result @($Results) }
 
     # -- STEP 8 — Final report ------------------------------------------------
     $Succeeded = @($Results | Where-Object { $_.Success })
     $Failed    = @($Results | Where-Object { -not $_.Success })
 
-    Write-Host "`n$('═' * 72)" -ForegroundColor Cyan
-    Write-Host "  BATCH SUMMARY  —  taxonomy v$TaxonomyVersion  |  model: $Model" -ForegroundColor White
-    Write-Host "$('═' * 72)" -ForegroundColor Cyan
-    Write-Host "  Reprocessed   : $($Succeeded.Count) / $($DocsToProcess.Count) succeeded" -ForegroundColor $(if ($Failed.Count -eq 0) { 'Green' } else { 'Yellow' })
-    Write-Host "  Marked current: $($DocsToSkip.Count) (no reprocess needed)" -ForegroundColor Gray
-
-    if ($Succeeded.Count -gt 0) {
-        $TotalPts      = ($Succeeded | Measure-Object -Property TotalPoints   -Sum).Sum
-        $TotalUnmapped = ($Succeeded | Measure-Object -Property UnmappedCount -Sum).Sum
-        $TotalFacts    = ($Succeeded | Measure-Object -Property FactualCount  -Sum).Sum
-        $TotalSecs     = ($Succeeded | Measure-Object -Property ElapsedSecs   -Sum).Sum
-        $ChunkedDocs   = @($Succeeded | Where-Object { $_.ChunkCount -gt 0 })
-        Write-Host "  Total points  : $TotalPts ($TotalUnmapped new concepts)" -ForegroundColor White
-        Write-Host "  Factual claims: $TotalFacts" -ForegroundColor White
-        if ($ChunkedDocs.Count -gt 0) {
-            $TotalChunks = ($ChunkedDocs | Measure-Object -Property ChunkCount -Sum).Sum
-            Write-Host "  Chunked docs  : $($ChunkedDocs.Count) ($TotalChunks total chunks)" -ForegroundColor Cyan
-        }
-        Write-Host "  Total API time: ${TotalSecs}s (~$([int]($TotalSecs / [Math]::Max(1,$Succeeded.Count)))s/doc avg)" -ForegroundColor Gray
-    }
-
-    if ($Failed.Count -gt 0) {
-        Write-Host "`n  FAILED ($($Failed.Count)):" -ForegroundColor Red
-        foreach ($F in $Failed) {
-            Write-Host "    ✗ $($F.DocId)  — $($F.Error)" -ForegroundColor Red
-        }
-        Write-Host "`n  Re-run failed documents individually:" -ForegroundColor Yellow
-        foreach ($F in $Failed) {
-            Write-Host "    Invoke-BatchSummary -DocId '$($F.DocId)'" -ForegroundColor DarkYellow
-        }
-    }
-
-    Write-Host "`n  Output: summaries/*.json  |  metadata updated in sources/*/metadata.json"
-    Write-Host "$('═' * 72)`n" -ForegroundColor Cyan
+    Write-BatchSummaryReport -Succeeded $Succeeded -Failed $Failed -ProcessCount $DocsToProcess.Count `
+        -SkipCount $DocsToSkip.Count -TaxonomyVersion $TaxonomyVersion -Model $Model
 
     # -- STEP 8b — Log extraction metrics for calibration ----------------------
-    # Captures per-document extraction quality for parameters #12-#15 tuning.
-    try {
-        $CalibDir = Join-Path (Split-Path $SummariesDir -Parent) 'calibration'
-        if (-not (Test-Path $CalibDir)) { New-Item -ItemType Directory -Path $CalibDir -Force | Out-Null }
-
-        $ExtractionMetrics = @{
-            timestamp         = (Get-Date -Format 'o')
-            model             = $Model
-            temperature       = $Temperature
-            taxonomy_version  = $TaxonomyVersion
-            documents_total   = $DocsToProcess.Count
-            documents_success = $Succeeded.Count
-            documents_failed  = $Failed.Count
-            fire_enabled      = [bool]($IterativeExtraction -or $AutoFire)
-            # Aggregate extraction stats
-            total_key_points    = if ($Succeeded.Count -gt 0) { [int]($Succeeded | Measure-Object -Property TotalPoints -Sum).Sum } else { 0 }
-            total_factual_claims = if ($Succeeded.Count -gt 0) { [int]($Succeeded | Measure-Object -Property FactualCount -Sum).Sum } else { 0 }
-            total_unmapped      = if ($Succeeded.Count -gt 0) { [int]($Succeeded | Measure-Object -Property UnmappedCount -Sum).Sum } else { 0 }
-            total_api_seconds   = if ($Succeeded.Count -gt 0) { [int]($Succeeded | Measure-Object -Property ElapsedSecs -Sum).Sum } else { 0 }
-            # Per-document detail for density analysis (parameter #15)
-            per_document = @($Succeeded | ForEach-Object {
-                $DocSource = Join-Path $SourcesDir "$($_.DocId)/metadata.json"
-                $WordCount = 0
-                if (Test-Path $DocSource) {
-                    try { $WordCount = (Get-Content $DocSource -Raw | ConvertFrom-Json).word_count ?? 0 } catch {}
-                }
-                @{
-                    doc_id         = $_.DocId
-                    key_points     = $_.TotalPoints
-                    factual_claims = $_.FactualCount
-                    unmapped       = $_.UnmappedCount
-                    word_count     = $WordCount
-                    claims_per_1k  = if ($WordCount -gt 0) { [Math]::Round(($_.TotalPoints + $_.FactualCount) / $WordCount * 1000, 2) } else { $null }
-                    elapsed_secs   = $_.ElapsedSecs
-                    chunks         = $_.ChunkCount
-                }
-            })
-        }
-
-        # Compute aggregate density stats
-        $Densities = @($ExtractionMetrics.per_document | Where-Object { $_.claims_per_1k -ne $null } | ForEach-Object { $_.claims_per_1k })
-        if ($Densities.Count -gt 0) {
-            $Sorted = $Densities | Sort-Object
-            $ExtractionMetrics['density_stats'] = @{
-                mean = [Math]::Round(($Densities | Measure-Object -Average).Average, 2)
-                p25  = [Math]::Round($Sorted[[Math]::Floor($Sorted.Count * 0.25)], 2)
-                p50  = [Math]::Round($Sorted[[Math]::Floor($Sorted.Count * 0.50)], 2)
-                p75  = [Math]::Round($Sorted[[Math]::Floor($Sorted.Count * 0.75)], 2)
-                min  = [Math]::Round($Sorted[0], 2)
-                max  = [Math]::Round($Sorted[-1], 2)
-            }
-        }
-        else {
-            $ExtractionMetrics['density_stats'] = @{
-                mean = $null; p25 = $null; p50 = $null; p75 = $null; min = $null; max = $null
-            }
-        }
-
-        # Compute duplicate analysis (parameter #12) — pairwise label similarity within each summary
-        $DupCandidates = 0
-        foreach ($Res in $Succeeded) {
-            $SumPath = Join-Path $SummariesDir "$($Res.DocId).json"
-            if (-not (Test-Path $SumPath)) { continue }
-            try {
-                $Sum = Get-Content -Raw $SumPath | ConvertFrom-Json
-                $AllLabels = @()
-                foreach ($Camp in @('accelerationist','safetyist','skeptic')) {
-                    $campData665 = if ($Sum.PSObject.Properties['pov_summaries'] -and $Sum.pov_summaries.PSObject.Properties[$Camp]) { $Sum.pov_summaries.$Camp } else { $null }
-                    if ($campData665 -and $campData665.PSObject.Properties['key_points'] -and $campData665.key_points) {
-                        $AllLabels += @($campData665.key_points | ForEach-Object { $_.label ?? $_.point ?? '' })
-                    }
-                }
-                # Check for near-duplicate labels (Jaccard > 0.6)
-                for ($i = 0; $i -lt $AllLabels.Count; $i++) {
-                    for ($j = $i + 1; $j -lt $AllLabels.Count; $j++) {
-                        $wa = @($AllLabels[$i].ToLower() -split '\s+')
-                        $wb = @($AllLabels[$j].ToLower() -split '\s+')
-                        $shared = @($wa | Where-Object { $wb -contains $_ }).Count
-                        $union = ($wa + $wb | Select-Object -Unique).Count
-                        if ($union -gt 0 -and ($shared / $union) -gt 0.6) { $DupCandidates++ }
-                    }
-                }
-            } catch {}
-        }
-        $ExtractionMetrics['near_duplicate_labels'] = $DupCandidates
-
-        $CoreDir = Join-Path $CalibDir 'core'
-        if (-not (Test-Path $CoreDir)) { $null = New-Item -ItemType Directory -Path $CoreDir -Force }
-        $MetricsPath = Join-Path $CoreDir 'extraction-metrics.jsonl'
-
-        # JSONL append — one compressed JSON object per line, no full-file rewrite
-        $JsonLine = $ExtractionMetrics | ConvertTo-Json -Depth 5 -Compress
-        Add-Content -Path $MetricsPath -Value $JsonLine -Encoding utf8
-
-        Write-OK "Extraction metrics logged to calibration/core/extraction-metrics.jsonl (density mean: $($ExtractionMetrics.density_stats.mean ?? 'N/A') claims/1k words, $DupCandidates near-dup label pairs)"
-    }
-    catch {
-        Write-Warn "Extraction metrics logging failed (non-critical): $_"
-    }
+    Write-BatchExtractionMetric -Succeeded $Succeeded -Failed $Failed -DocumentsTotal $DocsToProcess.Count `
+        -Model $Model -Temperature $Temperature -TaxonomyVersion $TaxonomyVersion `
+        -IterativeExtraction:$IterativeExtraction -AutoFire:$AutoFire -SourcesDir $SourcesDir -SummariesDir $SummariesDir
 
     # -- STEP 8c — Rebuild source index ----------------------------------------
-    try { Update-AITSourceIndex -Quiet } catch { Write-Verbose "Index rebuild skipped: $_" }
+    Update-BatchSourceIndex
 
-    # -- STEP 9 — Post-batch policy registry drift check (read-only) ----------
-    # t/3943: this used to call `Update-PolicyRegistry -Fix`, which re-scans
-    # ALL taxonomy files corpus-wide and mints registry ids for every
-    # null-policy_id node it finds -- not just ones touched by this batch.
-    # That silently rewrote taxonomy files for pre-existing, unrelated nodes
-    # on every summarization run, with no attribution. Registry consolidation
-    # is now a deliberate, separate data change (Update-PolicyRegistry -Fix,
-    # run on its own) -- this step only WARNS if drift exists; it never
-    # writes a taxonomy file.
-    Write-Step 'Checking policy registry consistency (read-only)'
-    try {
-        $DriftNodeIds = @(Get-UnregisteredPolicyActionNodeIds)
-        if ($DriftNodeIds.Count -gt 0) {
-            Write-Warning "Invoke-BatchSummary: $($DriftNodeIds.Count) taxonomy node(s) have a policy action with no policy_id ($($DriftNodeIds -join ', ')) -- run Update-PolicyRegistry -Fix as its own deliberate data change (t/3943); batch summarization no longer auto-fixes this."
-        }
-        else {
-            Write-OK 'Policy registry consistent -- no unregistered policy actions found'
-        }
-    }
-    catch {
-        Write-Warn "Policy registry drift check failed: $_ — run Update-PolicyRegistry manually to inspect"
-    }
+    # -- STEP 9 — Post-batch policy registry drift check (read-only, t/3943) --
+    Test-BatchPolicyRegistryDrift
 
     if ($TimingEnabled) { Write-StageTimingReport }
 

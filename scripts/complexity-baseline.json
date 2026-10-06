@@ -520,10 +520,6 @@
     "max": 37,
     "countOver": 1
   },
-  "AITriad/Public/Invoke-BatchSummary.ps1": {
-    "max": 145,
-    "countOver": 1
-  },
   "AITriad/Public/Invoke-BDIWeightAssignment.ps1": {
     "max": 101,
     "countOver": 1
