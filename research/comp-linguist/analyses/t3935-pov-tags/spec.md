@@ -53,7 +53,17 @@ The registry is `lib/debate/soul-docs/pov-tags.json`:
 - **Renaming a tag** (t/3985, SO e/253#2): never rename in place. Do it in three steps: add the new tag with its soul; migrate the node data from old id to new with the t/3969 writer; then remove the old tag and its soul. Each step keeps data `main` free of tags the registry doesn't know.
 - **Removing a tag:** strip the tag from the node data first (t/3969 writer), then remove the registry entry and its soul.
 - **Why the order matters:** a registry change that lands before its data change orphans every node still carrying the old id. CI will scan data `main` for orphans (t/3987), and this ordering keeps every registry PR at 0.
-- **Interim, until t/3987's CI step exists:** any PR touching `pov-tags.json` pastes its orphan count, which must be 0. Get it by running `lib/schema/pov-tags-cli.ts` (`validatePovTags`) with that PR's registry over each taxonomy file on ai-triad-data `origin/main`. Scope the run to the POV and situation files (`accelerationist`, `safetyist`, `skeptic`, `situations`). The CLI accepts any file with a `nodes` array, so a non-taxonomy file such as `entity_extraction_log.json` reports false errors. First instance: #2851, 0 orphans over 1,429 nodes.
+- **Interim, until t/3987's CI step exists:** any PR touching `pov-tags.json` pastes the output of one command, run from the PR's branch against ai-triad-data `origin/main` (#2897, t/3985):
+
+  ```
+  tsx lib/schema/pov-tags-cli.ts --scan-data <ai-triad-data>/taxonomy/Origin --base-registry <origin/main pov-tags.json>
+  ```
+
+  - It must report **`introduced` 0** (exit 0).
+  - It's **differential:** only orphans this PR's registry *introduces* fail; pre-existing ones are reported separately.
+  - It's **already scoped** to the four taxonomy files (`accelerationist`, `safetyist`, `skeptic`, `situations`), so no manual file selection is needed.
+  - The same command is in the header of `lib/schema/povTags.ts`.
+  - **History:** the first instance (#2851) was counted by hand, giving 0 orphans over 1,429 nodes. The command reproduces it: `checked` 1,429, `introduced` 0, on data `e4095258`.
 - **A POV with no entry has no tags,** so Accelerationist and Safetyist need no change today.
 
 ### 2.2 Tags on nodes: a top-level field
