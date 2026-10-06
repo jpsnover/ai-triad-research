@@ -82,10 +82,10 @@ import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnom
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
 import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
 import { DEFAULT_AI_TIMEOUT_MS, DEFAULT_RELEVANCE_THRESHOLD } from './constants.js';
-import { CLAIM_VERIFY_SETTLE_TIMEOUT_MS, EVALUATOR_TEMPERATURE, SUMMARIZATION_TEMPERATURE, SUMMARIZATION_MAX_TOKENS, SUMMARIZATION_TIMEOUT_MS, TAG_SCOPE_MINIMUM_NODES } from './debateConfig.js';
-import type { SoulProvenance } from './soulDocSchema.js';
-import { checkTagScope } from './relevanceSelection.js';
+import { CLAIM_VERIFY_SETTLE_TIMEOUT_MS, EVALUATOR_TEMPERATURE, SUMMARIZATION_TEMPERATURE, SUMMARIZATION_MAX_TOKENS, SUMMARIZATION_TIMEOUT_MS } from './debateConfig.js';
 import { computeStrategicHints } from './strategicHints.js';
+import { resolveSouls } from './debateEngine/soulResolution.js';
+import { computeSituationCitations } from './debateEngine/diagnostics.js';
 import { evaluateLookahead, type LookaheadDiagnostics } from './lookaheadGate.js';
 import { runOvergenPipeline, type OvergenDiagnostics } from './overgenPipeline.js';
 import { classifyTopicComplexity, extractTopicStructure } from './topicStructure.js';
@@ -278,18 +278,13 @@ export class DebateEngine {
   private _claimPipeline!: ClaimExtractionPipeline;
   private _synthesisPipeline!: SynthesisPipeline;
   private _talmudicCorpus: TalmudicCorpus | null = null;
-  /** Resolved souls per seat — populated in run() before initSession(). Tagged seats get wing souls; untagged get POVER_INFO. */
   private _resolvedSouls: Partial<Record<string, PovInfo>> = {};
-  /** Soul file provenance per seat — populated alongside _resolvedSouls; written into session.soul_provenance. */
-  private _soulProvenance: Partial<Record<string, SoulProvenance>> = {};
+  private _soulProvenance: Partial<Record<string, { file: string; hash: string }>> = {};
 
   /** t/1781: fire-and-forget claim verifications; settled before calibration extract to make source_authority deterministic. */
   private _pendingClaimVerifications: Promise<void>[] = [];
 
-  /** Returns the resolved soul for a speaker. Tagged seats return the wing soul; untagged return POVER_INFO[poverId]. */
-  getSoulForSpeaker(poverId: string): PovInfo {
-    return this._resolvedSouls[poverId] ?? POVER_INFO[poverId as keyof typeof POVER_INFO];
-  }
+  getSoulForSpeaker = (poverId: string): PovInfo => this._resolvedSouls[poverId] ?? POVER_INFO[poverId as keyof typeof POVER_INFO];
 
   /** Get the set of hint keys currently suppressed for this debate. */
   private getSuppressedHints(): Set<string> {
@@ -432,67 +427,10 @@ export class DebateEngine {
 
     this.config.background = await resolveBackground(this.config.background);
 
-    // ── Soul resolution: resolve once per seat before initSession() (t/4007) ──
-    // Tagged seats: pre-flight checkTagScope (groundable count) then soulResolver (no catch — ActionableError propagates).
-    // Untagged seats: soulResolver returns POVER_INFO[speaker] with base-soul provenance.
-    // Both go into _resolvedSouls / _soulProvenance which initSession() stamps onto session.soul_provenance.
-    // soulResolver is runtime-injected (t/3975): cli/server pass soulDocLoader, renderer passes tagSoulRegistry.
-    {
-      const resolvedSouls: Partial<Record<string, PovInfo>> = {};
-      const soulProv: Partial<Record<string, SoulProvenance>> = {};
-      for (const poverId of this.config.activePovers) {
-        const seatTag = this.config.seat_tags?.[poverId];
-        const tagSelection = seatTag ? { tag: seatTag.pov_tag, mode: seatTag.tag_mode } : undefined;
-        if (tagSelection) {
-          const povKey = poverId as 'accelerationist' | 'safetyist' | 'skeptic';
-          const campNodes: PovNode[] = (this.taxonomy[povKey] as { nodes: PovNode[] } | undefined)?.nodes ?? [];
-          if (campNodes.length > 0) {
-            const scopeCheck = checkTagScope(campNodes, tagSelection);
-            if (!scopeCheck.sufficient) {
-              throw new ActionableError({
-                goal: `Start tagged debate (${poverId}/${tagSelection.tag})`,
-                problem: scopeCheck.reason === 'none-tagged'
-                  ? `No nodes carry tag "${tagSelection.tag}" in the ${poverId} camp`
-                  : `Scope too thin for tag "${tagSelection.tag}" in ${poverId}: ${scopeCheck.inScope.length} groundable nodes (minimum ${TAG_SCOPE_MINIMUM_NODES})`,
-                location: 'DebateEngine.run() › soul resolution pre-flight',
-                nextSteps: [
-                  `Add pov_tags: ["${tagSelection.tag}"] to at least ${TAG_SCOPE_MINIMUM_NODES} nodes under the ${poverId} POV and run Update-TaxEmbeddings.`,
-                  'Or switch to Prioritize mode to boost tagged nodes without filtering.',
-                ],
-              });
-            }
-          }
-          if (!this.config.soulResolver) {
-            throw new ActionableError({
-              goal: `Start tagged debate (${poverId}/${tagSelection.tag})`,
-              problem: 'No soulResolver provided in DebateConfig — tagged debates require a runtime soul resolver.',
-              location: 'DebateEngine.run() › soul resolution pre-flight',
-              nextSteps: [
-                'Pass soulResolver: resolvePoverInfo from soulDocLoader (Node) or tagSoulRegistry (browser) in DebateConfig.',
-              ],
-            });
-          }
-        }
-        if (this.config.soulResolver) {
-          const { soul, soulProvenance: provenance } = this.config.soulResolver(
-            poverId as Exclude<SpeakerId, 'user'>,
-            tagSelection,
-          );
-          resolvedSouls[poverId] = soul;
-          soulProv[poverId] = { file: provenance.file, hash: provenance.hash };
-        } else {
-          resolvedSouls[poverId] = POVER_INFO[poverId as keyof typeof POVER_INFO];
-          getGlobalRecorder()?.record({
-            type: 'system.info',
-            component: 'debate-engine',
-            level: 'warn',
-            message: `No soulResolver in DebateConfig — soul_provenance will not be recorded for ${poverId}. Pass soulResolver to enable cross-run comparison (t/3963).`,
-          });
-        }
-      }
-      this._resolvedSouls = resolvedSouls;
-      this._soulProvenance = soulProv;
-    }
+    // Soul resolution: resolve once per seat before initSession() (t/4007). See debateEngine/soulResolution.ts.
+    const { resolvedSouls, soulProv } = resolveSouls(this.config, this.taxonomy);
+    this._resolvedSouls = resolvedSouls;
+    this._soulProvenance = soulProv;
 
     this.initSession();
 
@@ -1531,33 +1469,8 @@ export class DebateEngine {
   }
 
   /** Update situation citation tracking (t/192). Recomputes from full transcript each turn. */
-  private updateSituationCitations(currentRefs: TaxonomyRef[]): void {
-    const overview = this.session.diagnostics?.overview;
-    if (!overview) return;
-
-    // Recompute from transcript for accuracy (cheap — just string prefix checks)
-    const uniqueSitIds = new Set<string>();
-    let turnsWithSit = 0;
-    let totalDebateTurns = 0;
-
-    for (const entry of this.session.transcript) {
-      if (entry.type !== 'statement' && entry.type !== 'opening') continue;
-      totalDebateTurns++;
-      const hasSit = entry.taxonomy_refs.some(r => r.node_id.startsWith('sit-'));
-      if (hasSit) {
-        turnsWithSit++;
-        for (const r of entry.taxonomy_refs) {
-          if (r.node_id.startsWith('sit-')) uniqueSitIds.add(r.node_id);
-        }
-      }
-    }
-
-    overview.situation_citations = {
-      turns_with_sit_refs: turnsWithSit,
-      total_debate_turns: totalDebateTurns,
-      citation_rate: totalDebateTurns > 0 ? turnsWithSit / totalDebateTurns : 0,
-      unique_sit_ids_cited: [...uniqueSitIds].sort(),
-    };
+  private updateSituationCitations(_currentRefs: TaxonomyRef[]): void {
+    computeSituationCitations(this.session);
   }
 
   // ── Early return (stopAfterStage) ──────────────────────────
