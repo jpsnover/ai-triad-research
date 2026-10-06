@@ -10,6 +10,9 @@ import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { POVER_INFO } from './poverInfo.js';
 import { SoulDocumentSchema } from './soulDocSchema.js';
 import type { SoulProvenance } from './soulDocLoader.js';
+
+/** Readability brand: marks provenance from the Vite/browser path (import.meta.glob). Not a transitive guard — see t/3980. */
+export type SoulProvenanceBrowser = SoulProvenance & { readonly __runtime: 'browser' };
 import type { TagSelection } from './types/session.js';
 import type { PovInfo, SpeakerId } from './types.js';
 
@@ -72,7 +75,7 @@ function getTagSoulFromRegistry(pov: string, tag: string): PovInfo {
 export function resolvePoverInfo(
   speaker: Exclude<SpeakerId, 'user'>,
   tagSelection?: TagSelection,
-): { soul: PovInfo; soulProvenance: SoulProvenance } {
+): { soul: PovInfo; soulProvenance: SoulProvenanceBrowser } {
   if (!tagSelection) {
     const soul = POVER_INFO[speaker];
     return {
@@ -80,7 +83,7 @@ export function resolvePoverInfo(
       soulProvenance: {
         file: `soul-docs/${speaker}.soul.json`,
         sha: fnv1aHex16(JSON.stringify(soul)),
-      },
+      } as SoulProvenanceBrowser,
     };
   }
   const soul = getTagSoulFromRegistry(speaker, tagSelection.tag);
@@ -89,6 +92,6 @@ export function resolvePoverInfo(
     soulProvenance: {
       file: `soul-docs/tags/${tagSelection.tag}.${speaker}.soul.json`,
       sha: fnv1aHex16(JSON.stringify(soul)),
-    },
+    } as SoulProvenanceBrowser,
   };
 }

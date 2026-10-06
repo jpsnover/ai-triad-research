@@ -28,6 +28,9 @@ export interface SoulProvenance {
   sha: string;
 }
 
+/** Readability brand: marks provenance from the Node/CLI path (fs + node:crypto). Not a transitive guard — see t/3980. */
+export type SoulProvenanceNode = SoulProvenance & { readonly __runtime: 'node' };
+
 // ── Internal caches ───────────────────────────────────────────────────────────
 
 /** Base soul cache (keyed by CharacterId). Eager-loaded by loadSoulDocuments(). */
@@ -213,16 +216,16 @@ export function getSoulDocument(pov: CharacterId, tag?: string): SoulDocument {
 export function resolvePoverInfo(
   speaker: Exclude<SpeakerId, 'user'>,
   tagSelection?: TagSelection,
-): { soul: PovInfo; soulProvenance: SoulProvenance } {
+): { soul: PovInfo; soulProvenance: SoulProvenanceNode } {
   if (!tagSelection) {
     loadSoulDocuments(); // ensure provenance cache is populated
     const provenance = _provenanceCache.get(speaker) ?? { file: '(static-import)', sha: '' };
-    return { soul: POVER_INFO[speaker], soulProvenance: provenance };
+    return { soul: POVER_INFO[speaker], soulProvenance: provenance as SoulProvenanceNode };
   }
 
   const tagDoc = loadTagSoulDocument(speaker, tagSelection.tag);
   const provenance = _provenanceCache.get(`${speaker}:${tagSelection.tag}`)!;
-  return { soul: tagDoc as unknown as PovInfo, soulProvenance: provenance };
+  return { soul: tagDoc as unknown as PovInfo, soulProvenance: provenance as SoulProvenanceNode };
 }
 
 export function clearSoulDocCache(): void {
