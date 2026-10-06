@@ -185,33 +185,41 @@ export function preflightOpEdTag(request: GenerateOpEdRequest, deps: OpEdGenerat
     provenance: { file: repoRelativeSoulFile(soulProvenance.file), sha: soulProvenance.sha },
   };
 
-  const campNodes = (loadTaxonomy(deps.repoRoot)[pov]?.nodes ?? []) as PovNode[];
-  refuseThinTag(campNodes, selection);
+  const taxonomy = loadTaxonomy(deps.repoRoot);
+  const campNodes = (taxonomy[pov]?.nodes ?? []) as PovNode[];
+  refuseThinTag(campNodes, embeddedNodeIds(taxonomy.embeddings), selection);
   return { selection, voice, campNodes };
 }
 
+/** Ids of nodes that have an embedding vector: the only nodes grounding can ever retrieve. */
+function embeddedNodeIds(embeddings: Record<string, { vector?: unknown }> | undefined): Set<string> {
+  return new Set(Object.entries(embeddings ?? {}).filter(([, e]) => Array.isArray(e?.vector)).map(([id]) => id));
+}
+
 /**
- * Refuse a tag the corpus can't support (CL p/736#27). Two cases, both pre-flight:
- *  - NO node carries the tag, in EITHER mode. Scope would ground the wing on zero camp nodes (situations
- *    only) under its label; Prioritize would boost nothing while the byline still names the wing. Refused
- *    regardless of where the Scope floor ends up. Live today: no corpus node is tagged yet (t/3962).
- *  - a Scope with too few tagged nodes (`checkTagScope`; TL t/3960#3 cond 1).
+ * Refuse a tag the corpus can't support (CL p/736#27, #31, #44). The counts are of GROUNDABLE tagged nodes,
+ * tagged AND embedded, because an unembedded node can never be retrieved (CL #44). Both pre-flight:
+ *  - NO groundable node carries the tag, in EITHER mode. Scope would ground the wing on zero camp nodes
+ *    (situations only) under its label; Prioritize would boost nothing while the byline still names the wing.
+ *    Refused regardless of where the Scope floor ends up, and permanently (a tag can fall back to zero).
+ *  - a Scope with too few groundable tagged nodes (`checkTagScope`; TL t/3960#3 cond 1).
+ * Both refusals state the tagged count AND the groundable count, so a missing embedding is visible.
  */
-function refuseThinTag(campNodes: PovNode[], selection: TagSelection): void {
+function refuseThinTag(campNodes: PovNode[], embedded: ReadonlySet<string>, selection: TagSelection): void {
   const { pov, tag, mode } = selection;
-  const scope = checkTagScope(campNodes, { tag, mode });
+  const taggedTotal = campNodes.filter((n) => (n.pov_tags ?? []).includes(tag)).length;
+  const scope = checkTagScope(campNodes.filter((n) => embedded.has(n.id)), { tag, mode });
+  const counts = `${taggedTotal} ${pov} node(s) tagged, ${scope.inScope.length} of them with an embedding`;
   if (scope.inScope.length === 0) {
     throw tagRefusal(
-      `No ${pov} node carries the tag "${tag}", so the ${tag} wing has nothing to ground on `
-        + `(${scope.excluded.length} ${pov} nodes, none tagged).`,
-      ['Tag nodes for this wing first (t/3962), or omit tagSelection.'],
+      `No groundable ${pov} node carries the tag "${tag}", so the ${tag} wing has nothing to ground on (${counts}).`,
+      ['Tag nodes for this wing (t/3962) and make sure they have embeddings, or omit tagSelection.'],
     );
   }
   if (mode === 'scope' && !scope.sufficient) {
     throw tagRefusal(
-      `Scope "${pov}/${tag}" has too few tagged nodes to ground an essay: ${scope.inScope.length} in scope, `
-        + `${scope.excluded.length} untagged would be excluded (checkTagScope judged it insufficient).`,
-      ['Use Prioritize mode, which keeps every node and ranks tagged ones first.', 'Or tag more nodes for this wing first.'],
+      `Scope "${pov}/${tag}" has too few groundable tagged nodes to ground an essay (${counts}; checkTagScope judged it insufficient).`,
+      ['Use Prioritize mode, which keeps every node and ranks tagged ones first.', 'Or tag (and embed) more nodes for this wing first.'],
     );
   }
 }
@@ -232,7 +240,10 @@ function selectCampGrounding(
   pov: PovKey, campNodes: PovNode[], scores: Map<string, number>, plan: OpEdTagPlan | undefined, deps: OpEdGeneratorDeps,
 ): { grounding: ScoredPovNode[]; applied?: AppliedTag } {
   const tagged = plan && pov === plan.selection.pov ? applyOpEdTag(plan, scores) : undefined;
-  if (tagged) warnScopeNarrowing(tagged.applied, deps);
+  if (tagged) {
+    warnScopeNarrowing(tagged.applied, deps);
+    warnUnembeddedTagged(tagged.applied, tagged.unembedded, deps);
+  }
   const grounding = selectRelevantNodes(
     tagged?.nodes ?? campNodes,
     tagged?.scores ?? scores,
@@ -252,17 +263,34 @@ function warnScopeNarrowing(applied: AppliedTag, deps: OpEdGeneratorDeps): void 
   });
 }
 
+/** A tagged node with no embedding can never be scored, so it can never be grounded. Data-quality gap:
+ *  surface it with the count, never absorb it (TL p/736#43). `included` already counts only what can ground. */
+function warnUnembeddedTagged(applied: AppliedTag, unembedded: number, deps: OpEdGeneratorDeps): void {
+  if (unembedded === 0) return;
+  deps.recorder?.record({
+    type: 'system.error', component: 'oped-generate', level: 'warn',
+    message: `Op-ed tag "${applied.pov}/${applied.tag}": ${unembedded} tagged ${applied.pov} node(s) have no embedding and cannot ground (${applied.included} can)`,
+  });
+}
+
 /** The tag filter for the tagged camp's grounding: the nodes to select from, the scores to rank by, and
- *  the applied-tag record with its counts (meanings per mode: APPLIED_TAG_COUNT_MEANING). */
-function applyOpEdTag(plan: OpEdTagPlan, scores: Map<string, number>): { nodes: PovNode[]; scores: Map<string, number>; applied: AppliedTag } {
+ *  the applied-tag record with its counts (meanings per mode: APPLIED_TAG_COUNT_MEANING). `included` counts
+ *  only tagged nodes that have a score (an embedding), since only those can be grounded or boosted; the rest
+ *  are returned as `unembedded` for the WARN. The pre-flight floor still counts every tagged node (CL). */
+function applyOpEdTag(plan: OpEdTagPlan, scores: Map<string, number>): { nodes: PovNode[]; scores: Map<string, number>; applied: AppliedTag; unembedded: number } {
   const { pov, tag, mode } = plan.selection;
   const { filteredNodes, excludedCount, boostIds } = applyTagSelection(plan.campNodes, { tag, mode });
+  const taggedIds = mode === 'scope' ? filteredNodes.map((n) => n.id) : boostIds;
+  const scorable = taggedIds.filter((id) => scores.has(id));
+  const included = scorable.length;
   const boosted = new Map(scores);
-  for (const id of boostIds) boosted.set(id, (boosted.get(id) ?? 0) + TAG_BOOST_INCREMENT);
+  // Boost only nodes that have a score: an unembedded node must not acquire one from the boost alone.
+  for (const id of boostIds) if (scores.has(id)) boosted.set(id, scores.get(id)! + TAG_BOOST_INCREMENT);
   return {
     nodes: filteredNodes,
     scores: mode === 'prioritize' ? boosted : scores,
-    applied: { pov, tag, mode, included: mode === 'scope' ? filteredNodes.length : boostIds.length, excludedUntagged: excludedCount },
+    applied: { pov, tag, mode, included, excludedUntagged: excludedCount },
+    unembedded: taggedIds.length - included,
   };
 }
 

@@ -23,6 +23,8 @@ vi.mock('../../debate/soul-docs/pov-tags.json', () => ({
         { id: 'institutional', label: 'Institutional', soul_doc: 'skeptic.institutional', description: 'Institutional wing' },
         // Registered, but no node carries it: the state of the real corpus today (CL p/736#27).
         { id: 'untagged-wing', label: 'Untagged', soul_doc: 'skeptic.untagged-wing', description: 'No node carries this' },
+        // Carried only by skp-beliefs-006, which has no embedding: tagged but not groundable (CL p/736#44).
+        { id: 'ghost', label: 'Ghost', soul_doc: 'skeptic.ghost', description: 'Only an unembedded node carries this' },
       ],
     },
   },
@@ -43,13 +45,18 @@ vi.mock('../../debate/taxonomyLoader.js', () => ({
     safetyist: { nodes: [
       { id: 'saf-beliefs-001', category: 'Beliefs', label: 'Saf 1', description: 'd', parent_id: null, children: [] },
     ] },
-    // 6 nodes tagged "critical" (sufficient), 2 tagged "institutional" (thin), 2 untagged.
+    // 6 nodes tagged "critical", 2 tagged "institutional", 2 untagged. skp-beliefs-006 has NO embedding, so
+    // "critical" has 5 groundable (sufficient), "institutional" 1 (thin), "ghost" 0 (tagged, not groundable).
     skeptic: { nodes: [
       skp(1, ['critical']), skp(2, ['critical']), skp(3, ['critical']), skp(4, ['critical']),
-      skp(5, ['critical', 'institutional']), skp(6, ['critical', 'institutional']), skp(7), skp(8),
+      skp(5, ['critical', 'institutional']), skp(6, ['critical', 'institutional', 'ghost']), skp(7), skp(8),
     ] },
     situations: { nodes: [{ id: 'sit-001', label: 'Sit', description: 'd', parent_id: null }] },
-    embeddings: {},
+    embeddings: Object.fromEntries(
+      ['acc-beliefs-001', 'acc-desires-001', 'saf-beliefs-001', 'skp-beliefs-001', 'skp-beliefs-002', 'skp-beliefs-003',
+        'skp-beliefs-004', 'skp-beliefs-005', 'skp-beliefs-007', 'skp-beliefs-008']
+        .map((id) => [id, { pov: id.slice(0, 3), vector: [1, 0, 0] }]),
+    ),
   }),
 }));
 
@@ -57,8 +64,14 @@ vi.mock('../../embeddings/onnxEmbedding.js', () => ({ computeEmbedding: async ()
 
 // Echo the candidate nodes back, scored from the map the generator passed, so the test sees exactly which
 // nodes and scores each camp was selected from.
+// Every node has an embedding (a score) EXCEPT skp-beliefs-006, which is tagged critical + institutional:
+// a tagged node that cannot ground (TL p/736#43).
 vi.mock('../../debate/taxonomyRelevance.js', () => ({
-  scoreNodeRelevance: () => new Map<string, number>([['skp-beliefs-007', 0.5], ['skp-beliefs-001', 0.4]]),
+  scoreNodeRelevance: () => new Map<string, number>([
+    ['acc-beliefs-001', 0.3], ['acc-desires-001', 0.3], ['saf-beliefs-001', 0.3],
+    ['skp-beliefs-001', 0.4], ['skp-beliefs-002', 0.3], ['skp-beliefs-003', 0.3], ['skp-beliefs-004', 0.3],
+    ['skp-beliefs-005', 0.3], ['skp-beliefs-007', 0.5], ['skp-beliefs-008', 0.3],
+  ]),
   selectRelevantNodes: (nodes: { id: string }[], scores: Map<string, number>) => {
     h.selectCalls.push({ ids: nodes.map((n) => n.id), scores });
     return nodes.map((node) => ({ node, score: scores.get(node.id) ?? 0 }));
@@ -126,9 +139,11 @@ describe('op-ed tag selection: Scope', () => {
     const skeptic = members.get('skeptic')!;
     expect(skeptic.grounding.filter((g) => g.node_id.startsWith('skp-')).map((g) => g.node_id).sort())
       .toEqual(['skp-beliefs-001', 'skp-beliefs-002', 'skp-beliefs-003', 'skp-beliefs-004', 'skp-beliefs-005', 'skp-beliefs-006']);
-    expect(skeptic.tag).toEqual({ pov: 'skeptic', tag: 'critical', mode: 'scope', included: 6, excludedUntagged: 2 });
-    // Fallback-path logging: the narrowing is visible.
+    // `included` counts only GROUNDABLE tagged nodes: skp-beliefs-006 is tagged but has no embedding.
+    expect(skeptic.tag).toEqual({ pov: 'skeptic', tag: 'critical', mode: 'scope', included: 5, excludedUntagged: 2 });
+    // Fallback-path logging: the narrowing is visible, and so is the tagged node that cannot ground (TL p/736#43).
     expect(recorder.record).toHaveBeenCalledWith(expect.objectContaining({ level: 'warn', message: expect.stringContaining('excluded 2 untagged') }));
+    expect(recorder.record).toHaveBeenCalledWith(expect.objectContaining({ level: 'warn', message: expect.stringContaining('1 tagged skeptic node(s) have no embedding and cannot ground (5 can)') }));
   });
 
   it('voices the tagged member with the tag soul, but keeps the POV label in the byline and prompt', async () => {
@@ -167,7 +182,8 @@ describe('op-ed tag selection: Prioritize', () => {
     expect(call.ids).toHaveLength(8);
     expect(call.scores.get('skp-beliefs-001')).toBeCloseTo(0.4 + TAG_BOOST_INCREMENT);
     expect(call.scores.get('skp-beliefs-007')).toBe(0.5); // untagged: not boosted
-    expect(members.get('skeptic')!.tag).toEqual({ pov: 'skeptic', tag: 'critical', mode: 'prioritize', included: 6, excludedUntagged: 0 });
+    expect(call.scores.has('skp-beliefs-006')).toBe(false); // tagged but unembedded: never gets a score from the boost
+    expect(members.get('skeptic')!.tag).toEqual({ pov: 'skeptic', tag: 'critical', mode: 'prioritize', included: 5, excludedUntagged: 0 });
   });
 });
 
@@ -184,7 +200,8 @@ describe('op-ed tag selection: pre-flight refusals (no generation, no partial se
   it('REFUSES a thin Scope, with the counts, instead of warning (TL t/3960#3 cond 1)', async () => {
     const err = await refusal({ pov: 'skeptic', tag: 'institutional', mode: 'scope' });
     expect(err).toBeInstanceOf(ActionableError);
-    expect(String((err as Error).message)).toMatch(/2 in scope, 6 untagged would be excluded/);
+    // Both numbers: 2 tagged, only 1 groundable (skp-beliefs-006 has no embedding).
+    expect(String((err as Error).message)).toMatch(/2 skeptic node\(s\) tagged, 1 of them with an embedding/);
     expect(adapter.generateText).not.toHaveBeenCalled();
   });
 
@@ -192,14 +209,23 @@ describe('op-ed tag selection: pre-flight refusals (no generation, no partial se
     for (const mode of ['scope', 'prioritize'] as const) {
       const err = await refusal({ pov: 'skeptic', tag: 'untagged-wing', mode });
       expect(err, mode).toBeInstanceOf(ActionableError);
-      expect(String((err as Error).message), mode).toMatch(/No skeptic node carries the tag "untagged-wing"/);
+      expect(String((err as Error).message), mode).toMatch(/No groundable skeptic node carries the tag "untagged-wing".*0 skeptic node\(s\) tagged/);
     }
     expect(adapter.generateText).not.toHaveBeenCalled();
   });
 
-  it('allows the same thin tag in Prioritize, which excludes nothing', async () => {
+  it('REFUSES a tag carried only by unembedded nodes, in BOTH modes: the floor counts groundable nodes (CL p/736#44)', async () => {
+    for (const mode of ['scope', 'prioritize'] as const) {
+      const err = await refusal({ pov: 'skeptic', tag: 'ghost', mode });
+      expect(err, mode).toBeInstanceOf(ActionableError);
+      expect(String((err as Error).message), mode).toMatch(/1 skeptic node\(s\) tagged, 0 of them with an embedding/);
+    }
+    expect(adapter.generateText).not.toHaveBeenCalled();
+  });
+
+  it('allows the same thin tag in Prioritize, which excludes nothing (counting only the groundable node)', async () => {
     const members = await run({ pov: 'skeptic', tag: 'institutional', mode: 'prioritize' });
-    expect(members.get('skeptic')!.tag).toMatchObject({ mode: 'prioritize', included: 2, excludedUntagged: 0 });
+    expect(members.get('skeptic')!.tag).toMatchObject({ mode: 'prioritize', included: 1, excludedUntagged: 0 });
   });
 
   it('REFUSES when the tag soul cannot load: no fallback to the base soul', async () => {
