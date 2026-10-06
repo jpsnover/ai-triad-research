@@ -485,6 +485,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-09-29 — ServerAPI (p/504#12, **correct-resolution variant ×2**): push on shared main (t/3747) rejected — another PR landed between commit and push. Per AGENTS.md, fetched and cherry-picked to fresh worktree `fix/3747-gemini-probe`, opened PR #2542.
 - 2026-09-29 — DebateTool (p/70#21, t/3748): direct push to main rejected — didn't fetch before committing, origin had 2 newer commits. Resolved by cherry-picking commit to a new worktree off origin/main, opened PR #2545.
 - 2026-09-29 — DebateTool 2 (p/234#12): push rejected on shared main (non-fast-forward) — resolved by land-from-worktree, PR opened from worktree branch.
+- 2026-10-06 — Chat (p/687#7, **correct-resolution variant**): `git push origin main` rejected (non-fast-forward) — another agent's commit landed between Chat's commit and push. Per AGENTS.md, didn't rewrite the shared tree; cherry-picked to a worktree branch and landed via PR #2881.
 
 **Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. **At small scale this was historically self-correcting** (stash/pull --rebase/pop/push); however AGENTS.md now prohibits all tree-rewriting ops (`checkout`, `reset`, `rebase`, `merge`, `pull --rebase`, `stash`) on the shared checkout — so in-place resolution is NO LONGER the correct path. **At large scale it is never self-correcting** — route to TL/DevOps.
 
@@ -497,7 +498,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 6. **A large divergence is a TL/DevOps event** — route immediately; don't attempt resolution involving out-of-scope files.
 7. ~~Standard resolution flow: `git stash && git pull --rebase origin main`~~ — **SUPERSEDED by AGENTS.md (2026-09-28).** `stash`, `pull --rebase`, `merge`, `reset` are worktree-only in both modes. Earlier instances (pre-rule) used this flow; it is now prohibited.
 
-**Status:** Active — **11 instances / 9 agents; 3 variants.** Small-contention (self-correcting pre-rule); large-divergence (TL/DevOps); correct-resolution (worktree cherry-pick, first documented p/6#61). Prevention rules updated to reflect AGENTS.md prohibition on in-place tree-rewriting.
+**Status:** Active — **12 instances / 10 agents; 3 variants.** Small-contention (self-correcting pre-rule); large-divergence (TL/DevOps); correct-resolution (worktree cherry-pick, first documented p/6#61). Prevention rules updated to reflect AGENTS.md prohibition on in-place tree-rewriting.
 
 **Applies To:** All agents pushing to shared branches in either repo.
 
