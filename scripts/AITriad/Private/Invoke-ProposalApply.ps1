@@ -47,8 +47,16 @@ function Invoke-ProposalApply {
     $IsCrossCutting = $Proposal.pov -eq 'situations'
     $Today = (Get-Date).ToString('yyyy-MM-dd')
 
+    # t/3971 (CL t/3955#5): pov_tags carry-forward rule for MERGE/SPLIT/DEPTH_EXPAND, validated
+    # as one batch against the registry before anything is written. Situations never carry
+    # pov_tags (validatePovTags rejects it on sit-*/cc-* nodes), so no branch below touches it
+    # when $IsCrossCutting. Accumulated here, validated once after the switch.
+    $TagValidationEntries = [System.Collections.Generic.List[hashtable]]::new()
+
     switch ($Proposal.action) {
         'NEW' {
+            # t/3971: NEW (like WIDTH_EXPAND) starts untagged (CL t/3955#5) — neither node
+            # object below sets pov_tags, which is the "untagged" state by omission.
             # Validate node ID format + category consistency. $null = suppresses
             # Test-PovNodeId's $true return so it doesn't pollute the function's
             # result-object output stream (t/2332 pipeline hygiene).
@@ -149,6 +157,22 @@ function Invoke-ProposalApply {
 
             # Remove merged nodes (except survivor)
             $RemoveIds = $MergeIds | Where-Object { $_ -ne $SurvivorId }
+
+            # t/3971: union pov_tags from every merged-away node into the survivor, de-duplicated
+            # (CL t/3955#5). Computed BEFORE removal, while the merged nodes still exist in $Raw.
+            if (-not $IsCrossCutting) {
+                $MergedAwayNodes = @($Raw.nodes | Where-Object { $_.id -in $RemoveIds })
+                $UnionSource = @($Survivor) + $MergedAwayNodes
+                $UnionTags = @($UnionSource | ForEach-Object {
+                    if ($_.PSObject.Properties['pov_tags']) { $_.pov_tags } else { $null }
+                } | Where-Object { $null -ne $_ } | Select-Object -Unique)
+                if (@($UnionTags).Count -gt 0) {
+                    $Survivor | Add-Member -NotePropertyName 'pov_tags' -NotePropertyValue @($UnionTags) -Force
+                    $TagValidationEntries.Add(@{ NodeId = $SurvivorId; Tags = @($UnionTags) })
+                    Write-Warning "MERGE: unioned pov_tags onto survivor '$SurvivorId': $($UnionTags -join ', ')"
+                }
+            }
+
             $Raw.nodes = @($Raw.nodes | Where-Object { $_.id -notin $RemoveIds })
 
             # Update references in remaining nodes
@@ -201,6 +225,14 @@ function Invoke-ProposalApply {
                     situation_refs = $ChildSitRefs
                 }
                 $ChildObj = [PSCustomObject]$ChildNode
+                # t/3971: children inherit the parent's pov_tags as-is (CL t/3955#5) — not
+                # inheriting would silently drop them out of Scope-mode debates. Flagged below
+                # for editor review, not silent.
+                if (-not $IsCrossCutting -and $Target.PSObject.Properties['pov_tags'] -and @($Target.pov_tags).Count -gt 0) {
+                    $InheritedTags = @($Target.pov_tags)
+                    $ChildObj | Add-Member -NotePropertyName 'pov_tags' -NotePropertyValue $InheritedTags -Force
+                    $TagValidationEntries.Add(@{ NodeId = $Child.suggested_id; Tags = $InheritedTags })
+                }
                 Add-TextHistoryEntry -Node $ChildObj -Field 'label' -Value $Child.label -Source 'initial'
                 if ($Child.description) {
                     Add-TextHistoryEntry -Node $ChildObj -Field 'description' -Value $Child.description -Source 'initial'
@@ -214,6 +246,9 @@ function Invoke-ProposalApply {
             $Target.children = @($ChildProposals | ForEach-Object { $_.suggested_id })
 
             Write-Warning "Split '$TargetId' into $($ChildProposals.Count) children. Summaries referencing '$TargetId' may need re-processing."
+            if (-not $IsCrossCutting -and $Target.PSObject.Properties['pov_tags'] -and @($Target.pov_tags).Count -gt 0) {
+                Write-Warning "SPLIT: children of '$TargetId' inherited pov_tags [$($Target.pov_tags -join ', ')] — flag for editor review."
+            }
         }
 
         'REORDER' {
@@ -285,6 +320,13 @@ function Invoke-ProposalApply {
                     situation_refs = @()
                 }
                 $IntObj = [PSCustomObject]$IntNode
+                # t/3971: the new intermediate node inherits the parent's pov_tags as-is (CL
+                # t/3955#5), flagged below for editor review — same rule as SPLIT.
+                if (-not $IsCrossCutting -and $Target.PSObject.Properties['pov_tags'] -and @($Target.pov_tags).Count -gt 0) {
+                    $InheritedTags = @($Target.pov_tags)
+                    $IntObj | Add-Member -NotePropertyName 'pov_tags' -NotePropertyValue $InheritedTags -Force
+                    $TagValidationEntries.Add(@{ NodeId = $SubGroup.suggested_id; Tags = $InheritedTags })
+                }
                 Add-TextHistoryEntry -Node $IntObj -Field 'label' -Value $SubGroup.label -Source 'initial'
                 if ($SubGroup.description) {
                     Add-TextHistoryEntry -Node $IntObj -Field 'description' -Value $SubGroup.description -Source 'initial'
@@ -314,10 +356,16 @@ function Invoke-ProposalApply {
             if ($Target.PSObject.Properties['children']) {
                 $Target.children = @($Target.children) + @($SubGroups | ForEach-Object { $_.suggested_id })
             }
+
+            if (-not $IsCrossCutting -and $Target.PSObject.Properties['pov_tags'] -and @($Target.pov_tags).Count -gt 0) {
+                Write-Warning "DEPTH_EXPAND: intermediate node(s) under '$TargetId' inherited pov_tags [$($Target.pov_tags -join ', ')] — flag for editor review."
+            }
         }
 
         'WIDTH_EXPAND' {
             # Same as NEW but motivated by density signals
+            # t/3971: WIDTH_EXPAND and NEW both start untagged (CL t/3955#5) — the new node
+            # object below has no pov_tags key, which is the "untagged" state by omission.
             try { Test-PovNodeId -Id $Proposal.suggested_id -Category $Proposal.category } catch {
                 return [PSCustomObject]@{ Success = $false; Error = "WIDTH_EXPAND: $($_.Exception.Message)" }
             }
@@ -346,6 +394,18 @@ function Invoke-ProposalApply {
 
         default {
             return [PSCustomObject]@{ Success = $false; Error = "Unknown action: $($Proposal.action)" }
+        }
+    }
+
+    # t/3971: validate every pov_tags change this apply is about to make (MERGE's union,
+    # SPLIT/DEPTH_EXPAND's inheritance) in ONE call to the registry gate, BEFORE the write
+    # below. An invalid carry-forward refuses the whole apply — nothing is written.
+    if ($TagValidationEntries.Count -gt 0) {
+        try {
+            Invoke-PovTagsValidation -Entries $TagValidationEntries.ToArray() `
+                -Goal "Validate pov_tags carried forward by $($Proposal.action) on '$($Proposal.pov)'"
+        } catch {
+            return [PSCustomObject]@{ Success = $false; Error = $_.Exception.Message }
         }
     }
 

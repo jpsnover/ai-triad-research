@@ -74,52 +74,13 @@ function Set-PovNodeTags {
             return [pscustomobject]@{ Checked = 0; Applied = 0; NotFound = @() }
         }
 
-        # --- Build the batch validation request: one CLI call checks EVERY entry (TL cond B.2) ---
-        # @() on the outer array AND -InputObject (never piped) on the encode: both guard the exact
-        # one-element-array unroll hazard this ticket exists to fix (t/3948-class).
-        $request = @($all | ForEach-Object { @{ id = $_.NodeId; pov_tags = @($_.Tags) } })
-        $requestJson = ConvertTo-Json -InputObject $request -Depth 10 -Compress
-
-        # Validation is non-destructive and must run under -WhatIf too (only the taxonomy-file
-        # write below is gated on ShouldProcess) — -WhatIf:$false on every helper call here
-        # overrides the ambient $WhatIfPreference these ShouldProcess-supporting cmdlets would
-        # otherwise inherit from this function, which would silently no-op the temp-file write
-        # and the CLI would see empty input (discovered via this cmdlet's own -WhatIf test).
-        $Inv = Resolve-PovTagsCli
-        $TmpIn = [System.IO.Path]::GetTempFileName()
-        $StderrFile = [System.IO.Path]::GetTempFileName()
-        try {
-            Set-Content -LiteralPath $TmpIn -Value $requestJson -NoNewline -WhatIf:$false
-            $AllArgs = @($Inv.ArgPrefix) + @('--input', $TmpIn)
-            $Stdout = & $Inv.Exe @AllArgs 2> $StderrFile
-            $Exit = $LASTEXITCODE
-            $Stderr = if (Test-Path $StderrFile) { Get-Content -Raw -Path $StderrFile } else { '' }
-        }
-        finally {
-            Remove-Item -Path $TmpIn, $StderrFile -Force -ErrorAction SilentlyContinue -WhatIf:$false
-        }
-
-        # The documented contract: stdout's LAST line is exactly one JSON object.
-        $resultLine = @(@($Stdout) | Where-Object { $_ -match '^\s*\{' }) | Select-Object -Last 1
-
-        if ($Exit -eq 1) {
-            $errors = @()
-            if ($resultLine) { try { $errors = @(($resultLine | ConvertFrom-Json).errors) } catch { } }
-            & $fail "pov-tags-cli refused $(@($errors).Count) invalid entr$(if (@($errors).Count -eq 1) { 'y' } else { 'ies' }) — writing nothing" $errors
-        }
-        if ($Exit -ne 0) {
-            & $fail "pov-tags-cli could not run the check (exit $Exit) — writing nothing: $($Stderr.Trim())" `
-                @('Verify tsx and its runtime deps are installed (npm ci)', 'Check the CLI path Resolve-PovTagsCli resolved')
-        }
-        if (-not $resultLine) {
-            & $fail 'pov-tags-cli exited 0 but produced no result line — treat as failure, not success (the empty-result trap)' `
-                @('Report with the CLI stdout/stderr')
-        }
-        $checkResult = $resultLine | ConvertFrom-Json
-        if ([int]$checkResult.checked -ne $all.Count) {
-            & $fail "pov-tags-cli checked $($checkResult.checked) node(s) but $($all.Count) were submitted — writing nothing (the empty-result trap)" `
-                @('This usually means the input was truncated or malformed', 'Report with the input and the CLI output')
-        }
+        # --- Validate the WHOLE batch in one CLI call before writing anything (TL cond B.2) ---
+        # Shared with Invoke-ProposalApply (t/3971) — the t/3957#7 point D same-helper rule.
+        # Throws (writing nothing) on any invalid entry, a could-not-run exit, or the
+        # empty-result trap (checked != submitted). -WhatIf:$false inside the helper: this
+        # check is non-destructive and must still run when THIS cmdlet is called under -WhatIf.
+        $entries = @($all | ForEach-Object { @{ NodeId = $_.NodeId; Tags = @($_.Tags) } })
+        Invoke-PovTagsValidation -Entries $entries -Goal "Validate and write pov_tags for $($all.Count) node(s)"
 
         # --- Validated. Group by owning POV file; only acc-/saf-/skp- prefixes can reach here —
         # anything else would already have been refused above by validatePovTags. ---
@@ -150,7 +111,9 @@ function Set-PovNodeTags {
         }
 
         return [pscustomobject]@{
-            Checked  = [int]$checkResult.checked
+            # Invoke-PovTagsValidation already proved checked == $all.Count, or this line
+            # would never be reached (it throws, writing nothing).
+            Checked  = $all.Count
             Applied  = $applied
             NotFound = $notFound.ToArray()
         }
