@@ -89,8 +89,19 @@ Describe 'PS/TS pricing-key resolution parity (t/3951, SO e/248 condition 5)' -T
 
         $Mismatches = [System.Collections.Generic.List[string]]::new()
         foreach ($Row in @($script:TsRows)) {
-            $MapKey = "$($Row.backend)|$($Row.apiModelId)"
-            $PsResolvedId = if ($script:PsInfo.ApiModelIdMap.ContainsKey($MapKey)) { $script:PsInfo.ApiModelIdMap[$MapKey] } else { $null }
+            $PsResolvedId = $null
+            if ($script:PsInfo.ApiModelIdMap.ContainsKey($Row.backend)) {
+                $BackendMap = $script:PsInfo.ApiModelIdMap[$Row.backend]
+                if ($BackendMap.ContainsKey($Row.apiModelId)) {
+                    $Candidate = $BackendMap[$Row.apiModelId]
+                    # Ambiguous never counts as resolved for parity purposes --
+                    # the real file has no ambiguous pairs today, so this branch
+                    # is exercised by Get-AICostPricing.Tests.ps1's own fixtures.
+                    if ($Candidate.PSTypeNames -notcontains 'AITriad.AmbiguousPricingKeyMarker') {
+                        $PsResolvedId = $Candidate
+                    }
+                }
+            }
             $PsHasPricing = $PsResolvedId -and $script:PsInfo.Pricing.ContainsKey($PsResolvedId)
             $TsHasPricing = $null -ne $Row.pricingKey
 

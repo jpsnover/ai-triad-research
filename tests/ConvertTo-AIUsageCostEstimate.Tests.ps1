@@ -17,8 +17,11 @@
     apiModelId) map; unresolved+WARN, never a guessed match or silent $0)
     live in Get-AICostReport.Tests.ps1 and Get-AICostPricing.Tests.ps1 since
     they need the real ApiModelIdMap shape. These t/3947 tests use a
-    pass-through map ("<backend>|<model>" -> <model>) since they're testing
-    the cache-rate fallback, not resolution itself.
+    pass-through map ($map[backend][model] -> model) since they're testing
+    the cache-rate fallback, not resolution itself. ApiModelIdMap is a
+    NESTED map ($map[backend][apiModelId] -> id), never a joined-string key
+    (TL review on #2834: same delimiter-collision class CodeQL flagged in
+    #2826).
 #>
 
 BeforeAll {
@@ -35,7 +38,7 @@ Describe 'ConvertTo-AIUsageCostEstimate (t/3947)' -Tag 'cost' {
             $Pricing = @{
                 'no-cache-rate-model' = [PSCustomObject]@{ inputPer1M = 1.0; outputPer1M = 2.0 }
             }
-            $ApiModelIdMap = @{ 'test|no-cache-rate-model' = 'no-cache-rate-model' }
+            $ApiModelIdMap = @{ test = @{ 'no-cache-rate-model' = 'no-cache-rate-model' } }
 
             ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap $ApiModelIdMap -WarningVariable w -WarningAction SilentlyContinue
             @($w).Count | Should -Be 1 -Because 'two entries for the same model must warn only once, not per-entry'
@@ -52,7 +55,7 @@ Describe 'ConvertTo-AIUsageCostEstimate (t/3947)' -Tag 'cost' {
                 'model-a' = [PSCustomObject]@{ inputPer1M = 1.0; outputPer1M = 2.0 }
                 'model-b' = [PSCustomObject]@{ inputPer1M = 3.0; outputPer1M = 4.0 }
             }
-            $ApiModelIdMap = @{ 'test|model-a' = 'model-a'; 'test|model-b' = 'model-b' }
+            $ApiModelIdMap = @{ test = @{ 'model-a' = 'model-a'; 'model-b' = 'model-b' } }
 
             ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap $ApiModelIdMap -WarningVariable w -WarningAction SilentlyContinue
             @($w).Count | Should -Be 2
@@ -66,7 +69,7 @@ Describe 'ConvertTo-AIUsageCostEstimate (t/3947)' -Tag 'cost' {
             $Pricing = @{
                 'no-discount-model' = [PSCustomObject]@{ inputPer1M = 1.0; outputPer1M = 2.0; cachedInputPer1M = 1.0 }
             }
-            $ApiModelIdMap = @{ 'test|no-discount-model' = 'no-discount-model' }
+            $ApiModelIdMap = @{ test = @{ 'no-discount-model' = 'no-discount-model' } }
 
             ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap $ApiModelIdMap -WarningVariable w -WarningAction SilentlyContinue
             @($w).Count | Should -Be 0
@@ -80,12 +83,12 @@ Describe 'ConvertTo-AIUsageCostEstimate (t/3947)' -Tag 'cost' {
             $FallbackEntries = [System.Collections.Generic.List[PSObject]]::new()
             $FallbackEntries.Add((& $MakeEntry 'fallback-model'))
             $FallbackPricing = @{ 'fallback-model' = [PSCustomObject]@{ inputPer1M = 1.0; outputPer1M = 2.0 } }
-            ConvertTo-AIUsageCostEstimate -Entries $FallbackEntries -Pricing $FallbackPricing -ApiModelIdMap @{ 'test|fallback-model' = 'fallback-model' } -WarningAction SilentlyContinue
+            ConvertTo-AIUsageCostEstimate -Entries $FallbackEntries -Pricing $FallbackPricing -ApiModelIdMap @{ test = @{ 'fallback-model' = 'fallback-model' } } -WarningAction SilentlyContinue
 
             $ExplicitEntries = [System.Collections.Generic.List[PSObject]]::new()
             $ExplicitEntries.Add((& $MakeEntry 'explicit-model'))
             $ExplicitPricing = @{ 'explicit-model' = [PSCustomObject]@{ inputPer1M = 1.0; outputPer1M = 2.0; cachedInputPer1M = 1.0 } }
-            ConvertTo-AIUsageCostEstimate -Entries $ExplicitEntries -Pricing $ExplicitPricing -ApiModelIdMap @{ 'test|explicit-model' = 'explicit-model' } -WarningAction SilentlyContinue
+            ConvertTo-AIUsageCostEstimate -Entries $ExplicitEntries -Pricing $ExplicitPricing -ApiModelIdMap @{ test = @{ 'explicit-model' = 'explicit-model' } } -WarningAction SilentlyContinue
 
             $FallbackEntries[0].estimatedCost | Should -Be $ExplicitEntries[0].estimatedCost
             # Sanity: both equal the expected full-input-rate math for 1000/100/200 tokens.
@@ -100,7 +103,7 @@ Describe 'ConvertTo-AIUsageCostEstimate (t/3947)' -Tag 'cost' {
             $Entries.Add([PSCustomObject]@{ model = 'discount-model'; backend = 'test'; promptTokens = 1000; completionTokens = 100; cachedTokens = 200 })
             $Pricing = @{ 'discount-model' = [PSCustomObject]@{ inputPer1M = 1.0; outputPer1M = 2.0; cachedInputPer1M = 0.25 } }
 
-            ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap @{ 'test|discount-model' = 'discount-model' } -WarningAction SilentlyContinue
+            ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap @{ test = @{ 'discount-model' = 'discount-model' } } -WarningAction SilentlyContinue
             $FallbackCost = (800 * 1.0 / 1000000) + (200 * 1.0 / 1000000) + (100 * 2.0 / 1000000)
             $Entries[0].estimatedCost | Should -BeLessThan $FallbackCost
         }
@@ -122,14 +125,14 @@ Describe 'ConvertTo-AIUsageCostEstimate resolution order (t/3951)' -Tag 'cost' {
         }
     }
 
-    It 'resolves a legacy record (no modelId) via the (backend, apiModelId) map, not a bare apiModelId lookup' {
+    It 'resolves a legacy record (no modelId) via the nested (backend, apiModelId) map, not a bare apiModelId lookup' {
         InModuleScope AITriad {
             $Entries = [System.Collections.Generic.List[PSObject]]::new()
             $Entries.Add([PSCustomObject]@{ model = 'gpt-4o'; backend = 'azure'; promptTokens = 1000; completionTokens = 100; cachedTokens = 0 })
             # Pricing is keyed by models[].id, NOT the bare apiModelId "gpt-4o" -- a
             # bare lookup would miss entirely (or, worse, collide with openai's entry).
             $Pricing = @{ 'azure-gpt-4o' = [PSCustomObject]@{ inputPer1M = 5.0; outputPer1M = 10.0; cachedInputPer1M = 5.0 } }
-            $ApiModelIdMap = @{ 'azure|gpt-4o' = 'azure-gpt-4o'; 'openai|gpt-4o' = 'openai-gpt-4o' }
+            $ApiModelIdMap = @{ azure = @{ 'gpt-4o' = 'azure-gpt-4o' }; openai = @{ 'gpt-4o' = 'openai-gpt-4o' } }
 
             ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap $ApiModelIdMap -WarningAction SilentlyContinue
             $Entries[0].hasPricing | Should -BeTrue
@@ -145,7 +148,7 @@ Describe 'ConvertTo-AIUsageCostEstimate resolution order (t/3951)' -Tag 'cost' {
                 'azure-gpt-4o'  = [PSCustomObject]@{ inputPer1M = 999.0; outputPer1M = 999.0 }
                 'openai-gpt-4o' = [PSCustomObject]@{ inputPer1M = 2.5;   outputPer1M = 10.0 }
             }
-            $ApiModelIdMap = @{ 'azure|gpt-4o' = 'azure-gpt-4o'; 'openai|gpt-4o' = 'openai-gpt-4o' }
+            $ApiModelIdMap = @{ azure = @{ 'gpt-4o' = 'azure-gpt-4o' }; openai = @{ 'gpt-4o' = 'openai-gpt-4o' } }
 
             ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap $ApiModelIdMap -WarningAction SilentlyContinue
             $Entries[0].estimatedCost | Should -Be ((1000 * 2.5 + 100 * 10.0) / 1000000) -Because 'the openai record must price at the openai rate, never azure''s'
@@ -160,7 +163,7 @@ Describe 'ConvertTo-AIUsageCostEstimate resolution order (t/3951)' -Tag 'cost' {
                 'azure-gpt-4o'  = [PSCustomObject]@{ inputPer1M = 999.0; outputPer1M = 999.0 }
                 'openai-gpt-4o' = [PSCustomObject]@{ inputPer1M = 2.5;   outputPer1M = 10.0 }
             }
-            $ApiModelIdMap = @{ 'azure|gpt-4o' = 'azure-gpt-4o'; 'openai|gpt-4o' = 'openai-gpt-4o' }
+            $ApiModelIdMap = @{ azure = @{ 'gpt-4o' = 'azure-gpt-4o' }; openai = @{ 'gpt-4o' = 'openai-gpt-4o' } }
 
             ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap $ApiModelIdMap -WarningVariable w -WarningAction SilentlyContinue
             $Entries[0].hasPricing | Should -BeFalse
@@ -190,8 +193,25 @@ Describe 'ConvertTo-AIUsageCostEstimate resolution order (t/3951)' -Tag 'cost' {
             $Entries.Add([PSCustomObject]@{ model = 'gpt-4o'; promptTokens = 500; completionTokens = 50; cachedTokens = 0 })
             $Pricing = @{ 'azure-gpt-4o' = [PSCustomObject]@{ inputPer1M = 1.0; outputPer1M = 1.0 } }
 
-            ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap @{ 'azure|gpt-4o' = 'azure-gpt-4o' } -WarningVariable w -WarningAction SilentlyContinue
+            ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap @{ azure = @{ 'gpt-4o' = 'azure-gpt-4o' } } -WarningVariable w -WarningAction SilentlyContinue
             @($w).Count | Should -Be 1
+        }
+    }
+
+    It 'a (backend, apiModelId) pair marked ambiguous by Get-AICostPricing resolves UNRESOLVED and WARNs distinctly, never last-write-wins' {
+        InModuleScope AITriad {
+            $Entries = [System.Collections.Generic.List[PSObject]]::new()
+            $Entries.Add([PSCustomObject]@{ model = 'shared-api-id'; backend = 'groq'; promptTokens = 1000; completionTokens = 100; cachedTokens = 0 })
+            # Pricing has a price for ONE of the two colliding models -- if the
+            # ambiguity marker were ignored and the map held that model's id
+            # instead (last-write-wins), this entry would silently price as it.
+            $Pricing = @{ 'groq-model-two' = [PSCustomObject]@{ inputPer1M = 1.0; outputPer1M = 1.0 } }
+            $ApiModelIdMap = @{ groq = @{ 'shared-api-id' = $script:AmbiguousPricingKeyMarker } }
+
+            ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap $ApiModelIdMap -WarningVariable w -WarningAction SilentlyContinue
+            $Entries[0].hasPricing | Should -BeFalse -Because 'an ambiguous pair must never resolve to either candidate model''s price'
+            $Entries[0].estimatedCost | Should -Be 0.0
+            @($w) | Where-Object { $_ -match 'shared-api-id' -and $_ -match 'ambiguous' } | Should -Not -BeNullOrEmpty
         }
     }
 }

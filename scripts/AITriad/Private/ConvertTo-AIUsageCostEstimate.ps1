@@ -18,9 +18,12 @@ function ConvertTo-AIUsageCostEstimate {
              `gpt-4o`, `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini` are each
              shared by 2 backends (azure/openai) on origin/main, so a bare
              lookup could silently pick the wrong backend's price.
-          3. No backend, or (backend, apiModelId) not in the map: UNRESOLVED
-             -- never a first-match guess, never priced at $0 silently (SO
-             condition e/248#4). WARNs once per model id per call.
+          3. No backend, (backend, apiModelId) not in the map, or the map
+             holds $script:AmbiguousPricingKeyMarker (two DIFFERENT models
+             share that pair -- Get-AICostPricing never last-write-wins):
+             UNRESOLVED -- never a first-match guess, never priced at $0
+             silently (SO condition e/248#4). WARNs once per model id per
+             call.
         The old `<backend>-<model>` string-concat fallback is dropped: it
         resolves 0 pricing keys on origin/main and only caused PS to
         diverge from the TS reader's resolution.
@@ -38,7 +41,9 @@ function ConvertTo-AIUsageCostEstimate {
     .PARAMETER Pricing
         Pricing lookup from Get-AICostPricing.
     .PARAMETER ApiModelIdMap
-        "<backend>|<apiModelId>" -> models[].id map from Get-AICostPricing.
+        Nested map from Get-AICostPricing: $ApiModelIdMap[backend][apiModelId]
+        -> models[].id, or $script:AmbiguousPricingKeyMarker if two different
+        models share that pair.
     #>
     [CmdletBinding()]
     param(
@@ -68,15 +73,22 @@ function ConvertTo-AIUsageCostEstimate {
         $ResolvedId = $null
 
         $RecordModelId = if ($E.PSObject.Properties['modelId']) { $E.modelId } else { $null }
+        $IsAmbiguous = $false
         if ($RecordModelId) {
             $ResolvedId = $RecordModelId
         }
         else {
             $EBackend = if ($E.PSObject.Properties['backend']) { $E.backend } else { $null }
-            if ($EBackend) {
-                $MapKey = "$EBackend|$ModelId"
-                if ($ApiModelIdMap.ContainsKey($MapKey)) {
-                    $ResolvedId = $ApiModelIdMap[$MapKey]
+            if ($EBackend -and $ApiModelIdMap.ContainsKey($EBackend)) {
+                $BackendMap = $ApiModelIdMap[$EBackend]
+                if ($BackendMap.ContainsKey($ModelId)) {
+                    $Candidate = $BackendMap[$ModelId]
+                    if ($Candidate -eq $script:AmbiguousPricingKeyMarker) {
+                        $IsAmbiguous = $true
+                    }
+                    else {
+                        $ResolvedId = $Candidate
+                    }
                 }
             }
         }
@@ -85,7 +97,12 @@ function ConvertTo-AIUsageCostEstimate {
             $PriceInfo = $Pricing[$ResolvedId]
         }
         elseif ($UnresolvedWarned.Add($ModelId)) {
-            Write-Warning "ConvertTo-AIUsageCostEstimate: '$ModelId' (backend: $(if ($E.PSObject.Properties['backend']) { $E.backend } else { '<none>' })) could not be resolved to a pricing key -- reporting as unresolved (estimatedCost=0, hasPricing=false), never a guessed match (t/3951)."
+            if ($IsAmbiguous) {
+                Write-Warning "ConvertTo-AIUsageCostEstimate: '$ModelId' (backend: $($E.backend)) is ambiguous -- 2+ models share this (backend, apiModelId) pair at different prices; reporting as unresolved (estimatedCost=0, hasPricing=false), never a guessed match (t/3951)."
+            }
+            else {
+                Write-Warning "ConvertTo-AIUsageCostEstimate: '$ModelId' (backend: $(if ($E.PSObject.Properties['backend']) { $E.backend } else { '<none>' })) could not be resolved to a pricing key -- reporting as unresolved (estimatedCost=0, hasPricing=false), never a guessed match (t/3951)."
+            }
         }
 
         if ($null -ne $PriceInfo) {
