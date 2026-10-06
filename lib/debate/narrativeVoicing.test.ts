@@ -20,6 +20,7 @@ import type { OpeningStagePromptInput } from './prompts.js';
 import { formatStrippedTranscript, buildSpeakerMapping } from './neutralEvaluator.js';
 import { formatRecentTranscript } from './helpers.js';
 import type { CampNarrative, TranscriptEntry } from './types.js';
+import { POVER_INFO } from './types.js';
 
 const ALL = ['accelerationist', 'safetyist', 'skeptic'] as const;
 
@@ -102,7 +103,7 @@ describe('formatting', () => {
 
 describe('opening prompt injection', () => {
   const base: OpeningStagePromptInput = {
-    label: 'Safetyist', pov: 'safetyist', personality: '', topic: 'T',
+    label: 'Safetyist', pov: 'safetyist', personality: '', soul: POVER_INFO.safetyist, topic: 'T',
     taxonomyContext: 'CTX', priorStatements: '', isFirst: true,
   };
   const block = '\n=== MODERATOR\'S OPENING: EACH CAMP\'S STORY ===\nBLOCK';

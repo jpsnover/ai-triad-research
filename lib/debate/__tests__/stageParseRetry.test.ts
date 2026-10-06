@@ -6,6 +6,7 @@ import { runTurnPipeline, runOpeningPipeline } from '../turnPipeline.js';
 import type { TurnPipelineInput, StageGenerateFn } from '../turnPipeline.js';
 import type { OpeningPipelineInput } from '../turnPipeline.js';
 import { ActionableError } from '../errors.js';
+import { POVER_INFO } from '../types.js';
 
 // ── Shared fixtures ──────────────────────────────────────
 
@@ -40,6 +41,7 @@ function makeBaseInput(overrides?: Partial<TurnPipelineInput>): TurnPipelineInpu
     label: 'Accelerationist',
     pov: 'accelerationist',
     personality: 'Bold',
+    soul: POVER_INFO.accelerationist,
     topic: 'AI governance',
     taxonomyContext: '',
     commitmentContext: '',
@@ -65,6 +67,7 @@ function makeOpeningInput(overrides?: Partial<OpeningPipelineInput>): OpeningPip
     label: 'Accelerationist',
     pov: 'accelerationist',
     personality: 'Bold',
+    soul: POVER_INFO.accelerationist,
     topic: 'AI governance',
     taxonomyContext: '',
     priorStatements: '',

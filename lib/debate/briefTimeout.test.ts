@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { runOpeningPipeline } from './turnPipeline.js';
 import type { OpeningPipelineInput, BriefEventFn } from './turnPipeline.js';
 import type { StageGenerateFn } from './turnPipeline/types.js';
+import { POVER_INFO } from './types.js';
 
 // ── Minimal fixture ─────────────────────────────────────────
 
@@ -12,6 +13,7 @@ const INPUT: OpeningPipelineInput = {
   label: 'Accelerationist',
   pov: 'acc',
   personality: 'optimist',
+  soul: POVER_INFO.accelerationist,
   topic: 'Is AI good?',
   taxonomyContext: '',
   priorStatements: '',

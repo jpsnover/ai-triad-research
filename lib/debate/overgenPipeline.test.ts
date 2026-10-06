@@ -7,6 +7,7 @@ import type { LookaheadGateInput, PerClaimResult } from './lookaheadGate.js';
 import { runOvergenPipeline } from './overgenPipeline.js';
 import type { OvergenPipelineInput } from './overgenPipeline.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, DraftWorkProduct } from './types.js';
+import { POVER_INFO } from './types.js';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -193,6 +194,7 @@ describe('runOvergenPipeline', () => {
     existingEdges: [],
     label: 'Accelerationist',
     pov: 'accelerationist',
+    soul: POVER_INFO.accelerationist,
     topic: 'Should AI development be accelerated?',
     recentTranscript: 'Prior debate context here.',
   };

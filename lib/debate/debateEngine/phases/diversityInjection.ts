@@ -118,6 +118,13 @@ export async function runDiversityRound(engine: DebateEngineInternals, round: nu
       label: info.label,
       pov: info.pov,
       personality: info.personality,
+      // t/4007: the stage prompts now require the resolved soul (no POVER_INFO fallback).
+      soul: info,
+      opponentSouls: Object.fromEntries(
+        engine.config.activePovers
+          .filter(id => id !== pov && (id as string) !== 'user')
+          .map(id => [id, engine.getSoulForSpeaker(id)]),
+      ),
       topic: engine.session.topic.final,
       background: engine.session.topic.background || undefined,
       taxonomyContext,

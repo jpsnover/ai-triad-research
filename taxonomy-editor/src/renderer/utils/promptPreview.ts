@@ -167,6 +167,10 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
           transcript,
           '(focus point)',
           'all',
+          undefined, undefined, undefined, undefined, undefined, undefined,
+          undefined, undefined, undefined, undefined, undefined,
+          // t/4007: lib requires the resolved soul (no POVER_INFO fallback).
+          previewSouls.soul, previewSouls.opponentSouls,
         );
         sections.push(section('Taxonomy Context', taxonomyBlock));
         sections.push(section('Transcript', transcript));

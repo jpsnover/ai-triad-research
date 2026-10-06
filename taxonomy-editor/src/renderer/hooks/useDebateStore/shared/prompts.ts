@@ -52,7 +52,8 @@ export function buildDebateResponsePrompt(
   souls?: SeatSouls,
 ): string {
   const info = souls?.soul ?? POVER_INFO[poverId];
-  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience, lineageContext, souls?.soul, souls?.opponentSouls);
+  // Pass the resolved `info`, not `souls?.soul`: lib now requires a soul (t/4007), and absent souls mean the base soul.
+  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience, lineageContext, info, souls?.opponentSouls);
 }
 
 export function formatGapHint(gapInjections?: GapInjection[]): string {
@@ -76,7 +77,9 @@ export function buildCrossRespondPrompt(
   docAnalysis?: DocumentAnalysis,
 ): string {
   const info = POVER_INFO[poverId];
-  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent, docAnalysis);
+  // t/4007: lib requires the resolved soul (no POVER_INFO fallback); slots 11-18 keep their defaults.
+  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent, docAnalysis,
+    undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, info);
 }
 
 export function buildProbingQuestionsPrompt(

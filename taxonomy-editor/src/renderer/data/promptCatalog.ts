@@ -13,6 +13,7 @@
  */
 
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
+import type { PovInfo } from '@lib/debate/types';
 import { researchPrompt, conflictResearchPrompt } from '../prompts/research';
 import { vernacularPrompt } from '../prompts/vernacular';
 import { aphorismPrompt } from '../prompts/aphorism';
@@ -58,6 +59,13 @@ import {
 } from '@lib/debate/prompts';
 import { critiqueTopicPrompt } from '@lib/debate/topicCritique';
 
+
+/** t/4007: the debate builders now require a soul. These catalog entries are display templates with
+ *  placeholder POVs, which used to resolve to no soul, so the character, boundary and recap blocks
+ *  rendered empty. This placeholder carries only identity fields: no `voice`, `boundaries`,
+ *  `value_hierarchy`, `epistemic_stance` or `anti_patterns`, so those blocks still render empty and the
+ *  templates are unchanged. The cast is deliberate and confined to this display-only use. */
+const CATALOG_TEMPLATE_SOUL = { label: '{debater}', pov: '{pov}', personality: '{personality}' } as unknown as PovInfo;
 export type PromptGroup = 'debate-setup' | 'debate-turns' | 'debate-analysis' | 'moderator' | 'chat' | 'taxonomy' | 'research' | 'powershell' | 'oped';
 export type DataSourceId = 'taxonomyNodes' | 'situationNodes' | 'vulnerabilities' | 'fallacies' | 'policyRegistry' | 'sourceDocument' | 'commitments' | 'argumentNetwork' | 'establishedPoints';
 
@@ -235,7 +243,8 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     title: 'Debate: Opening Statement',
     description: 'Generates an opening statement for a debater, grounded in taxonomy positions.',
     source: 'prompts/debate.ts',
-    template: openingStatementPrompt('{debater}', '{pov}', '{personality}', '{topic}', '{taxonomy_context}', '', true),
+    template: openingStatementPrompt('{debater}', '{pov}', '{personality}', '{topic}', '{taxonomy_context}', '', true,
+      undefined, undefined, undefined, undefined, undefined, undefined, CATALOG_TEMPLATE_SOUL),
     group: 'debate-turns',
     purpose: 'Fires at the start of each debate. Gives each debater their POV-grounded taxonomy context and asks them to state their position on the topic. The quality of this prompt determines how well-grounded the entire debate will be.',
     phase: 'opening',
@@ -246,7 +255,8 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     title: 'Debate: Response',
     description: 'Generates a debate response to a question or challenge, engaging with prior history.',
     source: 'prompts/debate.ts',
-    template: debateResponsePrompt('{debater}', '{pov}', '{personality}', '{topic}', '{taxonomy_context}', '{transcript}', '{question}', '{addressing}'),
+    template: debateResponsePrompt('{debater}', '{pov}', '{personality}', '{topic}', '{taxonomy_context}', '{transcript}', '{question}', '{addressing}',
+      undefined, undefined, undefined, undefined, undefined, CATALOG_TEMPLATE_SOUL),
     group: 'debate-turns',
     purpose: 'Fires for each debater turn after the opening. Includes taxonomy context, prior transcript, commitments, and argument network to produce a contextually aware response that engages with specific points from other debaters.',
     phase: 'response',
@@ -257,7 +267,8 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     title: 'Debate: Cross-Respond',
     description: 'Generates a cross-response between debaters on a specific focus point.',
     source: 'prompts/debate.ts',
-    template: crossRespondPrompt('{debater}', '{pov}', '{personality}', '{topic}', '{taxonomy_context}', '{transcript}', '{focus_point}', '{addressing}'),
+    template: crossRespondPrompt('{debater}', '{pov}', '{personality}', '{topic}', '{taxonomy_context}', '{transcript}', '{focus_point}', '{addressing}',
+      undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, CATALOG_TEMPLATE_SOUL),
     group: 'debate-turns',
     purpose: 'Fires during cross-respond turns when the moderator directs a specific debater to address a specific point. Similar to response but with a narrower focus directive.',
     phase: 'cross-respond',
