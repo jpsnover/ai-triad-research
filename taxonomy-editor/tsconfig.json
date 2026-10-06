@@ -17,7 +17,7 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@bridge": ["src/renderer/bridge/index.ts"],
+      "@bridge": ["src/renderer/bridge/does-not-exist"],
       "@renderer/*": ["src/renderer/*"],
       "@lib/debate": ["../lib/debate/index.ts"],
       "@lib/debate/*": ["../lib/debate/*"],
