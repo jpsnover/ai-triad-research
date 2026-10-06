@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const h = vi.hoisted(() => ({
   resolvePoverInfo: vi.fn(),
+  getSoulDocument: vi.fn(),
   promptArgs: [] as { pov: string; povLabel: string; voiceBlock: string }[],
   selectCalls: [] as { ids: string[]; scores: Map<string, number> }[],
 }));
@@ -30,7 +31,7 @@ vi.mock('../../debate/soul-docs/pov-tags.json', () => ({
   },
 }));
 
-vi.mock('../../debate/soulDocLoader.js', () => ({ resolvePoverInfo: h.resolvePoverInfo }));
+vi.mock('../../debate/soulDocLoader.js', () => ({ resolvePoverInfo: h.resolvePoverInfo, getSoulDocument: h.getSoulDocument }));
 
 const skp = (n: number, tags?: string[]) => ({
   id: `skp-beliefs-${String(n).padStart(3, '0')}`, category: 'Beliefs', label: `Skeptic ${n}`, description: 'd',
@@ -127,9 +128,12 @@ beforeEach(() => {
   adapter.generateText.mockClear();
   h.resolvePoverInfo.mockReset();
   h.resolvePoverInfo.mockReturnValue({
-    soul: TAG_SOUL,
+    // The identity view (PovInfo-typed): op-ed must NOT build the voice from it (t/4002).
+    soul: { label: 'Skeptic', pov: 'skeptic' },
     soulProvenance: { file: 'C:\\checkout\\lib\\debate\\soul-docs\\skeptic.critical.soul.json', sha: 'abcdef0123456789' },
   });
+  h.getSoulDocument.mockReset();
+  h.getSoulDocument.mockReturnValue(TAG_SOUL);
 });
 
 describe('op-ed tag selection: Scope', () => {
@@ -229,9 +233,18 @@ describe('op-ed tag selection: pre-flight refusals (no generation, no partial se
   });
 
   it('REFUSES when the tag soul cannot load: no fallback to the base soul', async () => {
-    h.resolvePoverInfo.mockImplementation(() => { throw new ActionableError({ goal: 'g', problem: 'tag soul missing', location: 'l', nextSteps: [] }); });
+    h.getSoulDocument.mockImplementation(() => { throw new ActionableError({ goal: 'g', problem: 'tag soul missing', location: 'l', nextSteps: [] }); });
     const err = await refusal({ pov: 'skeptic', tag: 'critical', mode: 'scope' });
     expect(String((err as Error).message)).toMatch(/tag soul missing/);
+    expect(adapter.generateText).not.toHaveBeenCalled();
+  });
+
+  it('REFUSES a tag soul of the wrong shape (e.g. a PovInfo view with no voice) instead of voicing it partially (t/4002)', async () => {
+    const { voice: _dropped, anti_patterns: _alsoDropped, ...povInfoShaped } = TAG_SOUL;
+    h.getSoulDocument.mockReturnValue(povInfoShaped);
+    const err = await refusal({ pov: 'skeptic', tag: 'critical', mode: 'scope' });
+    expect(err).toBeInstanceOf(ActionableError);
+    expect(String((err as Error).message)).toMatch(/not a valid soul document.*voice/);
     expect(adapter.generateText).not.toHaveBeenCalled();
   });
 

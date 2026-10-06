@@ -5,11 +5,12 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { createHash } from 'node:crypto';
 import { ActionableError } from '../debate/errors.js';
-import { resolvePoverInfo } from '../debate/soulDocLoader.js';
+import { getSoulDocument, resolvePoverInfo } from '../debate/soulDocLoader.js';
+import { SoulDocumentSchema } from '../debate/soulDocSchema.js';
 import { applyTagSelection, checkTagScope } from '../debate/relevanceSelection.js';
 import { TAG_BOOST_INCREMENT } from '../debate/debateConfig.js';
 import type { PovNode } from '../debate/taxonomyTypes.js';
-import { loadPovTagRegistry, validatePovTagSelection, type AppliedTag, type TagSelection } from '../schema/povTags.js';
+import { loadPovTagRegistry, validatePovTagSelection, tagSoulFileName, type AppliedTag, type TagSelection } from '../schema/povTags.js';
 import type { AIAdapter } from '../debate/aiAdapter.js';
 import type { PovKey } from '../debate/types.js';
 import { stripCodeFences } from '../debate/helpers.js';
@@ -175,11 +176,15 @@ export function preflightOpEdTag(request: GenerateOpEdRequest, deps: OpEdGenerat
 
   const wing = loadPovTagRegistry().povs[pov]!.find((e) => e.id === tag)!;
   const base = loadSoulDoc(deps.repoRoot, pov);
-  const { soul, soulProvenance } = resolvePoverInfo(pov, { tag, mode });
+  // The voice comes from the full, schema-validated tag document (t/4002): `resolvePoverInfo` returns a
+  // PovInfo-typed identity view, so casting it to SoulDoc would let a shape change silently drop
+  // `voice.*` / `anti_patterns` from the voice block. `resolvePoverInfo` is used for provenance only.
+  const tagSoul = parseTagSoul(pov, tag, getSoulDocument(pov, tag));
+  const { soulProvenance } = resolvePoverInfo(pov, { tag, mode });
   // The byline and prompt keep the POV label: a tag selects a wing, it doesn't change who is writing
   // (CL t/3960#5; matches t/3988 for debates). The tag soul's own `label` is never used as the identity.
   const voice: VoiceSoul = {
-    soul: soul as unknown as SoulDoc,
+    soul: tagSoul,
     label: base.label,
     wing: wing.label,
     provenance: { file: repoRelativeSoulFile(soulProvenance.file), sha: soulProvenance.sha },
@@ -189,6 +194,20 @@ export function preflightOpEdTag(request: GenerateOpEdRequest, deps: OpEdGenerat
   const campNodes = (taxonomy[pov]?.nodes ?? []) as PovNode[];
   refuseThinTag(campNodes, embeddedNodeIds(taxonomy.embeddings), selection);
   return { selection, voice, campNodes };
+}
+
+/**
+ * Validate a tag soul document against SoulDocumentSchema and return it as the op-ed SoulDoc (a structural
+ * subset). A shape change refuses the request loudly instead of degrading the voice block (t/4002).
+ */
+function parseTagSoul(pov: PovKey, tag: string, doc: unknown): SoulDoc {
+  const parsed = SoulDocumentSchema.safeParse(doc);
+  if (parsed.success) return parsed.data;
+  const where = parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
+  throw tagRefusal(
+    `The tag soul for ${pov}/${tag} is not a valid soul document (${where}), so its voice can't be built.`,
+    [`Check lib/debate/soul-docs/${tagSoulFileName(pov, tag)} against SoulDocumentSchema (lib/debate/soulDocSchema.ts).`],
+  );
 }
 
 /** Ids of nodes that have an embedding vector: the only nodes grounding can ever retrieve. */
