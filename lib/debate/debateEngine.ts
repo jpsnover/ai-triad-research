@@ -994,6 +994,7 @@ export class DebateEngine {
       },
       argument_network: { nodes: [], edges: [] },
       commitments: {},
+      ...(this.config.seat_tags ? { seat_tags: this.config.seat_tags } : {}),
     };
 
     // Initialize commitment stores

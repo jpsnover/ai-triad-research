@@ -112,7 +112,7 @@ beforeEach(() => {
     derivation: { fidelity: 'standard', models: { debaters: 'model-a' }, rounds: 4, callBudget: 60 },
   });
 
-  vi.mocked(buildGroundingEnvelope).mockResolvedValue(makeGrounding());
+  vi.mocked(buildGroundingEnvelope).mockResolvedValue({ envelope: makeGrounding() });
   vi.mocked(getRawMetrics).mockReturnValue(makeRawMetrics());
   vi.mocked(projectTrust).mockReturnValue(makeCalibration());
   vi.mocked(synthesizeInquiry).mockResolvedValue(makeResult());
@@ -137,7 +137,7 @@ describe('runInquiryPipeline — happy path', () => {
     });
     vi.mocked(buildGroundingEnvelope).mockImplementation(async (..._args) => {
       order.push('grounding');
-      return makeGrounding();
+      return { envelope: makeGrounding() };
     });
     const deps = makeDeps({
       runDebate: vi.fn().mockImplementation(async () => {
@@ -233,7 +233,7 @@ describe('runInquiryPipeline — truncated run', () => {
 describe('runInquiryPipeline — empty grounding (ADR-001)', () => {
   it('continues and passes empty grounding to synthesizeInquiry', async () => {
     const emptyGrounding = { nodesByCamp: {} };
-    vi.mocked(buildGroundingEnvelope).mockResolvedValue(emptyGrounding);
+    vi.mocked(buildGroundingEnvelope).mockResolvedValue({ envelope: emptyGrounding });
 
     await runInquiryPipeline(makeRequest(), makeDeps());
 

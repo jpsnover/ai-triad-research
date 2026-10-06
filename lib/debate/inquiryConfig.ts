@@ -94,6 +94,15 @@ export function deriveDebateConfig(request: InquiryRequest, registry: ModelRegis
     stageModels: { evaluator: evaluatorModel },
   };
 
+  // Map request.tagSelection → DebateConfig.seat_tags for the one owning seat (t/3965).
+  // PovName ('accelerationist' | 'safetyist' | 'skeptic') maps 1-to-1 to SpeakerId here.
+  if (request.tagSelection) {
+    const sel = request.tagSelection;
+    config.seat_tags = {
+      [sel.pov]: { pov_tag: sel.tag, tag_mode: sel.mode },
+    };
+  }
+
   const derivation: ResolvedDerivation = {
     fidelity: request.fidelity,
     models: { debaters: debaterModel, evaluator: evaluatorModel },

@@ -138,3 +138,28 @@ describe('deriveDebateConfig — config shape', () => {
     expect(derivation.costUsd).toBeUndefined();
   });
 });
+
+// ── seat_tags from tagSelection (t/3965) ─────────────────────────────────────
+
+describe('deriveDebateConfig — seat_tags', () => {
+  it('seat_tags absent when no tagSelection in request', () => {
+    const { config } = deriveDebateConfig(makeRequest(), makeRegistry());
+    expect(config.seat_tags).toBeUndefined();
+  });
+
+  it('seat_tags set for named pov only when tagSelection provided', () => {
+    const req = makeRequest({ tagSelection: { pov: 'safetyist', tag: 'alignment', mode: 'scope' } });
+    const { config } = deriveDebateConfig(req, makeRegistry());
+    expect(config.seat_tags).toBeDefined();
+    expect(config.seat_tags!['safetyist']).toEqual({ pov_tag: 'alignment', tag_mode: 'scope' });
+    // Other seats not set
+    expect(config.seat_tags!['accelerationist']).toBeUndefined();
+    expect(config.seat_tags!['skeptic']).toBeUndefined();
+  });
+
+  it('seat_tags pov_tag and tag_mode match tagSelection values', () => {
+    const req = makeRequest({ tagSelection: { pov: 'skeptic', tag: 'capabilities', mode: 'prioritize' } });
+    const { config } = deriveDebateConfig(req, makeRegistry());
+    expect(config.seat_tags!['skeptic']).toEqual({ pov_tag: 'capabilities', tag_mode: 'prioritize' });
+  });
+});
