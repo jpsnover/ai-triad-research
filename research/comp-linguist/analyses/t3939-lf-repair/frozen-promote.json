@@ -1,0 +1,21 @@
+{
+  "ticket": "t/3939",
+  "op": "logical_form.status proposed -> accepted (status flip only)",
+  "data_base": "c289dfaf",
+  "authorization": "PI in session 2026-10-06, recorded t/3939#5",
+  "expected": 2,
+  "targets": [
+    {
+      "file": "safetyist.json",
+      "id": "saf-intentions-127",
+      "predicate": "give",
+      "before_sha16": "4bf368d5a3f74e3c"
+    },
+    {
+      "file": "skeptic.json",
+      "id": "skp-beliefs-232",
+      "predicate": "destroy",
+      "before_sha16": "73f2a2ca8222f53e"
+    }
+  ]
+}
