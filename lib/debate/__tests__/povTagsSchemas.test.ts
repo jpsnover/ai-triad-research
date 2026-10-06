@@ -41,8 +41,14 @@ describe('PovNodeSchema pov_tags (t/3955)', () => {
     expect(PovNodeSchema.safeParse(povNode()).success).toBe(true);
   });
 
-  it('REJECTS a tag that is not in the registry (the registry ships empty)', () => {
+  it('ACCEPTS a tag registered for the node\'s POV (one element, the common case)', () => {
     const r = PovNodeSchema.safeParse(povNode({ pov_tags: ['critical'] }));
+    expect(r.success).toBe(true);
+    expect(r.success && r.data.pov_tags).toEqual(['critical']);
+  });
+
+  it('REJECTS a tag that is not in the registry', () => {
+    const r = PovNodeSchema.safeParse(povNode({ pov_tags: ['radical'] }));
     expect(r.success).toBe(false);
     expect(r.error?.issues[0].path).toEqual(['pov_tags']);
   });

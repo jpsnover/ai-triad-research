@@ -82,7 +82,7 @@ type PoverId = 'Accelerationist' | 'Safetyist' | 'Skeptic' | 'user';
 |----|-------|-----|-------------|
 | `Accelerationist` | Accelerationist | accelerationist | Confident, forward-looking, frames risk as cost-of-inaction |
 | `Safetyist` | Safetyist | safetyist | Methodical, evidence-driven, frames progress as conditional-on-safeguards |
-| `Skeptic` | Skeptic | skeptic | Wry, pragmatic, challenges assumptions from both sides |
+| `Skeptic` | Skeptic | skeptic | Grounded, dry, unmoved by both utopia and apocalypse; asks what is actually happening and who answers for it |
 | `user` | (human) | — | Human participant in user-is-pover mode |
 
 ### Transcript Entry

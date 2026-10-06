@@ -47,7 +47,7 @@ A tech reporter preparing for an interview or article. Needs to anticipate count
 |-----|-------------|-------------|
 | Accelerationist | **Accelerationist** | Confident, forward-looking, frames risk as cost-of-inaction |
 | Safetyist | **Safetyist** | Methodical, evidence-driven, frames progress as conditional-on-safeguards |
-| Skeptic | **Skeptic** | Wry, pragmatic, challenges assumptions from both sides |
+| Skeptic | **Skeptic** | Grounded, dry, unmoved by both utopia and apocalypse; asks what is actually happening and who answers for it |
 | User (optional) | **You** | Freeform, ungrounded, the human wildcard |
 
 ---

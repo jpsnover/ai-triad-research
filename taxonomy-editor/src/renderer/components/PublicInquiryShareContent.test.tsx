@@ -59,8 +59,8 @@ describe('PublicInquiryShareContent POV-tag scope (t/3983)', () => {
   it('(a) a tagged Scope share renders the scope label and both counts', () => {
     render(<PublicInquiryShareContent doc={tagged(SKP_CRITICAL, { included: 12, excludedUntagged: 31 })} />);
     const scope = screen.getByLabelText('Tag scope');
-    // The registry ships empty until t/3956, so the tag id itself is the label (retired/unknown fallback).
-    expect(scope.textContent).toContain('Scoped to Skeptic · critical (Scope mode)');
+    // 'critical' is registered (t/3956), so its registry label renders; the raw-id fallback is the retired-tag arm below.
+    expect(scope.textContent).toContain('Scoped to Skeptic · Critical (Scope mode)');
     expect(scope.textContent).toContain('Grounded on 12 tagged Skeptic nodes; 31 untagged Skeptic nodes excluded.');
   });
 
@@ -74,7 +74,7 @@ describe('PublicInquiryShareContent POV-tag scope (t/3983)', () => {
   it('(c) a Prioritize share says "Prioritizing", not "Scoped", and reports no exclusion', () => {
     render(<PublicInquiryShareContent doc={tagged({ pov: 'skeptic', tag: 'critical', mode: 'prioritize' }, { included: 12, excludedUntagged: 0 })} />);
     const text = screen.getByLabelText('Tag scope').textContent ?? '';
-    expect(text).toContain('Prioritizing Skeptic · critical');
+    expect(text).toContain('Prioritizing Skeptic · Critical');
     expect(text).not.toMatch(/Scoped|excluded/);
   });
 
@@ -92,6 +92,6 @@ describe('PublicInquiryShareContent POV-tag scope (t/3983)', () => {
     const doc = tagged(SKP_CRITICAL, { included: 12, excludedUntagged: 0 }) as unknown as { derivation: { tag: { mode: string } } };
     doc.derivation.tag.mode = 'prioritize';
     render(<PublicInquiryShareContent doc={doc as unknown as PublicInquiryShare} />);
-    expect(screen.getByLabelText('Tag scope').textContent).toContain('Prioritizing Skeptic · critical (requested: Skeptic · critical, scope mode)');
+    expect(screen.getByLabelText('Tag scope').textContent).toContain('Prioritizing Skeptic · Critical (requested: Skeptic · Critical, scope mode)');
   });
 });
