@@ -183,6 +183,13 @@ def validate(lf, allowed, camp, cat):
         return a
 
     lf["args"] = [x for x in (fix(a) for a in (lf.get("args") or [])) if x]
+    # A perdurant (event, process, state) is never an `agent`: agency belongs to endurants (DOLCE). It is the
+    # `cause` when it brings the event about, or the `theme` when it is the subject of a stative predicate
+    # ("X constitutes a defect"). The right role depends on the predicate, so this is REFUSED, not relabelled:
+    # the draft is discarded and retried (t/4020). Checked after fix(), so a grounded event entity is caught too.
+    for a in lf["args"]:
+        if a.get("role") == "agent" and a.get("sort") == "perdurant":
+            raise ValueError(f"perdurant agent {a.get('ref')!r}: an event/process cannot be an agent; use cause or theme (t/4020)")
     # Option C split (t/3389): about[] = ent-* only; term: concept refs -> topical_candidates.
     # Only grounded refs survive (R6 / t/2294 — a ref not in the node's own entity_refs/concept_refs
     # is dropped, never minted); the `in allowed` gate enforces the {ent-*|term:*} vocabulary.
@@ -252,7 +259,7 @@ def main():
                 if lf and lf.get("predicate"):
                     return (n["id"], lf)
             except Exception as ex:
-                sys.stderr.write(f"  [warn] {n['id']} a{a}: {type(ex).__name__}\n")
+                sys.stderr.write(f"  [warn] {n['id']} a{a}: {type(ex).__name__}: {str(ex)[:160]}\n")  # say WHY a draft was refused
             time.sleep(0.8 * (a + 1))
         return (n["id"], None)
 
