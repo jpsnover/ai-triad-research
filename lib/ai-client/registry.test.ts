@@ -350,20 +350,20 @@ describe('validateModelConfig', () => {
     expect(warnings[0].referenceSite).toBe('debateTiers.advanced.openai');
   });
 
-  it('flags a pricing superset key as info (not a warning)', () => {
+  it('flags a pricing key that is not a models[].id as info, including an apiModelId key (t/3946)', () => {
     const registry: ModelRegistry = {
       ...BASE,
       pricing: {
-        'gpt-4o': { inputPer1M: 5, outputPer1M: 15 },       // matches models[].apiModelId
-        'gemini-2.5-pro': { inputPer1M: 1.25, outputPer1M: 10 }, // superset, no matching model
+        'openai-gpt-4o': { inputPer1M: 5, outputPer1M: 15 },  // a models[].id: the contract (t/3946)
+        'gpt-4o': { inputPer1M: 5, outputPer1M: 15 },         // an apiModelId: no longer a valid key
+        'gemini-2.5-pro': { inputPer1M: 1.25, outputPer1M: 10 }, // no matching model at all
       },
     };
     const issues = validateModelConfig(registry);
     expect(issues.filter(i => i.severity === 'warning')).toHaveLength(0);
     const infos = issues.filter(i => i.severity === 'info');
-    expect(infos).toHaveLength(1);
-    expect(infos[0].modelId).toBe('gemini-2.5-pro');
-    expect(infos[0].referenceSite).toBe('pricing.gemini-2.5-pro');
+    expect(infos.map(i => i.modelId).sort()).toEqual(['gemini-2.5-pro', 'gpt-4o']);
+    expect(infos.every(i => /models\[\]\.id/.test(i.message))).toBe(true);
   });
 
   it('skips underscore-prefixed keys (_comment) in defaults, tiers, and pricing', () => {

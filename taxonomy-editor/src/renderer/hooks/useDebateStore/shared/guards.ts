@@ -94,8 +94,40 @@ function scheduleViewerReload(): void {
   }, VIEWER_RELOAD_COALESCE_MS);
 }
 
+/**
+ * Every flip of `driverIsRemote` goes through here, so a dump shows why a window became a
+ * viewer and whether it was ever released (t/3967: the 10-06 dump could show neither).
+ */
+function setDriverIsRemote(value: boolean, reason: string, holderWindow: string | null): void {
+  const state = useDebateStore.getState();
+  if (state.driverIsRemote === value) return;
+  useDebateStore.setState({ driverIsRemote: value });
+  getGlobalRecorder()?.record({
+    type: 'debate.lifecycle', component: 'run-lease', level: 'info', debate_id: state.activeDebateId ?? undefined,
+    message: value ? 'Window became a viewer — another window drives this debate' : 'Viewer released — this window can drive again',
+    data: { reason, holder_window: holderWindow, window: _windowId, popout: _isPopoutWindow },
+  });
+}
+
+/** The lease holder this window deferred to. Kept apart from `_activeDriverWindow`, which a
+ *  bare driver-channel claim can move, so the holder's lease release always unlocks us. */
+let _deferredToHolder: string | null = null;
+
+function deferToHolder(holderWindow: string, reason: string): void {
+  _activeDriverWindow = holderWindow;
+  _deferredToHolder = holderWindow;
+  setDriverIsRemote(true, reason, holderWindow);
+}
+
+function holderGone(holderWindow: string, reason: string): void {
+  if (_activeDriverWindow !== holderWindow && _deferredToHolder !== holderWindow) return;
+  if (_activeDriverWindow === holderWindow) _activeDriverWindow = null;
+  _deferredToHolder = null;
+  setDriverIsRemote(false, reason, holderWindow);
+  reloadActiveDebateFromStorage(reason);
+}
+
 const _unsubscribeRunLease = subscribeRunLease((ev) => {
-  const activeDebateId = useDebateStore.getState().activeDebateId;
   if (ev.type === 'local-released') {
     if (_activeDriverWindow === _windowId) {
       _activeDriverWindow = null;
@@ -103,19 +135,32 @@ const _unsubscribeRunLease = subscribeRunLease((ev) => {
     }
     return;
   }
-  if (ev.debateId !== activeDebateId) return;
-  if (ev.type === 'remote-held') {
-    // Another window owns this debate: defer to it, including when this is a pop-out.
-    _activeDriverWindow = ev.holder.windowId;
-    useDebateStore.setState({ driverIsRemote: true });
-  } else if (ev.type === 'remote-expired' && _activeDriverWindow === ev.holder.windowId) {
-    // The holder died without a release. Free the driver so this window isn't a
-    // permanent viewer (t/3917 condition 2), and refresh from what it last saved.
-    _activeDriverWindow = null;
-    useDebateStore.setState({ driverIsRemote: false });
-    reloadActiveDebateFromStorage('holder-expired');
-  } else if (ev.type === 'remote-saved') {
-    scheduleViewerReload();
+  if (ev.debateId !== useDebateStore.getState().activeDebateId) return;
+  // Exhaustive on purpose: a lease event with no case here is how t/3967 happened (the
+  // lease emitted 'remote-released' and no viewer listened). A new variant fails to compile.
+  switch (ev.type) {
+    case 'remote-held':
+      // Another window owns this debate: defer to it, including when this is a pop-out.
+      deferToHolder(ev.holder.windowId, 'holder-held');
+      return;
+    case 'remote-released':
+      // The holder finished. The lease release is authoritative; the driver-channel
+      // 'release' is only a secondary path, sent only when the holder's own driver
+      // bookkeeping still points at itself (t/3967).
+      holderGone(ev.windowId, 'holder-released');
+      return;
+    case 'remote-expired':
+      // The holder died without a release. Free the driver so this window isn't a
+      // permanent viewer (t/3917 condition 2), and refresh from what it last saved.
+      holderGone(ev.holder.windowId, 'holder-expired');
+      return;
+    case 'remote-saved':
+      scheduleViewerReload();
+      return;
+    default: {
+      const unhandled: never = ev;
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'run-lease', level: 'warn', message: 'Unhandled run-lease event ignored', data: { event: unhandled } });
+    }
   }
 });
 
@@ -134,13 +179,14 @@ if (_driverChannel) {
       // lease holder of the very debate it shows.
       const fromLeaseHolderOfOurDebate = !!debateId && debateId === useDebateStore.getState().activeDebateId;
       if (windowId !== _windowId && (!_isPopoutWindow || fromLeaseHolderOfOurDebate)) {
-        useDebateStore.setState({ driverIsRemote: true });
+        setDriverIsRemote(true, 'driver-claim', windowId);
       }
     }
     if (type === 'release' && _activeDriverWindow === windowId) {
       _activeDriverWindow = null;
+      if (_deferredToHolder === windowId) _deferredToHolder = null;
       if (windowId !== _windowId) {
-        useDebateStore.setState({ driverIsRemote: false });
+        setDriverIsRemote(false, 'driver-released', windowId);
         reloadActiveDebateFromStorage('driver-released');
       }
     }
@@ -157,10 +203,7 @@ function ensureActiveDebateWatcher(): void {
   _unsubscribeActiveDebateWatch = useDebateStore.subscribe((state, prev) => {
     if (state.activeDebateId === prev.activeDebateId || !state.activeDebateId) return;
     const holder = getRemoteRunLeaseHolder(state.activeDebateId);
-    if (holder) {
-      _activeDriverWindow = holder.windowId;
-      useDebateStore.setState({ driverIsRemote: true });
-    }
+    if (holder) deferToHolder(holder.windowId, 'holder-held-on-load');
   });
 }
 
@@ -205,12 +248,18 @@ export function releaseDebateDriver(): void {
 
 function resetDebateDriverLock(): void {
   _activeDriverWindow = null;
+  _deferredToHolder = null;
+}
+
+/** True in a debate pop-out window. The viewer banner words itself by it (t/3967). */
+export function isDebatePopoutWindow(): boolean {
+  return _isPopoutWindow;
 }
 
 export function markAsPopout(): void {
   _isPopoutWindow = true;
   _activeDriverWindow = _windowId;
-  useDebateStore.setState({ driverIsRemote: false });
+  setDriverIsRemote(false, 'popout-mounted', null);
   _driverChannel?.postMessage({ type: 'claim', windowId: _windowId });
   // If another window already holds this debate's run lease, its re-assert (or its beat,
   // once our debate loads) turns this pop-out into a viewer (t/3917, Option A).
@@ -224,7 +273,7 @@ export function initDebatePopoutCloseHandler(api: { onDebatePopoutClosed: (cb: (
     // was driving THIS window's active debate. A different debate's popout closing must not
     // clobber the displayed debate's driver/reload state now that N popouts can be open.
     if (debateId !== useDebateStore.getState().activeDebateId) return;
-    useDebateStore.setState({ driverIsRemote: false });
+    setDriverIsRemote(false, 'popout-closed', null);
     reloadActiveDebateFromStorage('popout-closed');
   });
 }

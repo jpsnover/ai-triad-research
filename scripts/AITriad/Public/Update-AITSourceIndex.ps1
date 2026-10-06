@@ -67,7 +67,11 @@ function Update-AITSourceIndex {
 
         # Load summary statistics — prefer cached values in metadata
         $TotalClaims      = 0
-        $ClaimsByPov      = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
+        # t/3944: MUST be [ordered] -- a plain @{} serializes via ConvertTo-Json in
+        # .NET hash-bucket order, which is randomized per PROCESS (not just different
+        # from the committed Python-authored format once), so every rebuild could
+        # reorder these keys regardless of whether any data changed ("serializer churn").
+        $ClaimsByPov      = [ordered]@{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
         $TotalFacts       = 0
         $UnmappedConcepts = 0
 

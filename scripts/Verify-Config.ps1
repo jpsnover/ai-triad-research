@@ -309,6 +309,38 @@ else {
     Write-Host "  OK   $cacheLabel — all $($cacheResult.checked) pricing entries on cache-reporting backends declare cachedInputPer1M (warn-only lane; not counted in the gate total)" -ForegroundColor Green
 }
 
+# ── Pricing-key contract (t/3946) ───────────────────────────────────────────
+# `pricing` is keyed by models[].id (binding design t/3946#5, after Second Opinion e/248). Same CLI run as
+# the cache lane above (findPricingKeyIssues). WARN: a key that isn't a models[].id, a reachable model with
+# no pricing, two models sharing a (backend, apiModelId) pair. INFO: an apiModelId served by 2+ backends.
+# WARN ONLY and FAIL CLOSED, exactly like the cache lane: kept out of $Results, so the "all N green" count
+# never changes; a crash, missing fields or an empty model list is "could not be evaluated", never clean.
+Write-Section 'Pricing-key contract (t/3946)'
+$keyLabel   = 'pricing-keys'
+$keyProblem = $cacheProblem
+if (-not $keyProblem -and -not ($cacheResult.PSObject.Properties['keyIssues'] -and $cacheResult.PSObject.Properties['keyInfo'] -and $cacheResult.PSObject.Properties['models'])) {
+    $keyProblem = "check output is missing 'models', 'keyIssues' or 'keyInfo'"
+}
+elseif (-not $keyProblem -and [int]$cacheResult.models -eq 0) {
+    $keyProblem = 'check evaluated 0 models (expected many); treating as not evaluated'
+}
+if ($keyProblem) {
+    Write-Host "  WARN $keyLabel — could not be evaluated: $keyProblem" -ForegroundColor Yellow
+    $Warnings["$keyLabel (not evaluated)"] = $keyProblem
+}
+else {
+    foreach ($i in @($cacheResult.keyInfo)) { Write-Host "  INFO $keyLabel — $($i.message)" -ForegroundColor DarkGray }
+    $k = @($cacheResult.keyIssues).Count
+    if ($k -gt 0) {
+        Write-Host "  WARN $keyLabel — $k pricing-key issue(s) across $($cacheResult.models) models:" -ForegroundColor Yellow
+        foreach ($i in @($cacheResult.keyIssues)) { Write-Host "        $($i.referenceSite): $($i.message)" -ForegroundColor Yellow }
+        $Warnings["$keyLabel ($k issues)"] = "$k pricing-key contract issues"
+    }
+    else {
+        Write-Host "  OK   $keyLabel — all pricing keys are models[].id, every reachable model is priced, (backend, apiModelId) pairs are unique (warn-only lane; not counted in the gate total)" -ForegroundColor Green
+    }
+}
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 # PASS/FAIL gates live in $Results; WARN and N/A are reported on their own lines and counts and are
 # NEVER folded into the PASSED total (t/3869#2 — "all N green" must not include a check that warned
