@@ -167,6 +167,9 @@ The `skeptic.institutional.soul.json` is the t/3932 Institutionalist draft. Its 
 - **SCOPE:** the POV's candidate items are filtered to those whose `pov_tags` contain the tag, **before** relevance ranking. Untagged items are excluded (default for decision 2). The setup screen shows how many items are in scope and how many are untagged.
 - **Scope never widens silently** (*TL condition*). If Scope leaves fewer POV items than the selection needs, setup refuses and shows the count. There is no quiet fallback to all items (Fallback-Path Logging rule).
   - **"Thin" means fewer than 5 tagged items** in the POV (`checkTagScope`, `lib/debate/relevanceSelection.ts`; stipulated, see the metric provenance register).
+    - **The count is of *groundable* tagged items:** tagged **and** with an embedding (CL ruling, p/736#41–#43, t/4009). The floor guards how much material an answer can draw on, and an unembedded node can't be retrieved.
+    - **The count still runs before grounding, over the camp's full node list,** so a camp with no embeddings refuses (at 0) instead of being skipped.
+    - **A tagged node with no embedding is a data-quality gap, not something to absorb.** Log a WARN with the count, and show both numbers in any refusal.
   - **One rule, two phases** (t/3957#7; SO e/254#6 condition 1):
     1. **Pre-flight, every feature: refuse.** A thin Scope is refused before anything runs, showing the count. Where the refusal lives:
        - debates: the setup screens (t/3958, t/3959);
