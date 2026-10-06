@@ -30,21 +30,31 @@ import { getRequestId } from '../logger.js';
 import { log } from '../logger.js';
 import * as fileIO from '../storage/fileIO.js';
 import { getWarmupStatus, computeEmbedding } from '../../../../lib/embeddings/onnxEmbedding.js';
+import { tagSoulFileName } from '../../../../lib/schema/povTags.js';
 
 /**
- * Tag souls for /api/health/oped-files: every registry-listed tag must have a
- * soul per base POV, and tags/ must hold no file the registry doesn't account for.
- * Extracted from the route handler to keep it inside the complexity budget.
+ * Tag souls for /api/health/oped-files: every registry-listed tag must have its
+ * soul file present in soul-docs/ (spec §3: `<pov>.<tag>.soul.json`), and no
+ * unlisted tag soul may exist there either. Uses tagSoulFileName — single source.
  */
 function checkTagSouls(
-  soulDocsDir: string, basePovs: readonly string[], missing: string[], present: string[],
+  soulDocsDir: string, _basePovs: readonly string[], missing: string[], present: string[],
 ): void {
-  const tagSoulsDir = path.join(soulDocsDir, 'tags');
   const povTagsPath = path.join(soulDocsDir, 'pov-tags.json');
-  let registeredTags: string[] = [];
+  const expectedTagFiles = new Set<string>();
   try {
-    const tagRegistry = JSON.parse(fs.readFileSync(povTagsPath, 'utf-8')) as { povs?: Record<string, unknown> };
-    registeredTags = Object.keys(tagRegistry.povs ?? {});
+    const reg = JSON.parse(fs.readFileSync(povTagsPath, 'utf-8')) as {
+      povs?: Record<string, Array<{ id: string }>>
+    };
+    for (const [pov, entries] of Object.entries(reg.povs ?? {})) {
+      for (const entry of (entries ?? [])) {
+        const fname = tagSoulFileName(pov, entry.id);
+        expectedTagFiles.add(fname);
+        const rel = `lib/debate/soul-docs/${fname}`;
+        if (fs.existsSync(path.join(soulDocsDir, fname))) { present.push(rel); }
+        else { missing.push(rel); }
+      }
+    }
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'server', level: 'warn',
@@ -52,24 +62,17 @@ function checkTagSouls(
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     missing.push('lib/debate/soul-docs/pov-tags.json (unreadable or missing)');
+    return;
   }
 
-  const expectedTagFiles = new Set<string>();
-  for (const tag of registeredTags) {
-    for (const pov of basePovs) {
-      const rel = `lib/debate/soul-docs/tags/${tag}.${pov}.soul.json`;
-      expectedTagFiles.add(`${tag}.${pov}.soul.json`);
-      if (fs.existsSync(path.join(tagSoulsDir, `${tag}.${pov}.soul.json`))) { present.push(rel); }
-      else { missing.push(rel); }
-    }
-  }
-
-  // Stray detection: files in tags/ not accounted for by the registry.
-  if (fs.existsSync(tagSoulsDir)) {
-    for (const f of fs.readdirSync(tagSoulsDir)) {
-      if (!expectedTagFiles.has(f)) {
-        missing.push(`lib/debate/soul-docs/tags/${f} (stray — not in pov-tags.json registry)`);
-      }
+  // Stray detection: .soul.json files in soul-docs/ with a dot in the stem are tag
+  // souls; report any not covered by the registry.
+  for (const f of fs.readdirSync(soulDocsDir)) {
+    if (!f.endsWith('.soul.json')) continue;
+    const stem = f.slice(0, -'.soul.json'.length);
+    if (!stem.includes('.')) continue; // base soul (e.g. 'skeptic.soul.json') — skip
+    if (!expectedTagFiles.has(f)) {
+      missing.push(`lib/debate/soul-docs/${f} (stray — not in pov-tags.json registry)`);
     }
   }
 }
