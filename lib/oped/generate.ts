@@ -295,7 +295,7 @@ function warnUnembeddedTagged(applied: AppliedTag, unembedded: number, deps: OpE
 /** The tag filter for the tagged camp's grounding: the nodes to select from, the scores to rank by, and
  *  the applied-tag record with its counts (meanings per mode: APPLIED_TAG_COUNT_MEANING). `included` counts
  *  only tagged nodes that have a score (an embedding), since only those can be grounded or boosted; the rest
- *  are returned as `unembedded` for the WARN. The pre-flight floor still counts every tagged node (CL). */
+ *  are returned as `unembedded` for the WARN. The pre-flight floor (`refuseThinTag`) counts the same groundable set. */
 function applyOpEdTag(plan: OpEdTagPlan, scores: Map<string, number>): { nodes: PovNode[]; scores: Map<string, number>; applied: AppliedTag; unembedded: number } {
   const { pov, tag, mode } = plan.selection;
   const { filteredNodes, excludedCount, boostIds } = applyTagSelection(plan.campNodes, { tag, mode });
