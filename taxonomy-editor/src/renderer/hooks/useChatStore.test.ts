@@ -180,8 +180,8 @@ describe('useChatStore', () => {
     });
   });
 
-  // t/3995: a chat can carry one POV tag (spec §2). Scope sends only tagged nodes; Prioritize is recorded
-  // and, until formatTaxonomyContext orders by tag (t/3996), sends every node with a WARN.
+  // t/3995: a chat can carry one POV tag (spec §2). Scope sends only tagged nodes; Prioritize sends every
+  // node and passes the tagged IDs to formatTaxonomyContext (t/3996) for tagged-first ordering.
   // t/3995 part 2: the tag soul REPLACES the POV soul as the chat persona (spec section 1). Uses the real
   // skeptic.critical soul file through tagSoulRegistry, so registry/file drift fails here.
   describe('tag soul persona (t/3995)', () => {
@@ -295,11 +295,21 @@ describe('useChatStore', () => {
       expect(tagWarns()).toHaveLength(0);
     });
 
-    it('a Prioritize chat gets every node and a WARN until t/3996 orders them', async () => {
+    it('a Prioritize chat gets every node, with the tagged IDs passed to formatTaxonomyContext for ordering (t/3996), no WARN', async () => {
       await opening({ pov_tag: 'critical', tag_mode: 'prioritize' });
       expect(sentNodeIds()).toEqual([NODES.map(n => n.id)]);
-      expect(tagWarns()).toHaveLength(1);
-      expect(tagWarns()[0][0].message).toMatch(/t\/3996/);
+      const sentConfig = vi.mocked(formatTaxonomyContext).mock.calls[0][3];
+      expect(sentConfig?.tagSelection).toEqual({
+        taggedIds: new Set(['skp-beliefs-001', 'skp-desires-001']),
+        mode: 'prioritize',
+      });
+      expect(tagWarns()).toHaveLength(0);
+    });
+
+    it('an untagged chat is given no tagSelection config', async () => {
+      await opening({});
+      const sentConfig = vi.mocked(formatTaxonomyContext).mock.calls[0][3];
+      expect(sentConfig?.tagSelection).toBeUndefined();
     });
 
     it('chatTagSelection needs both fields', () => {

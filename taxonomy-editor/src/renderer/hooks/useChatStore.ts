@@ -18,7 +18,7 @@ import { api } from '@bridge';
 import type { UrlContextMetadata } from '@lib/ai-client/index';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext, FormatContextConfig } from '../utils/taxonomyContext';
-import { checkTagScope } from '@lib/debate/relevanceSelection';
+import { checkTagScope, applyTagSelection } from '@lib/debate/relevanceSelection';
 import type { SeatTag, TagSelection } from '@lib/debate/types/session';
 import { resolvePoverInfo } from '@lib/debate/tagSoulRegistry';
 import type { PovInfo } from '@lib/debate/types';
@@ -114,10 +114,14 @@ export function chatTagSelection(chat: Pick<ChatSession, 'pov_tag' | 'tag_mode'>
   return chat.pov_tag && chat.tag_mode ? { tag: chat.pov_tag, mode: chat.tag_mode } : undefined;
 }
 
-/** The taxonomy a chat is given. Chat has no relevance ranking: every POV node is sent, except that a
- *  Scope-tagged chat is given only its tagged nodes (t/3995). Prioritize ordering belongs to
- *  formatTaxonomyContext (t/3996); until it lands a Prioritize chat gets every node, in the usual order. */
-function getTaxonomyContext(pov: string, chat: Pick<ChatSession, 'id' | 'pov_tag' | 'tag_mode'>): TaxonomyContext {
+/** The taxonomy a chat is given, plus the `formatTaxonomyContext` config to render it with. Chat has
+ *  no relevance ranking: every POV node is sent, except that a Scope-tagged chat is given only its
+ *  tagged nodes (t/3995). A Prioritize-tagged chat gets every node, tagged-first within each BDI
+ *  category and marked, via `formatConfig.tagSelection` (t/3996). */
+function getTaxonomyContext(
+  pov: string,
+  chat: Pick<ChatSession, 'id' | 'pov_tag' | 'tag_mode'>,
+): TaxonomyContext & { formatConfig: FormatContextConfig } {
   const state = useTaxonomyStore.getState();
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
   const povNodes: PovNode[] = povFile?.nodes ?? [];
@@ -134,16 +138,16 @@ function getTaxonomyContext(pov: string, chat: Pick<ChatSession, 'id' | 'pov_tag
         data: { chat_session_id: chat.id, pov, tag: tagSelection.tag, in_scope: inScope.length, excluded: excluded.length },
       });
     }
-    return { povNodes: inScope, situationNodes };
+    return { povNodes: inScope, situationNodes, formatConfig: CHAT_CONTEXT_CONFIG };
   }
   if (tagSelection?.mode === 'prioritize') {
-    getGlobalRecorder()?.record({
-      type: 'state.change', component: 'chat-store', level: 'warn',
-      message: 'Prioritize-tagged chat: tagged-first ordering not applied yet (t/3996); sending every node unordered',
-      data: { chat_session_id: chat.id, pov, tag: tagSelection.tag },
-    });
+    const { boostIds } = applyTagSelection(povNodes, tagSelection);
+    return {
+      povNodes, situationNodes,
+      formatConfig: { ...CHAT_CONTEXT_CONFIG, tagSelection: { taggedIds: new Set(boostIds), mode: 'prioritize' } },
+    };
   }
-  return { povNodes, situationNodes };
+  return { povNodes, situationNodes, formatConfig: CHAT_CONTEXT_CONFIG };
 }
 
 /** Remove reasoning-model `<think>…</think>` / `<thinking>…</thinking>` blocks that
@@ -373,8 +377,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       const info = chatSoul(activeChat);
-      const ctx = getTaxonomyContext(info.pov, activeChat);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
+      const { formatConfig, ...ctx } = getTaxonomyContext(info.pov, activeChat);
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, formatConfig);
       const model = getConfiguredModel();
       const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
 
@@ -475,8 +479,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       const info = chatSoul(activeChat);
-      const ctx = getTaxonomyContext(info.pov, activeChat);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
+      const { formatConfig, ...ctx } = getTaxonomyContext(info.pov, activeChat);
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, formatConfig);
       const model = getConfiguredModel();
       const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
 
