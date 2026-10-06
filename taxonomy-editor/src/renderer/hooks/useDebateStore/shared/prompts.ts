@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { DebateAudience, SpeakerId, DocumentAnalysis, GapInjection } from '../../../types/debate';
+import type { SeatSouls } from './seatSouls';
 import type { TopicCritique } from '@lib/debate/topicCritique';
 import { POVER_INFO } from '../../../types/debate';
 import {
@@ -47,9 +48,11 @@ export function buildDebateResponsePrompt(
   docAnalysis?: DocumentAnalysis,
   audience?: DebateAudience,
   lineageContext?: string,
+  /** The seat's resolved souls (t/3975, seatSouls). Absent = base soul, the pre-t/3975 behavior. */
+  souls?: SeatSouls,
 ): string {
-  const info = POVER_INFO[poverId];
-  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience, lineageContext);
+  const info = souls?.soul ?? POVER_INFO[poverId];
+  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience, lineageContext, souls?.soul, souls?.opponentSouls);
 }
 
 export function formatGapHint(gapInjections?: GapInjection[]): string {

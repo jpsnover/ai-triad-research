@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { SoulDocumentSchema, type SoulDocument } from './soulDocSchema.js';
+import { SoulDocumentSchema, type SoulDocument, type SoulProvenance } from './soulDocSchema.js';
 import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { PovInfo, SpeakerId } from './types.js';
@@ -20,13 +20,9 @@ const CHARACTERS = ['accelerationist', 'safetyist', 'skeptic'] as const;
 
 export type CharacterId = typeof CHARACTERS[number];
 
-/** Provenance for a loaded soul file. */
-export interface SoulProvenance {
-  /** Absolute path to the soul file. */
-  file: string;
-  /** First 16 hex digits of the SHA-256 of the file content at load time. */
-  sha: string;
-}
+// SoulProvenance lives in soulDocSchema (browser-safe) so tagSoulRegistry can name it without the
+// renderer reaching this fs-based module, even type-only (depcruise renderer-not-to-soulDocLoader, t/3975).
+export type { SoulProvenance } from './soulDocSchema.js';
 
 /** Readability brand: marks provenance from the Node/CLI path (fs + node:crypto). Not a transitive guard — see t/3980. */
 export type SoulProvenanceNode = SoulProvenance & { readonly __runtime: 'node' };

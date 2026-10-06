@@ -8,6 +8,7 @@
  */
 
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { seatSouls, type SeatSouls } from '../hooks/useDebateStore/shared/seatSouls';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { formatTaxonomyContext } from './taxonomyContext';
@@ -15,6 +16,7 @@ import type { TaxonomyContext } from './taxonomyContext';
 import type { PovNode, SituationNode } from '../types/taxonomy';
 import { interpretationText } from '../types/taxonomy';
 import type { PromptPreviewResult } from '@lib/debate/types';
+import type { DebateSession } from '@lib/debate/types/session';
 import {
   clarificationPrompt,
   concludingPrompt,
@@ -63,6 +65,14 @@ function formatTranscript(maxEntries = 10): string {
   }).join('\n\n');
 }
 
+/** The souls of the first non-user seat, which the preview shows (t/3975: its tag soul when the seat is
+ *  tagged, so the inspector shows what that seat is really sent). Falls back to the accelerationist seat. */
+function previewSeatSouls(session: Pick<DebateSession, 'seat_tags' | 'active_povers'>): SeatSouls {
+  const first = session.active_povers?.find(p => p !== 'user');
+  const seat = first && first in POVER_INFO ? first as keyof typeof POVER_INFO : 'accelerationist';
+  return seatSouls(session, seat);
+}
+
 /** Generate a fully assembled prompt preview for the given prompt ID. */
 export function generatePromptPreview(promptId: string): PromptPreviewResult | null {
   const debate = getDebateState();
@@ -71,10 +81,9 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
   if (!session) return null;
 
   const topic = session.topic?.refined || session.topic?.original || '(no topic)';
-  // Use first non-user pover for preview
-  const firstPover = session.active_povers?.find(p => p !== 'user') ?? 'accelerationist';
-  const poverInfo = POVER_INFO[firstPover as keyof typeof POVER_INFO];
-  const pov = poverInfo?.pov ?? 'accelerationist';
+  const previewSouls = previewSeatSouls(session);
+  const poverInfo = previewSouls.soul;
+  const pov = poverInfo.pov;
   const ctx = getTaxCtx(pov);
   const taxonomyBlock = formatTaxonomyContext(ctx, pov);
   const transcript = formatTranscript();
@@ -108,15 +117,16 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
       }
       case 'debate-opening': {
         text = openingStatementPrompt(
-          poverInfo?.label ?? 'Debater',
+          poverInfo.label,
           pov,
-          poverInfo?.personality ?? '',
+          poverInfo.personality,
           topic,
           taxonomyBlock,
           session.source_content ?? '',
           true,
           undefined, undefined, undefined, undefined, undefined,
           lineageCtx,
+          previewSouls.soul, previewSouls.opponentSouls,
         );
         sections.push(section('Instructions', text.slice(0, text.indexOf(taxonomyBlock))));
         sections.push(section('Taxonomy Context', taxonomyBlock));
@@ -124,9 +134,9 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
       }
       case 'debate-response': {
         text = debateResponsePrompt(
-          poverInfo?.label ?? 'Debater',
+          poverInfo.label,
           pov,
-          poverInfo?.personality ?? '',
+          poverInfo.personality,
           topic,
           taxonomyBlock,
           transcript,
@@ -134,6 +144,7 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
           'all',
           undefined, undefined, undefined, undefined,
           lineageCtx,
+          previewSouls.soul, previewSouls.opponentSouls,
         );
         sections.push(section('Instructions', text.length.toString()));
         sections.push(section('Taxonomy Context', taxonomyBlock));
@@ -148,9 +159,9 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
       }
       case 'debate-cross-respond': {
         text = crossRespondPrompt(
-          poverInfo?.label ?? 'Debater',
+          poverInfo.label,
           pov,
-          poverInfo?.personality ?? '',
+          poverInfo.personality,
           topic,
           taxonomyBlock,
           transcript,
