@@ -80,7 +80,7 @@ function Merge-PolicyActionsPreservingIds {
             ForEach-Object { $_.Value }
     )
     if ($DroppedIds.Count -gt 0) {
-        Write-Warning "Merge-PolicyActionsPreservingIds: $NodeId -- re-extraction dropped $($DroppedIds.Count) previously-registered policy action(s): $($DroppedIds -join ', ') (the model no longer returned a matching action text)."
+        Write-Warning "Merge-PolicyActionsPreservingIds: $NodeId -- re-extraction dropped $($DroppedIds.Count) previously-registered policy action(s): $($DroppedIds -join ', ') (the model no longer returned a matching action text). Run Update-PolicyRegistry as its own deliberate data change if these should be cleaned up."
     }
 
     return @($Result)
