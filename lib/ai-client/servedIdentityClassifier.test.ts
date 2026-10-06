@@ -5,7 +5,7 @@
 // t/3731 Phase 3: the served-identity classifier. The fixture table is the design's own (t/3731#11, TL
 // e/257#10, SO e/257#12); each row is a sent -> served pair and the verdict the design requires.
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -14,7 +14,7 @@ import type { ModelEntry, ModelRegistry } from './registry.js';
 import { buildModelEntryMap } from './registry.js';
 import { callProvider } from './client.js';
 import {
-  classifyServedIdentity, splitDateSuffix, getServedIdentitySummary, _resetServedIdentityStateForTests,
+  classifyServedIdentity, splitDateSuffix, getServedIdentitySummary, _resetServedIdentityStateForTests, attachServedIdentitySummary,
   OBSERVED_IDENTITY_ADAPTERS, UNOBSERVED_IDENTITY_ADAPTERS,
 } from './servedIdentity.js';
 import { FlightRecorder } from '../flight-recorder/flightRecorder.js';
@@ -186,5 +186,43 @@ describe('t/3731 callProvider: warn once per divergent triple, counted; first_se
     await call('gemini-3.5-flash-lite', null);
     await call('gemini-3.5-flash-lite');
     expect(getServedIdentitySummary()).toEqual({ 'agree/exact': 1, 'divergent/registry-distinct': 1, 'unknown/no-registry': 2 });
+  });
+});
+
+describe('t/4023: the per-reason summary rides every dump', () => {
+  let recorder: FlightRecorder;
+  const fetchServing = (served: string): FetchFn => async () => ({
+    ok: true, status: 200, body: null,
+    text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: 'hi' }] }, finishReason: 'STOP' }], modelVersion: served }),
+  } as unknown as Response);
+  const dumpContext = () =>
+    recorder.buildDump('manual').ndjson.trim().split('\n').map((l) => JSON.parse(l)).find((l) => l._type === 'context');
+
+  beforeEach(() => { _resetServedIdentityStateForTests(); recorder = new FlightRecorder({ capacity: 64 }); setGlobalRecorder(recorder); });
+  afterEach(() => { clearGlobalRecorder(); _resetServedIdentityStateForTests(); });
+
+  it('after mixed calls, the dump context carries served_identity counts per state/reason', async () => {
+    const opts = { timeoutMs: 30_000, identityRegistry: REGISTRY };
+    await callProvider(fetchServing('gemini-3.5-flash'), 'gemini', 'p', 'gemini-3.5-flash', 'k', opts);
+    await callProvider(fetchServing('gemini-3.5-flash-lite'), 'gemini', 'p', 'gemini-3.5-flash', 'k', opts);
+    await callProvider(fetchServing('gemini-3.5-flash'), 'gemini', 'p', 'gemini-3.5-flash', 'k', { timeoutMs: 30_000 });
+    expect(dumpContext()?.served_identity).toEqual({ 'agree/exact': 1, 'divergent/registry-distinct': 1, 'unknown/no-registry': 1 });
+  });
+
+  it('attaches once per recorder, and to a newly installed recorder too', () => {
+    const spy = vi.spyOn(recorder, 'addContextContributor');
+    attachServedIdentitySummary(recorder);
+    attachServedIdentitySummary(recorder);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const next = new FlightRecorder({ capacity: 8 });
+    attachServedIdentitySummary(next);
+    expect(next.buildDump('manual').ndjson).toContain('served_identity');
+  });
+
+  it('a recorder stand-in without addContextContributor is skipped with one warning, never a throw', () => {
+    const records: { level: string }[] = [];
+    const stub = { record: (e: { level: string }) => records.push(e) } as unknown as FlightRecorder;
+    expect(() => { attachServedIdentitySummary(stub); attachServedIdentitySummary(stub); }).not.toThrow();
+    expect(records.map((r) => r.level)).toEqual(['warn']);
   });
 });

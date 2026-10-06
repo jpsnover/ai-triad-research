@@ -1,0 +1,207 @@
+{
+  "ticket": "t/4020",
+  "authorization": {
+    "by": "PI",
+    "when": "2026-10-06",
+    "where": "in session",
+    "text": "auth to write the repair  and tax editor is closed",
+    "note": "Recorded here because the Orca server was down; mirrored to t/4020 when it is back."
+  },
+  "expected_ops": 10,
+  "ops": [
+    {
+      "op": "relabel",
+      "file": "accelerationist.json",
+      "id": "acc-beliefs-079",
+      "before_sha16": "386d9568d505bdbf",
+      "ref": "lit:\"safety-induced deployment delays\"",
+      "from": "agent",
+      "to": "cause",
+      "why": "delays bring about the costs"
+    },
+    {
+      "op": "relabel",
+      "file": "safetyist.json",
+      "id": "saf-beliefs-269",
+      "before_sha16": "041419112d75edd8",
+      "ref": "lit:\"processing system commands and untrusted user inputs in an identical token space\"",
+      "from": "agent",
+      "to": "theme",
+      "why": "subject of stative 'constitute'"
+    },
+    {
+      "op": "relabel",
+      "file": "safetyist.json",
+      "id": "saf-beliefs-270",
+      "before_sha16": "466f96bc74522635",
+      "ref": "lit:\"selling commercial AI models into safety-critical environments without diagnostic telemetry hooks\"",
+      "from": "agent",
+      "to": "theme",
+      "why": "subject of stative 'constitute'"
+    },
+    {
+      "op": "relabel",
+      "file": "skeptic.json",
+      "id": "skp-beliefs-230",
+      "before_sha16": "7ff6f170ea5f0f35",
+      "ref": "lit:\"image-to-image regeneration attacks\"",
+      "from": "agent",
+      "to": "cause",
+      "why": "attacks bring about the collapse"
+    },
+    {
+      "op": "relabel",
+      "file": "skeptic.json",
+      "id": "skp-beliefs-232",
+      "before_sha16": "a3e485180602b499",
+      "ref": "lit:\"normal web distribution\"",
+      "from": "agent",
+      "to": "cause",
+      "why": "distribution brings about the destruction"
+    },
+    {
+      "op": "relabel",
+      "file": "skeptic.json",
+      "id": "skp-beliefs-291",
+      "before_sha16": "018f9cfe8db3f4b4",
+      "ref": "lit:\"the demonstrated inability of Congress to pass even minor, non-controversial AI legislation\"",
+      "from": "agent",
+      "to": "cause",
+      "why": "the inability renders solutions infeasible"
+    },
+    {
+      "op": "set_args",
+      "file": "safetyist.json",
+      "id": "saf-intentions-127",
+      "before_sha16": "923fc4ef81a8cea1",
+      "before_args": [
+        {
+          "role": "patient",
+          "ref": "lit:\"Stable Identities\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        }
+      ],
+      "new_args": [
+        {
+          "role": "theme",
+          "ref": "lit:\"Stable Identities\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "recipient",
+          "ref": "lit:\"AI agents\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "why": "the node names the recipient (AI agents); the transferred thing is a theme"
+    },
+    {
+      "op": "set_args",
+      "file": "safetyist.json",
+      "id": "saf-intentions-173",
+      "before_sha16": "1b995d1e35350056",
+      "before_args": [
+        {
+          "role": "patient",
+          "ref": "lit:\"every nation a verified way to halt dangerous AI\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        }
+      ],
+      "new_args": [
+        {
+          "role": "recipient",
+          "ref": "lit:\"every nation\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"a verified way to halt dangerous AI\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        }
+      ],
+      "why": "the recipient was fused into the patient literal; split it out"
+    },
+    {
+      "op": "set_args",
+      "file": "safetyist.json",
+      "id": "saf-intentions-043",
+      "before_sha16": "d49dd7bf74ace2fe",
+      "before_args": [
+        {
+          "role": "theme",
+          "ref": "lit:\"legal duties\"",
+          "sort": "normative-description",
+          "match_level": "exact"
+        },
+        {
+          "role": "patient",
+          "ref": "lit:\"AI\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "new_args": [
+        {
+          "role": "theme",
+          "ref": "lit:\"legal duties\"",
+          "sort": "normative-description",
+          "match_level": "exact"
+        },
+        {
+          "role": "recipient",
+          "ref": "lit:\"AI\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "why": "AI receives the duties: recipient, not patient"
+    },
+    {
+      "op": "set_args",
+      "file": "skeptic.json",
+      "id": "skp-beliefs-179",
+      "before_sha16": "530ab0e2fe401b7f",
+      "before_args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"Algorithmic Counterfactuals\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"actionable, realistic paths\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        }
+      ],
+      "new_args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"Algorithmic Counterfactuals\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"actionable, realistic paths\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "recipient",
+          "ref": "lit:\"users\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        }
+      ],
+      "why": "the node names the recipient (paths for users)"
+    }
+  ]
+}

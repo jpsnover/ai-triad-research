@@ -31,6 +31,24 @@ const TESTING_BADGE_LABEL: Record<TestingLevel, string> = {
 
 const TESTING_REASON = 'Historical testing level from BDI taxonomy';
 
+// Short, definitional POV-camp descriptions keyed by node-id prefix. Mirrors the
+// hand-written desc map in debate-diagnostics/window/shared/INodeRow.tsx's SpeakerCell
+// (same tone/wording) — duplicated locally rather than factored into a shared module since
+// it's a 3-entry constant owned by a different role (e/259). Situation nodes (`sit-*`) are
+// cross-cutting, not owned by one camp, so they intentionally have no entry here.
+const POV_CAMP_DESC: Record<string, string> = {
+  acc: 'Accelerationist — advocates rapid AI development',
+  saf: 'Safetyist — prioritizes AI safety and alignment',
+  skp: 'Skeptic — questions assumptions from all sides',
+};
+
+// Derive the POV camp description from a taxonomy node id's prefix (acc-/saf-/skp-).
+// Returns undefined for node ids with no camp owner (e.g. sit-* cross-cutting situations).
+function povCampDescFromNodeId(nodeId: string): string | undefined {
+  const prefix = nodeId.match(/^(acc|saf|skp)-/)?.[1];
+  return prefix ? POV_CAMP_DESC[prefix] : undefined;
+}
+
 // Historical debate_tested.tier from the BDI taxonomy → display TestingLevel.
 // 'untested' has no badge — a node with no historical testing data shouldn't carry a testing claim.
 function testingLevelFromTier(tier: DebateTestedTier | undefined): TestingInfo | undefined {
@@ -167,6 +185,13 @@ function WellTestedExclusionBox({ summary }: { summary: WellTestedExclusion | nu
       )}
     </div>
   );
+}
+
+// Detail-header POV camp description, or nothing for a node with no camp owner (e.g. sit-*).
+function CampDescCell({ nodeId }: { nodeId: string }) {
+  const desc = povCampDescFromNodeId(nodeId);
+  if (!desc) return null;
+  return <span className="grounding-detail-camp">{desc}</span>;
 }
 
 export function GroundingPanel({ debate }: { debate: DebateSession }) {
@@ -367,6 +392,7 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
           <div className="grounding-detail-header">
             <span className="grounding-detail-id">{selectedNodeId}</span>
             <span className="grounding-detail-label">{labelMap.get(selectedNodeId) ?? selectedNodeId}</span>
+            <CampDescCell nodeId={selectedNodeId} />
             {selectedTesting && (
               <span className={`grounding-testing-badge grounding-testing-${selectedTesting.level}`} title={selectedTesting.reason}>
                 {TESTING_BADGE_LABEL[selectedTesting.level]}

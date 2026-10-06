@@ -12,6 +12,8 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { OpEdSet, OpEdMember, OpEdGroundingRef, PovKey } from '../../../../../lib/oped/types';
 import { resolvePovMeta } from './povResolve';
+import { opedTagScopeText, tagLabelFor } from './opedTagScopeText';
+import { registryOrNull } from '../debate/SeatTagPicker';
 import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { NodeDetail } from '../taxonomy/NodeDetail';
@@ -233,6 +235,12 @@ function OpEdArticle({ member, outlet }: { member: OpEdMember; outlet?: string }
       >
         {metaLine}
       </div>
+      {/* t/3992: a one-wing essay says so, so it never reads as the whole camp's position (TL t/3960#3). */}
+      {member.tag && (
+        <p className="oped-tag-scope" role="note">
+          {opedTagScopeText(meta.label, tagLabelFor(member.tag.pov, member.tag.tag, registryOrNull()), member.tag)}
+        </p>
+      )}
 
       {member.status !== 'complete' ? (
         <div className="oped-article-notice" role="status">

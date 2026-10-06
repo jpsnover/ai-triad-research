@@ -11,9 +11,14 @@
 // --scan-data does for povTagScan), or update this list AND the hook's CLOSURE together.
 //
 // Dynamic `import(...)` is deliberately not followed: the hook runs only the validate path.
+//
+// The second describe RUNS the CLI the way the hook does (t/4021#2): only the CLOSURE files, copied into a
+// scratch dir under node_modules/.cache. Node stops its package "type" lookup at a node_modules boundary,
+// so tsx compiles the CLI as CJS there; a top-level await (what #2933 shipped) fails only in that layout.
 
-import { describe, it, expect } from 'vitest';
-import { readFileSync, existsSync } from 'fs';
+import { describe, it, expect, afterAll } from 'vitest';
+import { readFileSync, existsSync, mkdirSync, mkdtempSync, copyFileSync, writeFileSync, rmSync } from 'fs';
+import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join, relative, resolve } from 'path';
 
@@ -76,4 +81,42 @@ describe('pov-tags-cli static import closure (t/4021)', () => {
     ].join('\n');
     expect([...src.matchAll(STATIC_SPECIFIER)].map((m) => m[1])).toEqual(['./x.js', '../y.js', './z.js', './side.js', './ml.js']);
   });
+});
+
+describe('pov-tags-cli runs from the hook scratch layout (t/4021#2: CJS under node_modules/.cache)', () => {
+  const cacheDir = join(REPO_ROOT, 'node_modules', '.cache');
+  mkdirSync(cacheDir, { recursive: true });
+  const scratch = mkdtempSync(join(cacheDir, 'pov-tags-closure-test.'));
+  afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+  for (const f of HOOK_CLOSURE) {
+    mkdirSync(dirname(join(scratch, f)), { recursive: true });
+    copyFileSync(join(REPO_ROOT, f), join(scratch, f));
+  }
+  const tsxCli = join(REPO_ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+  const runCli = (nodes: unknown) => {
+    const input = join(scratch, 'input.json');
+    writeFileSync(input, JSON.stringify(nodes));
+    return spawnSync(process.execPath, [tsxCli, join(scratch, 'lib', 'schema', 'pov-tags-cli.ts'), '--input', input], { encoding: 'utf8', timeout: 60_000 });
+  };
+  const registry = JSON.parse(readFileSync(join(REPO_ROOT, 'lib', 'debate', 'soul-docs', 'pov-tags.json'), 'utf8')) as { povs: Record<string, { id: string }[]> };
+  const [pov, entries] = Object.entries(registry.povs).find(([, list]) => list.length > 0) ?? ['skeptic', []];
+  const tag = entries[0]?.id;
+  const nodeId = `${({ accelerationist: 'acc', safetyist: 'saf', skeptic: 'skp' } as Record<string, string>)[pov] ?? 'skp'}-beliefs-001`;
+
+  it('has no package.json "type" in scope, as in the hook', () => {
+    expect(existsSync(join(scratch, 'package.json'))).toBe(false);
+    expect(existsSync(join(scratch, 'lib', 'package.json'))).toBe(false);
+  });
+
+  it('validates: an unregistered tag exits 1 with the JSON contract line', () => {
+    const r = runCli([{ id: nodeId, pov_tags: ['definitely-not-registered'] }]);
+    expect(r.status, r.stderr).toBe(1);
+    expect(JSON.parse(r.stdout.trim().split('\n').at(-1)!)).toMatchObject({ checked: 1, invalid: 1 });
+  }, 60_000);
+
+  it.runIf(!!tag)('validates: a registered tag exits 0', () => {
+    const r = runCli([{ id: nodeId, pov_tags: [tag] }]);
+    expect(r.status, r.stderr).toBe(0);
+    expect(JSON.parse(r.stdout.trim().split('\n').at(-1)!)).toMatchObject({ checked: 1, invalid: 0 });
+  }, 60_000);
 });

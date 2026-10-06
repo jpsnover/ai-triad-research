@@ -187,6 +187,7 @@ function callEnvelopeProvider(
     timeoutMs: resolveTimeout(req.options?.timeoutMs, req.model, registry), // t/3644: floor-enforced
     systemMessage: sysText || undefined,
     requestedModelId: req.model, // t/3677: served-identity record
+    identityRegistry: registry, // t/3731: served-identity classifier cross-check
   });
 }
 
@@ -314,7 +315,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     const baseTimeoutMs = options?.timeoutMs ?? getDefaultTimeout(model, registry);
     const floorMs = getModelMinTimeout(model, registry);
     const timeoutMs = Math.max(baseTimeoutMs, floorMs);
-    const opts = { ...options, timeoutMs, fixedTemperature, requestedModelId: model }; // t/3677: served-identity record
+    const opts = { ...options, timeoutMs, fixedTemperature, requestedModelId: model, identityRegistry: registry }; // t/3677/t/3731
 
     const t0 = performance.now();
     getGlobalRecorder()?.record({

@@ -17,7 +17,7 @@ import { generateViaZai } from './providers/zai.js';
 import { generateViaMoonshot } from './providers/moonshot.js';
 import { generateViaXai } from './providers/xai.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
-import { classifyServedIdentity, observeServedIdentity } from './servedIdentity.js';
+import { classifyServedIdentity, observeServedIdentity, attachServedIdentitySummary } from './servedIdentity.js';
 
 export interface AIClientDeps {
   fetch: FetchFn;
@@ -83,6 +83,7 @@ export async function callProvider(
   const served = result.providerReportedModel;
   const identity = classifyServedIdentity({ registry: opts.identityRegistry, backend, sent: apiModelId, served });
   const seen = observeServedIdentity(backend, apiModelId, served, identity);
+  attachServedIdentitySummary(getGlobalRecorder()); // t/4023: the per-reason counts ride every dump
   getGlobalRecorder()?.record({
     type: 'ai.model_identity',
     component: 'ai-client',

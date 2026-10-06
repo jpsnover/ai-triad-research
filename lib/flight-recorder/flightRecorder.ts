@@ -35,6 +35,7 @@ export class FlightRecorder {
   readonly dictionary: Dictionary;
   readonly buffer: RingBuffer;
   private contextProvider: ContextProvider = () => ({});
+  private contextContributors = new Map<string, () => unknown>();
   private eventContext: Partial<RecordInput> = {};
   private _selfRecording = false;
 
@@ -114,6 +115,28 @@ export class FlightRecorder {
     this.contextProvider = fn;
   }
 
+  /**
+   * Add one named section to the dump's context record (t/4023). The context provider slot belongs to
+   * the app; this lets a library module (e.g. the served-identity summary) put its own state in every
+   * dump without clobbering it. On a key collision the app provider wins. A contributor that throws
+   * records `{ error }` under its key; it never breaks the dump. Re-adding a key replaces it.
+   */
+  addContextContributor(key: string, fn: () => unknown): void {
+    this.contextContributors.set(key, fn);
+  }
+
+  private collectDumpContext(): Record<string, unknown> {
+    const contributed: Record<string, unknown> = {};
+    for (const [key, fn] of this.contextContributors) {
+      try {
+        contributed[key] = fn();
+      } catch (err) {
+        contributed[key] = { error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+    return { ...contributed, ...this.contextProvider() };
+  }
+
   /** Build a serialized NDJSON dump string with trigger metadata. */
   buildDump(
     triggerType: TriggerType,
@@ -133,7 +156,7 @@ export class FlightRecorder {
 
     // Context record — captures app state at dump time
     let dumpContext: DumpContext | undefined;
-    const ctx = this.contextProvider();
+    const ctx = this.collectDumpContext();
     if (ctx && Object.keys(ctx).length > 0) {
       dumpContext = { _type: 'context', ...ctx };
     }

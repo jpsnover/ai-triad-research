@@ -1,0 +1,115 @@
+{
+  "count": 2,
+  "all": {
+    "acc-intentions-103": {
+      "predicate": "impose",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"vendors\"",
+          "sort": "agentive-physical-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "patient",
+          "ref": "lit:\"safety restrictions\"",
+          "sort": "normative-description",
+          "match_level": "exact"
+        },
+        {
+          "role": "theme",
+          "ref": "lit:\"government AI\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "negative",
+      "modality": {
+        "holder": "camp:acc",
+        "attitude": "intention"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.9,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:alignment_compliance",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:behavioral_guardrails",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:documented_present_harm",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:governance_oversight",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:regulation_precautionary",
+            "match_level": "exact"
+          }
+        ]
+      }
+    },
+    "saf-desires-025": {
+      "predicate": "survive",
+      "event_ref": "e1",
+      "args": [
+        {
+          "role": "agent",
+          "ref": "lit:\"Fiduciary Duty\"",
+          "sort": "non-agentive-social-object",
+          "match_level": "exact"
+        },
+        {
+          "role": "patient",
+          "ref": "lit:\"Automation\"",
+          "sort": "non-agentive-functional-artifact",
+          "match_level": "exact"
+        }
+      ],
+      "polarity": "positive",
+      "modality": {
+        "holder": "camp:saf",
+        "attitude": "desire"
+      },
+      "temporal": {
+        "type": "unspecified",
+        "value": null
+      },
+      "formalization_confidence": 0.8,
+      "status": "proposed",
+      "about": [],
+      "topical_candidates": {
+        "validated": false,
+        "generator": "formalize_node_lf.py",
+        "golden_ref": "t/3381",
+        "blind_golden_precision": 0.54,
+        "refs": [
+          {
+            "ref": "term:autonomy_human",
+            "match_level": "exact"
+          },
+          {
+            "ref": "term:governance_oversight",
+            "match_level": "exact"
+          }
+        ]
+      }
+    }
+  }
+}
