@@ -59,10 +59,11 @@ describe('validatePovTags', () => {
 });
 
 describe('PovTagRegistrySchema', () => {
-  it('ACCEPTS the committed registry (empty povs until t/3956 adds the Skeptic tags with their souls)', () => {
+  it('ACCEPTS the committed registry: the two Skeptic tags, added with their souls (t/3956)', () => {
     const reg = loadPovTagRegistry();
     expect(reg.version).toBe(1);
-    expect(reg.povs).toEqual({});
+    expect(Object.keys(reg.povs)).toEqual(['skeptic']);
+    expect(reg.povs.skeptic?.map(e => e.id)).toEqual(['critical', 'institutional']);
   });
 
   it('ACCEPTS a registry with tags', () => {
@@ -120,7 +121,7 @@ describe('pov-tags-cli (the blocking gate t/3969 shells out to)', () => {
   });
 
   it('exit 1 with the errors listed when a node is invalid (unregistered tag, a scalar)', () => {
-    const r = run(JSON.stringify([{ id: 'skp-beliefs-001', pov_tags: ['critical'] }, { id: 'skp-beliefs-002', pov_tags: 'critical' }]));
+    const r = run(JSON.stringify([{ id: 'skp-beliefs-001', pov_tags: ['radical'] }, { id: 'skp-beliefs-002', pov_tags: 'critical' }]));
     expect(r.code).toBe(1);
     expect(r.out.invalid).toBe(2);
     expect(r.out.errors.join('\n')).toMatch(/unrolled to a scalar/);
