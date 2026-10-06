@@ -7,7 +7,37 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { tagSoulFileName, loadPovTagRegistry } from '../../schema/povTags.js';
-import { getSoulDocument, clearSoulDocCache } from '../soulDocLoader.js';
+import { getSoulDocument, clearSoulDocCache, applyBaseIdentity } from '../soulDocLoader.js';
+import { POVER_INFO } from '../poverInfo.js';
+import type { SoulDocument } from '../soulDocSchema.js';
+
+// Minimal valid SoulDocument fixture — label/pov are intentionally wrong
+// to verify applyBaseIdentity overrides them with the base soul values (t/3988).
+const FAKE_TAG_SOUL: SoulDocument = {
+  pov: 'skeptic',
+  tag: 'critical',
+  label: 'Critical',
+  color: '#555555',
+  personality: 'critical-wing personality',
+  voice: {
+    disposition: 'skeptical',
+    style: 'analytical',
+    reasoning: 'evidence-based',
+    evidence: 'empirical',
+    signature: 'probing the assumption',
+    prose_style: 'clear and measured',
+    voice_hygiene: 'avoid jargon and rhetoric',
+    prose_style_short: 'measured',
+    voice_hygiene_short: 'clear',
+  },
+  anti_patterns: ['false precision'],
+  value_hierarchy: ['accuracy', 'clarity'],
+  epistemic_stance: ['falsifiable claims', 'calibrated uncertainty'],
+  boundaries: {
+    hardcoded: ['no ad hominem'],
+    softcoded: ['prefer empirical over speculative'],
+  },
+};
 
 afterEach(() => {
   clearSoulDocCache();
@@ -56,5 +86,30 @@ describe('registry round-trip: every committed entry resolves via spec path', ()
       }
     }
     expect(missing).toEqual([]);
+  });
+});
+
+describe('applyBaseIdentity: base identity enforced on tag souls (t/3988 parity)', () => {
+  it('returns baseSoul.label, not the tag soul label', () => {
+    const soul = applyBaseIdentity(FAKE_TAG_SOUL, 'skeptic');
+    expect(soul.label).toBe(POVER_INFO.skeptic.label);
+    expect(soul.label).not.toBe('Critical');
+  });
+
+  it('returns baseSoul.pov, not the tag soul pov', () => {
+    const soul = applyBaseIdentity(FAKE_TAG_SOUL, 'skeptic');
+    expect(soul.pov).toBe(POVER_INFO.skeptic.pov);
+  });
+
+  it('preserves voice from the tag soul', () => {
+    const soul = applyBaseIdentity(FAKE_TAG_SOUL, 'skeptic');
+    expect(soul.voice.disposition).toBe('skeptical');
+    expect(soul.voice.prose_style).toBe('clear and measured');
+  });
+
+  it('mutation guard: the merge overrides label even if tag soul label differs', () => {
+    const altered: SoulDocument = { ...FAKE_TAG_SOUL, label: POVER_INFO.skeptic.label };
+    const soul = applyBaseIdentity(altered, 'skeptic');
+    expect(soul.label).toBe(POVER_INFO.skeptic.label);
   });
 });

@@ -207,6 +207,19 @@ export function getSoulDocument(pov: CharacterId, tag?: string): SoulDocument {
 }
 
 /**
+ * Merge a loaded tag soul with the base soul identity.
+ * Tag souls supply personality/voice; base soul supplies label/pov (t/3988).
+ * Exported for testing and for any caller that builds a PovInfo from raw tag-soul data.
+ */
+export function applyBaseIdentity(
+  tagDoc: SoulDocument,
+  speaker: Exclude<SpeakerId, 'user'>,
+): PovInfo {
+  const baseSoul = POVER_INFO[speaker];
+  return { ...(tagDoc as unknown as PovInfo), label: baseSoul.label, pov: baseSoul.pov };
+}
+
+/**
  * Resolve the effective soul for a speaker, replacing the base soul entirely when a tag is present.
  * Returns the soul (as PovInfo, matching the POVER_INFO shape) plus file + sha provenance.
  *
@@ -225,10 +238,7 @@ export function resolvePoverInfo(
 
   const tagDoc = loadTagSoulDocument(speaker, tagSelection.tag);
   const provenance = _provenanceCache.get(`${speaker}:${tagSelection.tag}`)!;
-  const baseSoul = POVER_INFO[speaker];
-  // Enforce base identity fields — tag souls override personality/voice but not label or pov (t/3988).
-  const soul: PovInfo = { ...(tagDoc as unknown as PovInfo), label: baseSoul.label, pov: baseSoul.pov };
-  return { soul, soulProvenance: provenance as SoulProvenanceNode };
+  return { soul: applyBaseIdentity(tagDoc, speaker), soulProvenance: provenance as SoulProvenanceNode };
 }
 
 export function clearSoulDocCache(): void {
