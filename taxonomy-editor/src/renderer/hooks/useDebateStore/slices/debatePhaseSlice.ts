@@ -1136,7 +1136,6 @@ async function buildPostTerminationPipelineInput(
     citeModel: stageModels.citeModel,
     sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
     docTitles: docTitles as TurnPipelineInput['docTitles'],
-    doctrinalBoundaries: info.doctrinal_boundaries,
     background: activeDebate.topic?.background || undefined,
   };
   return { pipelineInput, taxonomyBlock, commitBlock };
@@ -1352,7 +1351,6 @@ async function buildTurnPipelineContext(responderPover: _ModResult['responder'],
       citeModel: activeDebate.stage_models?.cite || undefined,
       sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
       docTitles: docTitles as TurnPipelineInput['docTitles'],
-      doctrinalBoundaries: info.doctrinal_boundaries,
       background: activeDebate.topic?.background || undefined,
       topicScope: activeDebate.topic?.scope ?? undefined,
       preCheckModel: resolveTurnValidationConfig(undefined).preCheckModel,

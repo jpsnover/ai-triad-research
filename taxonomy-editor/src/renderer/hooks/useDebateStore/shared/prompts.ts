@@ -73,7 +73,7 @@ export function buildCrossRespondPrompt(
   docAnalysis?: DocumentAnalysis,
 ): string {
   const info = POVER_INFO[poverId];
-  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent, docAnalysis, info.doctrinal_boundaries);
+  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent, docAnalysis);
 }
 
 export function buildProbingQuestionsPrompt(
