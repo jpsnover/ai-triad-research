@@ -35,5 +35,5 @@
 }
 
 .chat-tag-picker-scope.insufficient {
-  color: var(--color-danger, #c0392b);
+  color: var(--danger);
 }
