@@ -4344,3 +4344,22 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (PowerShell 2, p/228#25). Self-inflicted; low recurrence risk once the `||` short-circuit semantics are understood. Logged for pattern recognition if the shape recurs.
 
 **Applies To:** All agents writing shell chains with `||` fallbacks that write to different output paths.
+
+## #207 [Process] Draft + Ticket-Relation Blockers Is Not a Gate — `consult-hold` Required for Any Cross-Ticket Hold
+
+**Pattern:** A PR held with draft status plus Orca ticket-relation blockers (e.g., "blocked by t/3989") was un-drafted and merged 12 seconds before a hold comment was posted, after a "clear to un-draft" message was relayed. The registry went live ahead of the loader fix. Ticket relations are **not enforced at merge time** by GitHub, and draft can be lifted by anyone (including automation indistinguishable from the owner in the timeline). Neither mechanism is a gate — both are visibility only.
+
+**Instances:**
+- 2026-10-06 — Computational Linguist (p/7#90, t/3956): PR #2851 held on draft + ticket-relation blockers (t/3989–3992). Relay lifted draft on PI's decision arriving; merged 12 s before hold comment. Registry live ahead of loader fix.
+
+**Root Cause:** Draft enforcement was already documented as unreliable (AGENTS.md: automation can un-draft). This instance extends that to the more general case: **any hold that isn't a required status context on GitHub is not a gate.** Orca ticket relations express intent, not enforcement. A "blocked by" relation in the ticket system has no connection to the GitHub merge button.
+
+**Prevention:**
+1. **Apply `consult-hold` to any PR that must not merge until external conditions are met** — not just mandatory-consult situations. This makes the hold a required status context that GitHub enforces on every merge path, binding admins under `enforce_admins: true`.
+2. **Draft + ticket relations = visibility only.** Use them for "why this is held" — the label is the gate.
+3. **The 12-second window is the canonical failure mode:** a hold comment arrives after the merge because the relay completes before the comment. The `consult-hold` label is set at PR creation (`gh pr create --label consult-hold`), not after; it cannot be race-conditioned.
+4. Covered in root AGENTS.md PR-Flow Practice Rules — this instance demonstrates the non-consult variant.
+
+**Status:** Active — 1 instance (Computational Linguist, p/7#90, t/3956). Silent failure; merge completes normally, hold comment arrives after.
+
+**Applies To:** All agents holding PRs on cross-ticket blockers or external conditions of any kind.
