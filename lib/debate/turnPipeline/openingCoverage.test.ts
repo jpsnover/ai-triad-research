@@ -56,6 +56,16 @@ const FIELD_EXEMPTIONS: Record<string, { engineRequired: boolean; rendererRequir
     rendererRequired: false,
     note: 'intentional: engine.config.briefMaxRetries never populated in production (only in tests); both paths use pipeline default (3). t/3775 closed as phantom gap.',
   },
+  soul: {
+    engineRequired: false,
+    rendererRequired: false,
+    note: 'BUG t/4007: engine wiring pending; t/3975: renderer wiring pending. Remove each side when it lands',
+  },
+  opponentSouls: {
+    engineRequired: false,
+    rendererRequired: false,
+    note: 'BUG t/4007: engine wiring pending; t/3975: renderer wiring pending. Remove each side when it lands',
+  },
 };
 
 function extractFields(source: string): string[] {
