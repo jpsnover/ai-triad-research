@@ -29,7 +29,8 @@ import { UsernamePromptDialog } from '../shared/UsernamePromptDialog';
 import { DiagnosticsChatSidebar } from '../debate-diagnostics/chat';
 import type { NavigateCommand } from '../debate-diagnostics/chat';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import { initDebatePopoutCloseHandler } from '../../hooks/useDebateStore/shared/guards';
+import { initDebatePopoutCloseHandler, isDebatePopoutWindow } from '../../hooks/useDebateStore/shared/guards';
+import { RemoteDriverOverlay } from './RemoteDriverOverlay';
 import { useCommunityStore } from '../../hooks/useCommunityStore';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { CommunityShareBanner } from '../shared/CommunityShareBanner';
@@ -536,22 +537,6 @@ function DebateToolbar({
         {diagnosticsEnabled ? 'Diagnostics ON' : 'Diagnostics'}
       </button>
       <GlobalModeControl defaultTier={defaultTier} setDefaultTier={setDefaultTier} />
-    </div>
-  );
-}
-
-function RemoteDriverOverlay({ show }: { show: boolean }) {
-  if (!show) return null;
-  return (
-    <div className="debate-remote-overlay" style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-      padding: '12px 16px', margin: '0 8px 8px',
-      background: 'var(--warning-bg, rgba(234,179,8,0.12))',
-      border: '1px solid var(--warning-border, rgba(234,179,8,0.3))',
-      borderRadius: 6, fontSize: '0.85rem', color: 'var(--text-primary)',
-    }}>
-      <span style={{ fontSize: '1.1rem' }}>&#8599;</span>
-      <span>Debate running in popout window. Controls are disabled here until the popout is closed.</span>
     </div>
   );
 }
@@ -1341,8 +1326,8 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         />
       )}
 
-      {/* Remote driver overlay — popout window is driving this debate */}
-      <RemoteDriverOverlay show={showRemoteOverlay} />
+      {/* Remote driver overlay — another window (the pop-out, or the main window when this is the pop-out) drives this debate */}
+      <RemoteDriverOverlay show={showRemoteOverlay} inPopout={isDebatePopoutWindow()} />
 
       {/* Scrollable content: header (title+status+DEBATERS strip), debaters, transcript.
           The header scrolls with the transcript rather than staying pinned (user request):
