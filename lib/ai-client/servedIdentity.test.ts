@@ -6,10 +6,9 @@
 //  1. Each adapter surfaces the PROVIDER-reported served id on ProviderResult, and leaves it
 //     `undefined` (NOT an echo of the sent id) when the response carries none — the no-fabrication rule.
 //  2. `callProvider` — the one seam both runtimes traverse — emits exactly ONE `ai.model_identity`
-//     `info` event per call with `{backend, requested, apiModelIdSent, providerReported}`, and NEVER a
-//     `warn`. Phase 1 is capture-only; the warn-on-divergence classifier is deferred to Phase 2/3
-//     (calibrate on observed data + registry cross-check — t/3677#5). These tests would fail the moment
-//     a divergence classifier is added here, which is the intended guard for the phasing.
+//     `info` event per call with `{backend, requested, apiModelIdSent, providerReported}`. These calls pass
+//     no `identityRegistry`, so the t/3731 Phase 3 classifier reads them `unknown/no-registry`, and an
+//     unknown never warns. The classifier's own behavior is tested in servedIdentityClassifier.test.ts.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { FetchFn, GenerateOptions } from './types.js';
