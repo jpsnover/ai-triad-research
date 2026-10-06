@@ -1,7 +1,13 @@
 {
   "ticket": "t/3351",
   "pin_function": "sha256(json.dumps(logical_form, sort_keys=True, ensure_ascii=False).encode())[:16]",
-  "authorization": "PENDING",
+  "authorization": {
+    "by": "PI",
+    "when": "2026-10-06",
+    "where": "in session",
+    "text": "t/3351 approve",
+    "note": "Recorded here because the Orca server was restarting; mirrored to t/3351 when it is back."
+  },
   "expected_ops": 1,
   "ops": [
     {
