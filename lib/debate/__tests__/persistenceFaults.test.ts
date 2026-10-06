@@ -231,10 +231,16 @@ describe('corrupt partial JSON on resume', () => {
 });
 
 // ── Integration layer: engine emitSnapshot resilience ───
+// DebateEngine is imported in beforeAll so module-load time doesn't count toward the 5s
+// test timeout when the suite runs under full parallel load (t/4000).
+
+let DebateEngine: Awaited<typeof import('../debateEngine.js')>['DebateEngine'];
+beforeAll(async () => {
+  ({ DebateEngine } = await import('../debateEngine.js'));
+});
 
 describe('debate engine emitSnapshot catches snapshot callback failures', () => {
-  it('onSnapshot ENOSPC does not abort the engine (logged to flight recorder)', async () => {
-    const { DebateEngine } = await import('../debateEngine.js');
+  it('onSnapshot ENOSPC does not abort the engine (logged to flight recorder)', () => {
 
     let snapshotCallCount = 0;
     let snapshotError: Error | null = null;
@@ -270,9 +276,7 @@ describe('debate engine emitSnapshot catches snapshot callback failures', () => 
     expect((snapshotError as unknown as NodeJS.ErrnoException).code).toBe('ENOSPC');
   });
 
-  it('onSnapshot EACCES does not abort the engine', async () => {
-    const { DebateEngine } = await import('../debateEngine.js');
-
+  it('onSnapshot EACCES does not abort the engine', () => {
     let threw = false;
     const config = {
       topic: 'Test topic',
