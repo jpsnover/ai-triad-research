@@ -3,8 +3,8 @@
 
 // t/3955, SO e/249#6 condition 2: the editor is a live writer, so the schema save() runs must enforce the
 // same tag rule as the tagging CLI. save() aborts on any issue these schemas raise.
-// The committed registry is EMPTY until t/3956 adds the Skeptic tags with their souls, so any concrete
-// tag is rejected today; the pass arms with registered tags live in lib/schema/povTags.test.ts.
+// The committed registry holds the two Skeptic tags added with their souls (t/3956): 'critical' and
+// 'institutional'. Registry-shape arms live in lib/schema/povTags.test.ts.
 
 import { describe, it, expect } from 'vitest';
 import { povTaxonomyFileSchema, situationsFileSchema } from './validation';
@@ -38,8 +38,12 @@ describe('renderer povNodeSchema pov_tags (t/3955)', () => {
     expect(povTaxonomyFileSchema.safeParse(povFile({ pov_tags: [] })).success).toBe(true);
   });
 
+  it('ACCEPTS a tag registered for the node POV (t/3956)', () => {
+    expect(povTaxonomyFileSchema.safeParse(povFile({ pov_tags: ['critical'] })).success).toBe(true);
+  });
+
   it('REJECTS an unregistered tag, with the issue on nodes[0].pov_tags', () => {
-    const r = povTaxonomyFileSchema.safeParse(povFile({ pov_tags: ['critical'] }));
+    const r = povTaxonomyFileSchema.safeParse(povFile({ pov_tags: ['radical'] }));
     expect(r.success).toBe(false);
     expect(r.error?.issues[0].path).toEqual(['nodes', 0, 'pov_tags']);
     expect(r.error?.issues[0].message).toMatch(/not registered/);
