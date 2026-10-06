@@ -1,0 +1,530 @@
+{
+  "__meta__": {
+    "threshold": 15,
+    "scan": null
+  },
+  "ai-client/providers/claude.ts": {
+    "max": 18,
+    "countOver": 1
+  },
+  "ai-client/providers/deepseek.ts": {
+    "max": 28,
+    "countOver": 1
+  },
+  "ai-client/providers/gemini-search.ts": {
+    "max": 19,
+    "countOver": 1
+  },
+  "ai-client/providers/gemini.ts": {
+    "max": 17,
+    "countOver": 3
+  },
+  "ai-client/providers/groq.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "ai-client/providers/moonshot.ts": {
+    "max": 21,
+    "countOver": 1
+  },
+  "ai-client/providers/openai.ts": {
+    "max": 18,
+    "countOver": 1
+  },
+  "ai-client/providers/xai.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "ai-client/providers/zai.ts": {
+    "max": 23,
+    "countOver": 1
+  },
+  "ai-client/registry.ts": {
+    "max": 17,
+    "countOver": 1
+  },
+  "ai-client/retry.ts": {
+    "max": 45,
+    "countOver": 2
+  },
+  "brief/narrate.ts": {
+    "max": 28,
+    "countOver": 1
+  },
+  "brief/verify.ts": {
+    "max": 17,
+    "countOver": 1
+  },
+  "debate/agentUtility.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "debate/aiAdapter.ts": {
+    "max": 35,
+    "countOver": 2
+  },
+  "debate/applyDebateDelta.ts": {
+    "max": 26,
+    "countOver": 1
+  },
+  "debate/argumentNetwork/attribution.ts": {
+    "max": 24,
+    "countOver": 1
+  },
+  "debate/argumentNetwork/processClaims.ts": {
+    "max": 123,
+    "countOver": 1
+  },
+  "debate/argumentNetwork/prompts.ts": {
+    "max": 47,
+    "countOver": 2
+  },
+  "debate/assignWeights.ts": {
+    "max": 27,
+    "countOver": 1
+  },
+  "debate/backfill-evidence-qbaf.ts": {
+    "max": 36,
+    "countOver": 1
+  },
+  "debate/backfillDebateTested.ts": {
+    "max": 53,
+    "countOver": 1
+  },
+  "debate/calibrationLogger/coverage.ts": {
+    "max": 18,
+    "countOver": 1
+  },
+  "debate/calibrationLogger/extract-metrics.ts": {
+    "max": 47,
+    "countOver": 9
+  },
+  "debate/calibrationLogger/extract.ts": {
+    "max": 184,
+    "countOver": 4
+  },
+  "debate/calibrationOptimizer.ts": {
+    "max": 42,
+    "countOver": 3
+  },
+  "debate/citationResolution.ts": {
+    "max": 31,
+    "countOver": 2
+  },
+  "debate/claimExtractionPipeline/extract.ts": {
+    "max": 186,
+    "countOver": 1
+  },
+  "debate/claimExtractionPipeline/gapAndDrift.ts": {
+    "max": 26,
+    "countOver": 4
+  },
+  "debate/claimExtractionPipeline/helpers.ts": {
+    "max": 23,
+    "countOver": 1
+  },
+  "debate/claimExtractionPipeline/nliDirectionGate.ts": {
+    "max": 22,
+    "countOver": 1
+  },
+  "debate/cli.ts": {
+    "max": 105,
+    "countOver": 3
+  },
+  "debate/computeInterpretationDivergence.ts": {
+    "max": 28,
+    "countOver": 1
+  },
+  "debate/confidenceDedup.ts": {
+    "max": 31,
+    "countOver": 1
+  },
+  "debate/confidenceEvolution.ts": {
+    "max": 31,
+    "countOver": 2
+  },
+  "debate/convergenceSignals.ts": {
+    "max": 68,
+    "countOver": 3
+  },
+  "debate/corpusCoverage.ts": {
+    "max": 23,
+    "countOver": 3
+  },
+  "debate/counterfactualCrux.ts": {
+    "max": 22,
+    "countOver": 1
+  },
+  "debate/cruxRegistry.ts": {
+    "max": 20,
+    "countOver": 1
+  },
+  "debate/cruxResolution.ts": {
+    "max": 28,
+    "countOver": 1
+  },
+  "debate/debateEngine/adaptiveStaging.ts": {
+    "max": 23,
+    "countOver": 1
+  },
+  "debate/debateEngine/doctrinal.ts": {
+    "max": 18,
+    "countOver": 1
+  },
+  "debate/debateEngine/explorationSeeding.ts": {
+    "max": 23,
+    "countOver": 1
+  },
+  "debate/debateEngine/phases/crossRespond.ts": {
+    "max": 239,
+    "countOver": 3
+  },
+  "debate/debateEngine/phases/diversityInjection.ts": {
+    "max": 38,
+    "countOver": 1
+  },
+  "debate/debateEngine/phases/documentPreAnalysis.ts": {
+    "max": 20,
+    "countOver": 1
+  },
+  "debate/debateEngine/phases/opening.ts": {
+    "max": 57,
+    "countOver": 1
+  },
+  "debate/debateEngine/phases/probingQuestions.ts": {
+    "max": 28,
+    "countOver": 1
+  },
+  "debate/debateEngine/taxonomyContext.ts": {
+    "max": 119,
+    "countOver": 2
+  },
+  "debate/debateEngine.ts": {
+    "max": 116,
+    "countOver": 6
+  },
+  "debate/debateExport.ts": {
+    "max": 23,
+    "countOver": 2
+  },
+  "debate/debateIndex.ts": {
+    "max": 40,
+    "countOver": 2
+  },
+  "debate/debateTested.ts": {
+    "max": 36,
+    "countOver": 2
+  },
+  "debate/dialecticTrace.ts": {
+    "max": 36,
+    "countOver": 1
+  },
+  "debate/doctrinalAnchoring.ts": {
+    "max": 22,
+    "countOver": 1
+  },
+  "debate/envelopes.ts": {
+    "max": 19,
+    "countOver": 1
+  },
+  "debate/evidenceFromSummaries.ts": {
+    "max": 26,
+    "countOver": 1
+  },
+  "debate/evidenceQbaf.ts": {
+    "max": 19,
+    "countOver": 1
+  },
+  "debate/formatters.ts": {
+    "max": 67,
+    "countOver": 2
+  },
+  "debate/harvestOnSave.ts": {
+    "max": 26,
+    "countOver": 1
+  },
+  "debate/harvestUtils.ts": {
+    "max": 19,
+    "countOver": 1
+  },
+  "debate/helpers.ts": {
+    "max": 48,
+    "countOver": 5
+  },
+  "debate/inquiryGrounding.ts": {
+    "max": 35,
+    "countOver": 1
+  },
+  "debate/inquirySynthesis.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "debate/judgeAudit.ts": {
+    "max": 23,
+    "countOver": 2
+  },
+  "debate/lookaheadGate.ts": {
+    "max": 23,
+    "countOver": 1
+  },
+  "debate/migrate-phase-names.ts": {
+    "max": 18,
+    "countOver": 1
+  },
+  "debate/migrate-scoring-method.ts": {
+    "max": 19,
+    "countOver": 1
+  },
+  "debate/moderator.ts": {
+    "max": 38,
+    "countOver": 3
+  },
+  "debate/modulateEdgeWeights.ts": {
+    "max": 35,
+    "countOver": 2
+  },
+  "debate/neutralEvaluator.ts": {
+    "max": 38,
+    "countOver": 2
+  },
+  "debate/newsReport.ts": {
+    "max": 40,
+    "countOver": 3
+  },
+  "debate/operationalClosure.ts": {
+    "max": 24,
+    "countOver": 1
+  },
+  "debate/operationalityEvolution.ts": {
+    "max": 28,
+    "countOver": 4
+  },
+  "debate/orchestration.ts": {
+    "max": 139,
+    "countOver": 3
+  },
+  "debate/overgenPipeline.ts": {
+    "max": 39,
+    "countOver": 1
+  },
+  "debate/persistence.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "debate/phaseTransitions.ts": {
+    "max": 33,
+    "countOver": 4
+  },
+  "debate/policyDebateHistory.ts": {
+    "max": 21,
+    "countOver": 1
+  },
+  "debate/policyScoring.ts": {
+    "max": 18,
+    "countOver": 1
+  },
+  "debate/prompts/moderator.ts": {
+    "max": 21,
+    "countOver": 2
+  },
+  "debate/prompts/shared-helpers.ts": {
+    "max": 21,
+    "countOver": 2
+  },
+  "debate/prompts/synthesis.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "debate/prompts/turn-pipeline.ts": {
+    "max": 26,
+    "countOver": 3
+  },
+  "debate/qbaf.ts": {
+    "max": 41,
+    "countOver": 2
+  },
+  "debate/qbafCombinator.ts": {
+    "max": 19,
+    "countOver": 1
+  },
+  "debate/reflectionScope.ts": {
+    "max": 21,
+    "countOver": 1
+  },
+  "debate/relinkVocabulary.ts": {
+    "max": 26,
+    "countOver": 1
+  },
+  "debate/severeTestScheduler.ts": {
+    "max": 18,
+    "countOver": 1
+  },
+  "debate/situationInterpretationEvolution.ts": {
+    "max": 29,
+    "countOver": 1
+  },
+  "debate/situationRefs.ts": {
+    "max": 25,
+    "countOver": 1
+  },
+  "debate/strategicHints.ts": {
+    "max": 35,
+    "countOver": 3
+  },
+  "debate/synthesisPhases.ts": {
+    "max": 39,
+    "countOver": 1
+  },
+  "debate/synthesisPipeline.ts": {
+    "max": 39,
+    "countOver": 4
+  },
+  "debate/talmudicReferences.ts": {
+    "max": 19,
+    "countOver": 3
+  },
+  "debate/taxonomyContext.ts": {
+    "max": 84,
+    "countOver": 4
+  },
+  "debate/taxonomyGapAnalysis.ts": {
+    "max": 19,
+    "countOver": 2
+  },
+  "debate/taxonomyLoader.ts": {
+    "max": 20,
+    "countOver": 1
+  },
+  "debate/taxonomyRelevance.ts": {
+    "max": 74,
+    "countOver": 4
+  },
+  "debate/tieredCompression.ts": {
+    "max": 50,
+    "countOver": 1
+  },
+  "debate/topicCritique.ts": {
+    "max": 23,
+    "countOver": 1
+  },
+  "debate/topicPipeline.ts": {
+    "max": 52,
+    "countOver": 5
+  },
+  "debate/turnPipeline/assemble.ts": {
+    "max": 26,
+    "countOver": 2
+  },
+  "debate/turnPipeline/microFix.ts": {
+    "max": 35,
+    "countOver": 4
+  },
+  "debate/turnPipeline/opening.ts": {
+    "max": 66,
+    "countOver": 2
+  },
+  "debate/turnPipeline/readabilityEditPass.ts": {
+    "max": 20,
+    "countOver": 1
+  },
+  "debate/turnPipeline/runTurn.ts": {
+    "max": 418,
+    "countOver": 1
+  },
+  "debate/turnValidator/core.ts": {
+    "max": 66,
+    "countOver": 3
+  },
+  "debate/turnValidator/directiveCompliance.ts": {
+    "max": 25,
+    "countOver": 1
+  },
+  "debate/turnValidator/stageValidation.ts": {
+    "max": 70,
+    "countOver": 3
+  },
+  "debate/urlClassify.ts": {
+    "max": 16,
+    "countOver": 1
+  },
+  "debate/validators.ts": {
+    "max": 24,
+    "countOver": 2
+  },
+  "debate/wellTestedSelection.ts": {
+    "max": 28,
+    "countOver": 1
+  },
+  "dictionary/lint.ts": {
+    "max": 22,
+    "countOver": 1
+  },
+  "dictionary/render.ts": {
+    "max": 32,
+    "countOver": 1
+  },
+  "diff/lineDiff.ts": {
+    "max": 22,
+    "countOver": 1
+  },
+  "electron-shared/modelDiscovery.ts": {
+    "max": 28,
+    "countOver": 1
+  },
+  "electron-shared/utils/errorMessages.ts": {
+    "max": 43,
+    "countOver": 1
+  },
+  "embeddings/embeddingResolver.ts": {
+    "max": 17,
+    "countOver": 1
+  },
+  "entities/nameResolver.ts": {
+    "max": 21,
+    "countOver": 1
+  },
+  "eslint-rules/complexity-budget.js": {
+    "max": 18,
+    "countOver": 1
+  },
+  "eslint-rules/no-actionable-error-message-nesting.js": {
+    "max": 20,
+    "countOver": 1
+  },
+  "eslint-rules/require-windows-hide.js": {
+    "max": 28,
+    "countOver": 2
+  },
+  "flight-recorder/serializer.ts": {
+    "max": 21,
+    "countOver": 1
+  },
+  "inquiry/inquiryExport.ts": {
+    "max": 18,
+    "countOver": 2
+  },
+  "oped/generate.ts": {
+    "max": 67,
+    "countOver": 2
+  },
+  "oped/promptLoader.ts": {
+    "max": 33,
+    "countOver": 1
+  },
+  "schema/checkSchemaDrift.ts": {
+    "max": 36,
+    "countOver": 1
+  },
+  "schema/extractors.ts": {
+    "max": 27,
+    "countOver": 1
+  },
+  "translation/pipeline.ts": {
+    "max": 23,
+    "countOver": 1
+  },
+  "url-fetch/fetchUrlForPrompt.ts": {
+    "max": 31,
+    "countOver": 2
+  }
+}
