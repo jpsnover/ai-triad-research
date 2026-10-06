@@ -18,6 +18,7 @@ import skepticCritical from '@lib/debate/soul-docs/skeptic.critical.soul.json';
 import skepticInstitutional from '@lib/debate/soul-docs/skeptic.institutional.soul.json';
 import { seatSouls } from './seatSouls';
 import { buildDebateResponsePrompt } from './prompts';
+import { debateResponsePrompt } from '../../../prompts/debate';
 
 const TAGGED = { seat_tags: { skeptic: { pov_tag: 'critical', tag_mode: 'scope' as const } } };
 const TAG_DISPOSITION = skepticCritical.voice.disposition;
@@ -77,7 +78,7 @@ describe.each([['opening', opening], ['turn', turn]] as const)('%s pipeline: a t
 // The single-turn response path (debateLoopSlice → buildDebateResponsePrompt) builds its prompt directly.
 describe('buildDebateResponsePrompt with seat souls (t/3975)', () => {
   const build = (speaker: Seat, session: object) =>
-    buildDebateResponsePrompt(speaker, 'Should frontier AI labs be licensed?', '', '', 'Why?', 'all', undefined, 'medium', undefined, undefined, undefined, seatSouls(session, speaker));
+    buildDebateResponsePrompt(seatSouls(session, speaker), 'Should frontier AI labs be licensed?', '', '', 'Why?', 'all');
 
   it('a tagged speaker is sent its tag disposition', () => {
     const text = build('skeptic', TAGGED);
@@ -89,9 +90,17 @@ describe('buildDebateResponsePrompt with seat souls (t/3975)', () => {
     expect(build('safetyist', INSTITUTIONAL)).toContain(`(${INST_SHORT})`);
   });
 
-  it('without souls it is the base prompt, byte for byte', () => {
-    const args = ['skeptic', 'T', '', '', 'Q', 'all', undefined, 'medium'] as const;
-    expect(buildDebateResponsePrompt(...args, undefined, undefined, undefined, seatSouls({}, 'skeptic'))).toBe(buildDebateResponsePrompt(...args));
+  it('souls is required: no base-soul fallback when it is missing (SO e/256#9)', () => {
+    // The production callers are type-checked against the required param. Test files are excluded from
+    // renderer tsc, so this run-time check is what fails if a `souls ?? POVER_INFO[...]` fallback returns.
+    // @ts-expect-error -- deliberately omitting the required souls
+    expect(() => buildDebateResponsePrompt(undefined, 'T', '', '', 'Q', 'all')).toThrow(TypeError);
+  });
+
+  it('an untagged seat gets the base prompt, byte for byte (the pre-t/3975 call: base fields, no souls)', () => {
+    const base = POVER_INFO.skeptic;
+    expect(buildDebateResponsePrompt(seatSouls({}, 'skeptic'), 'T', '', '', 'Q', 'all'))
+      .toBe(debateResponsePrompt(base.label, base.pov, base.personality, 'T', '', '', 'Q', 'all'));
   });
 });
 
