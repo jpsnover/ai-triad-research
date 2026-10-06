@@ -298,3 +298,50 @@ describe('PublicOpEdView (t/2728)', () => {
     resolveResponse(fakeResponse({ body: SAMPLE }));
   });
 });
+
+// t/3992 (t/3990 projection): a shared one-wing op-ed says so. The projection carries counts but no
+// label, so the wing name comes from the committed registry (skeptic "critical", t/3956).
+describe('PublicOpEdView — wing scope (t/3992)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    goTo(`/share/oped/${SHARE_ID}`);
+  });
+  afterEach(() => {
+    goTo('/');
+    vi.restoreAllMocks();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+  const share = (tag?: Record<string, unknown>) => ({
+    ...SAMPLE,
+    opeds: [{ ...SAMPLE.opeds[0], pov: 'skeptic', ...(tag ? { tag } : {}) }],
+  });
+
+  it('a Scope member shows the wing and the excluded count', async () => {
+    mockFetch.mockResolvedValue(fakeResponse({ body: share({ pov: 'skeptic', tag: 'critical', mode: 'scope', included: 12, excludedUntagged: 31 }) }));
+    render(<PublicOpEdView />);
+    await screen.findByText(SAMPLE.topic);
+    expect(screen.getByText('Skeptic · Critical wing (scope; 31 untagged excluded)')).toBeInTheDocument();
+  });
+
+  it('a Prioritize member shows no count (0 by construction would read as full coverage)', async () => {
+    mockFetch.mockResolvedValue(fakeResponse({ body: share({ pov: 'skeptic', tag: 'critical', mode: 'prioritize', included: 12, excludedUntagged: 0 }) }));
+    render(<PublicOpEdView />);
+    await screen.findByText(SAMPLE.topic);
+    expect(screen.getByText('Skeptic · Critical wing (prioritized)')).toBeInTheDocument();
+    expect(screen.queryByText(/untagged excluded/)).toBeNull();
+  });
+
+  it('an untagged member, or a share projected before t/3990, shows no scope line', async () => {
+    mockFetch.mockResolvedValue(fakeResponse({ body: share() }));
+    render(<PublicOpEdView />);
+    await screen.findByText(SAMPLE.topic);
+    expect(screen.queryByText(/ wing \(/)).toBeNull();
+  });
+
+  it('a tag the registry no longer lists shows its id instead of failing the page', async () => {
+    mockFetch.mockResolvedValue(fakeResponse({ body: share({ pov: 'skeptic', tag: 'retired-wing', mode: 'scope', included: 5, excludedUntagged: 2 }) }));
+    render(<PublicOpEdView />);
+    await screen.findByText(SAMPLE.topic);
+    expect(screen.getByText('Skeptic · retired-wing wing (scope; 2 untagged excluded)')).toBeInTheDocument();
+  });
+});
