@@ -103,6 +103,19 @@ zzz-fixture-any-pkg
             $any[0].Version | Should -Be 'any'
         }
 
+        It 'Get-AITSBOMPythonPackages (the decomposed enumeration helper) matches the same shape in isolation' {
+            # t/3910 decomposition-specific: proves the extracted helper, called directly and
+            # bypassing Update-AITSBOMPythonMetadata's enrichment entirely, produces the exact
+            # same parse of requirements.txt the full Get-AITSBOM pipeline relies on above.
+            $r = InModuleScope AITriad -Parameters @{ RepoRoot = $script:FixtureRoot } {
+                param($RepoRoot)
+                Get-AITSBOMPythonPackages -RepoRoot $RepoRoot
+            }
+            $pinned = @($r | Where-Object { $_.Name -eq 'zzz-fixture-pinned-pkg' })
+            $pinned[0].Version | Should -Be '2.31.0'
+            $pinned[0].Type | Should -Be 'python'
+        }
+
         It 'includes AI models with backend-specific SourceUrl, and no URL/supplier when backend is absent' {
             $r = Get-AITSBOM -RepoRoot $script:FixtureRoot -WarningAction SilentlyContinue
             $gemini = @($r | Where-Object { $_.Name -eq 'gemini-3.5-flash-lite' })[0]
