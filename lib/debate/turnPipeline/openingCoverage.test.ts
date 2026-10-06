@@ -58,13 +58,13 @@ const FIELD_EXEMPTIONS: Record<string, { engineRequired: boolean; rendererRequir
   },
   soul: {
     engineRequired: false,
-    rendererRequired: false,
-    note: 'BUG t/4007: engine wiring pending; t/3975: renderer wiring pending. Remove each side when it lands',
+    rendererRequired: true,
+    note: 'BUG t/4007: engine wiring pending. Renderer side landed (t/3975). Remove this exemption when t/4007 lands',
   },
   opponentSouls: {
     engineRequired: false,
-    rendererRequired: false,
-    note: 'BUG t/4007: engine wiring pending; t/3975: renderer wiring pending. Remove each side when it lands',
+    rendererRequired: true,
+    note: 'BUG t/4007: engine wiring pending. Renderer side landed (t/3975). Remove this exemption when t/4007 lands',
   },
 };
 

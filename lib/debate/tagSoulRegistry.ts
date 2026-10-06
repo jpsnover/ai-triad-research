@@ -9,7 +9,7 @@ import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { POVER_INFO } from './poverInfo.js';
 import { SoulDocumentSchema } from './soulDocSchema.js';
-import type { SoulProvenance } from './soulDocLoader.js';
+import type { SoulProvenance } from './soulDocSchema.js';
 import { tagSoulFileName } from '../schema/povTags.js';
 
 /** Readability brand: marks provenance from the Vite/browser path (import.meta.glob). Not a transitive guard — see t/3980. */

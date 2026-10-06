@@ -4,6 +4,7 @@
 import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
 import { buildDebateResponsePrompt, buildCrossRespondPrompt, formatGapHint } from '../shared/prompts';
+import { seatSouls } from '../shared/seatSouls';
 import type { ReflectionEdit, ReflectionResult } from '../types';
 import type {
   DebateSession,
@@ -146,7 +147,8 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     for (const poverId of respondingPovers) {
       set({ debateGenerating: poverId, debateStepStartedAt: Date.now() });
 
-      const info = POVER_INFO[poverId];
+      const souls = seatSouls(activeDebate, poverId); // t/3975: tag-aware soul for this seat
+      const info = souls.soul;
       const currentTranscriptForRelevance = formatRecentTranscript(get().activeDebate!.transcript, 4, get().activeDebate!.context_summaries);
       const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscriptForRelevance);
       const speakerClaims = (get().activeDebate?.argument_network?.nodes || []).filter(n => n.speaker === poverId);
@@ -177,6 +179,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         drDocAnalysis,
         activeDebate.audience,
         buildLineageContext(),
+        souls,
       );
 
       try {

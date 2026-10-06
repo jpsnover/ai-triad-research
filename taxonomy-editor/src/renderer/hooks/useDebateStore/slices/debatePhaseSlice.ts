@@ -5,6 +5,7 @@ import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
 import type { ReflectionEdit, ReflectionResult } from '../types';
 import { formatGapHint } from '../shared/prompts';
+import { seatSouls } from '../shared/seatSouls';
 import type {
   DebateSession,
   SpeakerId,
@@ -1112,6 +1113,7 @@ async function buildPostTerminationPipelineInput(
     label: info.label,
     pov: info.pov,
     personality: info.personality,
+    ...seatSouls(activeDebate, responderPover), // t/3975: soul + opponentSouls
     topic,
     taxonomyContext: taxonomyBlock,
     commitmentContext: commitBlock,
@@ -1182,7 +1184,7 @@ async function runPostTerminationTurn(activeDebate: DebateSession, aiPovers: _Ai
   const addressingLabel = 'all';
   set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...`, debateStepStartedAt: Date.now() });
 
-  const info = POVER_INFO[responderPover];
+  const info = seatSouls(activeDebate, responderPover).soul; // t/3975
   const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
   const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
   const { pipelineInput, taxonomyBlock, commitBlock } = await buildPostTerminationPipelineInput(activeDebate, responderPover, info, topic, model, currentTranscript, ctx, phase, focusPoint, addressingLabel, get);
@@ -1226,7 +1228,8 @@ async function buildTurnPipelineContext(responderPover: _ModResult['responder'],
     // Step 2: Generate the cross-response
     set({ debateGenerating: responderPover, debateActivity: `${POVER_INFO[responderPover].label} is preparing...`, debateStepStartedAt: Date.now() });
 
-    const info = POVER_INFO[responderPover];
+    const crSouls = seatSouls(activeDebate, responderPover); // t/3975
+    const info = crSouls.soul;
     const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
     const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
     const speakerClaims = (activeDebate.argument_network?.nodes || []).filter(n => n.speaker === responderPover);
@@ -1327,6 +1330,7 @@ async function buildTurnPipelineContext(responderPover: _ModResult['responder'],
       label: info.label,
       pov: info.pov,
       personality: info.personality,
+      ...crSouls, // t/3975: soul + opponentSouls
       topic,
       taxonomyContext: taxonomyBlock,
       commitmentContext: commitBlock,
