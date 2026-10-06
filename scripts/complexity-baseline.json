@@ -344,10 +344,6 @@
     "max": 68,
     "countOver": 1
   },
-  "AITriad/Public/Get-AITSBOM.ps1": {
-    "max": 175,
-    "countOver": 1
-  },
   "AITriad/Public/Get-AITSource.ps1": {
     "max": 145,
     "countOver": 1
