@@ -59,6 +59,14 @@ export const PovTagRegistrySchema = z.object({
 
 export type PovTagRegistry = z.infer<typeof PovTagRegistrySchema>;
 
+/**
+ * Canonical tag soul file name: `<pov>.<tag>.soul.json` (spec §3).
+ * Single source of truth — used by both loaders, the pairing check, and diagnostics (t/3989).
+ */
+export function tagSoulFileName(pov: string, tag: string): string {
+  return `${pov}.${tag}.soul.json`;
+}
+
 let cached: PovTagRegistry | undefined;
 
 /** The bundled registry, validated once. Throws if the committed file is malformed. */

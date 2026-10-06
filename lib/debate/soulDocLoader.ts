@@ -11,10 +11,10 @@ import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { PovInfo, SpeakerId } from './types.js';
 import type { TagSelection } from './types/session.js';
 import { POVER_INFO } from './poverInfo.js';
+import { tagSoulFileName } from '../schema/povTags.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SOUL_DOCS_DIR = resolve(__dirname, 'soul-docs');
-const TAG_SOUL_DOCS_DIR = resolve(SOUL_DOCS_DIR, 'tags');
 
 const CHARACTERS = ['accelerationist', 'safetyist', 'skeptic'] as const;
 
@@ -125,7 +125,7 @@ function loadTagSoulDocument(pov: CharacterId, tag: string): SoulDocument {
   const cached = _tagCache.get(cacheKey);
   if (cached) return cached;
 
-  const filePath = resolve(TAG_SOUL_DOCS_DIR, `${tag}.${pov}.soul.json`);
+  const filePath = resolve(SOUL_DOCS_DIR, tagSoulFileName(pov, tag));
   let raw: string;
   try {
     raw = readFileSync(filePath, 'utf-8');
@@ -142,7 +142,7 @@ function loadTagSoulDocument(pov: CharacterId, tag: string): SoulDocument {
       problem: `File not found or unreadable: ${filePath}`,
       location: 'soulDocLoader.ts:loadTagSoulDocument',
       nextSteps: [
-        `Verify ${tag}.${pov}.soul.json exists in lib/debate/soul-docs/tags/`,
+        `Verify ${tagSoulFileName(pov, tag)} exists in lib/debate/soul-docs/`,
         `Check lib/debate/soul-docs/pov-tags.json — only registered tags are valid`,
       ],
     });
