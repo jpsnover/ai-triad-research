@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 // POV-tag filter for the taxonomy node list (t/3961; spec §2 and §7). Pure; the registry is injectable
-// for tests (the committed one is empty until t/3956).
+// for tests.
 
 import { loadPovTagRegistry, type PovTagRegistry } from '@lib/schema/povTags';
 
@@ -28,7 +28,7 @@ export function filterByPovTag<T extends { pov_tags?: unknown }>(nodes: readonly
 }
 
 /** Filter options for a POV: All, Untagged, then each registry tag. Empty when the POV has no tags, so
- *  the control can hide itself (every POV until t/3956 lands the first tags). */
+ *  the control can hide itself. */
 export function povTagFilterOptions(pov: string, registry: PovTagRegistry = loadPovTagRegistry()): PovTagFilterOption[] {
   const tags = registry.povs[pov as keyof PovTagRegistry['povs']] ?? [];
   if (tags.length === 0) return [];

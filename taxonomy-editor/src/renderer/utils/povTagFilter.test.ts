@@ -2,10 +2,11 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
+import { loadPovTagRegistry } from '@lib/schema/povTags';
 import { filterByPovTag, povTagFilterOptions } from './povTagFilter';
 
-// t/3961: the taxonomy node list filters by POV tag. The committed registry is empty until t/3956,
-// so these inject one.
+// t/3961: the taxonomy node list filters by POV tag. These inject a registry so they don't move when the
+// committed one does (t/3956 added skeptic tags).
 const REGISTRY = {
   version: 1,
   povs: {
@@ -52,7 +53,15 @@ describe('povTagFilterOptions (t/3961)', () => {
     expect(povTagFilterOptions('accelerationist', REGISTRY)).toEqual([]);
   });
 
-  it('is empty for every POV with the committed (empty) registry today', () => {
-    expect(povTagFilterOptions('skeptic')).toEqual([]);
+  it('is empty for a POV with no registry tags, so the control hides', () => {
+    expect(povTagFilterOptions('skeptic', { version: 1, povs: {} })).toEqual([]);
+  });
+
+  it('follows the committed registry: options exactly when a POV has tags', () => {
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      const tags = loadPovTagRegistry().povs[pov] ?? [];
+      const values = povTagFilterOptions(pov).map(o => o.value);
+      expect(values).toEqual(tags.length === 0 ? [] : ['all', 'untagged', ...tags.map(t => `tag:${t.id}`)]);
+    }
   });
 });
