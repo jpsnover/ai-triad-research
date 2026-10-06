@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import {
-  validatePovTags, loadPovTagRegistry, checkRegistrySoulPairs, PovTagRegistrySchema, type PovTagRegistry,
+  validatePovTags, validatePovTagsDetailed, loadPovTagRegistry, checkRegistrySoulPairs, PovTagRegistrySchema, type PovTagRegistry,
 } from './povTags.js';
 
 const entry = (pov: string, id: string) => ({ id, label: id, soul_doc: `${pov}.${id}`, description: `${id} wing` });
@@ -55,6 +55,38 @@ describe('validatePovTags', () => {
   it('REJECTS a malformed id and a non-string entry', () => {
     expect(validatePovTags('skp-beliefs-001', ['Critical'], REG).join()).toMatch(/kebab-case/);
     expect(validatePovTags('skp-beliefs-001', [42], REG)[0]).toMatch(/must be strings/);
+  });
+});
+
+describe('validatePovTagsDetailed (problem kinds, t/3973)', () => {
+  const kinds = (nodeId: string, tags: unknown) => validatePovTagsDetailed(nodeId, tags, REG).map((p) => p.kind);
+
+  it('marks registry membership as unregistered, and nothing else', () => {
+    expect(kinds('skp-beliefs-001', ['radical'])).toEqual(['unregistered']);
+    // A well-formed skeptic tag on an accelerationist node is a membership problem too.
+    expect(kinds('acc-beliefs-001', ['critical'])).toEqual(['unregistered']);
+  });
+
+  it('marks every registry-independent problem as structural', () => {
+    expect(kinds('sit-001', ['critical'])).toEqual(['structural']);
+    expect(kinds('sit-001', [])).toEqual(['structural']);
+    expect(kinds('skp-beliefs-001', 'critical')).toEqual(['structural']);
+    expect(kinds('skp-beliefs-001', [42])).toEqual(['structural']);
+    expect(kinds('skp-beliefs-001', ['critical', 'critical'])).toEqual(['structural']);
+  });
+
+  it('reports both kinds for a malformed id, which is also not in the registry', () => {
+    expect(kinds('skp-beliefs-001', ['Critical'])).toEqual(['structural', 'unregistered']);
+  });
+
+  it('is valid exactly when validatePovTags is, with the same messages in the same order', () => {
+    const cases: [string, unknown][] = [
+      ['skp-beliefs-001', ['critical']], ['skp-beliefs-001', undefined], ['skp-beliefs-001', ['Critical', 'critical', 'critical', 'x']],
+      ['sit-001', ['critical']], ['skp-beliefs-001', 'critical'], ['acc-beliefs-001', ['critical', 7]],
+    ];
+    for (const [id, tags] of cases) {
+      expect(validatePovTagsDetailed(id, tags, REG).map((p) => p.message), `${id} ${JSON.stringify(tags)}`).toEqual(validatePovTags(id, tags, REG));
+    }
   });
 });
 
