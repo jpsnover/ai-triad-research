@@ -3121,6 +3121,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-10-01 — PowerShell (p/20#55): `Invoke-ScriptAnalyzer -Settings ./relative/settings.json` after a prior `cd` into repo root — **PowerShell tool cwd also resets between calls** (same t/2222 mechanism as Bash), so the relative `-Settings` path failed to resolve. Abandoned: the diagnostic was redundant (git-show evidence already confirmed the finding).
 - 2026-10-04 — DevOps Lead (p/26#141): `gh pr create` run from Bash without `--head` failed with "you must first push the current branch" — the Bash cwd had reset to the shared checkout (on `main`), so `gh` read the current branch as `main` rather than the worktree branch. Fix: always pass `--head <branch>` explicitly to `gh pr create` when called from Bash, regardless of where the push was made.
 - 2026-10-05 — PowerShell (p/20#68): `gh pr create` aborted with "you must first push the current branch" despite the branch already being pushed — run from the shared main checkout (still on `main`), not the worktree the push happened from. `gh pr create` without `--head` infers head from the current checkout's branch. Fix: added `--head <branch>`.
+- 2026-10-06 — Rosetta Stone (p/6#77): Bash redirect `cmd > ../../../../AppData/...` from a worktree cwd failed with "No such file or directory" — relative path constructed assuming worktree cwd, but Bash tool cwd had reset to the scope directory, making the relative traversal land in the wrong place. Fix: write to the absolute scratchpad path.
 
 **Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. **Compounding factor (instance 2):** the Bash tool resets cwd to the repo root between invocations, so any relative path like `../wt-<name>` re-anchors to the repo root on every call — you cannot rely on a prior `cd` persisting to the next Bash call.
 
@@ -3131,7 +3132,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. **Both Bash AND PowerShell tool cwds reset between invocations (t/2222)** — relative paths re-anchor on every call regardless of a prior `cd`. Use absolute paths always; never depend on a prior `cd` persisting to the next tool call.
 5. **(Possible — unconfirmed) Glob may also resolve relative paths against the scope root, not the repo root** — a relative `Glob("tests/Foo*")` from a role scoped to `scripts/AITriad/` may search `scripts/AITriad/tests/` and silently return empty. Use `**/<name>` or absolute base paths in Glob until this is confirmed (p/20#57; see Pattern #186).
 
-**Status:** Active — 6 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash. **5th instance (2026-10-04, p/26#141):** `gh pr create` read `main` as the current branch instead of the worktree branch — pass `--head <branch>` explicitly. **6th instance (2026-10-05, p/20#68):** same `gh pr create` / shared checkout failure on PowerShell, confirming the pattern is tool-agnostic — any `gh pr create` without `--head` from a non-worktree cwd hits this.
+**Status:** Active — 7 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash. **5th instance (2026-10-04, p/26#141):** `gh pr create` read `main` as the current branch instead of the worktree branch — pass `--head <branch>` explicitly. **6th instance (2026-10-05, p/20#68):** same `gh pr create` / shared checkout failure on PowerShell, confirming the pattern is tool-agnostic — any `gh pr create` without `--head` from a non-worktree cwd hits this.
 
 **Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path, or running `gh` CLI commands from Bash where cwd may have reset.
 
@@ -4363,3 +4364,39 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (Computational Linguist, p/7#90, t/3956). Silent failure; merge completes normally, hold comment arrives after.
 
 **Applies To:** All agents holding PRs on cross-ticket blockers or external conditions of any kind.
+
+## #208 [Build] Two Git/Windows Path Traps: `core.quotePath` Escapes Non-ASCII, and 269-Char Paths Exceed MAX_PATH
+
+**Pattern:** Two co-occurring path-string issues when running `git ls-files` / `git show` on a repo with non-ASCII or long filenames: (1) git's default `core.quotePath=true` octal-escapes non-ASCII characters in output (e.g. `\303\251` instead of `é`), causing a Python set-diff to report false mismatches against `os.listdir()` results; (2) a path of 269 characters exceeds Windows `MAX_PATH` (260), so `os.listdir()` enumerates it but `open()` / `io` fails — the file appears to exist but cannot be read. A `\\?\` extended-length prefix passed through a Bash heredoc silently lost a backslash, compounding the second issue.
+
+**Instances:**
+- 2026-10-06 — TL (p/335#134, t/4001): byte-compare of `ai-triad-sources` files reported one file missing and set-diff false mismatches. Root: `core.quotePath` escaping non-ASCII path + 269-char path over MAX_PATH. Fix: `-c core.quotePath=false`, `\\?\` extended-length prefix written via a script file (not a heredoc).
+
+**Root Cause:** `core.quotePath` is enabled by default to keep git output ASCII-safe; consumers that compare git output against filesystem APIs must suppress it. Windows MAX_PATH is a legacy 260-char limit that `os.open()` / `io.open()` hit even when `os.listdir()` succeeds (listdir uses a different Windows API path).
+
+**Prevention:**
+1. **Always pass `-c core.quotePath=false`** when consuming git path output in Python/PowerShell comparisons.
+2. **For paths ≥ 260 chars on Windows, use the `\\?\` extended-length prefix** — but write it via a script file, not a Bash heredoc (heredoc backslash handling strips one level, leaving `\?\`).
+3. Both issues are silent: git exits 0; `listdir` succeeds. The only signal is a false mismatch or a `FileNotFoundError` on a path that `listdir` returned.
+
+**Status:** Active — 1 instance (TL, p/335#134, t/4001). Both traps are silent failures.
+
+**Applies To:** All agents running Python/PowerShell comparisons against `git ls-files` or `git show` output on repos with non-ASCII filenames or very long paths.
+
+## #209 [Test] Test Pins "Today's" Config Contents — Rots When the Next Config Lands
+
+**Pattern:** A CI test asserts that a committed config file (registry, schema, list) has a specific fixed value — e.g. "the POV-tag registry is empty." The test passes at commit time. A later PR adds entries to that config, and the test goes red without touching the test file. The test was not wrong at the time it was written; the config was genuinely empty. But a test that pins the current state of a shared, evolving artifact is a time bomb: it encodes "today's contents" as an invariant, and any future legitimate change to the artifact fails it.
+
+**Instances:**
+- 2026-10-06 — Rosetta Stone (p/6#77, PR #2879): a test asserted the committed POV-tag registry was empty. t/3956 (PR #2851) then added Skeptic tags, and the test went red. Fix: inject a known-fixed registry for the test's fixed cases; derive expected values from the real registry for cases that should track it.
+
+**Root Cause:** The test was correct when written (registry was empty) but encoded a snapshot of a shared artifact as a permanent invariant. Tests of this shape fail on the next legitimate write to the artifact — a false red that punishes the landing agent, not the original test author.
+
+**Prevention:**
+1. **Don't pin the contents of a shared, evolving artifact as a test invariant.** Instead: inject a controlled fixture for cases needing isolation; derive expected values from the real artifact for cases that should track it.
+2. **The tell:** if your assertion would fail if someone *correctly* adds an entry to the artifact, it is pinning today's snapshot, not testing behavior.
+3. **Equivalent to:** asserting a list has exactly N items when N is expected to grow. Replace with structural assertions ("is non-empty", "contains X", "all entries are valid") or inject a frozen copy.
+
+**Status:** Active — 1 instance (Rosetta Stone, p/6#77, PR #2879). Silent until the next config change; then a false red that blocks a legitimate PR.
+
+**Applies To:** All agents writing tests that reference shared config files, registries, or schema contents.
