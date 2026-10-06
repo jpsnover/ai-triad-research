@@ -39,10 +39,23 @@ function Test-FieldEditShape {
     $hasField = $Edit.ContainsKey('Field')
     $hasPath  = $Edit.ContainsKey('Path')
     $isRemove = [bool]$Edit['Remove']   # absent key → $null → $false
+    $isArrayValue = [bool]$Edit['ArrayValue']   # t/3969: Path-only, see below
     if ($hasField -eq $hasPath) {
         return @{
             Problem = 'Each edit must specify EXACTLY ONE of Field (depth-1) or Path (nested-path segment array)'
             Steps   = @('Use @{NodeId;Field;Value} OR @{NodeId;Path=@(...);Value[;Upsert]} OR @{NodeId;Path=@(...);Remove=$true}')
+        }
+    }
+    if ($isArrayValue -and $hasField) {
+        return @{
+            Problem = 'ArrayValue is Path-only (depth-1 Field edits are always scalar)'
+            Steps   = @('Use @{NodeId;Path=@(...);Value=<array>;ArrayValue=$true[;Upsert]}')
+        }
+    }
+    if ($isArrayValue -and $isRemove) {
+        return @{
+            Problem = 'ArrayValue and Remove are mutually exclusive'
+            Steps   = @('-Remove deletes the member; ArrayValue only shapes a written Value')
         }
     }
     if ($isRemove) {

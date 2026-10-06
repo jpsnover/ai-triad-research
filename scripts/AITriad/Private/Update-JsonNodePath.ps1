@@ -107,6 +107,11 @@ function Update-JsonNodePath {
         [switch]$Upsert,
         # t/3460: delete the whole member at the final (object-key) segment. See .PARAMETER Remove.
         [switch]$Remove,
+        # t/3969: opt-in widening of t/2921 Q2's scalar-only scope to a FLAT array of scalars (e.g.
+        # pov_tags). Default OFF keeps the proven scalar-only behavior byte-identical (regression arm) —
+        # an array Value without -ArrayValue is now rejected fail-closed up front (see guard below)
+        # instead of falling through to the scalar-splice code unprotected.
+        [switch]$ArrayValue,
         # Skip the per-call parse + re-parse-verify. ONLY for Save-JsonNodeFieldEdits, which
         # verifies the whole chained batch once against the fresh read (and replays with
         # per-call verify on mismatch). Never use it without a batch verify behind it.
@@ -121,11 +126,27 @@ function Update-JsonNodePath {
             -Problem $problem -Location 'Update-JsonNodePath' -NextSteps $steps -PassThru)
     }
 
+    # t/3969: true iff every element of $v is itself a scalar (no nested object/array) — the only
+    # array shape -ArrayValue permits. Not a pipe (`$v | Where-Object` would unroll a 1-element
+    # array into the hazard it's meant to catch) — a plain foreach loop instead.
+    $isFlatScalarArray = {
+        param($v)
+        if ($v -isnot [System.Collections.IEnumerable] -or $v -is [string]) { return $false }
+        foreach ($el in $v) {
+            if ($el -is [System.Collections.IDictionary] -or $el -is [System.Management.Automation.PSCustomObject] -or
+                ($el -is [System.Collections.IEnumerable] -and $el -isnot [string])) { return $false }
+        }
+        return $true
+    }
+
     if (@($Path).Count -eq 0) { & $fail 'Path is empty' @('Provide at least one path segment') }
 
     # --- Mode guards (t/3460) -------------------------------------------------
     if ($Remove -and $Upsert) {
         & $fail '-Remove and -Upsert are mutually exclusive' @('Pick exactly one mode: replace (default), -Upsert, or -Remove')
+    }
+    if ($Remove -and $ArrayValue) {
+        & $fail '-Remove and -ArrayValue are mutually exclusive' @('-Remove deletes the member; -ArrayValue only shapes a written Value')
     }
     if ($Remove -and $PSBoundParameters.ContainsKey('Value')) {
         & $fail '-Remove must not carry a Value (ambiguous intent)' @('Call -Remove with NodeId + Path only')
@@ -134,13 +155,25 @@ function Update-JsonNodePath {
         & $fail 'Value is required for replace/-Upsert' @('Pass -Value, or use -Remove to delete the member')
     }
 
-    # Under -Upsert the (possibly-inserted) leaf must be a SCALAR — created intermediates are objects,
-    # but the value itself is scalar-only, matching the in-place replacement invariant.
-    if ($Upsert -and $null -ne $Value -and (
+    # t/3969: an array/collection Value with NO -ArrayValue opt-in is rejected fail-closed here,
+    # rather than falling through to the scalar-only guards below (which, pre-t/3969, would have let
+    # it reach the encode line unprotected). Keeps the scalar-only default regression arm explicit.
+    if (-not $Remove -and -not $ArrayValue -and $null -ne $Value -and
+        $Value -is [System.Collections.IEnumerable] -and $Value -isnot [string] -and
+        $Value -isnot [System.Collections.IDictionary]) {
+        & $fail 'Value is an array/collection but -ArrayValue was not passed' @('Pass -ArrayValue to write an array leaf, or pass a scalar')
+    }
+    if ($ArrayValue -and $null -ne $Value -and -not (& $isFlatScalarArray $Value)) {
+        & $fail '-ArrayValue requires a FLAT array of scalars (no nested object/array elements)' @('Flatten the array, or write nested structures through a different path')
+    }
+
+    # Under -Upsert the (possibly-inserted) leaf must be a SCALAR, or — with -ArrayValue — a flat
+    # array of scalars. Created intermediates are always objects regardless of mode.
+    if ($Upsert -and -not $ArrayValue -and $null -ne $Value -and (
             $Value -is [System.Collections.IDictionary] -or
             ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) -or
             $Value -is [System.Management.Automation.PSCustomObject])) {
-        & $fail 'Upsert leaf value must be a scalar (string/number/bool/null)' @('Object/array leaf values are out of scope')
+        & $fail 'Upsert leaf value must be a scalar (string/number/bool/null)' @('Pass -ArrayValue for a flat array leaf, or pass a scalar')
     }
 
     # --- Parse (locate + verification baseline) ---
@@ -173,15 +206,21 @@ function Update-JsonNodePath {
     if ($target.Handled) { return $target.Patched }
     $curStart = $target.Start; $curEnd = $target.End
 
-    # --- Target must be a SCALAR (in-place scalar replacement only, t/2921 Q2) ---
+    # --- Target must be a SCALAR (t/2921 Q2), or — with -ArrayValue (t/3969) — an existing array ---
     $targetChar = $RawText[$curStart]
-    if ($targetChar -eq '{' -or $targetChar -eq '[') {
+    if ($targetChar -eq '{' -or (-not $ArrayValue -and $targetChar -eq '[')) {
         & $fail "target at '$pathDisplay' is an object/array; only in-place scalar replacement is supported" `
-            @('Object/array-valued replacement is out of scope (t/2921 Q2)')
+            @('Object/array-valued replacement is out of scope (t/2921 Q2)', 'Pass -ArrayValue to replace an existing array leaf')
+    }
+    if ($ArrayValue -and $targetChar -ne '[') {
+        & $fail "-ArrayValue expects the existing target at '$pathDisplay' to be an array, but it is not" `
+            @('Verify the path addresses an array leaf')
     }
 
     # --- Splice the target value span ---
-    $encoded = $Value | ConvertTo-Json -Depth 100 -Compress
+    # t/3969: -InputObject, NEVER a pipe — `$Value | ConvertTo-Json` unrolls a one-element array into
+    # its bare scalar element (the t/3948-class hazard), silently writing "tag1" instead of ["tag1"].
+    $encoded = ConvertTo-Json -InputObject $Value -Depth 100 -Compress
     $patched = $RawText.Substring(0, $curStart) + $encoded + $RawText.Substring($curEnd + 1)
 
     # --- Re-parse-VERIFY invariant (the safety net) ---

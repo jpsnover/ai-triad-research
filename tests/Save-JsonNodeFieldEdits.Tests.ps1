@@ -328,3 +328,53 @@ Describe 'Save-JsonNodeFieldEdits — batch re-parse-verify (one verify per file
         }
     }
 }
+
+Describe 'Save-JsonNodeFieldEdits -- ArrayValue edits (t/3969)' -Tag 'summary' {
+
+    BeforeEach {
+        $script:povFixture = @'
+{
+  "nodes": [
+    { "id": "skp-001", "label": "has tags", "pov_tags": ["old-tag"] },
+    { "id": "skp-002", "label": "no tags yet" }
+  ]
+}
+'@ -replace "`r`n", "`n"
+        $script:povPath = Join-Path $TestDrive 'pov-fixture.json'
+        [System.IO.File]::WriteAllText($script:povPath, $script:povFixture, (New-Object System.Text.UTF8Encoding $false))
+    }
+
+    It 'replaces an existing array leaf via an ArrayValue edit and writes it as an array (not unrolled)' {
+        $edits = @(@{ NodeId = 'skp-001'; Path = @('pov_tags'); Value = @('critical'); ArrayValue = $true })
+        $result = Save-JsonNodeFieldEdits -Path $script:povPath -Edits $edits -Confirm:$false
+        $result.Applied | Should -Be 1
+        $doc = Get-Content -Raw $script:povPath | ConvertFrom-Json -AsHashtable
+        # @(...) before [0]: a single-match Where-Object result is a bare Hashtable here, and
+        # Hashtable implements IDictionary, so an un-wrapped [0] would be a KEY lookup (not
+        # positional indexing) -- @() forces array semantics first.
+        $node = @($doc.nodes | Where-Object { $_.id -eq 'skp-001' })[0]
+        $tags = $node['pov_tags']
+        $tags -is [System.Collections.IList] | Should -BeTrue
+        @($tags).Count | Should -Be 1
+        $tags[0] | Should -Be 'critical'
+    }
+
+    It '-Upsert -ArrayValue creates a new array leaf on a node with none' {
+        $edits = @(@{ NodeId = 'skp-002'; Path = @('pov_tags'); Value = @('a', 'b'); ArrayValue = $true; Upsert = $true })
+        $result = Save-JsonNodeFieldEdits -Path $script:povPath -Edits $edits -Confirm:$false
+        $result.Applied | Should -Be 1
+        $doc = Get-Content -Raw $script:povPath | ConvertFrom-Json -AsHashtable
+        $node = @($doc.nodes | Where-Object { $_.id -eq 'skp-002' })[0]
+        @($node['pov_tags']) -join ',' | Should -Be 'a,b'
+    }
+
+    It 'REFUSES an ArrayValue edit that also sets Field' {
+        $edits = @(@{ NodeId = 'skp-001'; Field = 'label'; Value = @('x'); ArrayValue = $true })
+        { Save-JsonNodeFieldEdits -Path $script:povPath -Edits $edits -Confirm:$false } | Should -Throw
+    }
+
+    It 'REFUSES an ArrayValue edit combined with Remove' {
+        $edits = @(@{ NodeId = 'skp-001'; Path = @('pov_tags'); Remove = $true; ArrayValue = $true })
+        { Save-JsonNodeFieldEdits -Path $script:povPath -Edits $edits -Confirm:$false } | Should -Throw
+    }
+}
