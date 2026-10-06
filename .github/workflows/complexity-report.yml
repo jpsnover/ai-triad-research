@@ -1,0 +1,43 @@
+# Weekly complexity-budget report (advisory).
+#
+# The complexity budgets (ESLint local/complexity-budget, PS Test-ComplexityBudget) are
+# ratchets: they stop a file getting worse but schedule nothing to make it better. This
+# job turns the baselines on main into work:
+#   - upserts ONE tracking issue (label complexity:report) with the worst offenders per
+#     language, edited in place each week;
+#   - closes complexity:refactor issues (filed by ci.yml job complexity-tickets when a
+#     PR trips the budget) whose file is no longer in any baseline.
+# Reads only the committed baseline JSONs, so it needs no install or scan.
+# Logic + tests: .github/scripts/complexity-tickets.mjs / complexity-tickets.test.mjs.
+
+name: Complexity report
+
+on:
+  schedule:
+    - cron: '0 14 * * 1'   # Mondays 14:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: complexity-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+
+      - name: Update offender report and close resolved refactor issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node .github/scripts/complexity-tickets.mjs report --top 15
