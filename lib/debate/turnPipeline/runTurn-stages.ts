@@ -49,7 +49,7 @@ export function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     topicScope: input.topicScope,
     topicStructure: input.topicStructure,
     salienceBeacon: input.salienceBeacon,
-    soul: input.soul,
+    soul: input.soul!,
     opponentSouls: input.opponentSouls,
   };
 }

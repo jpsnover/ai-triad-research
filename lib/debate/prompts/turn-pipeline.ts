@@ -36,8 +36,8 @@ export interface StagePromptInput {
   focusPoint: string;
   addressing: string;
   phase?: DebatePhase;
-  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
-  soul?: PovInfo;
+  /** Resolved soul for this speaker (t/3988). */
+  soul: PovInfo;
   /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
   opponentSouls?: Partial<Record<SpeakerId, PovInfo>>;
   priorMoves?: string[];
@@ -486,8 +486,8 @@ export interface RewriteFromClaimsInput {
   audience?: DebateAudience;
   currentCruxContext?: string;
   topicScope?: TopicScope;
-  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
-  soul?: PovInfo;
+  /** Resolved soul for this speaker (t/3988). */
+  soul: PovInfo;
   /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
   opponentSouls?: Partial<Record<SpeakerId, PovInfo>>;
 }

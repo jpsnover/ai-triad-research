@@ -22,6 +22,7 @@ import type {
   DraftWorkProduct,
   DebateAudience,
   TopicScope,
+  PovInfo,
 } from './types.js';
 import type { LookaheadGateInput, PerClaimResult } from './lookaheadGate.js';
 import { evaluateLookaheadPerClaim, selectGreedyClaims } from './lookaheadGate.js';
@@ -45,6 +46,8 @@ export interface OvergenPipelineInput {
   audience?: DebateAudience;
   currentCruxContext?: string;
   topicScope?: TopicScope;
+  /** Resolved soul for this speaker (t/3988). */
+  soul?: PovInfo;
 }
 
 export interface OvergenPipelineOptions {
@@ -199,6 +202,7 @@ export async function runOvergenPipeline(
     audience: input.audience,
     currentCruxContext: input.currentCruxContext,
     topicScope: input.topicScope,
+    soul: input.soul!,
   };
 
   const rewritePrompt = draftFromSelectedClaimsPrompt(rewriteInput);

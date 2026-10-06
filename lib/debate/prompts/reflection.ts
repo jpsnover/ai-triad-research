@@ -161,7 +161,7 @@ export function reflectionPrompt(
   priorReflections?: Array<{ pov: string; edits: Array<{ edit_type: string; proposed_label: string; category: string }> }>,
   /** Full-taxonomy sweep (opt-in): nodes the debate never engaged, offered for review. */
   unengagedNodes?: ReflectionTaxonomyNode[],
-  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
+  /** Resolved soul for this speaker (t/3988). Always required — use engine.getSoulForSpeaker. */
   soul?: PovInfo,
 ): string {
   const renderNode = (n: ReflectionTaxonomyNode): string => {
@@ -227,9 +227,9 @@ not convergence.\n`
     : '';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
-${getCharacterBlock(pov, soul)}
+${getCharacterBlock(pov, soul!)}
 ${getReadingLevel(audience)}
-${formatDoctrinalBoundaries(pov, soul)}
+${formatDoctrinalBoundaries(pov, soul!)}
 You have just finished a structured debate on:
 "${topic}"
 

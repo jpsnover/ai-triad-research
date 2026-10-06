@@ -687,6 +687,7 @@ export async function runTurnPipeline(
         pendingIntervention: stageInput.pendingIntervention as import('../types.js').ModeratorIntervention | undefined,
         suppressedHints: input.suppressedHints,
         speaker: input.pov as import('../types.js').SpeakerId,
+        soul: stageInput.soul!,
       });
       // Record validation result on the stage diagnostic
       const lastDiag = stageDiags[stageDiags.length - 1];

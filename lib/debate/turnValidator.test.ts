@@ -19,6 +19,7 @@ import type {
   ModeratorIntervention,
 } from './types.js';
 import type { PoverResponseMeta } from './helpers.js';
+import { POVER_INFO } from './poverInfo.js';
 
 // ── Helpers ───────────────────────────────────────────────
 
@@ -1895,6 +1896,7 @@ describe('checkBoundaryConcession', () => {
       'skeptic',
       [{ move: 'DISTINGUISH', detail: 'some distinction' }],
       'Statement text.',
+      POVER_INFO.skeptic,
     );
     expect(result.hasConcession).toBe(false);
     expect(result.boundaryType).toBe('none');
@@ -1908,6 +1910,7 @@ describe('checkBoundaryConcession', () => {
         detail: 'I concede that techno-determinism may be justified — perhaps utopia or apocalypse is inevitable given current trajectories',
       }],
       'Statement text.',
+      POVER_INFO.skeptic,
     );
     expect(result.hasConcession).toBe(true);
     expect(result.boundaryType).toBe('hardcoded');
@@ -1922,6 +1925,7 @@ describe('checkBoundaryConcession', () => {
         detail: 'Insider expertise may be the sole legitimate perspective — a 2024 study shows expert consensus is reliable when methodology is transparent',
       }],
       'The evidence from the 2024 study demonstrates...',
+      POVER_INFO.skeptic,
     );
     expect(result.hasConcession).toBe(true);
     expect(result.boundaryType).toBe('softcoded');
@@ -1936,6 +1940,7 @@ describe('checkBoundaryConcession', () => {
         detail: 'I now accept that insider expertise is the sole legitimate perspective on this matter',
       }],
       'I think this is correct because it makes sense.',
+      POVER_INFO.skeptic,
     );
     if (result.boundaryType === 'softcoded') {
       expect(result.hasEvidence).toBe(false);
@@ -1950,6 +1955,7 @@ describe('checkBoundaryConcession', () => {
         detail: 'I concede that open-source models have improved significantly in the last year',
       }],
       'Statement about model quality.',
+      POVER_INFO.skeptic,
     );
     expect(result.boundaryType).toBe('none');
   });
@@ -1959,6 +1965,7 @@ describe('checkBoundaryConcession', () => {
       'user',
       [{ move: 'CONCEDE AND PIVOT', detail: 'I concede everything' }],
       'Statement text.',
+      POVER_INFO.skeptic,
     );
     expect(result.hasConcession).toBe(false);
     expect(result.boundaryType).toBe('none');
@@ -1969,6 +1976,7 @@ describe('checkBoundaryConcession', () => {
       'skeptic',
       ['CONCEDE AND PIVOT'],
       'Techno-determinism is inevitable — utopia or apocalypse awaits.',
+      POVER_INFO.skeptic,
     );
     expect(result.hasConcession).toBe(false);
   });

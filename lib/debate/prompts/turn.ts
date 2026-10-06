@@ -126,7 +126,7 @@ export function openingStatementPrompt(
   audience?: DebateAudience,
   userSeedClaims?: { id: string; text: string; bdi_category?: string }[],
   lineageContext?: string,
-  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
+  /** Resolved soul for this speaker (t/3988). Always required — use engine.getSoulForSpeaker. */
   soul?: PovInfo,
   /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
   opponentSouls?: Partial<Record<SpeakerId, PovInfo>>,
@@ -153,7 +153,7 @@ export function openingStatementPrompt(
     : '';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
-${getCharacterBlock(pov, soul)}
+${getCharacterBlock(pov, soul!)}
 ${otherDebaters(label, opponentSouls)}
 ${getReadingLevel(audience)}
 ${getDetailInstruction(audience)}
@@ -172,7 +172,7 @@ ${hasDocument ? documentInstructions : ''}
 ${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before critiquing any prior position, briefly acknowledge the strongest version of that position. You may reference or contrast with them, but focus on your own position.`}
 
 State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.
-${buildRecapSection(taxonomyContext, undefined, pov, soul)}
+${buildRecapSection(taxonomyContext, undefined, pov, soul!)}
 TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. The tooltip MUST follow this direction: "[your argument's idea] is like a [what the emoji depicts], it [explains the analogy]" — the debate concept comes FIRST, the symbol's real-world referent comes SECOND. Example: for 🚀, write "rapid market adoption is like a rocket launch, it accelerates beyond the point of return" — NOT "a rocket is like market adoption". Each tooltip ends with a provocative question connecting the symbol to the debate's core tension. Make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -216,7 +216,7 @@ export function debateResponsePrompt(
   documentAnalysis?: DocumentAnalysis,
   audience?: DebateAudience,
   lineageContext?: string,
-  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
+  /** Resolved soul for this speaker (t/3988). Always required — use engine.getSoulForSpeaker. */
   soul?: PovInfo,
   /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
   opponentSouls?: Partial<Record<SpeakerId, PovInfo>>,
@@ -230,7 +230,7 @@ export function debateResponsePrompt(
     : '';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
-${getCharacterBlock(pov, soul)}
+${getCharacterBlock(pov, soul!)}
 ${otherDebaters(label, opponentSouls)}
 ${getReadingLevel(audience)}
 ${getDetailInstruction(audience)}
@@ -249,7 +249,7 @@ ${recentTranscript}
 ${question}
 ${documentBlock}
 Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant.
-${buildRecapSection(taxonomyContext, undefined, pov, soul)}
+${buildRecapSection(taxonomyContext, undefined, pov, soul!)}
 TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. The tooltip MUST follow this direction: "[your argument's idea] is like a [what the emoji depicts], it [explains the analogy]" — the debate concept comes FIRST, the symbol's real-world referent comes SECOND. Example: for 🚀, write "rapid market adoption is like a rocket launch, it accelerates beyond the point of return" — NOT "a rocket is like market adoption". Each tooltip ends with a provocative question connecting the symbol to the debate's core tension. Make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -530,7 +530,7 @@ export function crossRespondPrompt(
   crossPovNodeIds?: string[],
   audience?: DebateAudience,
   vocabularyExclusion?: string,
-  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
+  /** Resolved soul for this speaker (t/3988). Always required — use engine.getSoulForSpeaker. */
   soul?: PovInfo,
   /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
   opponentSouls?: Partial<Record<SpeakerId, PovInfo>>,
@@ -564,11 +564,11 @@ This does NOT mean you should avoid them — cite whatever the statement actuall
     : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
-${getCharacterBlock(pov, soul)}
+${getCharacterBlock(pov, soul!)}
 ${otherDebaters(label, opponentSouls)}
 ${getReadingLevel(audience)}
 ${getDetailInstruction(audience)}
-${formatDoctrinalBoundaries(pov, soul)}
+${formatDoctrinalBoundaries(pov, soul!)}
 ${allInstructions(phase)}
 
 ${taxonomyContext}
@@ -585,7 +585,7 @@ Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${
 Respond substantively. ${phaseDirective}
 
 ATTRIBUTION FIDELITY: You may only attribute positions to other debaters that they have explicitly stated in the RECENT DEBATE HISTORY above. Do not infer, extrapolate, or fabricate positions. Phrases like "your solution is X" or "you're arguing for Y" must correspond to something actually said.
-${buildRecapSection(taxonomyContext, phase, pov, soul)}
+${buildRecapSection(taxonomyContext, phase, pov, soul!)}
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
