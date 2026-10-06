@@ -639,17 +639,22 @@ export function findPricingKeyIssues(registry: ModelRegistry): ConfigIssue[] {
     }
   });
 
-  const byPair = new Map<string, string[]>();
+  // Keyed by JSON.stringify([backend, apiModelId]) so no field value can collide two different pairs,
+  // with the fields kept separately for display (no string splitting or replacing).
+  const byPair = new Map<string, { backend: string; apiModelId: string; owners: string[] }>();
   const byApiId = new Map<string, Set<string>>();
   for (const m of registry.models) {
-    const pair = `${m.backend}|${m.apiModelId}`;
-    byPair.set(pair, [...(byPair.get(pair) ?? []), m.id]);
+    const key = JSON.stringify([m.backend, m.apiModelId]);
+    const entry = byPair.get(key) ?? { backend: m.backend, apiModelId: m.apiModelId, owners: [] };
+    entry.owners.push(m.id);
+    byPair.set(key, entry);
     byApiId.set(m.apiModelId, (byApiId.get(m.apiModelId) ?? new Set()).add(m.backend));
   }
-  for (const [pair, owners] of byPair) {
+  for (const { backend, apiModelId, owners } of byPair.values()) {
     if (owners.length < 2) continue;
-    issues.push({ severity: 'warning', modelId: owners.join(', '), referenceSite: `models[] (${pair.replace('|', ', ')})`,
-      message: `Models ${owners.join(', ')} share (backend, apiModelId) = (${pair.replace('|', ', ')}). The PS cost report's legacy-record map can't tell them apart (t/3946).` });
+    const pair = `${backend}, ${apiModelId}`;
+    issues.push({ severity: 'warning', modelId: owners.join(', '), referenceSite: `models[] (${pair})`,
+      message: `Models ${owners.join(', ')} share (backend, apiModelId) = (${pair}). The PS cost report's legacy-record map can't tell them apart (t/3946).` });
   }
   for (const [apiModelId, backends] of byApiId) {
     if (backends.size < 2) continue;
