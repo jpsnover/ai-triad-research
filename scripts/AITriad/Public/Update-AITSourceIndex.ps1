@@ -94,10 +94,14 @@ function Update-AITSourceIndex {
             if (Test-Path $SummaryPath) {
                 try {
                     $Summary = Get-Content -Raw -Path $SummaryPath | ConvertFrom-Json
-                    if ($Summary.factual_claims) {
-                        $TotalClaims = @($Summary.factual_claims).Count
-                    }
-                    foreach ($Claim in @($Summary.factual_claims)) {
+                    # Every summary key guarded (t/4010). Unguarded, a summary that PARSED fine but
+                    # lacked factual_claims threw here, fell into the catch below ("Could not parse"),
+                    # and silently skipped pov_summaries/unmapped_concepts too -> wrong zeros in the index.
+                    # @() wraps the whole `if`: `$x = if (..) { @(..) } else { @() }` collapses @() to $null.
+                    $SummaryProps  = $Summary.PSObject.Properties
+                    $FactualClaims = @(if ($SummaryProps['factual_claims'] -and $Summary.factual_claims) { $Summary.factual_claims })
+                    $TotalClaims   = $FactualClaims.Count
+                    foreach ($Claim in $FactualClaims) {
                         if (-not $Claim.PSObject.Properties['linked_taxonomy_nodes']) { continue }
                         foreach ($NodeId in @($Claim.linked_taxonomy_nodes)) {
                             if     ($NodeId -like 'acc-*') { $ClaimsByPov['accelerationist']++ }
@@ -106,13 +110,14 @@ function Update-AITSourceIndex {
                             elseif ($NodeId -like 'sit-*') { $ClaimsByPov['situations']++ }
                         }
                     }
+                    $PovSummaries = if ($SummaryProps['pov_summaries']) { $Summary.pov_summaries } else { $null }
                     foreach ($PovName in @('accelerationist', 'safetyist', 'skeptic')) {
-                        $PovData = $Summary.pov_summaries.$PovName
+                        $PovData = if ($PovSummaries -and $PovSummaries.PSObject.Properties[$PovName]) { $PovSummaries.$PovName } else { $null }
                         if ($PovData -and $PovData.PSObject.Properties['key_points'] -and $PovData.key_points) {
                             $TotalFacts += @($PovData.key_points).Count
                         }
                     }
-                    if ($Summary.unmapped_concepts) {
+                    if ($SummaryProps['unmapped_concepts'] -and $Summary.unmapped_concepts) {
                         $UnmappedConcepts = @($Summary.unmapped_concepts).Count
                     }
                 } catch {
