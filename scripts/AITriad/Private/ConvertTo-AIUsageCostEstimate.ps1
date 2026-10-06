@@ -44,6 +44,13 @@ function ConvertTo-AIUsageCostEstimate {
         Nested map from Get-AICostPricing: $ApiModelIdMap[backend][apiModelId]
         -> models[].id, or $script:AmbiguousPricingKeyMarker if two different
         models share that pair.
+    .OUTPUTS
+        None -- mutates each entry in place, adding estimatedCost, hasPricing,
+        and resolvedPricingId (t/3968: $null when unresolved; otherwise the
+        exact key this function looked up in Pricing, so a downstream
+        consumer -- e.g. Get-AIUsageCacheSavings -- never has to re-run this
+        same resolution by a bare model id, which drifted from this function's
+        resolution order before and would again).
     #>
     [CmdletBinding()]
     param(
@@ -124,5 +131,6 @@ function ConvertTo-AIUsageCostEstimate {
 
         $E | Add-Member -NotePropertyName 'estimatedCost' -NotePropertyValue $Cost -Force
         $E | Add-Member -NotePropertyName 'hasPricing' -NotePropertyValue ($null -ne $PriceInfo) -Force
+        $E | Add-Member -NotePropertyName 'resolvedPricingId' -NotePropertyValue $(if ($null -ne $PriceInfo) { $ResolvedId } else { $null }) -Force
     }
 }
