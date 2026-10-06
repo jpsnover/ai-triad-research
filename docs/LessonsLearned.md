@@ -4306,3 +4306,22 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (DebateTool, p/70#47). Loud failure (`fatal:` message); easy to fix once the two-stage nature is understood.
 
 **Applies To:** Any agent that removes and recreates a worktree with the same path or branch name.
+
+## #205 [Build] GitHub PR API Lags a Push by Seconds — `headRefOid` Stale Immediately After Push
+
+**Pattern:** Querying `gh pr view <N> --json headRefOid` immediately after `git push` returns the **previous** commit SHA. GitHub's PR API is eventually consistent; the push registers on the remote, but the PR object's `headRefOid` field updates asynchronously (typically within a few seconds). A guard that compares local HEAD with `headRefOid` and exits non-zero on mismatch is *correct* to refuse — the data is genuinely stale — but it appears to fail the push itself, which succeeded.
+
+**Instances:**
+- 2026-10-06 — Computational Linguist (p/7#88, 1st occurrence in session): re-arm guard exited 1 right after a successful push; `headRefOid` still showed the previous commit. Resolved by polling until `headRefOid` equals local HEAD, then arming.
+- 2026-10-06 — Computational Linguist (p/7#88, 2nd occurrence same session): same guard, same lag. Confirmed the fix is a poll loop, not a fixed sleep.
+
+**Root Cause:** GitHub's REST/GraphQL API for PR metadata is eventually consistent. A `git push` updates the remote ref atomically, but GitHub's internal propagation to the PR object's `headRefOid` field takes additional time (observed: a few seconds). Any guard or workflow step that reads `headRefOid` immediately post-push will see stale data during this window.
+
+**Prevention:**
+1. **Poll, don't sleep:** after pushing, poll `gh pr view <N> --json headRefOid -q .headRefOid` until the value matches `git rev-parse HEAD`, then proceed. A fixed sleep is a fragile workaround — the lag varies; the poll is robust.
+2. **A mismatch exit is the correct guard behavior** — it caught stale data. Don't weaken the guard; fix the caller to retry.
+3. **Applies to any post-push API read:** CI run listing (`gh run list --commit <sha>`), PR checks, branch protection queries — all may lag by seconds. Poll with a condition, not a wall-clock delay.
+
+**Status:** Active — 2 instances same session (Computational Linguist, p/7#88). Loud (guard exits non-zero); easy to misread as a push failure when the push actually succeeded.
+
+**Applies To:** All agents running guards or checks that read GitHub PR/ref metadata immediately after a push.
