@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { TurnStageConfig, StageDiagnostics, DraftWorkProduct, OpeningBriefWorkProduct, OpeningPlanWorkProduct, OpeningCiteWorkProduct, OpeningPipelineResult, TaxonomyRef, DocumentAnalysis, EditingMeta } from '../types.js';
+import type { TurnStageConfig, StageDiagnostics, DraftWorkProduct, OpeningBriefWorkProduct, OpeningPlanWorkProduct, OpeningCiteWorkProduct, OpeningPipelineResult, TaxonomyRef, DocumentAnalysis, EditingMeta, PovInfo, SpeakerId } from '../types.js';
 import { ActionableError } from '../errors.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
 import { validateDraftStage, validateCiteStage } from '../turnValidator.js';
@@ -79,6 +79,10 @@ export interface OpeningPipelineInput {
   briefMaxTokens?: number;
   /** Moderator's narrative voicing of each camp (h3), pre-formatted by narrativeVoicingDebaterBlock. */
   narrativeVoicing?: string;
+  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
+  soul?: PovInfo;
+  /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
+  opponentSouls?: Partial<Record<SpeakerId, PovInfo>>;
 }
 
 export async function runOpeningPipeline(
@@ -110,6 +114,8 @@ export async function runOpeningPipeline(
     audience: input.audience,
     userSeedClaims: input.userSeedClaims,
     narrativeVoicing: input.narrativeVoicing,
+    soul: input.soul,
+    opponentSouls: input.opponentSouls,
   };
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();

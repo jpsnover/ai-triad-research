@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { TurnStageId, TurnStageConfig, BriefWorkProduct, PlanWorkProduct, DraftWorkProduct, DebatePhase, DocumentAnalysis } from '../types.js';
+import type { TurnStageId, TurnStageConfig, BriefWorkProduct, PlanWorkProduct, DraftWorkProduct, DebatePhase, DocumentAnalysis, PovInfo, SpeakerId } from '../types.js';
 import { DEFAULT_TEMPERATURE } from '../../ai-client/defaults.js';
 import type { GenerateOptions } from '../aiAdapter.js';
 import type { GenerateRequest, GenerateResponse } from '../cacheTypes.js';
@@ -152,6 +152,10 @@ export interface TurnPipelineInput {
   salienceBeacon?: boolean;
   /** Use restructured BRIEF prompt (YOUR TASK → REFERENCE → CURRENT STATE). Experiment flag (t/1029). */
   useBackgroundPrompt?: boolean;
+  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
+  soul?: PovInfo;
+  /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
+  opponentSouls?: Partial<Record<SpeakerId, PovInfo>>;
 }
 
 export type StageGenerateFn = (

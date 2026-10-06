@@ -11,6 +11,8 @@ import {
   formatDoctrinalBoundaries,
 } from '../prompts/shared-helpers.js';
 import { checkBoundaryConcession } from '../turnValidator/stageValidation.js';
+import { buildStageInput } from '../turnPipeline/runTurn-stages.js';
+import type { TurnPipelineInput } from '../turnPipeline/types.js';
 import { POVER_INFO } from '../poverInfo.js';
 import type { PovInfo } from '../types.js';
 
@@ -76,6 +78,53 @@ describe('soul threading — formatDoctrinalBoundaries', () => {
   it('with soul: uses soul boundaries, not POVER_INFO boundaries', () => {
     const result = formatDoctrinalBoundaries('accelerationist', TAGGED_ACC);
     expect(result).toContain('never advocate for indefinite moratoria');
+  });
+});
+
+const BASE_TURN_INPUT: TurnPipelineInput = {
+  label: 'Accelerationist',
+  pov: 'accelerationist',
+  personality: ACC_BASE.personality,
+  topic: 'Test topic',
+  taxonomyContext: '',
+  commitmentContext: '',
+  establishedPoints: '',
+  edgeContext: '',
+  concessionHint: '',
+  recentTranscript: '',
+  focusPoint: '',
+  addressing: '',
+  phase: 'opening',
+  priorMoves: [],
+  turnsSinceLastConcession: 0,
+  priorRefs: [],
+  availablePovNodeIds: [],
+  model: 'test-model',
+};
+
+describe('soul threading — buildStageInput pipeline forwarding', () => {
+  it('without soul: soul and opponentSouls are undefined in stage input', () => {
+    const result = buildStageInput(BASE_TURN_INPUT);
+    expect(result.soul).toBeUndefined();
+    expect(result.opponentSouls).toBeUndefined();
+  });
+
+  it('with soul: soul is forwarded to stage input', () => {
+    const result = buildStageInput({ ...BASE_TURN_INPUT, soul: TAGGED_ACC });
+    expect(result.soul).toBe(TAGGED_ACC);
+  });
+
+  it('with opponentSouls: opponentSouls is forwarded to stage input', () => {
+    const opponents = { safetyist: TAGGED_SAF };
+    const result = buildStageInput({ ...BASE_TURN_INPUT, opponentSouls: opponents });
+    expect(result.opponentSouls).toBe(opponents);
+  });
+
+  it('forwarded soul reaches getCharacterBlock output', () => {
+    const stageInput = buildStageInput({ ...BASE_TURN_INPUT, soul: TAGGED_ACC });
+    const charBlock = getCharacterBlock(stageInput.pov, stageInput.soul);
+    expect(charBlock).toContain('TAG-DISPOSITION');
+    expect(charBlock).not.toContain(ACC_BASE.voice.disposition);
   });
 });
 
