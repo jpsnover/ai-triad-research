@@ -52,28 +52,30 @@ Describe 'Get-AITSource -- full-scan path (t/3910 characterization)' -Tag 'inges
         }
     }
 
-    It 'sources directory exists but has no folders -- PRE-EXISTING BUG (t/3910 characterization, not fixed here): throws instead of warning' {
-        # Get-ChildItem returns $null (not an empty array) for a truly empty directory, and
-        # $null.Count throws under this function's Set-StrictMode -- the intended "no source
-        # folders found" Write-Warning path is unreachable today. Pinned as-is (pure refactor
-        # rule); filed separately rather than fixed here.
+    It 'sources directory exists but has no folders -- Write-Warning, returns nothing (t/4008 fixed)' {
+        # Was a characterized bug: Get-ChildItem returned $null for an empty directory and
+        # $null.Count threw under StrictMode, so the "no source folders" warning was unreachable.
         InModuleScope AITriad -Parameters @{ Dir = $script:SrcDir } {
             param($Dir)
             Mock Get-SourcesDir { $Dir }
-            { Get-AITSource -WarningAction SilentlyContinue } | Should -Throw -ExceptionType ([System.Management.Automation.PropertyNotFoundException])
+            $warn = $null
+            $result = Get-AITSource -WarningVariable warn -WarningAction SilentlyContinue
+            $result | Should -BeNullOrEmpty
+            "$warn" | Should -Match 'No source folders found'
         }
     }
 
-    It 'sources directory has EXACTLY ONE folder -- SAME PRE-EXISTING BUG (t/3910 characterization, not fixed here): throws' {
-        # Get-ChildItem -Directory returns a BARE DirectoryInfo (not an array) for exactly one
-        # match; under Set-StrictMode, .Count on that bare object also throws. So the folder-
-        # count check crashes for n=0 (above) AND n=1 folders -- only n>=2 reaches .Count safely.
+    It 'sources directory has EXACTLY ONE folder -- returns that one source (t/4008 fixed)' {
+        # Was a characterized bug: Get-ChildItem -Directory returned a bare DirectoryInfo for a
+        # single match, and .Count on it threw under StrictMode (only n>=2 folders were safe).
         New-FixtureDoc (Join-Path $script:SrcDir 'doc-only') @{ id = 'doc-only'; title = 'Only'; date_published = '2026-01-01'; date_ingested = '2026-01-02'; source_type = 'pdf'; pov_tags = @(); topic_tags = @(); summary_status = 'pending' }
         InModuleScope AITriad -Parameters @{ Dir = $script:SrcDir; Sum = $script:SumDir } {
             param($Dir, $Sum)
             Mock Get-SourcesDir { $Dir }
             Mock Get-SummariesDir { $Sum }
-            { Get-AITSource -WarningAction SilentlyContinue } | Should -Throw -ExceptionType ([System.Management.Automation.PropertyNotFoundException])
+            $result = @(Get-AITSource -WarningAction SilentlyContinue)
+            $result.Count | Should -Be 1
+            $result[0].Id | Should -Be 'doc-only'
         }
     }
 
@@ -273,13 +275,11 @@ Describe 'Get-AITSource -- full-scan path (t/3910 characterization)' -Tag 'inges
             }
         }
 
-        It 'metadata has no cached stats AND the summary lacks factual_claims -- PRE-EXISTING BUG (t/3910 characterization, not fixed here): throws' {
-            # $Summary.factual_claims is a direct dot-access with no PSObject.Properties guard.
-            # Under this function's Set-StrictMode, accessing a genuinely-absent property on a
-            # ConvertFrom-Json PSCustomObject throws instead of returning $null -- exactly the
-            # documented "guard property access" hazard (docs/powershell-strict-mode.md). Any
-            # summary with no total_claims cached in metadata AND no factual_claims key (e.g. a
-            # model_info-only or ai_model-only summary) hits this.
+        It 'metadata has no cached stats AND the summary lacks factual_claims/pov_summaries/unmapped_concepts -- zeros, no throw (t/4008 fixed)' {
+            # Was a characterized bug: the fallback branch dot-accessed $Summary.factual_claims
+            # (and pov_summaries / unmapped_concepts) without a PSObject.Properties guard, so a
+            # summary missing those keys (model_info-only / ai_model-only) threw under StrictMode
+            # -- the documented "guard property access" hazard (docs/powershell-strict-mode.md).
             New-FixtureDoc (Join-Path $script:SrcDir 'doc-nofc') @{
                 id = 'doc-nofc'; title = 'NoFC'; date_published = '2026-01-01'; date_ingested = '2026-01-02'
                 source_type = 'pdf'; pov_tags = @(); topic_tags = @(); summary_status = 'current'
@@ -290,7 +290,12 @@ Describe 'Get-AITSource -- full-scan path (t/3910 characterization)' -Tag 'inges
             InModuleScope AITriad -Parameters @{ Dir = $script:SrcDir; Sum = $script:SumDir } {
                 param($Dir, $Sum)
                 Mock Get-SourcesDir { $Dir }; Mock Get-SummariesDir { $Sum }
-                { Get-AITSource -WarningAction SilentlyContinue } | Should -Throw -ExceptionType ([System.Management.Automation.PropertyNotFoundException])
+                $r = @(Get-AITSource -WarningAction SilentlyContinue) | Where-Object Id -eq 'doc-nofc'
+                $r | Should -Not -BeNullOrEmpty
+                $r.TotalClaims | Should -Be 0
+                $r.TotalFacts | Should -Be 0
+                $r.UnmappedConcepts | Should -Be 0
+                $r.ClaimsByPov.Skeptic | Should -Be 0
             }
         }
     }
