@@ -254,6 +254,23 @@ describe('createSituationDebate', () => {
     expect(useDebateStore.getState().activeDebate?.adaptive_staging?.phase_bounds_override).toBeUndefined();
   });
 
+  // t/3958 (p/521#34, Rosetta Stone): an untagged createDebate must leave `seat_tags` ABSENT,
+  // not `{}` — t/3975's seatSouls derives "this seat is tagged" from key presence in the map,
+  // so a stray empty object would read as every seat tagged.
+  it('control: without seatTags, seat_tags is absent on the session (not {})', async () => {
+    await useDebateStore.getState().createDebate('Topic', ['accelerationist', 'safetyist'], false);
+
+    expect(useDebateStore.getState().activeDebate).not.toHaveProperty('seat_tags');
+  });
+
+  it('threads seatTags into createDebate at creation, producing the real seat_tags map', async () => {
+    const seatTags = { accelerationist: { pov_tag: 'critical', tag_mode: 'scope' as const } };
+
+    await useDebateStore.getState().createDebate('Topic', ['accelerationist', 'safetyist'], false, 'topic', '', '', undefined, undefined, undefined, undefined, { seatTags });
+
+    expect(useDebateStore.getState().activeDebate?.seat_tags).toEqual(seatTags);
+  });
+
   // t/3629: createSituationDebate always creates with user_is_pover=false (watch-only), so
   // it must reach opening directly rather than parking in clarification. Asserts the
   // TERMINAL phase, not that a function was called (a stalled flow could still "call"

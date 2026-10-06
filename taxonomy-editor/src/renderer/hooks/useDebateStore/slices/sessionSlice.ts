@@ -9,6 +9,7 @@ import type {
   DebateSourceType,
   DebateAudience,
   SpeakerId,
+  SeatTag,
   TranscriptEntry,
   EntryDiagnostics,
 } from '../../../types/debate';
@@ -61,7 +62,7 @@ export interface SessionSlice {
   debateLoading: boolean;
 
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced'; stepMode?: boolean; stageModels?: { brief?: string; plan?: string; cite?: string }; background?: string; excludeGreatestHits?: boolean; narrativeVoicing?: boolean }) => Promise<string>;
+  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced'; stepMode?: boolean; stageModels?: { brief?: string; plan?: string; cite?: string }; background?: string; excludeGreatestHits?: boolean; narrativeVoicing?: boolean; /** t/3958: absent ⇒ every seat untagged. Never pass `{}` — t/3975's seatSouls treats any key presence as "tagged". */ seatTags?: Partial<Record<SpeakerId, SeatTag>> }) => Promise<string>;
   // Config is threaded into createDebate's existing options param at creation time (t/3783) —
   // never patched onto the session afterward. A post-creation mutate-then-save races every
   // concurrent `set({ activeDebate: { ...fresh } })` in the opening/clarification pipeline,
@@ -438,6 +439,16 @@ function applyVocabularyResolutions(
   }
 }
 
+// t/3958: kept out of createDebate's own body so it doesn't push that method past the
+// ESLint complexity-budget baseline (t/3821). Returns a spreadable fragment, not a bare
+// value — `seat_tags: undefined` would still leave the KEY present on the session object
+// (JSON.stringify drops it, but in-memory `'seat_tags' in session` would be true); spreading
+// `{}` keeps the key genuinely absent when every seat is untagged (p/521#34, Rosetta Stone).
+function normalizeSeatTags(options?: { seatTags?: Partial<Record<SpeakerId, SeatTag>> }): { seat_tags?: Partial<Record<SpeakerId, SeatTag>> } {
+  const t = options?.seatTags;
+  return t && Object.keys(t).length > 0 ? { seat_tags: t } : {};
+}
+
 export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice> = (set, get) => ({
   sessions: [],
   sessionsLoading: false,
@@ -526,6 +537,9 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       exclude_greatest_hits: options?.excludeGreatestHits ?? false,
       // h3 opening narrative voicing (experiment). Absent ⇒ off.
       ...(options?.narrativeVoicing ? { narrative_voicing_enabled: true } : {}),
+      // Per-seat POV tag (t/3958). Threaded through unchanged — buildDebateOptions already
+      // normalizes {} to undefined, but coalesce again here so no caller can regress it.
+      ...normalizeSeatTags(options),
       debate_temperature: debateTemperature ?? undefined,
       adaptive_staging: options?.useAdaptiveStaging
         ? { enabled: true, pacing: (options.pacing as 'tight' | 'moderate' | 'thorough') ?? 'moderate', phase_bounds_override: options.phaseBoundsOverride, step_mode: options.stepMode || undefined }

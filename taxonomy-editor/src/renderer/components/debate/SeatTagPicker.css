@@ -1,0 +1,14 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+/* Seat tag + SCOPE/PRIORITIZE picker (t/3958) */
+
+.seat-tag-picker { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.seat-tag-picker-select { font-size: var(--text-xs); padding: 2px 6px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); }
+
+.seat-tag-picker-mode { display: flex; gap: 6px; }
+.seat-tag-picker-mode-opt { display: flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-size: var(--text-2xs); cursor: pointer; }
+.seat-tag-picker-mode-opt.active { border-color: var(--text-primary); font-weight: 600; }
+.seat-tag-picker-mode-opt input { margin: 0; }
+
+.seat-tag-picker-count { font-size: var(--text-2xs); color: var(--text-muted); }
+.seat-tag-picker-refusal { font-size: var(--text-2xs); color: var(--error-color); }
