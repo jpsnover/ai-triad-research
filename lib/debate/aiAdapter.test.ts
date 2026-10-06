@@ -1169,4 +1169,67 @@ describe('aiAdapter', () => {
       expect(userContent).toContain('"result"');
     });
   });
+
+  // ── Served-identity classifier integration (t/4017) ─────
+  // Verifies that aiAdapter passes the loaded registry as identityRegistry to callProvider,
+  // enabling the Phase-3 divergence classifier (t/3731) on the CLI path.
+
+  describe('served-identity classifier integration (t/4017)', () => {
+    it('warns on divergent served identity and reports registryPresent on firstSeen', async () => {
+      // Registry with two distinct Gemini entries so the classifier can detect divergence.
+      const divergentRegistry = makeRegistry({
+        models: [
+          { id: 'gemini-3.5-flash', apiModelId: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', backend: 'gemini' },
+          { id: 'gemini-3.5-flash-lite', apiModelId: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite', backend: 'gemini' },
+        ],
+        fallbackChains: {},
+      });
+      mockReadFileSync.mockReturnValue(JSON.stringify(divergentRegistry));
+      process.env.GEMINI_API_KEY = 'test-key';
+
+      // Provider serves gemini-3.5-flash-lite when we sent gemini-3.5-flash (load-bearing fixture, t/3731#11).
+      mockFetch.mockResolvedValue(freshResponse({
+        ...geminiOkBody('response text'),
+        modelVersion: 'gemini-3.5-flash-lite',
+      }));
+
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+      await adapter.generateText('test prompt', 'gemini-3.5-flash');
+
+      const identityEvents = mockRecord.mock.calls
+        .map(([e]: [{ type: string; level: string; data?: Record<string, unknown> }]) => e)
+        .filter(e => e.type === 'ai.model_identity');
+
+      expect(identityEvents).toHaveLength(1);
+      expect(identityEvents[0].level).toBe('warn');
+      expect(identityEvents[0].data).toMatchObject({
+        state: 'divergent',
+        firstSeen: true,
+        registryPresent: true,
+      });
+    });
+
+    it('emits info (not warn) when served id matches sent id', async () => {
+      process.env.GEMINI_API_KEY = 'test-key';
+      // Provider echoes back the same model id — agree state, stays info.
+      mockFetch.mockResolvedValue(freshResponse({
+        ...geminiOkBody(),
+        modelVersion: 'gemini-2.5-flash',
+      }));
+
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+      await adapter.generateText('test', 'gemini-2.5-flash');
+
+      const identityEvents = mockRecord.mock.calls
+        .map(([e]: [{ type: string; level: string; data?: Record<string, unknown> }]) => e)
+        .filter(e => e.type === 'ai.model_identity');
+
+      expect(identityEvents).toHaveLength(1);
+      expect(identityEvents[0].level).toBe('info');
+      expect(identityEvents[0].data).toMatchObject({ state: 'agree' });
+    });
+  });
+
 });
