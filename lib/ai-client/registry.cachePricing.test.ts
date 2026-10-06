@@ -56,11 +56,11 @@ describe('findPricingMissingCacheRate (t/3945)', () => {
     expect(findPricingMissingCacheRate(r)).toEqual([]);
   });
 
-  it('resolves a key by apiModelId when it is not a friendly id (t/3946 key ambiguity)', () => {
+  it('resolves keys by models[].id only; an apiModelId key is left to findPricingKeyIssues (t/3946)', () => {
     const r = reg([{ id: 'claude-haiku', apiModelId: 'claude-haiku-20251001', backend: 'claude' }], {
       'claude-haiku-20251001': { inputPer1M: 1, outputPer1M: 5 },
     });
-    expect(findPricingMissingCacheRate(r).map((i) => i.modelId)).toEqual(['claude-haiku-20251001']);
+    expect(findPricingMissingCacheRate(r)).toEqual([]);
   });
 
   it('skips keys that resolve to no model, and _comment keys (unpriced/unresolved is t/3946)', () => {
