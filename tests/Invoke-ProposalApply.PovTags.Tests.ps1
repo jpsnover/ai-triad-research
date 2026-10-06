@@ -97,6 +97,12 @@ Describe 'Invoke-ProposalApply pov_tags carry-forward (t/3971)' -Tag 'taxonomy' 
             $result.Success | Should -BeTrue -Because $result.Error
             $raw = Get-Content -Raw $script:SkepticPath
             Test-NodeTagsRaw $raw 'skp-beliefs-001' @('critical', 'rights-based') | Should -BeTrue
+
+            # t/3971 (TL review of #2855): the flag is DATA, not just console output.
+            @($result.PovTagReview).Count | Should -Be 1
+            $result.PovTagReview[0].NodeId | Should -Be 'skp-beliefs-001'
+            $result.PovTagReview[0].Reason | Should -Be 'merge-union'
+            @($result.PovTagReview[0].Tags | Sort-Object) -join ',' | Should -Be 'critical,rights-based'
         }
 
         It 'a ONE-element union (the unroll-prone case): survivor untagged, merged node carries one tag' {
@@ -143,6 +149,10 @@ Describe 'Invoke-ProposalApply pov_tags carry-forward (t/3971)' -Tag 'taxonomy' 
 
             $result.Success | Should -BeTrue -Because $result.Error
             Test-NodeTagsRaw (Get-Content -Raw $script:SkepticPath) 'skp-beliefs-002' @('critical') | Should -BeTrue
+
+            @($result.PovTagReview).Count | Should -Be 1
+            $result.PovTagReview[0].NodeId | Should -Be 'skp-beliefs-002'
+            $result.PovTagReview[0].Reason | Should -Be 'split-inherit'
         }
 
         It 'an untagged parent leaves the child untagged (no pov_tags key created)' {
@@ -162,6 +172,7 @@ Describe 'Invoke-ProposalApply pov_tags carry-forward (t/3971)' -Tag 'taxonomy' 
 
             $result.Success | Should -BeTrue -Because $result.Error
             Test-NodeTagsRaw (Get-Content -Raw $script:SkepticPath) 'skp-beliefs-002' $null | Should -BeTrue
+            @($result.PovTagReview).Count | Should -Be 0 -Because 'nothing changed, so the review list is empty'
         }
     }
 
@@ -187,6 +198,10 @@ Describe 'Invoke-ProposalApply pov_tags carry-forward (t/3971)' -Tag 'taxonomy' 
 
             $result.Success | Should -BeTrue -Because $result.Error
             Test-NodeTagsRaw (Get-Content -Raw $script:SkepticPath) 'skp-beliefs-010' @('a', 'b') | Should -BeTrue
+
+            @($result.PovTagReview).Count | Should -Be 1
+            $result.PovTagReview[0].NodeId | Should -Be 'skp-beliefs-010'
+            $result.PovTagReview[0].Reason | Should -Be 'depth-inherit'
         }
     }
 

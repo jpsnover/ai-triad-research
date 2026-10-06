@@ -8,6 +8,14 @@ function Invoke-ProposalApply {
     .DESCRIPTION
         Internal helper called by Approve-TaxonomyProposal. Mutates the taxonomy
         JSON file on disk and returns a result object.
+    .OUTPUTS
+        [PSCustomObject] { Success; Error; PovTagReview } on success — Error is $null,
+        PovTagReview is @() when the proposal carried no pov_tags change, otherwise one
+        { NodeId; Tags; Reason } entry per node whose tags were set by this apply (t/3971):
+        Reason is 'merge-union', 'split-inherit', or 'depth-inherit'. A Write-Warning is
+        also emitted for console visibility, but PovTagReview is the data a batch/headless
+        caller can act on. { Success = $false; Error = <message> } on failure (no PovTagReview;
+        nothing was written).
     #>
     [CmdletBinding()]
     param(
@@ -168,7 +176,7 @@ function Invoke-ProposalApply {
                 } | Where-Object { $null -ne $_ } | Select-Object -Unique)
                 if (@($UnionTags).Count -gt 0) {
                     $Survivor | Add-Member -NotePropertyName 'pov_tags' -NotePropertyValue @($UnionTags) -Force
-                    $TagValidationEntries.Add(@{ NodeId = $SurvivorId; Tags = @($UnionTags) })
+                    $TagValidationEntries.Add(@{ NodeId = $SurvivorId; Tags = @($UnionTags); Reason = 'merge-union' })
                     Write-Warning "MERGE: unioned pov_tags onto survivor '$SurvivorId': $($UnionTags -join ', ')"
                 }
             }
@@ -210,8 +218,11 @@ function Invoke-ProposalApply {
             # Create child nodes
             foreach ($Child in $ChildProposals) {
                 if ($Child.PSObject.Properties['category']) { $ChildCat = $Child.category } else { $ChildCat = $Target.category }
-                # Validate child node ID
-                try { Test-PovNodeId -Id $Child.suggested_id -Category $ChildCat } catch {
+                # Validate child node ID. t/3971: $null = suppresses Test-PovNodeId's $true
+                # return (t/2332 pipeline hygiene) — pre-existing gap here let the function's
+                # output stream carry a stray $true per child, corrupting a multi-child
+                # caller's captured result (discovered via PovTagReview no longer being @()).
+                try { $null = Test-PovNodeId -Id $Child.suggested_id -Category $ChildCat } catch {
                     return [PSCustomObject]@{ Success = $false; Error = "SPLIT child: $($_.Exception.Message)" }
                 }
                 if ($Target.PSObject.Properties['situation_refs']) { $ChildSitRefs = $Target.situation_refs } else { $ChildSitRefs = @() }
@@ -231,7 +242,7 @@ function Invoke-ProposalApply {
                 if (-not $IsCrossCutting -and $Target.PSObject.Properties['pov_tags'] -and @($Target.pov_tags).Count -gt 0) {
                     $InheritedTags = @($Target.pov_tags)
                     $ChildObj | Add-Member -NotePropertyName 'pov_tags' -NotePropertyValue $InheritedTags -Force
-                    $TagValidationEntries.Add(@{ NodeId = $Child.suggested_id; Tags = $InheritedTags })
+                    $TagValidationEntries.Add(@{ NodeId = $Child.suggested_id; Tags = $InheritedTags; Reason = 'split-inherit' })
                 }
                 Add-TextHistoryEntry -Node $ChildObj -Field 'label' -Value $Child.label -Source 'initial'
                 if ($Child.description) {
@@ -306,8 +317,9 @@ function Invoke-ProposalApply {
             # Create intermediate parent nodes under the dense parent
             foreach ($SubGroup in $SubGroups) {
                 if ($SubGroup.PSObject.Properties['category']) { $SubGrpCat = $SubGroup.category } else { $SubGrpCat = $Target.category }
-                # Validate intermediate node ID
-                try { Test-PovNodeId -Id $SubGroup.suggested_id -Category $SubGrpCat } catch {
+                # Validate intermediate node ID. t/3971: $null = suppresses the same stray
+                # output (see the SPLIT branch's identical fix above).
+                try { $null = Test-PovNodeId -Id $SubGroup.suggested_id -Category $SubGrpCat } catch {
                     return [PSCustomObject]@{ Success = $false; Error = "DEPTH_EXPAND: $($_.Exception.Message)" }
                 }
                 $IntNode = [ordered]@{
@@ -325,7 +337,7 @@ function Invoke-ProposalApply {
                 if (-not $IsCrossCutting -and $Target.PSObject.Properties['pov_tags'] -and @($Target.pov_tags).Count -gt 0) {
                     $InheritedTags = @($Target.pov_tags)
                     $IntObj | Add-Member -NotePropertyName 'pov_tags' -NotePropertyValue $InheritedTags -Force
-                    $TagValidationEntries.Add(@{ NodeId = $SubGroup.suggested_id; Tags = $InheritedTags })
+                    $TagValidationEntries.Add(@{ NodeId = $SubGroup.suggested_id; Tags = $InheritedTags; Reason = 'depth-inherit' })
                 }
                 Add-TextHistoryEntry -Node $IntObj -Field 'label' -Value $SubGroup.label -Source 'initial'
                 if ($SubGroup.description) {
@@ -366,7 +378,8 @@ function Invoke-ProposalApply {
             # Same as NEW but motivated by density signals
             # t/3971: WIDTH_EXPAND and NEW both start untagged (CL t/3955#5) — the new node
             # object below has no pov_tags key, which is the "untagged" state by omission.
-            try { Test-PovNodeId -Id $Proposal.suggested_id -Category $Proposal.category } catch {
+            # t/3971: $null = suppresses the same stray output (see SPLIT's identical fix).
+            try { $null = Test-PovNodeId -Id $Proposal.suggested_id -Category $Proposal.category } catch {
                 return [PSCustomObject]@{ Success = $false; Error = "WIDTH_EXPAND: $($_.Exception.Message)" }
             }
             if ($Raw.nodes | Where-Object { $_.id -eq $Proposal.suggested_id }) {
@@ -418,5 +431,10 @@ function Invoke-ProposalApply {
         return [PSCustomObject]@{ Success = $false; Error = "Failed to write $FileName — $($_.Exception.Message)" }
     }
 
-    return [PSCustomObject]@{ Success = $true; Error = $null }
+    # t/3971 (TL review of #2855): the flag must be DATA, not just console output — Write-Warning
+    # disappears in batch/headless runs, so nobody could later list which nodes need review.
+    $PovTagReview = @($TagValidationEntries | ForEach-Object {
+        [PSCustomObject]@{ NodeId = $_.NodeId; Tags = $_.Tags; Reason = $_.Reason }
+    })
+    return [PSCustomObject]@{ Success = $true; Error = $null; PovTagReview = $PovTagReview }
 }
