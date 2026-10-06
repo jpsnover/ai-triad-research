@@ -35,7 +35,7 @@ def test_imports_without_data_repo():
     env = dict(os.environ, AI_TRIAD_DATA_ROOT=os.path.join(_HERE, "no-such-data-root"))
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
     assert r.returncode == 0, r.stderr
-    assert r.stdout.strip() == "RED-ARM t/3940 DO NOT MERGE"
+    assert r.stdout.strip() == "X."
 
 # term:* concept ref -> ("universal", "exact"); ent-* -> (dolce_sort, entity_match_level)
 ALLOWED = {
