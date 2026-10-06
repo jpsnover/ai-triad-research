@@ -589,6 +589,18 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: pnpm run --if-present lint
 
+      # t/3981: dependency-boundary rules (.dependency-cruiser.cjs) previously ran only in local
+      # `verify` and release-validation, so a PR could merge a boundary violation. BLOCKING from day
+      # one (SO e/251#2, TL e/251#3): deterministic, 0 offenders at landing. Runs the t/3975 wrapper
+      # (exit 1 = error violation, named; exit 2 = could not cruise), never raw depcruise, whose exit
+      # code wraps at 256. Cruises taxonomy-editor/src AND ../lib, so a lib/**-only PR is covered:
+      # the `electron` changes filter includes lib/**. taxonomy-editor leg only; the sibling apps have
+      # no boundary config. Do NOT add continue-on-error: exit 2 must fail the job.
+      - name: Dependency boundaries (depcruise, t/3981)
+        if: matrix.app == 'taxonomy-editor'
+        working-directory: taxonomy-editor
+        run: npm run depcruise
+
       - name: TypeScript check (main)
         working-directory: ${{ matrix.app }}
         run: pnpm exec tsc --noEmit -p tsconfig.main.json
