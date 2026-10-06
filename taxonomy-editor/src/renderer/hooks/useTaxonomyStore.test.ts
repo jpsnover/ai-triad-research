@@ -123,6 +123,7 @@ vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 import { useTaxonomyStore } from './useTaxonomyStore';
 import type { PovTaxonomyFile, CrossCuttingFile, ConflictFile, PovNode, Edge, EdgesFile } from '../types/taxonomy';
 import { buildSituationBaseline } from '../utils/situationBdiGate';
+import { povTagMembershipErrors } from '../utils/povTagGate';
 
 /** A complete, compliant per-POV interpretation (t/3888). */
 const fullBdi = (tag: string) => ({ belief: `${tag} belief`, desire: `${tag} desire`, intention: `${tag} intention`, summary: `${tag} summary` });
@@ -1659,13 +1660,14 @@ describe('useTaxonomyStore', () => {
         mockApi.loadTaxonomyFile.mockImplementation((pov: string) =>
           pov === 'accelerationist' ? Promise.resolve(makePovFile([tagged()])) : Promise.resolve({ nodes: [] }),
         );
-        useTaxonomyStore.setState({ accelerationist: makePovFile([tagged()]), dirty: new Set(['accelerationist']) });
+        // Tags already on disk at load are in the baseline (t/3973), as a real load would record them.
+        useTaxonomyStore.setState({ accelerationist: makePovFile([tagged()]), dirty: new Set(['accelerationist']), povTagsBaseline: { 'acc-beliefs-001': '["critical"]' } });
         await useTaxonomyStore.getState().save();
         expect(savedNode('acc-beliefs-001').pov_tags).toEqual(['critical']);
       });
 
       it('survives updatePovNode (an unrelated field edit) and the following save()', async () => {
-        useTaxonomyStore.setState({ accelerationist: makePovFile([tagged()]) });
+        useTaxonomyStore.setState({ accelerationist: makePovFile([tagged()]), povTagsBaseline: { 'acc-beliefs-001': '["critical"]' } });
         useTaxonomyStore.getState().updatePovNode('accelerationist', 'acc-beliefs-001', { label: 'Renamed' });
         const node = useTaxonomyStore.getState().accelerationist!.nodes[0];
         expect(node.label).toBe('Renamed');
@@ -1681,6 +1683,65 @@ describe('useTaxonomyStore', () => {
         const moved = useTaxonomyStore.getState().accelerationist!.nodes.find((n) => n.id === newId)!;
         expect(moved.pov_tags).toEqual(['critical']);
         expect(Array.isArray(moved.pov_tags)).toBe(true);
+      });
+    });
+
+    // t/3973: registry MEMBERSHIP is gated on nodes changed since load; STRUCTURAL problems block everywhere.
+    // The committed registry is empty until t/3956, so any concrete tag here is unregistered ("orphaned").
+    describe('pov_tags save gate (t/3973)', () => {
+      const saveCalledFor = (pov: string) => mockApi.saveTaxonomyFile.mock.calls.some(([p]) => p === pov);
+      const orphanWarn = () => mockRecord.mock.calls.find(([e]) => e.message?.includes('unregistered POV tags on untouched nodes'));
+      const seed = (node: Partial<PovNode>, baseline: Record<string, string>) => useTaxonomyStore.setState({
+        accelerationist: makePovFile([makePovNode({ id: 'acc-beliefs-001', ...node })]),
+        dirty: new Set(['accelerationist']),
+        validationErrors: {},
+        povTagsBaseline: baseline,
+      });
+
+      it('an UNTOUCHED node with an orphaned tag still saves, and WARNs naming it', async () => {
+        seed({ pov_tags: ['critical'], label: 'Edited elsewhere in the file' }, { 'acc-beliefs-001': '["critical"]' });
+        await useTaxonomyStore.getState().save();
+        expect(useTaxonomyStore.getState().validationErrors).toEqual({});
+        expect(saveCalledFor('accelerationist')).toBe(true);
+        expect(orphanWarn()![0]).toMatchObject({ level: 'warn', data: { count: 1, nodes: [{ node_id: 'acc-beliefs-001' }] } });
+      });
+
+      it('an EDITED node given an unregistered tag is blocked, keyed to that node', async () => {
+        seed({ pov_tags: ['critical'] }, { 'acc-beliefs-001': 'null' });
+        await useTaxonomyStore.getState().save();
+        expect(useTaxonomyStore.getState().validationErrors['nodes.acc-beliefs-001.pov_tags']).toMatch(/not registered/);
+        expect(saveCalledFor('accelerationist')).toBe(false);
+        expect(orphanWarn()).toBeUndefined();
+      });
+
+      it('a NEW node (absent from the baseline) with an unregistered tag is blocked', async () => {
+        seed({ pov_tags: ['critical'] }, {});
+        await useTaxonomyStore.getState().save();
+        expect(useTaxonomyStore.getState().validationErrors['nodes.acc-beliefs-001.pov_tags']).toMatch(/not registered/);
+        expect(saveCalledFor('accelerationist')).toBe(false);
+      });
+
+      // Structural problems block via the SCHEMA on every node; that arm is proven against the real schema in
+      // utils/validation.povTags.test.ts (this harness mocks validation). Here: the membership gate never
+      // treats a structural problem as a forgivable orphan, so it can't WARN one through on an untouched node.
+      it('the gate never treats a STRUCTURAL problem as a forgivable orphan (no WARN, no membership error)', () => {
+        const scalar = makePovNode({ id: 'acc-beliefs-001', pov_tags: 'critical' as unknown as string[] });
+        expect(povTagMembershipErrors([scalar], { 'acc-beliefs-001': '"critical"' })).toEqual({});
+        expect(orphanWarn()).toBeUndefined();
+      });
+
+      it('the baseline refreshes after a successful save', async () => {
+        seed({ pov_tags: [] }, { 'acc-beliefs-001': 'null' });
+        await useTaxonomyStore.getState().save();
+        expect(saveCalledFor('accelerationist')).toBe(true);
+        expect(useTaxonomyStore.getState().povTagsBaseline['acc-beliefs-001']).toBe('[]');
+      });
+
+      it('an EDITED node with a REGISTERED tag passes the gate (registry injected; committed one is empty)', () => {
+        const registry = { version: 1, povs: { accelerationist: [{ id: 'critical', label: 'Critical', soul_doc: 'accelerationist.critical', description: 'd' }] } };
+        const node = makePovNode({ id: 'acc-beliefs-001', pov_tags: ['critical'] });
+        expect(povTagMembershipErrors([node], { 'acc-beliefs-001': 'null' }, registry)).toEqual({});
+        expect(povTagMembershipErrors([node], { 'acc-beliefs-001': 'null' })).toHaveProperty(['nodes.acc-beliefs-001.pov_tags']); // control: same edit, real (empty) registry
       });
     });
 
