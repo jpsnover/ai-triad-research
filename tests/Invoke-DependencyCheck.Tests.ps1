@@ -43,7 +43,9 @@ Describe 'Invoke-DependencyCheck (t/3910)' -Tag 'summary' {
             # target regardless of what's actually installed on the machine running these
             # tests (confirmed via a minimal repro: Mock on a wholly-undefined name throws
             # CommandNotFoundException at call time, even though Mock itself didn't error).
-            foreach ($cmd in 'git','node','npm','pandoc','markitdown','pdftotext','mutool','docker','wsl','pnpm','brew','apt-get','dnf','yum','winget','choco','scoop','python3','python') {
+            # Windows-client-only cmdlets (Get/Enable-WindowsOptionalFeature, from the Dism
+            # module) hit the same gap on a Server-flavored CI runner that lacks them entirely.
+            foreach ($cmd in 'git','node','npm','pandoc','markitdown','pdftotext','mutool','docker','wsl','pnpm','brew','apt-get','dnf','yum','winget','choco','scoop','python3','python','Get-WindowsOptionalFeature','Enable-WindowsOptionalFeature') {
                 if (-not (Get-Command $cmd -ErrorAction SilentlyContinue -CommandType Function)) {
                     Set-Item -Path "function:script:$cmd" -Value {}
                 }
