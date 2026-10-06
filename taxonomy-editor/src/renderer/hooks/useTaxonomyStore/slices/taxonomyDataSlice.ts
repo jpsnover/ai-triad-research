@@ -215,6 +215,34 @@ function saveFailureMessage(bdi: SituationBdiRefusal, totalErrors: number): stri
 }
 
 /** After a successful save, the saved situations become the gate's new baseline. */
+/** What a cross-POV move did to the node's POV tags (t/3972), shown on the moved node. */
+export interface PovMoveReport {
+  fromId: string;
+  toId: string;
+  sourcePov: Pov;
+  targetPov: Pov;
+  strippedTags: string[];
+}
+
+/**
+ * POV tags are POV-scoped (t/3955 spec §2.1), so a tag carried into another POV is always invalid.
+ * Strip them on a cross-POV move and say so (t/3972; CL decision 3, TL t/3955#4 condition 3): the
+ * WARN is the Fallback-Path Logging record, and the returned list feeds the visible move report.
+ * A bare string is the PowerShell one-element unroll; it is reported as one tag, not dropped silently.
+ */
+function stripPovTagsForMove(node: PovNode, toId: string, sourcePov: Pov, targetPov: Pov): { node: PovNode; strippedTags: string[] } {
+  const { pov_tags: carried, ...rest } = node;
+  const strippedTags = Array.isArray(carried) ? carried.map(String) : carried == null ? [] : [String(carried)];
+  if (strippedTags.length > 0) {
+    getGlobalRecorder()?.record({
+      type: 'state.change', component: 'taxonomy-store', level: 'warn',
+      message: 'Cross-POV move stripped POV tags (they do not apply in the target POV)',
+      data: { from_id: node.id, to_id: toId, source_pov: sourcePov, target_pov: targetPov, stripped_tags: strippedTags },
+    });
+  }
+  return { node: rest as PovNode, strippedTags };
+}
+
 function baselineAfterSave(dirtyKeys: Set<string>, situations: SituationsFile | null): { situationsBaseline?: Record<string, string> } {
   return dirtyKeys.has('situations') && situations ? { situationsBaseline: buildSituationBaseline(situations.nodes) } : {};
 }
@@ -268,6 +296,9 @@ export interface TaxonomyDataSlice {
   deletePovNode: (pov: Pov, nodeId: string) => void;
   movePovNodeCategory: (pov: Pov, nodeId: string, newCategory: Category) => string | null;
   movePovNode: (sourcePov: Pov, nodeId: string, targetPov: Pov, targetCategory: Category) => void;
+  /** t/3972: the last cross-POV move's tag report; NodeDetail shows it on the moved node. */
+  lastPovMoveReport: PovMoveReport | null;
+  clearPovMoveReport: () => void;
 
   updateSituationNode: (nodeId: string, updates: SituationNodeUpdate) => void;
   createSituationNode: () => string;
@@ -324,6 +355,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
 
   activeTab: 'accelerationist',
   selectedNodeId: null,
+  lastPovMoveReport: null,
   dirty: new Set(),
   validationErrors: {},
   saveError: null,
@@ -938,6 +970,8 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     return resultId;
   },
 
+  clearPovMoveReport: () => set({ lastPovMoveReport: null }),
+
   movePovNode: (sourcePov, nodeId, targetPov, targetCategory) => {
     if (sourcePov === targetPov) {
       get().movePovNodeCategory(sourcePov, nodeId, targetCategory);
@@ -961,13 +995,15 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         return state;
       }
 
+      const { node: untagged, strippedTags } = stripPovTagsForMove(oldNode, newId, sourcePov, targetPov);
       const newNode: PovNode = {
-        ...oldNode,
+        ...untagged,
         id: newId,
         category: targetCategory,
         parent_id: null,
         children: [],
       };
+      const lastPovMoveReport: PovMoveReport = { fromId: oldId, toId: newId, sourcePov, targetPov, strippedTags };
 
       const newSourceNodes = sourceFile.nodes
         .filter(n => n.id !== oldId)
@@ -1034,6 +1070,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       }
 
       return {
+        lastPovMoveReport,
         [sourcePov]: { ...sourceFile, last_modified: todayISO(), nodes: newSourceNodes },
         [targetPov]: { ...targetFile, last_modified: todayISO(), nodes: newTargetNodes },
         situations: newSituations,
