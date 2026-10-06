@@ -314,10 +314,46 @@ document.addEventListener('DOMContentLoaded', function() {
       const missing: string[] = [];
       const present: string[] = [];
 
-      for (const pov of ['accelerationist', 'safetyist', 'skeptic']) {
+      const BASE_POVS = ['accelerationist', 'safetyist', 'skeptic'] as const;
+      for (const pov of BASE_POVS) {
         const rel = `lib/debate/soul-docs/${pov}.soul.json`;
         if (fs.existsSync(path.join(soulDocsDir, `${pov}.soul.json`))) { present.push(rel); }
         else { missing.push(rel); }
+      }
+
+      // Tag souls: assert registry-listed tags are present, and no stray files exist.
+      const tagSoulsDir = path.join(soulDocsDir, 'tags');
+      const povTagsPath = path.join(soulDocsDir, 'pov-tags.json');
+      let registeredTags: string[] = [];
+      try {
+        const tagRegistry = JSON.parse(fs.readFileSync(povTagsPath, 'utf-8')) as { povs?: Record<string, unknown> };
+        registeredTags = Object.keys(tagRegistry.povs ?? {});
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'server', level: 'warn',
+          message: 'pov-tags.json unreadable — tag soul checks skipped',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        missing.push('lib/debate/soul-docs/pov-tags.json (unreadable or missing)');
+      }
+
+      const expectedTagFiles = new Set<string>();
+      for (const tag of registeredTags) {
+        for (const pov of BASE_POVS) {
+          const rel = `lib/debate/soul-docs/tags/${tag}.${pov}.soul.json`;
+          expectedTagFiles.add(`${tag}.${pov}.soul.json`);
+          if (fs.existsSync(path.join(tagSoulsDir, `${tag}.${pov}.soul.json`))) { present.push(rel); }
+          else { missing.push(rel); }
+        }
+      }
+
+      // Stray detection: files in tags/ not accounted for by the registry.
+      if (fs.existsSync(tagSoulsDir)) {
+        for (const f of fs.readdirSync(tagSoulsDir)) {
+          if (!expectedTagFiles.has(f)) {
+            missing.push(`lib/debate/soul-docs/tags/${f} (stray — not in pov-tags.json registry)`);
+          }
+        }
       }
 
       if (!fs.existsSync(promptsDir)) {
