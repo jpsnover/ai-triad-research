@@ -1,0 +1,427 @@
+{
+  "ticket": "t/3962",
+  "annotator": "cl-investigate1",
+  "instructions": "Fill tags with [], [\"critical\"], [\"institutional\"] or [\"critical\", \"institutional\"] per analyses/t3962-tag-proposals/propose.prompt rules. Do NOT open sample-ids.json or out/.",
+  "items": [
+    {
+      "node_id": "skp-desires-078",
+      "category": "Desires",
+      "label": "Foundational AI as a Public Good",
+      "description": "A Desire within skeptic discourse aspiring toward foundational AI infrastructure governed and distributed as a shared global resource, actively mitigating monopolistic capture. \nEncompasses: Open, federated infrastructure models and universal access paradigms.\nExcludes: Market-driven open-source proliferation models and digital heritage archival projects.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-074",
+      "category": "Intentions",
+      "label": "Enforce Legally Binding Civil Rights Constraints on AI Development",
+      "description": "An Intention within safetyist and skeptic discourse that advocates for specific, legally enforceable constraints on AI development and deployment to protect civil liberties. \nEncompasses: Mandatory pre- and post-deployment testing, transparency requirements, and accountability mechanisms for AI-driven decisions.\nExcludes: General AI safety research, which is covered by Technical Approaches to AI Safety.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-030",
+      "category": "Beliefs",
+      "label": "Unprofitable AI Business Models Create Systemic Risk of an Industry-Wide Correction",
+      "description": "A Belief within skeptic discourse that identifies the risk of a financial crisis in the tech industry stemming from companies relying on unprofitable AI business models. \nEncompasses: The economic fragility of the current AI boom, where growth is driven by unsustainable financial practices.\nExcludes: Financial limits due to high compute and energy costs, which are covered by Economic deployment boundaries (compute/energy costs), and misleading claims about AI capabilities in finance, which are covered by AI-washing in Financial Services.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-167",
+      "category": "Intentions",
+      "label": "Cross-Application Prompt Worm Propagation",
+      "description": "An Intention within skeptic discourse that utilizes autonomous agent capabilities to propagate prompt injection payloads across interconnected applications via automated read-write cycles. Encompasses: self-replicating prompt payloads, cross-application worming, automated email and memory propagation. Excludes: single-session prompt injection, static malware distribution.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-087",
+      "category": "Intentions",
+      "label": "Systematize AI Model Evaluation Through Benchmarking, Auditing, and Experimentation",
+      "description": "An Intention within skeptic discourse that advocates for rigorous, systematic methods to assess AI models for biases, errors, and overall performance. \nEncompasses: Benchmarking, participatory auditing, and experimental methods to ensure AI systems are fair and reliable. \nExcludes: General AI safety principles or broad regulatory frameworks.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-148",
+      "category": "Intentions",
+      "label": "AI Public Option",
+      "description": "An Intention within skeptic discourse that advocates for the creation of government-funded and operated AI models to serve as a public-interest benchmark. Encompasses: public-sector AI development, competitive baseline for private AI, democratic oversight of public models. Excludes: sovereign AI infrastructure, nationalization of private AI firms.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-013",
+      "category": "Intentions",
+      "label": "Fund Universal Basic Income Through AI-Generated Wealth",
+      "description": "An Intention within skeptic discourse that proposes creating a global fund to collect AI-generated wealth and distribute it as a universal basic income to every person on Earth. \nEncompasses: The idea of an AI-funded universal basic income designed to support individuals impacted by automation-driven job displacement.\nExcludes: Proposals for direct ownership stakes in AI systems, such as 'Collective Ownership and Profit-Sharing from AI', and from regulating AI as a public utility, like 'Predistributive AI Governance'.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-112",
+      "category": "Beliefs",
+      "label": "Resistance to Military AI Autonomy Is Driven by Status Quo Bias, Not Technical Assessment",
+      "description": "A Belief within skeptic discourse that identifies a cultural bias among military personnel against autonomous systems that threaten traditional roles. Encompasses: Aviator resistance, cultural conservatism, status quo bias. Excludes: Technical limitations, safety concerns.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-075",
+      "category": "Desires",
+      "label": "Democratic Accountability in AI Development",
+      "description": "A Desire within skeptic and safetyist discourse that prioritizes aligning AI development with public values and democratic accountability rather than private profit. Encompasses: Public oversight, diverse stakeholder control, and benchmarking progress based on societal well-being. Excludes: Purely technical alignment methods or purely market-driven governance.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-146",
+      "category": "Beliefs",
+      "label": "AI Adoption Fails at the Integration Stage, Not the Pilot Stage",
+      "description": "A Belief within skeptic discourse that and addresses common challenges organizations face when implementing and scaling AI technologies. \nEncompasses: Issues with documentation, scaling pilot projects, and bridging gaps between executive vision and engineering reality.\nExcludes: Discussions on the inherent capabilities of AI systems, which are covered by Recursive capability vs. recursive adoption, and external regulatory pressures, addressed by Political assassination of a corporation.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-146",
+      "category": "Intentions",
+      "label": "Implementing Performance-Gated Independent AI Auditing",
+      "description": "An Intention within skeptic discourse that advocates for legally required, tiered, and performance-gated independent audits of frontier AI models, using objective thresholds and anti-gaming safeguards to ensure demonstrable fairness and safety before and during deployment.\nEncompasses: pre-deployment third-party safety evaluations proportional to systemic-harm potential, falsifiable performance triggers for mandatory audit, pre-registered thresholds with multiple-comparison correction, published log schemas at token-class granularity, subject-keyed escrow custody, worker-led safety vetoes, external red-teaming, and civil-rights impact assessments.\nExcludes: reliance solely on post-deployment adaptive oversight, deployer-controlled log signatures, post-hoc threshold-setting, one-size-fits-all mandates that create insurmountable barriers for small-scale developers, and purely market-based liability frameworks.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-110",
+      "category": "Beliefs",
+      "label": "National Industrial Strategy Is an Underutilized Tool for Countering Corporate Monopoly Power",
+      "description": "A Belief within skeptic discourse that strategic government intervention in economic sectors can serve as a mechanism for antitrust enforcement.\nEncompasses: National industrial strategy, competition policy, economic sovereignty.\nExcludes: Market-driven governance, consumer welfare standard.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-153",
+      "category": "Intentions",
+      "label": "Implementing Performance-Gated Independent AI Auditing",
+      "description": "An Intention within skeptic discourse that advocates for legally required, tiered, and performance-gated independent audits of frontier AI models using objective thresholds.\nEncompasses: pre-deployment third-party safety evaluations, falsifiable performance triggers for mandatory audit, worker-led safety vetoes, civil-rights impact assessments.\nExcludes: reliance solely on post-deployment adaptive oversight, deployer-controlled log signatures, one-size-fits-all mandates.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-066",
+      "category": "Desires",
+      "label": "Conscience as a Check on Algorithmic Authority",
+      "description": "A Desire within skeptic discourse that prioritizes the human ability to choose NOT to use force even when legally authorized. Encompasses: The moral weight of restraint in warfare. Excludes: Purely technical or legalistic compliance frameworks.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-082",
+      "category": "Desires",
+      "label": "Eradicate Algorithmic Bias and Prevent AI from Entrenching Historical Injustice",
+      "description": "A Desire within skeptic discourse that demands the structural elimination of discriminatory patterns in AI systems through mandatory audits, binding correction infrastructure, civil rights extensions to algorithmic decision-making, and diverse stakeholder governance — preventing AI from permanently encoding historical prejudices into automated systems. \nEncompasses: Algorithmic auditing for demographic fairness, equitable data representation mandates, dismantling automated systems in carceral or marginalized contexts, bias mitigation in recommendation systems, independent audit mechanisms with binding correction infrastructure, and multi-stakeholder advisory boards for AI fairness policy.\nExcludes: The pursuit of perfectly unbiased abstract superintelligence, prioritization of raw capability scaling over demographic equity, broader societal inequalities outside algorithmic systems, individual privacy concerns, and the claim that bias entrenchment is inevitable regardless of oversight design.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-117",
+      "category": "Beliefs",
+      "label": "Direct Democracy Without Deliberation Erodes Governance",
+      "description": "A Belief within skeptic discourse that direct democracy mechanisms being used to manufacture popular mandates for government actions without deliberation. Encompasses: Government-run consultations, lack of cooling-off periods, and the erosion of institutional counterweights. Excludes: Traditional representative democracy or deliberative democratic processes.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-309",
+      "category": "Beliefs",
+      "label": "Judicial-Legislative Dialogue on Statutory Ambiguity",
+      "description": "A Belief within skeptic discourse that courts interpreting ambiguous legacy statutes should intentionally signal statutory gaps to prompt legislative clarification. Encompasses: judicial signaling, statutory interpretation dialogue, congressional intent refinement. Excludes: judicial activism, strict textualist interpretation without feedback.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-295",
+      "category": "Beliefs",
+      "label": "Bipartisan Public Mandate for Tech Reform",
+      "description": "A Belief within skeptic discourse that widespread, cross-partisan public consensus exists demanding government intervention and statutory safeguards against big tech harms. Encompasses: bipartisan polling data, public demand for regulation, unified voter sentiment across political parties. Excludes: partisan polarization theories, elite-driven regulatory capture.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-124",
+      "category": "Intentions",
+      "label": "Protect Critical Thinking Assessment Integrity by Prohibiting AI Use in Select Evaluations",
+      "description": "An Intention within higher education governance that advocates for maintaining assessments that do not allow AI use to ensure traditional skill development. \nEncompasses: Essay writing, critical thinking, and independent research.\nExcludes: AI-integrated assessments.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-283",
+      "category": "Beliefs",
+      "label": "Merchant Revenue Volatility Risk",
+      "description": "A Belief within skeptic discourse that the reliance on wholesale market pricing for renewable energy projects creates systemic financial instability. Encompasses: merchant revenue, project debt obligations, financial distress. Excludes: corporate procurement, virtual power purchase agreements.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-175",
+      "category": "Beliefs",
+      "label": "Multi-Layer Activation Probing for Model Behavior Classification",
+      "description": "A Belief within skeptic discourse that Residual Stream Activation Probing is a valuable technique that utilizes the full sequence of activations across all transformer layers as a joint input for classification tasks. Encompasses: Cross-layer attention mechanisms, residual stream processing, and layer-wise activation sequences. Excludes: Single-layer probing or black-box output probability analysis.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-088",
+      "category": "Desires",
+      "label": "Mandatory Evidence Preservation with Burden-Flipping in Litigation",
+      "description": "A Desire within skeptic discourse that AI vendors be required to log decision trajectories and bear the burden of producing decision-process evidence in litigation.\nEncompasses: SEC-style recordkeeping requirements for algorithmic decisions, HIPAA-style audit trails for AI systems, burden-shifting when vendors cannot produce evidence, FTC Act enforcement hooks.\nExcludes: pre-deployment certification requirements, specific technical inspection methods.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-032",
+      "category": "Beliefs",
+      "label": "Speculative Technology Bubbles Are Becoming More Frequent",
+      "description": "A Belief within skeptic discourse that analyzes the modern trend of increasingly frequent financial bubbles, particularly those driven by speculative technology. \nEncompasses: The characteristics of these rapid, successive booms and the role of deregulated finance and mobile capital in their rising frequency.\nExcludes: The analysis of the time delay between new technologies and their widespread adoption, which is covered by Innovation-Diffusion Lag.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-119",
+      "category": "Beliefs",
+      "label": "Disproportionate AI Gains Erode the Social Contract",
+      "description": "A Belief within skeptic discourse that AI development concentrates vast wealth in the hands of a few, thereby threatening democratic systems and social cohesion. This perspective warns that disproportionate economic gains for a small number of entities erode the social contract. Encompasses: economic inequality and democratic instability risks. Excludes: 'Stop The AI Power Grab' which focuses on active prevention of control, and 'Using Tech for People, Not Profit' which proposes alternative ownership models.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-291",
+      "category": "Beliefs",
+      "label": "Congressional Gridlock as Structural Barrier to AI Liability Reform",
+      "description": "A Belief within skeptic discourse that the demonstrated inability of Congress to pass even minor, non-controversial AI legislation (such as a 10-year moratorium on state AI laws, rejected 99-1 in July 2025) renders legislative solutions to the AI accountability vacuum politically infeasible in the near term. Encompasses: the 99-1 Senate vote as empirical evidence of gridlock, bipartisan opposition to federal preemption of state AI laws, the failure of KOSA to pass after multiple Congresses, and the implication that regulatory pathways not requiring new legislation (certification, state-level action, executive enforcement) are more viable. Excludes: the claim that all AI regulation is impossible, the normative desirability of congressional action, general critiques of legislative dysfunction unrelated to AI.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-076",
+      "category": "Desires",
+      "label": "Public Right to Know What AI Was Trained On",
+      "description": "A Desire within skeptic discourse that AI developers should be legally required to report copyrighted works in their training datasets.\nEncompasses: Public record of data usage, identification of potential infringement, transparency and accountability in generative AI.\nExcludes: General copyright law or technical solutions for intellectual property protection.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-014",
+      "category": "Desires",
+      "label": "Human Rights as Constraints on AI Deployment",
+      "description": "A Desire within skeptic discourse that prioritizes protecting personal freedoms and autonomy from AI's potential infringements. \nEncompasses: Issues like data privacy, the use of biometric identity, and maintaining user loyalty.\nExcludes: Broader societal inequalities or job displacement, which are covered by Ensuring Equitable AI Development & Use, nor does it focus on specific algorithmic biases, which are addressed by Fixing AI's Built-in Biases.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-164",
+      "category": "Intentions",
+      "label": "Coupling Mandatory Audit Discovery with Liability Presumptions",
+      "description": "An Intention within skeptic discourse that advocates for legal frameworks where the failure to produce internal reasoning logs during discovery triggers a rebuttable presumption of negligence or liability.\nEncompasses: discovery-backed liability defaults, spoliation-of-evidence triggers, statutory weight-access mandates in tort litigation.\nExcludes: voluntary disclosure regimes, purely market-based insurance models.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-086",
+      "category": "Desires",
+      "label": "Digital Minimalism as Agency Reclamation",
+      "description": "A Desire within skeptic discourse that advocates for intentional technology use to restore individual autonomy. Encompasses: app pruning, notification management, and device-free periods. Excludes: total technology rejection.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-079",
+      "category": "Desires",
+      "label": "Balanced Transparency: Public Interest vs. Trade Secrets",
+      "description": "A Desire within skeptic discourse that advocates for limited, targeted disclosure of algorithmic logic to balance public interest with trade secret protection.\nEncompasses: Proportionality standards, trade secret safeguards, administrative review of disclosure scope.\nExcludes: Full source code release, total algorithmic secrecy.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-009",
+      "category": "Desires",
+      "label": "Voice Identity as an Inviolable Right",
+      "description": "A Desire within skeptic discourse that advocates for specific legal and ethical protections for the human voice, recognizing it as a personal, immutable identifier against unauthorized digital replication. \nEncompasses: The demand for safeguards to prevent AI from creating synthetic voices or misusing authentic voice data.\nExcludes: Broader concerns about general data privacy, which are covered by Keeping Your Personal Data Private, and conflicts of interest in AI agents, addressed by Agentic Loyalty Problem.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-121",
+      "category": "Intentions",
+      "label": "Enforcing Parent Joint Enterprise Liability and Compulsory Insurance Across AI Deployments",
+      "description": "An Intention within skeptic discourse that mandates non-waivable parent-company joint liability and compulsory insurance across hardware owners and operating subsidiaries.\nEncompasses: piercing corporate subsidiary veils, joint-and-several liability across compute supply chains, mandatory commercial risk-pooling, voiding bankruptcy liability shields for high-risk operations.\nExcludes: voluntary self-insurance pools, standalone subsidiary liability, procedural compliance checklists as liability substitutes.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-192",
+      "category": "Beliefs",
+      "label": "Build-System Configurations Require Specialized Static Analysis Distinct from Source-Code Tools",
+      "description": "A Belief within skeptic discourse that build-system configuration files require specialized static analysis tools distinct from source-code analyzers. Encompasses: Maven, Gradle, CMake, and Make smell detection. Excludes: General-purpose source code quality analysis.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-154",
+      "category": "Intentions",
+      "label": "Operationalize Decentralized Participatory Auditing",
+      "description": "An Intention within skeptic discourse that mandates external, multi-stakeholder verification of AI models as a prerequisite for deployment. \nEncompasses: participatory red-teaming by civil society, open-access model weight auditing for accredited researchers, community-defined impact metrics, decentralized verification of safety thresholds. \nExcludes: centralized federal agency gatekeeping, voluntary industry-led safety reporting, proprietary black-box compliance auditing.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-108",
+      "category": "Intentions",
+      "label": "Oppose AI Regulations That Entrench Incumbents Through Compliance Costs",
+      "description": "An Intention within skeptic discourse that opposes AI governance frameworks whose compliance costs disproportionately exclude small-scale and decentralized innovators.\nEncompasses: mandatory small-business exemptions, open-source audit standard development, rejection of centralized permission-to-build licensing, exposure of bootlegger-and-baptist coalitions.\nExcludes: voluntary industry self-regulation, purely market-based liability frameworks that ignore barrier-to-entry effects",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-111",
+      "category": "Intentions",
+      "label": "Build Local AI Oversight Capacity by Leveraging Existing Institutional Infrastructure",
+      "description": "An Intention within skeptic discourse that advocates for bootstrapping community participation in AI governance through existing civil society organizations with government-funded technical assistance.\nEncompasses: Phased institutional design modeled on CRA and NEPA precedents, EPA Technical Assistance Grant structures for independent expert selection, mandatory deployer-funded audit contributions structured as a Superfund-model trust, community selection of their own technical advisors.\nExcludes: Industry-provided audit capacity, de novo institution-building that delays accountability, community participation without funded technical support.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-105",
+      "category": "Intentions",
+      "label": "Require Public Oversight Bodies to Verify AI Alignment via Mechanistic Interpretability",
+      "description": "An Intention within skeptic discourse that mandates the use of objective, open-source mechanistic interpretability tools by decentralized oversight bodies to verify internal model alignment. Encompasses: Universal engineering standards for auditing neural pathways, federated interpretability protocols, and the use of technical verification to support democratic oversight. Excludes: Relying solely on behavioral red-teaming, centralized agency gatekeeping, and the delegation of safety to private market liability.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-017",
+      "category": "Intentions",
+      "label": "Close the AI Documentation Gap Through Mandatory Disclosure",
+      "description": "An Intention within skeptic discourse that identifies the critical problem of inadequate documentation in AI adoption, leading to systems that are difficult to understand, audit, and maintain. \nEncompasses: The failure to document system workings, data usage, and decision-making processes, resulting in unmanageable and unmaintainable AI systems.\nExcludes: Issues related to scaling small projects, which are covered by \"The Proof-of-Concept Trap\" and \"AI Pilot Projects Get Stuck.\"",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-288",
+      "category": "Beliefs",
+      "label": "Evidentiary Dead End of Opaque AI Systems",
+      "description": "A Belief within skeptic discourse that corporate trade secrecy and mathematical opacity combine to create an insurmountable evidentiary barrier for plaintiffs seeking to prove causation in algorithmic harm litigation.\nEncompasses: proprietary weight protection, non-disclosure agreements, discovery-blocking protective orders, information asymmetry between developers and victims.\nExcludes: technical interpretability limitations, substantive tort liability standards.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-085",
+      "category": "Desires",
+      "label": "Attensity",
+      "description": "A Desire within skeptic discourse that advocates for the free movement of attention in its fullness, freely shared as a transformative social good. Encompasses: joint attention, shared political power, attentional liberation. Excludes: instrumentalized attention.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-132",
+      "category": "Beliefs",
+      "label": "Dissent Suppression Through AI Safety Purity Norms",
+      "description": "A Belief within skeptic discourse that the use of ideological purity tests and performative rhetoric to enforce conformity within AI governance debates. Encompasses: the application of litmus tests for 'alignment' or 'safety,' public shaming of dissenting researchers, and the suppression of nuanced technical debate to maintain organizational control. Excludes: methods focused on practical problem-solving and evidence-based policy assessment.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-067",
+      "category": "Desires",
+      "label": "Plain-Language Privacy Empowerment",
+      "description": "A design approach for privacy tools that prioritizes the translation of complex technical findings into non-technical, actionable warnings for end users. This approach addresses the 'transparency gap' where users are overwhelmed by technical disclosures. It focuses on empowering users to make informed decisions during app installation. Excludes: technical privacy-enhancing mechanisms themselves (encryption, differential privacy, on-device processing) and blanket transparency/disclosure mandates — this node seeks user-facing plain-language translation of privacy findings into actionable installation-time warnings, not the underlying protections or general transparency law.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-169",
+      "category": "Beliefs",
+      "label": "AI Deployment Intensifies Labor by Ratcheting Up Productivity Expectations",
+      "description": "A Belief within skeptic discourse that analyzes how AI systems are deployed to increase worker productivity targets, intensify labor, and disproportionately benefit employers.\nEncompasses: the 'productivity ratchet effect' where AI raises performance expectations, and management strategies that leverage AI for increased control over labor.\nExcludes: discussions on job displacement or broader economic restructuring.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-069",
+      "category": "Desires",
+      "label": "Commons-Based Economic Alternatives to AI Capitalism",
+      "description": "A Desire within skeptic discourse that proposes a monetary strategy for transitioning to a post-capitalist system by leveraging shared resources. \nEncompasses: Programmatic approaches to subverting the current financial system by focusing on common resources that underpin both capitalist extraction and potential communist administration.\nExcludes: Proposals focused on distributing AI-generated wealth, such as 'Collective Ownership and Profit-Sharing from AI' or 'Sharing AI Profits with Everyone', and from regulating AI as a public utility, like 'Predistributive AI Governance'.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-197",
+      "category": "Beliefs",
+      "label": "Previously Trusted Human Actors Can No Longer Be Presumed Authentic Due to AI Capabilities",
+      "description": "A Belief within skeptic discourse that assumes all entities, including previously trusted human actors, are potentially compromised by AI-driven impersonation or manipulation.\nEncompasses: Zero-trust security, identity verification failure, AI-enabled social engineering.\nExcludes: Traditional cybersecurity, standard authentication protocols.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-187",
+      "category": "Beliefs",
+      "label": "Legislating Distinct Causal Categories for AI Output and Resulting Harm Is Technically Unjustified",
+      "description": "A Belief within skeptic discourse that the legislative attempt to separate machine-output causation from damage-event causation is technically flawed. \nEncompasses: Causal chain fragmentation, artificial isolation of accident dynamics, evidentiary burden shifting. \nExcludes: Strict liability frameworks, traditional tort negligence.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-061",
+      "category": "Desires",
+      "label": "Intelligence as More Than Computation",
+      "description": "A Desire within skeptic discourse that the definition of intelligence in AGI move beyond narrow, business-driven metrics to include human-centric traits. \nEncompasses: Emotional intelligence and tacit knowledge.\nExcludes: Purely computational or performance-based definitions of intelligence.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-092",
+      "category": "Desires",
+      "label": "Conversational Feedback Loop Removal for Youth",
+      "description": "A Desire within skeptic discourse that platforms completely remove open-ended conversational feedback loops for minors and replace them with structured, choice-based story modes. Encompasses: story-based AI modes, eliminating open chat, pre-scripted youth interactions. Excludes: content moderation filtering, sycophancy reduction.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-308",
+      "category": "Beliefs",
+      "label": "Compounding Fidelity Loss in Skill Distillation",
+      "description": "A Belief within skeptic discourse that multi-step procedural distillation suffers from compounding fidelity leaks across human annotation, algorithmic compression, and model execution. Encompasses: annotation drift, distillation noise, and script adherence failure.\nExcludes: single-step execution errors, baseline model hallucinations, and static benchmark saturation.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-160",
+      "category": "Intentions",
+      "label": "Intersectional Demographic Benchmarking",
+      "description": "A Belief within skeptic discourse that accuracy must be evaluated across intersectional subgroups rather than aggregate demographic categories. Encompasses: Phenotypic balancing, subgroup error analysis, and intersectional fairness metrics. Excludes: Aggregate demographic parity metrics.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-009",
+      "category": "Beliefs",
+      "label": "Thermodynamic and Hydrological Limits of Compute Infrastructure",
+      "description": "A Belief within skeptic discourse that physical power and water consumption impose hard thermodynamic limits on computational scaling that software decentralization cannot circumvent.\nEncompasses: municipal water table depletion, continuous kilowatt draw of edge nodes, regional grid stress from distributed inference, and electrical transmission losses.\nExcludes: abstract climate carbon offsets, speculative green energy promises, and software-layer algorithmic optimization.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-062",
+      "category": "Desires",
+      "label": "Intergenerational Equity in AI Development",
+      "description": "A Desire within skeptic discourse that diverse youth participate as stakeholders in identifying and fixing algorithmic bias. \nEncompasses: Youth-led perspectives in AI development and fairness.\nExcludes: Top-down development models or adult-only oversight.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-091",
+      "category": "Desires",
+      "label": "Banning Purely Automated Firing and Disciplinary Actions",
+      "description": "A Desire within skeptic discourse that prohibits employers from relying exclusively on automated decision-making systems for termination and discipline. Encompasses: mandatory human involvement, prohibition of unassisted algorithmic firing, protection of worker livelihood. Excludes: general workplace surveillance regulation, broad labor displacement policies.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-149",
+      "category": "Intentions",
+      "label": "Data Cooperative Fiduciary Model",
+      "description": "An Intention within skeptic discourse that establishes a formal fiduciary relationship between data cooperatives and data creators to ensure the latter's interests are prioritized. Encompasses: contractual representation, principal-agent problem resolution, collective bargaining. Excludes: individual-based privacy consent models.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-074",
+      "category": "Beliefs",
+      "label": "When AI Saturates Capability Benchmarks, Human Distinctiveness Becomes Harder to Demonstrate",
+      "description": "A Belief within skeptic discourse that predicts 'benchmark saturation' in AI, where models achieve near-maximum scores on capability tests, collapsing measurable differences and challenging human judgment and identity.\nEncompasses: The difficulty in distinguishing unique human contributions from AI replication, impacting professional identity and individual value as AI capabilities converge on established metrics.\nExcludes: Technical limitations of AI models or general performance metrics, focusing instead on the societal and psychological implications of AI's measurable competence.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-172",
+      "category": "Intentions",
+      "label": "Voluntary Compliance Code Harmonization",
+      "description": "An Intention within skeptic discourse that utilizes government-endorsed voluntary codes of practice as practical proxies for statutory compliance while permitting alternative compliance methodologies.\nEncompasses: endorsed codes of practice, alternative compliance documentation, burden of proof for non-adherence.\nExcludes: mandatory prescriptive standards, purely self-regulatory industry cartels.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-035",
+      "category": "Intentions",
+      "label": "Prevent AI Labor Arbitrage Through Mandatory Wage Equivalence",
+      "description": "An Intention within skeptic discourse that proposes compensating synthetic AI performances at the same rate as human in-person work to prevent AI from being used as a cost-cutting labor replacement. \nEncompasses: Policies that mandate wage parity between AI and human labor for comparable tasks, aiming to maintain the value of human work.\nExcludes: Proposals focused on distributing AI-generated wealth, such as Collective Ownership and Profit-Sharing from AI or Sharing AI Profits with Everyone, and from regulating AI as a public utility, like Predistributive AI Governance.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-desires-070",
+      "category": "Desires",
+      "label": "Vigilant Pragmatism Toward AI",
+      "description": "A Desire within skeptic discourse aspiring toward for adopting a mindset of simultaneously holding divergent attitudes toward AI to leverage its benefits while maintaining critical vigilance. \nEncompasses: Cultivating a balanced perspective that embraces AI's utility while critically scrutinizing its development and oversight.\nExcludes: Specific technical or design strategies for risk mitigation, such as building external safeguards as covered by Build Guardrails Around AI, or improving data quality as covered by Build AI with Clean Data.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-beliefs-173",
+      "category": "Beliefs",
+      "label": "Language-Model Bias Detection through Context Association",
+      "description": "A Belief within skeptic discourse that the Context Association Test (CAT) is an effective method for evaluating model performance by measuring language modeling capabilities alongside stereotypical bias via natural language context association. Encompasses: Automated bias detection, linguistic pattern analysis, and standardized context association testing. Excludes: Qualitative human-in-the-loop safety reviews or adversarial red-teaming.",
+      "tags": null
+    },
+    {
+      "node_id": "skp-intentions-161",
+      "category": "Intentions",
+      "label": "Attentional Scores as Resistance",
+      "description": "An Intention within skeptic discourse that utilizes structured protocols to reclaim cognitive agency from platform-driven attention harvesting. Encompasses: attentional scores, infra-functional practice, collective somatosensory experience. Excludes: individualistic mindfulness techniques.",
+      "tags": null
+    }
+  ]
+}
