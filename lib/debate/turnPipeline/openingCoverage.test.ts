@@ -56,6 +56,16 @@ const FIELD_EXEMPTIONS: Record<string, { engineRequired: boolean; rendererRequir
     rendererRequired: false,
     note: 'intentional: engine.config.briefMaxRetries never populated in production (only in tests); both paths use pipeline default (3). t/3775 closed as phantom gap.',
   },
+  soul: {
+    engineRequired: false,
+    rendererRequired: false,
+    note: 'optional: resolved soul passed when seat souls are configured (t/3988)',
+  },
+  opponentSouls: {
+    engineRequired: false,
+    rendererRequired: false,
+    note: 'optional: resolved souls for opponents passed when seat souls are configured (t/3988)',
+  },
 };
 
 function extractFields(source: string): string[] {
