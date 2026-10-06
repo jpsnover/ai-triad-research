@@ -19,6 +19,12 @@ export function buildPovTagBaseline(nodes: PovNode[]): Record<string, string> {
 /** Unregistered-tag errors for changed nodes; untouched nodes with orphaned tags are WARNed, not blocked.
  *  `registry` is for tests only (the committed registry is empty until t/3956). */
 export function povTagMembershipErrors(nodes: PovNode[], baseline: Record<string, string>, registry?: PovTagRegistry): ValidationErrors {
+  return povTagMembership(nodes, baseline, registry).errors;
+}
+
+/** As povTagMembershipErrors, plus the ids of UNTOUCHED nodes that carry orphaned tags, so the editor can
+ *  show them to the user after the save, not only in the flight recorder (t/3984; SO e/253#2 note). */
+export function povTagMembership(nodes: PovNode[], baseline: Record<string, string>, registry?: PovTagRegistry): { errors: ValidationErrors; orphanedNodeIds: string[] } {
   const errors: ValidationErrors = {};
   const orphansOnUntouched: Array<{ node_id: string; problems: string[] }> = [];
   for (const node of nodes) {
@@ -37,5 +43,5 @@ export function povTagMembershipErrors(nodes: PovNode[], baseline: Record<string
       data: { count: orphansOnUntouched.length, nodes: orphansOnUntouched.slice(0, 20) },
     });
   }
-  return errors;
+  return { errors, orphanedNodeIds: orphansOnUntouched.map(o => o.node_id) };
 }

@@ -21,7 +21,7 @@ import type {
   Interpretation,
 } from '../../../types/taxonomy';
 import { interpretationText } from '../../../types/taxonomy';
-import { buildPovTagBaseline, povTagMembershipErrors } from '../../../utils/povTagGate';
+import { buildPovTagBaseline, povTagMembership } from '../../../utils/povTagGate';
 import { buildSituationBaseline, checkSituationBdi, type SituationBdiRefusal } from '../../../utils/situationBdiGate';
 import { coerceSituationDivergence } from '../../../bridge/coerceSituationDivergence';
 import {
@@ -277,6 +277,8 @@ export interface TaxonomyDataSlice {
   // file-save itself succeeded; only similarity/related-node results may be temporarily stale.
   embeddingsStale: boolean;
   staleEmbeddingNodeIds: string[];
+  /** t/3984: untouched nodes the last successful save carried with POV tags no longer in the registry. */
+  orphanedTagNodeIds: string[];
   integrityIssues: ValidationIssue[];
   fixIntegrityErrors: () => void;
   loading: boolean;
@@ -297,6 +299,7 @@ export interface TaxonomyDataSlice {
   save: () => Promise<void>;
   dismissSaveError: () => void;
   dismissEmbeddingsStale: () => void;
+  dismissOrphanedTagNotice: () => void;
 
   updatePovNode: (pov: Pov, nodeId: string, updates: Partial<PovNode>, editSource?: { source: TextEditSource; debateId?: string; reason?: string }) => void;
   createPovNode: (pov: Pov, category: Category) => string;
@@ -370,6 +373,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   loadError: null,
   embeddingsStale: false,
   staleEmbeddingNodeIds: [],
+  orphanedTagNodeIds: [],
   integrityIssues: [],
   loading: false,
   backgroundLoading: false,
@@ -521,6 +525,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
 
   dismissSaveError: () => set({ saveError: null, integrityIssues: [] }),
   dismissEmbeddingsStale: () => set({ embeddingsStale: false, staleEmbeddingNodeIds: [] }),
+  dismissOrphanedTagNotice: () => set({ orphanedTagNodeIds: [] }),
 
   fixIntegrityErrors: () => {
     const state = get();
@@ -594,6 +599,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.called', data: { dirty: [...dirtyKeys] } });
     if (dirtyKeys.size === 0) return;
+    const orphanedTagNodeIds: string[] = []; // t/3984
     let bdi = NO_BDI_REFUSAL; // t/3888 — set in the situations branch below
 
     for (const key of dirtyKeys) {
@@ -604,7 +610,9 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         if (!result.success) {
           Object.assign(errors, extractPovErrors(result.error, file.nodes));
         }
-        Object.assign(errors, povTagMembershipErrors(file.nodes, state.povTagsBaseline));
+        const membership = povTagMembership(file.nodes, state.povTagsBaseline);
+        Object.assign(errors, membership.errors);
+        orphanedTagNodeIds.push(...membership.orphanedNodeIds); // t/3984: shown after a successful save
       } else if (key === 'situations') {
         const file = state.situations;
         if (!file) continue;
@@ -723,7 +731,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.completed', data: { files_written: promises.length, duration_ms: Math.round(performance.now() - saveStart), commitSha: commitResult.commitSha, filesCommitted: commitResult.filesCommitted } });
       api.trackEvent('taxonomy_save', 'taxonomy', { files: promises.length });
       // t/3888: the saved snapshot is now what's on disk, so it becomes the gate's baseline.
-      set({ dirty: new Set(), ...baselineAfterSave(dirtyKeys, state) });
+      set({ dirty: new Set(), orphanedTagNodeIds, ...baselineAfterSave(dirtyKeys, state) });
 
       // Post-save embedding refresh — NON-FATAL, own boundary (t/1707).
       // The file write, commit, and `dirty` clear above have already succeeded. A throw

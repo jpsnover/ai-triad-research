@@ -35,6 +35,7 @@ import { AnonymousBanner } from './components/community/AnonymousBanner';
 import { ResilienceBanner } from './components/shared/ResilienceBanner';
 import { QuotaBanner } from './components/shared/QuotaBanner';
 import { EmbeddingsStaleBanner } from './components/shared/EmbeddingsStaleBanner';
+import { OrphanedTagsBanner } from './components/shared/OrphanedTagsBanner';
 import { pullDataTracked } from './utils/syncApi';
 import { useFeatureFlagStore, useFlag } from './hooks/useFeatureFlags';
 import { useTheoryLinkHotkey } from './hooks/useTheoryLinkHotkey';
@@ -650,6 +651,7 @@ function MainApp() {
       <ResilienceBanner />
       <QuotaBanner />
       <EmbeddingsStaleBanner />
+      <OrphanedTagsBanner />
       {/* Data update banner */}
       {dataUpdate && (
         <div
