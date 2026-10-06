@@ -33,21 +33,19 @@ export function resolveSouls(
     const tagSelection = seatTag ? { tag: seatTag.pov_tag, mode: seatTag.tag_mode } : undefined;
     if (tagSelection) {
       const campNodes: PovNode[] = (taxonomy[poverId as 'accelerationist' | 'safetyist' | 'skeptic'] as { nodes: PovNode[] } | undefined)?.nodes ?? [];
-      if (campNodes.length > 0) {
-        const scopeCheck = checkTagScope(campNodes, tagSelection);
-        if (!scopeCheck.sufficient) {
-          throw new ActionableError({
-            goal: `Start tagged debate (${poverId}/${tagSelection.tag})`,
-            problem: scopeCheck.reason === 'none-tagged'
-              ? `No nodes carry tag "${tagSelection.tag}" in the ${poverId} camp`
-              : `Scope too thin for tag "${tagSelection.tag}" in ${poverId}: ${scopeCheck.inScope.length} groundable nodes (minimum ${TAG_SCOPE_MINIMUM_NODES})`,
-            location: 'DebateEngine.run() › soul resolution pre-flight',
-            nextSteps: [
-              `Add pov_tags: ["${tagSelection.tag}"] to at least ${TAG_SCOPE_MINIMUM_NODES} nodes under the ${poverId} POV and run Update-TaxEmbeddings.`,
-              'Or switch to Prioritize mode to boost tagged nodes without filtering.',
-            ],
-          });
-        }
+      const scopeCheck = checkTagScope(campNodes, tagSelection);
+      if (!scopeCheck.sufficient) {
+        throw new ActionableError({
+          goal: `Start tagged debate (${poverId}/${tagSelection.tag})`,
+          problem: scopeCheck.reason === 'none-tagged'
+            ? `No nodes carry tag "${tagSelection.tag}" in the ${poverId} camp`
+            : `Scope too thin for tag "${tagSelection.tag}" in ${poverId}: ${scopeCheck.inScope.length} groundable nodes (minimum ${TAG_SCOPE_MINIMUM_NODES})`,
+          location: 'DebateEngine.run() › soul resolution pre-flight',
+          nextSteps: [
+            `Add pov_tags: ["${tagSelection.tag}"] to at least ${TAG_SCOPE_MINIMUM_NODES} nodes under the ${poverId} POV and run Update-TaxEmbeddings.`,
+            'Or switch to Prioritize mode to boost tagged nodes without filtering.',
+          ],
+        });
       }
       if (!config.soulResolver) {
         throw new ActionableError({
