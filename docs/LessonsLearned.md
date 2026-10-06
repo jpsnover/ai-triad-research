@@ -4326,3 +4326,21 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 2 instances same session (Computational Linguist, p/7#88). Loud (guard exits non-zero); easy to misread as a push failure when the push actually succeeded.
 
 **Applies To:** All agents running guards or checks that read GitHub PR/ref metadata immediately after a push.
+
+## #206 [Build] `||`-Fallback Short-Circuits When Primary Succeeds — Reader Uses Fallback Path That Was Never Written
+
+**Pattern:** A shell chain of the form `cmd > /path/A || cmd > /path/B; read /path/B` writes to path A when the primary succeeds, skips path B entirely, then fails at read time with "No such file." The `||` fallback is a safety net for primary failure — when the primary succeeds, the fallback never runs, so its output path is never created. If the downstream reader hard-codes the fallback path, it reads a file that only exists when the primary *fails*.
+
+**Instances:**
+- 2026-10-06 — PowerShell 2 (p/228#25): `git show … > $TMPDIR/f || git show … > <scratchpad>/f; sed <scratchpad>/f` — first redirect succeeded, `||` fallback never ran, `<scratchpad>/f` was never written → "No such file." Fix: use a single explicit path variable for both the write target and the read source.
+
+**Root Cause:** The `||` operator short-circuits on primary success — it is not a "try both" fan-out, it is "use fallback only on failure." Any code that reads the fallback path must account for the case where the primary succeeded and that path was never written.
+
+**Prevention:**
+1. **Use a single explicit path variable:** assign the destination once (`$out = "<path>"`), write to `$out` in both branches, read from `$out`. Primary and fallback become alternate writers to the same destination.
+2. **Alternatively, test existence before reading:** `if (Test-Path $fallbackPath)` / `[ -f $fallbackPath ]` — but this only catches the symptom; the root fix is a unified destination.
+3. **When you see `cmd > pathA || cmd > pathB; use pathB`, stop:** the fallback path is only written on primary failure. Decide which path is canonical and use it for the read.
+
+**Status:** Active — 1 instance (PowerShell 2, p/228#25). Self-inflicted; low recurrence risk once the `||` short-circuit semantics are understood. Logged for pattern recognition if the shape recurs.
+
+**Applies To:** All agents writing shell chains with `||` fallbacks that write to different output paths.
