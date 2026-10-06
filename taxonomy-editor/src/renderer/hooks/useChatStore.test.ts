@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const { mockApi, mockRecord, taxonomyNodes } = vi.hoisted(() => {
   const mockRecord = vi.fn();
   /** Accelerationist POV nodes the mocked taxonomy store returns (t/3995 tag tests set it). */
-  const taxonomyNodes: { accelerationist: Array<{ id: string; pov_tags?: string[] }> } = { accelerationist: [] };
+  const taxonomyNodes: { skeptic: Array<{ id: string; pov_tags?: string[] }> } = { skeptic: [] };
   const mockApi = {
     listChatSessions: vi.fn().mockResolvedValue([]),
     loadChatSession: vi.fn(),
@@ -26,9 +26,9 @@ vi.mock('@bridge', () => ({ api: mockApi }));
 vi.mock('./useTaxonomyStore', () => ({
   useTaxonomyStore: {
     getState: () => ({
-      accelerationist: { nodes: taxonomyNodes.accelerationist },
+      accelerationist: { nodes: [] },
       safetyist: { nodes: [] },
-      skeptic: { nodes: [] },
+      skeptic: { nodes: taxonomyNodes.skeptic },
       situations: { nodes: [] },
       aiBackend: 'gemini',
       geminiModel: 'gemini-flash-lite-latest',
@@ -58,7 +58,10 @@ vi.mock('@lib/flight-recorder/index', () => ({
   getGlobalRecorder: () => ({ record: mockRecord }),
 }));
 
-import { useChatStore, parseChatResponse, chatTagSelection } from './useChatStore';
+import { useChatStore, parseChatResponse, chatTagSelection, chatSoul } from './useChatStore';
+import { chatSystemPrompt } from '../prompts/chat';
+import { POVER_INFO } from '@lib/debate/poverInfo';
+import skepticCritical from '@lib/debate/soul-docs/skeptic.critical.soul.json';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 
 function makeChatSession(overrides: Record<string, unknown> = {}) {
@@ -179,25 +182,73 @@ describe('useChatStore', () => {
 
   // t/3995: a chat can carry one POV tag (spec §2). Scope sends only tagged nodes; Prioritize is recorded
   // and, until formatTaxonomyContext orders by tag (t/3996), sends every node with a WARN.
+  // t/3995 part 2: the tag soul REPLACES the POV soul as the chat persona (spec section 1). Uses the real
+  // skeptic.critical soul file through tagSoulRegistry, so registry/file drift fails here.
+  describe('tag soul persona (t/3995)', () => {
+    const SKEPTIC_CRITICAL = { pover: 'skeptic', pov_tag: 'critical', tag_mode: 'prioritize' };
+    const sentPersonality = () => vi.mocked(chatSystemPrompt).mock.calls.map(c => c[2]);
+    const sentLabel = () => vi.mocked(chatSystemPrompt).mock.calls.map(c => c[0]);
+
+    it('the fixture is a real difference: tag and base personalities differ', () => {
+      expect(skepticCritical.personality).not.toBe(POVER_INFO.skeptic.personality);
+    });
+
+    it('a tagged chat opens as the tag soul, keeping the base label', async () => {
+      useChatStore.setState({ activeChat: makeChatSession(SKEPTIC_CRITICAL) as never });
+      await useChatStore.getState().generateOpening();
+      expect(sentPersonality()).toEqual([skepticCritical.personality]);
+      expect(sentLabel()).toEqual([POVER_INFO.skeptic.label]);
+    });
+
+    it('follow-up turns of a tagged chat use the tag soul too', async () => {
+      useChatStore.setState({
+        activeChat: makeChatSession({
+          ...SKEPTIC_CRITICAL,
+          transcript: [{ id: 'e1', timestamp: '2026-01-01T00:00:00Z', speaker: 'skeptic', content: 'Opening', taxonomy_refs: [] }],
+        }) as never,
+      });
+      await useChatStore.getState().sendMessage('follow-up');
+      expect(sentPersonality()).toEqual([skepticCritical.personality]);
+    });
+
+    it('an untagged chat speaks as the base soul, as before', async () => {
+      useChatStore.setState({ activeChat: makeChatSession({ pover: 'skeptic' }) as never });
+      await useChatStore.getState().generateOpening();
+      expect(sentPersonality()).toEqual([POVER_INFO.skeptic.personality]);
+    });
+
+    it('a tag with no soul fails the opening loudly instead of using the base voice', async () => {
+      useChatStore.setState({ activeChat: makeChatSession({ pover: 'skeptic', pov_tag: 'no-such-tag', tag_mode: 'scope' }) as never });
+      await useChatStore.getState().generateOpening();
+      expect(chatSystemPrompt).not.toHaveBeenCalled();
+      expect(useChatStore.getState().chatError).toMatch(/Failed to start conversation/);
+    });
+
+    it('chatSoul resolves base and tag souls', () => {
+      expect(chatSoul({ pover: 'skeptic' })).toBe(POVER_INFO.skeptic);
+      expect(chatSoul({ pover: 'skeptic', pov_tag: 'critical', tag_mode: 'scope' }).personality).toBe(skepticCritical.personality);
+    });
+  });
+
   describe('POV tag (t/3995)', () => {
     const NODES = [
-      { id: 'acc-beliefs-001', pov_tags: ['open-source'] },
-      { id: 'acc-beliefs-002' },
-      { id: 'acc-desires-001', pov_tags: ['open-source', 'other'] },
+      { id: 'skp-beliefs-001', pov_tags: ['critical'] },
+      { id: 'skp-beliefs-002' },
+      { id: 'skp-desires-001', pov_tags: ['critical', 'other'] },
     ];
     const sentNodeIds = () => vi.mocked(formatTaxonomyContext).mock.calls.map(c => c[0].povNodes.map(n => n.id));
     const tagWarns = () => mockRecord.mock.calls.filter(([e]) => e.component === 'chat-store' && e.level === 'warn' && /tag/i.test(e.message));
     const opening = async (tag: Record<string, unknown>) => {
-      useChatStore.setState({ activeChat: makeChatSession(tag) as never });
+      useChatStore.setState({ activeChat: makeChatSession({ pover: 'skeptic', ...tag }) as never });
       await useChatStore.getState().generateOpening();
     };
-    beforeEach(() => { taxonomyNodes.accelerationist = NODES; });
-    afterEach(() => { taxonomyNodes.accelerationist = []; });
+    beforeEach(() => { taxonomyNodes.skeptic = NODES; });
+    afterEach(() => { taxonomyNodes.skeptic = []; });
 
     it('createChat stores the tag on the session', async () => {
-      await useChatStore.getState().createChat('inform', 'accelerationist', 'T', undefined, { pov_tag: 'open-source', tag_mode: 'scope' });
+      await useChatStore.getState().createChat('inform', 'skeptic', 'T', undefined, { pov_tag: 'critical', tag_mode: 'scope' });
       const saved = mockApi.saveChatSession.mock.calls[0][0];
-      expect(saved.pov_tag).toBe('open-source');
+      expect(saved.pov_tag).toBe('critical');
       expect(saved.tag_mode).toBe('scope');
     });
 
@@ -209,19 +260,19 @@ describe('useChatStore', () => {
     });
 
     it('the opening of a Scope chat is given only the tagged nodes', async () => {
-      await opening({ pov_tag: 'open-source', tag_mode: 'scope' });
-      expect(sentNodeIds()).toEqual([['acc-beliefs-001', 'acc-desires-001']]);
+      await opening({ pov_tag: 'critical', tag_mode: 'scope' });
+      expect(sentNodeIds()).toEqual([['skp-beliefs-001', 'skp-desires-001']]);
     });
 
     it('follow-up turns of a Scope chat are scoped too', async () => {
       useChatStore.setState({
         activeChat: makeChatSession({
-          pov_tag: 'open-source', tag_mode: 'scope',
-          transcript: [{ id: 'e1', timestamp: '2026-01-01T00:00:00Z', speaker: 'accelerationist', content: 'Opening', taxonomy_refs: [] }],
+          pover: 'skeptic', pov_tag: 'critical', tag_mode: 'scope',
+          transcript: [{ id: 'e1', timestamp: '2026-01-01T00:00:00Z', speaker: 'skeptic', content: 'Opening', taxonomy_refs: [] }],
         }) as never,
       });
       await useChatStore.getState().sendMessage('follow-up');
-      expect(sentNodeIds()).toEqual([['acc-beliefs-001', 'acc-desires-001']]);
+      expect(sentNodeIds()).toEqual([['skp-beliefs-001', 'skp-desires-001']]);
     });
 
     it('an untagged chat is given every node, with no tag WARN', async () => {
@@ -231,21 +282,21 @@ describe('useChatStore', () => {
     });
 
     it('a Scope chat below the tag minimum WARNs and stays scoped, never widening (TL t/3957#7 B(b))', async () => {
-      await opening({ pov_tag: 'open-source', tag_mode: 'scope' }); // 2 tagged < minimum 5
-      expect(sentNodeIds()).toEqual([['acc-beliefs-001', 'acc-desires-001']]);
+      await opening({ pov_tag: 'critical', tag_mode: 'scope' }); // 2 tagged < minimum 5
+      expect(sentNodeIds()).toEqual([['skp-beliefs-001', 'skp-desires-001']]);
       expect(tagWarns()).toHaveLength(1);
-      expect(tagWarns()[0][0].data).toMatchObject({ tag: 'open-source', in_scope: 2, excluded: 1 });
+      expect(tagWarns()[0][0].data).toMatchObject({ tag: 'critical', in_scope: 2, excluded: 1 });
     });
 
     it('a Scope chat at or above the minimum does not WARN', async () => {
-      taxonomyNodes.accelerationist = Array.from({ length: 6 }, (_, i) => ({ id: `acc-beliefs-00${i}`, pov_tags: i < 5 ? ['open-source'] : [] }));
-      await opening({ pov_tag: 'open-source', tag_mode: 'scope' });
+      taxonomyNodes.skeptic = Array.from({ length: 6 }, (_, i) => ({ id: `skp-beliefs-00${i}`, pov_tags: i < 5 ? ['critical'] : [] }));
+      await opening({ pov_tag: 'critical', tag_mode: 'scope' });
       expect(sentNodeIds()[0]).toHaveLength(5);
       expect(tagWarns()).toHaveLength(0);
     });
 
     it('a Prioritize chat gets every node and a WARN until t/3996 orders them', async () => {
-      await opening({ pov_tag: 'open-source', tag_mode: 'prioritize' });
+      await opening({ pov_tag: 'critical', tag_mode: 'prioritize' });
       expect(sentNodeIds()).toEqual([NODES.map(n => n.id)]);
       expect(tagWarns()).toHaveLength(1);
       expect(tagWarns()[0][0].message).toMatch(/t\/3996/);

@@ -9,7 +9,6 @@ import type {
   ChatEntry,
 } from '../types/chat';
 import type { SpeakerId, TaxonomyRef } from '../types/debate';
-import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
 import { useTaxonomyStore, getStoredModel } from './useTaxonomyStore';
 import { extractHttpUrls } from '../../../../lib/url-fetch/extractHttpUrls';
@@ -21,6 +20,8 @@ import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext, FormatContextConfig } from '../utils/taxonomyContext';
 import { checkTagScope } from '@lib/debate/relevanceSelection';
 import type { SeatTag, TagSelection } from '@lib/debate/types/session';
+import { resolvePoverInfo } from '@lib/debate/tagSoulRegistry';
+import type { PovInfo } from '@lib/debate/types';
 import {
   chatSystemPrompt,
   chatOpeningPrompt,
@@ -100,6 +101,13 @@ function stripCodeFences(text: string): string {
 }
 
 const CHAT_CONTEXT_CONFIG: FormatContextConfig = { maxNodes: 9999, maxDesires: 9999 };
+
+/** The soul the chat's POVer speaks as: the tag soul when the chat is tagged (spec §1: it replaces the POV
+ *  soul), else the base soul. Browser-safe tagSoulRegistry, never soulDocLoader. Throws if the tag has no
+ *  soul, so a tagged chat never silently speaks in the base voice (t/3995). */
+export function chatSoul(chat: Pick<ChatSession, 'pover' | 'pov_tag' | 'tag_mode'>): PovInfo {
+  return resolvePoverInfo(chat.pover, chatTagSelection(chat)).soul;
+}
 
 /** The chat's tag selection, or undefined when untagged (t/3995). */
 export function chatTagSelection(chat: Pick<ChatSession, 'pov_tag' | 'tag_mode'>): TagSelection | undefined {
@@ -364,7 +372,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ chatGenerating: true, chatError: null, chatStreamingText: null });
 
     try {
-      const info = POVER_INFO[activeChat.pover];
+      const info = chatSoul(activeChat);
       const ctx = getTaxonomyContext(info.pov, activeChat);
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
       const model = getConfiguredModel();
@@ -466,7 +474,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
 
     try {
-      const info = POVER_INFO[activeChat.pover];
+      const info = chatSoul(activeChat);
       const ctx = getTaxonomyContext(info.pov, activeChat);
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
       const model = getConfiguredModel();
