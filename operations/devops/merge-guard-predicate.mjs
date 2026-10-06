@@ -64,8 +64,15 @@ const CLAUSE_END_RE = /;|&&|\|\||\||(?<![>&])&(?![>&])|\r?\n/;
 // (`bash <<EOF`, `sh -s`, `pwsh -Command -`) RUNS its body (TL review of #2966, t/3695#29), so
 // stripping every heredoc opened a hole `main` did not have. ALLOWLIST: only the consumers below
 // are data sinks; any other consumer — including an unknown one — leaves the body to be judged.
-// Quoted single-line text (`-m "…gh pr merge 5…"`) is NOT stripped — a known residual.
+// A sink whose stdout is PIPED ONWARD counts only if every downstream stage is itself a sink:
+// `tee f <<'EOF' | sh` passes the body straight to a shell (TL re-review of #2966, t/3695#30).
+//
+// Known blanks (judged by review, not by this guard):
+//   - quoted single-line text (`-m "…gh pr merge 5…"`) is not stripped, so it can false-positive;
+//   - the SCRIPT-FILE route: `cat > x.sh <<EOF` (stripped, a data sink) then `bash x.sh` runs a merge
+//     the guard never saw. The guard judges command text, not the files a command later executes.
 const SEG_SPLIT_RE = /;|&&|\|\||\|/;
+const PIPE_RE = /(?<!\|)\|(?!\|)/;
 const HEREDOC_DATA_SINKS = [
   /^\s*git\s+commit\b.*(?:\s-F\s*-|\s--file(?:=|\s+)-)(?:\s|$)/, // git commit -F - / --file=-
   /^\s*gh(?:\.exe)?\s.*(?:\s--body-file(?:=|\s+)-|\s-F\s*-)(?:\s|$)/, // gh … --body-file - / -F -
@@ -77,12 +84,17 @@ const HEREDOC_DATA_SINKS = [
 // on the text BEFORE the marker only (the `)"` after it is irrelevant).
 const SUBST_CAT_SINK = /^\s*(?:git\s+commit|gh(?:\.exe)?\s+(?:pr|issue)\s+(?:create|comment|edit))\b.*\$\(\s*cat\s*$/;
 
+const isSinkStage = (stage) => HEREDOC_DATA_SINKS.some((re) => re.test(stage));
+
 export function heredocConsumerIsDataSink(openerLine, markerIndex, markerLength) {
   const before = openerLine.slice(0, markerIndex).split(SEG_SPLIT_RE).pop();
-  const after = openerLine.slice(markerIndex + markerLength).split(SEG_SPLIT_RE)[0];
+  const rest = openerLine.slice(markerIndex + markerLength);
+  const after = rest.split(SEG_SPLIT_RE)[0];
+  // Stages the consumer's stdout is piped into, up to the end of this pipeline (; && ||).
+  const downstream = rest.split(/;|&&|\|\|/)[0].split(PIPE_RE).slice(1);
+  if (!downstream.every(isSinkStage)) return false;
   if (SUBST_CAT_SINK.test(before)) return true;
-  const seg = `${before} ${after}`;
-  return HEREDOC_DATA_SINKS.some((re) => re.test(seg));
+  return isSinkStage(`${before} ${after}`);
 }
 
 export function stripHeredocBodies(command) {

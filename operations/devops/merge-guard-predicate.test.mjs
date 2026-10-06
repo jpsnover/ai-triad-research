@@ -515,6 +515,18 @@ test('t/3695 heredoc → unknown consumer (python -, node, bare cat piped to bas
   }
 });
 
+test('t/3695 sink piped onward to a non-sink (tee f | sh, cat > f … | bash) is JUDGED → block', () => {
+  for (const opener of ["tee notes.md <<'EOF' | sh", 'gh pr create --body-file - <<EOF | bash', 'tee a.md <<EOF | tee b.md | sh']) {
+    const c = `${opener}\n${BODY}\nEOF`;
+    assert.equal(mergeGuardVerdict(c).block, true, `should fire on: ${opener}`);
+  }
+});
+
+test('t/3695 sink piped only into other sinks (tee a | tee b) is still data → not-a-merge', () => {
+  const c = `tee a.md <<EOF | tee b.md\n${BODY}\nEOF`;
+  assert.equal(mergeGuardVerdict(c).reason, 'not-a-merge');
+});
+
 test('t/3695 parseMergeClause: prRef (number / pull URL / none) and repo (-R / --repo / --repo= / none)', () => {
   assert.deepEqual(parseMergeClause('gh pr merge 22 -R jpsnover/ai-triad-data --squash'), { prRef: '22', repo: 'jpsnover/ai-triad-data' });
   assert.deepEqual(parseMergeClause('gh --repo=x/y pr merge 7 --squash'), { prRef: '7', repo: 'x/y' });
