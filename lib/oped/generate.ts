@@ -186,17 +186,34 @@ export function preflightOpEdTag(request: GenerateOpEdRequest, deps: OpEdGenerat
   };
 
   const campNodes = (loadTaxonomy(deps.repoRoot)[pov]?.nodes ?? []) as PovNode[];
-  if (mode === 'scope') {
-    const scope = checkTagScope(campNodes, { tag, mode });
-    if (!scope.sufficient) {
-      throw tagRefusal(
-        `Scope "${pov}/${tag}" has too few tagged nodes to ground an essay: ${scope.inScope.length} in scope, `
-          + `${scope.excluded.length} untagged would be excluded (checkTagScope judged it insufficient).`,
-        ['Use Prioritize mode, which keeps every node and ranks tagged ones first.', 'Or tag more nodes for this wing first.'],
-      );
-    }
-  }
+  refuseThinTag(campNodes, selection);
   return { selection, voice, campNodes };
+}
+
+/**
+ * Refuse a tag the corpus can't support (CL p/736#27). Two cases, both pre-flight:
+ *  - NO node carries the tag, in EITHER mode. Scope would ground the wing on zero camp nodes (situations
+ *    only) under its label; Prioritize would boost nothing while the byline still names the wing. Refused
+ *    regardless of where the Scope floor ends up. Live today: no corpus node is tagged yet (t/3962).
+ *  - a Scope with too few tagged nodes (`checkTagScope`; TL t/3960#3 cond 1).
+ */
+function refuseThinTag(campNodes: PovNode[], selection: TagSelection): void {
+  const { pov, tag, mode } = selection;
+  const scope = checkTagScope(campNodes, { tag, mode });
+  if (scope.inScope.length === 0) {
+    throw tagRefusal(
+      `No ${pov} node carries the tag "${tag}", so the ${tag} wing has nothing to ground on `
+        + `(${scope.excluded.length} ${pov} nodes, none tagged).`,
+      ['Tag nodes for this wing first (t/3962), or omit tagSelection.'],
+    );
+  }
+  if (mode === 'scope' && !scope.sufficient) {
+    throw tagRefusal(
+      `Scope "${pov}/${tag}" has too few tagged nodes to ground an essay: ${scope.inScope.length} in scope, `
+        + `${scope.excluded.length} untagged would be excluded (checkTagScope judged it insufficient).`,
+      ['Use Prioritize mode, which keeps every node and ranks tagged ones first.', 'Or tag more nodes for this wing first.'],
+    );
+  }
 }
 
 /** The soul for one member: the tag soul for the tagged member, its base soul for every other. */

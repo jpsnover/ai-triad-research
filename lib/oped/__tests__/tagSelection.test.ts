@@ -21,6 +21,8 @@ vi.mock('../../debate/soul-docs/pov-tags.json', () => ({
       skeptic: [
         { id: 'critical', label: 'Critical', soul_doc: 'skeptic.critical', description: 'Critical wing' },
         { id: 'institutional', label: 'Institutional', soul_doc: 'skeptic.institutional', description: 'Institutional wing' },
+        // Registered, but no node carries it: the state of the real corpus today (CL p/736#27).
+        { id: 'untagged-wing', label: 'Untagged', soul_doc: 'skeptic.untagged-wing', description: 'No node carries this' },
       ],
     },
   },
@@ -183,6 +185,15 @@ describe('op-ed tag selection: pre-flight refusals (no generation, no partial se
     const err = await refusal({ pov: 'skeptic', tag: 'institutional', mode: 'scope' });
     expect(err).toBeInstanceOf(ActionableError);
     expect(String((err as Error).message)).toMatch(/2 in scope, 6 untagged would be excluded/);
+    expect(adapter.generateText).not.toHaveBeenCalled();
+  });
+
+  it('REFUSES a tag no node carries, in BOTH modes (CL p/736#27: the corpus is untagged today)', async () => {
+    for (const mode of ['scope', 'prioritize'] as const) {
+      const err = await refusal({ pov: 'skeptic', tag: 'untagged-wing', mode });
+      expect(err, mode).toBeInstanceOf(ActionableError);
+      expect(String((err as Error).message), mode).toMatch(/No skeptic node carries the tag "untagged-wing"/);
+    }
     expect(adapter.generateText).not.toHaveBeenCalled();
   });
 
