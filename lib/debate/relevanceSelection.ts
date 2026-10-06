@@ -20,6 +20,8 @@
 //     fallback. The corpus `nodeEmbeddings` is pre-built by the caller.
 
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
+import type { TagSelection } from './types/session.js';
+import { TAG_BOOST_INCREMENT } from './debateConfig.js';
 import { cosineSimilarity } from '../embeddings/similarity.js';
 import {
   scoreNodesViaAN,
@@ -121,6 +123,38 @@ export interface DoctrinalAdjustment {
   evidentialConfidence: number;
 }
 
+/**
+ * Pure pre-flight: check how many POV nodes are in-scope for a given tag.
+ * Never throws at runtime — callers use this to decide whether to proceed.
+ */
+export function checkTagScope(
+  povNodes: PovNode[],
+  tagSelection: TagSelection,
+): { inScope: PovNode[]; excluded: PovNode[]; sufficient: boolean } {
+  const inScope = povNodes.filter(n => (n.pov_tags ?? []).includes(tagSelection.tag));
+  const excluded = povNodes.filter(n => !(n.pov_tags ?? []).includes(tagSelection.tag));
+  return { inScope, excluded, sufficient: inScope.length >= 5 };
+}
+
+/**
+ * Apply tag selection to a POV node set (pure).
+ * SCOPE mode: returns only tagged nodes; boostIds is empty.
+ * PRIORITIZE mode: returns all nodes; boostIds lists the tagged node IDs to boost.
+ */
+export function applyTagSelection(
+  povNodes: PovNode[],
+  tagSelection: TagSelection,
+): { filteredNodes: PovNode[]; excludedCount: number; boostIds: string[] } {
+  if (tagSelection.mode === 'scope') {
+    const tagged = povNodes.filter(n => (n.pov_tags ?? []).includes(tagSelection.tag));
+    return { filteredNodes: tagged, excludedCount: povNodes.length - tagged.length, boostIds: [] };
+  }
+  const boostIds = povNodes
+    .filter(n => (n.pov_tags ?? []).includes(tagSelection.tag))
+    .map(n => n.id);
+  return { filteredNodes: povNodes, excludedCount: 0, boostIds };
+}
+
 export interface SelectRelevantTaxonomyInput {
   // ── static (server-derivable; the client passes them from its store) ──
   povNodes: PovNode[];
@@ -152,6 +186,8 @@ export interface SelectRelevantTaxonomyInput {
     maxTotal?: number;       // default 35
     topN?: number;           // mean-top-N for multi-vector nodes; default 3
     scoringMode?: 'embedding' | 'lexical';
+    /** POV tag selection: SCOPE filters to tagged nodes only; PRIORITIZE boosts tagged nodes (t/3957). */
+    tagSelection?: TagSelection;
     // NOTE: `minPerPov` is deliberately NOT a param — selectRelevantNodes reads `opts.minPerPov ?? 2`,
     // so leaving it unset keeps BOTH callers at the default 2 (ServerAPI parity note, t/3257#15).
   };
@@ -337,16 +373,32 @@ export async function selectRelevantTaxonomy(input: SelectRelevantTaxonomyInput)
   const { povNodes, situationNodes, policyRegistry, nodeEmbeddings, lineageMapping, doctrinalBoundaries, session, params, embed } = input;
   const threshold = params.threshold ?? 0.45;
 
-  // 1. Doctrinal anchoring (read-only in; adjustments out — W2).
+  // 0. Tag selection: SCOPE filters povNodes before scoring; PRIORITIZE keeps all and collects boost targets.
+  let effectivePovNodes = povNodes;
+  let tagBoostIds: string[] = [];
+  let tagExcludedCount = 0;
+  if (params.tagSelection) {
+    const applied = applyTagSelection(povNodes, params.tagSelection);
+    effectivePovNodes = applied.filteredNodes;
+    tagBoostIds = applied.boostIds;
+    tagExcludedCount = applied.excludedCount;
+  }
+
+  // 1. Doctrinal anchoring on the full povNodes (not filtered — anchoring is pre-selection, W2).
   const anchoring = await computeAnchoringAdjustments(povNodes, nodeEmbeddings, doctrinalBoundaries, embed);
 
-  // 2. Relevance scores + per-node provenance (AN-primary, topic-query fallback).
-  const allNodeIds = [...povNodes.map(n => n.id), ...situationNodes.map(n => n.id)];
+  // 2. Relevance scores on the effective (possibly filtered) pov set + all situation nodes.
+  const allNodeIds = [...effectivePovNodes.map(n => n.id), ...situationNodes.map(n => n.id)];
   const { scores, nodeSourceMap } = await computeScores(session.anClaimEmbeddings, nodeEmbeddings, allNodeIds, params, embed);
 
-  // 3. Selection options (+ lineage boost) and the exclude-well-tested mode: well-tested exclusion +
-  //    under-tested boost always, plus the curated greatest-hits list when one was passed in (pure).
-  const opts = buildOptions(threshold, params, povNodes, session.lineageFrame, lineageMapping);
+  // Apply tag boost for PRIORITIZE mode (after base scores are computed).
+  for (const id of tagBoostIds) {
+    const existing = scores.get(id) ?? 0;
+    scores.set(id, existing + TAG_BOOST_INCREMENT);
+  }
+
+  // 3. Selection options (+ lineage boost) and the exclude-well-tested mode.
+  const opts = buildOptions(threshold, params, effectivePovNodes, session.lineageFrame, lineageMapping);
   if (session.excludeGreatestHits) {
     Object.assign(opts, excludeWellTestedModeOptions());
     if (session.greatestHitsList && session.greatestHitsList.length > 0) {
@@ -355,15 +407,28 @@ export async function selectRelevantTaxonomy(input: SelectRelevantTaxonomyInput)
   }
 
   // 4. Order-preserving selection (W3).
-  const scoredPov = selectRelevantNodes(povNodes, scores, opts);
+  const scoredPov = selectRelevantNodes(effectivePovNodes, scores, opts);
   const scoredCC = selectRelevantSituationNodes(situationNodes, scores, threshold, 3, 15);
+
+  const manifest = buildManifest(scoredPov, scoredCC, threshold);
+  if (params.tagSelection) {
+    const taggedSelectedCount = scoredPov.filter(s =>
+      (s.node.pov_tags ?? []).includes(params.tagSelection!.tag),
+    ).length;
+    manifest.tag_selection = {
+      tag: params.tagSelection.tag,
+      mode: params.tagSelection.mode,
+      excluded_untagged: tagExcludedCount,
+      tagged_selected: taggedSelectedCount,
+    };
+  }
 
   return {
     povNodes: scoredPov.map(s => ({ nodeId: s.node.id, score: s.score })),
     situationNodes: scoredCC.map(s => ({ nodeId: s.node.id, score: s.score })),
     policyRegistry,
     nodeSourceMap,
-    injectionManifest: buildManifest(scoredPov, scoredCC, threshold),
+    injectionManifest: manifest,
     anchoring,
   };
 }

@@ -22,6 +22,8 @@ export const BoundariesSchema = z.object({
 
 export const SoulDocumentSchema = z.object({
   pov: z.enum(['accelerationist', 'safetyist', 'skeptic']),
+  /** Present in tag soul files — absent in base souls (t/3957). */
+  tag: z.string().optional(),
   label: z.string().min(1),
   color: z.string().min(1),
   personality: z.string().min(1),
