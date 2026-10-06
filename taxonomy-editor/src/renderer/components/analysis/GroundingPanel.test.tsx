@@ -106,6 +106,24 @@ describe('GroundingPanel (t/1025)', () => {
     expect(screen.queryByText('Well-tested')).not.toBeInTheDocument();
     expect(screen.queryByText('Contested')).not.toBeInTheDocument();
   });
+
+  it('shows the POV camp description in the detail header for an acc- node (e/259)', () => {
+    render(<GroundingPanel debate={debateWith([
+      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'acc-belief-001', relevance: 'r' }], metadata: {} },
+    ])} />);
+    fireEvent.click(screen.getAllByText('acc-belief-001')[0]);
+    expect(screen.getByText('Accelerationist — advocates rapid AI development')).toBeInTheDocument();
+  });
+
+  it('omits the POV camp description for a node with no camp owner (sit-*)', () => {
+    render(<GroundingPanel debate={debateWith([
+      { id: 'e1', speaker: 'accelerationist', type: 'statement', taxonomy_refs: [{ node_id: 'sit-001', relevance: 'r' }], metadata: {} },
+    ])} />);
+    fireEvent.click(screen.getAllByText('sit-001')[0]);
+    expect(screen.queryByText(/advocates rapid AI development/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/prioritizes AI safety/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/questions assumptions/)).not.toBeInTheDocument();
+  });
 });
 
 describe('GroundingPanel — Well-Tested Exclusion box', () => {

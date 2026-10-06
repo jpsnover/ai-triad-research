@@ -9,7 +9,8 @@ import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { POVER_INFO } from './poverInfo.js';
 import { SoulDocumentSchema } from './soulDocSchema.js';
-import type { SoulProvenance } from './soulDocLoader.js';
+import type { SoulProvenance } from './soulDocSchema.js';
+import { tagSoulFileName } from '../schema/povTags.js';
 
 /** Readability brand: marks provenance from the Vite/browser path (import.meta.glob). Not a transitive guard — see t/3980. */
 export type SoulProvenanceBrowser = SoulProvenance & { readonly __runtime: 'browser' };
@@ -17,9 +18,10 @@ import type { TagSelection } from './types/session.js';
 import type { PovInfo, SpeakerId } from './types.js';
 
 // import.meta.glob is resolved at Vite/vitest build time. Pattern covers all tag soul files.
-// Key format: "./soul-docs/tags/<tag>.<pov>.soul.json"
+// Key format: "./soul-docs/<pov>.<tag>.soul.json" (spec §3; t/3989). *.*.soul.json matches only
+// two-segment names, so it never captures base souls like accelerationist.soul.json.
 const TAG_SOUL_MODULES = import.meta.glob<{ default: unknown }>(
-  './soul-docs/tags/*.soul.json',
+  './soul-docs/*.*.soul.json',
   { eager: true },
 );
 
@@ -38,14 +40,14 @@ function fnv1aHex16(str: string): string {
 }
 
 function getTagSoulFromRegistry(pov: string, tag: string): PovInfo {
-  const key = `./soul-docs/tags/${tag}.${pov}.soul.json`;
+  const key = `./soul-docs/${tagSoulFileName(pov, tag)}`;
   const mod = TAG_SOUL_MODULES[key];
   if (!mod) {
     throw new ActionableError({
       goal: `Load tag soul for ${pov}:${tag}`,
       problem: `Tag soul not found in registry: ${key}`,
       location: 'tagSoulRegistry.ts › getTagSoulFromRegistry',
-      nextSteps: [`Add the soul file at lib/debate/soul-docs/tags/${tag}.${pov}.soul.json and rebuild.`],
+      nextSteps: [`Add the soul file at lib/debate/soul-docs/${tagSoulFileName(pov, tag)} and rebuild.`],
     });
   }
   try {
@@ -62,7 +64,7 @@ function getTagSoulFromRegistry(pov: string, tag: string): PovInfo {
       goal: `Parse tag soul for ${pov}:${tag}`,
       problem: `Schema validation failed: ${String(err)}`,
       location: 'tagSoulRegistry.ts › getTagSoulFromRegistry',
-      nextSteps: [`Check the soul file at lib/debate/soul-docs/tags/${tag}.${pov}.soul.json against SoulDocumentSchema.`],
+      nextSteps: [`Check the soul file at lib/debate/soul-docs/${tagSoulFileName(pov, tag)} against SoulDocumentSchema.`],
       innerError: err,
     });
   }
@@ -93,7 +95,7 @@ export function resolvePoverInfo(
   return {
     soul,
     soulProvenance: {
-      file: `soul-docs/tags/${tagSelection.tag}.${speaker}.soul.json`,
+      file: `soul-docs/${tagSoulFileName(speaker, tagSelection.tag)}`,
       sha: fnv1aHex16(JSON.stringify(tagSoul)),
     } as SoulProvenanceBrowser,
   };

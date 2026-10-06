@@ -35,3 +35,11 @@ export const SoulDocumentSchema = z.object({
 });
 
 export type SoulDocument = z.infer<typeof SoulDocumentSchema>;
+
+/** Provenance for a loaded soul file. Shared by soulDocLoader (Node) and tagSoulRegistry (browser). */
+export interface SoulProvenance {
+  /** Path to the soul file. */
+  file: string;
+  /** 16 hex digits fingerprinting the soul (SHA-256 prefix on Node, FNV-1a in the browser). */
+  sha: string;
+}

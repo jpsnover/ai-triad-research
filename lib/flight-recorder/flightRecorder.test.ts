@@ -996,3 +996,35 @@ describe('serializer redaction integration', () => {
     expect(eventLine.data.model).toBe('gemini-2.0-flash');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// addContextContributor (t/4023)
+// ═══════════════════════════════════════════════════════════════════
+
+describe('FlightRecorder.addContextContributor (t/4023)', () => {
+  const contextOf = (r: FlightRecorder) =>
+    r.buildDump('manual').ndjson.trim().split('\n').map((l) => JSON.parse(l)).find((l) => l._type === 'context');
+
+  it('puts a contributed section in the dump context, read at dump time', () => {
+    const r = new FlightRecorder({ capacity: 8 });
+    let n = 1;
+    r.addContextContributor('lib_section', () => ({ n }));
+    n = 2;
+    expect(contextOf(r).lib_section).toEqual({ n: 2 });
+  });
+
+  it('keeps the app provider context, and the provider wins on a key collision', () => {
+    const r = new FlightRecorder({ capacity: 8 });
+    r.setContextProvider(() => ({ active_debate_id: 'd1', shared: 'app' }));
+    r.addContextContributor('shared', () => 'lib');
+    r.addContextContributor('extra', () => 1);
+    expect(contextOf(r)).toMatchObject({ active_debate_id: 'd1', shared: 'app', extra: 1 });
+  });
+
+  it('a throwing contributor records its error and never breaks the dump', () => {
+    const r = new FlightRecorder({ capacity: 8 });
+    r.addContextContributor('bad', () => { throw new Error('boom'); });
+    r.addContextContributor('good', () => 'ok');
+    expect(contextOf(r)).toMatchObject({ bad: { error: 'boom' }, good: 'ok' });
+  });
+});

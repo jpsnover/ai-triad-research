@@ -1,0 +1,4967 @@
+{
+  "version": 1,
+  "registry_version": 1,
+  "run": {
+    "ticket": "t/3962",
+    "model": "gemini-3.8-flash",
+    "prompt_version": "v1",
+    "created_at": "2026-10-06T17:45:26+00:00",
+    "scope": "all",
+    "failures": []
+  },
+  "proposals": [
+    {
+      "node_id": "skp-desires-003",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates AI harm fundamentally in corporate data extraction and commodification of personal information, aligning directly with the critical wing's focus on ownership and extraction.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-001",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Focusing on documented, present-day algorithmic discrimination across specific domains (mortgages, healthcare, hiring) rather than speculative future risks represents shared skeptic ground, agreed upon by both wings as evidence of market failure requiring intervention.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-002",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node focuses on empirical measurement of present labor harms versus speculative theoretical projections, representing the shared skeptic commitment to deployment evidence over ungrounded forecasting.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-129",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node views safety rhetoric not as good-faith error but as a deliberate corporate strategy for cartel maintenance and industrial consolidation, aligning with the critical wing's view of hype and safety narratives as power plays (C5) rooted in ownership and power harms (C3).",
+      "crux": "C5",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-146",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The proposal bridges institutional guardrails (tiered, proportional audits enabling safe diffusion) with critical mechanisms of structural accountability and refusal (worker-led safety vetoes and civil-rights impact assessments).",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-004",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Model collapse and recursive synthetic data pollution represent shared empirical observations within the skeptic camp (C0) regarding the physical and informational limits of generative AI, without committing to either wing's specific political economy or governance remedy.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-005",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings of the Skeptic camp identify training data memorization and PII leakage as concrete, measurable harms of currently deployed systems rather than speculative risks, without taking a side on whether institutional adaptation or structural refusal is required.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-006",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node views black-box opacity as an intentional corporate strategy to evade tort liability and shift risk onto downstream users, aligning with the critical wing's focus on harms rooted in corporate power and ownership.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-007",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Evaluating the threat of AI disinformation against empirical evidence and media consumption realities rather than speculative hype is shared ground (C0) across both skeptic wings.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-004",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node locates harms in proprietary ownership and corporate extraction, proposing structural shifts such as worker cooperatives, union bargaining, and public nationalization of compute (C3, C2).",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-005",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node locates the core harm in corporate ownership, infrastructural concentration, and resource extraction, prescribing structural remedies like antitrust and democratic oversight typical of the critical wing.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-008",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node focuses directly on hidden labor extraction, ghost work, and precarity beneath the facade of automation, aligning squarely with the critical wing's view on labor harms and extraction.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-007",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node advocates for sector-specific compliance rules and regulating specific applications rather than foundational or structural power, directly aligning with the institutional wing's view on sector-by-sector institutional adaptation (C2) and harms stemming from specific uses (C3).",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-008",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "By rejecting centralized architectural pre-clearance and hardware gatekeeping in favor of integrating provenance into existing legal discovery frameworks and licensing mechanisms, the node takes the institutional side of adapting established legal institutions rather than instituting top-down exceptional controls.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-009",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Asserting hard material, thermodynamic, and hydrological limits against unbounded scaling narratives is core shared skeptic ground (C0) that grounds AI claims in physical realities rather than speculative projections.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-122",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings of the Skeptic camp agree on C0 that current AI models engage in statistical pattern prediction rather than genuine understanding, consciousness, or superintelligence.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-011",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "Documenting immediate, measurable real-world harms over speculative existential risks is shared ground across both skeptic wings (C0), and the node does not advocate for either wing's specific remedy or institutional diagnosis.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-013",
+      "proposed": [],
+      "confidence": 0.9,
+      "rationale": "Premising policy on massive AI-generated wealth and widespread automation-driven displacement contradicts the Skeptic camp's core shared premise (C0) that AI is not an exceptional, transformative force.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-014",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "This node addresses data extraction, creator compensation, and corporate exploitation of scraped labor, aligning with the critical wing's focus on harms stemming from ownership, power, and extraction (C3).",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-017",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Mandatory documentation and disclosure to enable auditing and accountability of deployed systems is shared ground across both wings of the Skeptic camp.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-123",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the premise (C0) that AI faces hard technical limitations and cannot master tacit, uncodifiable human knowledge, grounding claims in empirical capability rather than exceptionalist hype.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-006",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node advocates active refusal and structural resistance to AI adoption in education and cognitive tasks to prevent cognitive atrophy, aligning with the critical wing's default stance on adoption (C4).",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-124",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The concern that cognitive offloading onto AI impairs deep learning and retention is shared across both skeptic wings as an observed educational and cognitive drawback, without taking a stand on structural power (critical) versus sector-specific adaptation (institutional).",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-014",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings acknowledge the empirical gap between generating fluent AI-assisted output and genuine human competence or understanding, without taking a side on structural refusal versus sectoral guardrails.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-125",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the premise that alarmist narratives and inflated fear distort rational, evidence-based evaluation of deployed AI systems.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-023",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Mobilizing political pressure to dismantle or challenge corporate power and market dominance aligns with the critical wing's focus on harms stemming from ownership and concentrated corporate control.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-017",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the premise (C0) that AI scaling is bounded by real-world physical and economic constraints rather than an inevitable exponential trajectory.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-131",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Distinguishing theoretical potential from actual deployment is core shared ground (C0) across the Skeptic camp, emphasizing measured deployment realities over speculative capabilities without taking a partisan stance on adoption or harms.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-018",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Challenging whether aggregate economic or GDP growth translates into tangible societal benefits is shared skeptic ground (C0), embraced both by critical theorists critiquing extractive growth and institutional economists noting historical productivity paradoxes and welfare measurement gaps.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-019",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Documenting concrete, present harms like scalable reputation destruction rather than speculative future risks is shared ground across both skeptic wings (C0).",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-132",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Critique of ideological AI safety/alignment purity tests and the suppression of grounded, practical debate is shared ground across both skeptic wings under C0.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-133",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node attributes scaling failures to organizational hurdles like infrastructure, integration, and strategic roadmaps rather than inherent uselessness or a bubble, aligning with the institutional view that AI is a general-purpose technology whose value diffuses slowly.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-021",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node views AI as a genuine tool for gradual improvement and routine engineering within existing practices, aligning with the institutional wing's perspective that AI's value is real but arrives incrementally (C1).",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-029",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Relying on standard private contracting mechanisms to allocate compliance liability based on sector-specific downstream deployment aligns with the institutional wing's view that existing legal tools are adequate to manage use-specific risks.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-022",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the premise (C0) that AI is bounded by ordinary economic realities and deployment costs rather than being an exceptional, unconstrained force that inevitably automates all labor.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-118",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "By locating harms in specific negative outputs like manipulative ads or addictive features while explicitly excluding structural ownership and labor concerns, the node aligns with the institutional view that harms arise from specific sector-level applications.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-135",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Developing empirical metrics to measure actual labor market transitions reflects the shared Skeptic commitment (C0) to grounded, measurable deployment data rather than speculative projections of sudden disruption.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-024",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Locating algorithmic discrimination primarily in designers' methodological choices of proxy variables attributes harm to specific implementation flaws in specific sectors rather than to structural ownership, labor extraction, or power relations.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-119",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The belief locates the core harm of AI in wealth concentration and power imbalances that threaten democratic institutions, aligning directly with the critical wing's stance on ownership and power.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-127",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node asserts that existing political systems and institutions are incapable of managing AI's economic impacts and require fundamental transformation, directly aligning with the critical wing's stance on Crux C2.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-136",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This node frames AI deployment bottlenecks as classic general-purpose technology friction—integration, infrastructure, and organizational hurdles—rather than viewing the technology as an inherently useless bubble or extractive con.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-034",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node rejects conventional utility frameworks and voluntary sharing in favor of structural antitrust separation and community vetoes, aligning with the critical wing's demand for structural rebuilding of institutional power.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-035",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node focuses directly on countering labor extraction and displacement harms through structural market interventions to disincentivize replacement, aligning with the critical wing's focus on labor power and capital ownership.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-009",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Protecting voice identity against unauthorized synthetic replication is shared ground across the skeptic camp: critical skeptics view voice cloning as non-consensual labor extraction, while institutional skeptics view it as a specific misuse requiring targeted legal guardrails.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-026",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This belief reflects shared empirical ground (C0), relying on measured deployment evidence from human-factors research to challenge idealized assumptions about human-in-the-loop oversight without inherently taking a side on structural reform versus sector-specific adaptation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-027",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Automation bias and over-reliance on flawed AI outputs is recognized across both skeptic wings as an empirical risk of current deployments, without endorsing either outright refusal (critical) or pure sector-specific accommodation (institutional).",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-137",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node aligns with the critical wing's stance on C1 that fluent or surface-level output is mistaken for genuine competence, empathy, and understanding, resulting in dehumanizing substitution in care settings.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-143",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node focuses on establishing pragmatic guardrails and corporate boundary controls to manage legal liability as AI agents are adopted, reflecting the institutional wing's approach of diffusion with sector-specific guardrails.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-028",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Identifying 'AI washing'—where marketed AI capabilities vastly exceed actual technological substance—is shared ground between both wings, representing standard skeptical insistence on evaluating actual technical deployment over promotional hype.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-120",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node locates harm in platform ownership and structural conflicts of interest where deployers exercise power over users, aligning with the critical wing's focus on ownership and extraction on C3.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-138",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Both wings share the premise that accountability must focus on concrete, present harms in deployed systems, such as profit-driven algorithmic nudges compromising professional obligations and slipping past existing regulatory checks.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-029",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Identifying the evidentiary and information asymmetries that prevent victims from proving causation in AI-related harms is shared ground across both wings regarding legal accountability and present harms.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-040",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node relies on existing common-law doctrines (the Restatement of Torts risk-utility framework) rather than structural overhaul or novel regulatory regimes, aligning with the institutional view that existing legal institutions are adequate when adapted.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-030",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Identifying the current AI boom as economically fragile and an unsustainable financial bubble headed for an industry-wide crash aligns with the critical wing's stance on C1.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-031",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This belief is shared ground: critical skeptics share the concern over expanded state power and the erosion of checks on authority (C3), while institutional skeptics view it through the lens of legal design and the need for sector-specific adaptation of statutory enforcement (C2).",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-139",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates the primary harm of AI in widespread labor displacement that fundamentally breaks the social contract, aligning with the critical wing's focus on structural labor harms rather than sector-specific impacts.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-069",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node explicitly calls for subverting the financial system and transitioning to a post-capitalist system, taking the critical wing's stance that existing capitalist institutions are inadequate and require structural dismantling.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-032",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Framing tech booms as frequent speculative bubbles driven by deregulated capital aligns with the critical wing's stance that the technology is primarily a financial bubble, explicitly setting aside the institutional wing's innovation-diffusion lag explanation.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-011",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "Demanding that developers prioritize ecological health over rapid deployment aligns with the critical wing's stance of slowing, resisting, or refusing deployment based on concerns over extractive resource consumption.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-044",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node argues that existing environmental reporting regimes for traditional industries (factories and power plants) can and should be adapted to AI infrastructure, aligning with the institutional wing's view on C2 that existing sectoral institutions are adequate.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-034",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node focuses on corporate power, regulatory exploitation, and geographical extraction to hide environmental harms, aligning with the critical wing's view that harms stem from ownership, power, and extraction rather than mere sectoral missteps.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-035",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the view that AI lacks true generality and exhibits brittleness outside its training distribution, reflecting C0's grounding in empirical deployment limits rather than speculative general intelligence.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-140",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node frames the threat of AI as a tool for specific criminal activities and rule evasion rather than structural ownership or monopoly power, aligning with the institutional wing on C3.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-141",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node analyzes AI personhood as a deliberate mechanism of corporate power and liability avoidance, aligning with the critical wing's focus on harm arising from ownership, capital protection, and shielding those who profit.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-036",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Assessing uneven worker vulnerability to displacement based on concrete socioeconomic factors reflects shared skeptic ground that prioritizes measured, differentiated economic impacts over uniform speculative disruption narratives.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-037",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This node reflects shared skeptic ground (C0) by countering grand, uniform narratives of labor disruption with measured, empirical observations of localized impact.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-038",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node focuses directly on labor displacement and disparities in who controls/develops the technology, aligning with the critical wing's view that harms stem from ownership, representation, and power dynamics.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-070",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "By actively seeking to embrace AI's utility and leverage its benefits while maintaining oversight, the node adopts the institutional stance on C1 and C4 rather than the critical wing's skepticism of AI's genuine competence and preference for refusal.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-121",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "This belief focuses directly on labor displacement, who is replaced, and who holds power and ownership, matching the critical wing's analysis of harm (C3).",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-142",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node argues that governance systematically ignores gender dimensions and exacerbates structural inequalities, aligning with the critical view that existing institutions are deficient and reproduce systemic power imbalances.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-143",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "By advocating calibrated precaution limited to non-compensable harms and explicitly excluding blanket pre-deployment gates or universal freezes, the node adopts the institutional stance of diffusion with targeted guardrails.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-144",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the foundational premise (C0) that AI is not an exceptional entity deserving legal status or personhood, and that legal systems must remain human-centric to maintain clear human accountability.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-040",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Holding deployers legally liable rather than treating autonomous systems as an exceptional legal category is shared Skeptic ground (C0), rejecting AI exceptionalism in favor of standard human and corporate accountability.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-145",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Criticizing model-graded benchmarks for masking errors and misrepresenting true accuracy reflects the shared C0 premise that AI capabilities must be rigorously grounded in valid empirical evidence rather than flawed evaluation metrics.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-014",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Protecting baseline human rights, personal autonomy, and privacy against AI-driven infringements like biometric surveillance is shared ground across both wings of the skeptic camp, focusing on tangible present harms without taking a stance on broader economic ownership or institutional adequacy.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-041",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Focusing on documented, empirical present harms and bias over hypothetical future risks is shared ground across the entire Skeptic camp without committing to either wing's distinct structural or sector-specific theory of harm.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-042",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node reflects shared skeptic ground (C0) by rejecting simplistic grand narratives of sudden mass automation in favor of examining measured, multifaceted workplace realities like economic limits to automation and worker agency.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-043",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Concerns about automation bias, deskilling, and degraded human oversight are documented empirical harms of current deployments recognized across both wings of the Skeptic camp without taking a stance on ownership versus sector-by-sector regulation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-044",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Framing AI's environmental footprint and financial viability as 'systematically obscured' with 'misleading financial claims' treats hype and obfuscation as a deliberate strategy and power play (C5) while emphasizing bubble dynamics over real economic value (C1).",
+      "crux": "C5",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-045",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the empirical premise that AI must be evaluated on concrete, documented present-day impacts—such as non-consensual imagery and targeted harassment—rather than speculative future risks.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-046",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the C0 premise that AI follows historical precedents of technological diffusion and speculative bubbles rather than unprecedented, overnight transformation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-047",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node argues that AI exposes fundamental gaps in existing legal frameworks and highlights the gridlock of governance institutions, aligning with the critical view on C2 that existing institutions are inadequate rather than adaptable sector-by-sector.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-055",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node focuses on pragmatic technical mitigations, building resilient systems, and designing guardrails rather than refusal or structural societal restructuring.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-146",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Focusing on integration bottlenecks, organizational friction, and scaling hurdles reflects the institutional view of AI as a general-purpose technology whose adoption and economic value arrive slowly.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-147",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The recognition that deployed AI inflicts uneven human costs across different demographics and sectors is shared ground between both wings, focusing on empirical present harms rather than speculative futures.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-059",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "By advocating non-mainstream approaches like ecotheological perspectives and questioning pedagogies rather than relying on standard institutional mechanisms, the node aligns with the critical wing's skepticism of mainstream governance frameworks (C2).",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-148",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node critiques corporate rhetoric as an intentional power play to manufacture false legitimacy and evade democratic accountability, aligning with the critical wing's focus on power, ownership, and corporate self-governance.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-149",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node views safetyist framing metaphors as deflecting from corporate power and control, aligning with the critical wing's view of hype and discourse as deliberate mechanisms to obscure corporate dominance.",
+      "crux": "C5",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-150",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node views existing political institutions and policy discourse as performative posturing and power plays rather than functioning mechanisms for solving economic harms like worker displacement.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-051",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node aligns with the critical wing on C1 by arguing that generative AI lacks genuine creative competence, instead producing derivative, homogenized outputs that threaten cultural and creative diversity.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-052",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The concern that automated systems lead to measurable skill decay and deskilling in professional domains is an empirical, deployment-grounded harm recognized by both wings of the Skeptic camp without taking a side on structural power versus sector-by-sector institutional adaptation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-053",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Tracking measurable hiring trends rather than projecting sudden mass displacement embodies the shared skeptic premise (C0) of relying on empirical deployment evidence over speculative narratives.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-054",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Focusing on uncounted resource extraction (electricity and water) aligns with the critical wing's emphasis on material extraction and unaccounted physical costs over institutional sector-specific harms.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-152",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "The divergence between executive expectations and engineering reality reflects shared ground on C0, emphasizing deployment evidence and practical delivery over projected executive hype without taking a wing-specific stance on the root cause or remedies.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-154",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node asserts that AI's labor impact should be evaluated through empirical measurement of occupational reallocation and churn rather than speculative claims, reflecting the shared Skeptic commitment (C0) to deployment evidence over projection.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-065",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The proposal focuses on practical risk-management guardrails and contractual mechanisms to manage delegation and liability during deployment, aligning with the institutional wing's approach of diffusing technology with guardrails.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-056",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the empirical premise that AI systems must be judged on measured deployment behavior, including specific technical limitations like instruction decay and coherence drift in long conversations.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-073",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Targeting dynamic pricing with consumer transparency rules frames the issue as a specific harm in a specific sector addressable by sector-level guardrails, characteristic of the institutional wing.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-068",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node focuses on class struggle, ownership, and building worker political power as preconditions for economic planning, aligning directly with the critical wing's focus on power and labor relations.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-069",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node relies on adapting existing civil litigation and discovery frameworks—rather than broad pre-deployment licensing or structural rebuilding—to hold AI deployers accountable in court.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-057",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node observes public distrust of technology hype cycles based on historical precedent, reflecting shared skeptic ground regarding skepticism of grand tech narratives rather than taking a stance on C1-C6.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-156",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "Focusing on jurisdictional shopping and regulatory evasion reflects the critical wing's position on C2 that existing territorial institutions are inadequate and easily circumvented by corporate power.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-157",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Viewing government communications as deliberate manipulation and suppression of risks aligns with the critical wing's stance that existing state institutions are captured and serve power rather than providing neutral governance.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-158",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Critiquing AI as a technological fix for fundamentally social and political problems aligns with the critical wing's stance that AI lacks genuine competence to solve deep human problems and serves as an ideological deflection from structural reform.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-059",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.75,
+      "rationale": "Focusing on statutory interpretation, regulatory compliance traps, and technical legal definitions within national security frameworks aligns with the institutional wing's sector-by-sector engagement with existing administrative and legal institutions.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-061",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By rejecting purely computational benchmarks and corporate-driven metrics in favor of human traits like tacit knowledge, the node takes the critical wing's stance that computational fluency is not genuine intelligence or competence (C1).",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-062",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.75,
+      "rationale": "By explicitly rejecting top-down development models and adult-only institutional oversight in favor of bottom-up stakeholder power, the node aligns with the critical wing's skepticism of established institutions (C2).",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-074",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Enforcing legally binding civil rights protections, testing, and accountability mechanisms addresses present harms and constitutes shared ground for both wings without taking a definitive stance on structural refusal versus sectoral adaptation.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-074",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node advocates extending existing civil rights legal frameworks sector-by-sector (housing, credit, employment), embodying the institutional stance that existing institutions can govern AI when properly adapted.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-075",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Democratic accountability and public oversight over purely market-driven development represent shared skeptic ground that both wings support without taking a specific stance on institutional adequacy or structural abolition.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-159",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "By framing AI skepticism specifically as a political strategy to challenge corporate power rather than a technical assessment, the node adopts the critical wing's focus on ownership and power dynamics.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-060",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the stance that AI policy should focus on present, concrete harms from deployed technologies—such as deepfakes, low-quality slop, and risks to children—rather than speculative future scenarios.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-061",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "This methodological critique of standard employment auditing metrics reflects an institutional, sector-by-sector focus on refining existing regulatory tools rather than demanding wholesale refusal or structural overhauls.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-144",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "By focusing on standardized automated metrics and explicitly excluding sociological critiques of AI power structures, the node treats bias as a measurable technical defect to be handled with guardrails rather than a fundamental harm of ownership and power.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-160",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "This belief focuses on evaluating and measuring actual deployed AI systems via empirical bias metrics, representing the shared Skeptic premise (C0) that claims and harms must be judged on measurable deployment evidence.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-063",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The recognition that AI systems encode mundane human cognitive biases and design fallibilities reflects shared C0 ground, treating AI as an ordinary human artifact rather than an autonomous or exceptional intelligence.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-079",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node relies on existing governance mechanisms—legislative oversight and regular federal agency reporting to Congress—aligning with the institutional wing's view that existing institutions can adapt to monitor and govern AI impacts.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-064",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the empirical belief that AI capabilities are narrow, task-specific, and unevenly distributed rather than indicative of general intelligence or rapid across-the-board competence.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-080",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The proposal focuses on adapting existing regulatory bodies through internal capacity-building and staff training, exemplifying the institutional wing's view that existing governance structures can be upgraded to regulate AI effectively.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-161",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Treating audit tools as flexible thinking aids rather than rigid checklists is shared methodological ground under C0, supporting contextual evaluation of deployed systems without taking a side on structural reform versus sector-by-sector institutional adaptation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-082",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "Integrating affected-community auditors into every stage of development addresses harms of power asymmetry and corporate control by embedding participatory oversight into technical decision-making.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-065",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node argues that AI output mimics competence without delivering real utility or substance ('workslop'), aligning directly with the critical wing's stance on C1 that fluency is mistaken for competence.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-083",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Empirically auditing deployed LLMs for race and gender bias using correspondence testing reflects the shared skeptic commitment (C0) to testing actual deployments for measurable present harms rather than relying on abstract claims.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-076",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Dataset transparency and disclosure of copyrighted training data are shared goals across both wings, serving the critical wing's focus on labor/extraction accountability and the institutional wing's sector-specific regulatory guardrails.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-068",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node argues that AI produces illusory economic activity and content lacking substance without real social benefit, aligning with the critical wing's view on C1 that the technology's utility is largely an illusion or bubble.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-163",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings agree on the shared premise that AI lacks genuine understanding and transformative exceptionalism, combining the critical critique of comprehension with the institutional view of AI as a tool facing gradual societal integration.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-087",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Rigorous, empirical model evaluation through benchmarking and auditing reflects the camp's shared premise (C0) that AI must be assessed on concrete deployment evidence, biases, and measured performance rather than speculative claims.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-069",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the empirical premise (C0) that AI cannot reliably validate itself, recognizing that automated evaluation inherits correlated failure modes from shared training data rather than providing genuine independent verification.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-066",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node prioritizes refusal and human restraint over institutional or legalistic compliance frameworks, aligning with the critical wing's emphasis on refusal over mere procedural guardrails.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-070",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This node reflects shared skeptic ground (C0) rejecting techno-solutionist claims that AI can eliminate fundamental organizational friction and information loss across command hierarchies.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-094",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Compiling empirical documentation of present, real-world harms such as algorithmic bias and discrimination rather than speculative future risks is shared ground across both skeptic wings.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-095",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates systemic harm in inherent model vulnerabilities, epistemic degradation of the information commons, and structural power imbalances between developers and affected communities, aligning with the critical wing's view of harm arising from ownership and extraction rather than sector-specific misuses.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-164",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node views narrow auditing as a deliberate corporate strategy of legitimacy laundering and deflection of oversight, aligning with the critical wing's skepticism of voluntary or captured institutional compliance mechanisms.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-096",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node locates the harm of AI in its role reproducing social and power structures rather than sector-specific deployment failures, aligning directly with the critical wing's stance on power and ownership.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-145",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Focusing on institutionalizing technical talent within public service and government agencies to enable effective governance aligns with the institutional wing's view that existing institutions can be adapted to govern AI.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-165",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates harm squarely in corporate consolidation, ownership, and evasion of antitrust oversight, aligning with the critical wing's focus on power and structural remedies.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-094",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node relies on existing voluntary and institutional standards (NIST, ISO) for pragmatic, adaptive compliance while explicitly excluding calls for radical systemic change, aligning directly with the institutional wing on C2.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-074",
+      "proposed": [],
+      "confidence": 0.85,
+      "rationale": "The node attributes measurable competence and capability convergence to AI that challenges human distinctiveness, contradicting the Skeptic camp's foundational premise (C0) that AI is not an exceptional transformative force.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-075",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node locates harm squarely in structural power imbalances, worker alienation, and top-down imposition, aligning with the critical wing's analysis of harm stemming from ownership and power dynamics.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-076",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node acknowledges the genuine verification utility of open weights (favored by institutionalists) while emphasizing that parameter release alone fails to address deeper structural opacity around training data and compute (a primary critical concern).",
+      "crux": "C6",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-095",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "By proposing technical counterfactual auditing to align algorithmic decision-making with anti-discrimination standards, the node adopts an institutional approach of diffusing AI with sector-specific guardrails rather than structural refusal.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-098",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the empirical premise that generative AI presents concrete, present-day harms such as non-consensual media and disinformation, without this belief taking a stance on broader governance remedies or power structures.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-099",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node aligns with the critical wing on C1 by arguing that apparent productivity gains are performative and illusory, masking an underlying disconnect from genuine social value and long-term erosion of trust.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-166",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node expresses shared Skeptic ground (C0) by insisting on empirical, quantitative measurement of actual labor market disruptions rather than speculative narratives to inform policy.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-101",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node characterizes AI investment as an unsustainable market bubble driven by overstated capabilities and deceptive practices, aligning with the critical wing's stance on C1 and C5.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-097",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the requirement for binding external accountability and oversight over corporate self-regulation, focusing on real-world lifecycle safeguards and civil rights protections.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-167",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By analyzing AI framings and hype as deliberate constructions designed to serve political and institutional agendas, this node aligns with the critical wing's view that hype is a strategic power play rather than a mere forecasting error.",
+      "crux": "C5",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-168",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node argues that fluent output lacks genuine understanding and undermines human inquiry, aligning directly with the critical wing's stance on C1 that fluency is mistaken for competence.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-169",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node locates harm directly in management control, power dynamics, and the extraction/intensification of labor to disproportionately benefit employers, aligning with the critical wing on C3.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-102",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node aligns with the institutional wing on C2 by relying on established institutional standards (NIST, ISO) and building administrative capacity, explicitly excluding the critical wing's demand for radical economic restructuring.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-170",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The belief highlights corporate regulatory arbitrage, audit washing, and institutional evasion driven by unchecked corporate power, taking the critical stance on C2 that existing regulatory frameworks are currently captured or systematically circumvented.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-104",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "By advocating concrete, targeted policies for specific harms while explicitly excluding fundamental economic restructuring or sweeping regulatory overhauls, the node aligns with the institutional wing's sector-by-sector governance approach.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-105",
+      "proposed": [],
+      "confidence": 0.9,
+      "rationale": "Verifying 'internal model alignment' via mechanistic interpretability presupposes the exceptionalist, existential-safety framing of AI that the Skeptic camp fundamentally rejects under C0.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-102",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node argues that conventional legal discovery mechanisms fail against corporate trade secrecy and information asymmetry, aligning with the critical wing's view on Crux C2 that existing legal institutions are inadequate to address tech power.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-107",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By demanding structural remedies such as mandatory algorithmic disgorgement and uninsurable officer liability while explicitly rejecting standard post-deployment tort remedies and compliance checklists, this node aligns with the critical wing's call for structural institutional rebuilding.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-108",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "By rejecting permission-to-build licensing and advocating for open-source audit standards and small-scale decentralized innovators, the node aligns with the institutional wing's support for open release and broad diffusion over incumbent-protecting regulatory capture.",
+      "crux": "C6",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-171",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "Demanding measurable, falsifiable criteria rather than accepting vague claims of net benefit is core shared Skeptic ground (C0), requiring empirical evidence over projection without adopting the specific structural critique of the critical wing or the general-purpose view of the institutional wing.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-184",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the empirical observation that corporate self-regulation and voluntary transparency practices are fragile and subject to rollback rather than monotonic progress.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-185",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the view that legacy web standards like robots.txt were designed for search indexing and are technically ill-suited for nuanced AI training consent, without taking a definitive side on broader structural rebuilding versus technical standard adaptation.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-110",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node rejects centralized registries and institutional third-party escrow in favor of local, user-controlled structural mechanisms, aligning with the critical wing's skepticism of institutional adequacy and focus on shifting power away from centralized authorities.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-111",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node specifically relies on adapting existing statutory models and institutional frameworks (NEPA, CRA, Superfund) rather than de novo structural rebuilding, aligning directly with the institutional wing on C2.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-067",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Focusing on actionable, plain-language warnings to empower individual user decisions at installation fits the institutional approach of diffusing technology safely with pragmatic consumer guardrails, rather than structural refusal or collective labor/ownership remedies.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-103",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node describes an empirical, technical feedback mechanism where deployed models reinforce and accumulate biases, a grounded operational observation accepted by both wings without taking a side on structural power versus sector-specific governance.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-104",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node views international rule-making through the lens of power asymmetries and regulatory imperialism rather than benign institutional adaptation, aligning directly with the critical wing's focus on power and structural coercion.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-121",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By piercing corporate veils and imposing joint liability across compute supply chains rather than relying on procedural compliance checklists, this node targets harms arising from corporate ownership structures and power evasion.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-106",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node locates the primary harm of AI in power imbalances, employer control, and labor extraction rather than sectoral technical misapplications, directly aligning with the critical wing on C3.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-107",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node frames biometric AI as an instrument of insidious workplace extraction and stealth surveillance, aligning with the critical wing's focus on harms stemming from ownership, power asymmetry, and labor control.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-108",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Viewing sustainability pledges as performative marketing tactics and brand management treats corporate claims as a deliberate deceptive strategy (C5) serving corporate power (C3), aligning with the critical wing.",
+      "crux": "C5",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-109",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The critique of horizontal activism in favor of building structural, counter-hegemonic power against global neoliberal systems reflects the critical wing's focus on deep structural rebuilding and power analysis (C2/C3).",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-110",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates the core issue in corporate monopoly power and advocates structural interventions like national industrial strategy while rejecting the standard consumer welfare framework, aligning with the critical wing's focus on ownership and power.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-112",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node rejects isolated, sector-by-sector regulatory approaches in favor of cross-domain structural remedies focused on corporate power, aligning with the critical wing on C2 and C3.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-111",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node locates harms in structural power and systemic worker surveillance across reinforcing corporate and state regimes, aligning directly with the critical wing's focus on ownership and labor exploitation rather than isolated, sector-specific misuses.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-172",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Protecting regulatory oversight and algorithmic transparency against restrictive trade secrecy rules is shared ground between both wings, enabling both sector-by-sector enforcement and public accountability against corporate overreach.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-112",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "By diagnosing military resistance to AI autonomy as cultural inertia and status quo bias rather than legitimate technical limitations, the node favors adoption and diffusion (C4) over skepticism and refusal.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-113",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "By framing the issue around institutional barriers to 'creative destruction' and delays in market adaptation and innovation, the node reflects the institutional wing's view of AI as a genuine general-purpose technology whose diffusion is impeded by regulatory lag and institutional inertia rather than being a harmful bubble.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-115",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Viewing AI generality as a measurable spectrum rather than a binary threshold (such as an imminent AGI switch) reflects shared skeptic ground (C0) rejecting exceptionalist, all-or-nothing narratives.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-116",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings can recognize that the cumulative deployment of automated decision-making can erode collective social trust without taking a definitive stance on ownership structures versus sector-by-sector institutional adaptation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-117",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node defends existing institutional counterweights and traditional deliberative representative processes against manufactured direct democracy mechanisms, aligning with the institutional wing's trust in established governance institutions (C2).",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-077",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The focus on epistemic justice, responsiveness to social vulnerabilities, and justice-oriented governance aligns with the critical wing's analysis of power dynamics and structural inequities rather than technocratic, sector-by-sector institutional management.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-078",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node focuses on ownership, power, and monopolistic capture as the central problems, rejecting market-driven open-source proliferation in favor of structural, shared public infrastructure.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-124",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The intention reflects sector-by-sector institutional adaptation, using established higher education governance to place targeted guardrails and restrictions on AI use in specific contexts rather than a systemic refusal.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-173",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Evaluating language models via standardized empirical bias testing reflects the shared skeptic premise (C0) of judging models on measurable performance rather than grand narratives, without taking a definitive stance on cruxes C1–C6.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-174",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share a commitment to rigorous empirical evaluation of deployed systems (C0), agreeing that simplistic binary pass/fail audits fail to capture system uncertainty and real-world deployment complexities.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-127",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Focusing on engineering guardrails like DP-SGD to balance privacy and model utility reflects the institutional wing's stance of diffusing technology safely with practical technical protections rather than refusing adoption.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-128",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Post-processing score calibration exemplifies the institutional approach of adopting technical guardrails to mitigate specific harms rather than refusing adoption or demanding structural overhaul.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-175",
+      "proposed": [],
+      "confidence": 0.95,
+      "rationale": "This node describes a technical mechanistic interpretability method (residual stream activation probing) rather than a substantive socio-political or governance position within the Skeptic camp.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-129",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By targeting proprietary corporate gatekeeping and mandating structural compute levies to fund public-utility audits, the node addresses harms stemming from corporate concentration and power rather than sector-specific uses.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-176",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By critiquing post-deployment adaptive oversight as enabling 'bias washing' and failing to address systemic discrimination, the node aligns with the critical wing's demand for structural intervention rather than incremental, market-adapted oversight.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-177",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This belief reflects the institutional wing's view that governance should focus on sector-specific applications and real-world resilience (such as cybersecurity defenses) rather than blunt, centralized compute thresholds.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-178",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The belief highlights deliberate corporate suppression of risk to shield profits and avoid accountability, aligning with the critical wing's focus on corporate power and strategic harm (C3, C5).",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-179",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Critiques of algorithmic counterfactual explanations evaluate the concrete, technical limitations of deployed explainability methods, representing shared Skeptic ground on assessing deployed tools empirically rather than taking a stance on broader structural or institutional cruxes.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-131",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "By mandating worker-led veto power and explicitly excluding corporate red-teaming and centralized government gatekeeping, this node aligns with the critical wing's demand for structural workplace bargaining power over existing institutional oversight.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-132",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "By rejecting standard expert-led consultation in favor of binding voting power and structural seats for affected communities, the node takes the critical side of C2, demanding structural institutional shifts rather than existing institutional processes.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-133",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share a commitment to grounded empirical accountability and resisting corporate capture of oversight, rejecting single-vector, performance-gated schemes without taking a definitive stance on broader systemic transformation versus institutional adaptation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-180",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "By rejecting data-collection-as-harm framings and focusing regulation on specific inference acts, the node aligns with the institutional wing's view that harm arises from specific downstream uses rather than upstream data extraction and ownership.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-181",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node locates AI harm in the extraction of windfalls and dumping of liabilities by platform monopolies, directly aligning with the critical wing's focus on ownership and asymmetric corporate power (C3).",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-135",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The proposal focuses on deployment guardrails—establishing pre-committed shutdown triggers and external harm gates while specifically excluding blanket pre-market bans—aligning with the institutional wing's approach to diffusing technology with concrete risk guardrails.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-136",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node protects open-source developers from liability overhang while applying standard institutional corporate-governance mechanisms (like Sarbanes-Oxley style executive certification) to commercial platforms, aligning with the institutional wing's support for open release (C6) and institutional adaptation (C2).",
+      "crux": "C6",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-137",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "By moving beyond narrow technocratic or academic critiques to build broad political coalitions around democratic power, the node aligns with the critical wing's focus on structural, movement-based remedies rather than incremental sector-by-sector institutional adaptation.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-182",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node argues that AI code generation produces an illusion of success (point-in-time test passes) that masks compounding maintenance debt, directly reflecting the critical wing's view that apparent fluency is mistaken for genuine competence.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-183",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the view that real-world deployment harms and lack of transparency lead to public distrust and scrutiny, representing common skeptic ground focused on concrete outcomes rather than grand speculative narratives.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-186",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "By emphasizing how companies strategically offshore R&D to exploit jurisdictional loopholes and evade territorial laws, this node aligns with the critical wing's view that existing institutional frameworks are inadequate and outmaneuvered by corporate power.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-187",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the premise (C0) that AI is not an exceptional technology requiring novel or fragmented causal categories that obscure ordinary accountability and technical realities.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-138",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "By focusing on procurement guardrails, migration planning, and contractual exit mechanisms rather than structural antitrust or refusal, this intention aligns with the institutional wing's approach of managing adoption risk through established institutional practices.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-139",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node explicitly relies on established sector-specific regulators (FDA, SEC, NHTSA) adapting their existing authorities, perfectly embodying the institutional stance on C2 and C3.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-188",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Concerns regarding regulatory fragmentation, jurisdictional overlap, and compliance costs reflect the institutional wing's preference for coherent, sector-adapted governance over duplicative, layered AI-specific legislation.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-189",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the requirement that AI systems must be independently verified and audited against real-world evidence, and both critique vendor terms of service that obstruct external evaluation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-190",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node locates the primary harm in ownership, monopoly power, and incumbent capture rather than specific use-cases, explicitly excluding sector-specific regulatory standards.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-140",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The proposal focuses on building operational resilience and safety guardrails through prudential financial mechanisms (liquidity buffers for human failure recovery) rather than resisting adoption or demanding structural antitrust remedies.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-191",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Observing that developers place uncritical trust in AI outputs due to superficial fluency reflects shared empirical skepticism (C0) without taking a side on structural refusal versus sectoral guardrails.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-192",
+      "proposed": [],
+      "confidence": 0.95,
+      "rationale": "This node concerns traditional software engineering static analysis for build systems (Maven, Gradle, CMake) and does not take a position on any crux in the AI policy Skeptic debate.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-193",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Critiquing synthetic benchmarks in favor of real-world deployment and maintenance metrics reflects the shared Skeptic premise (C0) that AI capability must be judged on actual deployment evidence rather than stylized static tests.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-194",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Reporting negative empirical results and diminishing returns on optimization strategies reflects the shared skeptical commitment to empirical measurement over unverified performance claims (C0).",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-195",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node frames procurement leverage as a coercive power dynamic that erodes ethical boundaries to serve state and military agendas, aligning with the critical wing's focus on institutional power and co-optation.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-196",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The institutional wing favors decentralized diffusion and open release (C6), warning that heavy centralized compliance mandates act as regulatory capture that entrenches dominant incumbents over smaller developers.",
+      "crux": "C6",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-197",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node addresses specific operational harms from deployed capabilities (impersonation and social engineering) and points toward technical resilience through zero-trust architectures, aligning with the institutional wing's focus on sector-specific harms and resilience.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-079",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node relies on existing administrative review mechanisms, proportionality standards, and trade secret protections to regulate disclosure rather than demanding structural overhauls or refusing corporate IP protections.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-080",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By demanding a new legal right and public interest overrides of trade secrets while explicitly excluding existing mechanisms like FOIA and consumer protection, the node rejects standard institutional adaptation in favor of structural legal remedies against corporate power.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-081",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node explicitly calls for fundamental structural rebuilding of economic and social systems—including collective ownership and predistributive governance—rather than incremental institutional adaptation, aligning with the critical wing on C2 and C3.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-082",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node combines the critical stance of outright refusal and dismantling automated systems in high-stakes carceral contexts with the institutional stance of diffusing technology using guardrails, bias audits, and regulatory compliance in sectors like recommendation systems.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-141",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "Prioritizing immediate, documented, empirical harms over speculative existential risks is the defining shared premise (C0) of both wings of the Skeptic camp.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-142",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By focusing on upstream extraction harms such as copyright compliance, consent, and encoded bias, while explicitly excluding post-deployment guardrails and runtime monitoring, the node aligns with the critical wing's emphasis on extraction and ownership harms over institutional downstream risk management.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-198",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "By contrasting non-commercial, shared intellectual heritage with proprietary AI development and commercialized research, this node identifies ownership and corporate enclosure as central harms.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-199",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Critiquing the tendency to define human capabilities and nature reactively against machine benchmarks is a shared philosophical premise across both skeptic wings that rejects exceptionalist technological comparisons (C0).",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-200",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Identifying structural architectural limitations that make current AI models ill-suited for open-ended scientific inquiry is shared skeptic ground (C0), deflating claims of transformative AI research capabilities without committing to a broader critique of power or a defense of gradual adoption.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-201",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "By asserting systemic cognitive degradation and deskilling rather than sector-specific harms (which it explicitly excludes), the node aligns with the critical wing's systemic critique of labor degradation and technology dependency.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-202",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings analyze the observed inversion of historical automation patterns where cognitive and creative tasks are affected before manual ones, with critical skeptics emphasizing labor extraction and institutional skeptics addressing workforce planning and labor market adaptation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-203",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node embodies the institutional wing's view on C1 that AI is a general-purpose technology whose economic impact will arrive slowly through gradual diffusion, citing historical precedents like electricity and computing.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-204",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node locates harm squarely in extraction, asymmetric power, and firm capture of productivity at the expense of intensified labor burdens, aligning directly with the critical wing's analysis of ownership and labor harms.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-205",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the foundational premise (C0) that AI is unexceptional, fallible software rather than an emergent intelligence, rejecting anthropomorphic hype in favor of viewing systems as standard statistical tools.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-083",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By restricting deployment strictly to verified humanitarian or localized civil utility and excluding profit-driven market proliferation, the node adopts the critical wing's stance of resisting open diffusion in favor of strict conditionality and refusal.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-147",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Rather than refusing or resisting adoption, the node focuses on diffusing AI systems sustainably by introducing workflow guardrails and ergonomic design constraints around human cognitive limits.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-210",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Challenging claims of artificial understanding, genuine reasoning, and revolutionary potential is shared ground (C0) across both wings of the Skeptic camp.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-211",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "This thematic grouping captures shared skeptic concerns regarding epistemic integrity, public discourse, and the erosion of social trust without taking a specific stance on C1–C6.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-212",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "Asserting fundamental gaps in existing legal and regulatory frameworks aligns with the critical wing's stance on C2 that current institutions are inadequate and require structural rebuilding rather than mere sector-by-sector adaptation.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-213",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The focus on corporate concentration of power and regulatory capture directly reflects the critical wing's view that harms stem from ownership, power dynamics, and captured institutions.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-214",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "This node functions as an overarching thematic pillar organizing discourse on labor and economic impacts, encompassing both critical concerns over worker exploitation and institutional analyses of gradual productivity and workforce adaptation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-215",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "Focusing on technical measurement and evaluation methodology represents shared skeptic ground (C0), emphasizing rigorous empirical evidence over speculative claims without taking a side on C1-C6.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-148",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "An AI public option bridges the critical wing's demand for structural counterweights to private monopoly power with the institutional wing's drive to build public benchmarking capacity and reliable public-interest infrastructure.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-216",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node locates systemic harm in structural power imbalances and capital-labor dynamics (platform authority and user dispensability), aligning directly with the critical wing's analysis of ownership and power.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-217",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The critique of consent-washing identifies corporate data extraction and asymmetric power as the primary harm, aligning directly with the critical wing's focus on extractive ownership and structural critique over procedural compliance.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-218",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node locates harm in power asymmetry and the exploitation of labor via illusory consent, aligning squarely with the critical wing's analysis of extraction and labor subjugation.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-219",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The critique locates harm fundamentally in the structural design of corporate ownership and legal mandates rather than specific, manageable sector-by-sector applications.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-149",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By establishing data cooperatives and collective bargaining to protect data creators from extraction and power imbalances, this node aligns with the critical wing's focus on structural remedies and ownership harms.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-220",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.75,
+      "rationale": "Applying standard industrial-organization economics to show that data monopolists are disciplined by free entry reflects the institutional wing's reliance on orthodox market mechanisms and existing frameworks rather than the critical wing's view of unconstrained structural capture.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-084",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Focusing on collective epistemic rights and data assembly aligns with the critical wing's emphasis on confronting corporate data ownership and building structural counter-power.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-221",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "By offering an error theory for why data extraction is not recognized as labor, this node aligns with the critical wing's focus on labor exploitation and ownership harms.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-222",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the grounded skeptic premise that AI's impact should be evaluated through measurable real-world costs and externalities, such as physical grid and utility cost-shifting, rather than speculative future benefits or risks.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-223",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates privacy protections in collective bargaining and the principle that labor is not a commodity, aligning with the critical wing's focus on structural power, labor rights, and remedies grounded in bargaining power rather than transactional mechanisms.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-224",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By critiquing notice-and-choice and 'consent-washing' as flawed market commodification, the node rejects existing market-based institutional privacy regimes in favor of structural critique (C2/C3).",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-225",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node focuses on coercive bargaining, labor power asymmetries, and the systemic failure of transactional consent, aligning directly with the critical wing's analysis of harm stemming from structural power and ownership.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-226",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates vulnerabilities in labor exploitation, economic dependence, and structural power dynamics rather than sector-specific transactional harms, aligning with the critical wing's view on ownership and labor extraction.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-150",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "An additionality mandate treats AI energy consumption through sector-specific guardrails and standard regulatory tools rather than demanding broad refusal or structural disassembly.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-227",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node views automation primarily through the lens of power and extraction—specifically firms intentionally undermining labor bargaining power and capturing rents, which aligns directly with the critical wing's position on C3.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-228",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node argues that existing institutional privacy frameworks based on transactional notice-and-choice are fundamentally flawed, aligning with the critical wing's view on C2 that current institutions are inadequate and require structural rebuilding.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-229",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Focusing on worker agency to withhold tacit knowledge and avoid surveillance aligns with the critical wing's emphasis on labor extraction and resistance or refusal against AI deployment.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-151",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node adapts established institutional playbooks (financial chokepoints modeled on NCMEC) to target specific, sector-bound harms rather than demanding broad structural overhauls or refusing the technology.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-152",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The proposal adapts existing sector-specific enforcement models (financial chokepoints and the NCMEC framework) to target specific harmful uses, fitting the institutional view that existing institutions can govern harms through targeted, sector-by-sector adaptation.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-230",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This node represents shared empirical skepticism (C0), assessing the technical capabilities and limitations of watermarking methods based on concrete deployment evidence without taking a stance on the specific sociopolitical cruxes C1–C6.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-231",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node locates the primary concern in ownership, capital barriers, and monopolistic control of infrastructure, taking the critical wing's side on C3.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-153",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By mandating worker-led safety vetoes and explicitly excluding reliance solely on post-deployment adaptive oversight, the node adopts the critical wing's demand for structural labor power over institutional sector-by-sector adaptation.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-232",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Evaluating provenance infrastructure based on real-world deployment measurements rather than theoretical efficacy represents shared C0 ground across both skeptic wings.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-233",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the view (C0) that generative AI is not an exceptional new threat to elections, emphasizing deployment evidence that platform amplification and established engagement mechanics drive manipulation rather than synthetic media.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-154",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By rejecting centralized federal agency gatekeeping and proprietary compliance in favor of decentralized, community-defined participatory auditing, the node takes the critical side of C2, seeking structural rebuilding of governance rather than reliance on standard institutional channels.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-234",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node addresses vendor opacity through standard product liability and tort law doctrines rather than demanding radical structural rebuilding or refusal, aligning with the institutional view that existing legal mechanisms can be adapted to govern deployment.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-235",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Focusing on interdependencies, IoT ecosystem security, and cascading failure analysis aligns with the institutional wing's view that risks stem from concrete systemic interactions in specific deployed sectors rather than centralized power and ownership dynamics.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-236",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both skeptic wings draw on empirical internet-policy precedents (such as the documented failures of FOSTA-SESTA) to argue against speculative, prohibitionist AI safety interventions, rejecting hypothetical existential risk models in favor of real-world deployment evidence.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-155",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Applying established legal frameworks like the secondary effects doctrine to regulate downstream societal impacts reflects the institutional view that existing legal and regulatory tools can be adapted to govern AI.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-237",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node relies on adapting existing legal doctrine—specifically Section 230's material contribution standard—to govern AI liability rather than demanding wholesale structural rebuilding.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-156",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Advocating for surgical, targeted legislative amendments to Section 230 while preserving its core protections aligns with the institutional view that existing legal frameworks are largely adequate and require sector-by-sector adaptation rather than wholesale structural replacement.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-238",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Focuses on concrete, sector-specific cybersecurity trade-offs and institutional vulnerability-handling mechanisms (such as VEX) rather than systemic corporate power or labor exploitation.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-239",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node argues that conventional institutional and market mechanisms like insurance and capitalization floors fail to preserve duties of care, aligning with the critical view that standard institutional adaptations are inadequate and circumvented by corporate structures.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-157",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By rejecting standard litigation and market-based liability frameworks in favor of structural public enforcers, revenue-scaled levies, and treating foundational AI as public infrastructure, the node takes the critical side of C2 regarding the inadequacy of existing legal and institutional remedies.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-240",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node views AI deployment through the lens of political power and authoritarian control over labor and civil servants (C3), rejecting the framing of AI as a neutral administrative tool.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-241",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node identifies the technical and procedural limits of legal discovery against opaque model internals versus observable runtime logs, representing shared Skeptic ground on accountability mechanisms without taking a side on C1–C6.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-158",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node targets monopolistic infrastructure ownership and seeks structural, redistributive remedies to counterbalance compute power and support victims of harm, aligning directly with the critical wing's focus on power and ownership.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-242",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The focus on existing sector-specific federal agencies (DOL, EEOC) providing guidance and frameworks reflects the institutional wing's view that established sectoral regulators are the appropriate mechanism for governing AI deployment.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-243",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates harm and systemic obstruction in corporate ownership and asymmetrical power dynamics that thwart accountability (C3, C2).",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-244",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Framing aggregate metrics as deliberate corporate obfuscation to mask systemic bias and justify market readiness treats hype and evaluation claims as strategic power plays rather than mere technical forecasting errors.",
+      "crux": "C5",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-159",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Rather than refusing deployment or seeking structural shifts in ownership, the node focuses on technical and procedural guardrails (active bias correction and subgroup accuracy mitigation) to enable responsible adoption.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-160",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Evaluating models on empirical, intersectional performance rather than top-line aggregate metrics represents shared ground (C0) focused on concrete, measured deployment harms.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-245",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node critiques standard aggregate compliance and audit mechanisms as forms of monitoring/surveillance rather than genuine remedy, aligning with the critical wing's skepticism of institutional governance that fails to grant structural recourse to harmed individuals.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-246",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The focus on technical governance mechanisms like shared risk-mitigation pools and cross-subsidization fits the institutional wing's sector-by-sector regulatory and policy adaptation framework.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-247",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The focus on extraction of affective labor to deepen exploitative work regimes aligns with the critical wing's view that harms stem fundamentally from ownership, labor extraction, and structural power asymmetries.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-248",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node analyzes AI enforcement through existing administrative law and regulatory remedies like FTC Section 13(b) authority, aligning with the institutional wing's view that existing sector-specific legal frameworks are adequate to address harms.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-085",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "Focusing on attentional liberation and shared political power against instrumentalized attention targets extraction and power dynamics (C3), aligning with the critical wing.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-161",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node focuses on structured collective resistance and reclaiming agency against platform-driven extraction, aligning with the critical wing's emphasis on refusal and counteracting platform power (C4/C3).",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-249",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both skeptic wings agree that incumbent AI firms strategically use public-interest and safety narratives to invite rent-seeking regulations that entrench their market dominance.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-250",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node views corporate impression management as a deliberate, coercive power play to stifle dissent and limit deliberation, directly matching the critical wing's stance on corporate communication and hype as an intentional strategy of control.",
+      "crux": "C5",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-251",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Evaluating deliberation by substantive uptake and engagement rather than mere headcount is a shared procedural standard for democratic AI governance across both skeptic wings, without taking a definitive stance on structural replacement versus institutional reform.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-086",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Digital minimalism represents shared skeptic ground rejecting technological determinism, emphasizing intentional adoption and personal agency over passive consumption without adopting total technology refusal.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-252",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates harm in structural economic dependency, labor extraction (gig economy), and power disparities rather than individual choice, aligning directly with the critical wing's diagnosis under C3.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-253",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "By explaining the appeal of reductionist ideologies via psychological relief rather than systemic power analysis (which it explicitly excludes), the node treats the phenomenon as a psychological and epistemic tendency rather than a deliberate power play.",
+      "crux": "C5",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-254",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The concept frames commercial AI/tech attention-capture as systemic extraction and exploitation of human cognitive resources, aligning with the critical wing's focus on harms of extraction and corporate power.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-255",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By modeling state coercion as a commodity traded to industry and explicitly excluding public-interest regulation, the node takes the critical side of C2, viewing institutions as fundamentally captured.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-256",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the skeptical view that technical fixes like provenance cannot magically verify truth or substitute for broader human and institutional accountability mechanisms.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-257",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node asserts that existing regulatory frameworks (securities law and SEC Rule 10b-5) are adequate to govern AI disclosures rather than needing novel AI-specific governance regimes, aligning with the institutional wing on C2.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-162",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The critique insists on proper formal institutional processes, statutory rulemaking, and judicial review rather than ad-hoc agency power expansion via settlements, aligning with the institutional wing's commitment to established legal mechanisms.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-258",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node views ignorance not as an accidental forecasting or informational oversight, but as an intentional strategy by power actors to maintain hierarchy and control.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-259",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By framing corporate rhetoric and crisis communication as structurally identical to propaganda and disinformation, the node aligns with the critical view that corporate hype is an intentional, manipulative strategy rather than a benign forecasting error.",
+      "crux": "C5",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-163",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node takes the institutional side of C2 by relying on existing civil society infrastructure and established environmental protection precedents to govern AI sector-by-sector.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-260",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This node describes technical and physical constraints of deployed architectures rather than taking a stance on ownership or general-purpose diffusion, representing shared ground (C0) grounded in empirical deployment realities.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-261",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node focuses on concrete, sector-specific security vulnerabilities and threat models (identity systems and synthetic personas) rather than structural ownership, extraction, or labor critiques.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-262",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "This belief reflects the institutional wing's pragmatic focus on adapting standard enterprise IT and cybersecurity frameworks (such as cloud-native IAM and zero-trust controls) rather than demanding revolutionary structural interventions.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-263",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node frames governance challenges as operational and organizational execution lags (e.g., legacy permissions and unmonitored accounts) rather than systemic malice or intentional exploitation, aligning with the institutional focus on sector-specific guardrails and administrative adaptation.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-264",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This node describes an empirical shift in real-world cyber threat tactics rather than speculative AI-driven capabilities, reflecting the shared skeptic grounding in measured, deployed realities (C0) without taking a side on critical versus institutional cruxes.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-265",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node focuses on concrete, sector-specific cybersecurity realities and identity-plane resilience rather than broad structural power dynamics or labor extraction.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-266",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This node identifies an operational friction and mundane deployment reality—inefficient parallel triage across complex supply chains—without taking a side on structural power versus sector-by-sector institutional adaptation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-267",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This belief focuses on practical, real-world technical limitations over theoretical governance mechanisms, representing shared skepticism of speculative technological solutions (C0) without taking a definitive stance on cruxes C1–C6.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-268",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By asserting that privacy erosion through inferential profiling is an architectural invariant that persists regardless of deployment topology or execution environment, the node rejects technical and diffuse deployment fixes in favor of the critical view that harm stems fundamentally from algorithmic extraction.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-269",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The recognition that decentralized open-source weights render centralized statutory enforcement ineffective is shared across both wings, serving as a premise for institutionalists to advocate downstream sector-specific liability and for critical skeptics to highlight the limits of conventional corporate-focused regulation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-270",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The technical limit of artifact-based provenance and leak-event models against mosaic re-identification is an empirical observation about real-world privacy harms recognized across both skeptic wings.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-271",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node argues that existing legal mechanisms requiring discrete data transfers, notices, or standing fail to capture harms from context collapse, aligning with the critical wing's view that current procedural and institutional frameworks are inadequate.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-272",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates the source of injury in upstream data-broker chokepoints and extraction rather than downstream deployment use, aligning with the critical wing's focus on structural power and extraction over sector-specific application harms.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-273",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node views existing legal frameworks as structural liability shields that entrench the power of capital owners, aligning with the critical wing's belief that existing institutions are inadequate and structurally biased.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-274",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node identifies a structural breakdown in existing legal discovery and spoliation doctrines when applied to opaque AI firms, aligning with the critical wing's stance that standard institutional mechanisms are inadequate to enforce accountability.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-275",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates systemic harm in the protection of capital owners at the expense of injured parties, aligning with the critical wing's focus on ownership and structural power asymmetries.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-087",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both skeptic wings agree on rejecting the exceptionalism of treating AI systems as autonomous moral agents with mental states, insisting that accountability remains anchored in human decisions and developer responsibility.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-164",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node operates within established legal frameworks, adapting standard tort concepts such as evidentiary presumptions and discovery to govern AI harms without requiring structural rebuilding.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-276",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Establishing rigorous forensic and evidentiary standards for evaluating AI failures represents shared skeptic ground (C0) prioritizing concrete accountability and internal verification over superficial metrics.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-165",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node relies directly on adapting existing regulatory institutions (securities law and corporate disclosure frameworks) rather than demanding novel or structural overhauls, taking the institutional side of Crux C2.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-277",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node argues that horizontal regulators lack technical context and that blanket standards fail, supporting the institutional wing's view that governance should be handled through existing sector-by-sector (vertical) institutions rather than centralized horizontal bodies.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-278",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the principle of legal and evidentiary accountability, rejecting corporate attempts to use AI's alleged technical mystique to shield deliberate contractual opacity from scrutiny.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-279",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The belief highlights how proprietary control and structural information asymmetries create systemic barriers within the legal system, aligning with the critical view that existing institutional mechanisms are inadequate without structural reform.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-280",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the critique that frontier safety certification regimes act as regulatory capture mechanisms that entrench incumbent tech monopolies at the expense of smaller competitors and open development.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-088",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The proposal relies on sector-by-sector adaptation of established regulatory frameworks (such as SEC, HIPAA, and FTC enforcement mechanisms) and existing civil litigation doctrine to govern AI harms.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-166",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node focuses on countering monopolistic market control through collective procurement and bargaining power, aligning with the critical wing's emphasis on structural remedies against concentrated ownership and power.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-281",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the C0 premise that AI is bound by real-world physical and economic limits rather than being an unconstrained, exponential force.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-282",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node aligns with the critical wing's view that state institutions are captured by valuation-driven growth logics and institutional path dependencies rather than serving as neutral, sector-by-sector regulatory safeguards.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-283",
+      "proposed": [],
+      "confidence": 0.9,
+      "rationale": "This node addresses wholesale electricity market dynamics and renewable energy project financing rather than taking a position on any of the AI-specific cruxes between the critical and institutional wings.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-284",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "Locates the primary source of safety degradation in corporate political economy—cost-cutting, profit prioritization, and production pressures—aligning with the critical wing's stance that harm originates in ownership and capital incentives rather than mere sector-specific use errors.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-285",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "By rejecting atomized individualistic procedural models in favor of contextual positionality and relational needs, this belief aligns with the critical wing's structural critique of conventional institutional procedures.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-286",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings share the empirical premise (C0) that AI claims must be judged by rigorous measurement in deployment, and both identify feedback-loop contamination in consequential sectors like policing and lending as a major barrier to genuine accountability.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-287",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both skeptic wings agree that explainability cannot be evaluated as an abstract, universal model property and must instead be grounded in specific deployment contexts, actionable accountability, and the practical needs of affected people and institutions.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-288",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By asserting that corporate trade secrecy and power asymmetries render ordinary litigation an insurmountable evidentiary dead end, the node takes the critical side of C2, viewing existing legal institutions as inadequate to hold AI developers accountable.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-289",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Identifying recursive evidentiary barriers in litigation discovery reflects a shared skeptical concern with corporate opacity and accountability mechanisms (C0), without taking a definitive stance on whether existing legal institutions can adapt or require structural overhaul.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-089",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node combines institutional focus on targeted harms within a specific sector (C3) with critical calls for outright refusal and market prohibitions against parasocial commercial exploitation (C4).",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-290",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The belief reflects shared skeptic ground (C0) by puncturing AI exceptionalism to point out that real risks in deployed devices stem from mundane, physical hardware surveillance rather than novel AI capabilities.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-291",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "By identifying existing regulatory pathways (executive enforcement, sector-level certification, and state action) as the viable alternatives to stalled federal legislation, the node reflects the institutional wing's reliance on existing institutional mechanisms adapted sector by sector (C2).",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-292",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node emphasizes governance through pre-existing administrative mechanisms and state-level regulatory experimentation in lieu of sweeping statutory overhauls, aligning with the institutional wing's view on Crux C2 that existing sectoral institutions can handle governance.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-293",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node focuses on engineering hardware-level guardrails and technical resilience (such as isolated silicon, edge filtering, and physical kill switches) to safely manage sensor deployment rather than demanding structural bans or refusal.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-090",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node locates harm in a specific application and sector (parasocial commercial agents targeting children) rather than ownership and extraction broadly, carefully excluding broader software bans in favor of targeted sector-specific statutory prohibition.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-294",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Identifying intentional dark patterns and asymmetric friction in user interfaces represents shared Skeptic ground focusing on concrete, deployed platform harms rather than speculative AI risks, without taking a definitive stance on structural refusal versus sectoral regulatory remedies.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-295",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both critical and institutional wings draw on evidence of broad, cross-partisan public demand for tech regulation to justify state intervention, without adjudicating between structural disruption and institutional adaptation.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-296",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Focusing on concrete, present-day privacy and data-security vulnerabilities in educational IoT is shared ground between both wings under C0, without taking a side on structural power versus sector-by-sector institutional governance.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-167",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node focuses on a concrete technical cybersecurity risk arising from specific interconnected software deployments, aligning with the institutional view that harms stem from specific applications and operational vulnerabilities rather than broad structural power or labor extraction.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-297",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node focuses on present-day, grounded harms regarding commercial surveillance and socio-economic privacy disparities without taking a stand on AI usefulness, institutional rebuilding, or adoption refusal.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-298",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The belief relies on existing statutory regimes and sector-specific enforcement tools (COPPA civil penalties and judicial injunctions) to govern AI harms, aligning with the institutional wing's view on institutional adequacy.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-168",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Mandatory standardized ingredient-style packaging labels represent an incremental consumer-protection remedy adapted from existing institutional disclosure regimes rather than radical structural rebuilding.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-169",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The focus on administrative tools like empirical impact assessments and sunset clauses rather than structural overhaul or permanent bans aligns with the institutional wing's preference for adaptive, measured governance.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-299",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node frames companion AI as an engagement-driven extraction engine that monetizes vulnerability and extracts unpaid affective labor, taking the critical wing's stance that harm arises from ownership, power, and extraction (C3).",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-300",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The focus on proving systemic extraction and reliance on protected creative labor directly aligns with the critical wing's emphasis on harms of ownership, extraction, and labor exploitation.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-301",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The belief highlights qualitative failure in high-level semantic tasks like parody, aligning with the critical wing's stance on C1 that surface-level fluency is frequently mistaken for genuine competence.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-302",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node views existing procedural compliance mechanisms as captured 'audit-washing shields' that corporations use to deflect liability and preserve power, taking the critical side of C2.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-303",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node aligns with the critical wing's stance on C2 and C3, arguing that existing institutional remedies like tort liability are captured and bypassed by corporate power using procedural compliance shields.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-304",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "This belief reflects shared empirical skepticism regarding the physical and cognitive limits of human-in-the-loop supervision, relying on human-factors evidence rather than speculative automation promises without taking a stance on broader economic power or institutional governance.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-305",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node focuses on corporate ownership structures and power dynamics used to shield conglomerates from liability, aligning with the critical wing's analysis of harm stemming from corporate control and extraction.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-170",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The proposal applies conventional software supply chain security standards (SLSA, OIDC) to AI model registries, exemplifying the institutional wing's approach of adapting standard technical governance and guardrails without requiring structural overhaul or pre-deployment compute licensing.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-091",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Rather than a blanket refusal of AI in the workplace or structural labor overhaul, this node targets a specific high-stakes use with a sector-specific guardrail (mandatory human involvement).",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-171",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "It relies on existing sector-specific institutions (state labor commissioners and attorneys general) rather than structural replacement or worker refusal, exemplifying the institutional wing's view on institutional adequacy under C2.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-172",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Relying on government-endorsed voluntary codes of practice as flexible proxies for statutory compliance reflects the institutional wing's belief that existing regulatory frameworks and institutions can adapt pragmatically to govern AI.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-306",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Both wings agree that policy must evaluate empirical, measured distributional impacts on households and workers rather than relying on aggregate growth projections or speculative macro narratives.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-307",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node illustrates that apparent reasoning via fluent chain-of-thought traces is often mere post-hoc rationalization and epistemic distortion rather than genuine understanding, aligning with the critical view on C1.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-308",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Identifying technical bottlenecks and compounding execution errors in multi-step procedural distillation is grounded deployment-level skepticism shared by both wings under C0.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-173",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "Advocating for integrated policy analysis that assesses macroeconomic, fiscal, and distributional impacts reflects the shared skeptic commitment to grounded, multi-dimensional policy assessment rather than taking a stance on institutional adequacy or technological refusal.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-309",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "It relies on standard institutional mechanisms—courts signaling statutory gaps to prompt legislative updates—aligning with the institutional view that existing legal frameworks can adapt sector-by-sector.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-310",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates harm in systemic labor-share compression and capital extraction at the expense of public revenue, aligning with the critical wing's focus on structural harms stemming from ownership, labor displacement, and capital power.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-311",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node characterizes AI agent outputs as superficial look-alikes that create 'fake productivity' without structural usability, taking the critical wing's stance on C1 that fluency is mistaken for genuine competence.",
+      "crux": "C1",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-312",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "Both wings share the premise that algorithmic systems must be evaluated via empirical, dynamic evidence from actual deployments rather than static code or corporate assurances.",
+      "crux": "C0",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-092",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "Rather than a blanket refusal or structural power challenge, this specifies targeted guardrails and interface constraints for a specific vulnerable population (minors), aligning with the institutional wing's sector-by-sector risk mitigation.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-313",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node frames tech infrastructure as extractive colonization driven by monopoly power and spatial inequality, aligning directly with the critical wing's belief that primary harms stem from ownership, power, and extraction (C3).",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-314",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node locates economic harm in the structural shift of factor shares from labor to capital and ownership, aligning with the critical wing's focus on power and capital extraction over sector-specific harms.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    }
+  ]
+}

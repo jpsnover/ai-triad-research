@@ -1,0 +1,62 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* t/3961 — POV tag chips + add picker on a node. Defined tokens only. */
+
+.pov-tag-editor {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: var(--text-sm);
+}
+
+.pov-tag-editor-title {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  padding-top: 3px;
+}
+
+.pov-tag-editor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.pov-tag-editor-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.pov-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.pov-tag-chip-orphan {
+  border-style: dashed;
+  border-color: var(--warning);
+  color: var(--text-muted);
+}
+
+.pov-tag-chip-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.pov-tag-chip-remove:hover {
+  color: var(--text-primary);
+}
+
+.pov-tag-editor-add {
+  font-size: var(--text-sm);
+}

@@ -142,3 +142,13 @@ describe('buildGenerateOptions fixedTemperature threading (t/2108)', () => {
     expect(opts.fixedTemperature).toBe(1);
   });
 });
+
+describe('identityRegistry threading (t/4019)', () => {
+  it('passes identityRegistry (loaded ModelRegistry) to callProvider', async () => {
+    await generateText('hello', 'gemini-flash', undefined, undefined, 'fake-key');
+    const opts = callProviderMock().mock.calls[0][5];
+    expect(opts.identityRegistry).toBeDefined();
+    // Registry loaded from REGISTRY_JSON — spot-check a model id from that fixture
+    expect(opts.identityRegistry.models.map((m: { id: string }) => m.id)).toContain('gemini-flash');
+  });
+});

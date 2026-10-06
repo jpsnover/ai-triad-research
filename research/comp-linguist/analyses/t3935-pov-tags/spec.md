@@ -53,7 +53,17 @@ The registry is `lib/debate/soul-docs/pov-tags.json`:
 - **Renaming a tag** (t/3985, SO e/253#2): never rename in place. Do it in three steps: add the new tag with its soul; migrate the node data from old id to new with the t/3969 writer; then remove the old tag and its soul. Each step keeps data `main` free of tags the registry doesn't know.
 - **Removing a tag:** strip the tag from the node data first (t/3969 writer), then remove the registry entry and its soul.
 - **Why the order matters:** a registry change that lands before its data change orphans every node still carrying the old id. CI will scan data `main` for orphans (t/3987), and this ordering keeps every registry PR at 0.
-- **Interim, until t/3987's CI step exists:** any PR touching `pov-tags.json` pastes its orphan count, which must be 0. Get it by running `lib/schema/pov-tags-cli.ts` (`validatePovTags`) with that PR's registry over each taxonomy file on ai-triad-data `origin/main`. Scope the run to the POV and situation files (`accelerationist`, `safetyist`, `skeptic`, `situations`). The CLI accepts any file with a `nodes` array, so a non-taxonomy file such as `entity_extraction_log.json` reports false errors. First instance: #2851, 0 orphans over 1,429 nodes.
+- **Interim, until t/3987's CI step exists:** any PR touching `pov-tags.json` pastes the output of one command, run from the PR's branch against ai-triad-data `origin/main` (#2897, t/3985):
+
+  ```
+  tsx lib/schema/pov-tags-cli.ts --scan-data <ai-triad-data>/taxonomy/Origin --base-registry <origin/main pov-tags.json>
+  ```
+
+  - It must report **`introduced` 0** (exit 0).
+  - It's **differential:** only orphans this PR's registry *introduces* fail; pre-existing ones are reported separately.
+  - It's **already scoped** to the four taxonomy files (`accelerationist`, `safetyist`, `skeptic`, `situations`), so no manual file selection is needed.
+  - The same command is in the header of `lib/schema/povTags.ts`.
+  - **History:** the first instance (#2851) was counted by hand, giving 0 orphans over 1,429 nodes. The command reproduces it: `checked` 1,429, `introduced` 0, on data `e4095258`.
 - **A POV with no entry has no tags,** so Accelerationist and Safetyist need no change today.
 
 ### 2.2 Tags on nodes: a top-level field
@@ -167,6 +177,9 @@ The `skeptic.institutional.soul.json` is the t/3932 Institutionalist draft. Its 
 - **SCOPE:** the POV's candidate items are filtered to those whose `pov_tags` contain the tag, **before** relevance ranking. Untagged items are excluded (default for decision 2). The setup screen shows how many items are in scope and how many are untagged.
 - **Scope never widens silently** (*TL condition*). If Scope leaves fewer POV items than the selection needs, setup refuses and shows the count. There is no quiet fallback to all items (Fallback-Path Logging rule).
   - **"Thin" means fewer than 5 tagged items** in the POV (`checkTagScope`, `lib/debate/relevanceSelection.ts`; stipulated, see the metric provenance register).
+    - **The count is of *groundable* tagged items:** tagged **and** with an embedding (CL ruling, p/736#41–#43, t/4009). The floor guards how much material an answer can draw on, and an unembedded node can't be retrieved.
+    - **The count still runs before grounding, over the camp's full node list,** so a camp with no embeddings refuses (at 0) instead of being skipped.
+    - **A tagged node with no embedding is a data-quality gap, not something to absorb.** Log a WARN with the count, and show both numbers in any refusal.
   - **One rule, two phases** (t/3957#7; SO e/254#6 condition 1):
     1. **Pre-flight, every feature: refuse.** A thin Scope is refused before anything runs, showing the count. Where the refusal lives:
        - debates: the setup screens (t/3958, t/3959);

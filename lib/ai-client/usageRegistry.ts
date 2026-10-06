@@ -108,6 +108,7 @@ export async function callByUsage(
     responseSchema: config.responseSchema,
     systemMessage,
     tools: config.tools,
+    identityRegistry: models, // t/3731: the served-identity classifier's cross-check
     ...(fixedTemperature != null ? { fixedTemperature } : {}),
   };
 

@@ -1691,7 +1691,7 @@ describe('useTaxonomyStore', () => {
     // (only skeptic ones, t/3956), so the tag is unregistered ("orphaned") there.
     describe('pov_tags save gate (t/3973)', () => {
       const saveCalledFor = (pov: string) => mockApi.saveTaxonomyFile.mock.calls.some(([p]) => p === pov);
-      const orphanWarn = () => mockRecord.mock.calls.find(([e]) => e.message?.includes('unregistered POV tags on untouched nodes'));
+      const orphanWarn = () => mockRecord.mock.calls.find(([e]) => e.message?.includes('unregistered POV tags already on nodes'));
       const seed = (node: Partial<PovNode>, baseline: Record<string, string>) => useTaxonomyStore.setState({
         accelerationist: makePovFile([makePovNode({ id: 'acc-beliefs-001', ...node })]),
         dirty: new Set(['accelerationist']),

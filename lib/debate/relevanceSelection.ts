@@ -21,7 +21,7 @@
 
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
 import type { TagSelection } from './types/session.js';
-import { TAG_BOOST_INCREMENT } from './debateConfig.js';
+import { TAG_BOOST_INCREMENT, TAG_SCOPE_MINIMUM_NODES } from './debateConfig.js';
 import { cosineSimilarity } from '../embeddings/similarity.js';
 import {
   scoreNodesViaAN,
@@ -125,15 +125,35 @@ export interface DoctrinalAdjustment {
 
 /**
  * Pure pre-flight: check how many POV nodes are in-scope for a given tag.
- * Never throws at runtime — callers use this to decide whether to proceed.
+ * Never throws at runtime — callers act on `sufficient` + `reason`.
+ *
+ * Sufficiency rules (t/3965#13, CL ruling p/736#31, t/4009):
+ *   - `none-tagged`: inScope === 0 (either mode) — nothing to ground on or boost.
+ *   - `below-floor`: Scope mode, 0 < inScope < TAG_SCOPE_MINIMUM_NODES — too thin to answer.
+ *   - null: sufficient.
+ * Prioritize sufficiency floor is 1 (no minimum count — it excludes nothing).
+ * Scope sufficiency floor is TAG_SCOPE_MINIMUM_NODES.
+ *
+ * When `embeddedIds` is provided (t/4009), the floor counts only groundable nodes
+ * (tagged AND embedded). `unembeddedTaggedCount` reports how many tagged nodes were
+ * excluded from the count due to missing embeddings — callers should WARN on > 0.
  */
 export function checkTagScope(
   povNodes: PovNode[],
   tagSelection: TagSelection,
-): { inScope: PovNode[]; excluded: PovNode[]; sufficient: boolean } {
-  const inScope = povNodes.filter(n => (n.pov_tags ?? []).includes(tagSelection.tag));
+  embeddedIds?: Set<string>,
+): { inScope: PovNode[]; excluded: PovNode[]; sufficient: boolean; reason: 'none-tagged' | 'below-floor' | null; unembeddedTaggedCount: number } {
+  const tagged = povNodes.filter(n => (n.pov_tags ?? []).includes(tagSelection.tag));
   const excluded = povNodes.filter(n => !(n.pov_tags ?? []).includes(tagSelection.tag));
-  return { inScope, excluded, sufficient: inScope.length >= 5 };
+  const inScope = embeddedIds ? tagged.filter(n => embeddedIds.has(n.id)) : tagged;
+  const unembeddedTaggedCount = tagged.length - inScope.length;
+  if (inScope.length === 0) {
+    return { inScope, excluded, sufficient: false, reason: 'none-tagged', unembeddedTaggedCount };
+  }
+  if (tagSelection.mode === 'scope' && inScope.length < TAG_SCOPE_MINIMUM_NODES) {
+    return { inScope, excluded, sufficient: false, reason: 'below-floor', unembeddedTaggedCount };
+  }
+  return { inScope, excluded, sufficient: true, reason: null, unembeddedTaggedCount };
 }
 
 /**

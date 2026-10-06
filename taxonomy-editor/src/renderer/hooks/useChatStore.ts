@@ -19,6 +19,8 @@ import { api } from '@bridge';
 import type { UrlContextMetadata } from '@lib/ai-client/index';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext, FormatContextConfig } from '../utils/taxonomyContext';
+import { checkTagScope } from '@lib/debate/relevanceSelection';
+import type { SeatTag, TagSelection } from '@lib/debate/types/session';
 import {
   chatSystemPrompt,
   chatOpeningPrompt,
@@ -99,11 +101,40 @@ function stripCodeFences(text: string): string {
 
 const CHAT_CONTEXT_CONFIG: FormatContextConfig = { maxNodes: 9999, maxDesires: 9999 };
 
-function getTaxonomyContext(pov: string): TaxonomyContext {
+/** The chat's tag selection, or undefined when untagged (t/3995). */
+export function chatTagSelection(chat: Pick<ChatSession, 'pov_tag' | 'tag_mode'>): TagSelection | undefined {
+  return chat.pov_tag && chat.tag_mode ? { tag: chat.pov_tag, mode: chat.tag_mode } : undefined;
+}
+
+/** The taxonomy a chat is given. Chat has no relevance ranking: every POV node is sent, except that a
+ *  Scope-tagged chat is given only its tagged nodes (t/3995). Prioritize ordering belongs to
+ *  formatTaxonomyContext (t/3996); until it lands a Prioritize chat gets every node, in the usual order. */
+function getTaxonomyContext(pov: string, chat: Pick<ChatSession, 'id' | 'pov_tag' | 'tag_mode'>): TaxonomyContext {
   const state = useTaxonomyStore.getState();
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
   const povNodes: PovNode[] = povFile?.nodes ?? [];
   const situationNodes: SituationNode[] = state.situations?.nodes ?? [];
+  const tagSelection = chatTagSelection(chat);
+  if (tagSelection?.mode === 'scope') {
+    const { inScope, excluded, sufficient } = checkTagScope(povNodes, tagSelection);
+    // Setup refuses a Scope tag below the minimum (t/3959), but tags can change after a chat starts. Per
+    // TL t/3957#7 B(b), run time narrows only: WARN and continue with the scoped set, never widen or throw.
+    if (!sufficient) {
+      getGlobalRecorder()?.record({
+        type: 'state.change', component: 'chat-store', level: 'warn',
+        message: 'Scope-tagged chat is below the tag minimum; continuing with the scoped nodes only',
+        data: { chat_session_id: chat.id, pov, tag: tagSelection.tag, in_scope: inScope.length, excluded: excluded.length },
+      });
+    }
+    return { povNodes: inScope, situationNodes };
+  }
+  if (tagSelection?.mode === 'prioritize') {
+    getGlobalRecorder()?.record({
+      type: 'state.change', component: 'chat-store', level: 'warn',
+      message: 'Prioritize-tagged chat: tagged-first ordering not applied yet (t/3996); sending every node unordered',
+      data: { chat_session_id: chat.id, pov, tag: tagSelection.tag },
+    });
+  }
   return { povNodes, situationNodes };
 }
 
@@ -186,7 +217,8 @@ interface ChatStore {
 
   // Actions
   loadSessions: () => Promise<void>;
-  createChat: (mode: ChatMode, pover: Exclude<SpeakerId, 'user'>, topic: string, chatModel?: string) => Promise<string>;
+  /** `tag`: the chat's POV tag (t/3995); omit for an untagged chat. */
+  createChat: (mode: ChatMode, pover: Exclude<SpeakerId, 'user'>, topic: string, chatModel?: string, tag?: SeatTag) => Promise<string>;
   loadChat: (id: string) => Promise<void>;
   deleteChat: (id: string) => Promise<void>;
   renameChat: (id: string, newTitle: string) => Promise<void>;
@@ -221,7 +253,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  createChat: async (mode, pover, topic, chatModel) => {
+  createChat: async (mode, pover, topic, chatModel, tag) => {
     const id = generateId();
     const now = nowISO();
     const session: ChatSession = {
@@ -234,6 +266,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       pover,
       transcript: [],
       chat_model: chatModel,
+      // Absent (not undefined-valued) when untagged, so untagged sessions serialize as before.
+      ...(tag ? { pov_tag: tag.pov_tag, tag_mode: tag.tag_mode } : {}),
     };
     await api.saveChatSession(session);
     api.trackEvent('chat_start', 'chat', { mode, pover });
@@ -331,7 +365,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       const info = POVER_INFO[activeChat.pover];
-      const ctx = getTaxonomyContext(info.pov);
+      const ctx = getTaxonomyContext(info.pov, activeChat);
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
       const model = getConfiguredModel();
       const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
@@ -433,7 +467,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       const info = POVER_INFO[activeChat.pover];
-      const ctx = getTaxonomyContext(info.pov);
+      const ctx = getTaxonomyContext(info.pov, activeChat);
       const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
       const model = getConfiguredModel();
       const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];

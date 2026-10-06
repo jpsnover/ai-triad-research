@@ -3,45 +3,66 @@
 
 import type { PovNode } from '../types/taxonomy';
 import type { ValidationErrors } from './validation';
-import { validatePovTagsDetailed, type PovTagRegistry } from '@lib/schema/povTags';
+import { loadPovTagRegistry, POV_BY_ID_PREFIX, type PovTagRegistry } from '@lib/schema/povTags';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
-// ── t/3973: POV-tag registry membership is gated on nodes changed since load/save ──
-// A tag the registry later retires must not block every save of its POV file (the editor has no tag UI
-// to fix it, t/3961). Structural problems still block everywhere (validation.ts); only "not registered"
-// is per-node: blocking on an edited node, a WARN on an untouched one. Same pattern as t/3888's BDI gate.
+// ── POV-tag registry membership on save (t/3973, refined in t/3961) ──
+// A tag the registry later retires must not block saving. Structural problems still block everywhere
+// (validation.ts). Membership blocks only tags ADDED since load/save that aren't registered: that is the
+// guarantee e/249#6 cond 2 is for ("no edit introduces an unregistered tag"). An orphan a node already
+// carried is a WARN plus the t/3984 notice. Removing or reordering tags never blocks, which matters now
+// that the editor can edit tags (t/3961; SO e/253#2 note): removing a valid tag from a node that still
+// carries an orphan must save, or the user is stuck.
 
 /** node id → fingerprint of its pov_tags, as last loaded or saved. */
 export function buildPovTagBaseline(nodes: PovNode[]): Record<string, string> {
   return Object.fromEntries(nodes.map(n => [n.id, JSON.stringify(n.pov_tags ?? null)]));
 }
 
-/** Unregistered-tag errors for changed nodes; untouched nodes with orphaned tags are WARNed, not blocked.
+/** Unregistered tags added since the baseline, as errors keyed nodes.<id>.pov_tags.
  *  `registry` is for tests only (the committed registry is empty until t/3956). */
 export function povTagMembershipErrors(nodes: PovNode[], baseline: Record<string, string>, registry?: PovTagRegistry): ValidationErrors {
   return povTagMembership(nodes, baseline, registry).errors;
 }
 
-/** As povTagMembershipErrors, plus the ids of UNTOUCHED nodes that carry orphaned tags, so the editor can
- *  show them to the user after the save, not only in the flight recorder (t/3984; SO e/253#2 note). */
-export function povTagMembership(nodes: PovNode[], baseline: Record<string, string>, registry?: PovTagRegistry): { errors: ValidationErrors; orphanedNodeIds: string[] } {
+/** The tag ids a stored fingerprint held (none for an absent node or untagged one). */
+function baselineTags(fingerprint: string | undefined): Set<string> {
+  const v: unknown = fingerprint === undefined ? null : JSON.parse(fingerprint);
+  return new Set(Array.isArray(v) ? v.filter((t): t is string => typeof t === 'string') : []);
+}
+
+/** Registered tag ids for the node's POV, or null for a non-POV node (structural; the schema's job). */
+function allowedTagsFor(nodeId: string, registry: PovTagRegistry): Set<string> | null {
+  const pov = POV_BY_ID_PREFIX[/^([a-z]+)-/.exec(nodeId)?.[1] ?? ''];
+  if (!pov) return null;
+  return new Set((registry.povs[pov as keyof PovTagRegistry['povs']] ?? []).map(t => t.id));
+}
+
+/** As povTagMembershipErrors, plus the ids of nodes still carrying orphaned (already-present, unregistered)
+ *  tags, so the editor can show them after the save, not only in the flight recorder (t/3984). */
+export function povTagMembership(nodes: PovNode[], baseline: Record<string, string>, registry: PovTagRegistry = loadPovTagRegistry()): { errors: ValidationErrors; orphanedNodeIds: string[] } {
   const errors: ValidationErrors = {};
-  const orphansOnUntouched: Array<{ node_id: string; problems: string[] }> = [];
+  const orphans: Array<{ node_id: string; tags: string[] }> = [];
   for (const node of nodes) {
-    const unregistered = validatePovTagsDetailed(node.id, node.pov_tags, registry).filter(p => p.kind === 'unregistered');
+    if (!Array.isArray(node.pov_tags)) continue; // absent = untagged; a scalar is structural (schema blocks it)
+    const allowed = allowedTagsFor(node.id, registry);
+    if (!allowed) continue;
+    const unregistered = node.pov_tags.filter((t): t is string => typeof t === 'string' && !allowed.has(t));
     if (unregistered.length === 0) continue;
-    if (baseline[node.id] !== JSON.stringify(node.pov_tags ?? null)) {
-      errors[`nodes.${node.id}.pov_tags`] = unregistered.map(p => p.message).join('; ');
-    } else {
-      orphansOnUntouched.push({ node_id: node.id, problems: unregistered.map(p => p.message) });
+    const before = baselineTags(baseline[node.id]);
+    const added = unregistered.filter(t => !before.has(t));
+    const kept = unregistered.filter(t => before.has(t));
+    if (added.length > 0) {
+      errors[`nodes.${node.id}.pov_tags`] = added.map(t => `${node.id}: tag "${t}" is not registered`).join('; ');
     }
+    if (kept.length > 0) orphans.push({ node_id: node.id, tags: kept });
   }
-  if (orphansOnUntouched.length > 0) {
+  if (orphans.length > 0) {
     getGlobalRecorder()?.record({
       type: 'state.change', component: 'taxonomy-store', level: 'warn',
-      message: 'Saving despite unregistered POV tags on untouched nodes (orphaned by a registry change?)',
-      data: { count: orphansOnUntouched.length, nodes: orphansOnUntouched.slice(0, 20) },
+      message: 'Saving despite unregistered POV tags already on nodes (orphaned by a registry change?)',
+      data: { count: orphans.length, nodes: orphans.slice(0, 20) },
     });
   }
-  return { errors, orphanedNodeIds: orphansOnUntouched.map(o => o.node_id) };
+  return { errors, orphanedNodeIds: orphans.map(o => o.node_id) };
 }

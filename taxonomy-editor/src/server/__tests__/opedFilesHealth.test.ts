@@ -40,28 +40,41 @@ function opedFilesHandler(): (req: unknown, res: unknown, body: unknown) => unkn
   return routes.find(r => r.method === 'GET' && r.path === '/api/health/oped-files')!.handler;
 }
 
-interface TagSoulSpec { tag: string; povs: string[] }
+/** A single (pov, tag-id) pair. */
+interface TagSoulSpec { pov: string; id: string }
 
-/** Build a fake project root with the requested soul-docs + prompt files present. */
-function makeRoot(souls: string[], prompts: string[], opts?: { tags?: TagSoulSpec[]; strayTagFiles?: string[] }): string {
+/**
+ * Build a fake project root with the requested soul-docs + prompt files present.
+ * Tag soul files live at soul-docs/<pov>.<id>.soul.json (spec §3, t/3989).
+ * `tags` → registered in pov-tags.json AND file written.
+ * `registeredOnly` → registered but file intentionally absent (for missing-arm tests).
+ * `strayTagFiles` → file written in soul-docs/ but NOT in registry (for stray-arm tests).
+ */
+function makeRoot(souls: string[], prompts: string[], opts?: {
+  tags?: TagSoulSpec[];
+  registeredOnly?: TagSoulSpec[];
+  strayTagFiles?: string[];
+}): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oped-health-'));
-  const soulsDir = path.join(root, 'lib', 'debate', 'soul-docs');
-  const tagsDir  = path.join(soulsDir, 'tags');
+  const soulsDir  = path.join(root, 'lib', 'debate', 'soul-docs');
   const promptsDir = path.join(root, 'lib', 'oped', 'prompts');
   fs.mkdirSync(soulsDir, { recursive: true });
-  fs.mkdirSync(tagsDir, { recursive: true });
   fs.mkdirSync(promptsDir, { recursive: true });
   for (const s of souls) fs.writeFileSync(path.join(soulsDir, `${s}.soul.json`), '{}');
   for (const p of prompts) fs.writeFileSync(path.join(promptsDir, p), 'x');
-  // pov-tags.json registry: registered tags listed under povs
-  const registeredTags: Record<string, unknown> = {};
-  for (const t of (opts?.tags ?? [])) registeredTags[t.tag] = { povs: t.povs };
-  fs.writeFileSync(path.join(soulsDir, 'pov-tags.json'), JSON.stringify({ version: 1, povs: registeredTags }));
-  // tag soul files
-  for (const t of (opts?.tags ?? [])) {
-    for (const pov of t.povs) fs.writeFileSync(path.join(tagsDir, `${t.tag}.${pov}.soul.json`), '{}');
+  // pov-tags.json: group all registered entries (tags + registeredOnly) by pov
+  const byPov: Record<string, Array<{ id: string; label: string; soul_doc: string; description: string }>> = {};
+  for (const t of [...(opts?.tags ?? []), ...(opts?.registeredOnly ?? [])]) {
+    if (!byPov[t.pov]) byPov[t.pov] = [];
+    byPov[t.pov].push({ id: t.id, label: t.id, soul_doc: `${t.pov}.${t.id}`, description: t.id });
   }
-  for (const f of (opts?.strayTagFiles ?? [])) fs.writeFileSync(path.join(tagsDir, f), '{}');
+  fs.writeFileSync(path.join(soulsDir, 'pov-tags.json'), JSON.stringify({ version: 1, povs: byPov }));
+  // tag soul files — only for 'tags', not 'registeredOnly'
+  for (const t of (opts?.tags ?? [])) {
+    fs.writeFileSync(path.join(soulsDir, `${t.pov}.${t.id}.soul.json`), '{}');
+  }
+  // stray files: in soul-docs/ but not in registry
+  for (const f of (opts?.strayTagFiles ?? [])) fs.writeFileSync(path.join(soulsDir, f), '{}');
   return root;
 }
 
@@ -116,11 +129,12 @@ describe('GET /api/health/oped-files — both-arms gate verification (t/2689 AC3
     fs.rmSync(emptyPromptsRoot, { recursive: true, force: true });
   });
 
-  it('CLEAN arm: registered tag souls present → 200 { ok:true }', () => {
+  it('CLEAN arm: registered tag soul present at soul-docs/<pov>.<id>.soul.json → 200', () => {
+    // spec §3 path: soul-docs/skeptic.critical.soul.json (not tags/ subdir, t/3989)
     const r = makeRoot(
       ['accelerationist', 'safetyist', 'skeptic'],
       ['op-ed-generation-system.prompt'],
-      { tags: [{ tag: 'cybersecurity', povs: ['accelerationist', 'safetyist', 'skeptic'] }] },
+      { tags: [{ pov: 'skeptic', id: 'critical' }] },
     );
     h.root = r;
     const res = mockRes();
@@ -128,16 +142,16 @@ describe('GET /api/health/oped-files — both-arms gate verification (t/2689 AC3
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.ok).toBe(true);
-    expect(body.assets).toContain('lib/debate/soul-docs/tags/cybersecurity.accelerationist.soul.json');
+    expect(body.assets).toContain('lib/debate/soul-docs/skeptic.critical.soul.json');
     fs.rmSync(r, { recursive: true, force: true });
   });
 
-  it('FAILURE arm: registered tag soul missing → 500 (gate must fire for missing tag soul)', () => {
-    // Registry claims 'cybersecurity' but only accelerationist + safetyist files exist.
+  it('FAILURE arm: registered tag soul file absent → 500 (gate must fire)', () => {
+    // Registry lists skeptic/critical but the file does not exist.
     const r = makeRoot(
       ['accelerationist', 'safetyist', 'skeptic'],
       ['op-ed-generation-system.prompt'],
-      { tags: [{ tag: 'cybersecurity', povs: ['accelerationist', 'safetyist'] }] }, // skeptic file absent
+      { registeredOnly: [{ pov: 'skeptic', id: 'critical' }] },
     );
     h.root = r;
     const res = mockRes();
@@ -145,15 +159,16 @@ describe('GET /api/health/oped-files — both-arms gate verification (t/2689 AC3
     expect(res.statusCode).toBe(500);
     const body = JSON.parse(res.body);
     expect(body.ok).toBe(false);
-    expect(body.missing).toContain('lib/debate/soul-docs/tags/cybersecurity.skeptic.soul.json');
+    expect(body.missing).toContain('lib/debate/soul-docs/skeptic.critical.soul.json');
     fs.rmSync(r, { recursive: true, force: true });
   });
 
-  it('FAILURE arm: stray tag file not in registry → 500', () => {
+  it('FAILURE arm: stray tag soul in soul-docs/ not in registry → 500', () => {
+    // skeptic.orphan.soul.json not registered → stray
     const r = makeRoot(
       ['accelerationist', 'safetyist', 'skeptic'],
       ['op-ed-generation-system.prompt'],
-      { strayTagFiles: ['orphan.accelerationist.soul.json'] },
+      { strayTagFiles: ['skeptic.orphan.soul.json'] },
     );
     h.root = r;
     const res = mockRes();
@@ -161,7 +176,7 @@ describe('GET /api/health/oped-files — both-arms gate verification (t/2689 AC3
     expect(res.statusCode).toBe(500);
     const body = JSON.parse(res.body);
     expect(body.ok).toBe(false);
-    expect(body.missing.some((m: string) => m.includes('orphan.accelerationist.soul.json') && m.includes('stray'))).toBe(true);
+    expect(body.missing.some((m: string) => m.includes('skeptic.orphan.soul.json') && m.includes('stray'))).toBe(true);
     fs.rmSync(r, { recursive: true, force: true });
   });
 });

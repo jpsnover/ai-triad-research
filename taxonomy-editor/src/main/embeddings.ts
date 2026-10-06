@@ -749,6 +749,7 @@ export async function generateText(
     ...(signal ? { signal } : {}),
     ...(responseSchema ? { responseSchema } : {}),
     ...(maxTokens !== undefined ? { maxTokens } : {}),
+    identityRegistry: resolveRegistry(), // t/4018: lets callProvider's served-identity classifier warn on divergence
   };
 
   const providerFn = backend === 'deepseek'
@@ -819,6 +820,7 @@ export async function generateChatStream(
       temperature: temperature ?? 0.7,
       timeoutMs: getDefaultTimeout(friendlyModel, resolveRegistry()),
       ...fixedTempOverride(entry),
+      identityRegistry: resolveRegistry(), // t/4018: lets callProvider's served-identity classifier warn on divergence
     };
     const providerResult = backend === 'deepseek'
       ? await generateViaDeepSeekStream(electronFetch, prompt, resolvedModel, apiKey, opts, onChunk)

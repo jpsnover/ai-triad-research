@@ -919,6 +919,11 @@
   margin-top: var(--sp-2);
 }
 
+.ndd-settings-debater-group {
+  display: flex;
+  flex-direction: column;
+}
+
 .ndd-settings-debater-row {
   align-items: center;
   cursor: pointer;

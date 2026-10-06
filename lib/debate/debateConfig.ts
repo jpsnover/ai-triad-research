@@ -57,6 +57,9 @@ export const LINEAGE_BOOST_INCREMENT = 0.08;
 /** Score boost applied to nodes that carry the seat's POV tag in PRIORITIZE mode (t/3957).
  *  Stipulated — mirrors LINEAGE_BOOST_INCREMENT pending t/3963 calibration. */
 export const TAG_BOOST_INCREMENT = 0.08;
+/** Minimum tagged-node count for a Scope tag selection to be considered sufficient (t/3989).
+ *  Below this count, checkTagScope returns sufficient=false and callers refuse or warn. */
+export const TAG_SCOPE_MINIMUM_NODES = 5;
 export const PERTURBATION_ARCO_BASELINE = 0.5;
 
 // ── Insularity intervention limits ────────────────────────────────────────────

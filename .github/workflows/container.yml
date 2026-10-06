@@ -111,7 +111,10 @@ jobs:
           # has been validated by prior successful runs. test-powershell failures do not
           # block container builds.
           for JOB in test-container; do
-            STATUS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" \
+            # --paginate + per_page=100: the jobs API returns 30 per page by default and CI has
+            # more than 30 jobs (35 on 2026-10-06), so an unpaginated lookup could not see
+            # test-container and refused every build as "not found".
+            STATUS=$(gh api --paginate "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs?per_page=100" \
               --jq ".jobs[] | select(.name == \"${JOB}\") | .conclusion // .status" 2>/dev/null || echo "")
             if [ "$STATUS" = "success" ] || [ "$STATUS" = "skipped" ]; then
               echo "  ${JOB}: ${STATUS}"

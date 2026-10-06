@@ -140,17 +140,22 @@ function Get-TopicFrequency {
             continue
         }
 
-        $DocId = $Summary.doc_id
+        # Every summary/key-point/claim field read below is guarded via PSObject.Properties (t/4010):
+        # a bare dot-access on an absent property throws under StrictMode instead of yielding $null,
+        # which made the "skip if missing" checks (and the BaseName fallback) unreachable.
+        $SummaryProps = $Summary.PSObject.Properties
+        $DocId = if ($SummaryProps['doc_id']) { $Summary.doc_id } else { $null }
         if (-not $DocId) { $DocId = $File.BaseName }
 
         # Count key_points per camp
+        $PovSummaries = if ($SummaryProps['pov_summaries']) { $Summary.pov_summaries } else { $null }
         foreach ($Camp in $CampKeys) {
-            $CampData = $Summary.pov_summaries.$Camp
+            $CampData = if ($PovSummaries -and $PovSummaries.PSObject.Properties[$Camp]) { $PovSummaries.$Camp } else { $null }
             if (-not $CampData -or -not $CampData.PSObject.Properties['key_points'] -or -not $CampData.key_points) { continue }
 
             foreach ($KP in @($CampData.key_points)) {
                 $TotalKeyPoints++
-                $NodeId = $KP.taxonomy_node_id
+                $NodeId = if ($KP.PSObject.Properties['taxonomy_node_id']) { $KP.taxonomy_node_id } else { $null }
                 if (-not $NodeId) { continue }
 
                 if (-not $Citations[$Camp].ContainsKey($NodeId)) {
@@ -167,10 +172,11 @@ function Get-TopicFrequency {
         }
 
         # Optionally count factual_claims (attributed equally to all camps)
-        if ($IncludeFactualClaims -and $Summary.factual_claims) {
-            foreach ($Claim in $Summary.factual_claims) {
-                if (-not $Claim.linked_taxonomy_nodes) { continue }
-                foreach ($NodeId in $Claim.linked_taxonomy_nodes) {
+        if ($IncludeFactualClaims -and $SummaryProps['factual_claims'] -and $Summary.factual_claims) {
+            foreach ($Claim in @($Summary.factual_claims)) {
+                # Unmapped claims carry potential_taxonomy_nodes instead (live in the corpus, t/4010).
+                if (-not ($Claim.PSObject.Properties['linked_taxonomy_nodes'] -and $Claim.linked_taxonomy_nodes)) { continue }
+                foreach ($NodeId in @($Claim.linked_taxonomy_nodes)) {
                     if (-not $NodeId) { continue }
                     foreach ($Camp in $CampKeys) {
                         if (-not $Citations[$Camp].ContainsKey($NodeId)) {

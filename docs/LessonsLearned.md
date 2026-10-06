@@ -366,6 +366,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-26 — Computational Linguist (**8th instance, same-session recurrence**, p/7#38): scratch script threw `AttributeError: 'str' has no .get` walking `situations.json` interpretations — **1,236 nodes have `interpretations.{pov}` as a dict, 23 have it as a plain string**. Cause: assumed uniform shape instead of type-checking at the read site. `isinstance`-guarding fixed it AND *was* the diagnosis — the string form is pre-BDI-decomposition (t/1805). Recurred within hours of #7 → CL argues recording isn't preventing recurrence (hookable check > doc entry); reversed Sage's earlier not-in-#82 call (see #82 tracker).
 - 2026-07-28 — Computational Linguist (**+4, p/7#47/#49**, now 12): **3 probe errors** (t/1826 — extraction-log `nodes`=list not dict, `aliases` nullable, `policy_actions` keys under `policies`/name=`action`) = #82 offender #5 (inspect-before-coding not applied). **+1 PRODUCTION defect (t/1830):** the extraction cmdlet **char-explodes bare-string `aliases`** (13/37 records — model emits string where schema says array, iterated unguarded). **It shipped in POWERSHELL (`Invoke-EntityExtraction`), NOT TS** (CL correction p/7#49) — so `tsc`/a TS union can't catch it; the PS-side prevention is **coerce-at-read (`if ($x -is [string]) { @($x) }`) at each AI-JSON boundary as ONE shared helper (Shared Utility Rule) + a bare-string Pester fixture**. Offender #5's real defense splits by surface: TS→union types, PS→shared coerce helper.
 - 2026-10-01 — Shared Lib (p/5#33, **new variant: directory path assumption**): `FileNotFoundError` reading `taxonomy/accelerationist.json` — the file does not exist at a flat path; the actual location is `taxonomy/Origin/accelerationist.json`. Root cause: assumed all per-POV taxonomy JSON files sit in the root of `taxonomy/` without verifying the directory structure. Fix: checked actual path with PowerShell first, discovered the `Origin/` subdirectory. Same root cause as JSON schema variant (assume flat, don't inspect first) applied to filesystem layout rather than JSON content.
+- 2026-10-06 — Computational Linguist (p/7#94, **new variant: own-artifact shape assumption**): a read-only inspection one-liner raised `KeyError 'node_id'` on t/3939's `frozen-ops.json`. t/3939's file keys ops by `id`; agent assumed `node_id` from their own t/3952 frozen list, which uses a different shape. Nothing was written. Fix: re-read the file shape before querying. The rule applies to **your own artifacts** as much as shared data — different tickets produce different schemas even when the content is related.
 
 **Root Cause:** Code written based on assumed structure without inspecting first. Covers both JSON field layout (nested vs flat within a document) and filesystem directory layout (subdirectory vs flat). Applies across all project data: taxonomy JSON, debate sessions, and tool/API returns. Field types and file paths both vary — never assume flat without checking.
 
@@ -3121,6 +3122,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-10-01 — PowerShell (p/20#55): `Invoke-ScriptAnalyzer -Settings ./relative/settings.json` after a prior `cd` into repo root — **PowerShell tool cwd also resets between calls** (same t/2222 mechanism as Bash), so the relative `-Settings` path failed to resolve. Abandoned: the diagnostic was redundant (git-show evidence already confirmed the finding).
 - 2026-10-04 — DevOps Lead (p/26#141): `gh pr create` run from Bash without `--head` failed with "you must first push the current branch" — the Bash cwd had reset to the shared checkout (on `main`), so `gh` read the current branch as `main` rather than the worktree branch. Fix: always pass `--head <branch>` explicitly to `gh pr create` when called from Bash, regardless of where the push was made.
 - 2026-10-05 — PowerShell (p/20#68): `gh pr create` aborted with "you must first push the current branch" despite the branch already being pushed — run from the shared main checkout (still on `main`), not the worktree the push happened from. `gh pr create` without `--head` infers head from the current checkout's branch. Fix: added `--head <branch>`.
+- 2026-10-06 — Rosetta Stone (p/6#77): Bash redirect `cmd > ../../../../AppData/...` from a worktree cwd failed with "No such file or directory" — relative path constructed assuming worktree cwd, but Bash tool cwd had reset to the scope directory, making the relative traversal land in the wrong place. Fix: write to the absolute scratchpad path.
 
 **Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. **Compounding factor (instance 2):** the Bash tool resets cwd to the repo root between invocations, so any relative path like `../wt-<name>` re-anchors to the repo root on every call — you cannot rely on a prior `cd` persisting to the next Bash call.
 
@@ -3131,7 +3133,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. **Both Bash AND PowerShell tool cwds reset between invocations (t/2222)** — relative paths re-anchor on every call regardless of a prior `cd`. Use absolute paths always; never depend on a prior `cd` persisting to the next tool call.
 5. **(Possible — unconfirmed) Glob may also resolve relative paths against the scope root, not the repo root** — a relative `Glob("tests/Foo*")` from a role scoped to `scripts/AITriad/` may search `scripts/AITriad/tests/` and silently return empty. Use `**/<name>` or absolute base paths in Glob until this is confirmed (p/20#57; see Pattern #186).
 
-**Status:** Active — 6 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash. **5th instance (2026-10-04, p/26#141):** `gh pr create` read `main` as the current branch instead of the worktree branch — pass `--head <branch>` explicitly. **6th instance (2026-10-05, p/20#68):** same `gh pr create` / shared checkout failure on PowerShell, confirming the pattern is tool-agnostic — any `gh pr create` without `--head` from a non-worktree cwd hits this.
+**Status:** Active — 7 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash. **5th instance (2026-10-04, p/26#141):** `gh pr create` read `main` as the current branch instead of the worktree branch — pass `--head <branch>` explicitly. **6th instance (2026-10-05, p/20#68):** same `gh pr create` / shared checkout failure on PowerShell, confirming the pattern is tool-agnostic — any `gh pr create` without `--head` from a non-worktree cwd hits this.
 
 **Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path, or running `gh` CLI commands from Bash where cwd may have reset.
 
@@ -4296,13 +4298,15 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 
 **Instances:**
 - 2026-10-05 — DebateTool (p/70#47): recreating `wt-3882` hit both failures in sequence — directory persisted after `git worktree remove`, then a stale same-name branch (created by the failed first add) blocked the retry. Resolved by `rm -rf <path>` first, then `git branch -D <branch>`, then `git worktree add -b <branch> <path> origin/main`.
+- 2026-10-06 — Computational Linguist (p/7#92): `git worktree add -b <branch> <path>` failed "path already exists". Retry with new path failed "branch already exists" — because the failed first command had already created the branch before erroring on the path. The branch was at `origin/main` and unused. Resolved by `git worktree add <newpath> <branch>` (no `-b`), reusing the orphaned branch.
 
-**Root Cause:** `git worktree remove` deregisters the worktree and removes the `.git/worktrees/<name>` metadata but does NOT `rm -rf` the working directory — git treats that as user-owned data. The `-b` flag of `worktree add` calls `git branch` internally, so if a branch with that name already exists (from a previous failed add), the whole command fails without creating the worktree.
+**Root Cause:** `git worktree remove` deregisters the worktree and removes the `.git/worktrees/<name>` metadata but does NOT `rm -rf` the working directory — git treats that as user-owned data. The `-b` flag of `worktree add` calls `git branch` internally **before** checking the path, so a path-exists failure still leaves the branch created. The operation is not atomic.
 
 **Prevention:**
-1. **Recreate sequence:** `rm -rf <path>` → `git branch -D <branch>` (if branch exists) → `git worktree add -b <branch> <path> origin/main`.
-2. **Check before assuming clean state:** after `git worktree remove`, verify with `git worktree list` (confirms deregistration) and `ls <path>` (confirms directory gone) and `git branch --list <branch>` (confirms branch gone) before a recreate.
-3. **Prefer unique worktree names** (e.g. include a timestamp or ticket number) to avoid stale-branch collisions across sessions.
+1. **Recreate sequence (full reset):** `rm -rf <path>` → `git branch -D <branch>` (if branch exists) → `git worktree add -b <branch> <path> origin/main`.
+2. **Fast recovery when orphaned branch is clean:** if `worktree add -b` failed on the path and the newly-created branch is at `origin/main` and unused, skip delete-and-recreate — use `git worktree add <path> <branch>` (no `-b`) to reuse the orphaned branch directly. Verify with `git branch --list <branch>` and `git log <branch>` first.
+3. **Check before assuming clean state:** after `git worktree remove`, verify with `git worktree list` (confirms deregistration) and `ls <path>` (confirms directory gone) and `git branch --list <branch>` (confirms branch gone) before a recreate.
+4. **Prefer unique worktree names** (e.g. include a timestamp or ticket number) to avoid stale-branch collisions across sessions.
 
 **Status:** Active — 1 instance (DebateTool, p/70#47). Loud failure (`fatal:` message); easy to fix once the two-stage nature is understood.
 
@@ -4326,3 +4330,94 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 2 instances same session (Computational Linguist, p/7#88). Loud (guard exits non-zero); easy to misread as a push failure when the push actually succeeded.
 
 **Applies To:** All agents running guards or checks that read GitHub PR/ref metadata immediately after a push.
+
+## #206 [Build] `||`-Fallback Short-Circuits When Primary Succeeds — Reader Uses Fallback Path That Was Never Written
+
+**Pattern:** A shell chain of the form `cmd > /path/A || cmd > /path/B; read /path/B` writes to path A when the primary succeeds, skips path B entirely, then fails at read time with "No such file." The `||` fallback is a safety net for primary failure — when the primary succeeds, the fallback never runs, so its output path is never created. If the downstream reader hard-codes the fallback path, it reads a file that only exists when the primary *fails*.
+
+**Instances:**
+- 2026-10-06 — PowerShell 2 (p/228#25): `git show … > $TMPDIR/f || git show … > <scratchpad>/f; sed <scratchpad>/f` — first redirect succeeded, `||` fallback never ran, `<scratchpad>/f` was never written → "No such file." Fix: use a single explicit path variable for both the write target and the read source.
+
+**Root Cause:** The `||` operator short-circuits on primary success — it is not a "try both" fan-out, it is "use fallback only on failure." Any code that reads the fallback path must account for the case where the primary succeeded and that path was never written.
+
+**Prevention:**
+1. **Use a single explicit path variable:** assign the destination once (`$out = "<path>"`), write to `$out` in both branches, read from `$out`. Primary and fallback become alternate writers to the same destination.
+2. **Alternatively, test existence before reading:** `if (Test-Path $fallbackPath)` / `[ -f $fallbackPath ]` — but this only catches the symptom; the root fix is a unified destination.
+3. **When you see `cmd > pathA || cmd > pathB; use pathB`, stop:** the fallback path is only written on primary failure. Decide which path is canonical and use it for the read.
+
+**Status:** Active — 1 instance (PowerShell 2, p/228#25). Self-inflicted; low recurrence risk once the `||` short-circuit semantics are understood. Logged for pattern recognition if the shape recurs.
+
+**Applies To:** All agents writing shell chains with `||` fallbacks that write to different output paths.
+
+## #207 [Process] Draft + Ticket-Relation Blockers Is Not a Gate — `consult-hold` Required for Any Cross-Ticket Hold
+
+**Pattern:** A PR held with draft status plus Orca ticket-relation blockers (e.g., "blocked by t/3989") was un-drafted and merged 12 seconds before a hold comment was posted, after a "clear to un-draft" message was relayed. The registry went live ahead of the loader fix. Ticket relations are **not enforced at merge time** by GitHub, and draft can be lifted by anyone (including automation indistinguishable from the owner in the timeline). Neither mechanism is a gate — both are visibility only.
+
+**Instances:**
+- 2026-10-06 — Computational Linguist (p/7#90, t/3956): PR #2851 held on draft + ticket-relation blockers (t/3989–3992). Relay lifted draft on PI's decision arriving; merged 12 s before hold comment. Registry live ahead of loader fix.
+
+**Root Cause:** Draft enforcement was already documented as unreliable (AGENTS.md: automation can un-draft). This instance extends that to the more general case: **any hold that isn't a required status context on GitHub is not a gate.** Orca ticket relations express intent, not enforcement. A "blocked by" relation in the ticket system has no connection to the GitHub merge button.
+
+**Prevention:**
+1. **Apply `consult-hold` to any PR that must not merge until external conditions are met** — not just mandatory-consult situations. This makes the hold a required status context that GitHub enforces on every merge path, binding admins under `enforce_admins: true`.
+2. **Draft + ticket relations = visibility only.** Use them for "why this is held" — the label is the gate.
+3. **The 12-second window is the canonical failure mode:** a hold comment arrives after the merge because the relay completes before the comment. The `consult-hold` label is set at PR creation (`gh pr create --label consult-hold`), not after; it cannot be race-conditioned.
+4. Covered in root AGENTS.md PR-Flow Practice Rules — this instance demonstrates the non-consult variant.
+
+**Status:** Active — 1 instance (Computational Linguist, p/7#90, t/3956). Silent failure; merge completes normally, hold comment arrives after.
+
+**Applies To:** All agents holding PRs on cross-ticket blockers or external conditions of any kind.
+
+## #208 [Build] Two Git/Windows Path Traps: `core.quotePath` Escapes Non-ASCII, and 269-Char Paths Exceed MAX_PATH
+
+**Pattern:** Two co-occurring path-string issues when running `git ls-files` / `git show` on a repo with non-ASCII or long filenames: (1) git's default `core.quotePath=true` octal-escapes non-ASCII characters in output (e.g. `\303\251` instead of `é`), causing a Python set-diff to report false mismatches against `os.listdir()` results; (2) a path of 269 characters exceeds Windows `MAX_PATH` (260), so `os.listdir()` enumerates it but `open()` / `io` fails — the file appears to exist but cannot be read. A `\\?\` extended-length prefix passed through a Bash heredoc silently lost a backslash, compounding the second issue.
+
+**Instances:**
+- 2026-10-06 — TL (p/335#134, t/4001): byte-compare of `ai-triad-sources` files reported one file missing and set-diff false mismatches. Root: `core.quotePath` escaping non-ASCII path + 269-char path over MAX_PATH. Fix: `-c core.quotePath=false`, `\\?\` extended-length prefix written via a script file (not a heredoc).
+
+**Root Cause:** `core.quotePath` is enabled by default to keep git output ASCII-safe; consumers that compare git output against filesystem APIs must suppress it. Windows MAX_PATH is a legacy 260-char limit that `os.open()` / `io.open()` hit even when `os.listdir()` succeeds (listdir uses a different Windows API path).
+
+**Prevention:**
+1. **Always pass `-c core.quotePath=false`** when consuming git path output in Python/PowerShell comparisons.
+2. **For paths ≥ 260 chars on Windows, use the `\\?\` extended-length prefix** — but write it via a script file, not a Bash heredoc (heredoc backslash handling strips one level, leaving `\?\`).
+3. Both issues are silent: git exits 0; `listdir` succeeds. The only signal is a false mismatch or a `FileNotFoundError` on a path that `listdir` returned.
+
+**Status:** Active — 1 instance (TL, p/335#134, t/4001). Both traps are silent failures.
+
+**Applies To:** All agents running Python/PowerShell comparisons against `git ls-files` or `git show` output on repos with non-ASCII filenames or very long paths.
+
+## #209 [Test] Test Pins "Today's" Config Contents — Rots When the Next Config Lands
+
+**Pattern:** A CI test asserts that a committed config file (registry, schema, list) has a specific fixed value — e.g. "the POV-tag registry is empty." The test passes at commit time. A later PR adds entries to that config, and the test goes red without touching the test file. The test was not wrong at the time it was written; the config was genuinely empty. But a test that pins the current state of a shared, evolving artifact is a time bomb: it encodes "today's contents" as an invariant, and any future legitimate change to the artifact fails it.
+
+**Instances:**
+- 2026-10-06 — Rosetta Stone (p/6#77, PR #2879): a test asserted the committed POV-tag registry was empty. t/3956 (PR #2851) then added Skeptic tags, and the test went red. Fix: inject a known-fixed registry for the test's fixed cases; derive expected values from the real registry for cases that should track it.
+
+**Root Cause:** The test was correct when written (registry was empty) but encoded a snapshot of a shared artifact as a permanent invariant. Tests of this shape fail on the next legitimate write to the artifact — a false red that punishes the landing agent, not the original test author.
+
+**Prevention:**
+1. **Don't pin the contents of a shared, evolving artifact as a test invariant.** Instead: inject a controlled fixture for cases needing isolation; derive expected values from the real artifact for cases that should track it.
+2. **The tell:** if your assertion would fail if someone *correctly* adds an entry to the artifact, it is pinning today's snapshot, not testing behavior.
+3. **Equivalent to:** asserting a list has exactly N items when N is expected to grow. Replace with structural assertions ("is non-empty", "contains X", "all entries are valid") or inject a frozen copy.
+
+**Status:** Active — 1 instance (Rosetta Stone, p/6#77, PR #2879). Silent until the next config change; then a false red that blocks a legitimate PR.
+
+**Applies To:** All agents writing tests that reference shared config files, registries, or schema contents.
+
+## #210 [Build] `--is-ancestor` Fails After a Squash Merge — Squash Creates a New SHA, Not an Ancestry Link
+
+**Pattern:** After a squash-merge PR lands, checking `git merge-base --is-ancestor <pre-squash-commit> origin/main` exits 1. A squash merge produces a **new, independent commit** whose SHA has no ancestry relationship to the original branch commits — it is not a cherry-pick or rebase; it is a fresh commit whose tree happens to match. `--is-ancestor` tests the git DAG; since the pre-squash SHA is not in `origin/main`'s ancestry chain, the check correctly returns false — but this is the wrong verification method for squash merges.
+
+**Instances:**
+- 2026-10-06 — DebateUI (p/689#3): `git merge-base --is-ancestor <pre-squash-commit> origin/main` exited 1 after a squash-merge. Expected it to confirm the PR landed; it only confirmed the pre-squash SHA is not on main (which is always true after a squash). Resolved by `git show --stat <squash-sha>` to confirm message/content matched.
+
+**Root Cause:** Squash merges are not recorded as merges in the DAG — they are new commits whose parent is the previous `main` tip, not the branch tip. `--is-ancestor` and `git log --ancestry-path` cannot find the original branch commits in main's history after a squash. This is fundamental to squash semantics, not a git bug.
+
+**Prevention:**
+1. **After a squash merge, verify by content/message, not ancestry.** Use `git show --stat <squash-sha>` or `git log --oneline -1 origin/main` to confirm the squash commit's message and diff match expectations.
+2. **`--is-ancestor` is correct for regular merges and rebases** (which preserve commit identity or replay commits with new SHAs as ancestors). For squash merges, it will always return false for the pre-squash commits.
+3. **The squash SHA is the `headRefOid` from `gh pr view` at the time of merge** — that is the canonical identifier for "this PR's content is on main."
+
+**Status:** Active — 1 instance (DebateUI, p/689#3). Loud failure (exit 1); misleading because the merge succeeded.
+
+**Applies To:** All agents verifying that a squash-merged PR's commits reached `origin/main`.

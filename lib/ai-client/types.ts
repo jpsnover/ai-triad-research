@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import type { ModelRegistry } from './registry.js';
+
 export interface ToolDefinition {
   name: string;
   description: string;
@@ -46,6 +48,9 @@ export interface GenerateOptions {
   /** The caller's requested friendlyId (t/3677) — threaded so the response-boundary identity
    *  record can report `{requested, apiModelIdSent, providerReported}`. Optional; absent is fine. */
   requestedModelId?: string;
+  /** The model registry the served-identity classifier cross-checks against (t/3731 Phase 3). Optional:
+   *  when absent the call classifies `unknown/no-registry` (info, never warn), which is the Phase-1 behavior. */
+  identityRegistry?: ModelRegistry;
 }
 
 export interface GeminiContentPart {

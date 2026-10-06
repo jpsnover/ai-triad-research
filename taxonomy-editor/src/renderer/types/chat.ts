@@ -3,6 +3,7 @@
 
 import type { SpeakerId, TaxonomyRef } from './debate.js';
 import type { UrlContextMetadata } from '@lib/ai-client/index';
+import type { TagMode } from '@lib/debate/types/session';
 
 export type ChatMode = 'brainstorm' | 'inform' | 'decide';
 
@@ -27,6 +28,9 @@ export interface ChatSession {
   transcript: ChatEntry[];
   /** Chat-specific AI model override. If set, used instead of the global model. */
   chat_model?: string;
+  /** POV tag the chat is set to (t/3995, spec §2). Both fields are set together; absent = untagged. */
+  pov_tag?: string;
+  tag_mode?: TagMode;
 }
 
 export interface ChatSessionSummary {

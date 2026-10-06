@@ -112,13 +112,9 @@
     "max": 16,
     "countOver": 1
   },
-  "AITriad/Private/Invoke-DependencyCheck.ps1": {
-    "max": 142,
-    "countOver": 1
-  },
   "AITriad/Private/Invoke-DocumentSummary.ps1": {
-    "countOver": 2,
-    "max": 117
+    "max": 117,
+    "countOver": 2
   },
   "AITriad/Private/Invoke-EmbeddingFirstEdgeDiscovery.ps1": {
     "max": 83,
@@ -141,8 +137,8 @@
     "countOver": 1
   },
   "AITriad/Private/Invoke-ProposalApply.ps1": {
-    "countOver": 1,
-    "max": 65
+    "max": 65,
+    "countOver": 1
   },
   "AITriad/Private/Invoke-RemoteCheck.ps1": {
     "max": 30,
@@ -164,9 +160,17 @@
     "max": 44,
     "countOver": 2
   },
+  "AITriad/Private/Measure-EdgeQuality.ps1": {
+    "max": 16,
+    "countOver": 1
+  },
+  "AITriad/Private/Measure-NodeAttributeCoverage.ps1": {
+    "max": 16,
+    "countOver": 1
+  },
   "AITriad/Private/Merge-ChunkSummaries.ps1": {
-    "countOver": 1,
-    "max": 44
+    "max": 44,
+    "countOver": 1
   },
   "AITriad/Private/Merge-CruxQuestionForm.ps1": {
     "max": 27,
@@ -206,6 +210,14 @@
   },
   "AITriad/Private/Test-AIProviderKeyStatus.ps1": {
     "max": 16,
+    "countOver": 1
+  },
+  "AITriad/Private/Test-DepElectronApp.ps1": {
+    "max": 18,
+    "countOver": 1
+  },
+  "AITriad/Private/Test-DepPythonPackages.ps1": {
+    "max": 19,
     "countOver": 1
   },
   "AITriad/Private/Test-DirectionalAgreement.ps1": {
@@ -249,8 +261,8 @@
     "countOver": 1
   },
   "AITriad/Private/Update-JsonNodePath.ps1": {
-    "countOver": 1,
-    "max": 29
+    "max": 29,
+    "countOver": 1
   },
   "AITriad/Public/Add-SituationEvidenceLink.ps1": {
     "max": 47,
@@ -346,10 +358,6 @@
   },
   "AITriad/Public/Get-AITDebate.ps1": {
     "max": 68,
-    "countOver": 1
-  },
-  "AITriad/Public/Get-AITSBOM.ps1": {
-    "max": 175,
     "countOver": 1
   },
   "AITriad/Public/Get-AzureFlightRecorder.ps1": {
@@ -509,12 +517,8 @@
     "countOver": 1
   },
   "AITriad/Public/Invoke-AttributeExtraction.ps1": {
-    "countOver": 1,
-    "max": 37
-  },
-  "AITriad/Public/Invoke-BatchSummary.ps1": {
-    "countOver": 1,
-    "max": 145
+    "max": 37,
+    "countOver": 1
   },
   "AITriad/Public/Invoke-BDIWeightAssignment.ps1": {
     "max": 101,
@@ -616,10 +620,6 @@
   },
   "AITriad/Public/Measure-CodeComplexity.ps1": {
     "max": 17,
-    "countOver": 1
-  },
-  "AITriad/Public/Measure-TaxonomyBaseline.ps1": {
-    "max": 117,
     "countOver": 1
   },
   "AITriad/Public/Merge-FlightRecorderDumps.ps1": {

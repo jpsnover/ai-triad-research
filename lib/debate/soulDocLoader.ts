@@ -5,28 +5,24 @@ import { readFileSync } from 'fs';
 import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { SoulDocumentSchema, type SoulDocument } from './soulDocSchema.js';
+import { SoulDocumentSchema, type SoulDocument, type SoulProvenance } from './soulDocSchema.js';
 import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { PovInfo, SpeakerId } from './types.js';
 import type { TagSelection } from './types/session.js';
 import { POVER_INFO } from './poverInfo.js';
+import { tagSoulFileName } from '../schema/povTags.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SOUL_DOCS_DIR = resolve(__dirname, 'soul-docs');
-const TAG_SOUL_DOCS_DIR = resolve(SOUL_DOCS_DIR, 'tags');
 
 const CHARACTERS = ['accelerationist', 'safetyist', 'skeptic'] as const;
 
 export type CharacterId = typeof CHARACTERS[number];
 
-/** Provenance for a loaded soul file. */
-export interface SoulProvenance {
-  /** Absolute path to the soul file. */
-  file: string;
-  /** First 16 hex digits of the SHA-256 of the file content at load time. */
-  sha: string;
-}
+// SoulProvenance lives in soulDocSchema (browser-safe) so tagSoulRegistry can name it without the
+// renderer reaching this fs-based module, even type-only (depcruise renderer-not-to-soulDocLoader, t/3975).
+export type { SoulProvenance } from './soulDocSchema.js';
 
 /** Readability brand: marks provenance from the Node/CLI path (fs + node:crypto). Not a transitive guard — see t/3980. */
 export type SoulProvenanceNode = SoulProvenance & { readonly __runtime: 'node' };
@@ -125,7 +121,7 @@ function loadTagSoulDocument(pov: CharacterId, tag: string): SoulDocument {
   const cached = _tagCache.get(cacheKey);
   if (cached) return cached;
 
-  const filePath = resolve(TAG_SOUL_DOCS_DIR, `${tag}.${pov}.soul.json`);
+  const filePath = resolve(SOUL_DOCS_DIR, tagSoulFileName(pov, tag));
   let raw: string;
   try {
     raw = readFileSync(filePath, 'utf-8');
@@ -142,7 +138,7 @@ function loadTagSoulDocument(pov: CharacterId, tag: string): SoulDocument {
       problem: `File not found or unreadable: ${filePath}`,
       location: 'soulDocLoader.ts:loadTagSoulDocument',
       nextSteps: [
-        `Verify ${tag}.${pov}.soul.json exists in lib/debate/soul-docs/tags/`,
+        `Verify ${tagSoulFileName(pov, tag)} exists in lib/debate/soul-docs/`,
         `Check lib/debate/soul-docs/pov-tags.json — only registered tags are valid`,
       ],
     });
@@ -207,6 +203,19 @@ export function getSoulDocument(pov: CharacterId, tag?: string): SoulDocument {
 }
 
 /**
+ * Merge a loaded tag soul with the base soul identity.
+ * Tag souls supply personality/voice; base soul supplies label/pov (t/3988).
+ * Exported for testing and for any caller that builds a PovInfo from raw tag-soul data.
+ */
+export function applyBaseIdentity(
+  tagDoc: SoulDocument,
+  speaker: Exclude<SpeakerId, 'user'>,
+): PovInfo {
+  const baseSoul = POVER_INFO[speaker];
+  return { ...(tagDoc as unknown as PovInfo), label: baseSoul.label, pov: baseSoul.pov };
+}
+
+/**
  * Resolve the effective soul for a speaker, replacing the base soul entirely when a tag is present.
  * Returns the soul (as PovInfo, matching the POVER_INFO shape) plus file + sha provenance.
  *
@@ -225,7 +234,7 @@ export function resolvePoverInfo(
 
   const tagDoc = loadTagSoulDocument(speaker, tagSelection.tag);
   const provenance = _provenanceCache.get(`${speaker}:${tagSelection.tag}`)!;
-  return { soul: tagDoc as unknown as PovInfo, soulProvenance: provenance as SoulProvenanceNode };
+  return { soul: applyBaseIdentity(tagDoc, speaker), soulProvenance: provenance as SoulProvenanceNode };
 }
 
 export function clearSoulDocCache(): void {

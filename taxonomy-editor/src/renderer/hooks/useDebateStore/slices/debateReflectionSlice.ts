@@ -95,6 +95,7 @@ import { generateTextWithProgress, phaseGuardedSet, summarizeTranscriptEntry, ma
 import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import { pushWarning, recordDiagnostic, recordSignalHistory, getSignalValue, movingAverageSignal, incrementGapInjectionCount, _gapInjectionCount } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
+import { seatSouls } from '../shared/seatSouls';
 import { enrichPolicyRefs, serializeNodeSourceMap, formatEdgeContext, formatDebaterEdgeContext, getRelevantTaxonomyContext, getAllKnownNodeIds, getAllPolicyIds, findNodeMetaInStore, getTaxonomyContext } from '../shared/taxonomyContext';
 import { extractClaimsAndUpdateAN, commitAnNodes, detectZeroClaims } from '../shared/argumentNetwork';
 
@@ -714,8 +715,8 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
 
     for (const pover of povers) {
       if (!isStillValid()) return;
-      const info = POVER_INFO[pover];
-      if (!info) continue;
+      if (!POVER_INFO[pover]) continue;
+      const info = seatSouls(activeDebate, pover).soul; // t/3975
 
       set({ debateGenerating: pover as SpeakerId, debateStepStartedAt: Date.now() });
 
@@ -757,6 +758,7 @@ export const createDebateReflectionSlice: StateCreator<DebateStore, [], [], Deba
         activeDebate.audience,
         priorReflections.length > 0 ? priorReflections : undefined,
         unengaged,
+        info, // t/3975: the seat's resolved soul (base soul when untagged)
       );
 
       try {
