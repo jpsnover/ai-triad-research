@@ -100,10 +100,6 @@
     "max": 21,
     "countOver": 1
   },
-  "AITriad/Private/Get-TaxonomyHealthData.ps1": {
-    "max": 156,
-    "countOver": 1
-  },
   "AITriad/Private/Get-TextEmbedding.ps1": {
     "max": 16,
     "countOver": 1
@@ -121,8 +117,8 @@
     "countOver": 1
   },
   "AITriad/Private/Invoke-DocumentSummary.ps1": {
-    "max": 117,
-    "countOver": 2
+    "countOver": 2,
+    "max": 117
   },
   "AITriad/Private/Invoke-EmbeddingFirstEdgeDiscovery.ps1": {
     "max": 83,
@@ -145,8 +141,8 @@
     "countOver": 1
   },
   "AITriad/Private/Invoke-ProposalApply.ps1": {
-    "max": 65,
-    "countOver": 1
+    "countOver": 1,
+    "max": 65
   },
   "AITriad/Private/Invoke-RemoteCheck.ps1": {
     "max": 30,
@@ -169,8 +165,8 @@
     "countOver": 2
   },
   "AITriad/Private/Merge-ChunkSummaries.ps1": {
-    "max": 44,
-    "countOver": 1
+    "countOver": 1,
+    "max": 44
   },
   "AITriad/Private/Merge-CruxQuestionForm.ps1": {
     "max": 27,
@@ -253,8 +249,8 @@
     "countOver": 1
   },
   "AITriad/Private/Update-JsonNodePath.ps1": {
-    "max": 29,
-    "countOver": 1
+    "countOver": 1,
+    "max": 29
   },
   "AITriad/Public/Add-SituationEvidenceLink.ps1": {
     "max": 47,
@@ -513,12 +509,12 @@
     "countOver": 1
   },
   "AITriad/Public/Invoke-AttributeExtraction.ps1": {
-    "max": 37,
-    "countOver": 1
+    "countOver": 1,
+    "max": 37
   },
   "AITriad/Public/Invoke-BatchSummary.ps1": {
-    "max": 145,
-    "countOver": 1
+    "countOver": 1,
+    "max": 145
   },
   "AITriad/Public/Invoke-BDIWeightAssignment.ps1": {
     "max": 101,
