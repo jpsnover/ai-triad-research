@@ -40,7 +40,8 @@ describe('renderer povNodeSchema pov_tags (t/3955)', () => {
   });
 
   it('does NOT reject an unregistered tag: membership is gated per changed node in save() (t/3973)', () => {
-    expect(povTaxonomyFileSchema.safeParse(povFile({ pov_tags: ['critical'] })).success).toBe(true);
+    // 'radical' is not in the registry; 'critical' is (t/3956), so it would no longer prove this arm.
+    expect(povTaxonomyFileSchema.safeParse(povFile({ pov_tags: ['radical'] })).success).toBe(true);
   });
 
   it('REJECTS a malformed tag id (structural), with the issue on nodes[0].pov_tags', () => {

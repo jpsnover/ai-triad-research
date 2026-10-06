@@ -1687,7 +1687,8 @@ describe('useTaxonomyStore', () => {
     });
 
     // t/3973: registry MEMBERSHIP is gated on nodes changed since load; STRUCTURAL problems block everywhere.
-    // The committed registry is empty until t/3956, so any concrete tag here is unregistered ("orphaned").
+    // These arms put 'critical' on an ACCELERATIONIST node: the committed registry has no accelerationist tags
+    // (only skeptic ones, t/3956), so the tag is unregistered ("orphaned") there.
     describe('pov_tags save gate (t/3973)', () => {
       const saveCalledFor = (pov: string) => mockApi.saveTaxonomyFile.mock.calls.some(([p]) => p === pov);
       const orphanWarn = () => mockRecord.mock.calls.find(([e]) => e.message?.includes('unregistered POV tags on untouched nodes'));

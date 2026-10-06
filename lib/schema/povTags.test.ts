@@ -16,7 +16,7 @@ import {
 } from './povTags.js';
 
 const entry = (pov: string, id: string) => ({ id, label: id, soul_doc: `${pov}.${id}`, description: `${id} wing` });
-// A registry WITH tags, for the pass arms (the committed registry ships empty until t/3956 adds souls).
+// A fixed registry for the unit arms, so they don't move when the committed registry gains tags.
 const REG: PovTagRegistry = { version: 1, povs: { skeptic: [entry('skeptic', 'critical'), entry('skeptic', 'institutional')] } };
 
 describe('validatePovTags', () => {
@@ -111,16 +111,20 @@ describe('validatePovTagSelection (an explicitly named POV, t/3965)', () => {
     expect(validatePovTagSelection('safetyist', 'critical', REG)[0]).not.toMatch(/t\/3956/);
   });
 
-  it('the committed registry rejects every selection today, with the t/3956 note', () => {
-    expect(validatePovTagSelection('skeptic', 'critical', loadPovTagRegistry())[0]).toMatch(/t\/3956/);
+  it('the committed registry accepts both Skeptic tags, and its rejections no longer carry the t/3956 note', () => {
+    const reg = loadPovTagRegistry();
+    expect(validatePovTagSelection('skeptic', 'critical', reg)).toEqual([]);
+    expect(validatePovTagSelection('skeptic', 'institutional', reg)).toEqual([]);
+    expect(validatePovTagSelection('safetyist', 'critical', reg)[0]).not.toMatch(/t\/3956/);
   });
 });
 
 describe('PovTagRegistrySchema', () => {
-  it('ACCEPTS the committed registry (empty povs until t/3956 adds the Skeptic tags with their souls)', () => {
+  it('ACCEPTS the committed registry: the two Skeptic tags, added with their souls (t/3956)', () => {
     const reg = loadPovTagRegistry();
     expect(reg.version).toBe(1);
-    expect(reg.povs).toEqual({});
+    expect(Object.keys(reg.povs)).toEqual(['skeptic']);
+    expect(reg.povs.skeptic?.map(e => e.id)).toEqual(['critical', 'institutional']);
   });
 
   it('ACCEPTS a registry with tags', () => {
@@ -178,7 +182,7 @@ describe('pov-tags-cli (the blocking gate t/3969 shells out to)', () => {
   });
 
   it('exit 1 with the errors listed when a node is invalid (unregistered tag, a scalar)', () => {
-    const r = run(JSON.stringify([{ id: 'skp-beliefs-001', pov_tags: ['critical'] }, { id: 'skp-beliefs-002', pov_tags: 'critical' }]));
+    const r = run(JSON.stringify([{ id: 'skp-beliefs-001', pov_tags: ['radical'] }, { id: 'skp-beliefs-002', pov_tags: 'critical' }]));
     expect(r.code).toBe(1);
     expect(r.out.invalid).toBe(2);
     expect(r.out.errors.join('\n')).toMatch(/unrolled to a scalar/);

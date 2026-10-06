@@ -1,4 +1,19 @@
 {
   "version": 1,
-  "povs": {}
+  "povs": {
+    "skeptic": [
+      {
+        "id": "critical",
+        "label": "Critical",
+        "soul_doc": "skeptic.critical",
+        "description": "AI is overhyped, and the hype is itself a power play; the harm lies in ownership, extraction, and labor. Remedies are structural: antitrust, interoperability, bargaining power."
+      },
+      {
+        "id": "institutional",
+        "label": "Institutional",
+        "soul_doc": "skeptic.institutional",
+        "description": "AI is a general-purpose technology whose impact diffuses slowly, like electricity or the internet; existing institutions, adapted sector by sector, can govern it. Resilience over prevention."
+      }
+    ]
+  }
 }
