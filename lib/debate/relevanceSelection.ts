@@ -21,7 +21,7 @@
 
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
 import type { TagSelection } from './types/session.js';
-import { TAG_BOOST_INCREMENT } from './debateConfig.js';
+import { TAG_BOOST_INCREMENT, TAG_SCOPE_MINIMUM_NODES } from './debateConfig.js';
 import { cosineSimilarity } from '../embeddings/similarity.js';
 import {
   scoreNodesViaAN,
@@ -133,7 +133,7 @@ export function checkTagScope(
 ): { inScope: PovNode[]; excluded: PovNode[]; sufficient: boolean } {
   const inScope = povNodes.filter(n => (n.pov_tags ?? []).includes(tagSelection.tag));
   const excluded = povNodes.filter(n => !(n.pov_tags ?? []).includes(tagSelection.tag));
-  return { inScope, excluded, sufficient: inScope.length >= 5 };
+  return { inScope, excluded, sufficient: inScope.length >= TAG_SCOPE_MINIMUM_NODES };
 }
 
 /**
