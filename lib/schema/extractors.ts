@@ -142,6 +142,11 @@ const NODE_KIND_BY_FILE: Readonly<Record<string, 'pov' | 'situation'>> = {
   'accelerationist.json': 'pov', 'safetyist.json': 'pov', 'skeptic.json': 'pov', 'situations.json': 'situation',
 };
 
+/** The taxonomy files that hold nodes, in the Origin directory: the one definition of "taxonomy node
+ *  file". Shared with the POV-tag orphan scan (t/3985), which must never read a derived artifact such as
+ *  `entity_extraction_log.json`, whose `nodes` array is not taxonomy nodes (CL p/3#285). */
+export const TAXONOMY_NODE_FILES: readonly string[] = Object.keys(NODE_KIND_BY_FILE);
+
 /** Record the runtime type of every present top-level key on one node (t/3955 node_fields). */
 function observeTopLevelKeys(into: Record<string, Set<string>>, node: Record<string, unknown>): void {
   for (const [key, v] of Object.entries(node)) {
@@ -174,7 +179,7 @@ export function extractCorpusValues(originDir: string): Extracted {
   const topLevel: Record<'pov' | 'situation', Record<string, Set<string>>> = { pov: {}, situation: {} };
 
   // POV camps + situations (sit-*): all carry the same graph_attributes[] the record governs (t/3456).
-  for (const fn of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json']) {
+  for (const fn of TAXONOMY_NODE_FILES) {
     let nodes: CorpusNode[];
     try {
       const raw = readFileSync(join(originDir, fn), 'utf-8').replace(/^﻿/, '');
