@@ -14,6 +14,14 @@
 // `validatePovTags` is the single rule. It is called by every live path that writes tags: the tagging CLI
 // (pov-tags-cli.ts, the blocking gate t/3969 shells out to), the editor's renderer schema (SO condition 2),
 // the lib Zod node schema, and the warn-first data-repo hook (t/3970).
+//
+// CHANGING THE REGISTRY (pov-tags.json can't carry comments, so the rule lives here; t/3985, SO e/253#2):
+//  - Never rename a tag in place. Add the new tag, migrate the data (t/3969 writer), THEN remove the old
+//    tag. To remove a tag, strip it from the data first. Spec §2.1 has the ordering.
+//  - Before a registry PR merges, show what it orphans:
+//      git show origin/main:lib/debate/soul-docs/pov-tags.json > base-pov-tags.json
+//      tsx lib/schema/pov-tags-cli.ts --scan-data <ai-triad-data>/taxonomy/Origin --base-registry base-pov-tags.json
+//    `introduced` must be 0 (exit 0). CI runs the same scan on every PR (t/3987).
 
 import { z } from 'zod';
 import registryJson from '../debate/soul-docs/pov-tags.json' with { type: 'json' };
