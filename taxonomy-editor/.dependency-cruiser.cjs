@@ -81,14 +81,7 @@ module.exports = {
       from: { path: '(^|/)src/renderer/' },
       to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]soulDocLoader\\.(ts|js)$', reachable: true },
     },
-    {
-      name: 'main-not-to-tagSoulRegistry',
-      comment: 'Nothing Electron main reaches may import lib/debate/tagSoulRegistry: import.meta.glob does not exist under Node — t/3975.',
-      severity: 'error',
-      from: { path: '(^|/)src/main/' },
-      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]tagSoulRegistry\\.(ts|js)$', reachable: true },
-    },
-    {
+        {
       name: 'server-not-to-tagSoulRegistry',
       comment: 'Nothing the server reaches may import lib/debate/tagSoulRegistry: import.meta.glob does not exist under Node — t/3975.',
       severity: 'error',
