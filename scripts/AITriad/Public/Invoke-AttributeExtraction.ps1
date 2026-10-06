@@ -161,6 +161,16 @@ function Invoke-AttributeExtraction {
 
         Write-Info "$($Batches.Count) batch(es) of up to $BatchSize nodes"
 
+        # Single shared list (t/3964 condition 1): used both to validate the
+        # model's response AND as the merge-ownership contract in
+        # Merge-NodeGraphAttributes, so the two can never drift apart.
+        $OwnedFields = @(
+            'epistemic_type', 'rhetorical_strategy', 'assumes',
+            'falsifiability', 'audience', 'emotional_register',
+            'policy_actions', 'intellectual_lineage',
+            'steelman_vulnerability', 'possible_fallacies'
+        )
+
         $BatchNum = 0
         foreach ($Batch in $Batches) {
             $BatchNum++
@@ -265,13 +275,7 @@ $SchemaPrompt
                     $AttrObj = $Attributes.$NodeId
 
                     # Validate required fields
-                    $RequiredFields = @(
-                        'epistemic_type', 'rhetorical_strategy', 'assumes',
-                        'falsifiability', 'audience', 'emotional_register',
-                        'policy_actions', 'intellectual_lineage',
-                        'steelman_vulnerability', 'possible_fallacies'
-                    )
-                    $Missing = @($RequiredFields | Where-Object {
+                    $Missing = @($OwnedFields | Where-Object {
                         -not $AttrObj.PSObject.Properties[$_]
                     })
                     if ($Missing.Count -gt 0) {
@@ -281,10 +285,15 @@ $SchemaPrompt
                     # Find the node in the original file data and set attributes
                     $OrigNode = $FileData.nodes | Where-Object { $_.id -eq $NodeId }
                     if ($OrigNode) {
+                        # t/3964: MERGE, never replace -- a wholesale replace erases
+                        # anything the extraction prompt doesn't regenerate (registry
+                        # policy_id's, debate-harvest fields under graph_attributes).
+                        $ExistingAttrs = if ($OrigNode.PSObject.Properties['graph_attributes']) { $OrigNode.graph_attributes } else { $null }
+                        $MergedAttrs = Merge-NodeGraphAttributes -Existing $ExistingAttrs -New $AttrObj -OwnedFields $OwnedFields -NodeId $NodeId
                         if ($OrigNode.PSObject.Properties['graph_attributes']) {
-                            $OrigNode.graph_attributes = $AttrObj
+                            $OrigNode.graph_attributes = $MergedAttrs
                         } else {
-                            $OrigNode | Add-Member -NotePropertyName 'graph_attributes' -NotePropertyValue $AttrObj
+                            $OrigNode | Add-Member -NotePropertyName 'graph_attributes' -NotePropertyValue $MergedAttrs
                         }
                         $TotalProcessed++
                         Write-OK "$NodeId"
