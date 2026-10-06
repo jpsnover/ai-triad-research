@@ -93,12 +93,13 @@ export async function runInquiryPipeline(
   // ADR-001: empty envelope on zero-hit / empty-corpus inputs — WARN logged in
   // buildGroundingEnvelope itself; pipeline continues.
   deps.onStage?.('grounding');
-  const grounding = await buildGroundingEnvelope(
+  const { envelope: grounding, appliedTag } = await buildGroundingEnvelope(
     request.question,
     deps.taxonomy,
     deps.embed,
-    { situationId: request.situationId },
+    { situationId: request.situationId, tagSelection: request.tagSelection },
   );
+  if (appliedTag) derivation.tag = appliedTag;
 
   // ── Stage 3: run debate ────────────────────────────────────────────────────
   deps.onStage?.('debating');
