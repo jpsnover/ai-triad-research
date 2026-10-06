@@ -114,9 +114,7 @@ module.exports = {
       path: 'node_modules',
     },
     tsPreCompilationDeps: true,
-    tsConfig: {
-      fileName: 'tsconfig.json',
-    },
+    
     enhancedResolveOptions: {
       exportsFields: ['exports'],
       conditionNames: ['import', 'require', 'node', 'default'],
