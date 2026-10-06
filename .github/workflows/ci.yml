@@ -598,8 +598,35 @@ jobs:
         run: npm run depcruise
 
       - name: Lint
+        id: lint
         working-directory: ${{ matrix.app }}
         run: pnpm run --if-present lint
+
+      # Refactor tickets (advisory): on a lint failure, re-run ESLint as JSON and hand it to
+      # the complexity-tickets job, which files/updates a complexity:refactor issue per
+      # over-budget file. Runs only when Lint already failed; never changes this job's result.
+      # This job runs PR code, so it gets no issues:write; the write lives in complexity-tickets.
+      - name: Capture complexity-budget violations (refactor tickets)
+        if: failure() && steps.lint.outcome == 'failure'
+        continue-on-error: true
+        working-directory: ${{ matrix.app }}
+        env:
+          APP: ${{ matrix.app }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/complexity-reports"
+          # Same target as every matrix app's `lint` script (`eslint src/`), called directly
+          # so the formatter flags reach ESLint without relying on pnpm argument forwarding.
+          pnpm exec eslint src/ --format json --output-file "$RUNNER_TEMP/complexity-reports/eslint-$APP.json" || true
+
+      - name: Upload complexity-budget violations
+        if: failure() && steps.lint.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: complexity-violations-${{ matrix.app }}
+          path: ${{ runner.temp }}/complexity-reports/
+          if-no-files-found: ignore
+          retention-days: 3
 
 
       - name: TypeScript check (main)
@@ -1794,6 +1821,7 @@ jobs:
         # covers scripts/** (operations/** complexity is the second step below, t/3849).
         # Invocation + exit-code contract (0 clean / 1 on violation via New-ActionableError)
         # owned by PowerShell (p/169#144-146).
+        id: ps-budget-scripts
         continue-on-error: true
         shell: pwsh
         run: |
@@ -1816,11 +1844,42 @@ jobs:
         # as "inherited by this ticket" doesn't reappear, because there is still only
         # one counter regardless of scan root).
         # Baseline: operations/complexity-baseline.json; __meta__.scan="operations".
+        id: ps-budget-operations
         continue-on-error: true
         shell: pwsh
         run: |
           Import-Module ./scripts/AITriad/AITriad.psd1 -Force
           Test-ComplexityBudget -Path ./operations -FailOnViolation
+
+      # Refactor tickets (advisory): when either budget step above flagged a file, re-run
+      # both scans without -FailOnViolation and hand the violations to complexity-tickets
+      # (same artifact contract as test-electron's ESLint capture).
+      - name: Capture PowerShell budget violations (refactor tickets)
+        if: steps.ps-budget-scripts.outcome == 'failure' || steps.ps-budget-operations.outcome == 'failure'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Import-Module ./scripts/AITriad/AITriad.psd1 -Force
+          $out = Join-Path $env:RUNNER_TEMP 'complexity-reports'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $scans = @(
+            @{ root = 'scripts';    result = Test-ComplexityBudget }
+            @{ root = 'operations'; result = Test-ComplexityBudget -Path ./operations }
+          )
+          foreach ($s in $scans) {
+            [pscustomobject]@{ root = $s.root; violations = @($s.result.Violations) } |
+              ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $out "ps-$($s.root).json") -Encoding utf8
+          }
+
+      - name: Upload PowerShell budget violations
+        if: steps.ps-budget-scripts.outcome == 'failure' || steps.ps-budget-operations.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: complexity-violations-powershell
+          path: ${{ runner.temp }}/complexity-reports/
+          if-no-files-found: ignore
+          retention-days: 3
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
         with:
@@ -1846,7 +1905,54 @@ jobs:
         shell: bash
         run: bash operations/devops/run-merge-guard-tests.sh
 
-  # ── ci-gate: the SINGLE required status context (t/1962) ──────────────────
+  # ── complexity-tickets: refactor issues for over-budget files (advisory) ─────
+  # Collects the complexity-violations-* artifacts that test-electron (ESLint
+  # local/complexity-budget) and complexity-budget (PS Test-ComplexityBudget) upload
+  # when they flag a file, and opens one complexity:refactor issue per file, or
+  # comments on the open one. No artifacts → nothing to do. The weekly side (offender
+  # report + closing issues for files that dropped out of every baseline) is
+  # .github/workflows/complexity-report.yml; both share .github/scripts/complexity-tickets.mjs.
+  # Holds the run's only issues:write, kept out of the jobs that execute PR code.
+  # NOT in ci-gate's needs and continue-on-error on every step: ticket filing must
+  # never block or red a merge. Same-repo PRs and pushes only (fork / Dependabot
+  # tokens are read-only, so the writes would fail anyway).
+  complexity-tickets:
+    needs: [test-electron, complexity-budget]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Download complexity-budget violations
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        with:
+          pattern: complexity-violations-*
+          path: complexity-reports
+          merge-multiple: true
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v6
+        with:
+          node-version: '22'
+
+      - name: File or update refactor issues
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node .github/scripts/complexity-tickets.mjs file-violations --dir complexity-reports
+
+  # ── ci-gate: the SINGLE required status context (t/1962)──────────────────
   # Replaces the 6 individual code-check contexts in branch protection. Those get
   # SKIPPED by path-filtering on non-electron PRs (docs-only, PS-only); a skipped
   # required context never reports `success`, so `strict` protection blocked those
