@@ -128,3 +128,39 @@ def test_legacy_source_reproduces_v3_input():
         assert flf.strip_discourse_wrapper(multi) == multi
     finally:
         flf.LEGACY_SOURCE = False
+
+
+# ── t/4020: a perdurant is never an agent ──────────────────────────────────────────────────────────
+
+def _frame(args):
+    return {"predicate": "destroy", "args": args, "about": [], "polarity": "positive",
+            "temporal": {"type": "unspecified", "value": None}, "formalization_confidence": 0.9}
+
+
+def test_perdurant_agent_is_refused():
+    import pytest
+    lf = _frame([{"role": "agent", "ref": 'lit:"normal web distribution"', "sort": "perdurant", "match_level": "exact"},
+                 {"role": "patient", "ref": 'lit:"provenance metadata"', "sort": "non-agentive-social-object", "match_level": "exact"}])
+    with pytest.raises(ValueError, match="perdurant agent"):
+        flf.validate(lf, ALLOWED, "skp", "Beliefs")
+
+
+def test_grounded_event_entity_as_agent_is_refused():
+    """ent-x is registered with sort perdurant: the rule runs after sorts are copied from the registry."""
+    import pytest
+    lf = _frame([{"role": "agent", "ref": "ent-x", "sort": "agentive-physical-object", "match_level": "exact"}])
+    with pytest.raises(ValueError, match="perdurant agent"):
+        flf.validate(lf, ALLOWED, "skp", "Beliefs")
+
+
+def test_perdurant_as_cause_or_theme_passes():
+    for role in ("cause", "theme"):
+        lf = _frame([{"role": role, "ref": 'lit:"normal web distribution"', "sort": "perdurant", "match_level": "exact"}])
+        out = flf.validate(lf, ALLOWED, "skp", "Beliefs")
+        assert out["args"][0]["role"] == role
+
+
+def test_agentive_agent_still_passes():
+    lf = _frame([{"role": "agent", "ref": "ent-034", "sort": "perdurant", "match_level": "exact"}])
+    out = flf.validate(lf, ALLOWED, "skp", "Beliefs")  # ent-034's registry sort (agentive) overrides the model's
+    assert out["args"][0]["sort"] == "agentive-physical-object"
