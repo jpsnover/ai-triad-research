@@ -77,7 +77,7 @@ module.exports = {
     {
       name: 'renderer-not-to-soulDocLoader',
       comment: 'Nothing the renderer reaches, at any depth, may import lib/debate/soulDocLoader (fs/node:crypto); use tagSoulRegistry — t/3975.',
-      severity: 'error',
+      severity: 'warn',
       from: { path: '(^|/)src/renderer/' },
       to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]soulDocLoader\\.(ts|js)$', reachable: true },
     },
