@@ -6,9 +6,9 @@ function Test-DepElectronApp {
     .SYNOPSIS
         Checks ONE Electron app's package.json/node_modules presence (and, in test mode,
         outdated-package detection) for Invoke-DependencyCheck's section 4 (t/3910).
-        Extracted verbatim from the per-app loop body, including the pre-existing
-        PSObject.Properties.Count StrictMode bug in the outdated-detection path (t/3999,
-        filed separately -- not fixed here, this is a pure refactor).
+        Extracted from the per-app loop body. The outdated-detection path used to be a
+        silent no-op: `$Outdated.PSObject.Properties.Count` throws under StrictMode and the
+        bare `catch { }` swallowed it (fixed in t/3999 -- @() count + the catch now warns).
     #>
     [CmdletBinding()]
     [OutputType([void])]
@@ -36,11 +36,13 @@ function Test-DepElectronApp {
         if ($IsTestMode -and $HasNode) {
             try {
                 Push-Location $AppDir
-                $OutdatedRaw = npm outdated --json 2>$null
-                Pop-Location
+                try { $OutdatedRaw = npm outdated --json 2>$null }
+                finally { Pop-Location }   # never leave the caller in $AppDir if npm throws
                 if ($OutdatedRaw) {
                     $Outdated = $OutdatedRaw | ConvertFrom-Json
-                    $OutdatedCount = $Outdated.PSObject.Properties.Count
+                    # @(): a PSCustomObject's PSObject.Properties has no StrictMode-safe .Count (member
+                    # enumeration would yield one 1 per property), so this threw and was swallowed (t/3999).
+                    $OutdatedCount = @($Outdated.PSObject.Properties).Count
                     if ($OutdatedCount -gt 0) {
                         Write-DepStale -Ctx $Ctx -Message "$App — $OutdatedCount outdated package(s) (run 'npm update' in $App/ to update)"
                         # Show top 3
@@ -59,7 +61,12 @@ function Test-DepElectronApp {
                     }
                 }
             }
-            catch { }  # npm outdated can fail gracefully
+            catch {
+                # npm outdated can fail (offline registry, bad lockfile) and that should not fail the
+                # check -- but it must not be SILENT: a bare catch {} hid t/3999 (this whole feature was a
+                # no-op) indefinitely. Log the fallback and why (docs/error-handling.md, Fallback-Path Logging).
+                Write-Warning "$App — outdated-package check skipped: $($_.Exception.Message)"
+            }
         }
     }
     else {
