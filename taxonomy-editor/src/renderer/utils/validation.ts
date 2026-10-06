@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { POV_KEYS } from '@lib/debate/types';
 import { logicalFormSchema } from '@lib/entities/logicalForm';
 import { entityLinkRefSchema, conceptLinkRefSchema } from '@lib/entities/linkRefs';
+import { validatePovTags } from '@lib/schema/povTags';
 
 const categoryEnum = z.enum(['Desires', 'Beliefs', 'Intentions']);
 
@@ -30,7 +31,16 @@ const povNodeSchema = z.object({
   // now strictly validated. A malformed frame is degraded gracefully at load (see
   // stripInvalidLogicalForm), so it never reaches this schema to drop the node.
   logical_form: logicalFormSchema.optional(),
-}).passthrough();
+  // POV tags (t/3955). The editor is a live writer, so it enforces the same rule as the tagging CLI
+  // (SO e/249#6 condition 2): save() aborts on any issue raised here. z.unknown() lets validatePovTags
+  // report a bare string (a one-element array unrolled by PowerShell) by name, rather than a generic
+  // type error. Absent or empty = untagged.
+  pov_tags: z.unknown().optional(),
+}).passthrough().superRefine((node, ctx) => {
+  for (const message of validatePovTags(node.id, node.pov_tags)) {
+    ctx.addIssue({ code: 'custom', path: ['pov_tags'], message });
+  }
+});
 
 export const povTaxonomyFileSchema = z.object({
   _schema_version: z.string(),
@@ -76,6 +86,8 @@ const situationNodeSchema = z.object({
   linked_nodes: z.array(z.string()).default([]),
   conflict_ids: z.array(z.string()).default([]),
   disagreement_type: z.enum(['definitional', 'interpretive', 'structural']).optional(),
+  // Situations never carry POV tags (t/3955; spec §2.2): a present value is rejected, so save() blocks it.
+  pov_tags: z.never({ error: 'pov_tags is only allowed on POV nodes; situations ignore tags (t/3955)' }).optional(),
 });
 
 export const situationsFileSchema = z.object({

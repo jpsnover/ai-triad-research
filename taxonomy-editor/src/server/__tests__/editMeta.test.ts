@@ -349,4 +349,24 @@ describe('editMeta', () => {
       expect(entry.reason).toBe('Label reason');
     });
   });
+
+  // t/3955 (TL t/3955#4 cond 2): stampNodeAuthorship runs on every web PUT and desktop IPC save. A tagged
+  // node must come out with its one-element pov_tags still an array, through both of its branches.
+  describe('stampNodeAuthorship — pov_tags round-trip (t/3955)', () => {
+    it('preserves pov_tags on an UNCHANGED node (restoreUnchangedStamps branch)', () => {
+      const old = makeNode('skp-beliefs-001', 'Same', { pov_tags: ['critical'], _edit_meta: { last_edited_by: 'a', last_edited_at: 't', created_by: 'a', created_at: 't' } });
+      const incoming = makeNode('skp-beliefs-001', 'Same', { pov_tags: ['critical'] });
+      const [out] = stampNodeAuthorship([old], [incoming]);
+      expect(out.pov_tags).toEqual(['critical']);
+      expect(out._edit_meta).toBeDefined(); // the stamp was restored, and the tags rode along
+    });
+
+    it('preserves pov_tags on a MODIFIED node, and a tag-only edit counts as a modification', () => {
+      const old = makeNode('skp-beliefs-001', 'Same', { pov_tags: ['critical'] });
+      const incoming = makeNode('skp-beliefs-001', 'Same', { pov_tags: ['critical', 'institutional'] });
+      const [out] = stampNodeAuthorship([old], [incoming]);
+      expect(out.pov_tags).toEqual(['critical', 'institutional']);
+      expect(out._edit_history?.at(-1)?.fields_changed).toContain('pov_tags');
+    });
+  });
 });

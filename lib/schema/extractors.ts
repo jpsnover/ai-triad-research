@@ -19,8 +19,32 @@
 // separate brittle TS-union AST scrape.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { NodeScopeSchema, CanonicalEdgeTypeSchema } from '../debate/schemas.js';
-import type { Extracted } from './checkSchemaDrift.js';
+import { NodeScopeSchema, CanonicalEdgeTypeSchema, PovNodeSchema, SituationNodeSchema } from '../debate/schemas.js';
+import type { Extracted, NodeFieldObservation } from './checkSchemaDrift.js';
+
+/** Minimal view of a Zod 4 schema's definition, enough to read its kind through optional/nullable wrappers. */
+interface ZodDefView { _zod?: { def?: { type?: string; innerType?: ZodDefView } } }
+
+/** The declared kind of a Zod field ('array', 'string', 'never', ...), unwrapping optional/nullable/default. */
+function zodKind(schema: ZodDefView): string | undefined {
+  let s: ZodDefView | undefined = schema;
+  for (let i = 0; i < 8 && s; i++) {
+    const t = s._zod?.def?.type;
+    if (t === 'optional' || t === 'nullable' || t === 'default' || t === 'prefault') { s = s._zod?.def?.innerType; continue; }
+    return t;
+  }
+  return undefined;
+}
+
+/** Every key a node object schema declares. `never` means the key is declared in order to REJECT it. */
+function nodeFieldsOf(shape: Record<string, ZodDefView>): Record<string, NodeFieldObservation> {
+  const out: Record<string, NodeFieldObservation> = {};
+  for (const [key, field] of Object.entries(shape)) {
+    const kind = zodKind(field);
+    out[key] = kind === 'never' ? { accepts: false } : { accepts: true, ...(kind ? { type: kind } : {}) };
+  }
+  return out;
+}
 
 /**
  * Extract the vocab the lib Zod validators enforce (lib/debate/schemas.ts), by introspecting each
@@ -35,6 +59,11 @@ export function extractZodVocab(): Extracted {
       node_scope: { type: 'enum', values: [...NodeScopeSchema.options] },
     },
     edgeTypes: [...CanonicalEdgeTypeSchema.options],
+    // Top-level node fields (t/3955): what each node schema declares, and whether it accepts or rejects it.
+    nodeFields: {
+      pov: nodeFieldsOf(PovNodeSchema.shape as unknown as Record<string, ZodDefView>),
+      situation: nodeFieldsOf(SituationNodeSchema.shape as unknown as Record<string, ZodDefView>),
+    },
   };
 }
 
@@ -108,6 +137,18 @@ function typeOf(v: unknown): string {
   return typeof v; // 'string' | 'object' | 'number' | 'boolean'
 }
 
+/** Which node kind each corpus file holds, for the t/3955 node_fields observation. */
+const NODE_KIND_BY_FILE: Readonly<Record<string, 'pov' | 'situation'>> = {
+  'accelerationist.json': 'pov', 'safetyist.json': 'pov', 'skeptic.json': 'pov', 'situations.json': 'situation',
+};
+
+/** Record the runtime type of every present top-level key on one node (t/3955 node_fields). */
+function observeTopLevelKeys(into: Record<string, Set<string>>, node: Record<string, unknown>): void {
+  for (const [key, v] of Object.entries(node)) {
+    if (v !== undefined && v !== null) (into[key] ??= new Set()).add(typeOf(v));
+  }
+}
+
 /**
  * Extract distinct graph-attribute values + edge types actually present in the live corpus.
  * `originDir` is the taxonomy Origin directory (…/ai-triad-data/taxonomy/Origin) — passed explicitly
@@ -128,6 +169,10 @@ export function extractCorpusValues(originDir: string): Extracted {
   const addVal = (field: string, v: string) => { (values[field] ??= new Set()).add(v); };
   const addType = (field: string, t: string) => { (observedTypes[field] ??= new Set()).add(t); };
 
+  // Top-level node keys actually present, by node kind (t/3955): lets the comparator catch a POV-only field
+  // on a situation, or a field stored with the wrong runtime type (e.g. a one-element array unrolled to a string).
+  const topLevel: Record<'pov' | 'situation', Record<string, Set<string>>> = { pov: {}, situation: {} };
+
   // POV camps + situations (sit-*): all carry the same graph_attributes[] the record governs (t/3456).
   for (const fn of ['accelerationist.json', 'safetyist.json', 'skeptic.json', 'situations.json']) {
     let nodes: CorpusNode[];
@@ -136,6 +181,7 @@ export function extractCorpusValues(originDir: string): Extracted {
       nodes = (JSON.parse(raw).nodes ?? []) as CorpusNode[];
     } catch { continue; } // best-effort: a missing/malformed corpus file is skipped, not fatal
     for (const n of nodes) {
+      observeTopLevelKeys(topLevel[NODE_KIND_BY_FILE[fn]], n as Record<string, unknown>);
       const ga = n.graph_attributes;
       if (!ga) continue;
       for (const [field, v] of Object.entries(ga)) {
@@ -169,5 +215,11 @@ export function extractCorpusValues(originDir: string): Extracted {
     };
   }
 
-  return { source: 'corpus', kind: 'corpus', attributes, edgeTypes: [...edgeTypes].sort() };
+  const observedFields = (m: Record<string, Set<string>>): Record<string, NodeFieldObservation> =>
+    Object.fromEntries(Object.entries(m).map(([k, ts]) => [k, { accepts: true, type: ts.size === 1 ? [...ts][0] : [...ts].sort().join('|') }]));
+
+  return {
+    source: 'corpus', kind: 'corpus', attributes, edgeTypes: [...edgeTypes].sort(),
+    nodeFields: { pov: observedFields(topLevel.pov), situation: observedFields(topLevel.situation) },
+  };
 }

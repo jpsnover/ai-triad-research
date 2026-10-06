@@ -21,10 +21,20 @@ export interface RecordAttribute {
   atomic_values?: string[];     // closed set for `controlled_vocab_csv`
   status?: 'active' | 'deprecated' | 'transient' | 'removed';
 }
+/** A normative TOP-LEVEL node field (record `node_fields`, added 4.1.0, t/3955). */
+export interface RecordNodeField {
+  type: string;                 // e.g. 'array'
+  elem?: string;
+  /** Which nodes may carry it. 'pov' = acc-/saf-/skp- only, REJECTED on situations. */
+  applies_to: 'pov' | 'situation' | 'all';
+  status?: 'active' | 'deprecated' | 'transient' | 'removed';
+}
 export interface SchemaRecord {
   graph_attributes: Record<string, RecordAttribute>;
   edges: { canonical: { type: string }[]; deprecated_types: string[] };
   node_id?: { pov?: string[]; category?: string[] };
+  /** Keyed by field name; `_`-prefixed keys (e.g. `_doc`) are notes, not fields. */
+  node_fields?: Record<string, RecordNodeField | string>;
 }
 
 // ── What an extractor produces for ONE surface ────────────────────────────────────────────────
@@ -53,6 +63,19 @@ export interface Extracted {
   edgeTypes?: string[];
   /** Observed node-id pov/category value-sets, where the surface encodes them. */
   nodeId?: { pov?: string[]; category?: string[] };
+  /**
+   * Top-level node fields, per node kind (t/3955). Omit a kind the surface does not cover.
+   *  - validator: every key the POV / situation schema declares. `accepts: false` = declared to REJECT a
+   *    present value (e.g. z.never). A key that is not listed is NOT rejected: a plain z.object strips it.
+   *  - corpus: every key observed on at least one node of that kind, with its runtime type(s).
+   */
+  nodeFields?: { pov?: Record<string, NodeFieldObservation>; situation?: Record<string, NodeFieldObservation> };
+}
+export interface NodeFieldObservation {
+  /** Declared/observed type, comparable to RecordNodeField.type. Omit when unknown. */
+  type?: string;
+  /** Validator: does the schema accept a present value? Corpus: always true (it was observed). */
+  accepts: boolean;
 }
 
 export type FindingType = 'missing_in_consumer' | 'extra_in_consumer' | 'type_mismatch' | 'deprecated_in_use';
@@ -170,5 +193,67 @@ export function checkSchemaDrift(record: SchemaRecord, extracted: Extracted): Fi
     }
   }
 
+  findings.push(...checkNodeFields(record, extracted));
   return findings;
+}
+
+/**
+ * node_fields (t/3955). Only fields the record LISTS are compared (the record does not yet govern every
+ * top-level key, so unlisted consumer keys are deliberately not flagged; stated in node_fields._doc).
+ */
+function checkNodeFields(record: SchemaRecord, extracted: Extracted): Finding[] {
+  const findings: Finding[] = [];
+  for (const [name, rec] of Object.entries(record.node_fields ?? {})) {
+    if (name.startsWith('_') || typeof rec !== 'object' || rec === null) continue;
+    for (const kind of ['pov', 'situation'] as const) {
+      const observed = extracted.nodeFields?.[kind];
+      if (observed === undefined) continue; // this surface does not cover that node kind
+      findings.push(...nodeFieldFindings({ name, rec, kind, obs: observed[name], extracted }));
+    }
+  }
+  return findings;
+}
+
+interface NodeFieldCase {
+  name: string;
+  rec: RecordNodeField;
+  kind: 'pov' | 'situation';
+  obs: NodeFieldObservation | undefined;
+  extracted: Extracted;
+}
+
+/** One recorded node field against one node kind of one surface. */
+function nodeFieldFindings(c: NodeFieldCase): Finding[] {
+  const applies = c.rec.applies_to === 'all' || c.rec.applies_to === c.kind;
+  return applies ? appliedFieldFindings(c) : forbiddenFieldFindings(c);
+}
+
+/** The field belongs on this node kind: it must be declared, with the record's type, and not be deprecated in use. */
+function appliedFieldFindings({ name, rec, kind, obs, extracted }: NodeFieldCase): Finding[] {
+  const out: Finding[] = [];
+  const base = { field: `node_fields.${name}`, source: extracted.source };
+  const isValidator = extracted.kind === 'validator';
+  if (isValidator && !obs?.accepts) {
+    out.push({ ...base, type: 'missing_in_consumer', detail: `${kind} schema does not declare "${name}" (a plain z.object would strip it on parse)` });
+  }
+  if (obs?.type !== undefined && obs.type !== rec.type) {
+    out.push({ ...base, type: 'type_mismatch', detail: `${kind} ${isValidator ? 'schema declares' : 'nodes carry'} "${name}" as ${JSON.stringify(obs.type)}, record says ${JSON.stringify(rec.type)}` });
+  }
+  if (!isValidator && obs && (rec.status === 'deprecated' || rec.status === 'removed')) {
+    out.push({ ...base, type: 'deprecated_in_use', detail: `record marks "${name}" status:${rec.status} but ${kind} nodes carry it` });
+  }
+  return out;
+}
+
+/** The field does NOT belong on this node kind: it must not be accepted, and a validator must reject it explicitly. */
+function forbiddenFieldFindings({ name, rec, kind, obs, extracted }: NodeFieldCase): Finding[] {
+  const base = { field: `node_fields.${name}`, source: extracted.source };
+  const isValidator = extracted.kind === 'validator';
+  if (obs?.accepts) {
+    return [{ ...base, type: 'extra_in_consumer', detail: `"${name}" applies to ${rec.applies_to} nodes only, but ${kind} ${isValidator ? 'schema accepts it' : 'nodes carry it'}` }];
+  }
+  if (isValidator && !obs) {
+    return [{ ...base, type: 'missing_in_consumer', detail: `${kind} schema does not REJECT "${name}" (applies to ${rec.applies_to} only); an undeclared key is silently stripped, not rejected` }];
+  }
+  return [];
 }
