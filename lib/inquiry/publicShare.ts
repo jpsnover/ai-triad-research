@@ -15,7 +15,8 @@
 // makes the shape ⟷ matrix cross-check exact, which is worth more than a flatter artifact.
 
 import { z } from 'zod';
-import { CampSchema, FidelitySchema, TrustVerdictSchema, HEADLINE_MAX_CHARS, type InquiryResult, type NodeRef } from './schema.js';
+import { CampSchema, FidelitySchema, TagModeSchema, TrustVerdictSchema, HEADLINE_MAX_CHARS, type InquiryResult, type NodeRef, type TagMode } from './schema.js';
+import { PovNameSchema, type PovName } from '../schema/povTags.js';
 import { TRUNCATION_REASONS } from './jobStatus.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
@@ -40,12 +41,21 @@ const PublicCalibrationEntrySchema = z.object({
   displayValue: z.string().optional(),
   trust: PublicTrustStateSchema,
 }).strict();
+// POV tag (t/3965, SO e/252 conds 1-3): the ask and what ran are BOTH public. Without them, a Scope answer
+// grounded on one wing of a camp reads as the whole camp's position.
+const publicTagSelectionFields = { pov: PovNameSchema, tag: z.string(), mode: TagModeSchema };
+const publicAppliedTagFields = { ...publicTagSelectionFields, included: z.number().int().nonnegative(), excludedUntagged: z.number().int().nonnegative() };
 const PublicDerivationSchema = z.object({
   fidelity: FidelitySchema,
   models: z.record(z.string(), z.string()),
   rounds: z.number().int(),
+  tag: z.object(publicAppliedTagFields).strict().optional(),
 }).strict(); // NO callBudget / callsUsed / costUsd (operational internals — matrix)
-const PublicRequestSchema = z.object({ question: z.string(), fidelity: FidelitySchema }).strict(); // NO situationId / models
+const PublicRequestSchema = z.object({
+  question: z.string(),
+  fidelity: FidelitySchema,
+  tagSelection: z.object(publicTagSelectionFields).strict().optional(),
+}).strict(); // NO situationId / models
 const PublicGroundingSchema = z.object({
   anchorSummary: z.string().optional(), // NO anchorSituationId (internal anchor id)
   nodesByCamp: z.partialRecord(CampSchema, z.array(PublicNodeRefSchema)),
@@ -95,8 +105,13 @@ const PublicDerivationReadSchema = z.object({
   fidelity: FidelitySchema,
   models: z.record(z.string(), z.string()),
   rounds: z.number().int(),
+  tag: z.object(publicAppliedTagFields).passthrough().optional(),
 }).passthrough();
-const PublicRequestReadSchema = z.object({ question: z.string(), fidelity: FidelitySchema }).passthrough();
+const PublicRequestReadSchema = z.object({
+  question: z.string(),
+  fidelity: FidelitySchema,
+  tagSelection: z.object(publicTagSelectionFields).passthrough().optional(),
+}).passthrough();
 const PublicGroundingReadSchema = z.object({
   anchorSummary: z.string().optional(),
   nodesByCamp: z.partialRecord(CampSchema, z.array(PublicNodeRefReadSchema)),
@@ -152,6 +167,8 @@ function sanitizeSources(sources: string[]): string[] {
 }
 
 const publicNode = (n: NodeRef): z.infer<typeof PublicNodeRefSchema> => ({ label: n.label, camp: n.camp }); // omits nodeId by not reading it
+// Named reads, so a field a newer build adds to the (passthrough) stored tagSelection never reaches the share.
+const publicTagSelection = (t: { pov: PovName; tag: string; mode: TagMode }) => ({ pov: t.pov, tag: t.tag, mode: t.mode });
 
 /** Condition A predicate: a run is degraded if any calibration entry carries a `censored` trust verdict
  *  OR terminated on any reason in `TRUNCATION_REASONS` (max_iterations / situation_cap / api_ceiling —
@@ -187,7 +204,11 @@ function truncateExcerpt(text: string, max: number = PUBLIC_EXCERPT_MAX_CHARS): 
 export function toPublicInquiryShare(result: InquiryResult): PublicInquiryShare {
   const share: PublicInquiryShare = {
     version: PUBLIC_INQUIRY_SHARE_VERSION,
-    request: { question: result.request.question, fidelity: result.request.fidelity },
+    request: {
+      question: result.request.question,
+      fidelity: result.request.fidelity,
+      ...(result.request.tagSelection ? { tagSelection: publicTagSelection(result.request.tagSelection) } : {}),
+    },
     campVerdicts: result.campVerdicts.map((cv) => ({ camp: cv.camp, verdict: cv.verdict, nodes: cv.nodes.map(publicNode) })),
     convergences: result.convergences.map((c) => ({ claim: truncateExcerpt(c.claim), nodes: c.nodes.map(publicNode) })),
     evidenceLayers: result.evidenceLayers.map((e) => ({ title: truncateExcerpt(e.title), role: truncateExcerpt(e.role), solves: truncateExcerpt(e.solves), sources: sanitizeSources(e.sources) })),
@@ -203,7 +224,12 @@ export function toPublicInquiryShare(result: InquiryResult): PublicInquiryShare 
         ...(c.trust.metricFamily !== undefined ? { metricFamily: c.trust.metricFamily } : {}),
       },
     })),
-    derivation: { fidelity: result.derivation.fidelity, models: result.derivation.models, rounds: result.derivation.rounds },
+    derivation: {
+      fidelity: result.derivation.fidelity,
+      models: result.derivation.models,
+      rounds: result.derivation.rounds,
+      ...(result.derivation.tag ? { tag: { ...publicTagSelection(result.derivation.tag), included: result.derivation.tag.included, excludedUntagged: result.derivation.tag.excludedUntagged } } : {}),
+    },
     grounding: {
       ...(result.grounding.anchorSummary !== undefined ? { anchorSummary: truncateExcerpt(result.grounding.anchorSummary) } : {}),
       nodesByCamp: Object.fromEntries(

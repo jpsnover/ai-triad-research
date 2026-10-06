@@ -25,6 +25,10 @@ export const POV_BY_ID_PREFIX: Readonly<Record<string, string>> = {
   skp: 'skeptic',
 };
 
+/** The three registry POV keys. A tag belongs to exactly one of them. */
+export const PovNameSchema = z.enum(['accelerationist', 'safetyist', 'skeptic']);
+export type PovName = z.infer<typeof PovNameSchema>;
+
 /** Lowercase kebab-case, unique within its POV (spec §2.1). */
 export const POV_TAG_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -39,7 +43,7 @@ const PovTagEntrySchema = z.object({
 export const PovTagRegistrySchema = z.object({
   version: z.number().int().positive(),
   // partialRecord: a POV with no entry has no tags (spec §2.1). Zod 4's z.record with enum keys is exhaustive.
-  povs: z.partialRecord(z.enum(['accelerationist', 'safetyist', 'skeptic']), z.array(PovTagEntrySchema)),
+  povs: z.partialRecord(PovNameSchema, z.array(PovTagEntrySchema)),
 }).strict().superRefine((reg, ctx) => {
   for (const [pov, entries] of Object.entries(reg.povs)) {
     const seen = new Set<string>();
@@ -104,6 +108,23 @@ export function validatePovTagsDetailed(nodeId: string, tags: unknown, registry:
  *  {@link validatePovTagsDetailed}, which also says which problems are `unregistered`. */
 export function validatePovTags(nodeId: string, tags: unknown, registry: PovTagRegistry = loadPovTagRegistry()): string[] {
   return validatePovTagsDetailed(nodeId, tags, registry).map((p) => p.message);
+}
+
+/**
+ * Every problem with a single tag selected for a POV, or `[]` if it is valid: the same per-tag rule as
+ * {@link validatePovTags}, for callers that name the POV explicitly instead of deriving it from a node id
+ * (the Inquiry request's `tagSelection`, t/3965 SO e/252 cond 4). Pure; never throws.
+ *
+ * While the WHOLE registry is empty, every tag is rejected. That is expected until the tag souls land
+ * (t/3956), and the message says so, so the rejection does not read as a bug. Once any POV has tags, a
+ * rejection is a real mistake and carries no such note.
+ */
+export function validatePovTagSelection(pov: PovName, tag: string, registry: PovTagRegistry = loadPovTagRegistry()): string[] {
+  const entries = registry.povs[pov] ?? [];
+  const problems = tagProblems('tagSelection', pov, tag, new Set(entries.map((t) => t.id)), new Set()).map((p) => p.message);
+  const registryEmpty = Object.values(registry.povs).every((e) => (e ?? []).length === 0);
+  if (!registryEmpty) return problems;
+  return problems.map((p) => `${p}. The tag registry ships empty until the tag souls land (t/3956), so every tag is rejected until then; this is expected, not a bug.`);
 }
 
 /** Problems with one entry of a POV node's tag array; `seen` accumulates ids to catch duplicates. */

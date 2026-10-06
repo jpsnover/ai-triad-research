@@ -11,7 +11,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import {
-  validatePovTags, validatePovTagsDetailed, loadPovTagRegistry, checkRegistrySoulPairs, PovTagRegistrySchema, type PovTagRegistry,
+  validatePovTags, validatePovTagsDetailed, validatePovTagSelection, loadPovTagRegistry, checkRegistrySoulPairs, PovTagRegistrySchema,
+  type PovTagRegistry,
 } from './povTags.js';
 
 const entry = (pov: string, id: string) => ({ id, label: id, soul_doc: `${pov}.${id}`, description: `${id} wing` });
@@ -87,6 +88,31 @@ describe('validatePovTagsDetailed (problem kinds, t/3973)', () => {
     for (const [id, tags] of cases) {
       expect(validatePovTagsDetailed(id, tags, REG).map((p) => p.message), `${id} ${JSON.stringify(tags)}`).toEqual(validatePovTags(id, tags, REG));
     }
+  });
+});
+
+describe('validatePovTagSelection (an explicitly named POV, t/3965)', () => {
+  it('PASSES a registered tag for its own POV', () => {
+    expect(validatePovTagSelection('skeptic', 'critical', REG)).toEqual([]);
+  });
+
+  it('REJECTS an unknown or malformed tag, and a tag under another POV', () => {
+    expect(validatePovTagSelection('skeptic', 'radical', REG)[0]).toMatch(/not registered for skeptic/);
+    expect(validatePovTagSelection('skeptic', 'Critical', REG).join()).toMatch(/kebab-case/);
+    expect(validatePovTagSelection('safetyist', 'critical', REG)[0]).toMatch(/safetyist has no tags/);
+  });
+
+  it('on the empty registry, says the rejection is expected until t/3956 (SO e/252 cond 4)', () => {
+    const [message] = validatePovTagSelection('skeptic', 'critical', { version: 1, povs: {} });
+    expect(message).toMatch(/ships empty until the tag souls land \(t\/3956\)/);
+    expect(message).toMatch(/expected, not a bug/);
+    // Once any POV has tags the note is gone, even for a POV that has none: the rejection is a real mistake.
+    expect(validatePovTagSelection('skeptic', 'radical', REG)[0]).not.toMatch(/t\/3956/);
+    expect(validatePovTagSelection('safetyist', 'critical', REG)[0]).not.toMatch(/t\/3956/);
+  });
+
+  it('the committed registry rejects every selection today, with the t/3956 note', () => {
+    expect(validatePovTagSelection('skeptic', 'critical', loadPovTagRegistry())[0]).toMatch(/t\/3956/);
   });
 });
 

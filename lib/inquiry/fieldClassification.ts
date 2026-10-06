@@ -44,6 +44,13 @@ export type FieldPath = string;
 const EXPORT_FULL = 'Owner-initiated export of one\'s own answer — the owner already has access to every field; full fidelity is the point (TL t/3651#2).';
 const COMMUNITY_CORE = 'Core answer content — the substance a community reader is there to see (authenticated cross-user, not anonymous).';
 const PUBLIC_CORE = 'Answer substance — the shared artifact itself.';
+// POV tags (t/3965, SO e/252 cond 1; TL t/3965#6). Same reasoning as request.fidelity, and more severe: a
+// Scope run grounds one camp on a single tagged wing, so published without its tag it reads as the whole
+// camp's position, with no way for the reader to tell.
+const TAG_SCOPE_MUST_SHOW = 'MUST include (SO e/252 cond 1): a tag-scoped answer published without its tag reads as the whole camp\'s position when it is one wing\'s (the request.fidelity reasoning, more severe).';
+const TAG_SCOPE_COMMUNITY = 'Must include for the same reason as public-share: without it a community reader cannot tell a one-wing answer from a whole-camp one.';
+const TAG_COUNT_MUST_SHOW = 'MUST include with the tag (SO e/252#5): the excluded-untagged count is what tells a reader whether the scope was narrow or the registry coverage was thin. Counts only, no node ids.';
+const TAG_COUNT_COMMUNITY = 'Must include with the tag (SO e/252#5): makes two runs with the same tag comparable as registry coverage grows.';
 
 export const CLASSIFICATION: Record<FieldPath, Record<Surface, Disposition>> = {
   // ── top-level ──
@@ -93,6 +100,12 @@ export const CLASSIFICATION: Record<FieldPath, Record<Surface, Disposition>> = {
     'public-share': X('Requested override, not actual execution (see request.models.debaters).'),
     community: I('Model id, not a secret; parity with community model metadata.'),
     export: I(EXPORT_FULL),
+  },
+  'request.tagSelection.pov': { 'public-share': I(TAG_SCOPE_MUST_SHOW), community: I(TAG_SCOPE_COMMUNITY), export: I(EXPORT_FULL) },
+  'request.tagSelection.tag': { 'public-share': I(TAG_SCOPE_MUST_SHOW), community: I(TAG_SCOPE_COMMUNITY), export: I(EXPORT_FULL) },
+  'request.tagSelection.mode': {
+    'public-share': I('MUST include with the tag: Scope (one wing only) and Prioritize (every node, tagged first) make very different claims about the same camp.'),
+    community: I(TAG_SCOPE_COMMUNITY), export: I(EXPORT_FULL),
   },
 
   // ── campVerdicts ──
@@ -180,6 +193,11 @@ export const CLASSIFICATION: Record<FieldPath, Record<Surface, Disposition>> = {
     community: X('Internal financial/operational data; a community reader needn\'t see exact USD spend, and no existing community type exposes cost. Deliberate exclude, NOT inherited from public-share (Server Community t/3651#7).'),
     export: I(EXPORT_FULL),
   },
+  'derivation.tag.pov': { 'public-share': I('What actually ran (vs request.tagSelection, the ask), the way derivation.fidelity pairs with request.fidelity.'), community: I(TAG_SCOPE_COMMUNITY), export: I(EXPORT_FULL) },
+  'derivation.tag.tag': { 'public-share': I('What actually ran (vs request.tagSelection, the ask).'), community: I(TAG_SCOPE_COMMUNITY), export: I(EXPORT_FULL) },
+  'derivation.tag.mode': { 'public-share': I('What actually ran (vs request.tagSelection, the ask).'), community: I(TAG_SCOPE_COMMUNITY), export: I(EXPORT_FULL) },
+  'derivation.tag.included': { 'public-share': I(TAG_COUNT_MUST_SHOW), community: I(TAG_COUNT_COMMUNITY), export: I(EXPORT_FULL) },
+  'derivation.tag.excludedUntagged': { 'public-share': I(TAG_COUNT_MUST_SHOW), community: I(TAG_COUNT_COMMUNITY), export: I(EXPORT_FULL) },
 
   // ── grounding ──
   'grounding.anchorSituationId': {

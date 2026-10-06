@@ -14,6 +14,7 @@
 // Schema only. No pipeline logic ships here — the four DebateTool stage tickets build behind this.
 
 import { z } from 'zod';
+import { PovNameSchema, validatePovTagSelection } from '../schema/povTags.js';
 
 /**
  * Contract major version. The integer IS the major (no encoded major.minor) — TL t/3574#2.
@@ -50,27 +51,61 @@ export const ModelOverrideSchema = z.object({
 });
 export type ModelOverride = z.infer<typeof ModelOverrideSchema>;
 
+// ── Tag selection (POV tags 5b, t/3965; SO e/252) ────────────────────────────
+// One POV-scoped tag applied to ONE camp. A single object, not parallel `tag?` + `tagMode?` optionals,
+// so "both or neither" holds by construction (e/249 alternative d). `pov` is explicit because a request
+// has no node id to derive it from. The other camps run exactly as untagged.
+/** `scope` keeps only the camp's tagged nodes; `prioritize` keeps every node and ranks tagged ones first. */
+export const TagModeSchema = z.enum(['scope', 'prioritize']);
+export type TagMode = z.infer<typeof TagModeSchema>;
+
+const tagSelectionFields = {
+  pov: PovNameSchema,
+  tag: z.string().min(1),
+  mode: TagModeSchema,
+};
+export const TagSelectionSchema = z.object(tagSelectionFields).strict();
+export type TagSelection = z.infer<typeof TagSelectionSchema>;
+
 // ── InquiryRequest ────────────────────────────────────────────────────────────
 // STRICT at the client-input boundary (TL t/3574#2): a mistyped key — `situationID` for
 // `situationId` — must FAIL LOUDLY, not be silently accepted-and-dropped, which would run the inquiry
 // ungrounded and answer a subtly different question with no signal (the invisible-degradation class).
+const requestFields = {
+  question: z.string().min(1),
+  /** Maps to rounds, models, pacing, and an explicit budget via deriveDebateConfig (t/3575). */
+  fidelity: FidelitySchema,
+  /** Optional explicit grounding anchor; when absent the pipeline derives one. */
+  situationId: z.string().optional(),
+  /** Optional explicit model override (t/3574#3); when absent, fidelity's tier default applies. */
+  models: ModelOverrideSchema.optional(),
+};
+
 export const InquiryRequestSchema = z
   .object({
-    question: z.string().min(1),
-    /** Maps to rounds, models, pacing, and an explicit budget via deriveDebateConfig (t/3575). */
-    fidelity: FidelitySchema,
-    /** Optional explicit grounding anchor; when absent the pipeline derives one. */
-    situationId: z.string().optional(),
-    /** Optional explicit model override (t/3574#3); when absent, fidelity's tier default applies. */
-    models: ModelOverrideSchema.optional(),
+    ...requestFields,
+    /** Optional POV tag for one camp (t/3965). Absent: the inquiry runs untagged, identical to before. */
+    tagSelection: TagSelectionSchema.optional(),
   })
-  .strict();
+  .strict()
+  // SO e/252 cond 4: the tag is checked against the registry HERE, at the live boundary, so an unknown tag
+  // is rejected instead of the inquiry silently running untagged. Only the live schema carries this check;
+  // the stored copy below does not, so a result stays readable after its tag is retired from the registry.
+  .superRefine((req, ctx) => {
+    if (!req.tagSelection) return;
+    for (const message of validatePovTagSelection(req.tagSelection.pov, req.tagSelection.tag)) {
+      ctx.addIssue({ code: 'custom', path: ['tagSelection', 'tag'], message });
+    }
+  });
 export type InquiryRequest = z.infer<typeof InquiryRequestSchema>;
 
 /** The COPY embedded in a persisted `InquiryResult` (TL t/3574#2). Passthrough, not strict: a v1 reader
  *  round-tripping a v2 result must not strip a field v2 added to the request. Strictness is a property
- *  of the live input boundary, not of the stored receipt. */
-export const StoredInquiryRequestSchema = InquiryRequestSchema.passthrough();
+ *  of the live input boundary, not of the stored receipt — and so is the registry check: a stored tag the
+ *  registry later drops must not make the result unreadable. */
+export const StoredInquiryRequestSchema = z
+  .object({ ...requestFields, tagSelection: z.object(tagSelectionFields).passthrough().optional() })
+  .passthrough();
 export type StoredInquiryRequest = z.infer<typeof StoredInquiryRequestSchema>;
 
 // ── TrustState ────────────────────────────────────────────────────────────────
@@ -143,6 +178,16 @@ export const UnresolvedGapSchema = z.object({
 });
 export type UnresolvedGap = z.infer<typeof UnresolvedGapSchema>;
 
+/** The tag filter as applied to the named camp's grounding (filled by `buildGroundingEnvelope`, DebateTool). */
+export const AppliedTagSchema = z.object({
+  ...tagSelectionFields,
+  /** Nodes of the named camp that carry the tag. */
+  included: z.number().int().nonnegative(),
+  /** Untagged nodes of the named camp left out of grounding. Always 0 in `prioritize` mode. */
+  excludedUntagged: z.number().int().nonnegative(),
+});
+export type AppliedTag = z.infer<typeof AppliedTagSchema>;
+
 // ── Resolved derivation (the "receipt", ADR §4) ───────────────────────────────
 // Records the resolved facts a run actually used, not just the fidelity label — `'standard'` in June
 // won't mean what it meant in March as models retire and budgets are tuned. `callBudget` is PRIMARY
@@ -159,6 +204,11 @@ export const ResolvedDerivationSchema = z.object({
   callsUsed: z.number().int().nonnegative().optional(),
   /** Resolved/estimated cost in USD, alongside the call budget when available. */
   costUsd: z.number().nonnegative().optional(),
+  /** What the tag actually did (SO e/252 cond 3), kept apart from `request.tagSelection` (the ask) the
+   *  way `fidelity` is. Registry coverage grows over time, so the same tag can exclude a different share
+   *  of a camp from one run to the next. The counts make two runs comparable and tell a narrow scope from
+   *  a coverage gap. Absent: the run was untagged. */
+  tag: AppliedTagSchema.optional(),
 });
 export type ResolvedDerivation = z.infer<typeof ResolvedDerivationSchema>;
 
