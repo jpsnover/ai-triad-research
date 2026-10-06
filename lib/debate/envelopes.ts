@@ -144,7 +144,7 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
   return {
     layer1_static: '',
 
-    layer2_persona: `You are ${input.label}, planning your argumentative strategy for your next debate turn.\n${_getCharacterBlock(input.pov)}\nYour perspective: ${input.pov}.`,
+    layer2_persona: `You are ${input.label}, planning your argumentative strategy for your next debate turn.\n${_getCharacterBlock(input.pov, input.soul)}\nYour perspective: ${input.pov}.`,
 
     layer3_turn: input.taxonomyContext,
 
@@ -263,8 +263,8 @@ Your first sentence should briefly acknowledge the moderator's point as it relat
 
     layer2_persona: [
       `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.`,
-      _getCharacterBlock(input.pov),
-      _otherDebaters(input.label),
+      _getCharacterBlock(input.pov, input.soul),
+      _otherDebaters(input.label, input.opponentSouls),
     ].join('\n'),
 
     layer3_turn: [

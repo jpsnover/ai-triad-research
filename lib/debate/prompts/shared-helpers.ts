@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { DebateAudience, DebatePhase, VoiceSpec } from '../types.js';
+import type { DebateAudience, DebatePhase, PovInfo, SpeakerId, VoiceSpec } from '../types.js';
 import { POVER_INFO } from '../types.js';
 import {
   getPromptCompact,
@@ -44,8 +44,8 @@ function formatValueHierarchy(hierarchy: string[]): string {
   return `\nVALUE HIERARCHY (resolve internal conflicts top-down):\n${tiers}\nWhen your values conflict, higher tiers override lower tiers. Tier 1 is non-negotiable.\n`;
 }
 
-export function getCharacterBlock(pov: string): string {
-  const info = POVER_INFO[pov as keyof typeof POVER_INFO];
+export function getCharacterBlock(pov: string, soul?: PovInfo): string {
+  const info = soul ?? POVER_INFO[pov as keyof typeof POVER_INFO];
   if (!info?.voice) return '';
   const scope = getTopicScope();
   const scopeBlock = hasMeaningfulScope(scope) ? `\n${formatDebateScopeBlock(scope)}\n` : '';
@@ -150,22 +150,23 @@ Using the same jargon as other speakers is a voice differentiation failure.\n`;
 }
 
 /** Build a line describing each debater the current speaker is debating against. */
-export function otherDebaters(currentLabel: string): string {
+export function otherDebaters(currentLabel: string, opponentSouls?: Partial<Record<SpeakerId, PovInfo>>): string {
   const others = Object.values(POVER_INFO)
     .filter(c => c.label !== currentLabel)
     .map(c => {
-      const shortDisposition = c.voice.disposition.split('—')[0]?.trim() ?? c.personality;
-      return `- ${c.label}, representing the ${c.pov} perspective (${shortDisposition})`;
+      const soul = opponentSouls?.[c.pov as SpeakerId] ?? c;
+      const shortDisposition = soul.voice.disposition.split('—')[0]?.trim() ?? soul.personality;
+      return `- ${soul.label}, representing the ${soul.pov} perspective (${shortDisposition})`;
     })
     .join('\n');
   return `You are debating:\n${others}`;
 }
 
 /** Format hardcoded/softcoded boundaries as a prompt injection block.
- *  Looks up structured boundaries from POVER_INFO by pov key. */
-export function formatDoctrinalBoundaries(pov?: string): string {
-  if (!pov) return '';
-  const info = POVER_INFO[pov as keyof typeof POVER_INFO];
+ *  Uses the resolved soul when provided; falls back to POVER_INFO by pov key. */
+export function formatDoctrinalBoundaries(pov?: string, soul?: PovInfo): string {
+  if (!pov && !soul) return '';
+  const info = soul ?? (pov ? POVER_INFO[pov as keyof typeof POVER_INFO] : undefined);
   if (!info?.boundaries) return '';
   const { hardcoded, softcoded } = info.boundaries;
   const sections: string[] = [];
@@ -293,9 +294,9 @@ function extractStarredNodes(taxonomyContext: string): string[] {
   return results;
 }
 
-export function buildRecapSection(taxonomyContext: string, phase?: DebatePhase, pov?: string, pendingInterventionField?: string): string {
+export function buildRecapSection(taxonomyContext: string, phase?: DebatePhase, pov?: string, soul?: PovInfo, pendingInterventionField?: string): string {
   const starred = extractStarredNodes(taxonomyContext);
-  if (starred.length === 0 && !phase && !pov) return '';
+  if (starred.length === 0 && !phase && !pov && !soul) return '';
 
   const lines: string[] = ['', '=== RECALL ==='];
 
@@ -313,16 +314,18 @@ export function buildRecapSection(taxonomyContext: string, phase?: DebatePhase, 
     lines.push(`Phase priority: ${priorities[phase]}`);
   }
 
-  if (pov) {
-    const info = POVER_INFO[pov as keyof typeof POVER_INFO];
-    if (info?.boundaries?.hardcoded?.length > 0) {
-      lines.push(`Hardcoded boundaries (NEVER concede): ${info.boundaries.hardcoded.join('; ')}`);
-    }
-    if (info?.value_hierarchy?.length > 0) {
-      lines.push(`Value hierarchy: ${info.value_hierarchy.map((v, i) => `(${i + 1}) ${v}`).join(' > ')}`);
-    }
-    if (info?.epistemic_stance?.length > 0) {
-      lines.push(`Epistemic stance: ${info.epistemic_stance[0]}. Falsification: ${info.epistemic_stance[info.epistemic_stance.length - 1].replace(/^Falsification challenge: /, '')}`);
+  if (pov || soul) {
+    const info = soul ?? (pov ? POVER_INFO[pov as keyof typeof POVER_INFO] : undefined);
+    if (info) {
+      if (info.boundaries?.hardcoded && info.boundaries.hardcoded.length > 0) {
+        lines.push(`Hardcoded boundaries (NEVER concede): ${info.boundaries.hardcoded.join('; ')}`);
+      }
+      if (info.value_hierarchy && info.value_hierarchy.length > 0) {
+        lines.push(`Value hierarchy: ${info.value_hierarchy.map((v, i) => `(${i + 1}) ${v}`).join(' > ')}`);
+      }
+      if (info.epistemic_stance && info.epistemic_stance.length > 0) {
+        lines.push(`Epistemic stance: ${info.epistemic_stance[0]}. Falsification: ${info.epistemic_stance[info.epistemic_stance.length - 1].replace(/^Falsification challenge: /, '')}`);
+      }
     }
   }
 
