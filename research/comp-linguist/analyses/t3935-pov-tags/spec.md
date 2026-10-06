@@ -1,7 +1,7 @@
 # POV tags: specification
 
 **Author:** Computational Linguist
-**Date:** 2026-10-05 (revision 3: TL design review t/3954#1, plus a code-touchpoint map)
+**Date:** 2026-10-06 (revision 4: the t/3955 design as co-signed by CL and TL; revision 3 added the TL design review t/3954#1 and a code-touchpoint map)
 **Ticket:** t/3935 (decision record t/3935#1); epic t/3954
 **Status:** Draft. Six decisions run on proposed defaults until the PI confirms them (section 9); decision 7 is resolved. The TL has approved the interfaces with conditions; the schema child t/3955 goes to the mandatory Second Opinion next (section 8).
 **Background:** `research/comp-linguist/analyses/t3932-skeptic-split/analysis.md`
@@ -56,7 +56,9 @@ The registry is `lib/debate/soul-docs/pov-tags.json`:
 
 The field is a **top-level** node field, `pov_tags`: an array of tag ids from the node's own POV in the registry.
 
-**Why not under `graph_attributes`** (TL review, point 1): `Invoke-AttributeExtraction.ps1:285` replaces a node's whole `graph_attributes` object on re-extraction (`$OrigNode.graph_attributes = $AttrObj`; verified on `main`). Curated tags stored there would be silently erased the next time a node is re-enriched. `graph_attributes` is the enrichment namespace; tags are curated, editor-owned data, like `label`.
+**Why not under `graph_attributes`.** `graph_attributes` is the **enrichment** namespace, written by extraction prompts. Tags are **curated**, editor-owned data, like `label`. Putting them under `graph_attributes` would let an extraction prompt own the field and regenerate it.
+
+(Revision 4: the earlier argument here was that `Invoke-AttributeExtraction.ps1:285` replaced `graph_attributes` wholesale. That is no longer true; it now merges, via `Merge-NodeGraphAttributes`, t/3964. The placement stands on the ownership argument alone.)
 
 **Rules**
 - **Empty or absent means untagged.** Most nodes stay untagged.
@@ -66,15 +68,22 @@ The field is a **top-level** node field, `pov_tags`: an array of tag ids from th
 
 ### 2.3 The debate record
 
-Saved debates gain two optional fields per seat (TL review, point 3):
-- `pov_tag`: a tag id, or absent;
-- `tag_mode`: `scope` or `prioritize`, or absent.
+Saved debates gain one optional map, `seat_tags`, keyed by seat (TL review, point 3; the shape is from the t/3955 design):
 
-**Absent means untagged,** so every existing saved debate still loads. The run also records the **soul file and soul version** each seat used (section 3).
+    seat_tags?: Partial<Record<SpeakerId, { pov_tag: string; tag_mode: 'scope' | 'prioritize' }>>
+
+- **`tag_mode` is required** whenever `pov_tag` is set.
+- **A seat missing from the map, or no map at all, means untagged,** so every existing saved debate still loads. The run also records the **soul file and soul version** each seat used (section 3).
 
 ### 2.3a Validators that must learn the field (revision 3)
 
-- **`lib/debate/schemas.ts` `PovNodeSchema`** is a `z.object`, so it **strips unknown keys** on parse. It must declare `pov_tags`, or any parse-then-save path silently drops tags.
+- **`lib/debate/schemas.ts` `PovNodeSchema`** is a `z.object`, so it **strips unknown keys** on parse. It declares `pov_tags`. The strip risk is **latent**: the schema has no callers today (verified on `main`, t/3955#3), so it enforces nothing either.
+- **The live enforcement point** is a pure `validatePovTags(nodeId, tags, registry)` in `lib/schema/povTags.ts`. It rejects unknown, duplicate, wrong-POV and malformed ids, scalars in place of arrays, and any tag on situation nodes. It runs in three places:
+  - the `pov_tags` writer CLI (t/3969);
+  - a warn-first data-repo hook (t/3970);
+  - later, the editor (t/3961).
+
+  t/3969 and t/3970 both block the first tagging write (t/3962), so tags are never written unvalidated (TL condition 1).
 - **`SituationNodeSchema`** must reject the field.
 - **The renderer's `povNodeSchema`** (`validation.ts`) passes unknown keys through, so it stays safe, but it should declare the field.
 - **`lib/debate/taxonomyTypes.ts` `PovNode`** gains `pov_tags?: string[]`.
@@ -82,7 +91,24 @@ Saved debates gain two optional fields per seat (TL review, point 3):
 - **Where the field is declared** (TL decision, t/3955; p/349#491): in **both** the schema record and Zod, with the record first.
   - `taxonomy-schema.json` gains a new `node_fields` section declaring `pov_tags` (version 4.1.0, minor), and the drift checker (`lib/schema/checkSchemaDrift.ts`) is extended to cover it.
   - `pov_tags` goes into `PovNodeSchema` **in the same PR**. Until Zod knows the field, the editor would silently delete tags on save.
-- **Writer inventory** (TL condition): t/3955 lists every writer that rebuilds nodes from a fixed field list, and adds a round-trip test for each one proving tags survive a load-and-save.
+- **Writer inventory** (TL condition; result in t/3955#3). **No live writer rebuilds an existing node from a fixed field list.** Explicit field lists exist only where new nodes are created, and new nodes start untagged. Round-trip tests cover the main live save chains instead (editor, `harvestOnSave`, and PowerShell `ConvertTo-Json`). They use a **one-element** `pov_tags` array, because PowerShell unrolls single-element arrays into scalars (TL condition 2).
+- **The registry ships empty** in t/3955 (`{ "version": 1, "povs": {} }`). Each tag arrives with its soul in one PR, so the Skeptic entries land with t/3956. Since `validatePovTags` rejects unknown ids, t/3956 also blocks t/3962.
+
+### 2.3c Second Opinion conditions (e/249#6: proceed with conditions)
+
+1. **The edit paths are fixed before any tag exists.** Today a cross-POV move **spreads** the node, which carries tags into a POV where they are invalid, and split and depth-expand create untagged children. So t/3971 and t/3972 **block t/3962**, the first tagging write. t/3972 includes a **negative test**: no `pov_tags` after a cross-POV move. The surviving vector here is the opposite of a dropped field: a spread that carries the field across a boundary.
+2. **The editor validates too.** The renderer `povNodeSchema` calls `validatePovTags` in a `superRefine`, because the editor's `save()` is the second live writer.
+3. **Absence is defined, and gaps are visible.**
+   - The `node_fields` record entry states that an absent or empty `pov_tags` means untagged, and that **in Scope mode an untagged node is excluded**.
+   - t/3962 asserts coverage after writing: every node in a tagged POV has a tag, or sits on a committed intentionally-untagged list.
+   - Scope mode WARNs at start with the count of untagged nodes it excludes (t/3957).
+
+### 2.3b Tags through taxonomy edits (CL decisions, t/3955#5)
+
+- **Merge:** the tags of the merged-away nodes are **unioned** into the survivor, de-duplicated, and listed in the proposal-apply report.
+- **Split and depth-expand:** children **inherit** the parent's tags, flagged in the apply report for editor review. Over-tagging is visible and correctable. Under-tagging would silently drop children out of Scope-mode debates.
+- **Width-expand and new nodes:** start untagged.
+- **Cross-POV move:** tags are **stripped**, since they are POV-scoped and a carried tag is always invalid. The strip is reported with a WARN naming the node and the tags (TL condition 3, Fallback-Path Logging rule).
 
 ### 2.4 Schema change control
 
