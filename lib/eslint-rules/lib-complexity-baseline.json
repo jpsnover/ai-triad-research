@@ -1,7 +1,12 @@
 {
   "__meta__": {
     "threshold": 15,
-    "scan": null
+    "scan": null,
+    "ext": [
+      ".ts",
+      ".tsx"
+    ],
+    "scope_note": "lib/**/*.js and *.mjs (incl. the 3 eslint-rules/*.js rule files) are outside the gate: lib has no .js lint block (TL t/3823#9). Tests are excluded by design."
   },
   "ai-client/providers/claude.ts": {
     "max": 18,
@@ -482,18 +487,6 @@
   "entities/nameResolver.ts": {
     "max": 21,
     "countOver": 1
-  },
-  "eslint-rules/complexity-budget.js": {
-    "max": 18,
-    "countOver": 1
-  },
-  "eslint-rules/no-actionable-error-message-nesting.js": {
-    "max": 20,
-    "countOver": 1
-  },
-  "eslint-rules/require-windows-hide.js": {
-    "max": 28,
-    "countOver": 2
   },
   "flight-recorder/serializer.ts": {
     "max": 21,
