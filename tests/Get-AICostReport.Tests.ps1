@@ -57,8 +57,9 @@ Describe 'Get-AICostReport' -Tag 'cost' {
         $r = Get-AICostReport -Path $script:usageFile -PassThru -GroupBy Model
         $Row = $r.Breakdown | Where-Object { $_.Group -eq 'gemini-3.5-flash-lite' }
         # 3 gemini-3.5-flash-lite entries: (1000p/500c/200cached) + (0/0/0) + (10/10/0)
-        # cost1 = (800*0.375 + 200*0.375 + 500*1.5)/1e6 = 0.001125 ; cost2 = 0 ; cost3 = (10*0.375+10*1.5)/1e6 = 0.00001875
-        $Row.EstimatedCost | Should -Be ([Math]::Round(0.001125 + 0 + 0.00001875, 4))
+        # Prices (t/3946, live 2026-10-05): input 0.30, output 2.50, cachedInput 0.30 (caching N/A -> cached = input).
+        # cost1 = (800*0.30 + 200*0.30 + 500*2.50)/1e6 = 0.00155 ; cost2 = 0 ; cost3 = (10*0.30+10*2.50)/1e6 = 0.000028
+        $Row.EstimatedCost | Should -Be ([Math]::Round(0.00155 + 0 + 0.000028, 4))
         $Row.Calls | Should -Be 3
     }
 
