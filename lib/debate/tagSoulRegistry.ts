@@ -1,8 +1,6 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-/// <reference types="vite/client" />
-
 // Browser-safe companion to soulDocLoader.ts (t/3979).
 // Uses import.meta.glob — Vite/vitest only. Do NOT import from Node paths (CLI, main, server).
 // Node paths use soulDocLoader.ts instead.
