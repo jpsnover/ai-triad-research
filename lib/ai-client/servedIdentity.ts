@@ -26,6 +26,7 @@
 
 import type { ModelRegistry } from './registry.js';
 import { buildModelEntryMap } from './registry.js';
+import type { FlightRecorder } from '../flight-recorder/flightRecorder.js';
 
 /**
  * Calibration, co-located with the rule it gates (TL t/3731#7 cond 2). As of 2026-10-06, about 3,000
@@ -156,6 +157,25 @@ export function observeServedIdentity(backend: string, sent: string, served: str
 /** Counts per `state/reason` this process (SO condition 2: every `unknown` is counted by its reason). */
 export function getServedIdentitySummary(): Record<string, number> {
   return Object.fromEntries([...counts].sort(([a], [b]) => a.localeCompare(b)));
+}
+
+const recordersWithSummary = new WeakSet<FlightRecorder>();
+
+/** Puts the per-reason summary into every dump `recorder` writes, under `served_identity` (t/4023: so a
+ *  dump shows whether a quiet log meant "all agreed" or "all unknown/no-registry"). Once per recorder. */
+export function attachServedIdentitySummary(recorder: FlightRecorder | null | undefined): void {
+  if (!recorder || recordersWithSummary.has(recorder)) return;
+  recordersWithSummary.add(recorder);
+  // Diagnostics must never break an AI call. A recorder stand-in without the method (a partial stub) is
+  // skipped, and the skip is logged once so a dump missing `served_identity` is explainable.
+  if (typeof recorder.addContextContributor !== 'function') {
+    recorder.record?.({
+      type: 'ai.model_identity', component: 'ai-client', level: 'warn',
+      message: 'served-identity summary not attached: this recorder has no addContextContributor, so its dumps omit served_identity',
+    });
+    return;
+  }
+  recorder.addContextContributor('served_identity', getServedIdentitySummary);
 }
 
 export function _resetServedIdentityStateForTests(): void {
