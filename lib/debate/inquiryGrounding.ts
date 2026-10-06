@@ -145,30 +145,40 @@ export async function buildGroundingEnvelope(
   let appliedTag: AppliedTag | undefined;
 
   // Pre-flight: refuse before the embedding loop so a tagged camp with no embeddings still refuses
-  // (t/3965#13). Run over the full povNodes for the camp — embedding presence is irrelevant to
-  // whether a node is tagged.
+  // (t/3965#13, t/4009). Floor counts only groundable nodes (tagged AND embedded).
+  // Unembedded tagged nodes get a WARN — they exist but cannot be retrieved.
   if (opts.tagSelection && tagCamp) {
     const sel = opts.tagSelection;
     const taggedCampNodes = taxonomy.povNodes.filter(n => n.id.startsWith(`${tagCamp}-`));
-    const scopeCheck = checkTagScope(taggedCampNodes, sel);
+    const embeddedIds = new Set(Object.keys(taxonomy.nodeEmbeddings));
+    const scopeCheck = checkTagScope(taggedCampNodes, sel, embeddedIds);
+    if (scopeCheck.unembeddedTaggedCount > 0) {
+      warn(
+        `buildGroundingEnvelope: ${scopeCheck.unembeddedTaggedCount} tagged node(s) for "${sel.tag}" in the ${sel.pov} camp have no embedding and cannot be grounded — run Update-TaxEmbeddings`,
+      );
+    }
     if (!scopeCheck.sufficient) {
+      const taggedCount = taggedCampNodes.filter(n => (n.pov_tags ?? []).includes(sel.tag)).length;
+      const groundableCount = scopeCheck.inScope.length;
       if (scopeCheck.reason === 'none-tagged') {
         throw new ActionableError({
           goal: `Ground Inquiry on ${sel.pov}/${sel.tag} in ${sel.mode} mode`,
-          problem: `No nodes carry tag "${sel.tag}" in the ${sel.pov} camp (${taggedCampNodes.length} camp nodes checked)`,
+          problem: taggedCount > 0
+            ? `No groundable nodes for tag "${sel.tag}" in the ${sel.pov} camp: ${taggedCount} tagged but none have embeddings (${taggedCampNodes.length} camp nodes checked)`
+            : `No nodes carry tag "${sel.tag}" in the ${sel.pov} camp (${taggedCampNodes.length} camp nodes checked)`,
           location: 'inquiryGrounding.ts › buildGroundingEnvelope',
-          nextSteps: [
-            `Add pov_tags: ["${sel.tag}"] to at least one node under the ${sel.pov} POV.`,
-          ],
+          nextSteps: taggedCount > 0
+            ? ['Run Update-TaxEmbeddings to add embeddings for the tagged nodes.']
+            : [`Add pov_tags: ["${sel.tag}"] to at least one node under the ${sel.pov} POV.`],
         });
       } else {
         // reason === 'below-floor' (Scope only)
         throw new ActionableError({
           goal: `Ground Inquiry on ${sel.pov}/${sel.tag} in Scope mode`,
-          problem: `Scope is too thin: ${scopeCheck.inScope.length} tagged nodes of ${taggedCampNodes.length} in the ${sel.pov} camp (minimum: ${TAG_SCOPE_MINIMUM_NODES})`,
+          problem: `Scope is too thin: ${groundableCount} groundable tagged nodes of ${taggedCampNodes.length} in the ${sel.pov} camp (${taggedCount} tagged, ${scopeCheck.unembeddedTaggedCount} without embeddings; minimum groundable: ${TAG_SCOPE_MINIMUM_NODES})`,
           location: 'inquiryGrounding.ts › buildGroundingEnvelope',
           nextSteps: [
-            `Add pov_tags: ["${sel.tag}"] to at least ${TAG_SCOPE_MINIMUM_NODES} nodes under the ${sel.pov} POV.`,
+            `Add pov_tags: ["${sel.tag}"] to at least ${TAG_SCOPE_MINIMUM_NODES} nodes under the ${sel.pov} POV, then run Update-TaxEmbeddings.`,
             'Or switch to Prioritize mode to boost tagged nodes without filtering the rest.',
           ],
         });
