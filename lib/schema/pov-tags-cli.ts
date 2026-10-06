@@ -27,7 +27,6 @@
 
 import { readFileSync } from 'node:fs';
 import { validatePovTags, loadPovTagRegistry } from './povTags.js';
-import { readTaxonomyNodes, readRegistryFile, scanPovTagOrphans, orphanScanExitCode } from './povTagScan.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 /** The value after `flag`, or undefined when the flag is absent. Throws when the flag has no value. */
@@ -38,8 +37,13 @@ function flagValue(argv: string[], flag: string): string | undefined {
   return argv[i + 1];
 }
 
-/** Orphan-scan mode. Returns the exit code; throws (→ exit 2) when the scan cannot run. */
-function runOrphanScan(argv: string[], dataDir: string): 0 | 1 {
+/** Orphan-scan mode. Returns the exit code; throws (→ exit 2) when the scan cannot run.
+ *  povTagScan is imported HERE, dynamically, never at the top of the file (t/4021). The data repo's
+ *  pov-tags-check hook copies only the validate path's STATIC import closure (its CLOSURE list) and runs
+ *  the CLI from there. A static import of povTagScan pulls in extractors.ts and ../debate/schemas.ts, and
+ *  the CLI then fails to load in the hook. pov-tags-cli.closure.test.ts pins that closure. */
+async function runOrphanScan(argv: string[], dataDir: string): Promise<0 | 1> {
+  const { readTaxonomyNodes, readRegistryFile, scanPovTagOrphans, orphanScanExitCode } = await import('./povTagScan.js');
   const basePath = flagValue(argv, '--base-registry');
   const base = basePath ? readRegistryFile(basePath) : undefined;
   const result = scanPovTagOrphans(readTaxonomyNodes(dataDir), loadPovTagRegistry(), base);
@@ -68,7 +72,7 @@ try {
   const argv = process.argv.slice(2);
   const scanDir = flagValue(argv, '--scan-data');
   if (scanDir !== undefined) {
-    process.exitCode = runOrphanScan(argv, scanDir);
+    process.exitCode = await runOrphanScan(argv, scanDir);
   } else {
     runValidation(argv);
   }
