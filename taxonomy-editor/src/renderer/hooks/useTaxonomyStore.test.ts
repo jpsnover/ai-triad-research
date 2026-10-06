@@ -863,6 +863,69 @@ describe('useTaxonomyStore', () => {
         expect(conflict.linked_taxonomy_nodes).not.toContain('acc-beliefs-001');
         expect(conflict.linked_taxonomy_nodes[0]).toMatch(/^saf-beliefs-/);
       });
+
+      // t/3972: POV tags are POV-scoped. The move used to spread `...oldNode`, carrying them into a POV
+      // where they're invalid (SO e/249#6 surviving vector). These assert tags DON'T survive the boundary.
+      describe('pov_tags (t/3972)', () => {
+        const stripWarn = () => mockRecord.mock.calls.find(([e]) => e.message?.includes('Cross-POV move stripped POV tags'));
+        const movedSafNode = () => useTaxonomyStore.getState().safetyist!.nodes.find(n => n.id.startsWith('saf-beliefs-'))!;
+
+        it('strips the tags, reports them, and WARNs naming the node and tags', () => {
+          useTaxonomyStore.setState({
+            accelerationist: makePovFile([makePovNode({ id: 'acc-beliefs-001', pov_tags: ['critical'] })]),
+            safetyist: makePovFile([]),
+            lastPovMoveReport: null,
+          });
+          useTaxonomyStore.getState().movePovNode('accelerationist', 'acc-beliefs-001', 'safetyist', 'Beliefs');
+
+          const moved = movedSafNode();
+          expect(moved).not.toHaveProperty('pov_tags'); // the negative assertion: absent, not just empty
+          expect(useTaxonomyStore.getState().lastPovMoveReport).toEqual({
+            fromId: 'acc-beliefs-001', toId: moved.id, sourcePov: 'accelerationist', targetPov: 'safetyist', strippedTags: ['critical'],
+          });
+          const [entry] = stripWarn()!;
+          expect(entry.level).toBe('warn');
+          expect(entry.data).toMatchObject({ from_id: 'acc-beliefs-001', to_id: moved.id, stripped_tags: ['critical'] });
+        });
+
+        it('reports a PowerShell-unrolled scalar as one stripped tag rather than dropping it silently', () => {
+          useTaxonomyStore.setState({
+            accelerationist: makePovFile([makePovNode({ id: 'acc-beliefs-001', pov_tags: 'critical' as unknown as string[] })]),
+            safetyist: makePovFile([]),
+          });
+          useTaxonomyStore.getState().movePovNode('accelerationist', 'acc-beliefs-001', 'safetyist', 'Beliefs');
+          expect(movedSafNode()).not.toHaveProperty('pov_tags');
+          expect(useTaxonomyStore.getState().lastPovMoveReport!.strippedTags).toEqual(['critical']);
+        });
+
+        it('an untagged node moves with an empty report and no WARN', () => {
+          useTaxonomyStore.setState({
+            accelerationist: makePovFile([makePovNode({ id: 'acc-beliefs-001' })]),
+            safetyist: makePovFile([]),
+          });
+          useTaxonomyStore.getState().movePovNode('accelerationist', 'acc-beliefs-001', 'safetyist', 'Beliefs');
+          expect(useTaxonomyStore.getState().lastPovMoveReport!.strippedTags).toEqual([]);
+          expect(stripWarn()).toBeUndefined();
+        });
+
+        it('a same-POV move through movePovNode keeps the tags (one-element array intact)', () => {
+          useTaxonomyStore.setState({
+            accelerationist: makePovFile([makePovNode({ id: 'acc-beliefs-001', pov_tags: ['critical'] })]),
+            lastPovMoveReport: null,
+          });
+          useTaxonomyStore.getState().movePovNode('accelerationist', 'acc-beliefs-001', 'accelerationist', 'Desires');
+          const moved = useTaxonomyStore.getState().accelerationist!.nodes.find(n => n.id.startsWith('acc-desires-'))!;
+          expect(moved.pov_tags).toEqual(['critical']);
+          expect(useTaxonomyStore.getState().lastPovMoveReport).toBeNull();
+          expect(stripWarn()).toBeUndefined();
+        });
+
+        it('clearPovMoveReport clears the report', () => {
+          useTaxonomyStore.setState({ lastPovMoveReport: { fromId: 'a', toId: 'b', sourcePov: 'accelerationist', targetPov: 'safetyist', strippedTags: ['x'] } });
+          useTaxonomyStore.getState().clearPovMoveReport();
+          expect(useTaxonomyStore.getState().lastPovMoveReport).toBeNull();
+        });
+      });
     });
   });
 

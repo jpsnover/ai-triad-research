@@ -1,0 +1,24 @@
+/* t/3972: notice shown on a node after a cross-POV move removed its POV tags. */
+.pov-move-tag-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--warning-border, rgba(234, 179, 8, 0.3));
+  border-radius: 6px;
+  background: var(--warning-bg, rgba(234, 179, 8, 0.12));
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.pov-move-tag-notice-dismiss {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
