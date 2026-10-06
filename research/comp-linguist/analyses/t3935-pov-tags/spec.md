@@ -50,6 +50,10 @@ The registry is `lib/debate/soul-docs/pov-tags.json`:
 **Rules**
 - **Ids:** a tag id is lowercase kebab-case and unique within its POV.
 - **Adding a tag:** a registry entry plus a soul document, in one PR (default for decision 6).
+- **Renaming a tag** (t/3985, SO e/253#2): never rename in place. Do it in three steps: add the new tag with its soul; migrate the node data from old id to new with the t/3969 writer; then remove the old tag and its soul. Each step keeps data `main` free of tags the registry doesn't know.
+- **Removing a tag:** strip the tag from the node data first (t/3969 writer), then remove the registry entry and its soul.
+- **Why the order matters:** a registry change that lands before its data change orphans every node still carrying the old id. CI will scan data `main` for orphans (t/3987), and this ordering keeps every registry PR at 0.
+- **Interim, until t/3987's CI step exists:** any PR touching `pov-tags.json` pastes its orphan count, which must be 0. Get it by running `lib/schema/pov-tags-cli.ts` (`validatePovTags`) with that PR's registry over each taxonomy file on ai-triad-data `origin/main`. Scope the run to the POV and situation files (`accelerationist`, `safetyist`, `skeptic`, `situations`). The CLI accepts any file with a `nodes` array, so a non-taxonomy file such as `entity_extraction_log.json` reports false errors. First instance: #2851, 0 orphans over 1,429 nodes.
 - **A POV with no entry has no tags,** so Accelerationist and Safetyist need no change today.
 
 ### 2.2 Tags on nodes: a top-level field
