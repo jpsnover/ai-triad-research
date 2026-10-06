@@ -482,7 +482,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
   }
 
   // Generate response
-  const info = POVER_INFO[responder];
+  const info = engine.getSoulForSpeaker(responder);
   engine.progress('debate', responder, `${info.label} responding (round ${round})`);
 
   // priorRefs is also fed to the prompt below; computing it here lets
@@ -882,7 +882,7 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
         const rewriteGenerateFn = async (prompt: string) =>
           engine.stageGenerate(prompt, draftModel, { temperature: draftTemp }, `${responder} overgen-rewrite`);
 
-        const poverInfo = POVER_INFO[responder];
+        const poverInfo = engine.getSoulForSpeaker(responder);
         const overgenResult = await runOvergenPipeline(
           draftFn, rewriteGenerateFn, embedFn,
           {

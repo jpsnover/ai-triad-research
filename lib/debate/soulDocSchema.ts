@@ -35,3 +35,11 @@ export const SoulDocumentSchema = z.object({
 });
 
 export type SoulDocument = z.infer<typeof SoulDocumentSchema>;
+
+/** Serializable provenance for a resolved soul file (first 16 hex digits of SHA-256 of file content). */
+export interface SoulProvenance {
+  /** Absolute path to the soul file. */
+  file: string;
+  /** First 16 hex digits of the SHA-256 of the file content at load time. */
+  sha: string;
+}

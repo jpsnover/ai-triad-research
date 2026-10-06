@@ -384,6 +384,9 @@ export interface DebateSession {
   /** Per-seat POV tag (t/3955; spec §2.3). Absent, or no entry for a seat ⇒ that seat is untagged, so every
    *  existing saved debate loads unchanged. One map beside `active_povers` rather than parallel optionals. */
   seat_tags?: Partial<Record<SpeakerId, SeatTag>>;
+  /** Soul file provenance at session start, keyed by SpeakerId string. Set for every active seat (tagged and base).
+   *  Used by the pilot (t/3963) to compare old and new umbrella runs. Absent in pre-t/4007 saved debates (t/4007). */
+  soul_provenance?: Partial<Record<string, import('../soulDocSchema.js').SoulProvenance>>;
   /** Moderator voices each camp's story before the openings (h3). Absent ⇒ false. */
   narrative_voicing_enabled?: boolean;
   /** Result of the h3 narrative voicing. Absent when disabled or when generation failed. */

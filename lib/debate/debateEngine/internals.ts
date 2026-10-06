@@ -241,6 +241,8 @@ export interface DebateEngineInternals {
   getKnownNodeIds(): Set<string>;
   getPolicyIds(): Set<string>;
   getSuppressedHints(): Set<string>;
+  /** Returns the resolved soul for a speaker. For tagged seats, returns the wing soul; for untagged, returns POVER_INFO[poverId]. */
+  getSoulForSpeaker(poverId: string): import('../types.js').PovInfo;
   updateHintStreaks(speaker: string, firedHints: string[]): void;
   updateSituationCitations(currentRefs: import('../types.js').TaxonomyRef[]): void;
 }

@@ -41,7 +41,7 @@ import type {
   EntailmentRepairEvent,
   TalmudicCorpus,
 } from './types.js';
-import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
+import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey, type PovInfo } from './types.js';
 import {
   loadProvisionalWeights,
   buildSignalRegistry,
@@ -82,7 +82,10 @@ import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnom
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
 import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
 import { DEFAULT_AI_TIMEOUT_MS, DEFAULT_RELEVANCE_THRESHOLD } from './constants.js';
-import { CLAIM_VERIFY_SETTLE_TIMEOUT_MS, EVALUATOR_TEMPERATURE, SUMMARIZATION_TEMPERATURE, SUMMARIZATION_MAX_TOKENS, SUMMARIZATION_TIMEOUT_MS } from './debateConfig.js';
+import { CLAIM_VERIFY_SETTLE_TIMEOUT_MS, EVALUATOR_TEMPERATURE, SUMMARIZATION_TEMPERATURE, SUMMARIZATION_MAX_TOKENS, SUMMARIZATION_TIMEOUT_MS, TAG_SCOPE_MINIMUM_NODES } from './debateConfig.js';
+import { resolvePoverInfo } from './soulDocLoader.js';
+import type { SoulProvenance } from './soulDocSchema.js';
+import { checkTagScope } from './relevanceSelection.js';
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead, type LookaheadDiagnostics } from './lookaheadGate.js';
 import { runOvergenPipeline, type OvergenDiagnostics } from './overgenPipeline.js';
@@ -276,9 +279,18 @@ export class DebateEngine {
   private _claimPipeline!: ClaimExtractionPipeline;
   private _synthesisPipeline!: SynthesisPipeline;
   private _talmudicCorpus: TalmudicCorpus | null = null;
+  /** Resolved souls per seat — populated in run() before initSession(). Tagged seats get wing souls; untagged get POVER_INFO. */
+  private _resolvedSouls: Partial<Record<string, PovInfo>> = {};
+  /** Soul file provenance per seat — populated alongside _resolvedSouls; written into session.soul_provenance. */
+  private _soulProvenance: Partial<Record<string, SoulProvenance>> = {};
 
   /** t/1781: fire-and-forget claim verifications; settled before calibration extract to make source_authority deterministic. */
   private _pendingClaimVerifications: Promise<void>[] = [];
+
+  /** Returns the resolved soul for a speaker. Tagged seats return the wing soul; untagged return POVER_INFO[poverId]. */
+  getSoulForSpeaker(poverId: string): PovInfo {
+    return this._resolvedSouls[poverId] ?? POVER_INFO[poverId as keyof typeof POVER_INFO];
+  }
 
   /** Get the set of hint keys currently suppressed for this debate. */
   private getSuppressedHints(): Set<string> {
@@ -420,6 +432,48 @@ export class DebateEngine {
     }
 
     this.config.background = await resolveBackground(this.config.background);
+
+    // ── Soul resolution: resolve once per seat before initSession() (t/4007) ──
+    // Tagged seats: pre-flight checkTagScope (groundable count) then resolvePoverInfo (no catch — ActionableError propagates).
+    // Untagged seats: resolvePoverInfo returns POVER_INFO[speaker] with base-soul provenance.
+    // Both go into _resolvedSouls / _soulProvenance which initSession() stamps onto session.soul_provenance.
+    {
+      const resolvedSouls: Partial<Record<string, PovInfo>> = {};
+      const soulProv: Partial<Record<string, SoulProvenance>> = {};
+      for (const poverId of this.config.activePovers) {
+        const seatTag = this.config.seat_tags?.[poverId];
+        const tagSelection = seatTag ? { tag: seatTag.pov_tag, mode: seatTag.tag_mode } : undefined;
+        if (tagSelection) {
+          const povKey = poverId as 'accelerationist' | 'safetyist' | 'skeptic';
+          const campNodes: PovNode[] = (this.taxonomy[povKey] as { nodes: PovNode[] } | undefined)?.nodes ?? [];
+          if (campNodes.length > 0) {
+            const scopeCheck = checkTagScope(campNodes, tagSelection);
+            if (!scopeCheck.sufficient) {
+              throw new ActionableError({
+                goal: `Start tagged debate (${poverId}/${tagSelection.tag})`,
+                problem: scopeCheck.reason === 'none-tagged'
+                  ? `No nodes carry tag "${tagSelection.tag}" in the ${poverId} camp`
+                  : `Scope too thin for tag "${tagSelection.tag}" in ${poverId}: ${scopeCheck.inScope.length} groundable nodes (minimum ${TAG_SCOPE_MINIMUM_NODES})`,
+                location: 'DebateEngine.run() › soul resolution pre-flight',
+                nextSteps: [
+                  `Add pov_tags: ["${tagSelection.tag}"] to at least ${TAG_SCOPE_MINIMUM_NODES} nodes under the ${poverId} POV and run Update-TaxEmbeddings.`,
+                  'Or switch to Prioritize mode to boost tagged nodes without filtering.',
+                ],
+              });
+            }
+          }
+        }
+        const { soul, soulProvenance: provenance } = resolvePoverInfo(
+          poverId as Exclude<SpeakerId, 'user'>,
+          tagSelection,
+        );
+        resolvedSouls[poverId] = soul;
+        soulProv[poverId] = { file: provenance.file, sha: provenance.sha };
+      }
+      this._resolvedSouls = resolvedSouls;
+      this._soulProvenance = soulProv;
+    }
+
     this.initSession();
 
     // Route prompt directives based on model capability (t/331)
@@ -995,6 +1049,7 @@ export class DebateEngine {
       argument_network: { nodes: [], edges: [] },
       commitments: {},
       ...(this.config.seat_tags ? { seat_tags: this.config.seat_tags } : {}),
+      ...(Object.keys(this._soulProvenance).length > 0 ? { soul_provenance: { ...this._soulProvenance } } : {}),
     };
 
     // Initialize commitment stores

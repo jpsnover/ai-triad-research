@@ -227,6 +227,27 @@ export const ArgumentClaimSchema = z.object({
   attacked_by: z.array(ArgumentAttackSchema).optional(),
 });
 
+// ── Session schemas ───────────────────────────────────────
+
+/**
+ * Zod schema for soul-file provenance (matches SoulProvenance from soulDocSchema.ts).
+ * Declared here for use in DebateSessionSchema without circular deps.
+ */
+export const SessionSoulProvenanceSchema = z.object({
+  file: z.string(),
+  sha: z.string(),
+});
+
+/**
+ * Persisted Zod schema for DebateSession optional fields.
+ * `.passthrough()` preserves all existing fields in saved sessions.
+ * Declare every new optional session field here so it is not stripped on
+ * re-parse (t/2890 class). Old debates without the field still load (`.optional()`).
+ */
+export const DebateSessionSchema = z.object({
+  soul_provenance: z.record(z.string(), SessionSoulProvenanceSchema).optional(),
+}).passthrough();
+
 // ── Synthesis schemas ─────────────────────────────────────
 
 export const SynthesisDisagreementSchema = z.object({
