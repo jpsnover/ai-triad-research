@@ -53,8 +53,13 @@ BAN_STANCE = frozenset({
 # does not over-strip them (t/3351 v3 design: hold-liable / mandated report-to-body are content).
 BORDERLINE = frozenset({"hold", "report"})
 
-# Meta-descriptive collectives that must never be an args[] AGENT (prompt ban).
-DISCOURSE_AGENT_RE = re.compile(r"\b(discourse|the document|the view)\b", re.IGNORECASE)
+# Meta-descriptive collectives that must never be an args[] entity (prompt ban): "<camp> discourse",
+# "the discourse", "the document", "the view". A bare "discourse" is NOT enough: "Public AI Discourse" is real
+# subject matter, a social object the claim is about (skp-beliefs-125, a false positive of the old \bdiscourse\b
+# pattern; t/3351).
+DISCOURSE_AGENT_RE = re.compile(
+    r"\b(?:accelerationist|safetyist|skeptic|cross[- ]cutting|the)\s+discourse\b|\bthe\s+(?:document|view)\b",
+    re.IGNORECASE)
 
 
 def norm_pred(p):
