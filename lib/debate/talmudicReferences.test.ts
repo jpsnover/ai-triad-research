@@ -3,7 +3,6 @@
 
 import { describe, expect, it } from 'vitest';
 import { ActionableError } from './errors.js';
-import { POVER_INFO } from './types.js';
 import { assertUniqueArgumentNodeIds, getNextArgumentNodeNumber } from './argumentNetwork.js';
 import { draftStagePrompt } from './prompts.js';
 import {

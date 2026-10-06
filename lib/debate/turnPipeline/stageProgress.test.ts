@@ -15,7 +15,6 @@ import { runTurnPipeline } from './runTurn.js';
 import type { TurnPipelineInput } from './types.js';
 import { POVER_INFO } from '../types.js';
 import type { StageProgressFn } from './types.js';
-import { POVER_INFO } from '../types.js';
 
 // ── Opening stubs ────────────────────────────────────────────────────────────
 
