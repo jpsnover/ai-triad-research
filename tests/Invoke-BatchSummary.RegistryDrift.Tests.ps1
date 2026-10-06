@@ -75,6 +75,11 @@ Describe 'Invoke-BatchSummary -- post-batch policy registry step is read-only' -
         Mock Get-ConflictsDir  -ModuleName AITriad { $script:conflictsDir }
         Mock Get-TaxonomyDir   -ModuleName AITriad { $script:taxonomyDir }
         Mock Get-VersionFile   -ModuleName AITriad { $versionFile }
+        # Invoke-BatchSummary resolves an API key unconditionally in Step 0,
+        # before doc collection -- without this mock the test only passed
+        # locally because of a real key in the environment; failed in CI
+        # with "No API key found" (caught on PR #2828's first CI run).
+        Mock Resolve-AIApiKey  -ModuleName AITriad { 'fake-key' }
     }
 
     It 'does not modify ANY taxonomy file, and WARNs naming the drifted node' {
