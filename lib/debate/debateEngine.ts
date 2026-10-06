@@ -479,9 +479,15 @@ export class DebateEngine {
             tagSelection,
           );
           resolvedSouls[poverId] = soul;
-          soulProv[poverId] = { file: provenance.file, sha: provenance.sha };
+          soulProv[poverId] = { file: provenance.file, hash: provenance.hash };
         } else {
           resolvedSouls[poverId] = POVER_INFO[poverId as keyof typeof POVER_INFO];
+          getGlobalRecorder()?.record({
+            type: 'system.info',
+            component: 'debate-engine',
+            level: 'warn',
+            message: `No soulResolver in DebateConfig — soul_provenance will not be recorded for ${poverId}. Pass soulResolver to enable cross-run comparison (t/3963).`,
+          });
         }
       }
       this._resolvedSouls = resolvedSouls;

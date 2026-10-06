@@ -57,8 +57,8 @@ export function soulDocHash(raw: string): string {
 export interface SoulProvenance {
   /** Path relative to soul-docs/ (e.g. "skeptic.soul.json" or "skeptic.critical.soul.json"). */
   file: string;
-  /** 16 hex chars from soulDocHash() of the raw file text at load time. */
-  sha: string;
+  /** 16 hex chars from soulDocHash() of the raw file text at load time. Not a cryptographic digest — use for change detection only. */
+  hash: string;
 }
 
 import type { PovInfo, SpeakerId } from './types.js';

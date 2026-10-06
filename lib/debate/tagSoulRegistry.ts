@@ -73,7 +73,7 @@ export function resolvePoverInfo(
       soul,
       soulProvenance: {
         file: `soul-docs/${speaker}.soul.json`,
-        sha: raw !== undefined ? soulDocHash(raw) : soulDocHash(JSON.stringify(soul)),
+        hash: raw !== undefined ? soulDocHash(raw) : soulDocHash(JSON.stringify(soul)),
       } as SoulProvenanceBrowser,
     };
   }
@@ -85,7 +85,7 @@ export function resolvePoverInfo(
     soul,
     soulProvenance: {
       file: `soul-docs/${tagSoulFileName(speaker, tagSelection.tag)}`,
-      sha: soulDocHash(raw),
+      hash: soulDocHash(raw),
     } as SoulProvenanceBrowser,
   };
 }

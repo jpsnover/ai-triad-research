@@ -235,7 +235,7 @@ export const ArgumentClaimSchema = z.object({
  */
 export const SessionSoulProvenanceSchema = z.object({
   file: z.string(),
-  sha: z.string(),
+  hash: z.string(),
 });
 
 /**

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// Parity test: both loaders must return identical { file, sha } for every committed soul (t/4007 condition #3).
+// Parity test: both loaders must return identical { file, hash } for every committed soul (t/4007 condition #3).
 // Differences would silently break t/3963 cross-run comparisons.
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -19,21 +19,21 @@ describe('soul provenance parity — Node loader vs browser registry', () => {
   beforeEach(() => clearSoulDocCache());
 
   for (const speaker of BASE_SPEAKERS) {
-    it(`base soul ${speaker}: file and sha match`, () => {
+    it(`base soul ${speaker}: file and hash match`, () => {
       const node = nodeResolve(speaker);
       const browser = browserResolve(speaker);
       expect(browser.soulProvenance.file).toBe(node.soulProvenance.file);
-      expect(browser.soulProvenance.sha).toBe(node.soulProvenance.sha);
+      expect(browser.soulProvenance.hash).toBe(node.soulProvenance.hash);
     });
   }
 
   for (const { speaker, tag } of TAG_CASES) {
     const tagSelection: TagSelection = { tag, mode: 'scope' };
-    it(`tag soul ${speaker}/${tag}: file and sha match`, () => {
+    it(`tag soul ${speaker}/${tag}: file and hash match`, () => {
       const node = nodeResolve(speaker, tagSelection);
       const browser = browserResolve(speaker, tagSelection);
       expect(browser.soulProvenance.file).toBe(node.soulProvenance.file);
-      expect(browser.soulProvenance.sha).toBe(node.soulProvenance.sha);
+      expect(browser.soulProvenance.hash).toBe(node.soulProvenance.hash);
     });
   }
 
