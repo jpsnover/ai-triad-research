@@ -278,7 +278,9 @@ function Invoke-BatchSummary {
         }
     }
 
-    $ChangedTaxonomyFiles = $ChangedTaxonomyFiles | Select-Object -Unique
+    # @() — Select-Object -Unique returns a scalar (or $null) for 0-1 items, and .Count on
+    # that throws under StrictMode Latest (crashed every single-camp-file version bump; #2871).
+    $ChangedTaxonomyFiles = @($ChangedTaxonomyFiles | Select-Object -Unique)
 
     if ($ChangedTaxonomyFiles.Count -eq 0) {
         Write-OK "No taxonomy files changed. Nothing to reprocess."
