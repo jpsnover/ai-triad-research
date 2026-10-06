@@ -58,22 +58,47 @@ export const GH_PR_MERGE_RE = new RegExp(
 // `&` inside a redirect (`2>&1`, `&>`) is not a separator.
 const CLAUSE_END_RE = /;|&&|\|\||\||(?<![>&])&(?![>&])|\r?\n/;
 
-// Heredoc bodies are data (commit messages, PR bodies), not commands. Observed while landing this
-// change (t/3695#28): a commit message and a PR body that MENTIONED `gh pr merge N --disable-auto`
-// were judged as merges. Drop every line between a `<<[-]['"]?WORD['"]?` opener and its `WORD`
-// terminator. Quoted single-line text (`-m "…gh pr merge 5…"`) is NOT stripped — a known residual.
+// Heredoc bodies fed to a DATA SINK (commit message, PR body, file write) are data, not commands.
+// Observed while landing this change (t/3695#28): a commit message and a PR body that MENTIONED
+// `gh pr merge N --disable-auto` were judged as merges. But a heredoc fed to an INTERPRETER
+// (`bash <<EOF`, `sh -s`, `pwsh -Command -`) RUNS its body (TL review of #2966, t/3695#29), so
+// stripping every heredoc opened a hole `main` did not have. ALLOWLIST: only the consumers below
+// are data sinks; any other consumer — including an unknown one — leaves the body to be judged.
+// Quoted single-line text (`-m "…gh pr merge 5…"`) is NOT stripped — a known residual.
+const SEG_SPLIT_RE = /;|&&|\|\||\|/;
+const HEREDOC_DATA_SINKS = [
+  /^\s*git\s+commit\b.*(?:\s-F\s*-|\s--file(?:=|\s+)-)(?:\s|$)/, // git commit -F - / --file=-
+  /^\s*gh(?:\.exe)?\s.*(?:\s--body-file(?:=|\s+)-|\s-F\s*-)(?:\s|$)/, // gh … --body-file - / -F -
+  /^\s*cat\s+(?:[^|]*\s)?>>?\s*\S/, // cat > file <<EOF  /  cat <<EOF > file
+  /^\s*tee\s+\S/, // tee file <<EOF
+];
+// `git commit -m "$(cat <<'EOF'` / `gh pr create --body "$(cat <<'EOF'`: the heredoc's consumer is a
+// bare `cat` inside a command substitution that is the message/body ARGUMENT of a data sink. Tested
+// on the text BEFORE the marker only (the `)"` after it is irrelevant).
+const SUBST_CAT_SINK = /^\s*(?:git\s+commit|gh(?:\.exe)?\s+(?:pr|issue)\s+(?:create|comment|edit))\b.*\$\(\s*cat\s*$/;
+
+export function heredocConsumerIsDataSink(openerLine, markerIndex, markerLength) {
+  const before = openerLine.slice(0, markerIndex).split(SEG_SPLIT_RE).pop();
+  const after = openerLine.slice(markerIndex + markerLength).split(SEG_SPLIT_RE)[0];
+  if (SUBST_CAT_SINK.test(before)) return true;
+  const seg = `${before} ${after}`;
+  return HEREDOC_DATA_SINKS.some((re) => re.test(seg));
+}
+
 export function stripHeredocBodies(command) {
   const lines = (command || '').split(/\r?\n/);
   const out = [];
   let term = null;
+  let strip = false;
   for (const line of lines) {
     if (term !== null) {
-      if (line.trim() === term) term = null;
+      if (line.trim() === term) { term = null; if (!strip) out.push(line); continue; }
+      if (!strip) out.push(line);
       continue;
     }
     out.push(line);
     const m = line.match(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/);
-    if (m) term = m[2];
+    if (m) { term = m[2]; strip = heredocConsumerIsDataSink(line, m.index, m[0].length); }
   }
   return out.join('\n');
 }

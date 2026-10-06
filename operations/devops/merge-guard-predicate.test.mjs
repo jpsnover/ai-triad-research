@@ -475,7 +475,44 @@ test('t/3695 heredoc bodies are data: a merge MENTIONED in a commit message / PR
 test('t/3695 heredoc bodies: a REAL bare merge after the heredoc terminator is still judged → block', () => {
   const c = "cat > f <<'EOF'\nnotes\nEOF\ngh pr merge 7 --squash";
   assert.equal(mergeGuardVerdict(c).block, true);
-  assert.equal(stripHeredocBodies("a <<-X\nbody\n  X\nb"), 'a <<-X\nb');
+  // <<- with an indented terminator: stripped for a data sink, kept verbatim for anything else.
+  assert.equal(stripHeredocBodies('cat > f <<-X\nbody\n  X\nb'), 'cat > f <<-X\nb');
+  assert.equal(stripHeredocBodies('a <<-X\nbody\n  X\nb'), 'a <<-X\nbody\n  X\nb');
+});
+
+// TL review of #2966 (t/3695#29): a heredoc fed to an INTERPRETER runs its body, so only an allowlist
+// of data sinks may be stripped. One arm per shell, per sink, and an unknown consumer.
+const BODY = 'gh pr merge 7 --squash';
+
+test('t/3695 heredoc → interpreter (bash, sh -s, zsh, pwsh -Command -, powershell -Command -) is JUDGED → block', () => {
+  for (const opener of ["bash <<'EOF'", 'sh -s <<EOF', 'zsh <<EOF', 'pwsh -Command - <<EOF', 'powershell -NoProfile -Command - <<EOF', 'cd /x && bash <<-EOF']) {
+    const c = `${opener}\n${BODY}\nEOF`;
+    assert.equal(mergeGuardVerdict(c).block, true, `should fire on: ${opener}`);
+  }
+});
+
+test('t/3695 heredoc → data sink (git commit -F -, gh --body-file -, cat > f, cat <<EOF > f, tee f, -m "$(cat <<EOF") is stripped → not-a-merge', () => {
+  for (const opener of [
+    "git commit -q -F - <<'EOF'",
+    'git commit --file=- <<EOF',
+    'gh pr create --title t --body-file - <<EOF',
+    'gh pr comment 5 -F - <<EOF',
+    'cat > notes.md <<EOF',
+    "cat <<'EOF' > notes.md",
+    'tee notes.md <<EOF',
+    'git commit -m "$(cat <<\'EOF\'',
+    'gh pr create --title t --body "$(cat <<EOF',
+  ]) {
+    const c = `${opener}\n${BODY}\nEOF`;
+    assert.equal(mergeGuardVerdict(c).reason, 'not-a-merge', `should strip for: ${opener}`);
+  }
+});
+
+test('t/3695 heredoc → unknown consumer (python -, node, bare cat piped to bash, any other command) is JUDGED → block', () => {
+  for (const opener of ['python3 - <<EOF', 'node <<EOF', 'cat <<EOF | bash', 'xargs -I{} sh -c {} <<EOF', 'mytool <<EOF']) {
+    const c = `${opener}\n${BODY}\nEOF`;
+    assert.equal(mergeGuardVerdict(c).block, true, `should fire on: ${opener}`);
+  }
 });
 
 test('t/3695 parseMergeClause: prRef (number / pull URL / none) and repo (-R / --repo / --repo= / none)', () => {
