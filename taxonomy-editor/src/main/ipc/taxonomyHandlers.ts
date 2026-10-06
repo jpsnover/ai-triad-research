@@ -48,7 +48,7 @@ import {
   type ANClaimInput,
   type SelectRelevantTaxonomyInput,
 } from '../../../../lib/debate/relevanceSelection.js';
-import { POVER_INFO } from '../../../../lib/debate/poverInfo.js';
+import { POVER_INFO, getPovDoctrinalBoundaries } from '../../../../lib/debate/poverInfo.js';
 import { computeEmbeddings, computeQueryEmbedding } from '../embeddings.js';
 import { computeClaimTaxonomyAttribution } from '../../../../lib/debate/argumentNetwork/attribution.js';
 import type { ArgumentNetworkNode, ClaimTaxonomyAttribution } from '../../../../lib/debate/types.js';
@@ -651,10 +651,11 @@ export function registerTaxonomyHandlers(): void {
     const policyRegistry = (policyRaw?.policies ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     const lineageRaw = readLineageCategories() as { mapping?: Record<string, { l2: string }> } | null;
     const lineageMapping = lineageRaw?.mapping;
-    const povInfo = Object.values(POVER_INFO).find(i => (i as { pov?: string }).pov === pov) as { doctrinal_boundaries?: string[] } | undefined;
-    const doctrinalBoundaries = (povInfo?.doctrinal_boundaries?.length ?? 0) > 0
-      ? { strings: povInfo!.doctrinal_boundaries ?? [] }
-      : undefined;
+    // t/3966: POVER_INFO never carried `doctrinal_boundaries` (no soul JSON sets it) — this read
+    // silently skipped doctrinal anchoring on every server/IPC selection. getPovDoctrinalBoundaries
+    // maps the real soul `boundaries.{hardcoded,softcoded}` shape instead (DebateTool, t/3966#1).
+    const povInfo = Object.values(POVER_INFO).find(i => i.pov === pov);
+    const doctrinalBoundaries = povInfo ? getPovDoctrinalBoundaries(povInfo) : undefined;
 
     // Map loadSyntheticEmbeddings() ({pov,vectors}) → {nodeId: vectors[][]} for assembleNodeEmbeddings.
     const synthRaw = loadSyntheticEmbeddings();
