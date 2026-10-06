@@ -13,7 +13,10 @@ import type { SpeakerId } from '../../types/debate';
 import type { ChatMode } from '../../types/chat';
 import { CHAT_MODE_INFO } from '../../types/chat';
 import { AI_POVERS } from '@lib/debate/types';
+import type { SeatTag } from '@lib/debate/types/session';
+import { checkTagScope } from '@lib/debate/relevanceSelection';
 import { backendSelectState, type BackendAvailabilityEntry } from '../shared/backendSelectState';
+import { ChatTagPicker } from './ChatTagPicker';
 import './NewChatDialog.css';
 
 interface NewChatDialogProps {
@@ -33,6 +36,7 @@ export function NewChatDialog({ onClose, onCreated }: NewChatDialogProps) {
   const { createChat } = useChatStore();
   const [mode, setMode] = useState<ChatMode>('brainstorm');
   const [pover, setPover] = useState<Exclude<SpeakerId, 'user'>>('accelerationist');
+  const [chatTag, setChatTag] = useState<SeatTag | undefined>(undefined);
   const [topic, setTopic] = useState('');
   const [creating, setCreating] = useState(false);
   const { aiBackend, geminiModel } = useTaxonomyStore();
@@ -63,12 +67,22 @@ export function NewChatDialog({ onClose, onCreated }: NewChatDialogProps) {
       .catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'new-chat-dialog', level: 'warn', message: 'Failed to load available backends', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
   }, []);
 
-  const canStart = topic.trim().length > 0;
+  const povNodes = useTaxonomyStore.getState()[pover]?.nodes ?? [];
+  const scopeInsufficient = chatTag?.tag_mode === 'scope'
+    && !checkTagScope(povNodes, { tag: chatTag.pov_tag, mode: 'scope' }).sufficient;
+  const canStart = topic.trim().length > 0 && !scopeInsufficient;
+
+  const handlePoverChange = (id: Exclude<SpeakerId, 'user'>) => {
+    setPover(id);
+    setChatTag(undefined); // tags are POV-specific
+  };
 
   const handleStart = async () => {
     if (!canStart || creating) return;
     setCreating(true);
     const chatModelOverride = useCustomModel && customModel !== globalModel ? customModel : undefined;
+    // t/3959: `chatTag` is captured and gated on above; `createChat` doesn't take it yet —
+    // wiring waits on t/3995 (Rosetta Stone, ChatSession.pov_tag/tag_mode + createChat's new param).
     const id = await createChat(mode, pover, topic.trim(), chatModelOverride);
     if (onCreated) {
       onCreated(id);
@@ -115,7 +129,7 @@ export function NewChatDialog({ onClose, onCreated }: NewChatDialogProps) {
                   type="radio"
                   name="chatPover"
                   checked={pover === id}
-                  onChange={() => setPover(id)}
+                  onChange={() => handlePoverChange(id)}
                 />
                 <span
                   className="new-chat-pover-name"
@@ -129,6 +143,7 @@ export function NewChatDialog({ onClose, onCreated }: NewChatDialogProps) {
             );
           })}
         </div>
+        <ChatTagPicker pov={pover} seatTag={chatTag} onChange={setChatTag} />
 
         <label className="new-chat-label">Topic</label>
         <textarea
