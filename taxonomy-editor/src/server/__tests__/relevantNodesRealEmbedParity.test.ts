@@ -37,7 +37,7 @@ import {
   type ANClaimInput,
   type SelectRelevantTaxonomyInput,
 } from '../../../../lib/debate/relevanceSelection.js';
-import { POVER_INFO } from '../../../../lib/debate/poverInfo.js';
+import { POVER_INFO, getPovDoctrinalBoundaries } from '../../../../lib/debate/poverInfo.js';
 import * as fileIO from '../storage/fileIO.js';
 import * as ai from '../ai/aiBackends.js';
 import type { ServerCtx } from '../routes/context.js';
@@ -152,10 +152,8 @@ describe.skipIf(!HARNESS_READY)('POST /api/taxonomy/relevant-nodes — REAL-embe
     const policyRegistry = (policyRaw?.policies ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     const lineageRaw = await fileIO.readLineageCategories() as { mapping?: Record<string, { l2: string }> } | null;
     const lineageMapping = lineageRaw?.mapping;
-    const povInfo = Object.values(POVER_INFO).find(i => (i as { pov?: string }).pov === POV) as { doctrinal_boundaries?: string[] } | undefined;
-    const doctrinalBoundaries = (povInfo?.doctrinal_boundaries?.length ?? 0) > 0
-      ? { strings: povInfo!.doctrinal_boundaries ?? [] }
-      : undefined;
+    const povInfo = Object.values(POVER_INFO).find(i => i.pov === POV);
+    const doctrinalBoundaries = povInfo ? getPovDoctrinalBoundaries(povInfo) : undefined;
     // Corpus: batch ai.computeEmbeddings (the web-bridge api.computeEmbeddings destination) + synthetic merge.
     const corpusEmbed = (texts: string[], ids?: string[]) =>
       ai.computeEmbeddings(texts, ids, undefined, { requester: 't3258-parity:corpus' }).then(r => r.vectors);
