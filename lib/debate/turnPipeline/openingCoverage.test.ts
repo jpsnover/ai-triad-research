@@ -59,12 +59,12 @@ const FIELD_EXEMPTIONS: Record<string, { engineRequired: boolean; rendererRequir
   soul: {
     engineRequired: false,
     rendererRequired: false,
-    note: 'optional: resolved soul passed when seat souls are configured (t/3988)',
+    note: 'BUG t/4007: engine wiring pending; t/3975: renderer wiring pending. Remove each side when it lands',
   },
   opponentSouls: {
     engineRequired: false,
     rendererRequired: false,
-    note: 'optional: resolved souls for opponents passed when seat souls are configured (t/3988)',
+    note: 'BUG t/4007: engine wiring pending; t/3975: renderer wiring pending. Remove each side when it lands',
   },
 };
 
