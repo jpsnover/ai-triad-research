@@ -24,7 +24,7 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { log } from '../logger.js';
 import * as fileIO from '../storage/fileIO.js';
 import * as ai from '../ai/aiBackends.js';
-import { POVER_INFO } from '../../../../lib/debate/poverInfo.js';
+import { POVER_INFO, getPovDoctrinalBoundaries } from '../../../../lib/debate/poverInfo.js';
 import { getAssembledCorpus } from './corpusAssemblyCache.js';
 import {
   selectRelevantTaxonomy,
@@ -77,10 +77,8 @@ export function registerRelevantNodesRoutes(r: Router, _ctx: ServerCtx): void {
       const lineageRaw = await fileIO.readLineageCategories() as { mapping?: Record<string, { l2: string }> } | null;
       const lineageMapping = lineageRaw?.mapping; // verbatim passthrough (getLineageMapping equivalent, Rosetta p/528)
 
-      const povInfo = Object.values(POVER_INFO).find(i => (i as { pov?: string }).pov === pov) as { doctrinal_boundaries?: string[] } | undefined;
-      const doctrinalBoundaries = (povInfo?.doctrinal_boundaries?.length ?? 0) > 0
-        ? { strings: povInfo!.doctrinal_boundaries ?? [] }
-        : undefined;
+      const povInfo = Object.values(POVER_INFO).find(i => i.pov === pov);
+      const doctrinalBoundaries = povInfo ? getPovDoctrinalBoundaries(povInfo) : undefined;
 
       // ── Per-session (from the request body — the server cannot reconstruct these) ──
       const session = {

@@ -42,7 +42,12 @@ vi.mock('../ai/aiBackends.js', () => ({
   computeQueryEmbedding: (...a: unknown[]) => stubComputeQueryEmbedding(a[0] as string),
 }));
 vi.mock('../../../../lib/debate/poverInfo.js', () => ({
-  POVER_INFO: { accelerationist: { pov: 'accelerationist', doctrinal_boundaries: ['REJECT: safetyism'] } },
+  POVER_INFO: { accelerationist: { pov: 'accelerationist', boundaries: { hardcoded: ['REJECT: safetyism'], softcoded: [] } } },
+  getPovDoctrinalBoundaries: (povInfo: { boundaries?: { hardcoded: string[]; softcoded: string[] } }) => {
+    const strings = [...(povInfo.boundaries?.hardcoded ?? []), ...(povInfo.boundaries?.softcoded ?? [])];
+    if (strings.length === 0) return undefined;
+    return { strings, isRejection: strings.map((s: string) => /^REJECT:\s*/i.test(s)) };
+  },
 }));
 vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: vi.fn() }) }));
 vi.mock('../logger.js', () => ({
@@ -100,7 +105,7 @@ describe('POST /api/taxonomy/relevant-nodes — server parity fixture (t/3257 T2
       policyRegistry: [{ id: 'pol-001', action: 'fund research', source_povs: ['accelerationist'] }],
       nodeEmbeddings,
       lineageMapping: { 'Techno-optimism': { l2: 'cluster-1' } },
-      doctrinalBoundaries: { strings: ['REJECT: safetyism'] },
+      doctrinalBoundaries: { strings: ['REJECT: safetyism'], isRejection: [true] },
       session: { anClaimEmbeddings: [], excludeGreatestHits: false, greatestHitsList: [] },
       params: { pov: 'accelerationist', topic: 'AI progress', recentTranscript: 'we should accelerate', threshold: 0.0 },
       embed: queryEmbed,
