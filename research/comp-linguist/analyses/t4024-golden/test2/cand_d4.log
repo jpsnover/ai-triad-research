@@ -1,0 +1,21 @@
+grounded nodes to formalize: 43
+C:\Users\jsnov\repos\ai-triad-research\.worktrees\gold4024\research\comp-linguist\tools\formalize_node_lf.py:240: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+formalized: 43/43  (failed: 0)
+
+acc-intentions-008: pred='combine' args=[('patient', 'lit:tiered regulatory architecture', 'normative-description')] conf=0.8 status=proposed
+
+acc-intentions-009: pred='undermine' args=[('patient', 'term:safety_existential', 'universal')] conf=0.85 status=proposed
+
+acc-desires-021: pred='develop' args=[('agent', 'lit:"domestic"', 'agentive-physical-object'), ('theme', 'lit:"full-stack AI infrastructure"', 'non-agentive-functional-artifact')] conf=0.8 status=proposed
+
+acc-beliefs-028: pred='impose' args=[('agent', 'ent-071', 'normative-description'), ('theme', 'lit:"asymmetric fixed costs"', 'non-agentive-social-object')] conf=0.85 status=proposed
+
+DRY RUN (use --apply to write node.logical_form)
