@@ -24,8 +24,14 @@ vi.mock('../../hooks/useChatStore', () => ({
   useChatStore: () => ({ createChat: vi.fn().mockResolvedValue('chat-1'), loadChat: vi.fn() }),
 }));
 
+const { useTaxonomyStoreMock } = vi.hoisted(() => ({
+  useTaxonomyStoreMock: Object.assign(
+    () => ({ aiBackend: 'gemini' as const, geminiModel: 'gemini-flash' }),
+    { getState: () => ({ accelerationist: { nodes: [] }, safetyist: { nodes: [] }, skeptic: { nodes: [] } }) },
+  ),
+}));
 vi.mock('../../hooks/useTaxonomyStore', () => ({
-  useTaxonomyStore: () => ({ aiBackend: 'gemini' as const, geminiModel: 'gemini-flash' }),
+  useTaxonomyStore: useTaxonomyStoreMock,
   AI_BACKENDS: [
     { value: 'gemini', label: 'Google Gemini' },
     { value: 'moonshot', label: 'Moonshot' },
