@@ -65,13 +65,17 @@ permissions:
 # superseded 35-job run queued too, which compounded the 2026-10-06 Actions backlog (75 queued,
 # ~50 min queue waits, fleet-wide auto-merge stall).
 # - PR runs: grouped by PR number, cancel-in-progress → only the newest head runs.
-# - push / workflow_dispatch: grouped by commit SHA and NEVER cancelled. Every `main` commit keeps its
-#   CI, which main-ci-monitor and the container/deploy `test-container` gate read.
+# - push / workflow_dispatch: grouped by github.run_id, which is unique per run, so these groups never
+#   collide and are NEVER cancelled. Every `main` commit keeps its CI, which main-ci-monitor and the
+#   container/deploy `test-container` gate read.
+# cancel-in-progress is a LITERAL true, not an expression: the first version used
+# `${{ github.event_name == 'pull_request' }}` and on PR #2924 the superseded run was NOT cancelled
+# (the new run sat `pending` behind it, i.e. serialized), worse than no group at all.
 # Branch protection evaluates required contexts (ci-gate) on the PR's CURRENT head, so a cancelled
 # run on a superseded head cannot block the new one.
 concurrency:
-  group: ci-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
