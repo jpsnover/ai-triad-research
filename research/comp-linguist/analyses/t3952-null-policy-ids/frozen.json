@@ -1,0 +1,17 @@
+{
+  "ticket": "t/3952",
+  "data_base": "9da5d6f7",
+  "note": "Frozen before the write. apply_t3952.py reads ONLY this file; it never re-derives targets. Each assign entry must match the live data exactly (node, index, action text, policy_id null) or the run aborts.",
+  "assign": [
+    { "node_id": "skp-beliefs-313", "file": "skeptic", "index": 0, "new_id": "pol-3418", "action": "Implement stronger local consent and environmental review processes for large infrastructure projects." },
+    { "node_id": "skp-beliefs-313", "file": "skeptic", "index": 1, "new_id": "pol-3419", "action": "Establish independent oversight bodies to monitor land acquisition and resource use by tech corporations in rural areas." },
+    { "node_id": "skp-beliefs-314", "file": "skeptic", "index": 0, "new_id": "pol-3420", "action": "Reform capital gains and wealth taxation." },
+    { "node_id": "skp-beliefs-314", "file": "skeptic", "index": 1, "new_id": "pol-3421", "action": "Close unrealized gain exclusions." },
+    { "node_id": "sit-488", "file": "situations", "index": 0, "new_id": "pol-3422", "action": "Mandate reclassification of AI security breaches as critical safety incidents." },
+    { "node_id": "sit-488", "file": "situations", "index": 1, "new_id": "pol-3423", "action": "Develop new regulatory frameworks for AI incident response." }
+  ],
+  "member_count_corrections": [
+    { "policy_id": "pol-1836", "from": 1, "to": 2, "referenced_by": ["acc-intentions-003", "acc-beliefs-135"] },
+    { "policy_id": "pol-1837", "from": 1, "to": 2, "referenced_by": ["acc-intentions-003", "acc-beliefs-135"] }
+  ]
+}
