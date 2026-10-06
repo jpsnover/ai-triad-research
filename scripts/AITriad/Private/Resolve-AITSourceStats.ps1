@@ -10,11 +10,11 @@ function Resolve-AITSourceStats {
         Prefers stats cached in metadata (written by Invoke-POVSummary); falls back to
         computing from the parsed summary file when metadata has no cached total_claims.
 
-        PRE-EXISTING BUG, reproduced bug-for-bug (not fixed here; t/3910 pure-refactor rule;
-        filed separately): in the fallback branch, $Summary.factual_claims is an unguarded
-        dot-access. Under Set-StrictMode, a summary that was parsed successfully but lacks a
-        factual_claims key (e.g. a model_info-only or ai_model-only summary) throws
-        PropertyNotFoundException here instead of defaulting to 0.
+        Every summary key read in the fallback branch (factual_claims, pov_summaries,
+        unmapped_concepts) is guarded, so a summary that parsed successfully but lacks them
+        (e.g. a model_info-only or legacy ai_model-only summary) yields zeros rather than a
+        StrictMode PropertyNotFoundException (fixed in t/4008; was reproduced bug-for-bug by
+        the t/3910 refactor).
     .PARAMETER Meta
         The parsed metadata.json object.
     .PARAMETER Summary
@@ -44,12 +44,17 @@ function Resolve-AITSourceStats {
         $ClaimsPov = ConvertTo-AITSourceClaimsByPov -Meta $Meta
     }
     elseif ($null -ne $Summary) {
-        # Fall back to computing from summary file
-        if ($Summary.factual_claims) {
-            $TotalClaims = @($Summary.factual_claims).Count
-        }
+        # Fall back to computing from summary file. Every top-level key is guarded via
+        # PSObject.Properties (t/4008): a parsed summary may lack any of them (model_info-only /
+        # legacy ai_model-only), and a bare dot-access on an absent property throws under StrictMode.
+        # (Explicit guards, not @(Get-AITSourcePropValue -Default $null): @($null) is a 1-element array.)
+        # The @() must wrap the whole `if` statement: statement output is enumerated, so
+        # `$x = if (..) { @(..) } else { @() }` collapses an empty array to $null (and 1 item to a scalar).
+        $SummaryProps  = $Summary.PSObject.Properties
+        $FactualClaims = @(if ($SummaryProps['factual_claims'] -and $Summary.factual_claims) { $Summary.factual_claims })
+        $TotalClaims   = $FactualClaims.Count
 
-        foreach ($Claim in @($Summary.factual_claims)) {
+        foreach ($Claim in $FactualClaims) {
             if (-not $Claim.PSObject.Properties['linked_taxonomy_nodes']) { continue }
             $Nodes = @($Claim.linked_taxonomy_nodes)
             if ($Nodes.Count -eq 0) { continue }
@@ -61,14 +66,15 @@ function Resolve-AITSourceStats {
             }
         }
 
+        $PovSummaries = if ($SummaryProps['pov_summaries']) { $Summary.pov_summaries } else { $null }
         foreach ($Pov_ in @('accelerationist', 'safetyist', 'skeptic')) {
-            $PovData = $Summary.pov_summaries.$Pov_
+            $PovData = if ($PovSummaries -and $PovSummaries.PSObject.Properties[$Pov_]) { $PovSummaries.$Pov_ } else { $null }
             if ($PovData -and $PovData.PSObject.Properties['key_points'] -and $PovData.key_points) {
                 $TotalFacts += @($PovData.key_points).Count
             }
         }
 
-        if ($Summary.unmapped_concepts) {
+        if ($SummaryProps['unmapped_concepts'] -and $Summary.unmapped_concepts) {
             $UnmappedConcepts = @($Summary.unmapped_concepts).Count
         }
     }

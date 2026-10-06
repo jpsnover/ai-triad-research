@@ -120,7 +120,9 @@ function Get-AITSource {
         }
     } else {
         # ── Full scan fallback — reads metadata.json + summary for each source ─
-        $Folders = Get-ChildItem -Path $SourcesDir -Directory
+        # @(): Get-ChildItem returns $null for 0 matches and a bare DirectoryInfo for 1, and .Count on
+        # either throws under StrictMode — so the "no folders" warning was unreachable (t/4008).
+        $Folders = @(Get-ChildItem -Path $SourcesDir -Directory)
         if ($Folders.Count -eq 0) {
             Write-Warning "No source folders found in $SourcesDir"
             return
