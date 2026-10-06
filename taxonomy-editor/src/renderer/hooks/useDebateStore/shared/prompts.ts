@@ -1,15 +1,13 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { DebateAudience, SpeakerId, DocumentAnalysis, GapInjection } from '../../../types/debate';
+import type { DebateAudience, DocumentAnalysis, GapInjection } from '../../../types/debate';
 import type { SeatSouls } from './seatSouls';
 import type { TopicCritique } from '@lib/debate/topicCritique';
-import { POVER_INFO } from '../../../types/debate';
 import {
   clarificationPrompt,
   concludingPrompt,
   debateResponsePrompt,
-  crossRespondPrompt,
   probingQuestionsPrompt,
   factCheckPrompt,
   contextCompressionPrompt,
@@ -36,8 +34,10 @@ export function buildSynthesisPrompt(
   return concludingPrompt(originalTopic, qaPairs, audience, critiqueContext);
 }
 
+/** `souls` is the seat's resolved souls (seatSouls, t/3975) and is required: the persona comes only from it,
+ *  so a caller cannot fall back to the base soul by omitting it (SO e/256#9). */
 export function buildDebateResponsePrompt(
-  poverId: Exclude<SpeakerId, 'user'>,
+  souls: SeatSouls,
   topic: string,
   taxonomyContext: string,
   recentTranscript: string,
@@ -48,11 +48,9 @@ export function buildDebateResponsePrompt(
   docAnalysis?: DocumentAnalysis,
   audience?: DebateAudience,
   lineageContext?: string,
-  /** The seat's resolved souls (t/3975, seatSouls). Absent = base soul, the pre-t/3975 behavior. */
-  souls?: SeatSouls,
 ): string {
-  const info = souls?.soul ?? POVER_INFO[poverId];
-  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience, lineageContext, souls?.soul, souls?.opponentSouls);
+  const { soul, opponentSouls } = souls;
+  return debateResponsePrompt(soul.label, soul.pov, soul.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience, lineageContext, soul, opponentSouls);
 }
 
 export function formatGapHint(gapInjections?: GapInjection[]): string {
@@ -64,20 +62,6 @@ export function formatGapHint(gapInjections?: GapInjection[]): string {
   return `\n\n## Identified Debate Gaps (unaddressed)\nThe following gaps were identified mid-debate but have NOT yet been substantively addressed by any debater. Prioritize steering the conversation toward these:\n${lines.join('\n')}\n`;
 }
 
-export function buildCrossRespondPrompt(
-  poverId: Exclude<SpeakerId, 'user'>,
-  topic: string,
-  taxonomyContext: string,
-  recentTranscript: string,
-  focusPoint: string,
-  addressing: string,
-  length: string = 'medium',
-  sourceContent?: string,
-  docAnalysis?: DocumentAnalysis,
-): string {
-  const info = POVER_INFO[poverId];
-  return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent, docAnalysis);
-}
 
 export function buildProbingQuestionsPrompt(
   topic: string,
