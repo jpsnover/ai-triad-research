@@ -48,7 +48,10 @@ import {
   type ANClaimInput,
   type SelectRelevantTaxonomyInput,
 } from '../../../../lib/debate/relevanceSelection.js';
-import { POVER_INFO, getPovDoctrinalBoundaries } from '../../../../lib/debate/poverInfo.js';
+import { getPovDoctrinalBoundaries } from '../../../../lib/debate/poverInfo.js';
+import { resolvePoverInfo } from '../../../../lib/debate/soulDocLoader.js';
+import type { TagSelection } from '../../../../lib/debate/types/session.js';
+import type { SpeakerId } from '../../../../lib/debate/types/phase.js';
 import { computeEmbeddings, computeQueryEmbedding } from '../embeddings.js';
 import { computeClaimTaxonomyAttribution } from '../../../../lib/debate/argumentNetwork/attribution.js';
 import type { ArgumentNetworkNode, ClaimTaxonomyAttribution } from '../../../../lib/debate/types.js';
@@ -631,6 +634,7 @@ export function registerTaxonomyHandlers(): void {
         excludeGreatestHits?: boolean;
         greatestHitsList?: string[];
       };
+      tagSelection?: TagSelection;
     };
     const { pov, topic, recentTranscript } = b;
     if (!POV_FILE_KEYS.has(pov)) throw new Error(`Invalid or missing pov (expected accelerationist|safetyist|skeptic), got: ${String(pov)}`);
@@ -651,11 +655,12 @@ export function registerTaxonomyHandlers(): void {
     const policyRegistry = (policyRaw?.policies ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     const lineageRaw = readLineageCategories() as { mapping?: Record<string, { l2: string }> } | null;
     const lineageMapping = lineageRaw?.mapping;
-    // t/3966: POVER_INFO never carried `doctrinal_boundaries` (no soul JSON sets it) — this read
-    // silently skipped doctrinal anchoring on every server/IPC selection. getPovDoctrinalBoundaries
-    // maps the real soul `boundaries.{hardcoded,softcoded}` shape instead (DebateTool, t/3966#1).
-    const povInfo = Object.values(POVER_INFO).find(i => i.pov === pov);
-    const doctrinalBoundaries = povInfo ? getPovDoctrinalBoundaries(povInfo) : undefined;
+    // t/3977: resolvePoverInfo returns the tag soul WHOLE when a POV tag is selected (it replaces
+    // the general soul, not merges into it — t/3957#5 condition A) and falls back to the static
+    // POVER_INFO entry when no tag is selected (byte-identical to today). getPovDoctrinalBoundaries
+    // maps whichever soul's `boundaries.{hardcoded,softcoded}` shape (t/3966).
+    const { soul } = resolvePoverInfo(pov as Exclude<SpeakerId, 'user'>, b.tagSelection);
+    const doctrinalBoundaries = getPovDoctrinalBoundaries(soul);
 
     // Map loadSyntheticEmbeddings() ({pov,vectors}) → {nodeId: vectors[][]} for assembleNodeEmbeddings.
     const synthRaw = loadSyntheticEmbeddings();
@@ -676,7 +681,7 @@ export function registerTaxonomyHandlers(): void {
     return selectRelevantTaxonomy({
       povNodes, situationNodes, policyRegistry, nodeEmbeddings, lineageMapping, doctrinalBoundaries,
       session,
-      params: { pov, topic, recentTranscript, threshold: b.threshold },
+      params: { pov, topic, recentTranscript, threshold: b.threshold, tagSelection: b.tagSelection },
       embed: queryEmbed,
     });
   });
