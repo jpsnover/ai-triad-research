@@ -32,6 +32,10 @@
     "max": 25,
     "countOver": 1
   },
+  "AITriad/Private/ConvertTo-AIUsageCostEstimate.ps1": {
+    "max": 24,
+    "countOver": 1
+  },
   "AITriad/Private/ConvertTo-TaxonomyNode.ps1": {
     "max": 22,
     "countOver": 1
@@ -182,6 +186,10 @@
   },
   "AITriad/Private/Remove-DuplicateClaims.ps1": {
     "max": 58,
+    "countOver": 1
+  },
+  "AITriad/Private/Resolve-AITSourceStats.ps1": {
+    "max": 19,
     "countOver": 1
   },
   "AITriad/Private/Resolve-UnmappedConcepts.ps1": {
@@ -346,6 +354,8 @@
   },
   "AITriad/Public/Get-AITSource.ps1": {
     "max": 145,
+  "AITriad/Public/Get-AITSBOM.ps1": {
+    "max": 175,
     "countOver": 1
   },
   "AITriad/Public/Get-AzureFlightRecorder.ps1": {
@@ -581,7 +591,7 @@
     "countOver": 1
   },
   "AITriad/Public/Invoke-POVSummary.ps1": {
-    "max": 120,
+    "max": 119,
     "countOver": 1
   },
   "AITriad/Public/Invoke-QbafConflictAnalysis.ps1": {
