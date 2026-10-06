@@ -1730,6 +1730,29 @@ describe('useTaxonomyStore', () => {
         expect(orphanWarn()).toBeUndefined();
       });
 
+      // t/3984: the untouched orphans the gate lets through are shown to the user after the save.
+      it('a successful save records the untouched orphans for the notice, and never sets saveError', async () => {
+        seed({ pov_tags: ['critical'] }, { 'acc-beliefs-001': '["critical"]' });
+        await useTaxonomyStore.getState().save();
+        expect(useTaxonomyStore.getState().orphanedTagNodeIds).toEqual(['acc-beliefs-001']);
+        expect(useTaxonomyStore.getState().saveError).toBeNull();
+      });
+
+      it('a save with no orphans clears the notice', async () => {
+        useTaxonomyStore.setState({ orphanedTagNodeIds: ['stale-from-last-save'] });
+        seed({ pov_tags: [] }, { 'acc-beliefs-001': 'null' });
+        await useTaxonomyStore.getState().save();
+        expect(useTaxonomyStore.getState().orphanedTagNodeIds).toEqual([]);
+      });
+
+      it('a BLOCKED save leaves the notice untouched (the errors are what the user needs then)', async () => {
+        useTaxonomyStore.setState({ orphanedTagNodeIds: [] });
+        seed({ pov_tags: ['critical'] }, { 'acc-beliefs-001': 'null' }); // edited → blocked
+        await useTaxonomyStore.getState().save();
+        expect(saveCalledFor('accelerationist')).toBe(false);
+        expect(useTaxonomyStore.getState().orphanedTagNodeIds).toEqual([]);
+      });
+
       it('the baseline refreshes after a successful save', async () => {
         seed({ pov_tags: [] }, { 'acc-beliefs-001': 'null' });
         await useTaxonomyStore.getState().save();
