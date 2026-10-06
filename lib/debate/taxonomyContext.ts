@@ -125,6 +125,14 @@ export interface FormatContextConfig {
    * Computed engine-side; absent = feature off.
    */
   debateGroundingOverrides?: Map<string, string>;
+  /**
+   * Tagged node IDs with their selection mode (t/3996, chat Prioritize path).
+   * When mode is 'prioritize': tagged nodes sort first within each BDI category
+   * (secondary to nodeScores when both are present) and receive a ▲ prefix —
+   * distinct from ★ (relevance-primary) so the two signals read as independent dimensions.
+   * Scope mode needs no change here — callers pre-filter ctx.povNodes to tagged-only.
+   */
+  tagSelection?: { taggedIds: Set<string>; mode: 'prioritize' };
 }
 
 /** Generate per-node inline guidance lines from metadata.
@@ -260,9 +268,15 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
 
   const hasScores = ctx.nodeScores && ctx.nodeScores.size > 0;
   const PRIMARY_COUNT = cfg.primaryCount ?? 3;
+  const taggedIds = cfg.tagSelection?.taggedIds;
+  const hasTagSelection = !!(taggedIds && taggedIds.size > 0);
 
-  if (hasScores) {
-    lines.push('(★ = most relevant to current topic)');
+  if (hasTagSelection || hasScores) {
+    const legend = [
+      ...(hasTagSelection ? ['▲ = tagged for this seat'] : []),
+      ...(hasScores ? ['★ = most relevant to current topic'] : []),
+    ].join(' · ');
+    lines.push(`(${legend})`);
     lines.push('');
   }
 
@@ -283,15 +297,21 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       lines.push('Ordered by operationality. Lead with concrete, actionable strategies. Lower-operationality intentions provide framing context but should not anchor your primary argument.');
     }
 
-    // Sort by weighted score: Beliefs by relevance×confidence, Desires by relevance×priority, Intentions by relevance×operationality
+    // Sort: tagged-first (primary key, when tagSelection present), then weighted score (secondary)
     let sorted = nodes;
-    if (hasScores) {
+    if (hasTagSelection || hasScores) {
       sorted = [...nodes].sort((a, b) => {
-        const relA = ctx.nodeScores!.get(a.id) ?? 0;
-        const relB = ctx.nodeScores!.get(b.id) ?? 0;
-        const weightA = weightedScore(a, relA, cat);
-        const weightB = weightedScore(b, relB, cat);
-        return weightB - weightA || a.id.localeCompare(b.id);
+        if (hasTagSelection) {
+          const aTag = taggedIds!.has(a.id) ? 0 : 1;
+          const bTag = taggedIds!.has(b.id) ? 0 : 1;
+          if (aTag !== bTag) return aTag - bTag;
+        }
+        if (hasScores) {
+          const relA = ctx.nodeScores!.get(a.id) ?? 0;
+          const relB = ctx.nodeScores!.get(b.id) ?? 0;
+          return weightedScore(b, relB, cat) - weightedScore(a, relA, cat) || a.id.localeCompare(b.id);
+        }
+        return a.id.localeCompare(b.id);
       });
     }
 
@@ -303,8 +323,9 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
 
     for (let i = 0; i < sorted.length; i++) {
       const n = sorted[i];
-      const isPrimary = !hasScores || i < PRIMARY_COUNT;
-      const prefix = isPrimary ? '★ ' : '  ';
+      const isTagged = hasTagSelection && taggedIds!.has(n.id);
+      const isPrimary = isTagged || !hasScores || i < PRIMARY_COUNT;
+      const prefix = isTagged ? '▲ ' : (hasScores && i < PRIMARY_COUNT ? '★ ' : '  ');
 
       if (isPrimary) {
         const weightLabel = nodeWeightLabel(n, cat);
