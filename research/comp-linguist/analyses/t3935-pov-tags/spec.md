@@ -166,6 +166,12 @@ The `skeptic.institutional.soul.json` is the t/3932 Institutionalist draft. Its 
 - **No tag selected:** today's behaviour, with the POV soul and all of the POV's items.
 - **SCOPE:** the POV's candidate items are filtered to those whose `pov_tags` contain the tag, **before** relevance ranking. Untagged items are excluded (default for decision 2). The setup screen shows how many items are in scope and how many are untagged.
 - **Scope never widens silently** (*TL condition*). If Scope leaves fewer POV items than the selection needs, setup refuses and shows the count. There is no quiet fallback to all items (Fallback-Path Logging rule).
+  - **"Thin" means fewer than 5 tagged items** in the POV (`checkTagScope`, `lib/debate/relevanceSelection.ts`; stipulated, see the metric provenance register).
+  - **Every feature refuses a thin Scope before it starts** (t/3957#7, t/3960#3):
+    - debates, at the setup screens (t/3958, t/3959);
+    - chat, inquiry and op-ed, in their request pre-flight.
+  - **Only one case warns instead:** narrowing that happens **mid-run** in a debate, after setup passed. Refusing then would abandon a debate already in progress, so it logs a WARN and continues.
+  - Do not "harmonize" either rule into the other: they apply at different moments.
 - **PRIORITIZE:** tagged items get a ranking boost; nothing is excluded.
 - **Non-POV items.** Situations, cruxes and conflicts are selected as today for that POV under either mode.
 - **Pickers hide** for a POV whose registry entry has no tags.
