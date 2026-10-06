@@ -225,7 +225,10 @@ export function resolvePoverInfo(
 
   const tagDoc = loadTagSoulDocument(speaker, tagSelection.tag);
   const provenance = _provenanceCache.get(`${speaker}:${tagSelection.tag}`)!;
-  return { soul: tagDoc as unknown as PovInfo, soulProvenance: provenance as SoulProvenanceNode };
+  const baseSoul = POVER_INFO[speaker];
+  // Enforce base identity fields — tag souls override personality/voice but not label or pov (t/3988).
+  const soul: PovInfo = { ...(tagDoc as unknown as PovInfo), label: baseSoul.label, pov: baseSoul.pov };
+  return { soul, soulProvenance: provenance as SoulProvenanceNode };
 }
 
 export function clearSoulDocCache(): void {
