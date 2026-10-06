@@ -17,6 +17,7 @@ import { generateViaZai } from './providers/zai.js';
 import { generateViaMoonshot } from './providers/moonshot.js';
 import { generateViaXai } from './providers/xai.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { classifyServedIdentity, observeServedIdentity, attachServedIdentitySummary } from './servedIdentity.js';
 
 export interface AIClientDeps {
   fetch: FetchFn;
@@ -62,12 +63,13 @@ function dispatchProvider(
 
 /**
  * The single provider-dispatch seam both runtimes traverse (CLI aiAdapter + Electron aiBackends both
- * call this directly; neither goes through createAIClient.generateText). t/3677 Phase 1 captures the
- * provider-reported served identity here — LOG-ONLY: one `ai.model_identity` info event per call,
- * `{ backend, requested, apiModelIdSent, providerReported }`. NO divergence classification (the
- * warn-on-divergence classifier is deferred to Phase 2/3, calibrated on observed data with a registry
- * cross-check — t/3677#5). `providerReported` is `undefined` when the provider reported no served id
- * (the 'unknown' state) — still info, never warn, never fabricated.
+ * call this directly; neither goes through createAIClient.generateText). One `ai.model_identity` event
+ * per call, `{ backend, requested, apiModelIdSent, providerReported, state, reason, ... }` (t/3677).
+ * `providerReported` is `undefined` when the provider reported no served id, never fabricated.
+ *
+ * t/3731 Phase 3: the pair is classified by `classifyServedIdentity` against `opts.identityRegistry`.
+ * WARN-ONLY: the event is raised to `warn` on the first occurrence of a divergent (backend, sent, served)
+ * triple, and every other call stays `info`. It never blocks; blocking would be a gate promotion.
  */
 export async function callProvider(
   fetchFn: FetchFn,
@@ -78,16 +80,26 @@ export async function callProvider(
   opts: GenerateOptions,
 ): Promise<ProviderResult> {
   const result = await dispatchProvider(fetchFn, backend, prompt, apiModelId, apiKey, opts);
+  const served = result.providerReportedModel;
+  const identity = classifyServedIdentity({ registry: opts.identityRegistry, backend, sent: apiModelId, served });
+  const seen = observeServedIdentity(backend, apiModelId, served, identity);
+  attachServedIdentitySummary(getGlobalRecorder()); // t/4023: the per-reason counts ride every dump
   getGlobalRecorder()?.record({
     type: 'ai.model_identity',
     component: 'ai-client',
-    level: 'info',
-    message: `served-identity ${backend}/${apiModelId} -> ${result.providerReportedModel ?? '(unreported)'}`,
+    level: seen.warn ? 'warn' : 'info',
+    message: `served-identity ${backend}/${apiModelId} -> ${served ?? '(unreported)'}: ${identity.state}/${identity.reason}`,
     data: {
       backend,
       requested: opts.requestedModelId,
       apiModelIdSent: apiModelId,
-      providerReported: result.providerReportedModel,
+      providerReported: served,
+      state: identity.state,
+      reason: identity.reason,
+      ...(identity.resolvedSent ? { resolvedSent: identity.resolvedSent } : {}),
+      ...(seen.divergentCount ? { divergentCount: seen.divergentCount } : {}),
+      // First call to this backend in this process: surfaces a newly used adapter for calibration (TL t/3731#7).
+      ...(seen.firstSeen ? { firstSeen: true, registryPresent: !!opts.identityRegistry } : {}),
     },
   });
   return result;
@@ -120,6 +132,7 @@ export function createAIClient(
         ...opts,
         timeoutMs: resolveTimeout(opts?.timeoutMs, model, registry), // t/3644: floor-enforced, not bypassable
         requestedModelId: model, // t/3677: caller's friendlyId for the served-identity record
+        identityRegistry: registry, // t/3731: the served-identity classifier's cross-check
         ...(fixedTemperature != null ? { fixedTemperature } : {}),
       };
       const t0 = performance.now();

@@ -1,0 +1,452 @@
+{
+  "ticket": "t/3962",
+  "seed": 39620,
+  "quota": {
+    "critical": 18,
+    "critical+institutional": 18,
+    "institutional": 18,
+    "untagged": 6
+  },
+  "excluded_dry_run": [
+    "skp-beliefs-076",
+    "skp-beliefs-096",
+    "skp-beliefs-180",
+    "skp-beliefs-258",
+    "skp-desires-074",
+    "skp-desires-080",
+    "skp-desires-081",
+    "skp-desires-093",
+    "skp-intentions-007",
+    "skp-intentions-110",
+    "skp-intentions-112",
+    "skp-intentions-131"
+  ],
+  "sample": [
+    {
+      "node_id": "skp-desires-078",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-intentions-074",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": null
+    },
+    {
+      "node_id": "skp-beliefs-030",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C1"
+    },
+    {
+      "node_id": "skp-intentions-167",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-intentions-087",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-intentions-148",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-intentions-013",
+      "proposed": [],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-beliefs-112",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C4"
+    },
+    {
+      "node_id": "skp-desires-075",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-beliefs-146",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C1"
+    },
+    {
+      "node_id": "skp-intentions-146",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C4"
+    },
+    {
+      "node_id": "skp-beliefs-110",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-intentions-153",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-desires-066",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C4"
+    },
+    {
+      "node_id": "skp-desires-082",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C4"
+    },
+    {
+      "node_id": "skp-beliefs-117",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-beliefs-309",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-beliefs-295",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-intentions-124",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-beliefs-283",
+      "proposed": [],
+      "crux": null
+    },
+    {
+      "node_id": "skp-beliefs-175",
+      "proposed": [],
+      "crux": null
+    },
+    {
+      "node_id": "skp-desires-088",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-beliefs-032",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C1"
+    },
+    {
+      "node_id": "skp-beliefs-119",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-beliefs-291",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-desires-076",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-desires-014",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-intentions-164",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-desires-086",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-desires-079",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-desires-009",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": null
+    },
+    {
+      "node_id": "skp-intentions-121",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-beliefs-192",
+      "proposed": [],
+      "crux": null
+    },
+    {
+      "node_id": "skp-intentions-154",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-intentions-108",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C6"
+    },
+    {
+      "node_id": "skp-intentions-111",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-intentions-105",
+      "proposed": [],
+      "crux": null
+    },
+    {
+      "node_id": "skp-intentions-017",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-beliefs-288",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-desires-085",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-beliefs-132",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-desires-067",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C4"
+    },
+    {
+      "node_id": "skp-beliefs-169",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-desires-069",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-beliefs-197",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-beliefs-187",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-desires-061",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C1"
+    },
+    {
+      "node_id": "skp-desires-092",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C4"
+    },
+    {
+      "node_id": "skp-beliefs-308",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-intentions-160",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-beliefs-009",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-desires-062",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-desires-091",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C4"
+    },
+    {
+      "node_id": "skp-intentions-149",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-beliefs-074",
+      "proposed": [],
+      "crux": null
+    },
+    {
+      "node_id": "skp-intentions-172",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C2"
+    },
+    {
+      "node_id": "skp-intentions-035",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C3"
+    },
+    {
+      "node_id": "skp-desires-070",
+      "proposed": [
+        "institutional"
+      ],
+      "crux": "C1"
+    },
+    {
+      "node_id": "skp-beliefs-173",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "crux": "C0"
+    },
+    {
+      "node_id": "skp-intentions-161",
+      "proposed": [
+        "critical"
+      ],
+      "crux": "C4"
+    }
+  ]
+}

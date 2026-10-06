@@ -98,6 +98,13 @@ function New-OpEd {
     .PARAMETER MaxSituations
         Maximum situation-library stress cases to retrieve and inject (0-15,
         default 3). 0 disables situation grounding.
+    .PARAMETER PovTag
+        NOT IMPLEMENTED. Tagged op-eds are generated through the app/server path
+        only (SO e/254#6 cond 2a) — passing this throws an ActionableError rather
+        than silently ignoring the tag or diverging from the TS implementation's
+        included/excludedUntagged counts.
+    .PARAMETER TagMode
+        NOT IMPLEMENTED. See -PovTag.
     .OUTPUTS
         [PSCustomObject] with Headline, Subtitle, Body, WordCount, Pov,
         Outlet, Model, Backend, Grounding, StanceRelationship, SourceFormat,
@@ -183,10 +190,30 @@ function New-OpEd {
         [int]$MaxGroundingNodes = 12,
 
         [ValidateRange(0, 15)]
-        [int]$MaxSituations = 3
+        [int]$MaxSituations = 3,
+
+        # t/3997 (SO e/254#6 cond 2a): accepted ONLY so a caller gets this cmdlet's own
+        # ActionableError instead of PowerShell's generic "parameter not found" — never read
+        # beyond the refusal check below. PowerShell does not implement tag selection; if it
+        # did, the included/excludedUntagged counts would come from two implementations and
+        # lose the comparability they exist for (the e/241 hand-mirroring pattern).
+        [string]$PovTag,
+
+        [ValidateSet('scope', 'prioritize')]
+        [string]$TagMode
     )
 
     Set-StrictMode -Version Latest
+
+    # t/3997: refuse tag selection immediately, before any other work (soul load, outlet
+    # resolution, source fetch) — tagged op-eds are TS-only (app/server path).
+    if ($PSBoundParameters.ContainsKey('PovTag') -or $PSBoundParameters.ContainsKey('TagMode')) {
+        throw (New-ActionableError -PassThru `
+            -Goal 'Generate a tag-scoped op-ed' `
+            -Problem "Tagged op-eds are generated through the app/server path only. PowerShell doesn't implement tag selection, so its counts can't diverge (SO e/254#6 condition 2)." `
+            -Location 'New-OpEd' `
+            -NextSteps 'Use the app or server op-ed generator.')
+    }
 
     # Shared prompt artifacts live in lib/oped/prompts/ (canonical TS-core location, t/2609).
     $OPedPromptsDir = [System.IO.Path]::GetFullPath((Join-Path $script:ModuleRoot '..\..\lib\oped\prompts'))

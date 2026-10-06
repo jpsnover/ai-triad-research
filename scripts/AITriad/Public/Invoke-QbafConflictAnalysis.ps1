@@ -131,7 +131,8 @@ function Invoke-QbafConflictAnalysis {
         }
         catch { continue }
 
-        if (-not $Summary.factual_claims) { continue }
+        # Guarded (t/4010): a bare dot-access on an absent key throws under StrictMode.
+        if (-not ($Summary.PSObject.Properties['factual_claims'] -and $Summary.factual_claims)) { continue }
 
         foreach ($Claim in @($Summary.factual_claims)) {
             $ClaimIdx++

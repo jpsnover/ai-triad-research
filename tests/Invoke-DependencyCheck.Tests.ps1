@@ -215,14 +215,9 @@ Describe 'Invoke-DependencyCheck (t/3910)' -Tag 'summary' {
             Find-DepResult $Ctx 'warn' 'edge-viewer — package.json not found' | Should -Not -BeNullOrEmpty
         }
 
-        It 'REGRESSION (pre-existing bug, t/3999): node_modules outdated-package detection is a silent no-op under StrictMode' {
-            # $Outdated.PSObject.Properties.Count (L275) throws PropertyNotFoundException under
-            # Set-StrictMode -Version Latest (confirmed via direct repro outside this test file --
-            # a PSCustomObject's PSObject.Properties.Count is NOT a strict-mode-safe member access,
-            # unlike a real array's .Count). The enclosing `catch {}` ("npm outdated can fail
-            # gracefully") swallows it completely, so this feature has never actually worked.
-            # Characterizing the ACTUAL (buggy) behavior here, per the ticket's pure-refactor rule --
-            # filed separately as t/3999, not fixed in this PR.
+        It 'node_modules outdated-package detection reports the count per app (t/3999 fixed)' {
+            # Was a characterized bug: $Outdated.PSObject.Properties.Count threw under StrictMode and the
+            # bare catch {} swallowed it, so this detection was a silent no-op. Now @(...).Count.
             $env:GEMINI_API_KEY = 'fake-key'
             InModuleScope AITriad {
                 Mock npm { '10.5.0' } -ParameterFilter { $args[0] -eq '--version' }
@@ -231,8 +226,28 @@ Describe 'Invoke-DependencyCheck (t/3910)' -Tag 'summary' {
                 } -ParameterFilter { $args[0] -eq 'outdated' }
             }
             $Ctx = InModuleScope AITriad -Parameters @{ RepoDir = $script:RepoDir } { param($RepoDir) Invoke-DependencyCheck -Mode test -Quiet -RepoRoot $RepoDir }
-            $Ctx.Outdated | Should -Be 0 -Because 'the detection silently no-ops today (t/3999) -- this pins that fact so the refactor cannot accidentally fix OR worsen it unnoticed'
-            Find-DepResult $Ctx 'outdated' 'outdated package' | Should -BeNullOrEmpty
+            # 4 fixture apps, each with node_modules -> one DStale per app.
+            $Ctx.Outdated | Should -Be 4
+            foreach ($app in 'taxonomy-editor','poviewer','summary-viewer','edge-viewer') {
+                # The count is a real integer, not a member-enumerated "1 1 1 1" string (t/3999 AC2).
+                Find-DepResult $Ctx 'outdated' "$app — 4 outdated package(s)" | Should -Not -BeNullOrEmpty
+            }
+        }
+
+        It 'a failing npm outdated is skipped with a Write-Warning, not silently, and restores the location (t/3999)' {
+            $env:GEMINI_API_KEY = 'fake-key'
+            InModuleScope AITriad {
+                Mock npm { '10.5.0' } -ParameterFilter { $args[0] -eq '--version' }
+                Mock npm { throw 'registry unreachable' } -ParameterFilter { $args[0] -eq 'outdated' }
+            }
+            $before = (Get-Location).Path
+            # Merge the warning stream into output and keep only WarningRecords (drops the returned $Ctx).
+            $warnings = @(InModuleScope AITriad -Parameters @{ RepoDir = $script:RepoDir } {
+                param($RepoDir)
+                Invoke-DependencyCheck -Mode test -Quiet -RepoRoot $RepoDir 3>&1 | Where-Object { $_ -is [System.Management.Automation.WarningRecord] }
+            })
+            (Get-Location).Path | Should -Be $before -Because 'Pop-Location must run even when npm throws'
+            @($warnings | Where-Object { "$_" -match 'outdated-package check skipped: registry unreachable' }).Count | Should -Be 4
         }
 
         It 'node_modules missing is a WARN (install mode without -Fix leaves it unskipped-but-not-attempted)' {

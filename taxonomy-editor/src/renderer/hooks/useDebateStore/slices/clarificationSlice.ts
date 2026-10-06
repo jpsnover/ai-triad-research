@@ -4,6 +4,7 @@
 import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
 import { buildClarificationPrompt, buildSynthesisPrompt } from '../shared/prompts';
+import { seatSouls } from '../shared/seatSouls';
 import type {
   DebateSession,
   SpeakerId,
@@ -1062,7 +1063,8 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       }
 
       set({ debateGenerating: poverId, debateStepStartedAt: Date.now() });
-      const info = POVER_INFO[poverId];
+      const openingSouls = seatSouls(activeDebate, poverId); // t/3975
+      const info = openingSouls.soul;
       // Slot-first (t/2907): insert (or reuse) this speaker's opening panel NOW in
       // 'generating' state, so the transcript shows ONE card that mutates through
       // retrying/error/done — instead of a fresh card + a system retry-toast per pass.
@@ -1111,6 +1113,8 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           label: info.label,
           pov: info.pov,
           personality: info.personality,
+          soul: openingSouls.soul,
+          opponentSouls: openingSouls.opponentSouls,
           topic,
           taxonomyContext: taxonomyBlock,
           priorStatements: priorBlock,

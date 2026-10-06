@@ -126,7 +126,7 @@ if [ "$gd" != "$cdir" ]; then
     A detached-HEAD commit is orphaned — lost on the next re-detach unless pushed.
 
   Create the worktree BRANCH-FIRST so commits land on a named PR branch:
-    git worktree add -b <type>/<slug>-t<ticket> ../wt-<ticket> origin/main
+    git worktree add -b <type>/<slug>-t<ticket> .worktrees/<name> origin/main
     #  …commit on the named branch…  →  git push origin <branch>  →  gh pr create
 
   Already detached with work to save? Name the branch in place, then commit:
@@ -159,7 +159,7 @@ cat >&2 <<'MSG'
     This strands work local-only and diverges `main` from `origin`.
 
   Land via /land-from-worktree instead (branch-first):
-    git worktree add -b <type>/<slug>-t<ticket> ../wt-<ticket> origin/main
+    git worktree add -b <type>/<slug>-t<ticket> .worktrees/<name> origin/main
     #  …commit on the named branch inside the worktree…
     git push origin <branch>   →   gh pr create   →   self-merge on green
 

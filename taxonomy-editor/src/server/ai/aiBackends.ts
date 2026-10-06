@@ -350,6 +350,7 @@ function buildGenerateOptions(
     // CLI adapter's schema-enforced path exactly (no prompt-instructed divergence).
     ...(options?.responseSchema ? { responseSchema: options.responseSchema } : {}),
     ...(options?.maxTokens != null ? { maxTokens: options.maxTokens } : {}),
+    identityRegistry: getModelRegistry(), // t/4019: served-identity classifier cross-check
   };
 }
 

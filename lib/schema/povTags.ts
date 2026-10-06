@@ -14,6 +14,14 @@
 // `validatePovTags` is the single rule. It is called by every live path that writes tags: the tagging CLI
 // (pov-tags-cli.ts, the blocking gate t/3969 shells out to), the editor's renderer schema (SO condition 2),
 // the lib Zod node schema, and the warn-first data-repo hook (t/3970).
+//
+// CHANGING THE REGISTRY (pov-tags.json can't carry comments, so the rule lives here; t/3985, SO e/253#2):
+//  - Never rename a tag in place. Add the new tag, migrate the data (t/3969 writer), THEN remove the old
+//    tag. To remove a tag, strip it from the data first. Spec §2.1 has the ordering.
+//  - Before a registry PR merges, show what it orphans:
+//      git show origin/main:lib/debate/soul-docs/pov-tags.json > base-pov-tags.json
+//      tsx lib/schema/pov-tags-cli.ts --scan-data <ai-triad-data>/taxonomy/Origin --base-registry base-pov-tags.json
+//    `introduced` must be 0 (exit 0). CI runs the same scan on every PR (t/3987).
 
 import { z } from 'zod';
 import registryJson from '../debate/soul-docs/pov-tags.json' with { type: 'json' };
@@ -31,6 +39,48 @@ export type PovName = z.infer<typeof PovNameSchema>;
 
 /** Lowercase kebab-case, unique within its POV (spec §2.1). */
 export const POV_TAG_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+// ── Tag selection and the applied-tag record (shared by Inquiry t/3965 and op-ed t/3960) ──────────────
+// One POV-scoped tag applied to ONE camp. A single object, not parallel `tag?` + `tagMode?` optionals,
+// so "both or neither" holds by construction (e/249 alternative d). `pov` is explicit because a request
+// has no node id to derive it from. The other camps run exactly as untagged. Defined here, not in either
+// feature, so the ask and the "what ran" record mean the same thing everywhere (TL t/3960#8).
+
+/** `scope` keeps only the camp's tagged nodes; `prioritize` keeps every node and ranks tagged ones first. */
+export const TagModeSchema = z.enum(['scope', 'prioritize']);
+export type TagMode = z.infer<typeof TagModeSchema>;
+
+/** The ask: one tag for one camp. Strict, so a mistyped key fails instead of being dropped. */
+export const TagSelectionSchema = z.object({
+  pov: PovNameSchema,
+  tag: z.string().min(1),
+  mode: TagModeSchema,
+}).strict();
+export type TagSelection = z.infer<typeof TagSelectionSchema>;
+
+/**
+ * What the counts in an applied-tag record MEAN, per mode (SO e/254#6 cond 3). Pinned in the schema
+ * itself (`.describe`), not only in the UI, because `excludedUntagged: 0` reads as "full coverage" when in
+ * Prioritize it means "this mode excludes nothing". Readers show the exclusion count ONLY for Scope.
+ */
+export const APPLIED_TAG_COUNT_MEANING = {
+  included:
+    'scope: tagged nodes of the named camp used for grounding. ' +
+    'prioritize: tagged nodes of the named camp that were boosted.',
+  excludedUntagged:
+    'scope: untagged nodes of the named camp left out of grounding. ' +
+    'prioritize: always 0 by construction; it means this mode excludes nothing, NOT full coverage.',
+} as const;
+
+/** What the tag actually did, kept apart from the ask (SO e/252 cond 3). Filled by the generator. */
+export const AppliedTagSchema = z.object({
+  pov: PovNameSchema,
+  tag: z.string().min(1),
+  mode: TagModeSchema,
+  included: z.number().int().nonnegative().describe(APPLIED_TAG_COUNT_MEANING.included),
+  excludedUntagged: z.number().int().nonnegative().describe(APPLIED_TAG_COUNT_MEANING.excludedUntagged),
+});
+export type AppliedTag = z.infer<typeof AppliedTagSchema>;
 
 const PovTagEntrySchema = z.object({
   id: z.string().regex(POV_TAG_ID_PATTERN, 'tag id must be lowercase kebab-case'),

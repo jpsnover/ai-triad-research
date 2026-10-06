@@ -366,6 +366,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-26 — Computational Linguist (**8th instance, same-session recurrence**, p/7#38): scratch script threw `AttributeError: 'str' has no .get` walking `situations.json` interpretations — **1,236 nodes have `interpretations.{pov}` as a dict, 23 have it as a plain string**. Cause: assumed uniform shape instead of type-checking at the read site. `isinstance`-guarding fixed it AND *was* the diagnosis — the string form is pre-BDI-decomposition (t/1805). Recurred within hours of #7 → CL argues recording isn't preventing recurrence (hookable check > doc entry); reversed Sage's earlier not-in-#82 call (see #82 tracker).
 - 2026-07-28 — Computational Linguist (**+4, p/7#47/#49**, now 12): **3 probe errors** (t/1826 — extraction-log `nodes`=list not dict, `aliases` nullable, `policy_actions` keys under `policies`/name=`action`) = #82 offender #5 (inspect-before-coding not applied). **+1 PRODUCTION defect (t/1830):** the extraction cmdlet **char-explodes bare-string `aliases`** (13/37 records — model emits string where schema says array, iterated unguarded). **It shipped in POWERSHELL (`Invoke-EntityExtraction`), NOT TS** (CL correction p/7#49) — so `tsc`/a TS union can't catch it; the PS-side prevention is **coerce-at-read (`if ($x -is [string]) { @($x) }`) at each AI-JSON boundary as ONE shared helper (Shared Utility Rule) + a bare-string Pester fixture**. Offender #5's real defense splits by surface: TS→union types, PS→shared coerce helper.
 - 2026-10-01 — Shared Lib (p/5#33, **new variant: directory path assumption**): `FileNotFoundError` reading `taxonomy/accelerationist.json` — the file does not exist at a flat path; the actual location is `taxonomy/Origin/accelerationist.json`. Root cause: assumed all per-POV taxonomy JSON files sit in the root of `taxonomy/` without verifying the directory structure. Fix: checked actual path with PowerShell first, discovered the `Origin/` subdirectory. Same root cause as JSON schema variant (assume flat, don't inspect first) applied to filesystem layout rather than JSON content.
+- 2026-10-06 — Computational Linguist (p/7#94, **new variant: own-artifact shape assumption**): a read-only inspection one-liner raised `KeyError 'node_id'` on t/3939's `frozen-ops.json`. t/3939's file keys ops by `id`; agent assumed `node_id` from their own t/3952 frozen list, which uses a different shape. Nothing was written. Fix: re-read the file shape before querying. The rule applies to **your own artifacts** as much as shared data — different tickets produce different schemas even when the content is related.
 
 **Root Cause:** Code written based on assumed structure without inspecting first. Covers both JSON field layout (nested vs flat within a document) and filesystem directory layout (subdirectory vs flat). Applies across all project data: taxonomy JSON, debate sessions, and tool/API returns. Field types and file paths both vary — never assume flat without checking.
 
@@ -4297,13 +4298,15 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 
 **Instances:**
 - 2026-10-05 — DebateTool (p/70#47): recreating `wt-3882` hit both failures in sequence — directory persisted after `git worktree remove`, then a stale same-name branch (created by the failed first add) blocked the retry. Resolved by `rm -rf <path>` first, then `git branch -D <branch>`, then `git worktree add -b <branch> <path> origin/main`.
+- 2026-10-06 — Computational Linguist (p/7#92): `git worktree add -b <branch> <path>` failed "path already exists". Retry with new path failed "branch already exists" — because the failed first command had already created the branch before erroring on the path. The branch was at `origin/main` and unused. Resolved by `git worktree add <newpath> <branch>` (no `-b`), reusing the orphaned branch.
 
-**Root Cause:** `git worktree remove` deregisters the worktree and removes the `.git/worktrees/<name>` metadata but does NOT `rm -rf` the working directory — git treats that as user-owned data. The `-b` flag of `worktree add` calls `git branch` internally, so if a branch with that name already exists (from a previous failed add), the whole command fails without creating the worktree.
+**Root Cause:** `git worktree remove` deregisters the worktree and removes the `.git/worktrees/<name>` metadata but does NOT `rm -rf` the working directory — git treats that as user-owned data. The `-b` flag of `worktree add` calls `git branch` internally **before** checking the path, so a path-exists failure still leaves the branch created. The operation is not atomic.
 
 **Prevention:**
-1. **Recreate sequence:** `rm -rf <path>` → `git branch -D <branch>` (if branch exists) → `git worktree add -b <branch> <path> origin/main`.
-2. **Check before assuming clean state:** after `git worktree remove`, verify with `git worktree list` (confirms deregistration) and `ls <path>` (confirms directory gone) and `git branch --list <branch>` (confirms branch gone) before a recreate.
-3. **Prefer unique worktree names** (e.g. include a timestamp or ticket number) to avoid stale-branch collisions across sessions.
+1. **Recreate sequence (full reset):** `rm -rf <path>` → `git branch -D <branch>` (if branch exists) → `git worktree add -b <branch> <path> origin/main`.
+2. **Fast recovery when orphaned branch is clean:** if `worktree add -b` failed on the path and the newly-created branch is at `origin/main` and unused, skip delete-and-recreate — use `git worktree add <path> <branch>` (no `-b`) to reuse the orphaned branch directly. Verify with `git branch --list <branch>` and `git log <branch>` first.
+3. **Check before assuming clean state:** after `git worktree remove`, verify with `git worktree list` (confirms deregistration) and `ls <path>` (confirms directory gone) and `git branch --list <branch>` (confirms branch gone) before a recreate.
+4. **Prefer unique worktree names** (e.g. include a timestamp or ticket number) to avoid stale-branch collisions across sessions.
 
 **Status:** Active — 1 instance (DebateTool, p/70#47). Loud failure (`fatal:` message); easy to fix once the two-stage nature is understood.
 
@@ -4400,3 +4403,21 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (Rosetta Stone, p/6#77, PR #2879). Silent until the next config change; then a false red that blocks a legitimate PR.
 
 **Applies To:** All agents writing tests that reference shared config files, registries, or schema contents.
+
+## #210 [Build] `--is-ancestor` Fails After a Squash Merge — Squash Creates a New SHA, Not an Ancestry Link
+
+**Pattern:** After a squash-merge PR lands, checking `git merge-base --is-ancestor <pre-squash-commit> origin/main` exits 1. A squash merge produces a **new, independent commit** whose SHA has no ancestry relationship to the original branch commits — it is not a cherry-pick or rebase; it is a fresh commit whose tree happens to match. `--is-ancestor` tests the git DAG; since the pre-squash SHA is not in `origin/main`'s ancestry chain, the check correctly returns false — but this is the wrong verification method for squash merges.
+
+**Instances:**
+- 2026-10-06 — DebateUI (p/689#3): `git merge-base --is-ancestor <pre-squash-commit> origin/main` exited 1 after a squash-merge. Expected it to confirm the PR landed; it only confirmed the pre-squash SHA is not on main (which is always true after a squash). Resolved by `git show --stat <squash-sha>` to confirm message/content matched.
+
+**Root Cause:** Squash merges are not recorded as merges in the DAG — they are new commits whose parent is the previous `main` tip, not the branch tip. `--is-ancestor` and `git log --ancestry-path` cannot find the original branch commits in main's history after a squash. This is fundamental to squash semantics, not a git bug.
+
+**Prevention:**
+1. **After a squash merge, verify by content/message, not ancestry.** Use `git show --stat <squash-sha>` or `git log --oneline -1 origin/main` to confirm the squash commit's message and diff match expectations.
+2. **`--is-ancestor` is correct for regular merges and rebases** (which preserve commit identity or replay commits with new SHAs as ancestors). For squash merges, it will always return false for the pre-squash commits.
+3. **The squash SHA is the `headRefOid` from `gh pr view` at the time of merge** — that is the canonical identifier for "this PR's content is on main."
+
+**Status:** Active — 1 instance (DebateUI, p/689#3). Loud failure (exit 1); misleading because the merge succeeded.
+
+**Applies To:** All agents verifying that a squash-merged PR's commits reached `origin/main`.
