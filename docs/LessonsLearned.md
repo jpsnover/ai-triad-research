@@ -485,6 +485,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-09-29 — ServerAPI (p/504#12, **correct-resolution variant ×2**): push on shared main (t/3747) rejected — another PR landed between commit and push. Per AGENTS.md, fetched and cherry-picked to fresh worktree `fix/3747-gemini-probe`, opened PR #2542.
 - 2026-09-29 — DebateTool (p/70#21, t/3748): direct push to main rejected — didn't fetch before committing, origin had 2 newer commits. Resolved by cherry-picking commit to a new worktree off origin/main, opened PR #2545.
 - 2026-09-29 — DebateTool 2 (p/234#12): push rejected on shared main (non-fast-forward) — resolved by land-from-worktree, PR opened from worktree branch.
+- 2026-10-06 — Chat (p/687#7, **correct-resolution variant**): `git push origin main` rejected (non-fast-forward) — another agent's commit landed between Chat's commit and push. Per AGENTS.md, didn't rewrite the shared tree; cherry-picked to a worktree branch and landed via PR #2881.
 
 **Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. **At small scale this was historically self-correcting** (stash/pull --rebase/pop/push); however AGENTS.md now prohibits all tree-rewriting ops (`checkout`, `reset`, `rebase`, `merge`, `pull --rebase`, `stash`) on the shared checkout — so in-place resolution is NO LONGER the correct path. **At large scale it is never self-correcting** — route to TL/DevOps.
 
@@ -497,7 +498,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 6. **A large divergence is a TL/DevOps event** — route immediately; don't attempt resolution involving out-of-scope files.
 7. ~~Standard resolution flow: `git stash && git pull --rebase origin main`~~ — **SUPERSEDED by AGENTS.md (2026-09-28).** `stash`, `pull --rebase`, `merge`, `reset` are worktree-only in both modes. Earlier instances (pre-rule) used this flow; it is now prohibited.
 
-**Status:** Active — **11 instances / 9 agents; 3 variants.** Small-contention (self-correcting pre-rule); large-divergence (TL/DevOps); correct-resolution (worktree cherry-pick, first documented p/6#61). Prevention rules updated to reflect AGENTS.md prohibition on in-place tree-rewriting.
+**Status:** Active — **12 instances / 10 agents; 3 variants.** Small-contention (self-correcting pre-rule); large-divergence (TL/DevOps); correct-resolution (worktree cherry-pick, first documented p/6#61). Prevention rules updated to reflect AGENTS.md prohibition on in-place tree-rewriting.
 
 **Applies To:** All agents pushing to shared branches in either repo.
 
@@ -3119,6 +3120,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-09-30 — DebateTool (p/70#37): `cd lib/debate` failed "No such file or directory" — the Bash cwd had reset to the agent's scope directory (`lib/debate`), so `cd lib/debate` tried to navigate to `lib/debate/lib/debate` (nonexistent). Fix: dropped the `cd` entirely. When the cwd already IS the target directory (because the runtime resets to the scope root), re-cdding into it is a no-op at best and an error at worst.
 - 2026-10-01 — PowerShell (p/20#55): `Invoke-ScriptAnalyzer -Settings ./relative/settings.json` after a prior `cd` into repo root — **PowerShell tool cwd also resets between calls** (same t/2222 mechanism as Bash), so the relative `-Settings` path failed to resolve. Abandoned: the diagnostic was redundant (git-show evidence already confirmed the finding).
 - 2026-10-04 — DevOps Lead (p/26#141): `gh pr create` run from Bash without `--head` failed with "you must first push the current branch" — the Bash cwd had reset to the shared checkout (on `main`), so `gh` read the current branch as `main` rather than the worktree branch. Fix: always pass `--head <branch>` explicitly to `gh pr create` when called from Bash, regardless of where the push was made.
+- 2026-10-05 — PowerShell (p/20#68): `gh pr create` aborted with "you must first push the current branch" despite the branch already being pushed — run from the shared main checkout (still on `main`), not the worktree the push happened from. `gh pr create` without `--head` infers head from the current checkout's branch. Fix: added `--head <branch>`.
 
 **Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. **Compounding factor (instance 2):** the Bash tool resets cwd to the repo root between invocations, so any relative path like `../wt-<name>` re-anchors to the repo root on every call — you cannot rely on a prior `cd` persisting to the next Bash call.
 
@@ -3129,7 +3131,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. **Both Bash AND PowerShell tool cwds reset between invocations (t/2222)** — relative paths re-anchor on every call regardless of a prior `cd`. Use absolute paths always; never depend on a prior `cd` persisting to the next tool call.
 5. **(Possible — unconfirmed) Glob may also resolve relative paths against the scope root, not the repo root** — a relative `Glob("tests/Foo*")` from a role scoped to `scripts/AITriad/` may search `scripts/AITriad/tests/` and silently return empty. Use `**/<name>` or absolute base paths in Glob until this is confirmed (p/20#57; see Pattern #186).
 
-**Status:** Active — 5 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash. **5th instance (2026-10-04, p/26#141):** `gh pr create` read `main` as the current branch instead of the worktree branch — pass `--head <branch>` explicitly.
+**Status:** Active — 6 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash. **5th instance (2026-10-04, p/26#141):** `gh pr create` read `main` as the current branch instead of the worktree branch — pass `--head <branch>` explicitly. **6th instance (2026-10-05, p/20#68):** same `gh pr create` / shared checkout failure on PowerShell, confirming the pattern is tool-agnostic — any `gh pr create` without `--head` from a non-worktree cwd hits this.
 
 **Applies To:** All agents using the Bash tool to access a worktree by absolute POSIX path, or running `gh` CLI commands from Bash where cwd may have reset.
 
@@ -3833,6 +3835,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 **Instances:**
 - 2026-08-15 — Design (p/472#1): tried to launch taxonomy-editor Electron app inside a fresh worktree for PR design review. `npm ci` ran; app crashed on startup (node-pty missing native binary) and `vite build` couldn't resolve the hoisted vite package. Stopped the build yak-shave (correct anti-rabbit-hole call); fell back to reviewing implementer-provided screenshots.
+- 2026-10-06 — DebateTool (p/70#50): `pnpm install` from `taxonomy-editor/` in a worktree **exited 2** — pnpm cannot install native binaries (electron, node-pty, @azure/storage-blob) in the worktree's virtual store without running `electron-rebuild`. Resolution: ran `pnpm install` anyway (packages were cached), then used `npx vitest run` from `lib/debate/` directly as the authoritative verify signal (debate tests don't depend on native modules), and opened the PR to let CI be the gate.
 
 **Root Cause:** Two compounding gaps: (a) `node-pty` is a native Node addon — `npm ci` fetches it but does not rebuild it for the current Node ABI inside a new worktree context without an explicit `npm rebuild`; (b) Vite relies on a `.vite-temp` cache path in the monorepo root's `node_modules` for cache and HMR — a worktree's own `node_modules` doesn't have this path, so `vite build` falls through to a missing dependency. Both are monorepo-hoisting artifacts that don't surface in the main checkout where the root `node_modules` is already set up.
 
@@ -3840,9 +3843,10 @@ Institutional memory for failure patterns across the AI Triad Research project.
 1. **Don't attempt a fresh Electron build inside a landing worktree for design review** — the native rebuild and hoisting setup cost is disproportionate to the review goal.
 2. **Preferred review path for visual/design review:** use implementer-provided screenshots or ask the implementer to run the `/smoke-ui` skill in the main checkout. If you need to run the app yourself, do it from the main checkout after the branch is merged (or cherry-picked to main tree).
 3. **If a worktree build is genuinely required:** (a) run `npm ci` from the repo ROOT first (not inside the worktree), so hoisted packages are present; (b) then `npm rebuild node-pty` from the package directory to rebuild the native binary for the current ABI; (c) then run `vite build` from within the package — it can now resolve the hoisted `.vite-temp`.
-4. A documented web-preview recipe (serve the renderer without Electron) would bypass both gaps — worth a follow-up ticket if design reviews from worktrees are a recurring need.
+4. **pnpm workaround (debate/test-only path):** if the goal is running tests (not launching the app), `pnpm install` may exit 2 on native modules but still cache packages; run `npx vitest run` from `lib/debate/` directly — debate tests don't depend on native Electron binaries. Let CI be the gate for the full build.
+5. A documented web-preview recipe (serve the renderer without Electron) would bypass both gaps — worth a follow-up ticket if design reviews from worktrees are a recurring need.
 
-**Status:** Active — 1 instance (Design p/472#1). Future fix tracked: root-level install + node-pty rebuild recipe, or web-preview alternative.
+**Status:** Active — 2 instances. **Inst1** (Design p/472#1): npm + node-pty/Vite hoisting, Electron launch failure. **Inst2** (DebateTool p/70#50): pnpm exit 2 on native module install in worktree — debate tests still runnable via `npx vitest run` from `lib/debate/` directly.
 
 **Applies To:** Design role and any agent attempting to launch Electron apps from a fresh worktree for review purposes.
 
@@ -4285,3 +4289,40 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (TL t/3892, data #17, p/335#132). Silent; git exits 0 with plausible-looking output from the wrong repo.
 
 **Applies To:** All agents writing hooks that call `git` commands targeting a repo other than the one that invoked the hook.
+
+## #204 [Build] `git worktree add` Fails on Stale Directory or Stale Branch — Two Separate Failures, Same Recreate Path
+
+**Pattern:** After `git worktree remove <path>`, the worktree registration is cleared but the **directory on disk is not deleted**. A subsequent `git worktree add -b <branch> <path> origin/main` fails with `fatal: '<path>' already exists`. Separately: if the same-named branch was left behind by a prior failed `worktree add` attempt, a second `worktree add -b` fails because the branch already exists. The two failures are independent but triggered in sequence when recreating a same-name worktree.
+
+**Instances:**
+- 2026-10-05 — DebateTool (p/70#47): recreating `wt-3882` hit both failures in sequence — directory persisted after `git worktree remove`, then a stale same-name branch (created by the failed first add) blocked the retry. Resolved by `rm -rf <path>` first, then `git branch -D <branch>`, then `git worktree add -b <branch> <path> origin/main`.
+
+**Root Cause:** `git worktree remove` deregisters the worktree and removes the `.git/worktrees/<name>` metadata but does NOT `rm -rf` the working directory — git treats that as user-owned data. The `-b` flag of `worktree add` calls `git branch` internally, so if a branch with that name already exists (from a previous failed add), the whole command fails without creating the worktree.
+
+**Prevention:**
+1. **Recreate sequence:** `rm -rf <path>` → `git branch -D <branch>` (if branch exists) → `git worktree add -b <branch> <path> origin/main`.
+2. **Check before assuming clean state:** after `git worktree remove`, verify with `git worktree list` (confirms deregistration) and `ls <path>` (confirms directory gone) and `git branch --list <branch>` (confirms branch gone) before a recreate.
+3. **Prefer unique worktree names** (e.g. include a timestamp or ticket number) to avoid stale-branch collisions across sessions.
+
+**Status:** Active — 1 instance (DebateTool, p/70#47). Loud failure (`fatal:` message); easy to fix once the two-stage nature is understood.
+
+**Applies To:** Any agent that removes and recreates a worktree with the same path or branch name.
+
+## #205 [Build] GitHub PR API Lags a Push by Seconds — `headRefOid` Stale Immediately After Push
+
+**Pattern:** Querying `gh pr view <N> --json headRefOid` immediately after `git push` returns the **previous** commit SHA. GitHub's PR API is eventually consistent; the push registers on the remote, but the PR object's `headRefOid` field updates asynchronously (typically within a few seconds). A guard that compares local HEAD with `headRefOid` and exits non-zero on mismatch is *correct* to refuse — the data is genuinely stale — but it appears to fail the push itself, which succeeded.
+
+**Instances:**
+- 2026-10-06 — Computational Linguist (p/7#88, 1st occurrence in session): re-arm guard exited 1 right after a successful push; `headRefOid` still showed the previous commit. Resolved by polling until `headRefOid` equals local HEAD, then arming.
+- 2026-10-06 — Computational Linguist (p/7#88, 2nd occurrence same session): same guard, same lag. Confirmed the fix is a poll loop, not a fixed sleep.
+
+**Root Cause:** GitHub's REST/GraphQL API for PR metadata is eventually consistent. A `git push` updates the remote ref atomically, but GitHub's internal propagation to the PR object's `headRefOid` field takes additional time (observed: a few seconds). Any guard or workflow step that reads `headRefOid` immediately post-push will see stale data during this window.
+
+**Prevention:**
+1. **Poll, don't sleep:** after pushing, poll `gh pr view <N> --json headRefOid -q .headRefOid` until the value matches `git rev-parse HEAD`, then proceed. A fixed sleep is a fragile workaround — the lag varies; the poll is robust.
+2. **A mismatch exit is the correct guard behavior** — it caught stale data. Don't weaken the guard; fix the caller to retry.
+3. **Applies to any post-push API read:** CI run listing (`gh run list --commit <sha>`), PR checks, branch protection queries — all may lag by seconds. Poll with a condition, not a wall-clock delay.
+
+**Status:** Active — 2 instances same session (Computational Linguist, p/7#88). Loud (guard exits non-zero); easy to misread as a push failure when the push actually succeeded.
+
+**Applies To:** All agents running guards or checks that read GitHub PR/ref metadata immediately after a push.
