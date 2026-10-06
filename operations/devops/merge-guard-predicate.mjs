@@ -51,18 +51,60 @@ export const GH_PR_MERGE_RE = new RegExp(
   String.raw`\bgh(?:\.exe)?` + REPO_FLAG + '*' + String.raw`\s+pr` + REPO_FLAG + '*' + String.raw`\s+merge\b`,
 );
 
-export function mergeGuardVerdict(command) {
+// t/3695#26-27: the verdict is per CLAUSE, not per shell line. Judging the whole line let any
+// exempting flag anywhere on it (`--auto`, `--disable-auto`, a `--match-head-commit` belonging to a
+// DIFFERENT merge) wave through every other `gh pr merge` on that line. A clause runs from a
+// `gh … pr … merge` match to the next shell separator (; && || | & newline), or end of line. A lone
+// `&` inside a redirect (`2>&1`, `&>`) is not a separator.
+const CLAUSE_END_RE = /;|&&|\|\||\||(?<![>&])&(?![>&])|\r?\n/;
+
+export function mergeClauses(command) {
   const cmd = command || '';
-  // Only manual `gh pr merge` (or gh.exe) is in scope — flag order / PR-number-optional /
-  // repo-selector (-R/--repo, either side of `pr`) tolerant.
-  if (!GH_PR_MERGE_RE.test(cmd)) return { block: false, reason: 'not-a-merge' };
+  const re = new RegExp(GH_PR_MERGE_RE.source, 'g');
+  const out = [];
+  let m;
+  while ((m = re.exec(cmd)) !== null) {
+    const rest = cmd.slice(m.index);
+    const end = rest.slice(m[0].length).search(CLAUSE_END_RE);
+    out.push(end < 0 ? rest : rest.slice(0, m[0].length + end));
+  }
+  return out;
+}
+
+// Pure verdict for ONE merge clause.
+export function mergeClauseVerdict(clause) {
+  const c = clause || '';
   // `--auto` exempt (see header) — matches boolean `--auto` and defensively `--auto=true`.
-  if (/(?:^|\s)--auto(?:[=\s]|$)/.test(cmd)) return { block: false, reason: 'auto-exempt' };
+  if (/(?:^|\s)--auto(?:[=\s]|$)/.test(c)) return { block: false, reason: 'auto-exempt' };
+  // `--disable-auto` only DISARMS auto-merge — it never merges (t/3695#26: 9 of the first advisory
+  // window's 11 blocks were disarms; a blocking guard would have refused a safety action).
+  if (/(?:^|\s)--disable-auto(?:\s|$)/.test(c)) return { block: false, reason: 'disable-auto' };
   // Guarded iff the head-match flag carries a value — BOTH `--match-head-commit SHA` and
   // `--match-head-commit=SHA` forms (a bare flag with no value would false-pass, so require \S).
-  if (/--match-head-commit(?:=|\s+)\S/.test(cmd)) return { block: false, reason: 'guarded' };
+  if (/--match-head-commit(?:=|\s+)\S/.test(c)) return { block: false, reason: 'guarded' };
   // Manual merge, no head guard → BLOCK (the stranding vector).
   return { block: true, reason: 'missing-match-head-commit' };
+}
+
+export function mergeGuardVerdict(command) {
+  // Only manual `gh pr merge` (or gh.exe) is in scope — flag order / PR-number-optional /
+  // repo-selector (-R/--repo, either side of `pr`) tolerant.
+  const clauses = mergeClauses(command);
+  if (clauses.length === 0) return { block: false, reason: 'not-a-merge' };
+  const verdicts = clauses.map(mergeClauseVerdict);
+  // Any blocking clause blocks the line; otherwise report the first clause's allow reason.
+  return verdicts.find((v) => v.block) || verdicts[0];
+}
+
+// Join keys for the coverage reconciler (t/3695#26). prRef is the PR number or pull URL right after
+// `merge`, else null (gh then targets the current branch's PR — unjoinable, so the reconciler counts
+// it separately). repo is the -R/--repo value, else null.
+export function parseMergeClause(clause) {
+  const c = clause || '';
+  const repo = (c.match(/(?:^|\s)(?:-R|--repo)(?:=|\s+)(\S+)/) || [])[1] || null;
+  const url = c.match(/\bmerge\s+(\S*\/pull\/\d+)/);
+  const num = c.match(/\bmerge\s+(\d+)(?:\s|$)/);
+  return { prRef: url ? url[1] : num ? num[1] : null, repo };
 }
 
 /**
@@ -137,7 +179,18 @@ export function parsePrRef(command) {
  * secrets, but bounded for log hygiene). Pure + exported so the shape is unit-tested.
  */
 export function buildMergeGuardSinkRecord({ nowIso, mode, command, verdict, failClosed } = {}) {
+  // t/3695#26: also record each extracted merge clause with its own verdict and join keys. The
+  // 300-char shell-line prefix alone lost the `gh pr merge` clause on long lines (2 unclassifiable
+  // records in the first advisory window).
+  const clauses = typeof command === 'string'
+    ? mergeClauses(command).map((c) => ({
+      clause: c.slice(0, 300),
+      reason: mergeClauseVerdict(c).reason,
+      ...parseMergeClause(c),
+    }))
+    : [];
   return {
+    clauses,
     ts: nowIso ?? null,
     gate: 'merge-guard',
     mode: mode ?? null,
