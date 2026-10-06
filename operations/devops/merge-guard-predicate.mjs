@@ -58,8 +58,28 @@ export const GH_PR_MERGE_RE = new RegExp(
 // `&` inside a redirect (`2>&1`, `&>`) is not a separator.
 const CLAUSE_END_RE = /;|&&|\|\||\||(?<![>&])&(?![>&])|\r?\n/;
 
+// Heredoc bodies are data (commit messages, PR bodies), not commands. Observed while landing this
+// change (t/3695#28): a commit message and a PR body that MENTIONED `gh pr merge N --disable-auto`
+// were judged as merges. Drop every line between a `<<[-]['"]?WORD['"]?` opener and its `WORD`
+// terminator. Quoted single-line text (`-m "…gh pr merge 5…"`) is NOT stripped — a known residual.
+export function stripHeredocBodies(command) {
+  const lines = (command || '').split(/\r?\n/);
+  const out = [];
+  let term = null;
+  for (const line of lines) {
+    if (term !== null) {
+      if (line.trim() === term) term = null;
+      continue;
+    }
+    out.push(line);
+    const m = line.match(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/);
+    if (m) term = m[2];
+  }
+  return out.join('\n');
+}
+
 export function mergeClauses(command) {
-  const cmd = command || '';
+  const cmd = stripHeredocBodies(command);
   const re = new RegExp(GH_PR_MERGE_RE.source, 'g');
   const out = [];
   let m;

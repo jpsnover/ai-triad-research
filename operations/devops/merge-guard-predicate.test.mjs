@@ -18,6 +18,7 @@ import {
   mergeGuardVerdict,
   mergeClauses,
   mergeClauseVerdict,
+  stripHeredocBodies,
   parseMergeClause,
   jointGvAutoMergeVerdict,
   isAutoMergeCommand,
@@ -462,6 +463,19 @@ test('t/3695 clause split: the $(gh pr view …) head lookup is not a merge clau
   const c = 'gh pr merge 5 --squash --match-head-commit $(gh pr view 5 --json headRefOid -q .headRefOid)';
   assert.equal(mergeClauses(c).length, 1);
   assert.equal(mergeClauseVerdict(mergeClauses(c)[0]).reason, 'guarded');
+});
+
+test('t/3695 heredoc bodies are data: a merge MENTIONED in a commit message / PR body is not judged', () => {
+  const commit = "git commit -q -F - <<'EOF'\nfix: 9 blocks were gh pr merge N --disable-auto; also gh pr merge 5 --squash\nEOF\ngit push";
+  assert.equal(mergeGuardVerdict(commit).reason, 'not-a-merge');
+  const body = 'gh pr create --body-file - <<EOF\nThen run gh pr merge 7 --squash\nEOF';
+  assert.equal(mergeGuardVerdict(body).reason, 'not-a-merge');
+});
+
+test('t/3695 heredoc bodies: a REAL bare merge after the heredoc terminator is still judged → block', () => {
+  const c = "cat > f <<'EOF'\nnotes\nEOF\ngh pr merge 7 --squash";
+  assert.equal(mergeGuardVerdict(c).block, true);
+  assert.equal(stripHeredocBodies("a <<-X\nbody\n  X\nb"), 'a <<-X\nb');
 });
 
 test('t/3695 parseMergeClause: prRef (number / pull URL / none) and repo (-R / --repo / --repo= / none)', () => {
