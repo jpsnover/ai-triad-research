@@ -291,6 +291,17 @@ export interface TaxonomyGapAnalysis {
   summary: GapSummary;
 }
 
+/** How a seat's POV tag selects POV items (t/3955; spec §4). `scope` = only items carrying the tag
+ *  (untagged items are excluded); `prioritize` = tagged items get a ranking boost. */
+export type TagMode = 'scope' | 'prioritize';
+
+/** One seat's POV tag. `tag_mode` is required whenever a tag is set: there is no default mode. */
+export interface SeatTag {
+  /** A tag id registered for this seat's POV in lib/debate/soul-docs/pov-tags.json. */
+  pov_tag: string;
+  tag_mode: TagMode;
+}
+
 export interface DebateSession {
   id: string;
   /** Execution run — regenerated each time the debate loop starts or resumes. */
@@ -366,6 +377,9 @@ export interface DebateSession {
   protocol_id?: string;
   /** Exclude greatest-hits (retread) nodes from selection for this debate (t/1438). Absent ⇒ false. */
   exclude_greatest_hits?: boolean;
+  /** Per-seat POV tag (t/3955; spec §2.3). Absent, or no entry for a seat ⇒ that seat is untagged, so every
+   *  existing saved debate loads unchanged. One map beside `active_povers` rather than parallel optionals. */
+  seat_tags?: Partial<Record<SpeakerId, SeatTag>>;
   /** Moderator voices each camp's story before the openings (h3). Absent ⇒ false. */
   narrative_voicing_enabled?: boolean;
   /** Result of the h3 narrative voicing. Absent when disabled or when generation failed. */

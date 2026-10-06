@@ -192,6 +192,10 @@ export interface PovNode {
   description_history?: TextHistoryEntry[];
   /** Last 5 modifications to this node (FIFO). */
   change_history?: ChangeHistoryEntry[];
+  /** POV tags (t/3955): ids from this node's own POV in lib/debate/soul-docs/pov-tags.json. Curated,
+   *  editor-owned. Absent or empty = untagged, which means EXCLUDED under a tag in Scope mode. Validate
+   *  with validatePovTags (lib/schema/povTags.ts). Always an array; never a bare string. */
+  pov_tags?: string[];
   /** Auto-generated plain-language version of description (display-only, never sent to debate prompts). */
   plain_description?: string | null;
   /** Model+prompt version string (e.g., "flash-lite:v1") for staleness detection. */

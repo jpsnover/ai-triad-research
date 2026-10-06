@@ -1582,6 +1582,45 @@ describe('useTaxonomyStore', () => {
       });
     });
 
+    // t/3955 (TL t/3955#4 cond 2): a tagged node survives each editor write path with its tags still an
+    // ARRAY. One-element arrays on purpose: that is the common case and where an unroll would show.
+    // Validation is mocked in this harness, so these test the write paths, not the tag rules.
+    describe('pov_tags round-trip (t/3955)', () => {
+      const tagged = () => makePovNode({ id: 'acc-beliefs-001', pov_tags: ['critical'] });
+      const savedNode = (id: string) => {
+        const [, f] = mockApi.saveTaxonomyFile.mock.calls.find(([pov]) => pov === 'accelerationist')!;
+        return (f as PovTaxonomyFile).nodes.find((n) => n.id === id)!;
+      };
+
+      it('survives save() unchanged, through the logical_form reattach step', async () => {
+        mockApi.loadTaxonomyFile.mockImplementation((pov: string) =>
+          pov === 'accelerationist' ? Promise.resolve(makePovFile([tagged()])) : Promise.resolve({ nodes: [] }),
+        );
+        useTaxonomyStore.setState({ accelerationist: makePovFile([tagged()]), dirty: new Set(['accelerationist']) });
+        await useTaxonomyStore.getState().save();
+        expect(savedNode('acc-beliefs-001').pov_tags).toEqual(['critical']);
+      });
+
+      it('survives updatePovNode (an unrelated field edit) and the following save()', async () => {
+        useTaxonomyStore.setState({ accelerationist: makePovFile([tagged()]) });
+        useTaxonomyStore.getState().updatePovNode('accelerationist', 'acc-beliefs-001', { label: 'Renamed' });
+        const node = useTaxonomyStore.getState().accelerationist!.nodes[0];
+        expect(node.label).toBe('Renamed');
+        expect(node.pov_tags).toEqual(['critical']);
+        await useTaxonomyStore.getState().save();
+        expect(savedNode('acc-beliefs-001').pov_tags).toEqual(['critical']);
+      });
+
+      it('survives movePovNodeCategory (same POV, new id)', () => {
+        useTaxonomyStore.setState({ accelerationist: makePovFile([tagged()]) });
+        const newId = useTaxonomyStore.getState().movePovNodeCategory('accelerationist', 'acc-beliefs-001', 'Desires');
+        expect(newId).toBeTruthy();
+        const moved = useTaxonomyStore.getState().accelerationist!.nodes.find((n) => n.id === newId)!;
+        expect(moved.pov_tags).toEqual(['critical']);
+        expect(Array.isArray(moved.pov_tags)).toBe(true);
+      });
+    });
+
     // t/2064: the post-save embedding refresh reports { staleNodeIds }; surface degradation
     // via the embeddingsStale store flag (NOT saveError — the durable save already succeeded),
     // instead of the old fire-and-forget swallow. The refresh is non-blocking, so flush a tick.
