@@ -179,7 +179,9 @@ function Measure-TaxonomyBaseline {
     }
 
     $AllKPPer1K = @($DensityRecords | Where-Object { $_.WordCount -gt 0 } | ForEach-Object { $_.KPPer1K })
-    $SortedKP = $AllKPPer1K | Sort-Object
+    # @() wrap: piping an empty array through Sort-Object yields $null, and $null.Count throws under
+    # StrictMode (t/3998) — hit when every doc in the (-SampleDocIds-filtered) set has zero word count.
+    $SortedKP = @($AllKPPer1K | Sort-Object)
 
     $DensityMetrics = [ordered]@{
         doc_count            = $Summaries.Count
@@ -341,7 +343,7 @@ function Measure-TaxonomyBaseline {
         }
     }
 
-    $SortedDesc = $DescLengths | Sort-Object
+    $SortedDesc = @($DescLengths | Sort-Object)   # @(): same empty→$null StrictMode trap as $SortedKP (t/3998)
 
     $DescriptionMetrics = [ordered]@{
         total_nodes                 = $AllNodes.Count
