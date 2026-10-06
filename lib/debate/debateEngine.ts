@@ -83,7 +83,6 @@ import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from
 import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
 import { DEFAULT_AI_TIMEOUT_MS, DEFAULT_RELEVANCE_THRESHOLD } from './constants.js';
 import { CLAIM_VERIFY_SETTLE_TIMEOUT_MS, EVALUATOR_TEMPERATURE, SUMMARIZATION_TEMPERATURE, SUMMARIZATION_MAX_TOKENS, SUMMARIZATION_TIMEOUT_MS, TAG_SCOPE_MINIMUM_NODES } from './debateConfig.js';
-import { resolvePoverInfo } from './soulDocLoader.js';
 import type { SoulProvenance } from './soulDocSchema.js';
 import { checkTagScope } from './relevanceSelection.js';
 import { computeStrategicHints } from './strategicHints.js';
@@ -434,9 +433,10 @@ export class DebateEngine {
     this.config.background = await resolveBackground(this.config.background);
 
     // ── Soul resolution: resolve once per seat before initSession() (t/4007) ──
-    // Tagged seats: pre-flight checkTagScope (groundable count) then resolvePoverInfo (no catch — ActionableError propagates).
-    // Untagged seats: resolvePoverInfo returns POVER_INFO[speaker] with base-soul provenance.
+    // Tagged seats: pre-flight checkTagScope (groundable count) then soulResolver (no catch — ActionableError propagates).
+    // Untagged seats: soulResolver returns POVER_INFO[speaker] with base-soul provenance.
     // Both go into _resolvedSouls / _soulProvenance which initSession() stamps onto session.soul_provenance.
+    // soulResolver is runtime-injected (t/3975): cli/server pass soulDocLoader, renderer passes tagSoulRegistry.
     {
       const resolvedSouls: Partial<Record<string, PovInfo>> = {};
       const soulProv: Partial<Record<string, SoulProvenance>> = {};
@@ -462,13 +462,27 @@ export class DebateEngine {
               });
             }
           }
+          if (!this.config.soulResolver) {
+            throw new ActionableError({
+              goal: `Start tagged debate (${poverId}/${tagSelection.tag})`,
+              problem: 'No soulResolver provided in DebateConfig — tagged debates require a runtime soul resolver.',
+              location: 'DebateEngine.run() › soul resolution pre-flight',
+              nextSteps: [
+                'Pass soulResolver: resolvePoverInfo from soulDocLoader (Node) or tagSoulRegistry (browser) in DebateConfig.',
+              ],
+            });
+          }
         }
-        const { soul, soulProvenance: provenance } = resolvePoverInfo(
-          poverId as Exclude<SpeakerId, 'user'>,
-          tagSelection,
-        );
-        resolvedSouls[poverId] = soul;
-        soulProv[poverId] = { file: provenance.file, sha: provenance.sha };
+        if (this.config.soulResolver) {
+          const { soul, soulProvenance: provenance } = this.config.soulResolver(
+            poverId as Exclude<SpeakerId, 'user'>,
+            tagSelection,
+          );
+          resolvedSouls[poverId] = soul;
+          soulProv[poverId] = { file: provenance.file, sha: provenance.sha };
+        } else {
+          resolvedSouls[poverId] = POVER_INFO[poverId as keyof typeof POVER_INFO];
+        }
       }
       this._resolvedSouls = resolvedSouls;
       this._soulProvenance = soulProv;

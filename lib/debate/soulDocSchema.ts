@@ -36,10 +36,41 @@ export const SoulDocumentSchema = z.object({
 
 export type SoulDocument = z.infer<typeof SoulDocumentSchema>;
 
-/** Serializable provenance for a resolved soul file (first 16 hex digits of SHA-256 of file content). */
+/**
+ * FNV-1a 32-bit × 2 hash of raw soul file text → 16 hex chars.
+ * Browser-safe (no node:crypto). Used by both loaders for parity (t/4007 condition #3).
+ */
+export function soulDocHash(raw: string): string {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x04c11db7;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw.charCodeAt(i);
+    h1 ^= c;
+    h1 = Math.imul(h1, 0x01000193) >>> 0;
+    h2 ^= c;
+    h2 = Math.imul(h2, 0x04c11db7) >>> 0;
+  }
+  return h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
+}
+
+/** Serializable provenance for a resolved soul file. */
 export interface SoulProvenance {
-  /** Absolute path to the soul file. */
+  /** Path relative to soul-docs/ (e.g. "skeptic.soul.json" or "skeptic.critical.soul.json"). */
   file: string;
-  /** First 16 hex digits of the SHA-256 of the file content at load time. */
+  /** 16 hex chars from soulDocHash() of the raw file text at load time. */
   sha: string;
 }
+
+import type { PovInfo, SpeakerId } from './types.js';
+import type { TagSelection } from './types/session.js';
+
+/**
+ * Runtime-injected soul resolver. Each entry point passes its own:
+ * - cli/server/Electron main → soulDocLoader.resolvePoverInfo
+ * - Electron renderer / web → tagSoulRegistry.resolvePoverInfo
+ * Shared lib/debate code (debateEngine.ts, etc.) must not import the loaders directly (t/3975).
+ */
+export type SoulResolverFn = (
+  speaker: Exclude<SpeakerId, 'user'>,
+  tagSelection?: TagSelection,
+) => { soul: PovInfo; soulProvenance: SoulProvenance };

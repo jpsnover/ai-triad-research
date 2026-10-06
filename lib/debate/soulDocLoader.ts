@@ -2,10 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { readFileSync } from 'fs';
-import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { SoulDocumentSchema, type SoulDocument, type SoulProvenance } from './soulDocSchema.js';
+import { SoulDocumentSchema, soulDocHash, type SoulDocument, type SoulProvenance } from './soulDocSchema.js';
 export type { SoulProvenance } from './soulDocSchema.js';
 import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
@@ -102,8 +101,8 @@ export function loadSoulDocuments(): Map<CharacterId, SoulDocument> {
 
     docs.set(pov, result.data);
     _provenanceCache.set(pov, {
-      file: filePath,
-      sha: createHash('sha256').update(raw).digest('hex').slice(0, 16),
+      file: `soul-docs/${pov}.soul.json`,
+      sha: soulDocHash(raw),
     });
   }
 
@@ -183,8 +182,8 @@ function loadTagSoulDocument(pov: CharacterId, tag: string): SoulDocument {
 
   _tagCache.set(cacheKey, result.data);
   _provenanceCache.set(cacheKey, {
-    file: filePath,
-    sha: createHash('sha256').update(raw).digest('hex').slice(0, 16),
+    file: `soul-docs/${tagSoulFileName(pov, tag)}`,
+    sha: soulDocHash(raw),
   });
   return result.data;
 }

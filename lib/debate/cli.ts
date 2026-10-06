@@ -23,6 +23,7 @@ import { FlightRecorder, getGlobalRecorder, setGlobalRecorder, RECORDER_CAPACITY
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters.js';
 import { ActionableError } from './errors.js';
 import { runExploreFirstPipeline } from './explorationPreset.js';
+import { resolvePoverInfo } from './soulDocLoader.js';
 import { safeSerialize, atomicWriteSync, sweepOrphanedTempFiles } from './persistence.js';
 import { recordLockHolder } from './lockHolder.js';
 import { computeQualityScore } from './qualityScore.js';
@@ -413,6 +414,7 @@ async function main(): Promise<void> {
 
   // Build engine config
   const engineConfig: DebateConfig = {
+    soulResolver: resolvePoverInfo,
     topic,
     name: config.name,
     sourceType,
@@ -732,6 +734,7 @@ async function runCiGolden(): Promise<void> {
       const qualityFloor = config.quality_floor ?? 30;
 
       const engineConfig: DebateConfig = {
+        soulResolver: resolvePoverInfo,
         topic: config.topic ?? '',
         sourceType: 'topic',
         sourceRef: '',
