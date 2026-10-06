@@ -72,26 +72,41 @@ module.exports = {
     // soulDocLoader reads souls with fs/node:crypto; in the renderer bundle those are stubbed and the
     // first tagged lookup throws at runtime (tsc can't see it). tagSoulRegistry uses import.meta.glob,
     // which exists only under Vite, so it throws in tsx/tsc-built Node. Importing the wrong one compiles.
+    // `reachable: true`: the hazardous edge is TRANSITIVE. A shared lib/debate module that every runtime
+    // imports carries its loader into all of them, so a direct-edge rule would stay silent (SO e/250#3).
     {
       name: 'renderer-not-to-soulDocLoader',
-      comment: 'The renderer must resolve souls via lib/debate/tagSoulRegistry (browser-safe), not soulDocLoader (fs/node:crypto) — t/3975.',
+      comment: 'Nothing the renderer reaches, at any depth, may import lib/debate/soulDocLoader (fs/node:crypto); use tagSoulRegistry — t/3975.',
       severity: 'error',
       from: { path: '(^|/)src/renderer/' },
-      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]soulDocLoader\\.(ts|js)$' },
+      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]soulDocLoader\\.(ts|js)$', reachable: true },
     },
     {
       name: 'main-not-to-tagSoulRegistry',
-      comment: 'Electron main runs under Node, where import.meta.glob does not exist — use lib/debate/soulDocLoader (t/3975).',
+      comment: 'Nothing Electron main reaches may import lib/debate/tagSoulRegistry: import.meta.glob does not exist under Node — t/3975.',
       severity: 'error',
       from: { path: '(^|/)src/main/' },
-      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]tagSoulRegistry\\.(ts|js)$' },
+      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]tagSoulRegistry\\.(ts|js)$', reachable: true },
     },
     {
       name: 'server-not-to-tagSoulRegistry',
-      comment: 'The server runs under Node, where import.meta.glob does not exist — use lib/debate/soulDocLoader (t/3975).',
+      comment: 'Nothing the server reaches may import lib/debate/tagSoulRegistry: import.meta.glob does not exist under Node — t/3975.',
       severity: 'error',
       from: { path: '(^|/)src/server/' },
-      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]tagSoulRegistry\\.(ts|js)$' },
+      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]tagSoulRegistry\\.(ts|js)$', reachable: true },
+    },
+    {
+      // The edge itself (SO e/250#3 condition 1): shared debate code is imported by every runtime, so it must
+      // not pick a loader. It takes the resolver from its caller; each runtime's entry point chooses. Exempt:
+      // the two loaders, tests, and the Node CLI entry point.
+      name: 'lib-debate-not-to-soul-loaders',
+      comment: 'Shared lib/debate code must not import soulDocLoader or tagSoulRegistry; the runtime entry point injects the resolver — t/3975.',
+      severity: 'error',
+      from: {
+        path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/]',
+        pathNot: '(^|[\\\\/])lib[\\\\/]debate[\\\\/](soulDocLoader|tagSoulRegistry|cli)\\.(ts|js)$|\\.test\\.(ts|tsx)$|[\\\\/]__tests__[\\\\/]',
+      },
+      to: { path: '(^|[\\\\/])lib[\\\\/]debate[\\\\/](soulDocLoader|tagSoulRegistry)\\.(ts|js)$' },
     },
   ],
   options: {
