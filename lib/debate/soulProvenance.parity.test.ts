@@ -37,10 +37,12 @@ describe('soul provenance parity — Node loader vs browser registry', () => {
     });
   }
 
-  it('all file fields are soul-docs-relative (no absolute paths)', () => {
+  it('all file fields are soul-docs-relative (no absolute paths, no directory prefix)', () => {
     for (const speaker of BASE_SPEAKERS) {
       const { soulProvenance } = nodeResolve(speaker);
-      expect(soulProvenance.file).toMatch(/^soul-docs\//);
+      // file is relative to soul-docs/ — just a basename, no directory prefix
+      expect(soulProvenance.file).toMatch(/\.soul\.json$/);
+      expect(soulProvenance.file).not.toMatch(/^soul-docs\//);
       expect(soulProvenance.file).not.toMatch(/^[A-Za-z]:\\/);
       expect(soulProvenance.file).not.toMatch(/^\//);
     }

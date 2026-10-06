@@ -20,12 +20,13 @@ export interface OpEdParams {
   tagSelection?: TagSelection;
 }
 
-/** Which soul file voiced a member (t/3960; CL t/3960#5). `file` is repo-relative; `sha` is the first
- *  16 hex digits of the file's SHA-256 at generation time. Internal provenance: EXCLUDED from the public
- *  share (TL e/254#4), the same class as `debateId`. */
+/** Which soul file voiced a member (t/3960; t/4007). `file` is soul-docs-relative (e.g. "skeptic.soul.json");
+ *  `hash` is "fnv1a64:" + 16 hex chars from soulDocHash(). Pre-t/4007 entries carry `sha` (first 16 hex of
+ *  SHA-256, no prefix) — the schema normalises both to `hash` on read. Internal provenance: EXCLUDED from
+ *  the public share (TL e/254#4), same class as `debateId`. */
 export interface OpEdSoulProvenance {
   file: string;
-  sha: string;
+  hash: string;
 }
 
 // ── Grounding reference (op-ed shape — node + editorial context) ──────────────

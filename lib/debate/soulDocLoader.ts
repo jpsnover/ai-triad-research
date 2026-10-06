@@ -4,7 +4,8 @@
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { SoulDocumentSchema, soulDocHash, type SoulDocument, type SoulProvenance } from './soulDocSchema.js';
+import { SoulDocumentSchema, buildSoulProvenance, type SoulDocument, type SoulProvenance } from './soulDocSchema.js';
+export type { SoulProvenance } from './soulDocSchema.js';
 import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { PovInfo, SpeakerId } from './types.js';
@@ -103,10 +104,7 @@ export function loadSoulDocuments(): Map<CharacterId, SoulDocument> {
     }
 
     docs.set(pov, result.data);
-    _provenanceCache.set(pov, {
-      file: `soul-docs/${pov}.soul.json`,
-      hash: soulDocHash(raw),
-    });
+    _provenanceCache.set(pov, buildSoulProvenance(`${pov}.soul.json`, raw));
   }
 
   _baseCache = docs;
@@ -184,10 +182,7 @@ function loadTagSoulDocument(pov: CharacterId, tag: string): SoulDocument {
   }
 
   _tagCache.set(cacheKey, result.data);
-  _provenanceCache.set(cacheKey, {
-    file: `soul-docs/${tagSoulFileName(pov, tag)}`,
-    hash: soulDocHash(raw),
-  });
+  _provenanceCache.set(cacheKey, buildSoulProvenance(tagSoulFileName(pov, tag), raw));
   return result.data;
 }
 
@@ -224,11 +219,19 @@ export function applyBaseIdentity(
 export function resolvePoverInfo(
   speaker: Exclude<SpeakerId, 'user'>,
   tagSelection?: TagSelection,
-): { soul: PovInfo; soulProvenance: SoulProvenanceNode } {
+): { soul: PovInfo; soulProvenance: SoulProvenanceNode | undefined } {
   if (!tagSelection) {
     loadSoulDocuments(); // ensure provenance cache is populated
-    const provenance = _provenanceCache.get(speaker) ?? { file: '(static-import)', hash: '' };
-    return { soul: POVER_INFO[speaker], soulProvenance: provenance as SoulProvenanceNode };
+    const provenance = _provenanceCache.get(speaker);
+    if (!provenance) {
+      getGlobalRecorder()?.record({
+        type: 'system.info',
+        component: 'soulDocLoader',
+        level: 'warn',
+        message: `Soul provenance unavailable for ${speaker} — base soul loaded from static import, not from file. soul_provenance will be absent for this seat.`,
+      });
+    }
+    return { soul: POVER_INFO[speaker], soulProvenance: provenance as SoulProvenanceNode | undefined };
   }
 
   const tagDoc = loadTagSoulDocument(speaker, tagSelection.tag);

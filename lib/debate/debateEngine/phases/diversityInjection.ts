@@ -117,6 +117,7 @@ export async function runDiversityRound(engine: DebateEngineInternals, round: nu
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
+      soul: info,
       personality: info.personality,
       // t/4007: the stage prompts now require the resolved soul (no POVER_INFO fallback).
       soul: info,

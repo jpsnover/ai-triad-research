@@ -39,6 +39,7 @@ function makeBaseInput(overrides?: Partial<TurnPipelineInput>): TurnPipelineInpu
   return {
     label: 'Accelerationist',
     pov: 'accelerationist',
+    soul: POVER_INFO['accelerationist'],
     personality: 'Bold',
     soul: POVER_INFO.accelerationist,
     topic: 'AI governance',

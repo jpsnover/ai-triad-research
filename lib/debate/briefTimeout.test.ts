@@ -12,6 +12,7 @@ import { POVER_INFO } from './types.js';
 const INPUT: OpeningPipelineInput = {
   label: 'Accelerationist',
   pov: 'acc',
+  soul: POVER_INFO['accelerationist'],
   personality: 'optimist',
   soul: POVER_INFO.accelerationist,
   topic: 'Is AI good?',

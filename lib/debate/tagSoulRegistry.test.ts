@@ -15,12 +15,12 @@ describe('resolvePoverInfo (no tagSelection)', () => {
 
   it('returns soulProvenance with expected file path', () => {
     const { soulProvenance } = resolvePoverInfo('safetyist');
-    expect(soulProvenance.file).toBe('soul-docs/safetyist.soul.json');
+    expect(soulProvenance.file).toBe('safetyist.soul.json');
   });
 
-  it('returns soulProvenance hash as 16 hex chars', () => {
+  it('returns soulProvenance hash as fnv1a64 prefixed hex', () => {
     const { soulProvenance } = resolvePoverInfo('skeptic');
-    expect(soulProvenance.hash).toMatch(/^[0-9a-f]{16}$/);
+    expect(soulProvenance.hash).toMatch(/^fnv1a64:[0-9a-f]{16}$/);
   });
 
   it('hash is deterministic across calls', () => {

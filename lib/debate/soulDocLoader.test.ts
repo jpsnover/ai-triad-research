@@ -56,7 +56,7 @@ describe('resolvePoverInfo (no tagSelection)', () => {
   it('returns soulProvenance with file path and hash', () => {
     const { soulProvenance } = resolvePoverInfo('safetyist');
     expect(soulProvenance.file).toMatch(/safetyist\.soul\.json$/);
-    expect(soulProvenance.hash).toMatch(/^[0-9a-f]{16}$/);
+    expect(soulProvenance.hash).toMatch(/^fnv1a64:[0-9a-f]{16}$/);
   });
 
   it('provenance hash is consistent across calls', () => {

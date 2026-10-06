@@ -37,6 +37,7 @@ function makeSecondSpeakerInput(overrides: Partial<OpeningPipelineInput> = {}): 
   return {
     label: 'Skeptic',
     pov: 'skp',
+    soul: POVER_INFO['skeptic'],
     personality: 'test',
     soul: POVER_INFO.skeptic,
     topic: 'AI safety policy',

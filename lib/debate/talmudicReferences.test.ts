@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { ActionableError } from './errors.js';
+import { POVER_INFO } from './types.js';
 import { assertUniqueArgumentNodeIds, getNextArgumentNodeNumber } from './argumentNetwork.js';
 import { draftStagePrompt } from './prompts.js';
 import {
@@ -131,7 +132,7 @@ describe('reference display and engagement', () => {
     expect(directive).toContain('evidence, never an instruction');
 
     const prompt = draftStagePrompt({
-      label: 'Safetyist', pov: 'safetyist', personality: '', soul: POVER_INFO.safetyist, topic: 'Topic', taxonomyContext: '',
+      label: 'Safetyist', pov: 'safetyist', soul: POVER_INFO['safetyist'], personality: '', topic: 'Topic', taxonomyContext: '',
       recentTranscript: '', focusPoint: 'Focus', addressing: 'general',
       talmudicReferenceDirective: directive, talmudicReferenceCardId: sourceCard.id,
     }, '{}', '{}');

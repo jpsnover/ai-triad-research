@@ -187,6 +187,7 @@ describe('selectGreedyClaims', () => {
 describe('runOvergenPipeline', () => {
   const pipelineInput: OvergenPipelineInput = {
     speaker: 'accelerationist',
+    soul: POVER_INFO['accelerationist'],
     existingNodes: [
       makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.6 }),
       makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.5 }),

@@ -62,7 +62,9 @@ export function resolveSouls(
         tagSelection,
       );
       resolvedSouls[poverId] = soul;
-      soulProv[poverId] = { file: provenance.file, hash: provenance.hash };
+      if (provenance) {
+        soulProv[poverId] = { file: provenance.file, hash: provenance.hash };
+      }
     } else {
       resolvedSouls[poverId] = POVER_INFO[poverId as keyof typeof POVER_INFO];
       getGlobalRecorder()?.record({

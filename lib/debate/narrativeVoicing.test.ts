@@ -105,6 +105,7 @@ describe('opening prompt injection', () => {
   const base: OpeningStagePromptInput = {
     label: 'Safetyist', pov: 'safetyist', personality: '', soul: POVER_INFO.safetyist, topic: 'T',
     taxonomyContext: 'CTX', priorStatements: '', isFirst: true,
+    soul: POVER_INFO['safetyist'],
   };
   const block = '\n=== MODERATOR\'S OPENING: EACH CAMP\'S STORY ===\nBLOCK';
 

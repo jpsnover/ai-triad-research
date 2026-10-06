@@ -20,6 +20,7 @@ function makeInput(overrides: Partial<OpeningPipelineInput> = {}): OpeningPipeli
   return {
     label: 'TestAgent',
     pov: 'acc',
+    soul: POVER_INFO['accelerationist'],
     personality: 'test',
     soul: POVER_INFO.accelerationist,
     topic: 'test topic',

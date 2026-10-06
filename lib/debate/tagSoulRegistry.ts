@@ -8,7 +8,7 @@
 import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { POVER_INFO } from './poverInfo.js';
-import { SoulDocumentSchema, soulDocHash } from './soulDocSchema.js';
+import { SoulDocumentSchema, buildSoulProvenance } from './soulDocSchema.js';
 import type { SoulProvenance } from './soulDocSchema.js';
 import { tagSoulFileName } from '../schema/povTags.js';
 
@@ -64,17 +64,23 @@ function getTagSoulFromRegistry(pov: string, tag: string): { soul: PovInfo; raw:
 export function resolvePoverInfo(
   speaker: Exclude<SpeakerId, 'user'>,
   tagSelection?: TagSelection,
-): { soul: PovInfo; soulProvenance: SoulProvenanceBrowser } {
+): { soul: PovInfo; soulProvenance: SoulProvenanceBrowser | undefined } {
   if (!tagSelection) {
     const soul = POVER_INFO[speaker];
     const baseKey = `./soul-docs/${speaker}.soul.json`;
     const raw = ALL_SOUL_RAW[baseKey];
+    if (raw === undefined) {
+      getGlobalRecorder()?.record({
+        type: 'system.info',
+        component: 'tagSoulRegistry',
+        level: 'warn',
+        message: `Soul provenance unavailable for ${speaker} — raw soul file not in Vite glob bundle. soul_provenance will be absent for this seat.`,
+      });
+      return { soul, soulProvenance: undefined };
+    }
     return {
       soul,
-      soulProvenance: {
-        file: `soul-docs/${speaker}.soul.json`,
-        hash: raw !== undefined ? soulDocHash(raw) : soulDocHash(JSON.stringify(soul)),
-      } as SoulProvenanceBrowser,
+      soulProvenance: buildSoulProvenance(`${speaker}.soul.json`, raw) as SoulProvenanceBrowser,
     };
   }
   const { soul: tagSoul, raw } = getTagSoulFromRegistry(speaker, tagSelection.tag);
@@ -83,9 +89,6 @@ export function resolvePoverInfo(
   const soul: PovInfo = { ...tagSoul, label: baseSoul.label, pov: baseSoul.pov };
   return {
     soul,
-    soulProvenance: {
-      file: `soul-docs/${tagSoulFileName(speaker, tagSelection.tag)}`,
-      hash: soulDocHash(raw),
-    } as SoulProvenanceBrowser,
+    soulProvenance: buildSoulProvenance(tagSoulFileName(speaker, tagSelection.tag), raw) as SoulProvenanceBrowser,
   };
 }
