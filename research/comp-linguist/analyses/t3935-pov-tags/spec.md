@@ -231,6 +231,40 @@ The work ships as independent PRs to `main`, sequenced with `blocks` relations, 
    - two annotators validate them on a sample, reporting counts and prevalence, with no κ on fewer than five positives (t/3587);
    - an editor reviews them in the taxonomy editor;
    - a /data-mutation write lands them, with PI authorization.
+
+   **How proposals reach the editor (t/3961 ↔ t/3962, p/4#108).** Proposals go in a **side file**, never straight into `pov_tags`. A direct write would put unreviewed LLM tags on data `main`, where Scope-mode debates select on them at once. That would skip both the review and the authorization that this step requires.
+   - **The file:** `taxonomy/Origin/pov-tag-proposals.json` in the data repo, written by t/3962. Nothing reads it for selection, so committing it is safe before review.
+   - **Review records decisions in the file only.** The t/3961 queue sets each item's `status` and `final`. It does not touch `pov_tags`.
+   - **The write:** the accepted and modified items, frozen, are applied in one batch by the t/3969 writer under /data-mutation, with PI authorization. That batch is the only `pov_tags` write.
+   - **Why the review doesn't write directly:** the authorized write stays one frozen list with a 0-collateral proof, rather than 372 separate editor saves.
+
+   ```json
+   {
+     "version": 1,
+     "registry_version": 1,
+     "run": { "ticket": "t/3962", "model": "<model id>", "prompt_version": "<v>", "created_at": "<ISO 8601>" },
+     "proposals": [
+       {
+         "node_id": "skp-beliefs-001",
+         "proposed": ["critical"],
+         "confidence": 0.82,
+         "rationale": "<one or two sentences>",
+         "status": "pending",
+         "final": null,
+         "reviewed_by": null,
+         "reviewed_at": null
+       }
+     ]
+   }
+   ```
+
+   **Field rules:**
+   - `proposed` and `final` are arrays of registry tag ids, validated by `validatePovTags` for the node's POV.
+     - `[]` means "untagged on purpose". The node then goes on the intentionally-untagged list (§2.3b).
+     - `final` is `null` until the item is reviewed.
+   - `status` is one of `pending`, `accepted` (`final` = `proposed`), `modified` (`final` ≠ `proposed`) or `rejected` (`final` = `[]`).
+   - `confidence` is the model's own score. It orders the queue (lowest first) and does not decide anything. Provenance class: stipulated.
+   - The queue is complete when no item is `pending`. Only then can the frozen list be built.
 5. **Pilot debates** (t/3963). Paired runs at n ≥ 10 per arm (replication gate): no tag, each tag under Scope and under Prioritize, and **old versus new umbrella on untagged debates**. Tune the boost.
 
 ## 8. Gates
