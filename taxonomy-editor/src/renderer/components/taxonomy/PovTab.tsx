@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { filterByPovTag, povTagFilterOptions, type PovTagFilter } from '../../utils/povTagFilter';
+import { PovTagFilterSelect } from './PovTagFilterSelect';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useMobileNav } from '../../hooks/useMobileNav';
@@ -468,6 +470,10 @@ export function PovTab({ pov }: PovTabProps) {
   const [sortMode, setSortMode] = useState<SortMode>('label');
   const [dtTierFilter, setDtTierFilter] = useState<DebateTestedTier | 'all'>('all');
   const [dtStaleOnly, setDtStaleOnly] = useState(false);
+  // t/3961: POV-tag filter. Options come from the registry; the control hides when this POV has no tags.
+  const [tagFilter, setTagFilter] = useState<PovTagFilter>('all');
+  const tagFilterOptions = useMemo(() => povTagFilterOptions(pov), [pov]);
+  useEffect(() => { setTagFilter('all'); }, [pov]);
   const [staleNodeIds, setStaleNodeIds] = useState<Set<string>>(new Set());
   const isDtSort = sortMode === 'debate_tested' || sortMode === 'debate_tested_desc';
 
@@ -499,8 +505,9 @@ export function PovTab({ pov }: PovTabProps) {
   }, [isDtSort, file]);
 
   const filteredNodes = useMemo(() => {
-    if (!isDtSort || !file) return file?.nodes ?? [];
-    let nodes = file.nodes;
+    const tagged = filterByPovTag(file?.nodes ?? [], tagFilter);
+    if (!isDtSort || !file) return tagged;
+    let nodes = tagged;
     if (dtTierFilter !== 'all') {
       nodes = nodes.filter(n => (n.graph_attributes?.debate_tested?.tier ?? 'untested') === dtTierFilter);
     }
@@ -508,7 +515,7 @@ export function PovTab({ pov }: PovTabProps) {
       nodes = nodes.filter(n => staleNodeIds.has(n.id));
     }
     return nodes;
-  }, [isDtSort, file, dtTierFilter, dtStaleOnly, staleNodeIds]);
+  }, [isDtSort, file, tagFilter, dtTierFilter, dtStaleOnly, staleNodeIds]);
 
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
@@ -829,6 +836,7 @@ export function PovTab({ pov }: PovTabProps) {
                 <option value="debate_tested">Sort: Debate-Tested (least)</option>
                 <option value="debate_tested_desc">Sort: Debate-Tested (most)</option>
               </select>
+              <PovTagFilterSelect options={tagFilterOptions} value={tagFilter} onChange={setTagFilter} />
               <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
             </div>
           </div>
