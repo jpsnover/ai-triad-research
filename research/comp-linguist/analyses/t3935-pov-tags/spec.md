@@ -176,6 +176,13 @@ The `skeptic.institutional.soul.json` is the t/3932 Institutionalist draft. Its 
   - **Status (2026-10-06):** this is a requirement, not yet code. No caller of `checkTagScope` exists on `main` yet; each ticket above owes its pre-flight call and a test of the refusing arm.
   - **PowerShell op-ed** (`New-OpEd.ps1`) **rejects any tag outright** (t/3960#8), so there is no second filter implementation to keep in sync with this rule.
 - **PRIORITIZE:** tagged items get a ranking boost; nothing is excluded.
+  - **A tag no node carries is refused in both modes, at pre-flight, in every feature** (CL ruling, p/736#28–#30).
+    - In Scope, the floor already covers it, since 0 < 5.
+    - In Prioritize there is no floor, because nothing is excluded, so the rule is exactly `included === 0`.
+    - **Why:** with no tagged node, Prioritize changes nothing in grounding. Its only effects are the wing's soul and the wing's label, so a whole-camp answer would be presented as one wing's. That is the misattribution the scope labels exist to prevent.
+    - Prioritize with **one or more** tagged nodes is valid.
+  - **This rule is permanent,** not only while the corpus is untagged (0 of 1,429 nodes on 2026-10-06, before t/3962). A tag can return to zero later, when nodes are re-tagged, merged or retired.
+  - **Where it lives:** op-ed, #2885 (done); Inquiry, t/3965#13; debate and chat setup, t/3958 and t/3959. Each needs a test of the refusing arm.
 - **Non-POV items.** Situations, cruxes and conflicts are selected as today for that POV under either mode.
 - **Pickers hide** for a POV whose registry entry has no tags.
 
