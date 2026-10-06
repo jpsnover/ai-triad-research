@@ -18,7 +18,7 @@ import { getStorageUserId, isAnonymousUser, runWithUser, type UserContext } from
 import { getUserContentBackend, assertSafeId, isSafeId, readTaxonomyFile } from './fileIO.js';
 import { loadOpedSet } from './opedStore.js';
 import { log } from '../logger.js';
-import { AppliedTagSchema, loadPovTagRegistry, type TagMode } from '../../../../lib/schema/povTags.js';
+import { AppliedTagSchema, type TagMode } from '../../../../lib/schema/povTags.js';
 
 // t/3488 (SO-fixed contract t/3487#1, TL amendment t/3488#2): description excerpt
 // length cap, defined at the pick site per SO condition 1.
@@ -52,6 +52,10 @@ function shareRegistryPath(): string {
 // Only these fields ever reach the public copy at rest. Generation params (model,
 // prompts, thesis, authorBio, newsHook), grounding internals,
 // userId, and the storage set_id are all STRIPPED — never a spread/denylist.
+// `soul` is STRIPPED too (t/3990; TL e/254#4, t/3960#8): it records which soul file
+// voiced the member — an internal file path and hash, the same class as `debateId`
+// on the inquiry share. It identifies internals, not the essay, so a public reader
+// has no use for it and a prober would.
 export interface PublicOpEdMember {
   pov: string;
   status: string;
@@ -64,19 +68,18 @@ export interface PublicOpEdMember {
   tag?: PublicOpEdMemberTag;
 }
 /**
- * t/3990 (TL t/3960#3 cond 2): the tagged member's scope, so a public reader can tell a one-wing essay
- * from the whole camp's position — the same misattribution the community row guards (t/3991).
- * Named picks only; `label` is the wing name resolved from the tag registry (the public view has none).
- * `excludedUntagged` is carried ONLY in Scope mode: in Prioritize it is 0 by construction and would read
- * as "full coverage" (SO e/254#6 cond 3, APPLIED_TAG_COUNT_MEANING). `included` is not carried — no
- * reader shows it.
+ * t/3990 (SO e/254#6, mirroring e/252 cond 1): the tagged member's scope, so a Scope op-ed is not
+ * published as the whole camp's voice when it is one wing's. Copied by named field reads from the
+ * member's applied tag — never a spread. Count meanings per mode live on `AppliedTagSchema`
+ * (`APPLIED_TAG_COUNT_MEANING`): in Prioritize `excludedUntagged` is 0 by construction and means
+ * "this mode excludes nothing", NOT full coverage — readers show the exclusion count only for Scope.
  */
 export interface PublicOpEdMemberTag {
   pov: string;
   tag: string;
   mode: TagMode;
-  label: string;
-  excludedUntagged?: number;
+  included: number;
+  excludedUntagged: number;
 }
 // t/3488 (SO cond 1): explicit five-field pick, never `{...node}`. `pov`/`category`
 // come from the grounding ref (the citing voice's classification — situation
@@ -167,11 +170,10 @@ async function buildGroundingNodes(members: OpEdMember[]): Promise<Record<string
 }
 
 /**
- * t/3990: project a member's applied tag (if any) by named reads. Mirrors t/3991's community index
- * entry, with the same two WARNed fallbacks (fallback-path logging):
- *  - a tag the registry no longer lists keeps the tag with its id as the label — dropping it would
- *    present a one-wing essay as the whole camp's, the misattribution this field exists to prevent;
- *  - a malformed applied tag is omitted — there is nothing trustworthy to show.
+ * t/3990: project a member's applied tag (if any) by NAMED field reads — the stored `tag` is a
+ * passthrough-tolerant record, so a spread would carry any future field into the public copy.
+ * Validated with `AppliedTagSchema` first: a malformed tag is omitted with a WARN (fallback-path
+ * logging) — there is nothing trustworthy to show, and the member itself still projects.
  */
 function projectMemberTag(m: OpEdMember): PublicOpEdMemberTag | undefined {
   if (m.tag === undefined) return undefined;
@@ -181,19 +183,8 @@ function projectMemberTag(m: OpEdMember): PublicOpEdMemberTag | undefined {
       'malformed applied tag on an op-ed member — omitting it from the public projection (t/3990)');
     return undefined;
   }
-  const { pov, tag, mode, excludedUntagged } = parsed.data;
-  let label: string | undefined;
-  try {
-    label = loadPovTagRegistry().povs[pov]?.find(e => e.id === tag)?.label;
-  } catch (err) {
-    log.server.warn({ pov, tag, err, cause: 'oped-share-tag-registry-unreadable' },
-      'POV tag registry unreadable — labelling the public op-ed tag by its id (t/3990)');
-  }
-  if (label === undefined) {
-    log.server.warn({ pov, tag, cause: 'oped-share-tag-unlisted' },
-      'applied tag not in the POV tag registry — labelling it by its id in the public projection (t/3990)');
-  }
-  return { pov, tag, mode, label: label ?? tag, ...(mode === 'scope' ? { excludedUntagged } : {}) };
+  const { pov, tag, mode, included, excludedUntagged } = parsed.data;
+  return { pov, tag, mode, included, excludedUntagged };
 }
 
 /** Build the public projection by EXPLICIT field — never `{...set}` or a delete-keys denylist. */

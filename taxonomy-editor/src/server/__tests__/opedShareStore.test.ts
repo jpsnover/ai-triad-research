@@ -39,7 +39,6 @@ vi.mock('../storage/fileIO.js', async (importOriginal) => {
 
 import { projectPublicOpEd } from '../storage/opedShareStore.js';
 import type { OpEdSet } from '../../../../lib/oped/types.js';
-import { loadPovTagRegistry } from '../../../../lib/schema/povTags.js';
 
 const ACC_NODE = { id: 'acc-beliefs-095', label: 'Speed of iteration', description: 'A'.repeat(400), graph_attributes: {} };
 const SIT_NODE = { id: 'sit-004', label: 'Model release cadence', description: 'Short situation description.' };
@@ -305,41 +304,42 @@ describe('projectPublicOpEd — tagged member scope (t/3990)', () => {
     mockReadTaxonomyFile.mockImplementation((fileKey: string) => Promise.resolve(taxonomyFixture(fileKey)));
   });
 
-  function taggedSet(tag: unknown): OpEdSet {
-    return makeSet({ opeds: [{ ...makeSet().opeds[0], tag }] } as unknown as Partial<OpEdSet>);
+  const SOUL = { file: 'lib/debate/soul-docs/skeptic-critical.md', sha: '0123456789abcdef' };
+  function taggedSet(tag: unknown, extra: Record<string, unknown> = {}): OpEdSet {
+    return makeSet({ opeds: [{ ...makeSet().opeds[0], tag, ...extra }] } as unknown as Partial<OpEdSet>);
   }
-  const criticalLabel = () => loadPovTagRegistry().povs.skeptic?.find(e => e.id === 'critical')?.label;
 
-  it('Scope: carries EXACTLY { pov, tag, mode, label, excludedUntagged } with the registry wing label', async () => {
-    expect(criticalLabel()).toBeDefined(); // fixture guard: the committed registry lists skeptic.critical
+  it("a tagged member's tag appears in PublicOpEd with EXACTLY { pov, tag, mode, included, excludedUntagged }", async () => {
     const pub = await projectPublicOpEd(
       taggedSet({ pov: 'skeptic', tag: 'critical', mode: 'scope', included: 7, excludedUntagged: 31 }), 's');
-    expect(pub.opeds[0].tag).toEqual({ pov: 'skeptic', tag: 'critical', mode: 'scope', label: criticalLabel(), excludedUntagged: 31 });
+    expect(pub.opeds[0].tag).toEqual({ pov: 'skeptic', tag: 'critical', mode: 'scope', included: 7, excludedUntagged: 31 });
   });
 
-  it('Prioritize: carries NO exclusion count — its 0 would read as full coverage (SO e/254#6 cond 3)', async () => {
+  it('Prioritize keeps its counts verbatim (0 = "excludes nothing"; meaning lives on AppliedTagSchema)', async () => {
     const pub = await projectPublicOpEd(
       taggedSet({ pov: 'skeptic', tag: 'critical', mode: 'prioritize', included: 4, excludedUntagged: 0 }), 's');
-    expect(pub.opeds[0].tag).toEqual({ pov: 'skeptic', tag: 'critical', mode: 'prioritize', label: criticalLabel() });
-    expect(pub.opeds[0].tag).not.toHaveProperty('excludedUntagged');
+    expect(pub.opeds[0].tag).toEqual({ pov: 'skeptic', tag: 'critical', mode: 'prioritize', included: 4, excludedUntagged: 0 });
   });
 
-  it('never carries `included` (no reader shows it — positive allowlist)', async () => {
-    const pub = await projectPublicOpEd(
-      taggedSet({ pov: 'skeptic', tag: 'critical', mode: 'scope', included: 7, excludedUntagged: 31 }), 's');
-    expect(pub.opeds[0].tag).not.toHaveProperty('included');
+  it('copies the tag by NAMED reads — an unknown passthrough field on the stored tag never reaches the public copy', async () => {
+    const pub = await projectPublicOpEd(taggedSet(
+      { pov: 'skeptic', tag: 'critical', mode: 'scope', included: 7, excludedUntagged: 31, internalNote: 'PRIVATE-tag-extra' }), 's');
+    expect(Object.keys(pub.opeds[0].tag!).sort()).toEqual(['excludedUntagged', 'included', 'mode', 'pov', 'tag']);
+    expect(JSON.stringify(pub)).not.toContain('PRIVATE-tag-extra');
   });
 
-  it('an untagged member has no tag key at all', async () => {
+  it("the member's soul provenance never appears anywhere in the public projection", async () => {
+    const pub = await projectPublicOpEd(taggedSet(
+      { pov: 'skeptic', tag: 'critical', mode: 'scope', included: 7, excludedUntagged: 31 }, { soul: SOUL }), 's');
+    expect(pub.opeds[0]).not.toHaveProperty('soul');
+    const serialized = JSON.stringify(pub);
+    expect(serialized).not.toContain(SOUL.file);
+    expect(serialized).not.toContain(SOUL.sha);
+  });
+
+  it("an untagged set's projection has no tag key", async () => {
     const pub = await projectPublicOpEd(makeSet(), 's');
     expect(pub.opeds[0]).not.toHaveProperty('tag');
-  });
-
-  it('a tag retired from the registry is kept, labelled by its id, with a WARN — never dropped into a whole-camp essay', async () => {
-    const pub = await projectPublicOpEd(
-      taggedSet({ pov: 'skeptic', tag: 'retired-wing', mode: 'scope', included: 3, excludedUntagged: 5 }), 's');
-    expect(pub.opeds[0].tag).toEqual({ pov: 'skeptic', tag: 'retired-wing', mode: 'scope', label: 'retired-wing', excludedUntagged: 5 });
-    expect(serverWarn).toHaveBeenCalledWith(expect.objectContaining({ cause: 'oped-share-tag-unlisted' }), expect.any(String));
   });
 
   it('a malformed applied tag is omitted with a WARN, and the member still projects', async () => {
