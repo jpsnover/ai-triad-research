@@ -1,0 +1,384 @@
+C:\Users\jsnov\repos\ai-triad-research\.worktrees\t3962tp\research\comp-linguist\analyses\t3962-tag-proposals\propose_tags.py:66: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+skp-desires-003    ['critical']                       C3    0.85
+skp-beliefs-001    ['critical', 'institutional']      C0    0.85
+skp-beliefs-002    ['critical', 'institutional']      C0    0.90
+skp-beliefs-129    ['critical']                       C5    0.85
+skp-intentions-146 ['critical', 'institutional']      C4    0.85
+skp-beliefs-004    ['critical', 'institutional']      C0    0.85
+skp-beliefs-005    ['critical', 'institutional']      C0    0.85
+skp-beliefs-006    ['critical']                       C3    0.85
+skp-beliefs-007    ['critical', 'institutional']      C0    0.90
+skp-intentions-004 ['critical']                       C3    0.95
+skp-desires-005    ['critical']                       C3    0.95
+skp-beliefs-008    ['critical']                       C3    0.95
+skp-intentions-007 ['institutional']                  C2    0.90
+skp-intentions-008 ['institutional']                  C2    0.80
+skp-beliefs-009    ['critical', 'institutional']      C0    0.90
+skp-beliefs-122    ['critical', 'institutional']      C0    0.90
+skp-beliefs-011    ['critical', 'institutional']      C0    0.95
+skp-intentions-013 []                                 C0    0.90
+skp-intentions-014 ['critical']                       C3    0.85
+skp-intentions-017 ['critical', 'institutional']      C0    0.85
+skp-beliefs-123    ['critical', 'institutional']      C0    0.90
+skp-desires-006    ['critical']                       C4    0.85
+skp-beliefs-124    ['critical', 'institutional']      None  0.80
+skp-beliefs-014    ['critical', 'institutional']      C0    0.85
+skp-beliefs-125    ['critical', 'institutional']      C0    0.85
+skp-intentions-023 ['critical']                       C3    0.85
+skp-beliefs-017    ['critical', 'institutional']      C0    0.90
+skp-beliefs-131    ['critical', 'institutional']      C0    0.90
+skp-beliefs-018    ['critical', 'institutional']      C0    0.85
+skp-beliefs-019    ['critical', 'institutional']      C0    0.90
+skp-beliefs-132    ['critical', 'institutional']      C0    0.85
+skp-beliefs-133    ['institutional']                  C1    0.85
+skp-beliefs-021    ['institutional']                  C1    0.85
+skp-intentions-029 ['institutional']                  C2    0.80
+skp-beliefs-022    ['critical', 'institutional']      C0    0.85
+skp-beliefs-118    ['institutional']                  C3    0.85
+skp-beliefs-135    ['critical', 'institutional']      C0    0.90
+skp-beliefs-024    ['institutional']                  C3    0.80
+skp-beliefs-119    ['critical']                       C3    0.90
+skp-beliefs-127    ['critical']                       C2    0.90
+skp-beliefs-136    ['institutional']                  C1    0.85
+skp-intentions-034 ['critical']                       C2    0.90
+skp-intentions-035 ['critical']                       C3    0.90
+skp-desires-009    ['critical', 'institutional']      None  0.85
+skp-beliefs-026    ['critical', 'institutional']      C0    0.85
+skp-beliefs-027    ['critical', 'institutional']      C0    0.90
+skp-beliefs-137    ['critical']                       C1    0.85
+skp-intentions-143 ['institutional']                  C4    0.85
+skp-beliefs-028    ['critical', 'institutional']      C0    0.85
+skp-beliefs-120    ['critical']                       C3    0.80
+skp-beliefs-138    ['critical', 'institutional']      C0    0.80
+skp-beliefs-029    ['critical', 'institutional']      C0    0.85
+skp-intentions-040 ['institutional']                  C2    0.90
+skp-beliefs-030    ['critical']                       C1    0.85
+skp-beliefs-031    ['critical', 'institutional']      None  0.85
+skp-beliefs-139    ['critical']                       C3    0.85
+skp-desires-069    ['critical']                       C2    0.95
+skp-beliefs-032    ['critical']                       C1    0.85
+skp-desires-011    ['critical']                       C4    0.80
+skp-intentions-044 ['institutional']                  C2    0.85
+skp-beliefs-034    ['critical']                       C3    0.85
+skp-beliefs-035    ['critical', 'institutional']      C0    0.90
+skp-beliefs-140    ['institutional']                  C3    0.80
+skp-beliefs-141    ['critical']                       C3    0.85
+skp-beliefs-036    ['critical', 'institutional']      C0    0.85
+skp-beliefs-037    ['critical', 'institutional']      C0    0.85
+skp-beliefs-038    ['critical']                       C3    0.85
+skp-desires-070    ['institutional']                  C1    0.85
+skp-beliefs-121    ['critical']                       C3    0.85
+skp-beliefs-142    ['critical']                       C2    0.80
+skp-beliefs-143    ['institutional']                  C4    0.85
+skp-beliefs-144    ['critical', 'institutional']      C0    0.90
+skp-beliefs-040    ['critical', 'institutional']      C0    0.85
+skp-beliefs-145    ['critical', 'institutional']      C0    0.90
+skp-desires-014    ['critical', 'institutional']      C0    0.85
+skp-beliefs-041    ['critical', 'institutional']      C0    0.90
+skp-beliefs-042    ['critical', 'institutional']      C0    0.85
+skp-beliefs-043    ['critical', 'institutional']      C0    0.85
+skp-beliefs-044    ['critical']                       C5    0.85
+skp-beliefs-045    ['critical', 'institutional']      C0    0.85
+skp-beliefs-046    ['critical', 'institutional']      C0    0.90
+skp-beliefs-047    ['critical']                       C2    0.85
+skp-intentions-055 ['institutional']                  C4    0.90
+skp-beliefs-146    ['institutional']                  C1    0.80
+skp-beliefs-147    ['critical', 'institutional']      C0    0.85
+skp-desires-059    ['critical']                       C2    0.80
+skp-beliefs-148    ['critical']                       C3    0.85
+skp-beliefs-149    ['critical']                       C5    0.85
+skp-beliefs-150    ['critical']                       C2    0.80
+skp-beliefs-051    ['critical']                       C1    0.85
+skp-beliefs-052    ['critical', 'institutional']      C0    0.85
+skp-beliefs-053    ['critical', 'institutional']      C0    0.85
+skp-beliefs-054    ['critical']                       C3    0.85
+skp-beliefs-152    ['critical', 'institutional']      C0    0.90
+skp-beliefs-154    ['critical', 'institutional']      C0    0.90
+skp-intentions-065 ['institutional']                  C4    0.85
+skp-beliefs-056    ['critical', 'institutional']      C0    0.90
+skp-desires-073    ['institutional']                  C3    0.80
+skp-intentions-068 ['critical']                       C3    0.95
+skp-intentions-069 ['institutional']                  C2    0.80
+skp-beliefs-057    ['critical', 'institutional']      C0    0.85
+skp-beliefs-156    ['critical']                       C2    0.80
+skp-beliefs-157    ['critical']                       C2    0.85
+skp-beliefs-158    ['critical']                       C1    0.85
+skp-beliefs-059    ['institutional']                  C2    0.75
+skp-desires-061    ['critical']                       C1    0.85
+skp-desires-062    ['critical']                       C2    0.75
+skp-intentions-074 ['critical', 'institutional']      None  0.85
+skp-desires-074    ['institutional']                  C2    0.85
+skp-desires-075    ['critical', 'institutional']      C0    0.90
+skp-beliefs-159    ['critical']                       C3    0.90
+skp-beliefs-060    ['critical', 'institutional']      C0    0.85
+skp-beliefs-061    ['institutional']                  C2    0.80
+skp-intentions-144 ['institutional']                  C3    0.85
+skp-beliefs-160    ['critical', 'institutional']      C0    0.90
+skp-beliefs-063    ['critical', 'institutional']      C0    0.85
+skp-intentions-079 ['institutional']                  C2    0.80
+skp-beliefs-064    ['critical', 'institutional']      C0    0.90
+skp-intentions-080 ['institutional']                  C2    0.85
+skp-beliefs-161    ['critical', 'institutional']      C0    0.80
+skp-intentions-082 ['critical']                       C3    0.80
+skp-beliefs-065    ['critical']                       C1    0.90
+skp-intentions-083 ['critical', 'institutional']      C0    0.90
+skp-desires-076    ['critical', 'institutional']      C0    0.85
+skp-beliefs-068    ['critical']                       C1    0.85
+skp-beliefs-163    ['critical', 'institutional']      C0    0.85
+skp-intentions-087 ['critical', 'institutional']      C0    0.90
+skp-beliefs-069    ['critical', 'institutional']      C0    0.90
+skp-desires-066    ['critical']                       C4    0.80
+skp-beliefs-070    ['critical', 'institutional']      C0    0.85
+skp-beliefs-094    ['critical', 'institutional']      C0    0.85
+skp-beliefs-095    ['critical']                       C3    0.85
+skp-beliefs-164    ['critical']                       C2    0.85
+skp-beliefs-096    ['critical']                       C3    0.90
+skp-intentions-145 ['institutional']                  C2    0.85
+skp-beliefs-165    ['critical']                       C3    0.85
+skp-intentions-094 ['institutional']                  C2    0.95
+skp-beliefs-074    []                                 None  0.85
+skp-beliefs-075    ['critical']                       C3    0.90
+skp-beliefs-076    ['critical', 'institutional']      C6    0.85
+skp-intentions-095 ['institutional']                  C4    0.85
+skp-beliefs-098    ['critical', 'institutional']      C0    0.90
+skp-beliefs-099    ['critical']                       C1    0.85
+skp-beliefs-166    ['critical', 'institutional']      C0    0.85
+skp-beliefs-101    ['critical']                       C1    0.85
+skp-intentions-097 ['critical', 'institutional']      C0    0.90
+skp-beliefs-167    ['critical']                       C5    0.85
+skp-beliefs-168    ['critical']                       C1    0.90
+skp-beliefs-169    ['critical']                       C3    0.90
+skp-intentions-102 ['institutional']                  C2    0.95
+skp-beliefs-170    ['critical']                       C2    0.90
+skp-intentions-104 ['institutional']                  C2    0.95
+skp-intentions-105 []                                 None  0.90
+skp-beliefs-102    ['critical']                       C2    0.85
+skp-intentions-107 ['critical']                       C2    0.85
+skp-intentions-108 ['institutional']                  C6    0.85
+skp-beliefs-171    ['critical', 'institutional']      C0    0.95
+skp-beliefs-184    ['critical', 'institutional']      C0    0.85
+skp-beliefs-185    ['critical', 'institutional']      None  0.85
+skp-intentions-110 ['critical']                       C2    0.80
+skp-intentions-111 ['institutional']                  C2    0.90
+skp-desires-067    ['institutional']                  C4    0.80
+skp-beliefs-103    ['critical', 'institutional']      C0    0.90
+skp-beliefs-104    ['critical']                       C3    0.85
+skp-intentions-121 ['critical']                       C3    0.85
+skp-beliefs-106    ['critical']                       C3    0.95
+skp-beliefs-107    ['critical']                       C3    0.85
+skp-beliefs-108    ['critical']                       C5    0.85
+skp-beliefs-109    ['critical']                       C2    0.85
+skp-beliefs-110    ['critical']                       C3    0.85
+skp-intentions-112 ['critical']                       C2    0.85
+skp-beliefs-111    ['critical']                       C3    0.90
+skp-beliefs-172    ['critical', 'institutional']      None  0.85
+skp-beliefs-112    ['institutional']                  C4    0.80
+skp-beliefs-113    ['institutional']                  C1    0.85
+skp-beliefs-115    ['critical', 'institutional']      C0    0.90
+skp-beliefs-116    ['critical', 'institutional']      C0    0.85
+skp-beliefs-117    ['institutional']                  C2    0.85
+skp-desires-077    ['critical']                       C3    0.85
+skp-desires-078    ['critical']                       C3    0.85
+skp-intentions-124 ['institutional']                  C2    0.80
+skp-beliefs-173    ['critical', 'institutional']      C0    0.90
+skp-beliefs-174    ['critical', 'institutional']      C0    0.85
+skp-intentions-127 ['institutional']                  C4    0.85
+skp-intentions-128 ['institutional']                  C4    0.80
+skp-beliefs-175    []                                 None  0.95
+skp-intentions-129 ['critical']                       C3    0.85
+skp-beliefs-176    ['critical']                       C2    0.85
+skp-beliefs-177    ['institutional']                  C2    0.85
+skp-beliefs-178    ['critical']                       C3    0.80
+skp-beliefs-179    ['critical', 'institutional']      C0    0.85
+skp-intentions-131 ['critical']                       C2    0.90
+skp-intentions-132 ['critical']                       C2    0.90
+skp-intentions-133 ['critical', 'institutional']      C0    0.85
+skp-beliefs-180    ['institutional']                  C3    0.85
+skp-beliefs-181    ['critical']                       C3    0.95
+skp-intentions-135 ['institutional']                  C4    0.85
+skp-intentions-136 ['institutional']                  C6    0.80
+skp-intentions-137 ['critical']                       C2    0.80
+skp-beliefs-182    ['critical']                       C1    0.85
+skp-beliefs-183    ['critical', 'institutional']      C0    0.90
+skp-beliefs-186    ['critical']                       C2    0.80
+skp-beliefs-187    ['critical', 'institutional']      C0    0.85
+skp-intentions-138 ['institutional']                  C4    0.85
+skp-intentions-139 ['institutional']                  C2    0.95
+skp-beliefs-188    ['institutional']                  C2    0.85
+skp-beliefs-189    ['critical', 'institutional']      C0    0.85
+skp-beliefs-190    ['critical']                       C3    0.90
+skp-intentions-140 ['institutional']                  C4    0.80
+skp-beliefs-191    ['critical', 'institutional']      C0    0.85
+skp-beliefs-192    []                                 None  0.95
+skp-beliefs-193    ['critical', 'institutional']      C0    0.90
+skp-beliefs-194    ['critical', 'institutional']      C0    0.85
+skp-beliefs-195    ['critical']                       C3    0.80
+skp-beliefs-196    ['institutional']                  C6    0.85
+skp-beliefs-197    ['institutional']                  C3    0.80
+skp-desires-079    ['institutional']                  C2    0.85
+skp-desires-080    ['critical']                       C2    0.85
+skp-desires-081    ['critical']                       C2    0.95
+skp-desires-082    ['critical', 'institutional']      C4    0.85
+skp-intentions-141 ['critical', 'institutional']      C0    0.95
+skp-intentions-142 ['critical']                       C3    0.85
+skp-beliefs-198    ['critical']                       C3    0.80
+skp-beliefs-199    ['critical', 'institutional']      C0    0.85
+skp-beliefs-200    ['critical', 'institutional']      C0    0.85
+skp-beliefs-201    ['critical']                       C3    0.80
+skp-beliefs-202    ['critical', 'institutional']      C0    0.85
+skp-beliefs-203    ['institutional']                  C1    0.95
+skp-beliefs-204    ['critical']                       C3    0.90
+skp-beliefs-205    ['critical', 'institutional']      C0    0.90
+skp-desires-083    ['critical']                       C4    0.85
+skp-intentions-147 ['institutional']                  C4    0.80
+skp-beliefs-210    ['critical', 'institutional']      C0    0.90
+skp-beliefs-211    ['critical', 'institutional']      C0    0.90
+skp-beliefs-212    ['critical']                       C2    0.80
+skp-beliefs-213    ['critical']                       C3    0.90
+skp-beliefs-214    ['critical', 'institutional']      C0    0.95
+skp-beliefs-215    ['critical', 'institutional']      C0    0.95
+skp-intentions-148 ['critical', 'institutional']      C3    0.80
+skp-beliefs-216    ['critical']                       C3    0.90
+skp-beliefs-217    ['critical']                       C3    0.90
+skp-beliefs-218    ['critical']                       C3    0.90
+skp-beliefs-219    ['critical']                       C3    0.90
+skp-intentions-149 ['critical']                       C3    0.85
+skp-beliefs-220    ['institutional']                  C2    0.75
+skp-desires-084    ['critical']                       C3    0.85
+skp-beliefs-221    ['critical']                       C3    0.80
+skp-beliefs-222    ['critical', 'institutional']      C0    0.85
+skp-beliefs-223    ['critical']                       C3    0.85
+skp-beliefs-224    ['critical']                       C2    0.85
+skp-beliefs-225    ['critical']                       C3    0.90
+skp-beliefs-226    ['critical']                       C3    0.85
+skp-intentions-150 ['institutional']                  C2    0.85
+skp-beliefs-227    ['critical']                       C3    0.95
+skp-beliefs-228    ['critical']                       C2    0.85
+skp-beliefs-229    ['critical']                       C4    0.85
+skp-intentions-151 ['institutional']                  C2    0.85
+skp-intentions-152 ['institutional']                  C2    0.85
+skp-beliefs-230    ['critical', 'institutional']      C0    0.85
+skp-beliefs-231    ['critical']                       C3    0.90
+skp-intentions-153 ['critical']                       C2    0.85
+skp-beliefs-232    ['critical', 'institutional']      C0    0.90
+skp-beliefs-233    ['critical', 'institutional']      C0    0.85
+skp-intentions-154 ['critical']                       C2    0.85
+skp-beliefs-234    ['institutional']                  C2    0.80
+skp-beliefs-235    ['institutional']                  C3    0.80
+skp-beliefs-236    ['critical', 'institutional']      C0    0.85
+skp-intentions-155 ['institutional']                  C2    0.85
+skp-beliefs-237    ['institutional']                  C2    0.85
+skp-intentions-156 ['institutional']                  C2    0.90
+skp-beliefs-238    ['institutional']                  C3    0.80
+skp-beliefs-239    ['critical']                       C2    0.85
+skp-intentions-157 ['critical']                       C2    0.85
+skp-beliefs-240    ['critical']                       C3    0.85
+skp-beliefs-241    ['critical', 'institutional']      C0    0.85
+skp-intentions-158 ['critical']                       C3    0.90
+skp-beliefs-242    ['institutional']                  C2    0.80
+skp-beliefs-243    ['critical']                       C3    0.85
+skp-beliefs-244    ['critical']                       C5    0.85
+skp-intentions-159 ['institutional']                  C4    0.80
+skp-intentions-160 ['critical', 'institutional']      C0    0.85
+skp-beliefs-245    ['critical']                       C2    0.80
+skp-beliefs-246    ['institutional']                  C2    0.80
+skp-beliefs-247    ['critical']                       C3    0.90
+skp-beliefs-248    ['institutional']                  C2    0.80
+skp-desires-085    ['critical']                       C3    0.85
+skp-intentions-161 ['critical']                       C4    0.85
+skp-beliefs-249    ['critical', 'institutional']      C0    0.85
+skp-beliefs-250    ['critical']                       C5    0.90
+skp-beliefs-251    ['critical', 'institutional']      C0    0.85
+skp-desires-086    ['critical', 'institutional']      C0    0.85
+skp-beliefs-252    ['critical']                       C3    0.85
+skp-beliefs-253    ['institutional']                  C5    0.80
+skp-beliefs-254    ['critical']                       C3    0.85
+skp-beliefs-255    ['critical']                       C2    0.85
+skp-beliefs-256    ['critical', 'institutional']      C0    0.90
+skp-beliefs-257    ['institutional']                  C2    0.85
+skp-intentions-162 ['institutional']                  C2    0.80
+skp-beliefs-258    ['critical']                       C3    0.90
+skp-beliefs-259    ['critical']                       C5    0.85
+skp-intentions-163 ['institutional']                  C2    0.85
+skp-beliefs-260    ['critical', 'institutional']      C0    0.85
+skp-beliefs-261    ['institutional']                  C3    0.80
+skp-beliefs-262    ['institutional']                  C2    0.80
+skp-beliefs-263    ['institutional']                  C2    0.80
+skp-beliefs-264    ['critical', 'institutional']      C0    0.85
+skp-beliefs-265    ['institutional']                  C3    0.80
+skp-beliefs-266    ['critical', 'institutional']      C0    0.85
+skp-beliefs-267    ['critical', 'institutional']      C0    0.85
+skp-beliefs-268    ['critical']                       C3    0.85
+skp-beliefs-269    ['critical', 'institutional']      C0    0.85
+skp-beliefs-270    ['critical', 'institutional']      C0    0.85
+skp-beliefs-271    ['critical']                       C2    0.80
+skp-beliefs-272    ['critical']                       C3    0.85
+skp-beliefs-273    ['critical']                       C2    0.90
+skp-beliefs-274    ['critical']                       C2    0.80
+skp-beliefs-275    ['critical']                       C3    0.85
+skp-desires-087    ['critical', 'institutional']      C0    0.90
+skp-intentions-164 ['institutional']                  C2    0.80
+skp-beliefs-276    ['critical', 'institutional']      C0    0.90
+skp-intentions-165 ['institutional']                  C2    0.95
+skp-beliefs-277    ['institutional']                  C2    0.85
+skp-beliefs-278    ['critical', 'institutional']      C0    0.85
+skp-beliefs-279    ['critical']                       C2    0.80
+skp-beliefs-280    ['critical', 'institutional']      None  0.85
+skp-desires-088    ['institutional']                  C2    0.85
+skp-intentions-166 ['critical']                       C3    0.80
+skp-beliefs-281    ['critical', 'institutional']      C0    0.90
+skp-beliefs-282    ['critical']                       C2    0.85
+skp-beliefs-283    []                                 None  0.90
+skp-beliefs-284    ['critical']                       C3    0.80
+skp-beliefs-285    ['critical']                       C2    0.80
+skp-beliefs-286    ['critical', 'institutional']      C0    0.85
+skp-beliefs-287    ['critical', 'institutional']      C0    0.85
+skp-beliefs-288    ['critical']                       C2    0.85
+skp-beliefs-289    ['critical', 'institutional']      C0    0.85
+skp-desires-089    ['critical', 'institutional']      C3    0.85
+skp-beliefs-290    ['critical', 'institutional']      C0    0.85
+skp-beliefs-291    ['institutional']                  C2    0.80
+skp-beliefs-292    ['institutional']                  C2    0.80
+skp-beliefs-293    ['institutional']                  C4    0.80
+skp-desires-090    ['institutional']                  C3    0.80
+skp-beliefs-294    ['critical', 'institutional']      C0    0.85
+skp-beliefs-295    ['critical', 'institutional']      C0    0.85
+skp-beliefs-296    ['critical', 'institutional']      C0    0.85
+skp-intentions-167 ['institutional']                  C3    0.80
+skp-beliefs-297    ['critical', 'institutional']      C0    0.80
+skp-beliefs-298    ['institutional']                  C2    0.85
+skp-intentions-168 ['institutional']                  C2    0.80
+skp-intentions-169 ['institutional']                  C2    0.85
+skp-beliefs-299    ['critical']                       C3    0.90
+skp-beliefs-300    ['critical']                       C3    0.85
+skp-beliefs-301    ['critical']                       C1    0.85
+skp-beliefs-302    ['critical']                       C2    0.85
+skp-beliefs-303    ['critical']                       C2    0.85
+skp-beliefs-304    ['critical', 'institutional']      C0    0.85
+skp-beliefs-305    ['critical']                       C3    0.85
+skp-intentions-170 ['institutional']                  C2    0.85
+skp-desires-091    ['institutional']                  C4    0.80
+skp-intentions-171 ['institutional']                  C2    0.85
+skp-intentions-172 ['institutional']                  C2    0.85
+skp-beliefs-306    ['critical', 'institutional']      C0    0.85
+skp-beliefs-307    ['critical']                       C1    0.80
+skp-beliefs-308    ['critical', 'institutional']      C0    0.85
+skp-intentions-173 ['critical', 'institutional']      C0    0.85
+skp-beliefs-309    ['institutional']                  C2    0.85
+skp-beliefs-310    ['critical']                       C3    0.85
+skp-beliefs-311    ['critical']                       C1    0.85
+skp-beliefs-312    ['critical', 'institutional']      C0    0.90
+skp-desires-092    ['institutional']                  C4    0.80
+skp-beliefs-313    ['critical']                       C3    0.95
+skp-beliefs-314    ['critical']                       C3    0.80
+
+372 proposed, 0 failed -> out/pov-tag-proposals.full.json
+split: {'untagged': 6, 'critical': 145, 'critical+institutional': 129, 'institutional': 92}

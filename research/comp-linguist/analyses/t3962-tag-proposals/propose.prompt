@@ -1,0 +1,36 @@
+You are classifying one node of the Skeptic camp in an AI-policy taxonomy into the camp's two wings.
+
+The Skeptic camp shares one premise: AI is not an exceptional, inevitable force, and it should be judged on what is actually deployed and measured. Inside the camp there are two wings:
+
+- critical: AI is overhyped, and the hype is itself a power play. The harm lies in ownership, extraction and labor: who controls the technology and who is replaced. Fluent output is not evidence of understanding. Remedies are structural: antitrust, interoperability, bargaining power, and in many domains refusal.
+- institutional: AI is a general-purpose technology whose value is real but arrives slowly, as electricity's did. Existing institutions, adapted sector by sector, can govern it. Harms come from specific uses in specific sectors. Diffuse with guardrails and build resilience; open release is generally favorable.
+
+The wings take opposite sides of these questions (the cruxes). Decide by which side THIS node takes, not by its topic:
+
+| Crux | critical | institutional |
+|---|---|---|
+| C1 Is the technology substantially useful? | Largely no; fluency mistaken for competence; a bubble | Yes; a general-purpose technology whose value arrives slowly |
+| C2 Are existing institutions adequate? | No; captured or abandoned; need structural rebuilding | Largely yes, with sector-by-sector adaptation |
+| C3 Where does the main harm come from? | Ownership and power | Specific uses in specific sectors |
+| C4 Default stance on adoption | Resist or refuse in many domains | Diffuse with guardrails; build resilience |
+| C5 What is hype? | A deliberate strategy, a con | A forecasting error; sometimes snake oil in specific products |
+| C6 Open-weight release | Mixed; weakens incumbents but leaves labor harms | Favored; raises resilience, lowers concentration |
+
+Both wings AGREE on C0: AI is not exceptional (no superintelligence, no transformation within a few years), and claims must be judged on deployment evidence.
+
+Rules:
+1. If the node takes the critical side of any crux C1-C6 and not the institutional side of another, answer ["critical"].
+2. If it takes the institutional side and not the critical side, answer ["institutional"].
+3. If it states shared ground that both wings hold (C0, evidence over projection, accountability, skepticism of grand narratives, present harms over speculative ones) without taking a side on C1-C6, answer ["critical", "institutional"]. Shared ground is common; do not force it into one wing.
+4. If it takes one wing's side on one crux and the other wing's side on another, answer ["critical", "institutional"] and say so in the rationale.
+5. Answer [] only if the node fits neither wing (it contradicts the camp's shared premise, or it is not a substantive position). This should be rare.
+6. Judge the node's own claim. Its Encompasses and Excludes lines are the strongest signal of its boundary. Do not infer a wing from vocabulary alone: "labor", "antitrust" or "regulation" can appear on either side.
+
+Node:
+id: {{ID}}
+category: {{CATEGORY}}
+label: {{LABEL}}
+description: {{DESCRIPTION}}
+
+Respond with JSON only:
+{"proposed": [...], "crux": "C1".."C6" or "C0" or null, "confidence": 0.0-1.0, "rationale": "one or two sentences naming the side the node takes"}

@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "registry_version": 1,
+  "run": {
+    "ticket": "t/3962",
+    "model": "gemini-3.8-flash",
+    "prompt_version": "v1",
+    "created_at": "2026-10-06T15:39:05+00:00",
+    "scope": "sample 12 (seed 3962)",
+    "failures": []
+  },
+  "proposals": [
+    {
+      "node_id": "skp-beliefs-076",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node bridges both wings on C6 by affirming the institutional stance that open weights are necessary for independent security verification, while incorporating the critical perspective that releasing weights alone leaves data provenance and compute opaque.",
+      "crux": "C6",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-258",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node locates harm in intentional manipulation and epistemic enclosure by power actors to consolidate hierarchy, aligning with the critical wing's focus on ownership and power dynamics (C3) rather than mere informational or forecasting oversights.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-180",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "By locating regulatory concern in specific downstream inference acts rather than upstream data collection or extraction, this position aligns with the institutional focus on harms arising from specific uses rather than ownership and extraction.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-096",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node locates the fundamental issue of AI in its reproduction of social and power structures, directly aligning with the critical wing's stance on power and ownership over the institutional wing's view of technology as a neutral tool governed sector by sector.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-080",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "By demanding a new democratic legal right and public-interest overrides of trade secrets while explicitly excluding existing FOIA or consumer protection frameworks, the node asserts that existing institutions are inadequate and requires structural legal intervention.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-074",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node advocates extending existing civil rights legal frameworks sector by sector (housing, employment, credit), aligning with the institutional wing's view that existing institutions are adequate when adapted to specific applications.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-093",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node advocates for legally refusing adoption and carving out human-reserved domains against displacement, aligning with the critical wing's stance of domain-specific refusal (C4).",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-081",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.95,
+      "rationale": "The node calls for fundamental structural changes, collective ownership, and rebuilding economic governance rather than relying on incremental, existing institutional adaptation (C2), locating primary harm in concentrated ownership and power (C3).",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-112",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates the core issue in corporate power across domains rather than sector-specific harms, explicitly rejecting isolated, sector-by-sector regulatory silos.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-110",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.75,
+      "rationale": "By bypassing centralized registries and third-party institutional escrow in favor of decentralized, user-held cryptographic verification, the node rejects reliance on existing regulatory institutions in favor of structural shifts in user control.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-007",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.9,
+      "rationale": "The node advocates for regulating AI through sector-by-sector, context-specific adaptation rather than sweeping structural rebuilding or capability bans, directly aligning with the institutional position on C2 and C3.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-intentions-131",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "Empowering workers with safety vetoes addresses harms through labor bargaining power and structural control over technology owners rather than conventional sector-by-sector institutional oversight.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    }
+  ]
+}
