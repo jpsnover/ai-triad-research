@@ -10,6 +10,7 @@
 
 import type { PublicInquiryShare } from '@lib/inquiry';
 import { CAMP_LABELS, FIDELITY_LABELS, trustVerdictLabel } from './inquiry/inquiryDisplay';
+import { InquiryTagScope } from './InquiryTagScope';
 import './PublicInquiryView.css';
 
 /** ADR-001 graceful-empty: a terminal share with no substantive content needs its own
@@ -24,6 +25,8 @@ export function PublicInquiryShareContent({ doc }: { doc: PublicInquiryShare }) 
     <div className="pov-inquiry-card" aria-label="Shared question">
       <span className="pov-inquiry-eyebrow">Question</span>
       <h1 className="pov-inquiry-question">{doc.request.question}</h1>
+      {/* POV-tag scope (t/3983): renders nothing for an untagged share. */}
+      <InquiryTagScope doc={doc} />
 
       {/* Provenance — must-include per SO review (t/3628#2): a reader unfamiliar with the
           Ask screen must be able to see how this answer was produced. */}
