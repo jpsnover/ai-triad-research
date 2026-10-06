@@ -94,6 +94,15 @@ Saved debates gain one optional map, `seat_tags`, keyed by seat (TL review, poin
 - **Writer inventory** (TL condition; result in t/3955#3). **No live writer rebuilds an existing node from a fixed field list.** Explicit field lists exist only where new nodes are created, and new nodes start untagged. Round-trip tests cover the main live save chains instead (editor, `harvestOnSave`, and PowerShell `ConvertTo-Json`). They use a **one-element** `pov_tags` array, because PowerShell unrolls single-element arrays into scalars (TL condition 2).
 - **The registry ships empty** in t/3955 (`{ "version": 1, "povs": {} }`). Each tag arrives with its soul in one PR, so the Skeptic entries land with t/3956. Since `validatePovTags` rejects unknown ids, t/3956 also blocks t/3962.
 
+### 2.3c Second Opinion conditions (e/249#6: proceed with conditions)
+
+1. **The edit paths are fixed before any tag exists.** Today a cross-POV move **spreads** the node, which carries tags into a POV where they are invalid, and split and depth-expand create untagged children. So t/3971 and t/3972 **block t/3962**, the first tagging write. t/3972 includes a **negative test**: no `pov_tags` after a cross-POV move. The surviving vector here is the opposite of a dropped field: a spread that carries the field across a boundary.
+2. **The editor validates too.** The renderer `povNodeSchema` calls `validatePovTags` in a `superRefine`, because the editor's `save()` is the second live writer.
+3. **Absence is defined, and gaps are visible.**
+   - The `node_fields` record entry states that an absent or empty `pov_tags` means untagged, and that **in Scope mode an untagged node is excluded**.
+   - t/3962 asserts coverage after writing: every node in a tagged POV has a tag, or sits on a committed intentionally-untagged list.
+   - Scope mode WARNs at start with the count of untagged nodes it excludes (t/3957).
+
 ### 2.3b Tags through taxonomy edits (CL decisions, t/3955#5)
 
 - **Merge:** the tags of the merged-away nodes are **unioned** into the survivor, de-duplicated, and listed in the proposal-apply report.
