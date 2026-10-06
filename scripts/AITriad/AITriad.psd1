@@ -81,6 +81,7 @@
         'Test-TaxonomyDir'
         'Assert-CleanDataTree'
         'Save-JsonNodeFieldEdits'
+        'Set-PovNodeTags'
         'Invoke-HierarchyProposal'
         'Set-TaxonomyHierarchy'
         'Invoke-SchemaMigration'

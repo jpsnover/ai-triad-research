@@ -119,10 +119,10 @@ Describe 'Top-level guards (t/3878)' -Tag 'summary' {
         }
     }
 
-    It '-Upsert REFUSES an array-valued leaf (scalar-only, even under insert)' {
+    It '-Upsert REFUSES an array-valued leaf without -ArrayValue (scalar-only by default, even under insert; t/3969 widened this to an opt-in, not a removal)' {
         InModuleScope AITriad -Parameters @{ Raw = $script:Fixture } {
             param($Raw)
-            { Update-JsonNodePath -RawText $Raw -NodeId 'acc-003' -Path @('graph_attributes','nested') -Value @(1, 2) -Upsert } | Should -Throw -ExpectedMessage '*must be a scalar*'
+            { Update-JsonNodePath -RawText $Raw -NodeId 'acc-003' -Path @('graph_attributes','nested') -Value @(1, 2) -Upsert } | Should -Throw -ExpectedMessage '*-ArrayValue*'
         }
     }
 
