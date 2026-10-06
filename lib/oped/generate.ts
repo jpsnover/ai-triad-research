@@ -3,6 +3,13 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { createHash } from 'node:crypto';
+import { ActionableError } from '../debate/errors.js';
+import { resolvePoverInfo } from '../debate/soulDocLoader.js';
+import { applyTagSelection, checkTagScope } from '../debate/relevanceSelection.js';
+import { TAG_BOOST_INCREMENT } from '../debate/debateConfig.js';
+import type { PovNode } from '../debate/taxonomyTypes.js';
+import { loadPovTagRegistry, validatePovTagSelection, type AppliedTag, type TagSelection } from '../schema/povTags.js';
 import type { AIAdapter } from '../debate/aiAdapter.js';
 import type { PovKey } from '../debate/types.js';
 import { stripCodeFences } from '../debate/helpers.js';
@@ -10,7 +17,7 @@ import type { ScoredPovNode, ScoredSituationNode } from '../debate/taxonomyRelev
 import { scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes } from '../debate/taxonomyRelevance.js';
 import { loadTaxonomy } from '../debate/taxonomyLoader.js';
 import { computeEmbedding } from '../embeddings/onnxEmbedding.js';
-import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef, EditingMeta, CoherenceMeta } from './types.js';
+import type { OpEdMember, OpEdParams, OpEdSet, OpEdGroundingRef, EditingMeta, CoherenceMeta, OpEdSoulProvenance } from './types.js';
 import { resolveOutletBand } from './outletBands.js';
 import { loadAndAssemblePrompt, assembleReflectionPrompt, assembleSourceBriefPrompt, assembleReadabilityEditPrompt, assembleCoherenceJudgePrompt, assembleCoherenceRewritePrompt, type SourceBrief } from './promptLoader.js';
 import { FABRICATED_LEDE_GUARD } from './opedGuards.js';
@@ -78,9 +85,162 @@ interface SoulDoc {
 
 // ── Soul doc helpers ──────────────────────────────────────────────────────────
 
-function loadSoulDoc(repoRoot: string, pov: PovKey): SoulDoc {
+/** A soul ready to voice one member: the document, the label the byline and prompt use, and which file
+ *  it came from (`member.soul`, t/3960). */
+interface VoiceSoul {
+  soul: SoulDoc;
+  /** The POV label from the BASE soul, always: a tag never changes who is writing (CL t/3960#5). */
+  label: string;
+  /** The wing name from the tag registry, for the tagged member only. */
+  wing?: string;
+  provenance: OpEdSoulProvenance;
+}
+
+/** "Skeptic" for an untagged member; "Skeptic (Critical wing)" for the tagged one. */
+function voiceName(v: VoiceSoul): string {
+  return v.wing ? `${v.label} (${v.wing} wing)` : v.label;
+}
+
+/** "By the Skeptic Camp (Critical wing), …": the camp stays the identity; the wing qualifies it. */
+function bylineFor(v: VoiceSoul): string {
+  return `By the ${v.label} Camp${v.wing ? ` (${v.wing} wing)` : ''}, as modeled in AI Rosetta Stone`;
+}
+
+/** First 16 hex digits of the SHA-256, the same provenance form as soulDocLoader. */
+function sha16(raw: string): string {
+  return createHash('sha256').update(raw).digest('hex').slice(0, 16);
+}
+
+/** soulDocLoader reports an absolute path; persist a repo-relative one, so a stored set never carries a
+ *  machine-specific path. */
+function repoRelativeSoulFile(file: string): string {
+  const normalized = file.replace(/\\/g, '/');
+  const i = normalized.lastIndexOf('/soul-docs/');
+  return i >= 0 ? `lib/debate${normalized.slice(i)}` : normalized;
+}
+
+function loadSoulDoc(repoRoot: string, pov: PovKey): VoiceSoul {
   const soulPath = join(repoRoot, 'lib', 'debate', 'soul-docs', `${pov}.soul.json`);
-  return JSON.parse(readFileSync(soulPath, 'utf-8')) as SoulDoc;
+  const raw = readFileSync(soulPath, 'utf-8');
+  const soul = JSON.parse(raw) as SoulDoc;
+  return { soul, label: soul.label, provenance: { file: `lib/debate/soul-docs/${pov}.soul.json`, sha: sha16(raw) } };
+}
+
+// ── Tag pre-flight (t/3960; TL t/3960#3/#8, SO e/254#6) ──────────────────────────────────────────
+
+/** Everything the run needs for its one tagged member, resolved BEFORE any generation starts. */
+export interface OpEdTagPlan {
+  selection: TagSelection;
+  voice: VoiceSoul;
+  /** All POV nodes of the tagged camp, for the tag filter in grounding. */
+  campNodes: PovNode[];
+}
+
+function tagRefusal(problem: string, nextSteps: string[]): ActionableError {
+  return new ActionableError({
+    goal: 'Generate a tagged op-ed set',
+    problem,
+    location: 'lib/oped/generate.ts — preflightOpEdTag',
+    nextSteps,
+  });
+}
+
+/**
+ * Resolve a request's tag before any generation, and REFUSE rather than degrade:
+ *  - the tag must be registered for its POV, and that POV must be in `povs`;
+ *  - the tag soul must load (through soulDocLoader only, so its path rule is t/3989's): no fallback to the
+ *    base soul;
+ *  - a Scope run on too few tagged nodes refuses (`checkTagScope`), instead of writing an essay on a handful
+ *    of nodes behind a warning. Debates refuse the same way in their setup screens; only a debate's MID-RUN
+ *    narrowing warns (one rule, two phases: TL t/3960#8).
+ * Returns undefined for an untagged request. Callers that start generation from a request (the server route,
+ * the IPC handler) may call this first to refuse synchronously; `generateOpEdSet` calls it again regardless.
+ */
+export function preflightOpEdTag(request: GenerateOpEdRequest, deps: OpEdGeneratorDeps): OpEdTagPlan | undefined {
+  const selection = request.params.tagSelection;
+  if (!selection) return undefined;
+  const { pov, tag, mode } = selection;
+
+  const problems = validatePovTagSelection(pov, tag);
+  if (!request.povs.includes(pov)) problems.push(`tagSelection.pov "${pov}" is not one of the requested povs (${request.povs.join(', ')})`);
+  if (problems.length > 0) {
+    throw tagRefusal(problems.join('; '), ['Choose a registered tag for a requested POV, or omit tagSelection.']);
+  }
+
+  const wing = loadPovTagRegistry().povs[pov]!.find((e) => e.id === tag)!;
+  const base = loadSoulDoc(deps.repoRoot, pov);
+  const { soul, soulProvenance } = resolvePoverInfo(pov, { tag, mode });
+  // The byline and prompt keep the POV label: a tag selects a wing, it doesn't change who is writing
+  // (CL t/3960#5; matches t/3988 for debates). The tag soul's own `label` is never used as the identity.
+  const voice: VoiceSoul = {
+    soul: soul as unknown as SoulDoc,
+    label: base.label,
+    wing: wing.label,
+    provenance: { file: repoRelativeSoulFile(soulProvenance.file), sha: soulProvenance.sha },
+  };
+
+  const campNodes = (loadTaxonomy(deps.repoRoot)[pov]?.nodes ?? []) as PovNode[];
+  if (mode === 'scope') {
+    const scope = checkTagScope(campNodes, { tag, mode });
+    if (!scope.sufficient) {
+      throw tagRefusal(
+        `Scope "${pov}/${tag}" has too few tagged nodes to ground an essay: ${scope.inScope.length} in scope, `
+          + `${scope.excluded.length} untagged would be excluded (checkTagScope judged it insufficient).`,
+        ['Use Prioritize mode, which keeps every node and ranks tagged ones first.', 'Or tag more nodes for this wing first.'],
+      );
+    }
+  }
+  return { selection, voice, campNodes };
+}
+
+/** The soul for one member: the tag soul for the tagged member, its base soul for every other. */
+function voiceFor(pov: PovKey, plan: OpEdTagPlan | undefined, deps: OpEdGeneratorDeps): VoiceSoul {
+  return plan && pov === plan.selection.pov ? plan.voice : loadSoulDoc(deps.repoRoot, pov);
+}
+
+/** Attach what the tag did to its member; other members are returned untouched. */
+function withAppliedTag(member: OpEdMember, applied: AppliedTag | undefined): OpEdMember {
+  return applied ? { ...member, tag: applied } : member;
+}
+
+/** BDI grounding for one camp. The tag filter applies ONLY to the tagged camp; every other camp selects
+ *  exactly as untagged (t/3960). Returns the applied-tag record for the tagged camp. */
+function selectCampGrounding(
+  pov: PovKey, campNodes: PovNode[], scores: Map<string, number>, plan: OpEdTagPlan | undefined, deps: OpEdGeneratorDeps,
+): { grounding: ScoredPovNode[]; applied?: AppliedTag } {
+  const tagged = plan && pov === plan.selection.pov ? applyOpEdTag(plan, scores) : undefined;
+  if (tagged) warnScopeNarrowing(tagged.applied, deps);
+  const grounding = selectRelevantNodes(
+    tagged?.nodes ?? campNodes,
+    tagged?.scores ?? scores,
+    undefined, // use default threshold
+    2,         // minPerCategory
+    12,        // maxTotal — mirrors PS MaxGroundingNodes default
+  );
+  return { grounding, applied: tagged?.applied };
+}
+
+/** Fallback-path logging: a Scope run narrows the camp. Sufficient (the pre-flight passed), but visible. */
+function warnScopeNarrowing(applied: AppliedTag, deps: OpEdGeneratorDeps): void {
+  if (applied.mode !== 'scope' || applied.excludedUntagged === 0) return;
+  deps.recorder?.record({
+    type: 'system.error', component: 'oped-generate', level: 'warn',
+    message: `Op-ed scope tag "${applied.pov}/${applied.tag}" excluded ${applied.excludedUntagged} untagged ${applied.pov} nodes from grounding (${applied.included} tagged in scope)`,
+  });
+}
+
+/** The tag filter for the tagged camp's grounding: the nodes to select from, the scores to rank by, and
+ *  the applied-tag record with its counts (meanings per mode: APPLIED_TAG_COUNT_MEANING). */
+function applyOpEdTag(plan: OpEdTagPlan, scores: Map<string, number>): { nodes: PovNode[]; scores: Map<string, number>; applied: AppliedTag } {
+  const { pov, tag, mode } = plan.selection;
+  const { filteredNodes, excludedCount, boostIds } = applyTagSelection(plan.campNodes, { tag, mode });
+  const boosted = new Map(scores);
+  for (const id of boostIds) boosted.set(id, (boosted.get(id) ?? 0) + TAG_BOOST_INCREMENT);
+  return {
+    nodes: filteredNodes,
+    scores: mode === 'prioritize' ? boosted : scores,
+    applied: { pov, tag, mode, included: mode === 'scope' ? filteredNodes.length : boostIds.length, excludedUntagged: excludedCount },
+  };
 }
 
 function buildVoiceBlock(soul: SoulDoc): string {
@@ -273,8 +433,10 @@ async function runVoiceGeneration(
   request: GenerateOpEdRequest,
   deps: OpEdGeneratorDeps,
   sourceBrief: SourceBrief | undefined,
+  /** The soul voicing this member: the tag soul for the tagged member, the base soul otherwise (voiceFor). */
+  voiced: VoiceSoul,
 ): Promise<OpEdMember> {
-  const soul = loadSoulDoc(deps.repoRoot, pov);
+  const soul = voiced.soul;
   const band = resolveOutletBand(request.params.outlet);
   const readTargets = band.readability ?? DEFAULT_READABILITY_TARGETS;
   const targetWords = request.params.wordCount > 0 ? request.params.wordCount : band.words;
@@ -284,7 +446,7 @@ async function runVoiceGeneration(
     topic: request.topic,
     params: request.params,
     pov,
-    povLabel: soul.label,
+    povLabel: voiceName(voiced),
     voiceBlock: buildVoiceBlock(soul),
     groundingNodes: formatGroundingNodes(groundingNodes),
     situations: formatSituationNodes(sitNodes),
@@ -701,8 +863,8 @@ async function runVoiceGeneration(
     headline: parsed.headline ?? '',
     subtitle: parsed.subtitle ?? '',
     body: finalBody,
-    byline: `By the ${soul.label} Camp, as modeled in AI Rosetta Stone`,
-    disclosure: `Generated by AI Rosetta Stone to illustrate the ${soul.label} perspective. Not authored by any person; not for submission or publication.`,
+    byline: bylineFor(voiced),
+    disclosure: `Generated by AI Rosetta Stone to illustrate the ${voiceName(voiced)} perspective. Not authored by any person; not for submission or publication.`,
     rhetorical_meta: parsed.rhetorical_meta ?? '',
     wordCount: actualWordCount,
     grounding: allGroundingRefs,
@@ -710,6 +872,7 @@ async function runVoiceGeneration(
     ...(fabricatedLede && { fabricated_lede: true as const }),
     ...(editingMeta && { editing_meta: editingMeta }),
     ...(coherenceMeta && { coherence_meta: coherenceMeta }),
+    soul: voiced.provenance,
   };
 }
 
@@ -726,6 +889,13 @@ export async function* generateOpEdSet(
   request: GenerateOpEdRequest,
   deps: OpEdGeneratorDeps,
 ): AsyncGenerator<OpEdProgressEvent> {
+  // ── Tag pre-flight (t/3960): refuse BEFORE any generation, so a bad or thin tag never yields a partial
+  // set. Throws ActionableError; an untagged request gets undefined and runs exactly as before.
+  const tagPlan = preflightOpEdTag(request, deps);
+  // What the tag did, per camp (only the tagged camp gets an entry). Absent if grounding failed before the
+  // filter ran: that member then carries the tag soul (member.soul) but no applied filter, by omission.
+  const appliedByPov = new Map<PovKey, AppliedTag | undefined>();
+
   // ── Step 0: source-brief comprehension (when URL source present) ─────────
   // Extracts structured SourceBrief (thesis/author/stance/key_claims) from raw
   // markdown so {{SOURCE_AUTHOR/THESIS/STANCE/RECOMMENDATIONS/KEY_CLAIMS}} are
@@ -779,13 +949,9 @@ export async function* generateOpEdSet(
     const scores = scoreNodeRelevance(vec, taxonomy.embeddings);
 
     for (const pov of request.povs) {
-      groundingByPov.set(pov, selectRelevantNodes(
-        taxonomy[pov]?.nodes ?? [],
-        scores,
-        undefined, // use default threshold
-        2,         // minPerCategory
-        12,        // maxTotal — mirrors PS MaxGroundingNodes default
-      ));
+      const { grounding, applied } = selectCampGrounding(pov, taxonomy[pov]?.nodes ?? [], scores, tagPlan, deps);
+      groundingByPov.set(pov, grounding);
+      appliedByPov.set(pov, applied);
     }
     sitNodes = selectRelevantSituationNodes(
       taxonomy.situations?.nodes ?? [],
@@ -826,7 +992,10 @@ export async function* generateOpEdSet(
     } else {
       enqueue({ type: 'voice_start', pov });
       try {
-        const member = await runVoiceGeneration(pov, groundingByPov.get(pov) ?? [], sitNodes, request, deps, sourceBrief);
+        const member = withAppliedTag(
+          await runVoiceGeneration(pov, groundingByPov.get(pov) ?? [], sitNodes, request, deps, sourceBrief, voiceFor(pov, tagPlan, deps)),
+          appliedByPov.get(pov),
+        );
         members.push({ pov, member });
         enqueue({ type: 'voice_complete', pov, member });
       } catch (err) {

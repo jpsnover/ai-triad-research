@@ -14,7 +14,12 @@
 // Schema only. No pipeline logic ships here — the four DebateTool stage tickets build behind this.
 
 import { z } from 'zod';
-import { PovNameSchema, validatePovTagSelection } from '../schema/povTags.js';
+import { TagSelectionSchema, AppliedTagSchema, validatePovTagSelection } from '../schema/povTags.js';
+
+// The tag schemas moved to lib/schema/povTags.ts (t/3960) so Inquiry and op-ed share one definition.
+// Re-exported here so every existing `lib/inquiry` import keeps working.
+export { TagModeSchema, TagSelectionSchema, AppliedTagSchema, APPLIED_TAG_COUNT_MEANING } from '../schema/povTags.js';
+export type { TagMode, TagSelection, AppliedTag } from '../schema/povTags.js';
 
 /**
  * Contract major version. The integer IS the major (no encoded major.minor) — TL t/3574#2.
@@ -50,22 +55,6 @@ export const ModelOverrideSchema = z.object({
   evaluator: z.string().optional(),
 });
 export type ModelOverride = z.infer<typeof ModelOverrideSchema>;
-
-// ── Tag selection (POV tags 5b, t/3965; SO e/252) ────────────────────────────
-// One POV-scoped tag applied to ONE camp. A single object, not parallel `tag?` + `tagMode?` optionals,
-// so "both or neither" holds by construction (e/249 alternative d). `pov` is explicit because a request
-// has no node id to derive it from. The other camps run exactly as untagged.
-/** `scope` keeps only the camp's tagged nodes; `prioritize` keeps every node and ranks tagged ones first. */
-export const TagModeSchema = z.enum(['scope', 'prioritize']);
-export type TagMode = z.infer<typeof TagModeSchema>;
-
-const tagSelectionFields = {
-  pov: PovNameSchema,
-  tag: z.string().min(1),
-  mode: TagModeSchema,
-};
-export const TagSelectionSchema = z.object(tagSelectionFields).strict();
-export type TagSelection = z.infer<typeof TagSelectionSchema>;
 
 // ── InquiryRequest ────────────────────────────────────────────────────────────
 // STRICT at the client-input boundary (TL t/3574#2): a mistyped key — `situationID` for
@@ -104,7 +93,7 @@ export type InquiryRequest = z.infer<typeof InquiryRequestSchema>;
  *  of the live input boundary, not of the stored receipt — and so is the registry check: a stored tag the
  *  registry later drops must not make the result unreadable. */
 export const StoredInquiryRequestSchema = z
-  .object({ ...requestFields, tagSelection: z.object(tagSelectionFields).passthrough().optional() })
+  .object({ ...requestFields, tagSelection: TagSelectionSchema.passthrough().optional() })
   .passthrough();
 export type StoredInquiryRequest = z.infer<typeof StoredInquiryRequestSchema>;
 
@@ -178,15 +167,8 @@ export const UnresolvedGapSchema = z.object({
 });
 export type UnresolvedGap = z.infer<typeof UnresolvedGapSchema>;
 
-/** The tag filter as applied to the named camp's grounding (filled by `buildGroundingEnvelope`, DebateTool). */
-export const AppliedTagSchema = z.object({
-  ...tagSelectionFields,
-  /** Nodes of the named camp that carry the tag. */
-  included: z.number().int().nonnegative(),
-  /** Untagged nodes of the named camp left out of grounding. Always 0 in `prioritize` mode. */
-  excludedUntagged: z.number().int().nonnegative(),
-});
-export type AppliedTag = z.infer<typeof AppliedTagSchema>;
+// `AppliedTagSchema` (the tag filter as applied to the named camp's grounding, filled by
+// `buildGroundingEnvelope`) now lives in lib/schema/povTags.ts with its per-mode count meanings.
 
 // ── Resolved derivation (the "receipt", ADR §4) ───────────────────────────────
 // Records the resolved facts a run actually used, not just the fidelity label — `'standard'` in June

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { PovKey } from '../debate/types.js';
+import type { TagMode, TagSelection, AppliedTag } from '../schema/povTags.js';
 
 export type { PovKey };
 
@@ -14,6 +15,17 @@ export interface OpEdParams {
   thesis?: string;
   authorBio?: string;
   model: string;
+  /** POV tag for ONE member (t/3960). The member whose `pov` matches gets the tag soul and the tag
+   *  filter; every other member runs exactly as untagged. Absent: an untagged set, as before. */
+  tagSelection?: TagSelection;
+}
+
+/** Which soul file voiced a member (t/3960; CL t/3960#5). `file` is repo-relative; `sha` is the first
+ *  16 hex digits of the file's SHA-256 at generation time. Internal provenance: EXCLUDED from the public
+ *  share (TL e/254#4), the same class as `debateId`. */
+export interface OpEdSoulProvenance {
+  file: string;
+  sha: string;
 }
 
 // ── Grounding reference (op-ed shape — node + editorial context) ──────────────
@@ -57,6 +69,11 @@ export interface OpEdMember {
   /** Observability for the logical-coherence pass (t/3826). Absent when pass was skipped (no flags).
    *  NO consumer should branch on this field; exemption lapses if one does. */
   coherence_meta?: CoherenceMeta;
+  /** What the tag actually did for THIS member (t/3960; SO e/252 cond 3 / e/254#6). Present only on the
+   *  tagged member. Count meanings per mode: `APPLIED_TAG_COUNT_MEANING` (lib/schema/povTags.ts). */
+  tag?: AppliedTag;
+  /** Which soul file voiced this member. Set on every generated member, base or tag soul. */
+  soul?: OpEdSoulProvenance;
 }
 
 /** Outcome record for the readability edit pass (t/3707). Written for CL validation tooling; log-only. */
@@ -142,4 +159,7 @@ export interface OpEdCommunityEntry {
   community_metadata: unknown;
   /** t/2993: forwarded from the stored op-ed's params.outlet at index-build time. */
   outlet?: string;
+  /** The tagged member's scope, so a list row never labels a one-wing essay as the whole camp's (TL
+   *  t/3960#3 cond 2). `label` is the wing name from the tag registry. Absent for untagged sets. */
+  tag?: { pov: PovKey; tag: string; mode: TagMode; label: string };
 }

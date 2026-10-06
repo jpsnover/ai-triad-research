@@ -6,10 +6,15 @@ import { z } from 'zod';
 // z.enum([...POV_KEYS]) therefore rejects 'acc'/'saf'/'skp' at parse time.
 import { POV_KEYS } from '../debate/types.js';
 import { ActionableError } from '../debate/errors.js';
+import { TagSelectionSchema, AppliedTagSchema, validatePovTagSelection } from '../schema/povTags.js';
 import type { OpEdSet } from './types.js';
 
 export const PovKeySchema = z.enum([...POV_KEYS]);
 
+// The PERSISTED params. `tagSelection` is declared so a stored set keeps it on re-parse (these plain
+// z.objects strip undeclared fields: the t/2890 class), and is passthrough with NO registry check, so a set
+// stays readable after its tag is retired. The registry check runs only at the live boundary:
+// parseOpEdRequest below (t/3960; SO e/254#6).
 export const OpEdParamsSchema = z.object({
   outlet: z.string().optional(),
   wordCount: z.number().int(),
@@ -17,6 +22,7 @@ export const OpEdParamsSchema = z.object({
   thesis: z.string().optional(),
   authorBio: z.string().optional(),
   model: z.string(),
+  tagSelection: TagSelectionSchema.passthrough().optional(),
 });
 
 export const OpEdGroundingRefSchema = z.object({
@@ -44,6 +50,10 @@ export const OpEdMemberSchema = z.object({
   wordCount: z.number().int().optional().default(0),
   grounding: z.array(OpEdGroundingRefSchema),
   claims: z.array(z.object({ text: z.string(), paragraph: z.number().int() })).optional(),
+  // t/3960: what the tag did for this member, and which soul file voiced it. Declared against the strip
+  // class; no registry check (read-tolerant). `soul` is internal: excluded from the public share.
+  tag: AppliedTagSchema.passthrough().optional(),
+  soul: z.object({ file: z.string(), sha: z.string() }).optional(),
 });
 
 export const OpEdSetSchema = z.object({
@@ -59,6 +69,52 @@ export const OpEdSetSchema = z.object({
   source_url: z.string().optional(),
   source_key_claims_count: z.number().int().optional(),
 });
+
+/**
+ * The LIVE-boundary check on a generate request's tag (t/3960; SO e/254#6, mirroring Inquiry's e/252 cond
+ * 4). The server route and the IPC handler call `parseOpEdRequest` before starting generation, so an unknown
+ * tag is rejected rather than the set running untagged. Only `povs` and `params.tagSelection` are checked
+ * here; every other field passes through untouched (their validation stays with the callers).
+ */
+const OpEdRequestTagSchema = z
+  .object({
+    povs: z.array(PovKeySchema).min(1),
+    params: z.object({ tagSelection: TagSelectionSchema.optional() }).passthrough(),
+  })
+  .passthrough()
+  .superRefine((req, ctx) => {
+    const sel = req.params.tagSelection;
+    if (!sel) return;
+    for (const message of validatePovTagSelection(sel.pov, sel.tag)) {
+      ctx.addIssue({ code: 'custom', path: ['params', 'tagSelection', 'tag'], message });
+    }
+    if (!req.povs.includes(sel.pov)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['params', 'tagSelection', 'pov'],
+        message: `tagSelection.pov "${sel.pov}" is not one of the requested povs (${req.povs.join(', ')}), so the tag would apply to no member`,
+      });
+    }
+  });
+
+/**
+ * Validate a generate request's `povs` and `params.tagSelection` at the live boundary. Returns the request
+ * unchanged when valid; throws an ActionableError listing every problem otherwise.
+ */
+export function parseOpEdRequest<T>(raw: T): T {
+  const result = OpEdRequestTagSchema.safeParse(raw);
+  if (result.success) return raw;
+  const problems = result.error.issues.map((i) => `${i.path.join('.') || '(request)'}: ${i.message}`);
+  throw new ActionableError({
+    goal: 'Start an op-ed generation request',
+    problem: `The request is invalid: ${problems.join('; ')}`,
+    location: 'lib/oped/schemas.ts — parseOpEdRequest',
+    nextSteps: [
+      'Choose a tag registered for that POV in lib/debate/soul-docs/pov-tags.json, and include that POV in povs.',
+      'Or omit tagSelection to generate an untagged set.',
+    ],
+  });
+}
 
 /**
  * Parse and validate a raw (unknown) value as an OpEdSet.
