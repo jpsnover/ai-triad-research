@@ -82,6 +82,27 @@ Describe 'Update-AITSourceIndex and Get-AITSource index integration' -Tag 'inges
         }
     }
 
+    It 't/3944: claims_by_pov serializes with a fixed, deterministic key order (not hash-bucket order)' {
+        InModuleScope AITriad -Parameters @{ SourcesDir = $script:TempSources; SummariesDir = $script:TempSummaries } {
+            param($SourcesDir, $SummariesDir)
+            Mock Get-SourcesDir   { return $SourcesDir }
+            Mock Get-SummariesDir { return $SummariesDir }
+
+            Update-AITSourceIndex -Quiet
+
+            $IndexPath = Join-Path $SourcesDir '_index.json'
+            $RawJson = Get-Content -Raw $IndexPath
+
+            # A plain (unordered) hashtable serializes in .NET hash-bucket order,
+            # which is randomized per PROCESS -- so this exact substring would only
+            # coincidentally match on any given run against the unfixed code (the
+            # bug is non-deterministic churn, not a fixed wrong order). [ordered]@{}
+            # guarantees this exact key order every time, in every process.
+            $RawJson | Should -Match '"claims_by_pov"\s*:\s*\{\s*"accelerationist"\s*:\s*6,\s*"safetyist"\s*:\s*2,\s*"skeptic"\s*:\s*1,\s*"situations"\s*:\s*1\s*\}' `
+                -Because 'claims_by_pov key order must always be accelerationist, safetyist, skeptic, situations'
+        }
+    }
+
     It 'Get-AITSource uses index when fresh' {
         InModuleScope AITriad -Parameters @{ SourcesDir = $script:TempSources; SummariesDir = $script:TempSummaries } {
             param($SourcesDir, $SummariesDir)
