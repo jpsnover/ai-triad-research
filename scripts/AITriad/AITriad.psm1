@@ -25,6 +25,14 @@ if ($_candidateRepoRoot -and (Test-Path (Join-Path $_candidateRepoRoot '.aitriad
     $script:IsDevInstall = $false
 }
 
+# Sentinel for an ambiguous (backend, apiModelId) pricing-key pair (t/3951):
+# Get-AICostPricing's ApiModelIdMap stores this instead of either candidate
+# model id when two DIFFERENT models share a pair, so a caller can never
+# last-write-wins into mispricing one model as another. Defined here (not in
+# Get-AICostPricing.ps1 itself) so it exists before ANY Private/Public file
+# loads, regardless of dot-source order.
+$script:AmbiguousPricingKeyMarker = [PSCustomObject]@{ PSTypeName = 'AITriad.AmbiguousPricingKeyMarker' }
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ClaimsByPov — per-POV claim counts for AITSource objects
 # ─────────────────────────────────────────────────────────────────────────────

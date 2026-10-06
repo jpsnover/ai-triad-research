@@ -62,7 +62,7 @@ Describe 'Get-AICostReport' -Tag 'cost' {
         $Row.Calls | Should -Be 3
     }
 
-    It 'computes cost via the backend-prefixed pricing fallback (model id alone has no match)' {
+    It 'computes cost via the (backend, apiModelId) map (t/3951 -- bare apiModelId alone has no pricing match)' {
         $r = Get-AICostReport -Path $script:usageFile -PassThru -GroupBy Model
         $Row = $r.Breakdown | Where-Object { $_.Group -eq 'llama-3.3-70b-versatile' }
         $Row.EstimatedCost | Should -Be ([Math]::Round((2000 * 0.59 + 1000 * 0.79) / 1000000, 4))

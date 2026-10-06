@@ -7,6 +7,27 @@ function ConvertTo-AIUsageCostEstimate {
         Get-AICostReport sub-helper (t/3910): computes per-entry estimated cost
         and attaches it to each entry in place (estimatedCost, hasPricing).
     .DESCRIPTION
+        t/3951 (binding design t/3946#5, SO e/248): resolves each entry's
+        pricing key in this order, matching the TS reader:
+          1. An exact `modelId` field on the record (set by DebateTool,
+             t/3950) -> pricing[modelId] directly. No further fallback --
+             modelId is authoritative; if pricing lacks it, unresolved.
+          2. Legacy records (no modelId): (backend, apiModelId) ->
+             models[].id via Get-AICostPricing's ApiModelIdMap, then
+             pricing[id]. Never looks up a bare apiModelId directly --
+             `gpt-4o`, `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini` are each
+             shared by 2 backends (azure/openai) on origin/main, so a bare
+             lookup could silently pick the wrong backend's price.
+          3. No backend, (backend, apiModelId) not in the map, or the map
+             holds $script:AmbiguousPricingKeyMarker (two DIFFERENT models
+             share that pair -- Get-AICostPricing never last-write-wins):
+             UNRESOLVED -- never a first-match guess, never priced at $0
+             silently (SO condition e/248#4). WARNs once per model id per
+             call.
+        The old `<backend>-<model>` string-concat fallback is dropped: it
+        resolves 0 pricing keys on origin/main and only caused PS to
+        diverge from the TS reader's resolution.
+
         t/3947: when a pricing entry has no cachedInputPer1M, cached tokens are
         costed at the full input rate (the same fallback registry.ts's
         findPricingMissingCacheRate warns about on the TS side, t/3945). That
@@ -19,6 +40,10 @@ function ConvertTo-AIUsageCostEstimate {
         in place -- each entry gains estimatedCost/hasPricing members.
     .PARAMETER Pricing
         Pricing lookup from Get-AICostPricing.
+    .PARAMETER ApiModelIdMap
+        Nested map from Get-AICostPricing: $ApiModelIdMap[backend][apiModelId]
+        -> models[].id, or $script:AmbiguousPricingKeyMarker if two different
+        models share that pair.
     #>
     [CmdletBinding()]
     param(
@@ -26,12 +51,16 @@ function ConvertTo-AIUsageCostEstimate {
         [System.Collections.Generic.List[PSObject]]$Entries,
 
         [Parameter(Mandatory)]
-        [hashtable]$Pricing
+        [hashtable]$Pricing,
+
+        [Parameter(Mandatory)]
+        [hashtable]$ApiModelIdMap
     )
 
     Set-StrictMode -Version Latest
 
     $WarnedModels = [System.Collections.Generic.HashSet[string]]::new()
+    $UnresolvedWarned = [System.Collections.Generic.HashSet[string]]::new()
 
     foreach ($E in $Entries) {
         $ModelId = if ($E.PSObject.Properties['model']) { $E.model } else { 'unknown' }
@@ -43,16 +72,36 @@ function ConvertTo-AIUsageCostEstimate {
         $PriceInfo = $null
         $ResolvedId = $null
 
-        if ($Pricing.ContainsKey($ModelId)) {
-            $PriceInfo = $Pricing[$ModelId]
-            $ResolvedId = $ModelId
+        $RecordModelId = if ($E.PSObject.Properties['modelId']) { $E.modelId } else { $null }
+        $IsAmbiguous = $false
+        if ($RecordModelId) {
+            $ResolvedId = $RecordModelId
         }
         else {
-            $EBackend = if ($E.PSObject.Properties['backend']) { $E.backend } else { '' }
-            $PrefixedId = "$EBackend-$ModelId"
-            if ($Pricing.ContainsKey($PrefixedId)) {
-                $PriceInfo = $Pricing[$PrefixedId]
-                $ResolvedId = $PrefixedId
+            $EBackend = if ($E.PSObject.Properties['backend']) { $E.backend } else { $null }
+            if ($EBackend -and $ApiModelIdMap.ContainsKey($EBackend)) {
+                $BackendMap = $ApiModelIdMap[$EBackend]
+                if ($BackendMap.ContainsKey($ModelId)) {
+                    $Candidate = $BackendMap[$ModelId]
+                    if ($Candidate -eq $script:AmbiguousPricingKeyMarker) {
+                        $IsAmbiguous = $true
+                    }
+                    else {
+                        $ResolvedId = $Candidate
+                    }
+                }
+            }
+        }
+
+        if ($ResolvedId -and $Pricing.ContainsKey($ResolvedId)) {
+            $PriceInfo = $Pricing[$ResolvedId]
+        }
+        elseif ($UnresolvedWarned.Add($ModelId)) {
+            if ($IsAmbiguous) {
+                Write-Warning "ConvertTo-AIUsageCostEstimate: '$ModelId' (backend: $($E.backend)) is ambiguous -- 2+ models share this (backend, apiModelId) pair at different prices; reporting as unresolved (estimatedCost=0, hasPricing=false), never a guessed match (t/3951)."
+            }
+            else {
+                Write-Warning "ConvertTo-AIUsageCostEstimate: '$ModelId' (backend: $(if ($E.PSObject.Properties['backend']) { $E.backend } else { '<none>' })) could not be resolved to a pricing key -- reporting as unresolved (estimatedCost=0, hasPricing=false), never a guessed match (t/3951)."
             }
         }
 
