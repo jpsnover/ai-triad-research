@@ -1300,22 +1300,26 @@
   },
   "_pricing_provenance": "Anthropic pricing page (platform.claude.com/docs/en/about-claude/pricing), read 2026-10-05; standard global Claude API $/MTok (t/3941#4). Cache reads are 0.1x input EXCEPT claude-fable-5-1 (0.025x = 0.25) and claude-opus-5-5 (0.05x = 0.20); claude-fable-5 cache read is 1.00. Sonnet 5 is 2/10 standard — the scheduled 2026-09-01 rise to 3/15 was CANCELLED (pricing-page footnote); the prior stored 3/15 was Sonnet 4.6's price. Schema has no cache-write field; 5m/1h cache-write prices are intentionally not stored (adding one is a schema change).",
   "pricing": {
-    "_comment": "USD per 1M tokens. cachedInputPer1M is the reduced rate for cache-hit input tokens. Updated 2026-05-03.",
+    "_comment": "USD per 1M tokens. cachedInputPer1M is the reduced rate for cache-hit input tokens. Updated 2026-10-05.",
     "gemini-3.1-pro-preview": {
-      "inputPer1M": 3,
-      "outputPer1M": 15
+      "inputPer1M": 2,
+      "outputPer1M": 12,
+      "cachedInputPer1M": 0.2
     },
     "gemini-3.5-flash": {
-      "inputPer1M": 0.75,
-      "outputPer1M": 3
+      "inputPer1M": 1.5,
+      "outputPer1M": 9,
+      "cachedInputPer1M": 0.15
     },
     "gemini-3.5-flash-lite": {
-      "inputPer1M": 0.375,
-      "outputPer1M": 1.5
+      "inputPer1M": 0.3,
+      "outputPer1M": 2.5,
+      "cachedInputPer1M": 0.3
     },
     "gemini-3.1-flash-lite": {
-      "inputPer1M": 0.375,
-      "outputPer1M": 1.5
+      "inputPer1M": 0.25,
+      "outputPer1M": 1.5,
+      "cachedInputPer1M": 0.025
     },
     "gemini-2.5-pro": {
       "inputPer1M": 1.25,
@@ -1405,10 +1409,6 @@
       "inputPer1M": 0.05,
       "outputPer1M": 0.08
     },
-    "groq-llama-4-scout-17b-16e": {
-      "inputPer1M": 0.11,
-      "outputPer1M": 0.34
-    },
     "groq-openai-gpt-oss-120b": {
       "inputPer1M": 0.15,
       "outputPer1M": 0.6
@@ -1418,22 +1418,24 @@
       "outputPer1M": 0.3
     },
     "openai-gpt-5.5": {
-      "inputPer1M": 2,
-      "outputPer1M": 8
+      "inputPer1M": 5,
+      "outputPer1M": 30,
+      "cachedInputPer1M": 0.5
     },
     "openai-gpt-5.5-pro": {
-      "inputPer1M": 10,
-      "outputPer1M": 40
+      "inputPer1M": 30,
+      "outputPer1M": 180,
+      "cachedInputPer1M": 30
     },
-    "deepseek-chat": {
-      "inputPer1M": 0.27,
-      "outputPer1M": 1.1,
-      "cachedInputPer1M": 0.07
+    "deepseek-deepseek-v4-flash": {
+      "inputPer1M": 0.3,
+      "outputPer1M": 1.2,
+      "cachedInputPer1M": 0.006
     },
-    "deepseek-reasoner": {
-      "inputPer1M": 0.55,
-      "outputPer1M": 2.19,
-      "cachedInputPer1M": 0.14
+    "deepseek-deepseek-v4-pro": {
+      "inputPer1M": 1.32,
+      "outputPer1M": 3.96,
+      "cachedInputPer1M": 0.044
     },
     "zai-glm-5-2": {
       "inputPer1M": 1.4,
@@ -1459,6 +1461,66 @@
       "inputPer1M": 2,
       "outputPer1M": 6,
       "cachedInputPer1M": 0.5
+    },
+    "openai-gpt-4o": {
+      "inputPer1M": 2.5,
+      "outputPer1M": 10,
+      "cachedInputPer1M": 1.25
+    },
+    "openai-gpt-4o-mini": {
+      "inputPer1M": 0.15,
+      "outputPer1M": 0.6,
+      "cachedInputPer1M": 0.075
+    },
+    "openai-gpt-4.1": {
+      "inputPer1M": 2,
+      "outputPer1M": 8,
+      "cachedInputPer1M": 0.5
+    },
+    "openai-gpt-4.1-mini": {
+      "inputPer1M": 0.4,
+      "outputPer1M": 1.6,
+      "cachedInputPer1M": 0.1
+    },
+    "xai-grok-4-7": {
+      "inputPer1M": 2,
+      "outputPer1M": 6,
+      "cachedInputPer1M": 0.5
+    },
+    "gemini-3.8-flash": {
+      "inputPer1M": 0.75,
+      "outputPer1M": 3.75,
+      "cachedInputPer1M": 0.075
+    },
+    "gemini-3.6-flash": {
+      "inputPer1M": 0.75,
+      "outputPer1M": 3.75,
+      "cachedInputPer1M": 0.075
+    },
+    "ollama-gemma4-e4b-it-q4-k-m": {
+      "inputPer1M": 0,
+      "outputPer1M": 0,
+      "cachedInputPer1M": 0
+    },
+    "azure-gpt-4o": {
+      "inputPer1M": 2.5,
+      "outputPer1M": 10,
+      "cachedInputPer1M": 1.25
+    },
+    "azure-gpt-4o-mini": {
+      "inputPer1M": 0.15,
+      "outputPer1M": 0.6,
+      "cachedInputPer1M": 0.075
+    },
+    "azure-gpt-4.1": {
+      "inputPer1M": 2,
+      "outputPer1M": 8,
+      "cachedInputPer1M": 0.5
+    },
+    "azure-gpt-4.1-mini": {
+      "inputPer1M": 0.4,
+      "outputPer1M": 1.6,
+      "cachedInputPer1M": 0.1
     }
   },
   "lastRefreshed": "2026-09-22T21:08:31.752Z"
