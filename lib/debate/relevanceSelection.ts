@@ -21,7 +21,7 @@
 
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
 import type { TagSelection } from './types/session.js';
-import { TAG_BOOST_INCREMENT } from './debateConfig.js';
+import { TAG_BOOST_INCREMENT, TAG_SCOPE_MINIMUM_NODES } from './debateConfig.js';
 import { cosineSimilarity } from '../embeddings/similarity.js';
 import {
   scoreNodesViaAN,
@@ -125,15 +125,28 @@ export interface DoctrinalAdjustment {
 
 /**
  * Pure pre-flight: check how many POV nodes are in-scope for a given tag.
- * Never throws at runtime — callers use this to decide whether to proceed.
+ * Never throws at runtime — callers act on `sufficient` + `reason`.
+ *
+ * Sufficiency rules (t/3965#13, CL ruling p/736#31):
+ *   - `none-tagged`: inScope === 0 (either mode) — nothing to ground on or boost.
+ *   - `below-floor`: Scope mode, 0 < inScope < TAG_SCOPE_MINIMUM_NODES — too thin to answer.
+ *   - null: sufficient.
+ * Prioritize sufficiency floor is 1 (no minimum count — it excludes nothing).
+ * Scope sufficiency floor is TAG_SCOPE_MINIMUM_NODES.
  */
 export function checkTagScope(
   povNodes: PovNode[],
   tagSelection: TagSelection,
-): { inScope: PovNode[]; excluded: PovNode[]; sufficient: boolean } {
+): { inScope: PovNode[]; excluded: PovNode[]; sufficient: boolean; reason: 'none-tagged' | 'below-floor' | null } {
   const inScope = povNodes.filter(n => (n.pov_tags ?? []).includes(tagSelection.tag));
   const excluded = povNodes.filter(n => !(n.pov_tags ?? []).includes(tagSelection.tag));
-  return { inScope, excluded, sufficient: inScope.length >= 5 };
+  if (inScope.length === 0) {
+    return { inScope, excluded, sufficient: false, reason: 'none-tagged' };
+  }
+  if (tagSelection.mode === 'scope' && inScope.length < TAG_SCOPE_MINIMUM_NODES) {
+    return { inScope, excluded, sufficient: false, reason: 'below-floor' };
+  }
+  return { inScope, excluded, sufficient: true, reason: null };
 }
 
 /**

@@ -11,10 +11,10 @@ import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { PovInfo, SpeakerId } from './types.js';
 import type { TagSelection } from './types/session.js';
 import { POVER_INFO } from './poverInfo.js';
+import { tagSoulFileName } from '../schema/povTags.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SOUL_DOCS_DIR = resolve(__dirname, 'soul-docs');
-const TAG_SOUL_DOCS_DIR = resolve(SOUL_DOCS_DIR, 'tags');
 
 const CHARACTERS = ['accelerationist', 'safetyist', 'skeptic'] as const;
 
@@ -125,7 +125,7 @@ function loadTagSoulDocument(pov: CharacterId, tag: string): SoulDocument {
   const cached = _tagCache.get(cacheKey);
   if (cached) return cached;
 
-  const filePath = resolve(TAG_SOUL_DOCS_DIR, `${tag}.${pov}.soul.json`);
+  const filePath = resolve(SOUL_DOCS_DIR, tagSoulFileName(pov, tag));
   let raw: string;
   try {
     raw = readFileSync(filePath, 'utf-8');
@@ -142,7 +142,7 @@ function loadTagSoulDocument(pov: CharacterId, tag: string): SoulDocument {
       problem: `File not found or unreadable: ${filePath}`,
       location: 'soulDocLoader.ts:loadTagSoulDocument',
       nextSteps: [
-        `Verify ${tag}.${pov}.soul.json exists in lib/debate/soul-docs/tags/`,
+        `Verify ${tagSoulFileName(pov, tag)} exists in lib/debate/soul-docs/`,
         `Check lib/debate/soul-docs/pov-tags.json — only registered tags are valid`,
       ],
     });
@@ -207,6 +207,19 @@ export function getSoulDocument(pov: CharacterId, tag?: string): SoulDocument {
 }
 
 /**
+ * Merge a loaded tag soul with the base soul identity.
+ * Tag souls supply personality/voice; base soul supplies label/pov (t/3988).
+ * Exported for testing and for any caller that builds a PovInfo from raw tag-soul data.
+ */
+export function applyBaseIdentity(
+  tagDoc: SoulDocument,
+  speaker: Exclude<SpeakerId, 'user'>,
+): PovInfo {
+  const baseSoul = POVER_INFO[speaker];
+  return { ...(tagDoc as unknown as PovInfo), label: baseSoul.label, pov: baseSoul.pov };
+}
+
+/**
  * Resolve the effective soul for a speaker, replacing the base soul entirely when a tag is present.
  * Returns the soul (as PovInfo, matching the POVER_INFO shape) plus file + sha provenance.
  *
@@ -225,7 +238,7 @@ export function resolvePoverInfo(
 
   const tagDoc = loadTagSoulDocument(speaker, tagSelection.tag);
   const provenance = _provenanceCache.get(`${speaker}:${tagSelection.tag}`)!;
-  return { soul: tagDoc as unknown as PovInfo, soulProvenance: provenance as SoulProvenanceNode };
+  return { soul: applyBaseIdentity(tagDoc, speaker), soulProvenance: provenance as SoulProvenanceNode };
 }
 
 export function clearSoulDocCache(): void {

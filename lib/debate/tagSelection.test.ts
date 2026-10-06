@@ -20,21 +20,50 @@ describe('checkTagScope', () => {
     expect(excluded.map(n => n.id).sort()).toEqual(['b1', 'b2', 'b3']);
   });
 
-  it('sufficient is true when ≥5 in-scope', () => {
+  it('sufficient is true when ≥5 in-scope (Scope mode)', () => {
     const manyTagged = Array.from({ length: 5 }, (_, i) => makeNode(`t${i}`, ['ea']));
-    const { sufficient } = checkTagScope(manyTagged, { tag: 'ea', mode: 'scope' });
+    const { sufficient, reason } = checkTagScope(manyTagged, { tag: 'ea', mode: 'scope' });
     expect(sufficient).toBe(true);
+    expect(reason).toBeNull();
   });
 
-  it('sufficient is false when <5 in-scope', () => {
-    const { sufficient } = checkTagScope(NODES, { tag: 'ea', mode: 'scope' });
+  it('sufficient is false, reason below-floor when 0 < inScope < 5 (Scope mode)', () => {
+    const { sufficient, reason } = checkTagScope(NODES, { tag: 'ea', mode: 'scope' });
     expect(sufficient).toBe(false); // 3 tagged
+    expect(reason).toBe('below-floor');
   });
 
-  it('returns empty in-scope when no node has the tag', () => {
-    const { inScope, sufficient } = checkTagScope(NODES, { tag: 'unknown-tag', mode: 'scope' });
+  it('sufficient is false, reason none-tagged when no node has the tag (Scope mode)', () => {
+    const { inScope, sufficient, reason } = checkTagScope(NODES, { tag: 'unknown-tag', mode: 'scope' });
     expect(inScope).toHaveLength(0);
     expect(sufficient).toBe(false);
+    expect(reason).toBe('none-tagged');
+  });
+
+  it('sufficient is true, reason null when Prioritize mode and ≥1 node carries the tag', () => {
+    const { sufficient, reason } = checkTagScope(NODES, { tag: 'ea', mode: 'prioritize' });
+    expect(sufficient).toBe(true);
+    expect(reason).toBeNull();
+  });
+
+  it('sufficient is false, reason none-tagged when Prioritize mode and 0 nodes carry the tag', () => {
+    const { sufficient, reason } = checkTagScope(NODES, { tag: 'unknown-tag', mode: 'prioritize' });
+    expect(sufficient).toBe(false);
+    expect(reason).toBe('none-tagged');
+  });
+
+  it('Prioritize with 1 tagged node is sufficient (no floor for Prioritize)', () => {
+    const oneTagged = [makeNode('x1', ['ea']), makeNode('x2'), makeNode('x3')];
+    const { sufficient, reason } = checkTagScope(oneTagged, { tag: 'ea', mode: 'prioritize' });
+    expect(sufficient).toBe(true);
+    expect(reason).toBeNull();
+  });
+
+  it('Scope with exactly TAG_SCOPE_MINIMUM_NODES tagged is sufficient', () => {
+    const exactFloor = Array.from({ length: 5 }, (_, i) => makeNode(`f${i}`, ['ea']));
+    const { sufficient, reason } = checkTagScope(exactFloor, { tag: 'ea', mode: 'scope' });
+    expect(sufficient).toBe(true);
+    expect(reason).toBeNull();
   });
 });
 
