@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { POV_KEYS } from '@lib/debate/types';
 import { logicalFormSchema } from '@lib/entities/logicalForm';
 import { entityLinkRefSchema, conceptLinkRefSchema } from '@lib/entities/linkRefs';
-import { validatePovTags } from '@lib/schema/povTags';
+import { validatePovTagsDetailed } from '@lib/schema/povTags';
 
 const categoryEnum = z.enum(['Desires', 'Beliefs', 'Intentions']);
 
@@ -37,8 +37,11 @@ const povNodeSchema = z.object({
   // type error. Absent or empty = untagged.
   pov_tags: z.unknown().optional(),
 }).passthrough().superRefine((node, ctx) => {
-  for (const message of validatePovTags(node.id, node.pov_tags)) {
-    ctx.addIssue({ code: 'custom', path: ['pov_tags'], message });
+  // Structural problems only (shape, scalar unroll, duplicates, kebab-case, non-POV node): those block
+  // every save. Registry membership is gated per node in save() (t/3973), so a tag the registry later
+  // retires can't block saves of nodes nobody touched.
+  for (const p of validatePovTagsDetailed(node.id, node.pov_tags)) {
+    if (p.kind === 'structural') ctx.addIssue({ code: 'custom', path: ['pov_tags'], message: p.message });
   }
 });
 

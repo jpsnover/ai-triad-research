@@ -55,6 +55,7 @@ BeforeAll {
         'scripts/AITriad/Public/Export-AggregatedCruxes.ps1' = 'writes a NEW aggregated-cruxes export file (not an in-place rewrite)'
         'scripts/AITriad/Public/Get-TaxonomySnapshot.ps1'  = 'writes a NEW snapshot-meta.json in the snapshot output dir'
         'scripts/AITriad/Public/Invoke-AITDebate.ps1'      = 'writes debate config to a GetTempFileName() temp (non-data)'
+        'scripts/AITriad/Public/Set-PovNodeTags.ps1'       = 'Set-Content writes the pov-tags-cli request JSON + captures its stderr to GetTempFileName() temps (non-data, both removed after the call); the actual taxonomy write happens via Save-JsonNodeFieldEdits'' guarded sink, not a raw sink here (t/3969)'
         'scripts/AITriad/Public/New-OpEd.ps1'              = 'writes op-ed Markdown output (new file, non-data-of-record)'
         'scripts/AITriad/Public/New-SyntheticCorpus.ps1'   = 'append-checkpoint + fresh corpus generation + NEW metadata (not a whole-file data rewrite)'
         'scripts/AITriad/Public/Test-DebatePersistence.ps1' = 'writes a random persist-probe .tmp (test probe, non-data)'

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { DocumentAnalysis, DebateAudience } from '../types.js';
+import type { DocumentAnalysis, DebateAudience, PovInfo, SpeakerId } from '../types.js';
 import { documentAnalysisContext } from '../documentAnalysis.js';
 import {
   getCharacterBlock,
@@ -37,6 +37,10 @@ export interface OpeningStagePromptInput {
   edgeContext?: string;
   /** Moderator's narrative voicing of each camp (h3), pre-formatted by narrativeVoicingDebaterBlock. */
   narrativeVoicing?: string;
+  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
+  soul?: PovInfo;
+  /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
+  opponentSouls?: Partial<Record<SpeakerId, PovInfo>>;
 }
 
 export function briefOpeningStagePrompt(input: OpeningStagePromptInput): string {
@@ -97,9 +101,9 @@ NOTE: Only speakers listed in the prior statements have actually spoken. Do not 
 
 export function planOpeningStagePrompt(input: OpeningStagePromptInput, brief: string): string {
   return `You are ${input.label}, planning the structure of your opening statement.
-${getCharacterBlock(input.pov)}
+${getCharacterBlock(input.pov, input.soul)}
 Your perspective: ${input.pov}.
-${formatDoctrinalBoundaries(input.pov)}
+${formatDoctrinalBoundaries(input.pov, input.soul)}
 ${gradeTargetPreamble(input.audience)}=== SITUATION BRIEF ===
 ${brief}
 
@@ -176,8 +180,8 @@ export function draftOpeningStagePrompt(input: OpeningStagePromptInput, brief: s
       : '';
 
   return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
-${getCharacterBlock(input.pov)}
-${otherDebaters(input.label)}
+${getCharacterBlock(input.pov, input.soul)}
+${otherDebaters(input.label, input.opponentSouls)}
 ${getReadingLevel(input.audience)}
 ${getDetailInstruction(input.audience)}
 ${getPolicymakerFraming(input.audience)}
@@ -186,7 +190,7 @@ OUTPUT: Respond ONLY with a JSON object (no markdown, no code fences, no preambl
 ${MUST_CORE_BEHAVIORS}
 
 ${STEELMAN_INSTRUCTION}
-${formatDoctrinalBoundaries(input.pov)}
+${formatDoctrinalBoundaries(input.pov, input.soul)}
 === SITUATION BRIEF ===
 ${brief}
 

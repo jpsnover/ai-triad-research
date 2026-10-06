@@ -24,12 +24,15 @@ import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { log } from '../logger.js';
 import * as fileIO from '../storage/fileIO.js';
 import * as ai from '../ai/aiBackends.js';
-import { POVER_INFO, getPovDoctrinalBoundaries } from '../../../../lib/debate/poverInfo.js';
+import { getPovDoctrinalBoundaries } from '../../../../lib/debate/poverInfo.js';
+import { resolvePoverInfo } from '../../../../lib/debate/soulDocLoader.js';
 import { getAssembledCorpus } from './corpusAssemblyCache.js';
 import {
   selectRelevantTaxonomy,
   type ANClaimInput,
 } from '../../../../lib/debate/relevanceSelection.js';
+import type { TagSelection } from '../../../../lib/debate/types/session.js';
+import type { SpeakerId } from '../../../../lib/debate/types.js';
 
 // The debate speaker's camp — the request `pov` is the full POV file name (matches the client's
 // state[pov] read + POVER_INFO.pov). Situations ('cc') nodes are always loaded alongside.
@@ -40,6 +43,7 @@ interface RelevantNodesBody {
   topic: string;
   recentTranscript: string;
   threshold?: number;
+  tagSelection?: TagSelection;
   session?: {
     anClaimEmbeddings?: ANClaimInput[];
     lineageFrame?: { cluster_id: string; label?: string }[];
@@ -77,8 +81,8 @@ export function registerRelevantNodesRoutes(r: Router, _ctx: ServerCtx): void {
       const lineageRaw = await fileIO.readLineageCategories() as { mapping?: Record<string, { l2: string }> } | null;
       const lineageMapping = lineageRaw?.mapping; // verbatim passthrough (getLineageMapping equivalent, Rosetta p/528)
 
-      const povInfo = Object.values(POVER_INFO).find(i => i.pov === pov);
-      const doctrinalBoundaries = povInfo ? getPovDoctrinalBoundaries(povInfo) : undefined;
+      const { soul } = resolvePoverInfo(pov as Exclude<SpeakerId, 'user'>, b.tagSelection);
+      const doctrinalBoundaries = getPovDoctrinalBoundaries(soul);
 
       // ── Per-session (from the request body — the server cannot reconstruct these) ──
       const session = {
@@ -92,7 +96,7 @@ export function registerRelevantNodesRoutes(r: Router, _ctx: ServerCtx): void {
       const result = await selectRelevantTaxonomy({
         povNodes, situationNodes, policyRegistry, nodeEmbeddings, lineageMapping, doctrinalBoundaries,
         session,
-        params: { pov, topic, recentTranscript, threshold: b.threshold },
+        params: { pov, topic, recentTranscript, threshold: b.threshold, tagSelection: b.tagSelection },
         embed: queryEmbed,
       });
 

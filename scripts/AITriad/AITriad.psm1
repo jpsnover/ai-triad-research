@@ -616,6 +616,17 @@ class AICallLogEntry {
     [string]   $Status       # HTTP/API status (e.g. 200, 429, 500, timeout)
 }
 
+# One batch entry for Set-PovNodeTags (t/3969, TL t/3969#2 cond B.1). A [string[]] property —
+# not a bare [string[]]$Tags cmdlet parameter — because the hazard TL flagged is in the CALLER
+# (e.g. `-Tags (Get-Something)` returning one string): a typed class property binds a single
+# string the same way a typed parameter does (confirmed: PowerShell's standard
+# scalar-to-single-element-array coercion applies to both), turning a caller's accidental
+# scalar into a one-element array instead of silently sending a raw string to the CLI/writer.
+class PovTagAssignment {
+    [string]   $NodeId
+    [string[]] $Tags
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Module-scoped taxonomy store
 # ─────────────────────────────────────────────────────────────────────────────
@@ -854,6 +865,8 @@ Export-ModuleMember -Function @(
     'Assert-CleanDataTree'
     # t/2916 — durable batch writer: field-surgical node-field edits (sweep-proof)
     'Save-JsonNodeFieldEdits'
+    # t/3969 — validatePovTags-enforcing pov_tags batch writer (the t/3962 writer)
+    'Set-PovNodeTags'
     'Invoke-HierarchyProposal'
     'Set-TaxonomyHierarchy'
     'Invoke-SchemaMigration'

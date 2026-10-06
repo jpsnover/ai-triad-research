@@ -25,6 +25,10 @@ export const POV_BY_ID_PREFIX: Readonly<Record<string, string>> = {
   skp: 'skeptic',
 };
 
+/** The three registry POV keys. A tag belongs to exactly one of them. */
+export const PovNameSchema = z.enum(['accelerationist', 'safetyist', 'skeptic']);
+export type PovName = z.infer<typeof PovNameSchema>;
+
 /** Lowercase kebab-case, unique within its POV (spec §2.1). */
 export const POV_TAG_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -39,7 +43,7 @@ const PovTagEntrySchema = z.object({
 export const PovTagRegistrySchema = z.object({
   version: z.number().int().positive(),
   // partialRecord: a POV with no entry has no tags (spec §2.1). Zod 4's z.record with enum keys is exhaustive.
-  povs: z.partialRecord(z.enum(['accelerationist', 'safetyist', 'skeptic']), z.array(PovTagEntrySchema)),
+  povs: z.partialRecord(PovNameSchema, z.array(PovTagEntrySchema)),
 }).strict().superRefine((reg, ctx) => {
   for (const [pov, entries] of Object.entries(reg.povs)) {
     const seen = new Set<string>();
@@ -64,39 +68,81 @@ export function loadPovTagRegistry(): PovTagRegistry {
 }
 
 /**
- * Every problem with a node's `pov_tags`, or `[]` if it is valid. Pure; never throws.
+ * What kind of problem a `pov_tags` value has (t/3973):
+ *  - `structural`: wrong regardless of the registry. The field on a non-POV node, a non-array, a
+ *    non-string entry, a non-kebab-case id, a duplicate. Always blocking.
+ *  - `unregistered`: a well-formed id the registry does not list for the node's POV. This depends on the
+ *    registry's current contents, so a tag renamed or removed after nodes carry it turns those untouched
+ *    nodes `unregistered`. The editor gates this kind on changed nodes only.
+ */
+export type PovTagProblemKind = 'structural' | 'unregistered';
+export interface PovTagProblem {
+  kind: PovTagProblemKind;
+  message: string;
+}
+
+const structural = (message: string): PovTagProblem => ({ kind: 'structural', message });
+
+/**
+ * Every problem with a node's `pov_tags`, with its kind, or `[]` if it is valid. Pure; never throws.
  *  - absent (`undefined`/`null`) is valid for every node and means untagged;
  *  - a non-POV node (`sit-*`, `cc-*`, anything without an acc/saf/skp prefix) must not carry the field;
  *  - on a POV node the value must be an ARRAY of strings. A bare string is rejected: PowerShell unrolls a
  *    one-element array into a scalar (TL t/3955#4 cond 2), and accepting that would hide the corruption;
  *  - each id must be kebab-case, unique on the node, and registered under the node's own POV.
  */
-export function validatePovTags(nodeId: string, tags: unknown, registry: PovTagRegistry = loadPovTagRegistry()): string[] {
+export function validatePovTagsDetailed(nodeId: string, tags: unknown, registry: PovTagRegistry = loadPovTagRegistry()): PovTagProblem[] {
   if (tags === undefined || tags === null) return [];
   const prefix = /^([a-z]+)-/.exec(nodeId)?.[1] ?? '';
   const pov = POV_BY_ID_PREFIX[prefix];
-  if (!pov) return [`${nodeId}: pov_tags is only allowed on POV nodes (acc-/saf-/skp-); this node must not carry it`];
+  if (!pov) return [structural(`${nodeId}: pov_tags is only allowed on POV nodes (acc-/saf-/skp-); this node must not carry it`)];
   if (!Array.isArray(tags)) {
-    return [`${nodeId}: pov_tags must be an array of tag ids, got ${typeof tags}${typeof tags === 'string' ? ` "${tags}" (a one-element array unrolled to a scalar?)` : ''}`];
+    return [structural(`${nodeId}: pov_tags must be an array of tag ids, got ${typeof tags}${typeof tags === 'string' ? ` "${tags}" (a one-element array unrolled to a scalar?)` : ''}`)];
   }
   const allowed = new Set((registry.povs[pov as keyof PovTagRegistry['povs']] ?? []).map((t) => t.id));
   const seen = new Set<string>();
   return tags.flatMap((t) => tagProblems(nodeId, pov, t, allowed, seen));
 }
 
+/** Every problem with a node's `pov_tags` as plain messages, or `[]` if it is valid. See
+ *  {@link validatePovTagsDetailed}, which also says which problems are `unregistered`. */
+export function validatePovTags(nodeId: string, tags: unknown, registry: PovTagRegistry = loadPovTagRegistry()): string[] {
+  return validatePovTagsDetailed(nodeId, tags, registry).map((p) => p.message);
+}
+
+/**
+ * Every problem with a single tag selected for a POV, or `[]` if it is valid: the same per-tag rule as
+ * {@link validatePovTags}, for callers that name the POV explicitly instead of deriving it from a node id
+ * (the Inquiry request's `tagSelection`, t/3965 SO e/252 cond 4). Pure; never throws.
+ *
+ * While the WHOLE registry is empty, every tag is rejected. That is expected until the tag souls land
+ * (t/3956), and the message says so, so the rejection does not read as a bug. Once any POV has tags, a
+ * rejection is a real mistake and carries no such note.
+ */
+export function validatePovTagSelection(pov: PovName, tag: string, registry: PovTagRegistry = loadPovTagRegistry()): string[] {
+  const entries = registry.povs[pov] ?? [];
+  const problems = tagProblems('tagSelection', pov, tag, new Set(entries.map((t) => t.id)), new Set()).map((p) => p.message);
+  const registryEmpty = Object.values(registry.povs).every((e) => (e ?? []).length === 0);
+  if (!registryEmpty) return problems;
+  return problems.map((p) => `${p}. The tag registry ships empty until the tag souls land (t/3956), so every tag is rejected until then; this is expected, not a bug.`);
+}
+
 /** Problems with one entry of a POV node's tag array; `seen` accumulates ids to catch duplicates. */
-function tagProblems(nodeId: string, pov: string, t: unknown, allowed: ReadonlySet<string>, seen: Set<string>): string[] {
-  if (typeof t !== 'string') return [`${nodeId}: pov_tags entries must be strings, got ${typeof t}`];
-  const errors: string[] = [];
-  if (!POV_TAG_ID_PATTERN.test(t)) errors.push(`${nodeId}: tag "${t}" is not lowercase kebab-case`);
-  if (seen.has(t)) errors.push(`${nodeId}: tag "${t}" appears more than once`);
+function tagProblems(nodeId: string, pov: string, t: unknown, allowed: ReadonlySet<string>, seen: Set<string>): PovTagProblem[] {
+  if (typeof t !== 'string') return [structural(`${nodeId}: pov_tags entries must be strings, got ${typeof t}`)];
+  const problems: PovTagProblem[] = [];
+  if (!POV_TAG_ID_PATTERN.test(t)) problems.push(structural(`${nodeId}: tag "${t}" is not lowercase kebab-case`));
+  if (seen.has(t)) problems.push(structural(`${nodeId}: tag "${t}" appears more than once`));
   seen.add(t);
   if (!allowed.has(t)) {
-    errors.push(allowed.size === 0
-      ? `${nodeId}: tag "${t}" is not registered; ${pov} has no tags in lib/debate/soul-docs/pov-tags.json`
-      : `${nodeId}: tag "${t}" is not registered for ${pov} (allowed: ${[...allowed].sort().join(', ')})`);
+    problems.push({
+      kind: 'unregistered',
+      message: allowed.size === 0
+        ? `${nodeId}: tag "${t}" is not registered; ${pov} has no tags in lib/debate/soul-docs/pov-tags.json`
+        : `${nodeId}: tag "${t}" is not registered for ${pov} (allowed: ${[...allowed].sort().join(', ')})`,
+    });
   }
-  return errors;
+  return problems;
 }
 
 /**

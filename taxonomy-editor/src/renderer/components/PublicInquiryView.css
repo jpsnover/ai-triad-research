@@ -67,6 +67,26 @@
 }
 .pov-inquiry-prov b { color: var(--text-primary); }
 
+/* POV-tag scope (t/3983): says when an answer reflects one wing of a camp, not the whole camp. */
+.pov-inquiry-scope {
+  margin: -0.4rem 0 0.9rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--link-color);
+  background: var(--bg-secondary, transparent);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.pov-inquiry-scope-label { font-weight: 600; color: var(--text-primary); }
+.pov-inquiry-scope-detail { color: var(--text-muted); margin-top: 0.15rem; }
+.pov-inquiry-scope-warn {
+  color: var(--text-primary);
+  margin-top: 0.3rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--warning-border, rgba(234, 179, 8, 0.3));
+  background: var(--warning-bg, rgba(234, 179, 8, 0.12));
+  border-radius: 4px;
+}
+
 .pov-inquiry-banner {
   border-radius: 8px;
   padding: 1rem 1.1rem;

@@ -5,9 +5,11 @@
 // Anchors an inquiry to the most relevant situation node and attaches the top-N
 // POV nodes per camp by embedding similarity.
 
-import type { GroundingEnvelope, NodeRef, Camp } from '../inquiry/index.js';
+import type { GroundingEnvelope, NodeRef, Camp, AppliedTag, TagSelection } from '../inquiry/index.js';
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
 import type { NodeEmbeddingMap } from './relevanceSelection.js';
+import { applyTagSelection } from './relevanceSelection.js';
+import { TAG_BOOST_INCREMENT } from './debateConfig.js';
 import { cosineSimilarity } from '../embeddings/similarity.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 
@@ -26,6 +28,8 @@ export interface GroundingOptions {
   situationId?: string;
   /** Maximum POV nodes to include per camp. Default: 3. */
   topNodesPerCamp?: number;
+  /** Optional POV-scoped tag selection (t/3965). Filter/boost applies ONLY to the named POV's camp. */
+  tagSelection?: TagSelection;
 }
 
 const VALID_CAMPS = new Set<string>(['acc', 'saf', 'skp', 'cc']);
@@ -51,12 +55,12 @@ export async function buildGroundingEnvelope(
   taxonomy: GroundingTaxonomy,
   embed: (texts: string[]) => Promise<number[][]>,
   opts: GroundingOptions = {},
-): Promise<GroundingEnvelope> {
+): Promise<{ envelope: GroundingEnvelope; appliedTag?: AppliedTag }> {
   const topN = opts.topNodesPerCamp ?? DEFAULT_TOP_PER_CAMP;
 
   if (taxonomy.povNodes.length === 0) {
     warn('buildGroundingEnvelope: empty povNodes corpus — returning empty envelope');
-    return { nodesByCamp: {} };
+    return { envelope: { nodesByCamp: {} } };
   }
 
   // ── Embed question ────────────────────────────────────────────────────────
@@ -65,13 +69,13 @@ export async function buildGroundingEnvelope(
     questionVectors = await embed([question]);
   } catch (err) {
     warn(`buildGroundingEnvelope: embed call failed (${String(err)}) — returning empty envelope`);
-    return { nodesByCamp: {} };
+    return { envelope: { nodesByCamp: {} } };
   }
 
   const questionVec = questionVectors[0];
   if (!questionVec || questionVec.length === 0) {
     warn('buildGroundingEnvelope: embed returned empty vector for question — returning empty envelope');
-    return { nodesByCamp: {} };
+    return { envelope: { nodesByCamp: {} } };
   }
 
   // ── Anchor situation ──────────────────────────────────────────────────────
@@ -134,9 +138,40 @@ export async function buildGroundingEnvelope(
 
   const nodesByCamp: Partial<Record<Camp, NodeRef[]>> = {};
 
+  // POV-to-camp mapping for tag scoping (t/3965). Tag applies ONLY inside the named camp's loop.
+  const POV_TO_CAMP: Record<string, Camp> = { accelerationist: 'acc', safetyist: 'saf', skeptic: 'skp' };
+  const tagCamp = opts.tagSelection ? POV_TO_CAMP[opts.tagSelection.pov] : undefined;
+  let appliedTag: AppliedTag | undefined;
+
   for (const [camp, scored] of byCamp.entries()) {
-    scored.sort((a, b) => b.score - a.score);
-    nodesByCamp[camp] = scored.slice(0, topN).map(({ node }) => ({
+    let activeScoredEntries = scored;
+
+    if (opts.tagSelection && camp === tagCamp) {
+      const sel = opts.tagSelection;
+      const { filteredNodes, excludedCount, boostIds } = applyTagSelection(
+        scored.map(s => s.node),
+        { tag: sel.tag, mode: sel.mode },
+      );
+
+      if (sel.mode === 'scope') {
+        const filteredIds = new Set(filteredNodes.map(n => n.id));
+        activeScoredEntries = scored.filter(s => filteredIds.has(s.node.id));
+        if (excludedCount > 0) {
+          warn(`buildGroundingEnvelope: scope tag '${sel.tag}' on '${sel.pov}' excluded ${excludedCount} untagged nodes from grounding`);
+        }
+        appliedTag = { pov: sel.pov, tag: sel.tag, mode: sel.mode, included: filteredNodes.length, excludedUntagged: excludedCount };
+      } else {
+        // Prioritize: boost tagged nodes' scores before sort so they rank higher
+        const boostSet = new Set(boostIds);
+        activeScoredEntries = scored.map(s =>
+          boostSet.has(s.node.id) ? { ...s, score: s.score + TAG_BOOST_INCREMENT } : s,
+        );
+        appliedTag = { pov: sel.pov, tag: sel.tag, mode: sel.mode, included: boostIds.length, excludedUntagged: 0 };
+      }
+    }
+
+    activeScoredEntries.sort((a, b) => b.score - a.score);
+    nodesByCamp[camp] = activeScoredEntries.slice(0, topN).map(({ node }) => ({
       nodeId: node.id,
       label: node.label,
       camp,
@@ -155,5 +190,5 @@ export async function buildGroundingEnvelope(
   if (anchorSituationId !== undefined) envelope.anchorSituationId = anchorSituationId;
   if (anchorSummary !== undefined) envelope.anchorSummary = anchorSummary;
 
-  return envelope;
+  return { envelope, appliedTag };
 }

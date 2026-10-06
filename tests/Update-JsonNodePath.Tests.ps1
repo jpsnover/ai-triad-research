@@ -321,3 +321,84 @@ Describe 'Update-JsonNodePath -Remove — key deletion (t/3460)' -Tag 'summary' 
         }
     }
 }
+
+Describe 'Update-JsonNodePath -ArrayValue (t/3969)' -Tag 'summary' {
+
+    BeforeAll {
+        $script:ArrayFixture = @'
+{
+  "nodes": [
+    { "id": "skp-001", "label": "has tags", "pov_tags": ["old-tag"] },
+    { "id": "skp-002", "label": "no tags yet" },
+    { "id": "skp-003", "graph_attributes": { "foo": "bar" } }
+  ]
+}
+'@ -replace "`r`n", "`n"
+
+        # Raw-JSON (not reparsed) check that $NodeId's $Field is an array with exactly the given elements,
+        # per the PovTags.RoundTrip.Tests.ps1 discipline (#2839) — reparsing would hide an unroll.
+        function Test-FieldWrittenAsArray([string]$Raw, [string]$NodeId, [string]$Field, [string[]]$Expected) {
+            $doc = $Raw | ConvertFrom-Json -AsHashtable
+            $node = $doc.nodes | Where-Object { $_.id -eq $NodeId } | Select-Object -First 1
+            $actual = $node[$Field]
+            if ($actual -isnot [System.Collections.IList]) { return $false }
+            if (@($actual).Count -ne $Expected.Count) { return $false }
+            for ($i = 0; $i -lt $Expected.Count; $i++) { if ($actual[$i] -ne $Expected[$i]) { return $false } }
+            return $true
+        }
+    }
+
+    It 'replaces an existing array with a ONE-element array (the unroll-prone case — REGRESSION GUARD: fails if the encode line reverts to piping $Value into ConvertTo-Json, confirmed by temporarily reverting the source line)' {
+        $out = InModuleScope AITriad -Parameters @{ Raw = $script:ArrayFixture } {
+            param($Raw)
+            Update-JsonNodePath -RawText $Raw -NodeId 'skp-001' -Path @('pov_tags') -Value @('critical') -ArrayValue
+        }
+        Test-FieldWrittenAsArray $out 'skp-001' 'pov_tags' @('critical') | Should -BeTrue
+    }
+
+    It 'replaces an existing array with a ZERO-element array' {
+        $out = InModuleScope AITriad -Parameters @{ Raw = $script:ArrayFixture } {
+            param($Raw)
+            Update-JsonNodePath -RawText $Raw -NodeId 'skp-001' -Path @('pov_tags') -Value @() -ArrayValue
+        }
+        Test-FieldWrittenAsArray $out 'skp-001' 'pov_tags' @() | Should -BeTrue
+    }
+
+    It 'replaces an existing array with a TWO-element array' {
+        $out = InModuleScope AITriad -Parameters @{ Raw = $script:ArrayFixture } {
+            param($Raw)
+            Update-JsonNodePath -RawText $Raw -NodeId 'skp-001' -Path @('pov_tags') -Value @('a', 'b') -ArrayValue
+        }
+        Test-FieldWrittenAsArray $out 'skp-001' 'pov_tags' @('a', 'b') | Should -BeTrue
+    }
+
+    It '-Upsert -ArrayValue creates a ONE-element array leaf that did not exist before' {
+        $out = InModuleScope AITriad -Parameters @{ Raw = $script:ArrayFixture } {
+            param($Raw)
+            Update-JsonNodePath -RawText $Raw -NodeId 'skp-002' -Path @('pov_tags') -Value @('critical') -Upsert -ArrayValue
+        }
+        Test-FieldWrittenAsArray $out 'skp-002' 'pov_tags' @('critical') | Should -BeTrue
+    }
+
+    It 'REJECTS an array Value with no -ArrayValue switch (fail-closed default)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:ArrayFixture } {
+            param($Raw)
+            { Update-JsonNodePath -RawText $Raw -NodeId 'skp-001' -Path @('pov_tags') -Value @('x') } | Should -Throw
+        }
+    }
+
+    It 'REJECTS a nested (non-flat) array under -ArrayValue' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:ArrayFixture } {
+            param($Raw)
+            $nested = @(@('x', 'y'), 'z')
+            { Update-JsonNodePath -RawText $Raw -NodeId 'skp-001' -Path @('pov_tags') -Value $nested -ArrayValue } | Should -Throw
+        }
+    }
+
+    It 'REJECTS an object-shaped target even with -ArrayValue (t/2921 Q2 still holds for objects)' {
+        InModuleScope AITriad -Parameters @{ Raw = $script:ArrayFixture } {
+            param($Raw)
+            { Update-JsonNodePath -RawText $Raw -NodeId 'skp-003' -Path @('graph_attributes') -Value @('x') -ArrayValue } | Should -Throw
+        }
+    }
+}

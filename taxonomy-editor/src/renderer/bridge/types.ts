@@ -89,6 +89,8 @@ export type DebateDelta = _DebateDelta;
 // parity-identical by construction — this is the exact contract the server route already types against.
 import type { ANClaimInput as _ANClaimInput, RelevantTaxonomyResult as _RelevantTaxonomyResult } from '@lib/debate/relevanceSelection';
 export type ANClaimInput = _ANClaimInput;
+import type { TagSelection as _TagSelection } from '@lib/debate/types/session';
+export type TagSelection = _TagSelection;
 export type RelevantTaxonomyResult = _RelevantTaxonomyResult;
 
 /**
@@ -115,6 +117,9 @@ export interface FetchRelevantNodesPayload {
     /** Fetched caller-side (renderer: bridge `getGreatestHits`) and passed as an array. */
     greatestHitsList?: string[];
   };
+  /** POV tags (t/3957) — derived caller-side from `session.seat_tags[speaker]`; the selection
+   *  pipeline never reads `seat_tags` directly. Absent = today's untagged behavior, byte-identical. */
+  tagSelection?: TagSelection;
 }
 
 // t/3316 (t/3297 client half): per-claim taxonomy attribution moved server/main-side — the debate

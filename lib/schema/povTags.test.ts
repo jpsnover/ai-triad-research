@@ -11,11 +11,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import {
-  validatePovTags, loadPovTagRegistry, checkRegistrySoulPairs, PovTagRegistrySchema, type PovTagRegistry,
+  validatePovTags, validatePovTagsDetailed, validatePovTagSelection, loadPovTagRegistry, checkRegistrySoulPairs, PovTagRegistrySchema,
+  type PovTagRegistry,
 } from './povTags.js';
 
 const entry = (pov: string, id: string) => ({ id, label: id, soul_doc: `${pov}.${id}`, description: `${id} wing` });
-// A registry WITH tags, for the pass arms (the committed registry ships empty until t/3956 adds souls).
+// A fixed registry for the unit arms, so they don't move when the committed registry gains tags.
 const REG: PovTagRegistry = { version: 1, povs: { skeptic: [entry('skeptic', 'critical'), entry('skeptic', 'institutional')] } };
 
 describe('validatePovTags', () => {
@@ -55,6 +56,66 @@ describe('validatePovTags', () => {
   it('REJECTS a malformed id and a non-string entry', () => {
     expect(validatePovTags('skp-beliefs-001', ['Critical'], REG).join()).toMatch(/kebab-case/);
     expect(validatePovTags('skp-beliefs-001', [42], REG)[0]).toMatch(/must be strings/);
+  });
+});
+
+describe('validatePovTagsDetailed (problem kinds, t/3973)', () => {
+  const kinds = (nodeId: string, tags: unknown) => validatePovTagsDetailed(nodeId, tags, REG).map((p) => p.kind);
+
+  it('marks registry membership as unregistered, and nothing else', () => {
+    expect(kinds('skp-beliefs-001', ['radical'])).toEqual(['unregistered']);
+    // A well-formed skeptic tag on an accelerationist node is a membership problem too.
+    expect(kinds('acc-beliefs-001', ['critical'])).toEqual(['unregistered']);
+  });
+
+  it('marks every registry-independent problem as structural', () => {
+    expect(kinds('sit-001', ['critical'])).toEqual(['structural']);
+    expect(kinds('sit-001', [])).toEqual(['structural']);
+    expect(kinds('skp-beliefs-001', 'critical')).toEqual(['structural']);
+    expect(kinds('skp-beliefs-001', [42])).toEqual(['structural']);
+    expect(kinds('skp-beliefs-001', ['critical', 'critical'])).toEqual(['structural']);
+  });
+
+  it('reports both kinds for a malformed id, which is also not in the registry', () => {
+    expect(kinds('skp-beliefs-001', ['Critical'])).toEqual(['structural', 'unregistered']);
+  });
+
+  it('is valid exactly when validatePovTags is, with the same messages in the same order', () => {
+    const cases: [string, unknown][] = [
+      ['skp-beliefs-001', ['critical']], ['skp-beliefs-001', undefined], ['skp-beliefs-001', ['Critical', 'critical', 'critical', 'x']],
+      ['sit-001', ['critical']], ['skp-beliefs-001', 'critical'], ['acc-beliefs-001', ['critical', 7]],
+    ];
+    for (const [id, tags] of cases) {
+      expect(validatePovTagsDetailed(id, tags, REG).map((p) => p.message), `${id} ${JSON.stringify(tags)}`).toEqual(validatePovTags(id, tags, REG));
+    }
+  });
+});
+
+describe('validatePovTagSelection (an explicitly named POV, t/3965)', () => {
+  it('PASSES a registered tag for its own POV', () => {
+    expect(validatePovTagSelection('skeptic', 'critical', REG)).toEqual([]);
+  });
+
+  it('REJECTS an unknown or malformed tag, and a tag under another POV', () => {
+    expect(validatePovTagSelection('skeptic', 'radical', REG)[0]).toMatch(/not registered for skeptic/);
+    expect(validatePovTagSelection('skeptic', 'Critical', REG).join()).toMatch(/kebab-case/);
+    expect(validatePovTagSelection('safetyist', 'critical', REG)[0]).toMatch(/safetyist has no tags/);
+  });
+
+  it('on the empty registry, says the rejection is expected until t/3956 (SO e/252 cond 4)', () => {
+    const [message] = validatePovTagSelection('skeptic', 'critical', { version: 1, povs: {} });
+    expect(message).toMatch(/ships empty until the tag souls land \(t\/3956\)/);
+    expect(message).toMatch(/expected, not a bug/);
+    // Once any POV has tags the note is gone, even for a POV that has none: the rejection is a real mistake.
+    expect(validatePovTagSelection('skeptic', 'radical', REG)[0]).not.toMatch(/t\/3956/);
+    expect(validatePovTagSelection('safetyist', 'critical', REG)[0]).not.toMatch(/t\/3956/);
+  });
+
+  it('the committed registry accepts both Skeptic tags, and its rejections no longer carry the t/3956 note', () => {
+    const reg = loadPovTagRegistry();
+    expect(validatePovTagSelection('skeptic', 'critical', reg)).toEqual([]);
+    expect(validatePovTagSelection('skeptic', 'institutional', reg)).toEqual([]);
+    expect(validatePovTagSelection('safetyist', 'critical', reg)[0]).not.toMatch(/t\/3956/);
   });
 });
 

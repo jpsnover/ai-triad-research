@@ -44,8 +44,11 @@ function Save-JsonNodeFieldEdits {
             must not set Field or Upsert. The final segment must be an object key (array-index removal
             refuses fail-closed); the value may be scalar OR object/array. -Remove is STRICT — an absent
             key refuses fail-closed, so a retrying runner must re-derive its worklist to current carriers.
-        Applied in order. REPLACE/Upsert object/array VALUES are unsupported and safe-abort via the
-        primitives' verify; -Remove deletes members of any value type.
+          - @{ NodeId=<id>; Path=@('pov_tags'); Value=<string[]>; ArrayValue=$true[; Upsert=$true] } →
+            array-leaf set/insert (t/3969; Update-JsonNodePath -ArrayValue). Path-only, Value must be a
+            FLAT array of scalars (no nested object/array elements), and mutually exclusive with Remove.
+        Applied in order. REPLACE/Upsert object VALUES are unsupported and safe-abort via the primitives'
+        verify; array leaf VALUES require ArrayValue=$true; -Remove deletes members of any value type.
     .OUTPUTS
         [pscustomobject] result summary: Applied (int), NotFound (string[] — NodeIds not
         present in the file, surfaced not silently dropped), Path. Throws New-ActionableError
@@ -109,7 +112,8 @@ function Save-JsonNodeFieldEdits {
                 $text = Update-JsonNodePath -RawText $text -NodeId $id -Path @($e['Path']) -Remove -DeferVerify:$defer
             }
             else {
-                $text = Update-JsonNodePath -RawText $text -NodeId $id -Path @($e['Path']) -Value $e['Value'] -Upsert:([bool]$e['Upsert']) -DeferVerify:$defer
+                $text = Update-JsonNodePath -RawText $text -NodeId $id -Path @($e['Path']) -Value $e['Value'] `
+                    -Upsert:([bool]$e['Upsert']) -ArrayValue:([bool]$e['ArrayValue']) -DeferVerify:$defer
             }
         }
         return $text

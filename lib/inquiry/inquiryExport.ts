@@ -83,6 +83,31 @@ function calibrationLine(entry: CalibrationEntry): string {
   return `${entry.metric}: ${val} (${entry.trust.verdict}${tr})`;
 }
 
+/** The POV-tag scope of the run, or undefined when untagged (t/3965, SO e/252). An exported tagged answer
+ *  must say so: a Scope run grounds one camp on a single wing. Prefers what ran (`derivation.tag`, with
+ *  counts) over what was asked (`request.tagSelection`). */
+function tagScopeLine(result: InquiryResult): string | undefined {
+  const applied = result.derivation.tag;
+  if (applied) {
+    const excluded = applied.mode === 'scope' ? `, ${applied.excludedUntagged} untagged excluded` : '';
+    return `Tag: ${applied.pov}/${applied.tag} (${applied.mode}) · ${applied.included} tagged included${excluded}`;
+  }
+  const asked = result.request.tagSelection;
+  return asked ? `Tag requested: ${asked.pov}/${asked.tag} (${asked.mode}) · not recorded as applied` : undefined;
+}
+
+/** The scope line as Markdown lines (none when untagged). */
+function tagScopeMarkdown(result: InquiryResult): string[] {
+  const line = tagScopeLine(result);
+  return line ? [`**${line}**`] : [];
+}
+
+/** The scope line as a print-HTML meta row ('' when untagged). */
+function tagScopeHtml(result: InquiryResult): string {
+  const line = tagScopeLine(result);
+  return line ? `${escapeHtml(line)}<br>\n  ` : '';
+}
+
 // ── Markdown ────────────────────────────────────────────────────────────────
 
 export function inquiryToMarkdown(result: InquiryResult, opts?: InquiryExportOptions): string {
@@ -95,6 +120,7 @@ export function inquiryToMarkdown(result: InquiryResult, opts?: InquiryExportOpt
   lines.push('');
   const d = result.derivation;
   lines.push(`**Fidelity:** ${d.fidelity}  ·  **Rounds:** ${d.rounds}  ·  **Call budget:** ${d.callBudget}${d.callsUsed !== undefined ? ` (used ${d.callsUsed})` : ''}`);
+  lines.push(...tagScopeMarkdown(result));
   lines.push(`**Exported:** ${date.toLocaleDateString()}${truncated ? `  ·  ⚠ truncated${terminationReason ? ` (${terminationReason})` : ''}` : ''}`);
   lines.push('');
   lines.push('---');
@@ -250,6 +276,7 @@ export function inquiryToPrintHtml(result: InquiryResult, opts?: InquiryExportOp
   const truncNote = truncated
     ? ` · <span class="inquiry-truncated">⚠ truncated${terminationReason ? ` (${escapeHtml(terminationReason)})` : ''}</span>`
     : '';
+  const tagHtml = tagScopeHtml(result);
 
   return `<!DOCTYPE html>
 <html>
@@ -262,7 +289,7 @@ export function inquiryToPrintHtml(result: InquiryResult, opts?: InquiryExportOp
 <h1>${escapeHtml(title)}</h1>
 <div class="inquiry-export-meta">
   Fidelity: ${escapeHtml(d.fidelity)} · Rounds: ${d.rounds} · Call budget: ${d.callBudget}${d.callsUsed !== undefined ? ` (used ${d.callsUsed})` : ''}<br>
-  Exported: ${date.toLocaleDateString()}${truncNote}
+  ${tagHtml}Exported: ${date.toLocaleDateString()}${truncNote}
 </div>
 ${sections.join('\n')}
 <div class="inquiry-caveat">${escapeHtml(result.singleRunCaveat)}</div>

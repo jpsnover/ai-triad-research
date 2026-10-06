@@ -29,6 +29,7 @@ import type { SourceFact } from '../analysis/FactsPanel';
 import type { SourceDocumentResolution } from '../../bridge/types';
 import { ConflictsPanel, conflictsForNode } from '../conflict';
 import { NodeEditHistory } from './NodeEditHistory';
+import { PovMoveTagNotice } from './PovMoveTagNotice';
 import { nodeTypeFromId, nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
@@ -375,6 +376,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
   return (
     <div ref={formRef} className="node-detail-tabbed">
+      <PovMoveTagNotice nodeId={node.id} />
       <div className="nd-header">
         <NodeDetailHeaderTop
           pov={pov}
