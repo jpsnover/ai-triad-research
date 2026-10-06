@@ -27,7 +27,7 @@ export function getPovDoctrinalBoundaries(
   const strings = [...hardcoded, ...softcoded];
   if (strings.length === 0) {
     getGlobalRecorder()?.record({
-      type: 'system.warn',
+      type: 'system.info',
       component: 'poverInfo',
       level: 'warn',
       message: `POV "${povInfo.pov}" has no doctrinal boundaries — anchoring will be skipped`,
