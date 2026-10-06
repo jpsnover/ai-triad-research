@@ -75,7 +75,7 @@ function Get-AICostReport {
         return
     }
 
-    ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing
+    ConvertTo-AIUsageCostEstimate -Entries $Entries -Pricing $Pricing -ApiModelIdMap $PricingInfo.ApiModelIdMap
     $Aggregated = Group-AIUsageEntries -Entries $Entries -GroupBy $GroupBy -Pricing $Pricing
 
     $GrandCalls   = ($Aggregated | Measure-Object -Property Calls -Sum).Sum

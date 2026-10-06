@@ -7,8 +7,13 @@ function Get-AICostPricing {
         Get-AICostReport sub-helper (t/3910): loads per-model pricing from
         ai-models.json and builds the model-id -> backend lookup.
     .OUTPUTS
-        [PSCustomObject] { Pricing; ModelBackend } -- Pricing is a hashtable
-        keyed by model id (pricing rows); ModelBackend maps model id -> backend.
+        [PSCustomObject] { Pricing; ModelBackend; ApiModelIdMap } -- Pricing is a
+        hashtable keyed by model id (pricing rows); ModelBackend maps model id ->
+        backend; ApiModelIdMap maps "<backend>|<apiModelId>" -> model id (t/3951).
+        (backend, apiModelId) is a function on origin/main today (verified: the
+        only 4 shared apiModelIds -- gpt-4o, gpt-4o-mini, gpt-4.1, gpt-4.1-mini --
+        are shared across DIFFERENT backends, azure vs openai, never the same
+        backend twice), so this map never silently picks one of two candidates.
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -34,14 +39,19 @@ function Get-AICostPricing {
     }
 
     $ModelBackend = @{}
+    $ApiModelIdMap = @{}
     if ($ModelsData.models) {
         foreach ($M in $ModelsData.models) {
             $ModelBackend[$M.id] = $M.backend
+            if ($M.PSObject.Properties['apiModelId'] -and $M.PSObject.Properties['backend']) {
+                $ApiModelIdMap["$($M.backend)|$($M.apiModelId)"] = $M.id
+            }
         }
     }
 
     [PSCustomObject]@{
-        Pricing      = $Pricing
-        ModelBackend = $ModelBackend
+        Pricing       = $Pricing
+        ModelBackend  = $ModelBackend
+        ApiModelIdMap = $ApiModelIdMap
     }
 }
