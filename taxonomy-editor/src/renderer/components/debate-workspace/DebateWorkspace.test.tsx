@@ -104,6 +104,7 @@ const mockMarkAsPopout = vi.fn(() => {
 vi.mock('../../hooks/useDebateStore/shared/guards', () => ({
   initDebatePopoutCloseHandler: vi.fn(() => vi.fn()),
   markAsPopout: (...args: any[]) => mockMarkAsPopout(...args),
+  isDebatePopoutWindow: vi.fn(() => false),
 }));
 
 vi.mock('@lib/flight-recorder/index', () => ({
