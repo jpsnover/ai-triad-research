@@ -164,7 +164,7 @@ describe('op-ed tag selection: Scope', () => {
 
   it('records a repo-relative soul file for the tagged member, never the absolute path', async () => {
     const members = await run({ pov: 'skeptic', tag: 'critical', mode: 'scope' });
-    expect(members.get('skeptic')!.soul).toEqual({ file: 'lib/debate/soul-docs/skeptic.critical.soul.json', sha: 'abcdef0123456789' });
+    expect(members.get('skeptic')!.soul).toEqual({ file: 'skeptic.critical.soul.json', hash: 'abcdef0123456789' });
   });
 
   it('leaves every OTHER member identical to an untagged run (SO e/252 cond 5 form)', async () => {
@@ -273,10 +273,11 @@ describe('parseOpEdRequest (the live boundary)', () => {
 });
 
 describe('the persisted set keeps the tag fields (strip regression, t/2890 class)', () => {
-  it('round-trips params.tagSelection, member.tag and member.soul, even for a tag the registry no longer lists', () => {
+  it('round-trips params.tagSelection and member.tag; normalizes legacy soul on read', () => {
     const member = {
       pov: 'skeptic', status: 'complete', headline: 'H', subtitle: '', body: 'b', byline: '', disclosure: '', rhetorical_meta: '', wordCount: 1, grounding: [],
       tag: { pov: 'skeptic', tag: 'retired', mode: 'scope', included: 3, excludedUntagged: 9 },
+      // Legacy shape: repo-relative file + sha field (pre-t/4007). Schema normalizes both on read.
       soul: { file: 'lib/debate/soul-docs/skeptic.retired.soul.json', sha: '0123456789abcdef' },
     };
     const set = {
@@ -287,7 +288,22 @@ describe('the persisted set keeps the tag fields (strip regression, t/2890 class
     const parsed = parseOpEdSet(set);
     expect(parsed.params.tagSelection).toEqual(set.params.tagSelection);
     expect(parsed.opeds[0].tag).toEqual(member.tag);
-    expect(parsed.opeds[0].soul).toEqual(member.soul);
+    // Normalized: lib/debate/soul-docs/ prefix stripped; sha mapped to hash.
+    expect(parsed.opeds[0].soul).toEqual({ file: 'skeptic.retired.soul.json', hash: '0123456789abcdef' });
+  });
+
+  it('preserves a new-format soul record (fnv1a64 hash, soul-docs-relative file) unchanged', () => {
+    const member = {
+      pov: 'skeptic', status: 'complete', headline: 'H', subtitle: '', body: 'b', byline: '', disclosure: '', rhetorical_meta: '', wordCount: 1, grounding: [],
+      soul: { file: 'skeptic.critical.soul.json', hash: 'fnv1a64:abcdef0123456789' },
+    };
+    const set = {
+      schema_version: 1, set_id: 's', topic: 't', created_at: 'now',
+      params: { model: 'm', wordCount: 800 },
+      opeds: [member],
+    };
+    const parsed = parseOpEdSet(set);
+    expect(parsed.opeds[0].soul).toEqual({ file: 'skeptic.critical.soul.json', hash: 'fnv1a64:abcdef0123456789' });
   });
 });
 

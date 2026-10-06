@@ -89,19 +89,26 @@ const REPO_RELATIVE_PREFIX = 'lib/debate/soul-docs/';
  * Across-algorithm comparisons always return `'unknown'`.
  */
 export function compareSoulProvenance(
-  a: SoulProvenance | { file: string; sha: string } | undefined,
-  b: SoulProvenance | { file: string; sha: string } | undefined,
+  a: SoulProvenance | { file: string; hash?: string; sha?: string } | undefined,
+  b: SoulProvenance | { file: string; hash?: string; sha?: string } | undefined,
 ): 'same' | 'different' | 'unknown' {
   if (!a || !b) return 'unknown';
 
-  const resolveHash = (p: SoulProvenance | { file: string; sha: string }) =>
+  const VALID_HASH = /^(sha256|fnv1a64):[0-9a-f]{16}$/;
+  const resolveHash = (p: SoulProvenance | { file: string; sha: string }): string | undefined =>
     'hash' in p ? p.hash : (p as { file: string; sha: string }).sha;
-  const normaliseHash = (h: string) => (h.includes(':') ? h : `sha256:${h}`);
+  const normaliseHash = (h: string | undefined): string | undefined => {
+    if (!h) return undefined;
+    const n = h.includes(':') ? h : `sha256:${h}`;
+    return VALID_HASH.test(n) ? n : undefined;
+  };
   const normaliseFile = (f: string) =>
     f.startsWith(REPO_RELATIVE_PREFIX) ? f.slice(REPO_RELATIVE_PREFIX.length) : f;
 
   const ha = normaliseHash(resolveHash(a));
   const hb = normaliseHash(resolveHash(b));
+
+  if (!ha || !hb) return 'unknown';
 
   const algoA = ha.split(':')[0];
   const algoB = hb.split(':')[0];

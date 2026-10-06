@@ -58,7 +58,7 @@ export const OpEdMemberSchema = z.object({
   soul: z.object({ file: z.string(), hash: z.string().optional(), sha: z.string().optional() })
     .transform(v => ({
       file: v.file.replace(/^lib\/debate\/soul-docs\//, ''),
-      hash: v.hash ?? v.sha ?? '',
+      hash: v.hash ?? v.sha,
     })).optional(),
 });
 

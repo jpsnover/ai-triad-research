@@ -132,4 +132,28 @@ describe('compareSoulProvenance (e/261#3 cond 1)', () => {
     const repoRel = { file: 'lib/debate/soul-docs/safetyist.soul.json', hash: 'fnv1a64:abcd1234abcd1234' };
     expect(compareSoulProvenance(repoRel, fnv('abcd1234abcd1234'))).toBe('same');
   });
+
+  // e/261#5/#6/#7: strict hash validation — empty/absent/prefix-only/garbage → unknown
+  it('returns unknown when both hashes are empty (absent hash coerced to empty)', () => {
+    expect(compareSoulProvenance({ file: 'safetyist.soul.json', hash: '' }, { file: 'safetyist.soul.json', hash: '' })).toBe('unknown');
+  });
+
+  it('returns unknown when one hash is empty', () => {
+    expect(compareSoulProvenance(fnv('abcd1234abcd1234'), { file: 'safetyist.soul.json', hash: '' })).toBe('unknown');
+    expect(compareSoulProvenance({ file: 'safetyist.soul.json', hash: '' }, fnv('abcd1234abcd1234'))).toBe('unknown');
+  });
+
+  it('returns unknown for prefix-only hash (empty digest after colon)', () => {
+    expect(compareSoulProvenance({ file: 'safetyist.soul.json', hash: 'fnv1a64:' }, { file: 'safetyist.soul.json', hash: 'fnv1a64:' })).toBe('unknown');
+    expect(compareSoulProvenance({ file: 'safetyist.soul.json', hash: 'sha256:' }, { file: 'safetyist.soul.json', hash: 'sha256:' })).toBe('unknown');
+  });
+
+  it('returns unknown for garbage string without colon', () => {
+    expect(compareSoulProvenance({ file: 'safetyist.soul.json', hash: 'garbage' }, { file: 'safetyist.soul.json', hash: 'garbage' })).toBe('unknown');
+  });
+
+  it('returns unknown when hash is absent (undefined)', () => {
+    expect(compareSoulProvenance({ file: 'safetyist.soul.json' }, { file: 'safetyist.soul.json' })).toBe('unknown');
+    expect(compareSoulProvenance(fnv('abcd1234abcd1234'), { file: 'safetyist.soul.json' })).toBe('unknown');
+  });
 });

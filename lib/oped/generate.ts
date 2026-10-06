@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { join, basename } from 'path';
 
 import { ActionableError } from '../debate/errors.js';
 import { getSoulDocument, resolvePoverInfo } from '../debate/soulDocLoader.js';
@@ -180,7 +180,7 @@ export function preflightOpEdTag(request: GenerateOpEdRequest, deps: OpEdGenerat
     soul: tagSoul,
     label: base.label,
     wing: wing.label,
-    provenance: { file: soulProvenance.file, hash: soulProvenance.hash },
+    provenance: { file: basename(soulProvenance.file), hash: soulProvenance.hash },
   };
 
   const taxonomy = loadTaxonomy(deps.repoRoot);

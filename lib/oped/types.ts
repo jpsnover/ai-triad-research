@@ -26,7 +26,9 @@ export interface OpEdParams {
  *  the public share (TL e/254#4), same class as `debateId`. */
 export interface OpEdSoulProvenance {
   file: string;
-  hash: string;
+  /** Absent when neither `hash` nor `sha` was present in the stored record (legacy sets pre-t/4007 that
+   *  had no provenance). `compareSoulProvenance` returns `unknown` for any absent or malformed hash. */
+  hash?: string;
 }
 
 // ── Grounding reference (op-ed shape — node + editorial context) ──────────────
