@@ -131,11 +131,15 @@ function Test-ExtractionQuality {
             $ExpectedKP = @($Gold.expected_key_points)
             $ActualKP = [System.Collections.Generic.List[string]]::new()
 
+            # Summary / key-point fields guarded via PSObject.Properties (t/4010): a bare dot-access on
+            # an absent key throws under StrictMode instead of yielding $null.
+            $SummaryProps = $Summary.PSObject.Properties
+            $PovSummaries = if ($SummaryProps['pov_summaries']) { $Summary.pov_summaries } else { $null }
             foreach ($Camp in @('accelerationist', 'safetyist', 'skeptic')) {
-                $CampData = $Summary.pov_summaries.$Camp
+                $CampData = if ($PovSummaries -and $PovSummaries.PSObject.Properties[$Camp]) { $PovSummaries.$Camp } else { $null }
                 if ($CampData -and $CampData.PSObject.Properties['key_points'] -and $CampData.key_points) {
                     foreach ($KP in @($CampData.key_points)) {
-                        if ($KP.taxonomy_node_id) {
+                        if ($KP.PSObject.Properties['taxonomy_node_id'] -and $KP.taxonomy_node_id) {
                             $ActualKP.Add($KP.taxonomy_node_id)
                         }
                     }
@@ -155,7 +159,7 @@ function Test-ExtractionQuality {
 
             # ── Factual Claim Recall ──────────────────────────────────────────
             $ExpectedClaims = @($Gold.expected_factual_claims)
-            if ($Summary.factual_claims) { $ActualClaims = @($Summary.factual_claims) } else { $ActualClaims = @() }
+            if ($SummaryProps['factual_claims'] -and $Summary.factual_claims) { $ActualClaims = @($Summary.factual_claims) } else { $ActualClaims = @() }
 
             $ClaimMatches = 0
             foreach ($EC in $ExpectedClaims) {
@@ -175,7 +179,7 @@ function Test-ExtractionQuality {
 
             # ── Unmapped Concept Recall ───────────────────────────────────────
             $ExpectedUnmapped = @($Gold.expected_unmapped_concepts)
-            if ($Summary.unmapped_concepts) { $ActualUnmapped = @($Summary.unmapped_concepts) } else { $ActualUnmapped = @() }
+            if ($SummaryProps['unmapped_concepts'] -and $Summary.unmapped_concepts) { $ActualUnmapped = @($Summary.unmapped_concepts) } else { $ActualUnmapped = @() }
 
             $UnmappedMatches = 0
             foreach ($EU in $ExpectedUnmapped) {
