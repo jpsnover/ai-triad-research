@@ -149,7 +149,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --prod 
 # Bumped to :2026-10-02 (PR #2676) — npm-bundled undici 6.28.1 (CVE-2026-85024), ip-address
 # 10.5.1 (CVE-2026-101910/101913), brace-expansion 5.0.12; proven by the base build tripwire.
 # Gate base bumps on staging /healthz, not CI green.
-FROM ghcr.io/jpsnover/ai-triad-base:2026-10-02@sha256:1f79de1027cc8217ceffa316308870065f4ac65765b383d34003629df560da32 AS runtime
+FROM ghcr.io/jpsnover/ai-triad-base:2026-10-06@sha256:75de9c3c565ea6e1ae88844e3a8f0f29212ac145f3bc3abe162551030c76a3fd AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
