@@ -1,3 +1,4 @@
+import './soulDocLoader'; // t/3981 lib-only path-filter probe - DO NOT MERGE
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
