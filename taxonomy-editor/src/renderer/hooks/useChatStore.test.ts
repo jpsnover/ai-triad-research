@@ -3,8 +3,10 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { mockApi, mockRecord } = vi.hoisted(() => {
+const { mockApi, mockRecord, taxonomyNodes } = vi.hoisted(() => {
   const mockRecord = vi.fn();
+  /** Accelerationist POV nodes the mocked taxonomy store returns (t/3995 tag tests set it). */
+  const taxonomyNodes: { accelerationist: Array<{ id: string; pov_tags?: string[] }> } = { accelerationist: [] };
   const mockApi = {
     listChatSessions: vi.fn().mockResolvedValue([]),
     loadChatSession: vi.fn(),
@@ -16,7 +18,7 @@ const { mockApi, mockRecord } = vi.hoisted(() => {
     onChatStreamChunk: vi.fn().mockReturnValue(() => {}),
     trackEvent: vi.fn(),
   };
-  return { mockApi, mockRecord };
+  return { mockApi, mockRecord, taxonomyNodes };
 });
 
 vi.mock('@bridge', () => ({ api: mockApi }));
@@ -24,7 +26,7 @@ vi.mock('@bridge', () => ({ api: mockApi }));
 vi.mock('./useTaxonomyStore', () => ({
   useTaxonomyStore: {
     getState: () => ({
-      accelerationist: { nodes: [] },
+      accelerationist: { nodes: taxonomyNodes.accelerationist },
       safetyist: { nodes: [] },
       skeptic: { nodes: [] },
       situations: { nodes: [] },
@@ -56,7 +58,8 @@ vi.mock('@lib/flight-recorder/index', () => ({
   getGlobalRecorder: () => ({ record: mockRecord }),
 }));
 
-import { useChatStore, parseChatResponse } from './useChatStore';
+import { useChatStore, parseChatResponse, chatTagSelection } from './useChatStore';
+import { formatTaxonomyContext } from '../utils/taxonomyContext';
 
 function makeChatSession(overrides: Record<string, unknown> = {}) {
   return {
@@ -171,6 +174,88 @@ describe('useChatStore', () => {
       const saved = mockApi.saveChatSession.mock.calls[0][0];
       expect(saved.title.length).toBeLessThanOrEqual(60);
       expect(saved.title).toContain('...');
+    });
+  });
+
+  // t/3995: a chat can carry one POV tag (spec §2). Scope sends only tagged nodes; Prioritize is recorded
+  // and, until formatTaxonomyContext orders by tag (t/3996), sends every node with a WARN.
+  describe('POV tag (t/3995)', () => {
+    const NODES = [
+      { id: 'acc-beliefs-001', pov_tags: ['open-source'] },
+      { id: 'acc-beliefs-002' },
+      { id: 'acc-desires-001', pov_tags: ['open-source', 'other'] },
+    ];
+    const sentNodeIds = () => vi.mocked(formatTaxonomyContext).mock.calls.map(c => c[0].povNodes.map(n => n.id));
+    const tagWarns = () => mockRecord.mock.calls.filter(([e]) => e.component === 'chat-store' && e.level === 'warn' && /tag/i.test(e.message));
+    const opening = async (tag: Record<string, unknown>) => {
+      useChatStore.setState({ activeChat: makeChatSession(tag) as never });
+      await useChatStore.getState().generateOpening();
+    };
+    beforeEach(() => { taxonomyNodes.accelerationist = NODES; });
+    afterEach(() => { taxonomyNodes.accelerationist = []; });
+
+    it('createChat stores the tag on the session', async () => {
+      await useChatStore.getState().createChat('inform', 'accelerationist', 'T', undefined, { pov_tag: 'open-source', tag_mode: 'scope' });
+      const saved = mockApi.saveChatSession.mock.calls[0][0];
+      expect(saved.pov_tag).toBe('open-source');
+      expect(saved.tag_mode).toBe('scope');
+    });
+
+    it('createChat without a tag leaves both fields absent (untagged sessions serialize as before)', async () => {
+      await useChatStore.getState().createChat('inform', 'accelerationist', 'T');
+      const saved = mockApi.saveChatSession.mock.calls[0][0];
+      expect(saved).not.toHaveProperty('pov_tag');
+      expect(saved).not.toHaveProperty('tag_mode');
+    });
+
+    it('the opening of a Scope chat is given only the tagged nodes', async () => {
+      await opening({ pov_tag: 'open-source', tag_mode: 'scope' });
+      expect(sentNodeIds()).toEqual([['acc-beliefs-001', 'acc-desires-001']]);
+    });
+
+    it('follow-up turns of a Scope chat are scoped too', async () => {
+      useChatStore.setState({
+        activeChat: makeChatSession({
+          pov_tag: 'open-source', tag_mode: 'scope',
+          transcript: [{ id: 'e1', timestamp: '2026-01-01T00:00:00Z', speaker: 'accelerationist', content: 'Opening', taxonomy_refs: [] }],
+        }) as never,
+      });
+      await useChatStore.getState().sendMessage('follow-up');
+      expect(sentNodeIds()).toEqual([['acc-beliefs-001', 'acc-desires-001']]);
+    });
+
+    it('an untagged chat is given every node, with no tag WARN', async () => {
+      await opening({});
+      expect(sentNodeIds()).toEqual([NODES.map(n => n.id)]);
+      expect(tagWarns()).toHaveLength(0);
+    });
+
+    it('a Scope chat below the tag minimum WARNs and stays scoped, never widening (TL t/3957#7 B(b))', async () => {
+      await opening({ pov_tag: 'open-source', tag_mode: 'scope' }); // 2 tagged < minimum 5
+      expect(sentNodeIds()).toEqual([['acc-beliefs-001', 'acc-desires-001']]);
+      expect(tagWarns()).toHaveLength(1);
+      expect(tagWarns()[0][0].data).toMatchObject({ tag: 'open-source', in_scope: 2, excluded: 1 });
+    });
+
+    it('a Scope chat at or above the minimum does not WARN', async () => {
+      taxonomyNodes.accelerationist = Array.from({ length: 6 }, (_, i) => ({ id: `acc-beliefs-00${i}`, pov_tags: i < 5 ? ['open-source'] : [] }));
+      await opening({ pov_tag: 'open-source', tag_mode: 'scope' });
+      expect(sentNodeIds()[0]).toHaveLength(5);
+      expect(tagWarns()).toHaveLength(0);
+    });
+
+    it('a Prioritize chat gets every node and a WARN until t/3996 orders them', async () => {
+      await opening({ pov_tag: 'open-source', tag_mode: 'prioritize' });
+      expect(sentNodeIds()).toEqual([NODES.map(n => n.id)]);
+      expect(tagWarns()).toHaveLength(1);
+      expect(tagWarns()[0][0].message).toMatch(/t\/3996/);
+    });
+
+    it('chatTagSelection needs both fields', () => {
+      expect(chatTagSelection({ pov_tag: 'x', tag_mode: 'prioritize' })).toEqual({ tag: 'x', mode: 'prioritize' });
+      expect(chatTagSelection({ pov_tag: 'x' })).toBeUndefined();
+      expect(chatTagSelection({ tag_mode: 'scope' })).toBeUndefined();
+      expect(chatTagSelection({})).toBeUndefined();
     });
   });
 
