@@ -139,6 +139,9 @@ jobs:
               - 'scripts/**'
               - 'tests/**'
               - 'operations/devops/**'
+              # .githooks/** — the hooks are tested by tests/WorkflowMode.Hooks.Tests.ps1 and the
+              # pre-commit hint parity step; a hook-only change previously ran neither.
+              - '.githooks/**'
               - 'lib/**'
               - 'ai-models.json'
               - 'deploy/azure/main.bicep'
@@ -1904,6 +1907,15 @@ jobs:
         continue-on-error: true
         shell: bash
         run: bash operations/devops/run-merge-guard-tests.sh
+
+      - name: Pre-commit hint ↔ worktree path guard parity (WARN-FIRST — TL p/331#1877)
+        # The worktree-add command .githooks/pre-commit tells a refused agent to run must PASS the
+        # worktree-path-guard; it said `../wt-<ticket>`, which the guard blocks. Reads the real hook
+        # and runs the real guard predicate. The suite has a floor (>=2 suggestions) and a red-arm
+        # case, so it can't pass vacuously. `.githooks/**` is in this job's `powershell` filter.
+        # WARN-FIRST: flip by removing continue-on-error after >=1 green cycle (SO + TL GV).
+        continue-on-error: true
+        run: node --test operations/devops/precommit-hint-guard-parity.test.mjs
 
   # ── complexity-tickets: refactor issues for over-budget files (advisory) ─────
   # Collects the complexity-violations-* artifacts that test-electron (ESLint
