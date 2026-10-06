@@ -68,9 +68,32 @@ def main():
     model = genai.GenerativeModel(a.model, generation_config={"temperature": 0.0, "response_mime_type": "application/json"})
     template = open(PROMPT_FILE, encoding="utf-8").read()
 
-    out, failures = [], []
+    # Checkpoint/resume: every proposal is appended to <out>.partial.jsonl the moment it lands, so a killed run
+    # loses at most the call in flight. A restart with the same --out skips nodes already in the checkpoint.
+    # (The first full run was reaped under memory pressure after ~32 min and lost everything: t/3962.)
+    ckpt = a.out + ".partial.jsonl"
+    order = {n["id"]: i for i, n in enumerate(nodes)}  # final file keeps taxonomy order even after a resume
+    out, failures, done = [], [], set()
+    os.makedirs(os.path.dirname(a.out), exist_ok=True)
+    if os.path.exists(ckpt):
+        for line in open(ckpt, encoding="utf-8"):
+            if line.strip():
+                rec = json.loads(line)
+                if "error" not in rec:  # only successes count as done; a recorded failure is retried
+                    out.append(rec)
+                    done.add(rec["node_id"])
+        print(f"resuming: {len(done)} nodes already proposed in {os.path.basename(ckpt)}", flush=True)
+    ck = open(ckpt, "a", encoding="utf-8", newline="")
+
+    def checkpoint(rec):
+        ck.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        ck.flush()
+        os.fsync(ck.fileno())
+
     for n in nodes:
-        prompt = (template.replace("{{ID}}", n["id"]).replace("{{CATEGORY}}", n["category"])
+        if n["id"] in done:
+            continue
+        prompt =(template.replace("{{ID}}", n["id"]).replace("{{CATEGORY}}", n["category"])
                   .replace("{{LABEL}}", n["label"]).replace("{{DESCRIPTION}}", n["description"]))
         for attempt in range(3):
             try:
@@ -81,6 +104,7 @@ def main():
             except Exception as e:  # retry, then record the failure (never silently drop a node)
                 if attempt == 2:
                     failures.append({"node_id": n["id"], "error": str(e)[:200]})
+                    checkpoint(failures[-1])
                     p = None
                 else:
                     time.sleep(2 * (attempt + 1))
@@ -89,15 +113,20 @@ def main():
         out.append({"node_id": n["id"], "proposed": p["proposed"], "confidence": round(float(p["confidence"]), 2),
                     "rationale": p.get("rationale", ""), "crux": p.get("crux"),
                     "status": "pending", "final": None, "reviewed_by": None, "reviewed_at": None})
+        checkpoint(out[-1])
         print(f"{n['id']:18} {str(p['proposed']):34} {p.get('crux')!s:5} {p['confidence']:.2f}", flush=True)
 
     doc = {"version": 1, "registry_version": reg_version,
            "run": {"ticket": "t/3962", "model": a.model, "prompt_version": PROMPT_VERSION,
                    "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
                    "scope": "all" if a.all else f"sample {a.sample} (seed {a.seed})", "failures": failures},
-           "proposals": out}
-    os.makedirs(os.path.dirname(a.out), exist_ok=True)
+           "proposals": sorted(out, key=lambda r: order.get(r["node_id"], len(order)))}
+    ck.close()
     open(a.out, "w", encoding="utf-8", newline="").write(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
+    # The final file is complete only when every node has a proposal; keep the checkpoint otherwise, so a
+    # rerun retries just the failures.
+    if not failures and {r["node_id"] for r in out} >= {n["id"] for n in nodes}:
+        os.remove(ckpt)
     split = {}
     for p in out: split[tuple(sorted(p["proposed"]))] = split.get(tuple(sorted(p["proposed"])), 0) + 1
     print(f"\n{len(out)} proposed, {len(failures)} failed -> {a.out}")
