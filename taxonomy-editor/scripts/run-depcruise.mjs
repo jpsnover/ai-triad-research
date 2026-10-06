@@ -17,13 +17,18 @@
 // Not covered, and still review-only: a rule NARROWED by editing its from/to regex (t/3982).
 //
 // Exit 0 = clean. Exit 1 = error violations or a missing/downgraded required rule (listed).
-// Exit 2 = the cruise could not run, or did not check what it claims to check.
+// Exit 2 = the cruise could not run ("depcruise could not run: …"; a retry may help), or it ran but checked
+//          too little ("✘ cruise scope shrank …" / "✘ N alias import(s) did not resolve …"; a retry will not).
+//          Anything that ever retries on exit 2 must tell these apart first (SO e/262#2 note 2).
 
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+// Gate promotion (TL GV t/3982#6, SO e/262#2): no warn cycle: deterministic, both arms proven in the real CI
+// lane (t/3982#5, #6). The three checks below went straight to blocking.
 
 /** Boundary rules that must exist in .dependency-cruiser.cjs at severity 'error' (t/3982). */
 export const REQUIRED_RULES = [
@@ -39,8 +44,15 @@ export const REQUIRED_RULES = [
   'lib-debate-not-to-soul-loaders',
 ];
 
-/** Fewest modules a full cruise of src/ + ../lib/ may report. ~2180 on 2026-10-06; the floor leaves ~15%
- *  headroom for refactors and catches GROSS narrowing only (excluding one subtree can stay above it). */
+/**
+ * Fewest modules a full cruise of src/ + ../lib/ may report (t/3982; SO e/262#2 note 1).
+ * - Protects against: the cruise roots or `includeOnly` being narrowed, so a green run checked only part
+ *   of the app. GROSS narrowing only: excluding one subtree can stay above it (review-only, as is a rule
+ *   narrowed by a regex edit).
+ * - How it was chosen: ~2180 modules on 2026-10-06, minus ~17% headroom for refactors and deletions.
+ * - If a legitimate refactor trips it: lowering it is a reviewed change to THIS file. Record the new count,
+ *   the date and the reason here; don't lower it just to get a PR green.
+ */
 export const MODULE_FLOOR = 1800;
 
 /** Most unresolved alias imports allowed. 0 since t/3982 fixed the last two (both type-only imports
