@@ -86,12 +86,15 @@ export function resolvePoverInfo(
       } as SoulProvenanceBrowser,
     };
   }
-  const soul = getTagSoulFromRegistry(speaker, tagSelection.tag);
+  const tagSoul = getTagSoulFromRegistry(speaker, tagSelection.tag);
+  const baseSoul = POVER_INFO[speaker];
+  // Enforce base identity fields — tag souls override personality/voice but not label or pov (t/3988).
+  const soul: PovInfo = { ...tagSoul, label: baseSoul.label, pov: baseSoul.pov };
   return {
     soul,
     soulProvenance: {
       file: `soul-docs/tags/${tagSelection.tag}.${speaker}.soul.json`,
-      sha: fnv1aHex16(JSON.stringify(soul)),
+      sha: fnv1aHex16(JSON.stringify(tagSoul)),
     } as SoulProvenanceBrowser,
   };
 }

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { DocumentAnalysis, DebatePhase, DebateAudience, TopicScope } from '../types.js';
+import type { DocumentAnalysis, DebatePhase, DebateAudience, PovInfo, SpeakerId, TopicScope } from '../types.js';
 import type { TopicStructure } from '../topicStructure.js';
 import { documentAnalysisContext } from '../documentAnalysis.js';
 import { getTopicScope, hasMeaningfulScope, formatDebateScopeBlock } from './state.js';
@@ -36,6 +36,10 @@ export interface StagePromptInput {
   focusPoint: string;
   addressing: string;
   phase?: DebatePhase;
+  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
+  soul?: PovInfo;
+  /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
+  opponentSouls?: Partial<Record<SpeakerId, PovInfo>>;
   priorMoves?: string[];
   turnsSinceLastConcession?: number;
   priorRefs?: string[];
@@ -303,9 +307,9 @@ Consider how the moderator's point relates to your own position and plan a brief
     : '';
 
   return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
-${getCharacterBlock(input.pov)}
+${getCharacterBlock(input.pov, input.soul)}
 Your perspective: ${input.pov}.
-${formatDoctrinalBoundaries(input.pov)}
+${formatDoctrinalBoundaries(input.pov, input.soul)}
 ${gradeTargetPreamble(input.audience)}=== SITUATION BRIEF ===
 ${brief}
 ${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}${strongFoundationsBlock}${avoidClaimsBlock}${preserveConcessionsBlock}${cruxBlock}
@@ -408,15 +412,15 @@ Your first sentence should briefly acknowledge the moderator's point as it relat
   }
 
   return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
-${getCharacterBlock(input.pov)}
-${otherDebaters(input.label)}
+${getCharacterBlock(input.pov, input.soul)}
+${otherDebaters(input.label, input.opponentSouls)}
 ${getReadingLevel(input.audience)}
 ${getDetailInstruction(input.audience)}
 ${getPolicymakerFraming(input.audience)}
 ${MUST_CORE_BEHAVIORS}
 
 ${STEELMAN_INSTRUCTION}
-${formatDoctrinalBoundaries(input.pov)}
+${formatDoctrinalBoundaries(input.pov, input.soul)}
 === SITUATION BRIEF ===
 ${brief}
 
@@ -482,6 +486,10 @@ export interface RewriteFromClaimsInput {
   audience?: DebateAudience;
   currentCruxContext?: string;
   topicScope?: TopicScope;
+  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
+  soul?: PovInfo;
+  /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
+  opponentSouls?: Partial<Record<SpeakerId, PovInfo>>;
 }
 
 /**
@@ -499,15 +507,15 @@ export function draftFromSelectedClaimsPrompt(input: RewriteFromClaimsInput): st
     : 'None identified.';
 
   return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
-${getCharacterBlock(input.pov)}
-${otherDebaters(input.label)}
+${getCharacterBlock(input.pov, input.soul)}
+${otherDebaters(input.label, input.opponentSouls)}
 ${getReadingLevel(input.audience)}
 ${getDetailInstruction(input.audience)}
 ${getPolicymakerFraming(input.audience)}
 ${MUST_CORE_BEHAVIORS}
 
 ${STEELMAN_INSTRUCTION}
-${formatDoctrinalBoundaries(input.pov)}
+${formatDoctrinalBoundaries(input.pov, input.soul)}
 === DEBATE TOPIC ===
 ${input.topic}
 

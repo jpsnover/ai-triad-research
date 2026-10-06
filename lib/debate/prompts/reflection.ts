@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { DebateAudience } from '../types.js';
+import type { DebateAudience, PovInfo } from '../types.js';
 import { stripExcludes } from '../helpers.js';
 import { getCharacterBlock, getReadingLevel, formatDoctrinalBoundaries } from './shared-helpers.js';
 
@@ -161,6 +161,8 @@ export function reflectionPrompt(
   priorReflections?: Array<{ pov: string; edits: Array<{ edit_type: string; proposed_label: string; category: string }> }>,
   /** Full-taxonomy sweep (opt-in): nodes the debate never engaged, offered for review. */
   unengagedNodes?: ReflectionTaxonomyNode[],
+  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
+  soul?: PovInfo,
 ): string {
   const renderNode = (n: ReflectionTaxonomyNode): string => {
     let meta = `(${n.category})`;
@@ -225,9 +227,9 @@ not convergence.\n`
     : '';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
-${getCharacterBlock(pov)}
+${getCharacterBlock(pov, soul)}
 ${getReadingLevel(audience)}
-${formatDoctrinalBoundaries(pov)}
+${formatDoctrinalBoundaries(pov, soul)}
 You have just finished a structured debate on:
 "${topic}"
 

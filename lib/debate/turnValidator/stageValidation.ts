@@ -11,6 +11,7 @@ import type {
   SpeakerId,
   TaxonomyRef,
   TranscriptEntry,
+  PovInfo,
 } from '../types.js';
 import type { PoverResponseMeta, MoveAnnotation } from '../helpers.js';
 import { getMoveName, SUPPORT_MOVES } from '../helpers.js';
@@ -94,8 +95,10 @@ export function checkBoundaryConcession(
   speaker: SpeakerId,
   moveTypes: (string | MoveAnnotation)[],
   statement: string,
+  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO. */
+  soul?: PovInfo,
 ): BoundaryConcessionResult {
-  const info = POVER_INFO[speaker as keyof typeof POVER_INFO];
+  const info = soul ?? POVER_INFO[speaker as keyof typeof POVER_INFO];
   if (!info?.boundaries) return { hasConcession: false, boundaryType: 'none' };
 
   const concedeMoves = moveTypes
@@ -180,6 +183,8 @@ export function validateDraftStage(p: {
   /** Hint keys suppressed due to repeated failures — skip from errors/warnings. */
   suppressedHints?: ReadonlySet<string>;
   speaker?: SpeakerId;
+  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for boundary validation. */
+  soul?: PovInfo;
 }): StageValidationResult {
   const errors: string[] = [];
   const suppressed: string[] = [];
@@ -317,7 +322,7 @@ export function validateDraftStage(p: {
   // Rule 13: hardcoded/softcoded boundary concession check (AC #3/4/5)
   let boundaryConcession: BoundaryConcessionResult | undefined;
   if (p.speaker && meta.move_types && meta.move_types.length > 0) {
-    boundaryConcession = checkBoundaryConcession(p.speaker, meta.move_types, statement);
+    boundaryConcession = checkBoundaryConcession(p.speaker, meta.move_types, statement, p.soul);
     if (boundaryConcession.boundaryType === 'hardcoded') {
       const msg = `Hardcoded boundary concession detected — you conceded a position that is identity-defining and non-negotiable: "${boundaryConcession.matchedBoundary}". Retract this concession in your next turn and reaffirm your hardcoded position.`;
       warnings.push(msg);
