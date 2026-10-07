@@ -78,6 +78,8 @@ function Test-CitationLinkIntegrity {
         SourcesRoot default-resolution call entirely, so it cannot throw when no sources checkout exists.
     .OUTPUTS
         [pscustomobject] { pass; results = @({leg; pass; offenders[]}) ; blocking }
+        leg 'a' additionally carries `summariesScanned` (summary files read) and `refsChecked`
+        (non-blank refs resolved) — statistic-provenance for the t/4042 floor (SO e/266#10).
         leg 'b' additionally carries `checked` (N distinct source_ids), `accepted[]` (t/3743
         accepted-baseline hits — {source_id; reason} — PASS, not counted as offenders), and
         `skipped` ($true when -SkipSourceResolution was used — pass is $true, not a real check).
@@ -145,7 +147,13 @@ function Test-CitationLinkIntegrity {
             $out.Add([pscustomobject]@{ docId = $docId; ref = $ref; class = 'unknown-prefix' })
         }
     }
+    # Statistic-provenance for leg-a, mirroring leg-b's `checked` (t/4042, SO e/266#10): DevOps sets a
+    # floor on these and fails closed when they are absent, so a leg-a that scanned nothing can never
+    # pass as clean. refsChecked counts exactly the refs Resolve-Ref evaluates (non-blank).
+    $aSummaries = 0
+    $aRefs = 0
     foreach ($file in (Get-ChildItem -LiteralPath $SummariesDir -Filter '*.json' -File | Sort-Object Name)) {
+        $aSummaries++
         $s = Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json
         $docId = if ($s.PSObject.Properties['doc_id']) { [string]$s.doc_id } else { $file.BaseName }
         if ($s.PSObject.Properties['pov_summaries'] -and $s.pov_summaries) {
@@ -154,6 +162,7 @@ function Test-CitationLinkIntegrity {
                 if (-not ($block.PSObject.Properties['key_points'])) { continue }
                 foreach ($kp in @($block.key_points)) {
                     if ($kp.PSObject.Properties['taxonomy_node_id'] -and $null -ne $kp.taxonomy_node_id) {
+                        if (-not [string]::IsNullOrWhiteSpace([string]$kp.taxonomy_node_id)) { $aRefs++ }
                         script:Resolve-Ref ([string]$kp.taxonomy_node_id) $docId $beliefLive $sitLive $aOff
                     }
                 }
@@ -163,6 +172,7 @@ function Test-CitationLinkIntegrity {
             foreach ($fc in @($s.factual_claims)) {
                 if (-not $fc.PSObject.Properties['linked_taxonomy_nodes']) { continue }
                 foreach ($ref in @($fc.linked_taxonomy_nodes)) {
+                    if (-not [string]::IsNullOrWhiteSpace([string]$ref)) { $aRefs++ }
                     script:Resolve-Ref ([string]$ref) $docId $beliefLive $sitLive $aOff
                 }
             }
@@ -231,7 +241,7 @@ function Test-CitationLinkIntegrity {
     }
 
     $results = @(
-        [pscustomobject]@{ leg = 'a'; name = 'link-resolution';   pass = ($aOff.Count -eq 0); offenders = @($aOff) }
+        [pscustomobject]@{ leg = 'a'; name = 'link-resolution';   pass = ($aOff.Count -eq 0); offenders = @($aOff); summariesScanned = $aSummaries; refsChecked = $aRefs }
         [pscustomobject]@{ leg = 'b'; name = 'source-resolution'; pass = ($bOff.Count -eq 0); offenders = @($bOff); checked = $bChecked; accepted = @($bAccepted); skipped = $bSkipped }
         [pscustomobject]@{ leg = 'c'; name = 'staleness';         pass = ($cOff.Count -eq 0); offenders = @($cOff) }
     )
