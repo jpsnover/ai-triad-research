@@ -501,3 +501,40 @@ Describe 'Code-referenced model emitter: output shape and lint-set equality (t/3
         @($script:ProdLiterals  | ForEach-Object { & $key $_ } | Sort-Object) | Should -Be $freshProd
     }
 }
+
+Describe 'codeReferencedModels.json is fresh for PowerShell literals (t/3553, SO e/271)' -Tag 'config' {
+
+    BeforeAll {
+        $script:ListPath = Join-Path $script:RepoRoot 'lib' 'ai-config' 'codeReferencedModels.json'
+        $script:Regen = 'run `npm run gen:code-referenced-models` (requires pwsh 7) and commit lib/ai-config/codeReferencedModels.json'
+        # Every REGISTERED PS literal, both scopes (SO ruling (a)), whatever its marker (ruling (c)).
+        $all = @($script:ModelLiterals) + @($script:ProdLiterals)
+        $script:PsCodeIds = @(script:Get-CodeReferencedModelIds -Literals $all -ValidIds $script:ValidIds)
+    }
+
+    It 'the committed list exists and parses (fail closed: a missing list must never read as "nothing to pin")' {
+        Test-Path $script:ListPath | Should -BeTrue -Because "the registry refresh pins from this file; $($script:Regen)"
+        $j = Get-Content -Raw $script:ListPath | ConvertFrom-Json
+        $j.PSObject.Properties.Name | Should -Contain 'ids'
+        @($j.ids).Count | Should -BeGreaterThan 0 -Because 'an empty list would let a refresh curate away every code-named model'
+    }
+
+    It 'every registered PowerShell model literal is in codeReferencedModels.json (subset; blocking)' {
+        # no warn cycle: deterministic, both arms proven in CI (t/3553#10, SO e/271)
+        $listed = @((Get-Content -Raw $script:ListPath | ConvertFrom-Json).ids)
+        $missing = @($script:PsCodeIds | Where-Object { $_ -notin $listed } | Sort-Object)
+        $missing.Count | Should -Be 0 -Because "these registered model ids are named in PowerShell code but missing from codeReferencedModels.json, so a registry refresh could curate them away: $($missing -join ', '). Fix: $($script:Regen)."
+    }
+
+    It 'stale bySource.ps entries are reported, not failed (extras only over-pin, which is safe)' {
+        # Non-blocking clean-up signal (TL e/271#12 item 7): an id the PS scan no longer finds. Never counted as
+        # noise on the unchanged tree — this It always passes; it only WARNs.
+        $j = Get-Content -Raw $script:ListPath | ConvertFrom-Json
+        $psListed = if ($j.PSObject.Properties['bySource'] -and $j.bySource.PSObject.Properties['ps']) { @($j.bySource.ps) } else { @() }
+        $stale = @($psListed | Where-Object { $_ -notin $script:PsCodeIds } | Sort-Object)
+        if ($stale.Count -gt 0) {
+            Write-Warning "codeReferencedModels.json lists $($stale.Count) PowerShell id(s) no longer found as a registered PS literal (over-pinning, safe): $($stale -join ', '). Clean up: $($script:Regen)."
+        }
+        $true | Should -BeTrue
+    }
+}

@@ -7,6 +7,7 @@
   "scripts": {
     "debate": "tsx lib/debate/cli.ts",
     "evals": "node evals/run.mjs",
+    "gen:code-referenced-models": "tsx lib/ai-config/genCodeReferencedModels.ts",
     "verify:config": "pwsh -File scripts/Verify-Config.ps1"
   },
   "devDependencies": {
