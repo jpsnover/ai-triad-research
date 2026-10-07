@@ -2,8 +2,8 @@
   "scenario": "fixurls",
   "host": [
     "[Cyan] === Fix Broken URLs ===",
-    "[Gray]   Entries to check: 3 / 4",
-    "[Gray]   Already valid: 1 | Wikipedia fallback: 1 | Cleared: 1",
+    "[default]   Entries to check: 3 / 4",
+    "[default]   Already valid: 1 | Wikipedia fallback: 1 | Cleared: 1",
     "[Green] Cache saved",
     "[Green]   Saved accelerationist.json",
     "[Green]   Saved skeptic.json",

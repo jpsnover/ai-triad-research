@@ -121,6 +121,7 @@ $script:Scenarios = @(
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'HostCapture.ps1')
     $script:GoldenDir = Join-Path $PSScriptRoot 'fixtures' 'hierarchy-proposal'
     $script:Utf8 = [System.Text.UTF8Encoding]::new($false)
 
@@ -358,6 +359,7 @@ BeforeAll {
         $records = [System.Collections.Generic.List[object]]::new()
         $err = $null
         $w = $null
+        Register-HostCaptureMock
         try {
             Invoke-HierarchyProposal @p -Verbose -WarningVariable w -WarningAction SilentlyContinue 4>&1 6>&1 | ForEach-Object { $records.Add($_) }
         } catch {
@@ -365,7 +367,8 @@ BeforeAll {
         }
         $hostLines = @($records | Where-Object { $_ -is [System.Management.Automation.InformationRecord] } | ForEach-Object {
                 $m = $_.MessageData
-                if ($m -is [System.Management.Automation.HostInformationMessage]) { "[$($m.ForegroundColor)] $($m.Message)" } else { "[info] $m" }
+                $h = Get-HostCaptureParts $m
+                if ($h) { "[$($h.Color)] $($h.Message)" } else { "[info] $m" }
             })
         $verbose = @($records | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } | ForEach-Object { $_.Message })
         $output  = @($records | Where-Object { $_ -isnot [System.Management.Automation.VerboseRecord] -and $_ -isnot [System.Management.Automation.InformationRecord] })

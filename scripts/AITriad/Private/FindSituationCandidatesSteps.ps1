@@ -14,7 +14,7 @@ function Resolve-FscModel {
     param([string]$Model)
     if ($Model) { return $Model }
     if ($env:AI_MODEL) { return $env:AI_MODEL }
-    Get-AITierModel -Tier basic
+    (Get-AITierModel -Tier basic)   # parenthesised form is what ModelTierMigration.Tests pins (t/4081)
 }
 
 function Get-FscNodeIndex {
