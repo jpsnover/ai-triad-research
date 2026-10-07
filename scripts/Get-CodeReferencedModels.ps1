@@ -38,7 +38,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'ModelLiteralScan.ps1')
-$module = Import-Module (Join-Path $RepoRoot 'scripts' 'AITriad' 'AITriad.psm1') -Force -PassThru -WarningAction SilentlyContinue
+# The registry comes from THIS checkout's module (beside this script); -RepoRoot only chooses what to scan.
+# That keeps the registered set authoritative even when scanning a narrowed fixture tree.
+$module = Import-Module (Join-Path $PSScriptRoot 'AITriad' 'AITriad.psm1') -Force -PassThru -WarningAction SilentlyContinue
 
 # Registered set — the same list Test-AIModelId and the lint validate against (models[].id).
 $validIds = @(& $module { $script:ValidModelIds })
