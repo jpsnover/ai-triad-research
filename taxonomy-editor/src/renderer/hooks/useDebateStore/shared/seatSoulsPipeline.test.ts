@@ -99,6 +99,7 @@ describe('buildDebateResponsePrompt with seat souls (t/3975)', () => {
 
   it('an untagged seat gets the base soul prompt, byte for byte (t/4007: soul is required)', () => {
     const souls = seatSouls({}, 'skeptic');
+    expect(souls.soul).toEqual(POVER_INFO.skeptic);
     const base = souls.soul;
     expect(buildDebateResponsePrompt(souls, 'T', '', '', 'Q', 'all'))
       .toBe(debateResponsePrompt(base.label, base.pov, base.personality, 'T', '', '', 'Q', 'all',
