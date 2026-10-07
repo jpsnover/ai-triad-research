@@ -556,10 +556,6 @@
     "max": 88,
     "countOver": 1
   },
-  "AITriad/Public/Invoke-HierarchyProposal.ps1": {
-    "max": 135,
-    "countOver": 1
-  },
   "AITriad/Public/Invoke-LogicalFormPass.ps1": {
     "max": 53,
     "countOver": 1
