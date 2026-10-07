@@ -64,7 +64,7 @@ function Enter-GroundingLock {
                 $age = ((Get-Date) - (Get-Item -LiteralPath $LockPath -Force).LastWriteTime).TotalSeconds
                 if ($age -gt $StaleSec) {
                     Write-Warning "Enter-GroundingLock: breaking stale lock '$LockPath' (mtime age $([int]$age)s > ${StaleSec}s — holder presumed dead). Fallback-path per docs/error-handling.md."
-                    Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue
+                    Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue -WhatIf:$false -Confirm:$false
                     continue   # re-acquire immediately
                 }
                 if (((Get-Date) - $start).TotalSeconds -ge $WaitSec) {
@@ -97,5 +97,9 @@ function Exit-GroundingLock {
     )
     Set-StrictMode -Version Latest
     if ($Handle) { try { $Handle.Close(); $Handle.Dispose() } catch { } }
-    Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue
+    # -WhatIf:$false / -Confirm:$false (t/4047): the lockfile is internal bookkeeping, not a data write.
+    # Without them, a caller's ambient $WhatIfPreference (Update-EntityMentionIndex -WhatIf,
+    # Update-PolicyRegistry -Fix -WhatIf) turned this into a "What if" no-op and left the lock behind,
+    # blocking every other writer until the 120s stale-break. Same for the stale-break delete above.
+    Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue -WhatIf:$false -Confirm:$false
 }
