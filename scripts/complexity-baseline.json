@@ -887,7 +887,7 @@
     "countOver": 1
   },
   "AITriad/Public/Update-PolicyRegistry.ps1": {
-    "max": 73,
+    "max": 16,
     "countOver": 1
   },
   "AITriad/Public/Update-Snapshot.ps1": {
