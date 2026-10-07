@@ -3,6 +3,7 @@
 
 import type { StateCreator } from 'zustand';
 import { sessionModelFingerprint } from '../shared/sessionFingerprint';
+import { latchUnobservedHistory } from '../shared/failoverTracking';
 import type { DebateStore } from '../types';
 import type {
   DebateSession,
@@ -775,6 +776,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
           set({ debateLoading: false });
           return;
         }
+        // t/4044 (SO e/281#2 condition 1): a session saved before per-turn tracking can't be promoted.
+        Object.assign(session, latchUnobservedHistory(session));
         const runId = generateId();
         session.run_id = runId;
         set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [], selectedDiagEntry: null, _lastSyncedVersion: session._saveVersion ?? 0, _lastSyncedSnapshot: structuredClone(session) });
@@ -894,6 +897,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         }
       }
     }
+    Object.assign(session, latchUnobservedHistory(session)); // t/4044 condition 1, as in loadDebate
     const runId = generateId();
     session.run_id = runId;
     set({

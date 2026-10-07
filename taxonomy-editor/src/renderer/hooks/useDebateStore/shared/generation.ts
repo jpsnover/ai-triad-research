@@ -213,9 +213,14 @@ export async function getSourceEvidenceIndex(): Promise<Record<string, unknown> 
 
 // ── Stage generate factory (shared by opening + cross-respond) ──
 
+// t/4044: the onServed recorder for a speaker's stage-generate lives with the factory it feeds.
+export { servedTurnRecorder } from './failoverTracking';
+
 export function makeStageGenerate(
   set: (partial: Record<string, unknown>) => void,
   model: string,
+  // t/4044: told the requested and served model after each successful call (shared/failoverTracking.ts).
+  onServed?: (requested: string, served: string | undefined) => void,
 ): (prompt: string, callModel: string, options: { temperature?: number; timeoutMs?: number; maxTokens?: number }, label: string) => Promise<string> {
   return async (prompt, callModel, options, label) => {
     set({ debateGeneratingStartedAt: Date.now(), debateActivity: label, debateProgress: null });
@@ -244,6 +249,7 @@ export function makeStageGenerate(
           nextSteps: ['Review the prompt for policy-violating content', 'Try a different model or backend'],
         });
       }
+      onServed?.(callModel || model, result.servedModel);
       return result.text;
     } catch (err) {
       if (isCancellationError(err)) {

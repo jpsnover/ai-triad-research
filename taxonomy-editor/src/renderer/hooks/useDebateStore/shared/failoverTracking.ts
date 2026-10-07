@@ -12,6 +12,7 @@
 // calibration gate reads failover_tracking alone.
 
 import { AI_POVERS } from '@lib/debate/types';
+import type { DebateSession } from '@lib/debate/types';
 
 /** The session fields this reads and writes. Structural, so it fits DebateSession. */
 export interface FailoverTrackingState {
@@ -53,4 +54,22 @@ export function latchUnobservedHistory<T extends FailoverTrackingState>(session:
   if (session.failover_tracking === 'tracked' || session.failover_untracked) return session;
   const hasSpeakerTurn = (session.transcript ?? []).some(e => AI_SPEAKERS.has(e.speaker));
   return hasSpeakerTurn ? { ...session, failover_untracked: true, failover_tracking: 'unavailable' } : session;
+}
+
+/**
+ * The callback a speaker's stage-generate reports each successful call to (makeStageGenerate's onServed).
+ * Reads the CURRENT active debate, so turns recorded earlier in the same pipeline are not overwritten,
+ * and writes back only when the session changed.
+ */
+export function servedTurnRecorder(
+  get: () => { activeDebate: DebateSession | null },
+  set: (partial: { activeDebate: DebateSession }) => void,
+  speaker: string,
+): (requested: string, served: string | undefined) => void {
+  return (requested, served) => {
+    const current = get().activeDebate;
+    if (!current) return;
+    const next = applyServedTurn(current, speaker, requested, served);
+    if (next !== current) set({ activeDebate: next });
+  };
 }
