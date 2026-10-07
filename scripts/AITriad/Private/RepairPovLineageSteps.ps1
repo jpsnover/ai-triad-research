@@ -409,3 +409,614 @@ function Invoke-LineageRegenerate {
     Write-Host "  Nodes failed: $TotalFailed"
     Write-Host "  POV files saved: $($PovModified.Keys -join ', ')"
 }
+
+# ── Default mode: enrich bare-string lineage entries ──────────────────────────
+
+$script:LineageDedupThreshold = 0.85
+
+function Convert-LineageRichToBare {
+    # -Force: turns rich lineage objects with a name back into bare strings, in place.
+    param($GA)
+    $Converted = 0
+    $NewLin = @(foreach ($Entry in @($GA.intellectual_lineage)) {
+            if ($Entry -is [string]) { $Entry }
+            elseif ($Entry.PSObject.Properties['name'] -and $Entry.name) {
+                $Converted++
+                [string]$Entry.name
+            }
+            else { $Entry }
+        })
+    if ($Converted -gt 0) { $GA.intellectual_lineage = $NewLin }
+}
+
+function Get-LineageBareValue {
+    # Loads $PovFiles and collects the unique bare-string lineage values. Returns { UniqueValues; TaxData }.
+    param([string]$TaxDir, [string[]]$PovFiles, $FilterNodeIds, [switch]$Force)
+    $UniqueValues = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $TaxData = @{}
+
+    foreach ($PovName in $PovFiles) {
+        $FilePath = Join-Path $TaxDir "$PovName.json"
+        if (-not (Test-Path $FilePath)) { continue }
+        $Data = Get-Content $FilePath -Raw | ConvertFrom-Json
+        $TaxData[$PovName] = $Data
+
+        foreach ($Node in $Data.nodes) {
+            if ($FilterNodeIds -and -not $FilterNodeIds.Contains($Node.id)) { continue }
+            $GA = Get-LineageNodeAttribute $Node
+            if ($null -eq $GA) { continue }
+
+            # -Force: convert rich objects back to bare strings for re-enrichment
+            if ($Force) { Convert-LineageRichToBare -GA $GA }
+
+            foreach ($Entry in @($GA.intellectual_lineage)) {
+                if ($Entry -is [string] -and -not [string]::IsNullOrWhiteSpace($Entry)) {
+                    [void]$UniqueValues.Add($Entry)
+                }
+            }
+        }
+    }
+    [pscustomobject]@{ UniqueValues = $UniqueValues; TaxData = $TaxData }
+}
+
+function Get-LineageValueFrequency {
+    # How many times each bare-string value occurs across all loaded nodes.
+    param([hashtable]$TaxData)
+    $FreqMap = @{}
+    foreach ($PovName in $TaxData.Keys) {
+        foreach ($Node in $TaxData[$PovName].nodes) {
+            $GA = Get-LineageNodeAttribute $Node
+            if ($null -eq $GA) { continue }
+            foreach ($Entry in @($GA.intellectual_lineage)) {
+                if ($Entry -is [string]) {
+                    $FreqMap[$Entry] = ($FreqMap[$Entry] ?? 0) + 1
+                }
+            }
+        }
+    }
+    $FreqMap
+}
+
+function Get-LineageMergeBase {
+    # Parenthetical variants merge to the base name:
+    # "Asimov's Laws (conceptual)" + "Asimov's Laws (implicit)" → "Asimov's Laws". $null when not variants.
+    param([string]$Val, [string]$CanName)
+    # Case 1: one is qualified, other is the bare base
+    if ($Val -match '^(.+?)\s*\(' -and $CanName -eq $Matches[1].Trim()) { return $CanName }
+    if ($CanName -match '^(.+?)\s*\(' -and $Val -eq $Matches[1].Trim()) { return $Val }
+    # Case 2: both are qualified variants of the same base
+    if ($Val -match '^(.+?)\s*\(' -and $CanName -match '^(.+?)\s*\(') {
+        $ValBase = ($Val -replace '\s*\([^)]+\)\s*$', '').Trim()
+        $CanBase = ($CanName -replace '\s*\([^)]+\)\s*$', '').Trim()
+        if ($ValBase -eq $CanBase) { return $ValBase }
+    }
+    $null
+}
+
+function Find-LineageCanonicalIndex {
+    # Index of the first canonical whose vector is within $Threshold cosine of $Vec, or -1.
+    param([double[]]$Vec, $CanonicalVecs, [double]$Threshold)
+    for ($j = 0; $j -lt $CanonicalVecs.Count; $j++) {
+        $CanVec = $CanonicalVecs[$j]
+        if ($null -eq $CanVec) { continue }  # no embedding for this canonical
+        # Cosine similarity (vectors are normalized)
+        $Dot = 0.0
+        for ($k = 0; $k -lt $Vec.Count; $k++) { $Dot += $Vec[$k] * $CanVec[$k] }
+        if ($Dot -ge $Threshold) { return $j }
+    }
+    -1
+}
+
+function Merge-LineageCanonical {
+    # Folds $Val into canonical $Index: parenthetical variants merge to their base name, otherwise the
+    # more frequent value wins. Updates $State.Canonicals, $State.CanonicalVecs and $State.DedupMap.
+    param([int]$Index, [string]$Val, [double[]]$Vec, $State, $Embeddings, [hashtable]$FreqMap)
+    $CanName = $State.Canonicals[$Index]
+    $BaseName = Get-LineageMergeBase -Val $Val -CanName $CanName
+    if ($BaseName) {
+        # Merge both to the base name
+        if ($CanName -ne $BaseName) { $State.DedupMap[$CanName] = $BaseName }
+        $State.DedupMap[$Val] = $BaseName
+        $State.Canonicals[$Index] = $BaseName
+        # Re-fetch base embedding if available, otherwise keep canonical's
+        if ($Embeddings.ContainsKey($BaseName)) { $State.CanonicalVecs[$Index] = $Embeddings[$BaseName] }
+        return
+    }
+    # Non-parenthetical merge: pick the one with higher frequency
+    $CanFreq = $FreqMap[$CanName] ?? 0
+    $ValFreq = $FreqMap[$Val] ?? 0
+    if ($ValFreq -gt $CanFreq) {
+        $State.DedupMap[$CanName] = $Val
+        $State.Canonicals[$Index] = $Val
+        $State.CanonicalVecs[$Index] = $Vec
+    }
+    else {
+        $State.DedupMap[$Val] = $CanName
+    }
+}
+
+function Get-LineageDedupCluster {
+    # Greedy clustering: each value joins the first canonical within the threshold, else becomes one.
+    # Returns { Canonicals; CanonicalVecs; DedupMap (non-canonical → canonical); Merged }.
+    param([object[]]$UniqueList, $Embeddings, [hashtable]$FreqMap, [double]$Threshold)
+    $State = [pscustomobject]@{
+        Canonicals    = [System.Collections.Generic.List[string]]::new()
+        CanonicalVecs = [System.Collections.Generic.List[double[]]]::new()
+        DedupMap      = @{}
+        Merged        = 0
+    }
+    foreach ($Val in $UniqueList) {
+        if (-not $Embeddings.ContainsKey($Val)) {
+            # No embedding — add as canonical but skip similarity checks.
+            # Use a null vector so Canonicals and CanonicalVecs stay in sync.
+            $State.Canonicals.Add($Val)
+            $State.CanonicalVecs.Add($null)
+            continue
+        }
+        $Vec = $Embeddings[$Val]
+        $Index = Find-LineageCanonicalIndex -Vec $Vec -CanonicalVecs $State.CanonicalVecs -Threshold $Threshold
+        if ($Index -lt 0) {
+            $State.Canonicals.Add($Val)
+            $State.CanonicalVecs.Add($Vec)
+            continue
+        }
+        Merge-LineageCanonical -Index $Index -Val $Val -Vec $Vec -State $State -Embeddings $Embeddings -FreqMap $FreqMap
+        $State.Merged++
+    }
+    $State
+}
+
+function Write-LineageMergeSample {
+    # The first ten merges, and a count of the rest.
+    param([hashtable]$DedupMap)
+    $SampleMerges = @($DedupMap.GetEnumerator() | Select-Object -First 10)
+    Write-Host "  Sample merges:" -ForegroundColor Gray
+    foreach ($M in $SampleMerges) {
+        Write-Host "    '$($M.Key)' → '$($M.Value)'" -ForegroundColor DarkGray
+    }
+    if ($DedupMap.Count -gt 10) {
+        Write-Host "    ... and $($DedupMap.Count - 10) more" -ForegroundColor DarkGray
+    }
+}
+
+function Rename-LineageDedupEntry {
+    # Replaces non-canonical bare strings on one node's lineage. Returns $true when anything changed.
+    param($GA, [hashtable]$DedupMap)
+    $Changed = $false
+    $NewLin = @(foreach ($Entry in @($GA.intellectual_lineage)) {
+            if ($Entry -is [string] -and $DedupMap.ContainsKey($Entry)) {
+                $Changed = $true
+                $DedupMap[$Entry]
+            } else { $Entry }
+        })
+    if ($Changed) { $GA.intellectual_lineage = $NewLin }
+    $Changed
+}
+
+function Sync-LineageDedupReference {
+    # Applies the dedup map to every loaded POV file and writes the files that changed.
+    param([hashtable]$TaxData, [hashtable]$DedupMap, [string]$TaxDir)
+    foreach ($PovName in $TaxData.Keys) {
+        $Data = $TaxData[$PovName]
+        $PovModified = $false
+        foreach ($Node in $Data.nodes) {
+            $GA = Get-LineageNodeAttribute $Node
+            if ($null -eq $GA) { continue }
+            if (Rename-LineageDedupEntry -GA $GA -DedupMap $DedupMap) { $PovModified = $true }
+        }
+        if ($PovModified) {
+            $FilePath = Join-Path $TaxDir "$PovName.json"
+            Assert-DataWriteAllowed -Path $FilePath  # t/2902
+            $Data | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
+        }
+    }
+    Write-Host "  Dedup references updated in taxonomy files" -ForegroundColor Green
+}
+
+function Invoke-LineageEmbeddingDedup {
+    # Phase 0: cluster near-duplicates (cosine ≥ 0.85), pick a canonical representative, and replace
+    # references to non-canonical members. Returns { UniqueValues; DedupMap; ClustersMerged }.
+    param($UniqueValues, [hashtable]$TaxData, [string]$TaxDir)
+    $UniqueList = @($UniqueValues)
+    $Result = [pscustomobject]@{ UniqueValues = $UniqueValues; DedupMap = @{}; ClustersMerged = 0 }
+
+    # Count frequency of each value across all nodes
+    $FreqMap = Get-LineageValueFrequency -TaxData $TaxData
+
+    Write-Host "Computing embeddings for dedup..." -ForegroundColor Gray
+    $Embeddings = Get-TextEmbedding -Texts $UniqueList -Ids $UniqueList
+    if ($null -eq $Embeddings -or $Embeddings.Count -eq 0) {
+        Write-Host "  Embedding unavailable — skipping dedup" -ForegroundColor Yellow
+        return $Result
+    }
+
+    Write-Host "Clustering at cosine >= $($script:LineageDedupThreshold)..." -ForegroundColor Gray
+    $Clusters = Get-LineageDedupCluster -UniqueList $UniqueList -Embeddings $Embeddings -FreqMap $FreqMap -Threshold $script:LineageDedupThreshold
+    Write-Host "Dedup: $($UniqueList.Count) → $($Clusters.Canonicals.Count) canonical values ($($Clusters.Merged) merged)" -ForegroundColor Green
+    $Result.DedupMap = $Clusters.DedupMap
+    $Result.ClustersMerged = $Clusters.Merged
+    if ($Clusters.Merged -eq 0) { return $Result }
+
+    Write-LineageMergeSample -DedupMap $Clusters.DedupMap
+    # Apply dedup to taxonomy files (replace non-canonical references)
+    if (-not $WhatIfPreference) { Sync-LineageDedupReference -TaxData $TaxData -DedupMap $Clusters.DedupMap -TaxDir $TaxDir }
+
+    # Update UniqueValues to canonicals only
+    $Result.UniqueValues = [System.Collections.Generic.HashSet[string]]::new(
+        [string[]]@($Clusters.Canonicals), [System.StringComparer]::OrdinalIgnoreCase)
+    $Result
+}
+
+function Write-LineagePovBreakdown {
+    # WhatIf plan: nodes and bare entries per POV file.
+    param([string]$TaxDir, [string[]]$PovFiles)
+    Write-Host "`n── Per-POV Breakdown ───────────────────────────" -ForegroundColor Yellow
+    foreach ($PovName in $PovFiles) {
+        $FilePath = Join-Path $TaxDir "$PovName.json"
+        if (-not (Test-Path $FilePath)) { continue }
+        $Data = (Get-Content $FilePath -Raw | ConvertFrom-Json).nodes
+        $NodesWithLin = 0
+        $EntryCount = 0
+        foreach ($N in $Data) {
+            $GA = Get-LineageNodeAttribute $N
+            if ($null -eq $GA) { continue }
+            $Lin = @($GA.intellectual_lineage)
+            $Bare = @($Lin | Where-Object { $_ -is [string] })
+            if ($Bare.Count -gt 0) { $NodesWithLin++; $EntryCount += $Bare.Count }
+        }
+        Write-Host "  $PovName`: $NodesWithLin nodes, $EntryCount bare entries"
+    }
+}
+
+function Write-LineageEnrichPlan {
+    # -WhatIf for the default mode: what would be enriched, validated and written.
+    param([object[]]$NeedEnrichment, [int]$BatchSize, [int]$ClustersMerged, [int]$UniqueCount,
+          [string[]]$PovFiles, [string]$TaxDir, [string]$CachePath, [string]$Model)
+    $Batches = [Math]::Ceiling($NeedEnrichment.Count / $BatchSize)
+    Write-Host "`n── Plan ────────────────────────────────────────" -ForegroundColor Yellow
+    if ($ClustersMerged -gt 0) {
+        Write-Host "  Dedup: $ClustersMerged near-duplicates merged (cosine >= $($script:LineageDedupThreshold))"
+    }
+    Write-Host "  Enrich: $($NeedEnrichment.Count) values in $Batches AI batches ($BatchSize/batch)"
+    Write-Host "  Validate: $UniqueCount URLs via HTTP HEAD"
+    Write-Host "  Update: $($PovFiles.Count) taxonomy files"
+    Write-Host "  Cache: $CachePath"
+    Write-Host "  Model: $Model | Temperature: 0.2"
+    Write-Host "  Est. cost: ~`$$([Math]::Round($Batches * 0.02, 2)) (Gemini free tier)"
+
+    Write-LineagePovBreakdown -TaxDir $TaxDir -PovFiles $PovFiles
+
+    # Sample values
+    Write-Host "`n── Sample Values (first 15) ────────────────────" -ForegroundColor Yellow
+    $NeedEnrichment | Select-Object -First 15 | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+    if ($NeedEnrichment.Count -gt 15) { Write-Host "  ... and $($NeedEnrichment.Count - 15) more" -ForegroundColor DarkGray }
+
+    # Target format example
+    Write-Host "`n── Target Format ───────────────────────────────" -ForegroundColor Yellow
+    Write-Host '  "Effective Altruism (long-termism)"  →' -ForegroundColor DarkGray
+    Write-Host '  {' -ForegroundColor Gray
+    Write-Host '    "name": "Effective Altruism (long-termism)",' -ForegroundColor Gray
+    Write-Host '    "description": "A philosophical movement applying evidence-based...",' -ForegroundColor Gray
+    Write-Host '    "url": "https://en.wikipedia.org/wiki/Effective_altruism",' -ForegroundColor Gray
+    Write-Host '    "category": "philosophical_movement"' -ForegroundColor Gray
+    Write-Host '  }' -ForegroundColor Gray
+}
+
+function Resolve-LineageEnrichKey {
+    # The API key for enrichment, or $null (with a warning) when none is configured.
+    param([string]$Model, [string]$ApiKey)
+    $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend (Resolve-LineageBackend $Model)
+    if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
+        Write-Warning "No API key — can only apply cached enrichments"
+        return $null
+    }
+    $ResolvedKey
+}
+
+function Find-LineageCacheMatch {
+    # Dedup guard: an existing cache key in the same category whose words (over 2 chars) overlap the
+    # enriched name with Jaccard > 0.75, or $null. Prevents duplicate lineage entries (t/330).
+    param($Entry, [System.Collections.IDictionary]$Cache)
+    foreach ($CKey in @($Cache.Keys)) {
+        if ($Cache[$CKey].category -ne $Entry.category) { continue }
+        # Quick string similarity check (Jaccard on words)
+        $W1 = @($Entry.name.ToLower() -split '\W+' | Where-Object { $_.Length -gt 2 })
+        $W2 = @($CKey.ToLower() -split '\W+' | Where-Object { $_.Length -gt 2 })
+        if ($W1.Count -eq 0 -or $W2.Count -eq 0) { continue }
+        $Inter = @($W1 | Where-Object { $_ -in $W2 }).Count
+        $Union = @($W1 + $W2 | Select-Object -Unique).Count
+        if ($Union -gt 0 -and ($Inter / $Union) -gt 0.75) { return $CKey }
+    }
+    $null
+}
+
+function Resolve-LineageEnrichUrl {
+    # Validates an enriched URL before it is cached (never store hallucinated URLs): falls back to
+    # Wikipedia, else clears it. Parameters are untyped on purpose: a [string] would turn $null into ''.
+    param($Url, $Name, [switch]$SkipUrlValidation)
+    if ($SkipUrlValidation -or [string]::IsNullOrWhiteSpace($Url)) { return $Url }
+    if (Test-LineageUrl $Url) { return $Url }
+    $WikiFallback = Get-LineageWikipediaUrl $Name
+    if ($WikiFallback) {
+        Write-Verbose "  URL fallback: '$Name' → Wikipedia"
+        return $WikiFallback
+    }
+    Write-Verbose "  URL cleared: '$Name' (invalid, no Wikipedia)"
+    $null
+}
+
+function Add-LineageEnrichedEntry {
+    # Caches one enriched entry, or aliases it to a near-duplicate cache key.
+    param($Entry, [System.Collections.IDictionary]$Cache, [hashtable]$DedupMap, [switch]$SkipUrlValidation)
+    if (-not $Entry.name) { return }
+    # Dedup guard: if enriched name is a near-duplicate of an existing cache key (same category), reuse
+    # the existing key instead of creating a new entry (prevents duplicate lineage entries — t/330)
+    $ExistingMatch = Find-LineageCacheMatch -Entry $Entry -Cache $Cache
+    if ($ExistingMatch) {
+        # Map enriched name to existing canonical, and also add the
+        # original name to cache so bare-string lookup succeeds
+        if ($Entry.name -ne $ExistingMatch) {
+            $DedupMap[$Entry.name] = $ExistingMatch
+            $Cache[$Entry.name] = $Cache[$ExistingMatch]  # alias to same data
+            Write-Verbose "  Dedup guard: '$($Entry.name)' → existing '$ExistingMatch'"
+        }
+        return
+    }
+    $ValidatedUrl = Resolve-LineageEnrichUrl -Url $Entry.url -Name $Entry.name -SkipUrlValidation:$SkipUrlValidation
+    $Cache[$Entry.name] = @{
+        description = $Entry.description
+        url         = $ValidatedUrl
+        url_status  = if ($ValidatedUrl) { 200 } else { 'cleared' }
+        category    = $Entry.category
+    }
+    $DescPreview = if ($Entry.description.Length -gt 60) { $Entry.description.Substring(0, 60) + '...' } else { $Entry.description }
+    Write-Verbose "  Enriched: '$($Entry.name)' [$($Entry.category)] → $DescPreview"
+}
+
+function Invoke-LineageEnrichBatch {
+    # One AI call that enriches a batch of bare values into the cache.
+    param([object[]]$Batch, [string]$Model, [string]$ResolvedKey, [System.Collections.IDictionary]$Cache,
+          [hashtable]$DedupMap, [switch]$SkipUrlValidation)
+    $BatchList = ($Batch | ForEach-Object { "- $_" }) -join "`n"
+    $Prompt = @"
+Enrich each intellectual lineage entry with a description, URL, and category.
+
+For each entry, provide:
+- name: the original name (verbatim)
+- description: 1-3 paragraphs about the topic, accessible to a policy audience. Cover what it is, its historical origins and key proponents, and why it matters for AI governance discourse. Go beyond a dictionary definition — provide enough context that a reader unfamiliar with the topic can understand its significance and how it connects to AI policy debates.
+- url: Wikipedia or authoritative URL (prefer Wikipedia when available)
+- category: one of: philosophical_movement, economic_theory, political_philosophy, social_theory, scientific_paradigm, legal_framework, technology_movement, ethical_framework, academic_discipline, cultural_movement, other
+
+Entries to enrich:
+$BatchList
+
+Return a JSON array of objects. No markdown fences, no explanation.
+Example: [{"name":"Effective Altruism","description":"A philosophical movement...","url":"https://en.wikipedia.org/wiki/Effective_altruism","category":"philosophical_movement"}]
+"@
+
+    try {
+        $Result = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ResolvedKey `
+            -Temperature 0.2 -MaxTokens 8192 -JsonMode -TimeoutSec 60
+        if (-not ($Result -and $Result.Text)) {
+            Write-Host " no response" -ForegroundColor Red
+            return
+        }
+        $Enriched = ConvertFrom-LineageAiJson -Text $Result.Text -Open '[' -Close ']'
+        foreach ($E in @($Enriched)) {
+            Add-LineageEnrichedEntry -Entry $E -Cache $Cache -DedupMap $DedupMap -SkipUrlValidation:$SkipUrlValidation
+        }
+        Write-Host " $(@($Enriched).Count) enriched" -ForegroundColor Green
+    }
+    catch {
+        Write-Host " failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+function Invoke-LineageEnrichment {
+    # Batch AI enrichment of every value in $NeedEnrichment, pausing between batches.
+    param([object[]]$NeedEnrichment, [int]$BatchSize, [string]$Model, [string]$ResolvedKey,
+          [System.Collections.IDictionary]$Cache, [hashtable]$DedupMap, [switch]$SkipUrlValidation)
+    $BatchNum = 0
+    $TotalBatches = [Math]::Ceiling($NeedEnrichment.Count / $BatchSize)
+
+    for ($i = 0; $i -lt $NeedEnrichment.Count; $i += $BatchSize) {
+        $BatchNum++
+        $Batch = @($NeedEnrichment[$i..[Math]::Min($i + $BatchSize - 1, $NeedEnrichment.Count - 1)])
+        Write-Verbose "Batch ${BatchNum}/${TotalBatches}: $($Batch -join ', ')"
+        Write-Host "  Batch $BatchNum/$TotalBatches ($($Batch.Count) values)..." -ForegroundColor Gray -NoNewline
+
+        Invoke-LineageEnrichBatch -Batch $Batch -Model $Model -ResolvedKey $ResolvedKey -Cache $Cache `
+            -DedupMap $DedupMap -SkipUrlValidation:$SkipUrlValidation
+
+        # Brief pause between batches to avoid rate limits
+        if ($BatchNum -lt $TotalBatches) { Start-Sleep -Seconds 2 }
+    }
+}
+
+function Confirm-LineageCacheUrl {
+    # Validates one cache entry's URL in place (GET, soft-404 detection, Wikipedia fallback).
+    # Returns Valid, Wiki, Invalid or Skipped.
+    param([string]$Name, [System.Collections.IDictionary]$Entry)
+    if (-not $Entry['url'] -or $Entry['url'] -notmatch '^https?://') {
+        $Entry['url_status'] = 'cleared'
+        return 'Skipped'
+    }
+    if (Test-LineageUrl $Entry['url']) {
+        $Entry['url_status'] = 200
+        return 'Valid'
+    }
+    # Try Wikipedia fallback
+    $WikiUrl = Get-LineageWikipediaUrl $Name
+    if ($WikiUrl) {
+        $Entry['url'] = $WikiUrl
+        $Entry['url_status'] = 200
+        return 'Wiki'
+    }
+    $Entry['url'] = $null
+    $Entry['url_status'] = 'cleared'
+    'Invalid'
+}
+
+function Invoke-LineageUrlValidation {
+    # Validates every cache entry not already checked in this run, and re-saves the cache.
+    # Returns the tally { Valid; Wiki; Invalid; Skipped }.
+    param([System.Collections.IDictionary]$Cache, [string]$CachePath)
+    $Tally = @{ Valid = 0; Wiki = 0; Invalid = 0; Skipped = 0 }
+    $ToValidate = @($Cache.GetEnumerator() | Where-Object { -not $_.Value.ContainsKey('url_status') })
+    if ($ToValidate.Count -eq 0) { return $Tally }
+
+    Write-Host "`nValidating $($ToValidate.Count) URLs (GET)..." -ForegroundColor Cyan
+    foreach ($KV in $ToValidate) { $Tally[(Confirm-LineageCacheUrl -Name $KV.Key -Entry $KV.Value)]++ }
+    Write-Host "  Valid: $($Tally.Valid) | Wiki fallback: $($Tally.Wiki) | Cleared: $($Tally.Invalid) | Skipped: $($Tally.Skipped)"
+
+    # Re-save cache with url_status
+    $Cache | ConvertTo-Json -Depth 5 | Set-Content -Path $CachePath -Encoding UTF8
+    $Tally
+}
+
+function ConvertTo-LineageRichEntry {
+    # A bare string with a cache hit (case-insensitive) becomes a rich object; anything else is unchanged.
+    param($Entry, [System.Collections.IDictionary]$Cache, [hashtable]$CacheLookup)
+    if ($Entry -isnot [string]) { return $Entry }  # already a rich object
+    $CacheKey = if ($Cache.ContainsKey($Entry)) { $Entry }
+                elseif ($CacheLookup.ContainsKey($Entry.ToLower())) { $CacheLookup[$Entry.ToLower()] }
+                else { $null }
+    if (-not $CacheKey) { return $Entry }  # no cache hit: keep as bare string
+    $Cached = $Cache[$CacheKey]
+    [ordered]@{
+        name        = $Entry
+        description = $Cached.description
+        url         = $Cached.url
+        category    = $Cached.category
+    }
+}
+
+function Sync-LineageNodeEnrichment {
+    # Replaces one node's cached bare strings with rich objects. Returns $true when the node was updated.
+    param($Node, [string]$PovName, [System.Collections.IDictionary]$Cache, [hashtable]$CacheLookup, $Cmdlet)
+    $GA = Get-LineageNodeAttribute $Node
+    if ($null -eq $GA) { return $false }
+    $Lin = @($GA.intellectual_lineage)
+    $NeedUpdate = $false
+    foreach ($Entry in $Lin) {
+        if ($Entry -is [string] -and ($Cache.ContainsKey($Entry) -or $CacheLookup.ContainsKey($Entry.ToLower()))) { $NeedUpdate = $true; break }
+    }
+    if (-not $NeedUpdate) { return $false }
+
+    # Replace bare strings with rich objects
+    $NewLin = @(foreach ($Entry in $Lin) { ConvertTo-LineageRichEntry -Entry $Entry -Cache $Cache -CacheLookup $CacheLookup })
+    if (-not $Cmdlet.ShouldProcess("$($Node.id) ($($NewLin.Count) lineage entries)", 'Enrich lineage')) { return $false }
+
+    $BareFixed = @($Lin | Where-Object { $_ -is [string] }).Count
+    $RichKept = @($Lin | Where-Object { $_ -isnot [string] }).Count
+    Write-Verbose "  $($Node.id) [$PovName]: $BareFixed bare → enriched, $RichKept already rich"
+    $GA.intellectual_lineage = $NewLin
+    $true
+}
+
+function Sync-LineageEnrichment {
+    # Applies the cached enrichments to every loaded POV file. Returns the number of nodes updated.
+    param([hashtable]$TaxData, [System.Collections.IDictionary]$Cache, [string]$TaxDir, $Cmdlet)
+    Write-Host "`nApplying enrichments to taxonomy files..." -ForegroundColor Cyan
+    $TotalUpdated = 0
+
+    # Build case-insensitive lookup for cache keys (AI may return different casing)
+    $CacheLookup = @{}
+    foreach ($CKey in $Cache.Keys) { $CacheLookup[$CKey.ToLower()] = $CKey }
+
+    foreach ($PovName in $TaxData.Keys) {
+        $Data = $TaxData[$PovName]
+        $Updated = 0
+        foreach ($Node in $Data.nodes) {
+            if (Sync-LineageNodeEnrichment -Node $Node -PovName $PovName -Cache $Cache -CacheLookup $CacheLookup -Cmdlet $Cmdlet) { $Updated++ }
+        }
+        $TotalUpdated += $Updated
+        if ($Updated -gt 0) {
+            $FilePath = Join-Path $TaxDir "$PovName.json"
+            Assert-DataWriteAllowed -Path $FilePath  # t/2902
+            $Data | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
+            Write-Host "  Saved $PovName.json" -ForegroundColor Green
+        }
+    }
+    $TotalUpdated
+}
+
+function Invoke-LineageEnrich {
+    # Default mode: collect bare-string lineage values, dedup them by embedding, enrich the uncached ones
+    # in AI batches, validate URLs, and replace the bare strings with rich objects in the POV files.
+    param([string]$TaxDir, [string[]]$PovFiles, $FilterNodeIds, $CollectedIds,
+          [System.Collections.IDictionary]$Cache, [string]$CachePath, [string]$Model, [string]$ApiKey,
+          [int]$BatchSize, [switch]$SkipUrlValidation, [switch]$Force, $Cmdlet)
+
+    # ── Collect unique bare-string lineage values ─────────────────────────────
+    $Collected = Get-LineageBareValue -TaxDir $TaxDir -PovFiles $PovFiles -FilterNodeIds $FilterNodeIds -Force:$Force
+    $UniqueValues = $Collected.UniqueValues
+    $TaxData = $Collected.TaxData
+
+    if ($Force) {
+        Write-Info 'Force mode: rich lineage objects converted to bare strings for re-enrichment'
+    }
+    if ($null -ne $FilterNodeIds -and $FilterNodeIds.Count -gt 0) {
+        Write-Verbose "Filtering to $($CollectedIds.Count) node ID(s): $($CollectedIds[0..([Math]::Min(4, $CollectedIds.Count - 1))] -join ', ')"
+    }
+    Write-Verbose "UniqueValues type: $($UniqueValues.GetType().Name), count: $($UniqueValues.Count)"
+    Write-Host "Unique lineage values: $($UniqueValues.Count)" -ForegroundColor Cyan
+
+    if ($UniqueValues.Count -eq 0) {
+        Write-Host 'No bare-string lineage entries to process.' -ForegroundColor Green
+        return
+    }
+
+    # ── Phase 0: Dedup via embedding similarity ───────────────────────────────
+    $Dedup = Invoke-LineageEmbeddingDedup -UniqueValues $UniqueValues -TaxData $TaxData -TaxDir $TaxDir
+    $UniqueValues = $Dedup.UniqueValues
+
+    $NeedEnrichment = @($UniqueValues | Where-Object {
+            -not $Cache.ContainsKey($_) -or
+            [string]::IsNullOrWhiteSpace($Cache[$_].description)
+        })
+    $AlreadyCached = $UniqueValues.Count - $NeedEnrichment.Count
+
+    Write-Host "Post-dedup unique: $($UniqueValues.Count)"
+    Write-Host "Already cached: $AlreadyCached"
+    Write-Host "Need enrichment: $($NeedEnrichment.Count)"
+
+    if ($WhatIfPreference) {
+        Write-LineageEnrichPlan -NeedEnrichment $NeedEnrichment -BatchSize $BatchSize -ClustersMerged $Dedup.ClustersMerged `
+            -UniqueCount $UniqueValues.Count -PovFiles $PovFiles -TaxDir $TaxDir -CachePath $CachePath -Model $Model
+        return
+    }
+
+    # ── Resolve API key ───────────────────────────────────────────────────────
+    $ResolvedKey = $null
+    if ($NeedEnrichment.Count -gt 0) {
+        $ResolvedKey = Resolve-LineageEnrichKey -Model $Model -ApiKey $ApiKey
+        if ($null -eq $ResolvedKey) { $NeedEnrichment = @() }
+    }
+
+    # ── Batch AI enrichment ───────────────────────────────────────────────────
+    Invoke-LineageEnrichment -NeedEnrichment $NeedEnrichment -BatchSize $BatchSize -Model $Model -ResolvedKey $ResolvedKey `
+        -Cache $Cache -DedupMap $Dedup.DedupMap -SkipUrlValidation:$SkipUrlValidation
+
+    # ── Save cache ────────────────────────────────────────────────────────────
+    if ($Cache.Count -gt 0) {
+        $Cache | ConvertTo-Json -Depth 5 | Set-Content -Path $CachePath -Encoding UTF8
+        Write-Host "Cache saved: $($Cache.Count) entries → $CachePath" -ForegroundColor Green
+    }
+
+    # ── URL validation (GET-based, soft 404 detection, Wikipedia fallback) ───
+    $Urls = @{ Valid = 0; Invalid = 0 }
+    if (-not $SkipUrlValidation) { $Urls = Invoke-LineageUrlValidation -Cache $Cache -CachePath $CachePath }
+
+    # ── Apply enrichments to taxonomy files ───────────────────────────────────
+    $TotalUpdated = Sync-LineageEnrichment -TaxData $TaxData -Cache $Cache -TaxDir $TaxDir -Cmdlet $Cmdlet
+
+    Write-Host "`n=== SUMMARY ===" -ForegroundColor Cyan
+    Write-Host "  Unique values: $($UniqueValues.Count)"
+    Write-Host "  Enriched (new): $($NeedEnrichment.Count)"
+    Write-Host "  From cache: $AlreadyCached"
+    Write-Host "  Nodes updated: $TotalUpdated"
+    if (-not $SkipUrlValidation) {
+        Write-Host "  URLs valid: $($Urls.Valid) | invalid: $($Urls.Invalid)"
+    }
+}
