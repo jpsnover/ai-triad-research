@@ -14,6 +14,10 @@ export type CreateDebateOptions = {
   useAdaptiveStaging?: boolean;
   phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number };
   speakerModels?: Record<string, string>;
+  /** t/4046 (SO condition on t/4040): the backends eligible for this multi-provider run —
+   *  availableBackends ∩ tier's debateTiers map, the same population resolveMultiProviderModels
+   *  draws speakerModels from. Threaded to sessionSlice for the calibration model_pool fingerprint. */
+  eligibleBackends?: string[];
   modelTier?: 'basic' | 'advanced';
   stepMode?: boolean;
   stageModels?: { brief?: string; plan?: string; cite?: string };
@@ -40,6 +44,7 @@ export function buildDebateOptions(p: {
   argumentationRounds: number;
   concludingRounds: number;
   speakerModels: Record<string, string> | undefined;
+  eligibleBackends: string[] | undefined;
   multiProvider: boolean;
   modelTier: 'basic' | 'advanced';
   stepMode: boolean;
@@ -59,6 +64,7 @@ export function buildDebateOptions(p: {
       maxConcludingRounds: p.concludingRounds,
     },
     speakerModels: p.speakerModels,
+    eligibleBackends: p.eligibleBackends,
     modelTier: p.multiProvider ? p.modelTier : undefined,
     stepMode: p.stepMode || undefined,
     excludeGreatestHits: p.excludeGreatestHits || undefined,
