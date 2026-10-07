@@ -47,9 +47,9 @@ export interface PovTagProposalsFile {
 
 // ── value_basis: why each proposed tag fits its soul doc's Value Hierarchy (t/4066, SO e/278) ──────────────────────
 //
-// EXEMPTION (SO e/278#2 cond. 2): value_basis* is REVIEWER DISPLAY ONLY. No consumer branches on it, which is why
-// adding these fields was not a mandatory-SO data-model change. THE EXEMPTION LAPSES the moment selection, the
-// frozen-list build, or any automated decision reads it.
+// EXEMPTION (SO e/278#2 cond. 2): value_basis* is REVIEWER DISPLAY ONLY. No consumer branches on it, so further
+// additive changes to these fields are not mandatory-SO (initial shape reviewed SO e/278). THE EXEMPTION LAPSES the
+// moment selection, the frozen-list build, or any automated decision reads it.
 //
 // INDICES ARE 1-BASED: `vh_index: [1]` is the FIRST element of the matching `value_basis_run.value_hierarchies` array
 // (CL e/278#3). The text always comes from that snapshot, never from the live soul doc, so a later soul edit can't
@@ -184,6 +184,11 @@ function valueBasisProblems(p: Record<string, unknown>, at: string, hierarchies:
     ];
     if (typeof e.why !== 'string') out.push(`${where}.why must be a string`);
     if (typeof e.unsupported !== 'boolean') out.push(`${where}.unsupported must be a boolean`);
+    // `unsupported` is DERIVED (CL e/278#11): true exactly when neither run cited an element. A mismatch would make the
+    // queue show "no element supports this tag" next to cited elements.
+    else if (Array.isArray(e.vh_index_uncertain) && e.unsupported !== (e.vh_index === null && e.vh_index_uncertain.length === 0)) {
+      out.push(`${where}.unsupported is ${e.unsupported}, but it must equal (vh_index === null && vh_index_uncertain is empty)`);
+    }
     return out;
   };
   if (p.value_basis !== undefined) {

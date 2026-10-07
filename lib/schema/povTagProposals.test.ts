@@ -252,6 +252,15 @@ describe('value_basis*: shape and 1-based bounds (SO e/278#2 cond. 1)', () => {
     expect(problemsOf((f) => { f.value_basis_run.index_base = 0; })[0]).toMatch(/index_base must be 1/);
   });
 
+  it('unsupported must agree with the indices (CL e/278#11): no contradictory justification, in value_basis or shared', () => {
+    expect(problemsOf((f) => { f.proposals[0].value_basis![0].unsupported = true; }))
+      .toEqual([expect.stringMatching(/unsupported is true, but it must equal/)]);
+    expect(problemsOf((f) => { f.proposals[1].value_basis![0].unsupported = false; }))
+      .toEqual([expect.stringMatching(/unsupported is false, but it must equal/)]);
+    expect(problemsOf((f) => { f.proposals[1].value_basis_shared = { vh_index: null, vh_index_uncertain: [2], why: 'w', unsupported: true }; }))
+      .toEqual([expect.stringMatching(/value_basis_shared\.unsupported is true/)]);
+  });
+
   it('refuses missing why / unsupported / vh_index_uncertain', () => {
     const p = problemsOf((f) => { f.proposals[0].value_basis = [{ tag: 'critical', vh_index: [1] }]; });
     expect(p).toEqual(expect.arrayContaining([
