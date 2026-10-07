@@ -24,7 +24,7 @@ const REGISTRY = {
 /** Shaped like the committed file: header, `run`, and items carrying the extra `crux` key. */
 function realShaped(): PovTagProposalsFile {
   const item = (node_id: string, proposed: string[], crux: string | null) => ({
-    node_id, proposed, confidence: 0.8, rationale: `why ${node_id}`, crux,
+    node_id, proposed, confidence: 0.8, rationale: `why ${node_id} — “wing” é`, crux,
     status: 'pending', final: null, reviewed_by: null, reviewed_at: null,
   });
   return {
@@ -167,6 +167,21 @@ describe('byte preservation (Rosetta e/269)', () => {
     const snapshot = JSON.stringify(input);
     applyProposalDecision(input, 'skp-beliefs-001', { status: 'accepted' }, 'ed', AT, 'pending', REGISTRY);
     expect(JSON.stringify(input)).toBe(snapshot);
+  });
+
+  it('compares BYTES, not strings: multi-byte UTF-8 (em dash, curly quotes) is written raw, never escaped (Rosetta e/269#10)', () => {
+    const committed = Buffer.from(serializePovTagProposals(realShaped()), 'utf8');
+    const text = committed.toString('utf8');
+    expect(committed.length).toBeGreaterThan(text.length); // the fixture really carries multi-byte characters
+    expect(text).not.toMatch(/\\u[0-9a-fA-F]{4}/); // no JSON \uXXXX escapes
+    expect(text).toContain('—'); // the em dash is written as the character itself
+    // Round trip at the byte level.
+    expect(Buffer.from(serializePovTagProposals(JSON.parse(text)), 'utf8').equals(committed)).toBe(true);
+    // A decision on one item: rebuilding the expected file by editing only that item's review fields gives identical bytes.
+    const r = ok(applyProposalDecision(JSON.parse(text), 'skp-beliefs-001', { status: 'rejected' }, 'ed', AT, 'pending', REGISTRY));
+    const expected = JSON.parse(text);
+    Object.assign(expected.proposals[0], { status: 'rejected', final: [], reviewed_by: 'ed', reviewed_at: AT });
+    expect(Buffer.from(serializePovTagProposals(r.file), 'utf8').equals(Buffer.from(serializePovTagProposals(expected), 'utf8'))).toBe(true);
   });
 
   it('the serializer round-trips the committed format: 2-space JSON plus one trailing LF', () => {
