@@ -52,7 +52,7 @@ import { registerPolicyRegistryRoutes } from '../routes/policyRegistry.js';
 // ── minimal registry fixture ────────────────────────────────────────────────
 
 const POLICY_A = { id: 'pol-001', title: 'Policy A', member_count: 0, source_povs: [] };
-const POLICY_B = { id: 'pol-002', title: 'Policy B', member_count: 1, source_povs: ['acc'] };
+const POLICY_B = { id: 'pol-002', title: 'Policy B', member_count: 1, source_povs: ['accelerationist'] };
 const REGISTRY = { version: 1, policies: [POLICY_A, POLICY_B] };
 const REGISTRY_RAW = JSON.stringify(REGISTRY, null, 2) + '\n';
 

@@ -64,7 +64,7 @@ async function acquirePolicyActionsLock(
             await fs.unlink(lockPath).catch(() => undefined);
             continue; // retry immediately after breaking
           }
-        } catch { /* lock released between EEXIST and stat — retry */ }
+        } catch { /* telemetry — silent by design */ }
         if (Date.now() - start >= LOCK_TIMEOUT_MS) return { timedOut: true, onDisk: false };
         await new Promise<void>((r) => setTimeout(r, LOCK_POLL_MS));
       } else if (code === 'ENOENT' || code === 'EACCES' || code === 'EROFS') {
@@ -80,6 +80,14 @@ async function acquirePolicyActionsLock(
       }
     }
   }
+}
+
+async function readAllPovFiles(): Promise<Partial<Record<PolicyPovFile, PolicyPovFileData | undefined>>> {
+  const povFiles: Partial<Record<PolicyPovFile, PolicyPovFileData | undefined>> = {};
+  for (const pov of POLICY_POV_FILES) {
+    povFiles[pov] = (await readTaxonomyFile(pov)) as PolicyPovFileData;
+  }
+  return povFiles;
 }
 
 export function registerPolicyRegistryRoutes(router: Router, ctx: ServerCtx): void {
@@ -127,13 +135,8 @@ export function registerPolicyRegistryRoutes(router: Router, ctx: ServerCtx): vo
       if (registryRaw === null) { error(res, 'policy_actions.json not found', 404); return; }
       const registry = JSON.parse(registryRaw) as PolicyRegistry;
 
-      // Fail closed: any POV-read failure (transient network error, rate limit, missing file)
-      // must not be silently swallowed. A partial read would write zeroed member_counts,
-      // corrupting committed data. Let errors propagate to the outer catch → 500. (p/575#47)
-      const povFiles: Partial<Record<PolicyPovFile, PolicyPovFileData | undefined>> = {};
-      for (const pov of POLICY_POV_FILES) {
-        povFiles[pov] = (await readTaxonomyFile(pov)) as PolicyPovFileData;
-      }
+      // Fail closed: any POV-read failure propagates to the outer catch → 500. (p/575#47)
+      const povFiles = await readAllPovFiles();
 
       const { registry: updatedRegistry, updated: updatedItems, changed } =
         recountPolicyMembers(registry, povFiles, ids);
