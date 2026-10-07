@@ -169,10 +169,9 @@ export const api: AppAPI = {
   checkDataUpdates: () => window.electronAPI.checkDataUpdates(),
   pullDataUpdates: () => window.electronAPI.pullDataUpdates(),
   getChangedFiles: () => window.electronAPI.getChangedFiles(),
-  // t/4052: optional until the IPC handlers land (t/4054); a missing handler rejects, and the queue
-  // records a WARN and stays hidden.
-  loadPovTagProposals: () => window.electronAPI.loadPovTagProposals?.() ?? Promise.reject(new Error('load-pov-tag-proposals IPC handler not available')),
-  reviewPovTagProposal: (nodeId, decision, expectedStatus) => window.electronAPI.reviewPovTagProposal?.(nodeId, decision, expectedStatus) ?? Promise.reject(new Error('review-pov-tag-proposal IPC handler not available')),
+  // t/4052: IPC handlers from t/4054 (#3030).
+  loadPovTagProposals: () => window.electronAPI.loadPovTagProposals(),
+  reviewPovTagProposal: (nodeId, decision, expectedStatus) => window.electronAPI.reviewPovTagProposal(nodeId, decision, expectedStatus),
   getFileDiff: (filePath) => window.electronAPI.getFileDiff(filePath),
 
   // AI models & keys
