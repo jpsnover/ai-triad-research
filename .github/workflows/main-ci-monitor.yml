@@ -258,7 +258,14 @@ jobs:
                 verdicts.push({ file: w.file, status: 'silent', streak: 0, lastRunAt: null, reason: `could not list runs: ${e.message}` });
                 continue;
               }
-              verdicts.push(scheduledWorkflowVerdict({ file: w.file, runs, maxSilentHours: w.maxSilentHours, nowMs }));
+              let v = scheduledWorkflowVerdict({ file: w.file, runs, maxSilentHours: w.maxSilentHours, nowMs });
+              if (v.status === 'silent') {
+                // A stale API read once reported pr-triage's newest scheduled run as 31 days old while a run
+                // from 1.5h earlier existed (t/4058 live probe). Confirm SILENT with a second read.
+                const r2 = await github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: w.file, event: 'schedule', branch: 'main', per_page: 6 });
+                v = scheduledWorkflowVerdict({ file: w.file, runs: r2.data.workflow_runs.map(x => ({ conclusion: x.conclusion, createdAt: x.created_at })), maxSilentHours: w.maxSilentHours, nowMs });
+              }
+              verdicts.push(v);
             }
             for (const f of unlisted) verdicts.push({ file: f, status: 'unmonitored', reason: 'declares schedule: but is not in scheduled-workflows.json' });
 
@@ -278,7 +285,7 @@ jobs:
               }
               return;
             }
-            const body = `<!-- fp:${fp} -->\n**Scheduled workflows failing, silent, or unmonitored** (t/4058). main-ci-monitor does not watch these otherwise.\n\n${summary}\n\nFix each, or record why it is accepted. This issue updates in place and closes itself when all are healthy.\n\n- **Run:** ${runUrl}`;
+            const body = `<!-- fp:${fp} -->\n@${owner} **Scheduled workflows failing, silent, or unmonitored** (t/4058). main-ci-monitor does not watch these otherwise.\n\n${summary}\n\nFix each, or record why it is accepted. This issue updates in place and closes itself when all are healthy.\n\n- **Run:** ${runUrl}`;
             if (!open.data.length) {
               const created = await github.rest.issues.create({ owner, repo, title: `Scheduled workflow health: ${problems.length} problem(s)`, body, labels: [LABEL, ESCALATED_LABEL] });
               try { await github.rest.issues.addAssignees({ owner, repo, issue_number: created.data.number, assignees: [owner] }); }
@@ -289,9 +296,22 @@ jobs:
             const priorFp = ((issue.body || '').match(/<!-- fp:(.*?) -->/) || [])[1];
             await github.rest.issues.update({ owner, repo, issue_number: issue.number, title: `Scheduled workflow health: ${problems.length} problem(s)`, body });
             if (priorFp !== fp) {
-              // A DIFFERENT set of workflows is wrong: re-surface through r/23 even if the old set was acked.
-              if (issue.labels.some(l => (l.name || l) === ACK)) {
-                await github.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name: ACK }).catch(() => {});
+              const before = new Set((priorFp || '').split(',').filter(Boolean));
+              const now = fp.split(',').filter(Boolean);
+              const added = now.filter(x => !before.has(x));
+              const cleared = [...before].filter(x => !now.includes(x));
+              if (added.length) {
+                // NEW problems: re-surface through r/23 (drop owner-acked) AND outside Orca (@mention) —
+                // r/23 is an Orca reminder and stalls with the Orca host (t/4053#5, CL p/210#99).
+                if (issue.labels.some(l => (l.name || l) === ACK)) {
+                  await github.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name: ACK }).catch(() => {});
+                }
+                const clr = cleared.length ? `; cleared: \`${cleared.join(', ')}\`` : '';
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number,
+                  body: `@${owner} **New scheduled-workflow problem(s):** \`${added.join(', ')}\`${clr}. ${runUrl}` });
+              } else {
+                // Only clearances: record them, but do not un-ack or re-ping — something got better.
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number,
+                  body: `Cleared: \`${cleared.join(', ')}\` (no new problems). ${runUrl}` });
               }
-              await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: `Problem set changed (was \`${priorFp || 'none'}\`, now \`${fp}\`). ${runUrl}` });
             }
