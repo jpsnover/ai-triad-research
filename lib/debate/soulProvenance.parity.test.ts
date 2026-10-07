@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolvePoverInfo as nodeResolve, clearSoulDocCache } from './soulDocLoader.js';
 import { resolvePoverInfo as browserResolve } from './tagSoulRegistry.js';
+import { opedSoulProvenance } from '../oped/generate.js';
 import type { TagSelection } from './types/session.js';
 
 const BASE_SPEAKERS = ['accelerationist', 'safetyist', 'skeptic'] as const;
@@ -50,19 +51,18 @@ describe('soul provenance parity — Node loader vs browser registry', () => {
 });
 
 // Condition 6: debate path vs op-ed path (t/4007).
-// generate.ts now calls getSoulDocument + resolvePoverInfo (soulDocLoader) for base souls — one reader,
-// parity by construction. Tag souls call resolvePoverInfo directly (pre-t/4007), also by construction.
-// This suite documents the invariant and guards against a future regression where a separate read path
-// is introduced: resolvePoverInfo must return a valid soul-docs-relative name + fnv1a64 hash.
+// generate.ts calls getSoulDocument + resolvePoverInfo for base souls (one reader — parity by
+// construction). opedSoulProvenance is the exported API boundary; this suite is a regression guard:
+// if a future change gives generate.ts its own readFileSync, its hash will diverge from nodeResolve's.
+// Tag souls call resolvePoverInfo directly (pre-t/4007), so also covered by construction.
 describe('soul provenance parity — debate loader vs op-ed read path', () => {
   beforeEach(() => clearSoulDocCache());
 
   for (const speaker of BASE_SPEAKERS) {
-    it(`base soul ${speaker}: resolvePoverInfo (the op-ed path since t/4007) returns valid provenance`, () => {
-      const { soulProvenance } = nodeResolve(speaker);
-      expect(soulProvenance).toBeDefined();
-      expect(soulProvenance!.file).toBe(`${speaker}.soul.json`);
-      expect(soulProvenance!.hash).toMatch(/^fnv1a64:[0-9a-f]{16}$/);
+    it(`base soul ${speaker}: opedSoulProvenance equals nodeResolve provenance`, () => {
+      const opedProv = opedSoulProvenance(speaker);
+      const { soulProvenance: debateProv } = nodeResolve(speaker);
+      expect(opedProv).toEqual(debateProv);
     });
   }
 });

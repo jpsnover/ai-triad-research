@@ -4,7 +4,7 @@
 import { join } from 'path';
 
 import { ActionableError } from '../debate/errors.js';
-import { getSoulDocument, resolvePoverInfo } from '../debate/soulDocLoader.js';
+import { getSoulDocument, resolvePoverInfo, type SoulProvenance } from '../debate/soulDocLoader.js';
 import { SoulDocumentSchema, buildSoulProvenance } from '../debate/soulDocSchema.js';
 import { applyTagSelection, checkTagScope } from '../debate/relevanceSelection.js';
 import { TAG_BOOST_INCREMENT } from '../debate/debateConfig.js';
@@ -126,6 +126,11 @@ function loadSoulDoc(pov: PovKey): VoiceSoul {
     });
   }
   return { soul: soulDoc as SoulDoc, label: soulDoc.label, provenance: { file: soulProvenance.file, hash: soulProvenance.hash } };
+}
+
+/** Exported for parity testing only (t/4007): op-ed base-soul provenance via the debate loader. */
+export function opedSoulProvenance(pov: PovKey): SoulProvenance | undefined {
+  return resolvePoverInfo(pov).soulProvenance;
 }
 
 // ── Tag pre-flight (t/3960; TL t/3960#3/#8, SO e/254#6) ──────────────────────────────────────────
