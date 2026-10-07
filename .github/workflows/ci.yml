@@ -163,7 +163,9 @@ jobs:
               - 'ai-models.json'
               - 'deploy/azure/main.bicep'
               - 'taxonomy-editor/src/server/briefExportJobs.ts'
-              - '.github/workflows/ci.yml'
+              # .github/workflows/** (t/4058) — the scheduled-workflow list lint reads every workflow
+              # file; a PR that only ADDS a scheduled workflow must still run it (skip-reads-as-pass).
+              - '.github/workflows/**'
             electron:
               - 'taxonomy-editor/**'
               - 'poviewer/**'
@@ -1938,6 +1940,15 @@ jobs:
         # WARN-FIRST: flip by removing continue-on-error after >=1 green cycle (SO + TL GV).
         continue-on-error: true
         run: node --test operations/devops/precommit-hint-guard-parity.test.mjs
+
+      - name: Scheduled-workflow health verdict + list lint (WARN-FIRST — t/4058)
+        # Pure verdict for main-ci-monitor's scheduled-workflow check, plus the LINT that every workflow
+        # with `schedule:` is in operations/devops/scheduled-workflows.json (an unlisted one would be
+        # silently unmonitored — the class behind 4 workflows failing unnoticed for up to 6 weeks).
+        # The suite carries a population floor (>=15 scheduled workflows) so a broken detector cannot
+        # pass it vacuously. WARN-FIRST: flip by removing continue-on-error (SO + TL GV).
+        continue-on-error: true
+        run: node --test operations/devops/scheduled-workflow-health.test.mjs
 
   # ── complexity-tickets: refactor issues for over-budget files (advisory) ─────
   # Collects the complexity-violations-* artifacts that test-electron (ESLint
