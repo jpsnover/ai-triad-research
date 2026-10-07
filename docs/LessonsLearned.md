@@ -4206,6 +4206,7 @@ The `git restore --staged` step is mandatory: the shared index still has `100644
 - 2026-10-03 — PowerShell (p/20#62): `Invoke-ScriptAnalyzer -Path 'a.ps1','b.ps1','c.ps1'` — resolved by piping via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }`.
 - 2026-10-06 — PowerShell (p/20#72): both `Measure-CodeComplexity -Path a.ps1, b.ps1` and `Invoke-ScriptAnalyzer -Path a.ps1, b.ps1` threw the same error. For `Measure-CodeComplexity`, resolved by passing the directory with `-Include 'a.ps1','b.ps1'`; for the analyzer, ran once per file. Confirms the pattern extends beyond PSScriptAnalyzer.
 - 2026-10-07 — PowerShell (p/20#76, t/4065): `Invoke-ScriptAnalyzer -Path a,b,c` — same "Cannot convert System.Object[] to System.String" error. Resolved by piping via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }`.
+- 2026-10-07 — PowerShell (p/20#86, t/3910): `Measure-CodeComplexity -Path a,b` — same error again. Resolved by piping via `ForEach-Object { Measure-CodeComplexity -Path $_ }`.
 
 **Root Cause:** Several PS analysis cmdlets type `-Path` as `[string]` rather than `[string[]]`. PowerShell's automatic coercion from `Object[]` to `String` fails with this error — the engine cannot silently stringify an array.
 
@@ -4215,7 +4216,7 @@ The `git restore --staged` step is mandatory: the shared index still has `100644
 3. **Alternatively, use `-Path` with a directory and `-Recurse`** when analyzing a subtree.
 4. **`"Cannot convert … to the type 'System.String'"` on a cmdlet that looks like it should accept arrays = check the actual parameter type** with `(Get-Command <cmdlet>).Parameters['Path'].ParameterType`.
 
-**Status:** Active — 3 instances (PowerShell p/20#62, p/20#72, p/20#76). Deterministic. Extends to any analysis cmdlet with a singular `-Path [string]`.
+**Status:** Active — 4 instances (PowerShell p/20#62, p/20#72, p/20#76, p/20#86). Deterministic. Extends to any analysis cmdlet with a singular `-Path [string]`.
 
 **Applies To:** All agents running `Invoke-ScriptAnalyzer` or `Measure-CodeComplexity` across multiple files in a single call.
 
@@ -4599,15 +4600,62 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 
 **Instances:**
 - 2026-10-07 — DevOps Worker (p/749#1): `git push` 500'd 5x on receive-pack across 2 different branch names; `git fetch` and `gh api` REST writes worked the whole time. Resolved by waiting briefly and retrying once — succeeded clean with no workaround.
+- 2026-10-07 — PowerShell (p/20#86, t/3910): `git push` returned "Internal Server Error" on one branch for ~6 minutes while status.github.com showed all systems operational. Tried bisecting: pushed an empty probe commit, then each half of the real commit — all succeeded. Then pushed the real commit, which also succeeded. **New learning: GitHub status is too coarse to discriminate per-repo transients; bisect with probe refs before assuming commit content is bad.**
 
-**Root Cause:** GitHub's receive-pack endpoint is a separate service path from `fetch` (upload-pack) and the REST API. Partial degradations can affect one path while others remain healthy. Five consecutive failures across different branches confirms it is not branch-specific; simultaneous REST write success confirms it is not repo-wide.
+**Root Cause:** GitHub's receive-pack endpoint is a separate service path from `fetch` (upload-pack) and the REST API. Partial degradations can affect one path while others remain healthy. When status.github.com shows green, the issue may still be a per-repo transient on receive-pack. Pushing a probe commit (empty or split) isolates whether the failure is content-specific vs. endpoint-transient.
 
 **Prevention:**
 1. **Diagnose before workarounds:** if `git push` 500s but `git fetch` and `gh api` writes work, the issue is GitHub-side transient on the receive-pack path. Wait 1–2 minutes and retry once — no branch rename, credential rotation, or protocol change is needed.
 2. **Discriminator: `git fetch` works + REST writes work + `git push` 500s = receive-pack-specific.** If fetch also fails, it may be a broader outage; check GitHub status.
-3. **5 consecutive failures across 2 branch names rules out branch-specific causes.** Do not assume the remote ref is corrupted or the branch is protected.
-4. **Do not force-push or workaround the 500.** Wait and retry plain `git push`; the transient resolves without intervention.
+3. **GitHub status is not granular enough to rule out per-repo transients.** "All systems operational" does not mean your push will succeed. Push a probe ref (empty commit or split) to isolate content vs. endpoint.
+4. **Bisect with probe refs if you suspect commit content is bad:** push an empty commit first; if that fails, it's endpoint-transient; if it succeeds, split the real commit and push each half.
+5. **Do not force-push or workaround the 500.** Wait and retry plain `git push`; the transient resolves without intervention.
 
-**Status:** Active — 1 instance (DevOps Worker, p/749#1). Self-resolving; risk is unnecessary workarounds consuming time.
+**Status:** Active — 2 instances (DevOps Worker p/749#1, PowerShell p/20#86). Self-resolving; risk is unnecessary workarounds consuming time.
 
 **Applies To:** All agents pushing to GitHub remotes via `git push`.
+
+---
+
+## #220 [Test] Plain Hashtable Iteration Order Is Non-Deterministic Per-Process — Golden Tests Built This Way Flake
+
+**Pattern:** A test fixture built by iterating a plain PowerShell hashtable (`@{}`) to produce a golden/snapshot value will produce different key orderings on different process runs. CI passes by luck when the current process happens to produce the same order as when the golden was pinned, and fails on others. The fixture appears deterministic in local runs because the same process seed repeats within a session.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#86, t/3910): a fixture constructed by iterating a plain `@{}` (random key order per process) pinned a coin-flip input hash. Earlier runs passed because the process produced the same order. Fix: sort keys explicitly before building the fixture; confirmed stable across 3+ separate process runs.
+
+**Root Cause:** PowerShell `@{}` (and .NET `Dictionary<K,V>`) have no guaranteed iteration order. The order is determined by internal hash bucketing, which varies per process/run. A golden that encodes a specific key order will match only when the hash happens to produce that order — a coin-flip per process.
+
+**Prevention:**
+1. **Never iterate a plain hashtable when the output order matters for a golden/snapshot.** Sort keys explicitly: `$hash.GetEnumerator() | Sort-Object Key` or `[ordered]@{}` when constructing.
+2. **Prove stability across 3+ separate process invocations** before treating a golden as stable. In-session reruns share the same process and will not expose the flake.
+3. **A golden that flakes on CI but passes locally** is a strong signal of iteration-order non-determinism — check for hashtable iteration in the fixture construction path.
+4. **Use `[ordered]@{}` (PowerShell ordered dictionary) or `[System.Collections.Generic.SortedDictionary]`** when key order must be deterministic.
+
+**Status:** Active — 1 instance (PowerShell p/20#86, t/3910). Flake risk: silently passes until a process runs with a different hash seed.
+
+**Applies To:** All agents writing golden/snapshot tests that involve hashtable iteration in fixture construction.
+
+---
+
+## #219 [Build] MSYS Stores Colon as Unicode Private-Use Character in Filenames — `C:tmpsaf…` Is Not a Real Colon; PowerShell Matching Fails; Use Bash for Cleanup
+
+**Pattern:** A file appears in the repository root whose name looks like `C:tmpsaf_beliefs_raw.json`. The `:` is **not** an ASCII colon — MSYS stores it as a Unicode private-use character (U+F03A or similar) that *visually* resembles a colon but doesn't match ASCII `:` in any search or comparison. As a result: `git log/ls-files/status` fail "outside repository" or similar; PowerShell `-like 'C:tmp*'` and `Get-Item ".\C:tmpsaf..."` find nothing (the `.\` trick doesn't help — the issue is the non-ASCII char, not drive-letter interpretation); `:(literal)` pathspec magic also fails. **What works: Bash `ls`/`mv`/`rm` with the literal filename** — Bash can address the actual bytes MSYS stored.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#80): `C:tmpsaf_beliefs_raw.json` in `ai-triad-data` root. git pathspec and PowerShell both failed. File left as-is (not owner's to delete). *(Initial diagnosis: git drive-path interpretation.)*
+- 2026-10-07 — DevOps (p/169#189, correction 1): PowerShell `-like 'C:tmp*'` found nothing; Bash `ls`/`mv` with literal name worked. True cause: MSYS Unicode private-use char (U+F03A) stored as colon.
+- 2026-10-07 — DevOps (p/169#190, correction 2): File was **tracked** in git as `Ctmpsaf_beliefs_raw.json` (git stores the U+F03A as `C` + private-use byte sequence). A Bash `mv` showed as a tracked deletion in the shared checkout. A failed git pathspec lookup does not mean the file is untracked.
+- 2026-10-07 — DevOps Lead (p/26#147, outcome): Moved the file out of the shared `ai-triad-data` checkout assuming it was untracked junk — it was tracked, creating an uncommitted deletion. **r/24 caught it within the hour.** Restored byte-identical (git status clean); `git rm` routed to the data repo owner. Rule: verify `git ls-files | grep` yourself before moving or deleting anything in a shared checkout, whatever a report says.
+
+**Root Cause:** When a Bash redirect (`> /tmp/foo.json`) fails due to MSYS `/tmp` path mangling, the resulting junk artifact can land in the working tree with a `C:` prefix where the `:` is encoded as Unicode private-use character U+F03A. MSYS uses private-use codepoints to round-trip characters NTFS forbids (`:` is illegal in NTFS). The char looks like a colon in a terminal but isn't ASCII `0x3A`. Git tracks the file but cannot address it by the mangled pathspec; PowerShell string matching against literal `:` misses it; Bash can address it by raw bytes. A filesystem `mv`/`rm` on a tracked file creates a tracked deletion — it must be a `git rm` commit.
+
+**Prevention:**
+1. **These files are tracked git artifacts**, not untracked junk. A failed pathspec lookup does not mean untracked. Before treating as untracked, run `git ls-files | grep -a tmpsaf` (the `-a` flag handles non-UTF8 filenames); if it appears, it's tracked.
+2. **To remove: `git rm` followed by a commit in the data repo** — this is a data write that must be coordinated with the data repo owner. Never use a filesystem `mv`/`rm` on a tracked file; it creates a staged deletion that blocks the ff-drain.
+3. **To find the file**: `ls -la | grep tmpsaf` (Bash) — copy the literal filename from output for any subsequent operation; don't type the colon character manually.
+4. **The presence of such a file is diagnostic** — audit the session that created it; the underlying cause is a Bash `/tmp` write that landed in the working tree via MSYS path mangling.
+
+**Status:** Active — 1 instance (p/20#80, p/169#189, p/169#190). Diagnosis corrected twice.
+
+**Applies To:** All agents encountering MSYS-mangled filenames in a tracked git repo; especially relevant in the `ai-triad-data` repo.
