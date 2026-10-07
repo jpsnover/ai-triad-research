@@ -78,7 +78,7 @@ jobs:
       # no warn cycle: deterministic, all arms (A–J) proven in CI (t/4062, SO e/276).
       - name: Refuse merge while a consult-hold label or uncleared Consult-Hold trailer is present
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: probe-invalid-token   # PROBE arm I: any API call would fail
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
