@@ -355,6 +355,23 @@ Op-ed generation applies a conditional readability edit pass (`lib/oped/readabil
 
 **Path/coverage caveat (t/3796):** the edit pass is **TS-only** (`generate.ts`). `New-OpEd` (PowerShell) fills the same outlet-aware generation-prompt style slots + word band (so generation-side register IS retargeted on both paths) but runs **no** readability edit pass — a PS-path draft ships at its generated FK. Benign for TPP (FK ~17 is in-range); a real gap for the mass/grade-10 outlets on the PS path (no edit-down safety net for a non-specialist audience). Routed to Shared Lib/PowerShell as a follow-up.
 
+## 17. Calibration epochs: model changes behind debate defaults and tiers (t/3553, e/263)
+
+**Rule (CL, SO-agreed e/263#5–#6):** any change to the model behind an `ai-models.json` `defaults[backend]` or `debateTiers.{tier}.{backend}` slot **starts a calibration epoch**. Calibration metrics (`crux_addressed_rate`, `convergence_score`, `repetition_rate` and the rest) are compared **within** an epoch, never across one. A cross-epoch shift is classified as a *model* change (class 4 of the `/cl-regression-diagnostic` 5-way classification), not a regression.
+
+**Related rules from t/3553:**
+- A refresh never moves a slot to a different model family. Family keys are in t/3553 and p/742#3.
+- An automated change happens only through an accepted refresh proposal that names the signer and the reason and pins a hash of the write-affecting `proposedChanges`.
+- `pinnedCandidates` entries are informational. They change nothing and start no epoch.
+
+**Recording:** add one row per changed slot, with the date, slot, old model, new model, how it changed (accepted proposal or manual edit) and the authorizing reference.
+
+| Date | Slot | Old → new | How | Authorization |
+|---|---|---|---|---|
+| — | — | — | — | *(no epoch boundary recorded yet)* |
+
+**Not enforced (known gap):** the t/3553 refresh tool records an epoch when a proposal is accepted. **A hand edit of `ai-models.json` does not.** That's the obvious way to adopt a `pinnedCandidates` upgrade, so **anyone who edits a `defaults` or `debateTiers` model by hand must add the row above in the same PR.** Nothing checks this yet. The warn-first `verify:config` check is tracked in t/4037. Until it lands, treat this rule as a review-checklist item, not a guarantee.
+
 ## Maintenance
 
 - Every PR adding or modifying a metric, threshold, weight, or lexicon must state its provenance class and update this register in the same PR (CL review checklist item).
