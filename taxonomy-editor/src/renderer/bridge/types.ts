@@ -12,6 +12,7 @@
  */
 
 import type { StopReason, ProviderCallDiagnostics } from '@lib/ai-client/types';
+import type { PovTagProposalsFile, ProposalDecision, ProposalStatus, ApplyProposalDecisionResult } from '@lib/schema/povTagProposals';
 
 export interface GroundingSegment {
   startIndex: number;
@@ -409,6 +410,11 @@ export interface AppAPI {
   checkDataUpdates: () => Promise<unknown>;
   pullDataUpdates: () => Promise<unknown>;
   getChangedFiles: () => Promise<{ path: string; status: string }[]>;
+  /** t/4052: taxonomy/Origin/pov-tag-proposals.json, or null when absent. Read-only everywhere. */
+  loadPovTagProposals: () => Promise<PovTagProposalsFile | null>;
+  /** t/4052: record one review decision in the side file (never pov_tags). Desktop only: hosted web answers 405.
+   *  A refusal (`conflict`: someone reviewed it first; `invalid`: final fails the registry) comes back as a value. */
+  reviewPovTagProposal: (nodeId: string, decision: ProposalDecision, expectedStatus: ProposalStatus) => Promise<ApplyProposalDecisionResult>;
   getFileDiff: (filePath: string) => Promise<string>;
 
   // --- AI models & keys ---

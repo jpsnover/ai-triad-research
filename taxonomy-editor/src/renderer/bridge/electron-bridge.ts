@@ -169,6 +169,9 @@ export const api: AppAPI = {
   checkDataUpdates: () => window.electronAPI.checkDataUpdates(),
   pullDataUpdates: () => window.electronAPI.pullDataUpdates(),
   getChangedFiles: () => window.electronAPI.getChangedFiles(),
+  // t/4052: IPC handlers from t/4054 (#3030).
+  loadPovTagProposals: () => window.electronAPI.loadPovTagProposals(),
+  reviewPovTagProposal: (nodeId, decision, expectedStatus) => window.electronAPI.reviewPovTagProposal(nodeId, decision, expectedStatus),
   getFileDiff: (filePath) => window.electronAPI.getFileDiff(filePath),
 
   // AI models & keys

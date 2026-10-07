@@ -16,6 +16,7 @@ import type { ANClaimInput, RelevantTaxonomyResult } from '../../../lib/debate/r
 import type { ClaimAttributionResult } from '../../../lib/debate/argumentNetwork/attribution.js';
 import type { ClaimTaxonomyAttribution } from '../../../lib/debate/types.js';
 import type { UserPreferences } from '../../../lib/userPreferencesSchema.js';
+import type { PovTagProposalsFile, ApplyProposalDecisionResult } from '../../../lib/schema/povTagProposals.js';
 import type { InquiryRequest, InquiryResult } from '../../../lib/inquiry/index.js';
 import type { NodeDeleteLogEntry } from './nodeDeleteLog.js';
 
@@ -147,10 +148,10 @@ function buildElectronApi() {
   loadPolicyRegistry: (): Promise<unknown> =>
     ipcRenderer.invoke('load-policy-registry'),
 
-  loadPovTagProposals: (): Promise<unknown> =>
+  loadPovTagProposals: (): Promise<PovTagProposalsFile | null> =>
     ipcRenderer.invoke('load-pov-tag-proposals'),
 
-  reviewPovTagProposal: (nodeId: string, decision: unknown, expectedStatus: string): Promise<unknown> =>
+  reviewPovTagProposal: (nodeId: string, decision: unknown, expectedStatus: string): Promise<ApplyProposalDecisionResult> =>
     ipcRenderer.invoke('review-pov-tag-proposal', nodeId, decision, expectedStatus),
 
   loadLineageCategories: (): Promise<unknown> =>
