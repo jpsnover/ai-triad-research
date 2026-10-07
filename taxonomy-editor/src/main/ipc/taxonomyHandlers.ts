@@ -8,6 +8,7 @@
 
 import { ipcMain, BrowserWindow } from 'electron';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import {
   readTaxonomyFile,
@@ -25,6 +26,8 @@ import {
   buildNodeSourceIndex,
   buildPolicySourceIndex,
   readPolicyRegistry,
+  readPovTagProposals,
+  writePovTagProposals,
   readAggregatedCruxes,
   readLineageCategories,
   readLineageEnrichments,
@@ -34,6 +37,7 @@ import {
   getDataRootPath,
   loadDataConfig,
 } from '../fileIO.js';
+import { parsePovTagProposals, applyProposalDecision, type ProposalDecision, type ProposalStatus } from '../../../../lib/schema/povTagProposals.js';
 import { ActionableError, errorMessage } from '../../../../lib/debate/errors.js';
 import { findSituationBdiViolations, validateBdiFields, type SituationNode } from '../../../../lib/debate/taxonomyTypes.js';
 import { mergeEdgesPreservingRationale, ABSENT_BASELINE, type EdgesData, type EdgeMergeWarn } from '../../../../lib/edges/mergeEdgesPreservingRationale.js';
@@ -290,6 +294,56 @@ export function registerTaxonomyHandlers(): void {
 
   ipcMain.handle('load-policy-registry', () => {
     return readPolicyRegistry();
+  });
+
+  // t/4052/t/4054: review queue for pov-tag-proposals.json. Returns the FILE itself (or null when
+  // absent) — never parsePovTagProposals's { ok, file } wrapper (Rosetta Stone, p/546#62). A parse
+  // failure is a genuine error (the file exists and is broken), so it throws rather than returning
+  // null, which is reserved for "no file yet".
+  ipcMain.handle('load-pov-tag-proposals', () => {
+    const raw = readPovTagProposals();
+    if (raw === null) return null;
+    const parsed = parsePovTagProposals(raw);
+    if (!parsed.ok) {
+      throw new ActionableError({
+        goal: 'Load the POV-tag proposal review queue',
+        problem: `pov-tag-proposals.json is malformed: ${parsed.problems.join('; ')}`,
+        location: 'ipc/taxonomyHandlers.ts → load-pov-tag-proposals',
+        nextSteps: ['Inspect pov-tag-proposals.json for corruption', 'Restore the file from git history'],
+      });
+    }
+    return parsed.file;
+  });
+
+  // Review one decision. A refusal (conflict/invalid) is returned as a VALUE — never thrown — per
+  // the p/546#62 contract; nothing is written on refusal. reviewedBy is the local desktop user
+  // (os.userInfo, mirrors nodeDeleteLog.ts's local-identity fallback) — there is no server-side
+  // authenticated identity on Electron.
+  ipcMain.handle('review-pov-tag-proposal', (_event, nodeId: string, decision: ProposalDecision, expectedStatus: ProposalStatus) => {
+    const raw = readPovTagProposals();
+    if (raw === null) {
+      throw new ActionableError({
+        goal: 'Review a POV-tag proposal',
+        problem: 'pov-tag-proposals.json does not exist — there is nothing to review',
+        location: 'ipc/taxonomyHandlers.ts → review-pov-tag-proposal',
+        nextSteps: ['Run the proposal-generation step (t/3962) before opening the review queue'],
+      });
+    }
+    const parsed = parsePovTagProposals(raw);
+    if (!parsed.ok) {
+      throw new ActionableError({
+        goal: 'Review a POV-tag proposal',
+        problem: `pov-tag-proposals.json is malformed: ${parsed.problems.join('; ')}`,
+        location: 'ipc/taxonomyHandlers.ts → review-pov-tag-proposal',
+        nextSteps: ['Inspect pov-tag-proposals.json for corruption', 'Restore the file from git history'],
+      });
+    }
+    const reviewedBy = os.userInfo().username;
+    const reviewedAt = new Date().toISOString();
+    const result = applyProposalDecision(parsed.file, nodeId, decision, reviewedBy, reviewedAt, expectedStatus);
+    if ('refused' in result) return result;
+    writePovTagProposals(result.file);
+    return result;
   });
 
   ipcMain.handle('load-lineage-categories', () => {

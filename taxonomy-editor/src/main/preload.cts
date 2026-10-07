@@ -147,6 +147,12 @@ function buildElectronApi() {
   loadPolicyRegistry: (): Promise<unknown> =>
     ipcRenderer.invoke('load-policy-registry'),
 
+  loadPovTagProposals: (): Promise<unknown> =>
+    ipcRenderer.invoke('load-pov-tag-proposals'),
+
+  reviewPovTagProposal: (nodeId: string, decision: unknown, expectedStatus: string): Promise<unknown> =>
+    ipcRenderer.invoke('review-pov-tag-proposal', nodeId, decision, expectedStatus),
+
   loadLineageCategories: (): Promise<unknown> =>
     ipcRenderer.invoke('load-lineage-categories'),
 
