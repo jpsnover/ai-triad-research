@@ -716,6 +716,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-17 — Diagnostics (during triage, p/9#28; **re-hit same day, p/9#34** — identical `(Get-Item $file).Length` idiom): ran `$var = ...; (Get-Item $var).Length` (a PowerShell file-size check) in the Bash tool (POSIX sh); Bash rejected it immediately. Fixed by switching to the PowerShell tool. Tell: `$var = ...` assignment with no `export`, a `;`-chained statement, and `.Length` property access on a cmdlet result are all PowerShell, not sh. File-size/`Get-Item`/`Get-ChildItem` checks belong in the PowerShell tool. **Same agent hit the identical mistake twice in one day → the shared lesson isn't sticking during triage; a per-agent memory ("file ops = PowerShell tool") is the durable fix, not another archive entry.**
 - 2026-07-26 — PowerShell 2 (p/228#1): `node require('/c/Users/.../file.json')` (a **git-bash `/c/...` msys path**) threw MODULE_NOT_FOUND — `node`'s win32 runtime doesn't resolve msys paths. Fixed by reading the JSON via the PowerShell tool with a native `C:\...` path. Tell: the wrong-tool axis isn't just *syntax* — it's also **path format**; a native win32 program invoked from Bash needs a native `C:\...` (or repo-relative) path, not `/c/...`.
 - 2026-07-28 — Taxonomy Editor 2 (**`/tmp` mount variant**, p/195#5): `node -e "require('/tmp/x.json')"` failed MODULE_NOT_FOUND — Node's win32 runtime can't resolve git-bash's **`/tmp` mount** (virtual msys mount, not a real Windows path), and `> /tmp/…` redirects write where Node can't `require`. Fix: for any **Node-consumed temp file, use the session scratchpad's absolute Windows path**, not `/tmp`. Generalizes p/228#1: `/tmp` and `/c/...` are both git-bash-only paths native `node` can't see.
+- 2026-10-06 — DevOps Lead (**`/tmp` mount variant — Python**, p/26#143): Python one-liner reading `/tmp/rec.json` got `FileNotFoundError` immediately after Bash wrote that file. Same root: Git-Bash's `/tmp` is a virtual MSYS mount; Python (a native win32 process) resolves its own `/tmp` — a different directory. Fix: write to the session scratchpad absolute path and pass that to Python. Second `/tmp`-mount instance; Node and Python both affected — **any native win32 process reading a file Bash wrote to `/tmp` will get FileNotFoundError.**
 - 2026-08-03 — Shared Lib (p/5#23): **`cd C:\...` path in Bash (POSIX sh)** — Windows backslash paths are not valid POSIX paths; Bash interprets `\` as escape sequences and silently fails with "No such file or directory". Fixed by switching to the PowerShell tool for all git/shell ops.
 - 2026-08-04 — TL (p/335#1): **Bash glob with `C:\...` Windows path** — MSYS mangled the backslashes during glob expansion; no matches returned. Resolved by switching to the **Glob tool**, which handles Windows paths natively without MSYS translation.
 - 2026-08-04 — Shared Lib (p/5#25): **`cd C:\...` path in Bash again** — same failure as p/5#23. **Second time same agent hit identical mistake** → per-agent memory ("on win32, paths/shell ops = PowerShell tool") is the durable fix (mirrors the Diagnostics double-hit, p/9#28+34).
@@ -4441,3 +4442,45 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (DebateTool, p/234#14).
 
 **Applies To:** All agents using `git grep` with `--include` or other glob filters.
+
+---
+
+## #212 [Build] `git worktree remove --force` Fails "cannot remove a locked working tree" When the Worktree Process Is Still Alive
+
+**Pattern:** `git worktree remove --force <path>` exits 128 with "cannot remove a locked working tree" even though the subagent that owns the worktree has reported completion. The lock file records the owning process's PID. A single `--force` removes an **admin lock** only; a process lock (set automatically when a worker opens the worktree) requires `--force --force` (double) — but that is only safe if the process is actually dead. Applying `-f -f` while the process is still alive corrupts the worktree state.
+
+**Instances:**
+- 2026-10-06 — PowerShell (p/20#70): `git worktree remove --force` on a finished subagent's worktree exited 128 — the lock named the agent's pid, which was still alive. Correct resolution: verified the pid was alive, left the worktree in place, planned to remove after the process exited.
+
+**Root Cause:** A subagent reporting "done" does not guarantee process exit. The git worktree lock is held at the OS level by the process; completion messages and OS-level exit are not synchronous. `--force` only overrides admin locks, not live process locks.
+
+**Prevention:**
+1. **Before `git worktree remove --force`, check the lock file:** `cat <path>/.git/worktrees/<name>/locked` or inspect `git worktree list --porcelain`. If it names a PID, verify whether that process is alive (`ps` / `Get-Process`).
+2. **If the PID is alive:** wait for the process to exit, then run a plain `git worktree remove <path>`.
+3. **If the PID is dead** (process exited but lock was not released): `git worktree remove --force --force <path>` is safe.
+4. **Never use `-f -f` on a live process** — it removes the lock and the worktree while the process is still writing to it, which can corrupt in-flight work.
+5. **"Reported completion" ≠ "process exited"** — treat them as independent signals.
+
+**Status:** Active — 1 instance (PowerShell, p/20#70).
+
+**Applies To:** All agents managing subagent worktrees — checking process liveness before force-removing a worktree.
+
+---
+
+## #213 [Process] Removing `consult-hold` Label Re-Triggers `consult-hold-guard` — Merge Immediately After Removal Fails "Base Branch Policy Prohibits the Merge"
+
+**Pattern:** After removing the `consult-hold` label from a PR, `gh pr merge` run immediately fails with "base branch policy prohibits the merge". Root cause: removing the label re-triggers the `consult-hold-guard` required status check, which starts as PENDING. The merge is blocked until that check re-runs and concludes `success`. The check clears quickly (~10s) but must complete before the merge command is issued.
+
+**Instances:**
+- 2026-10-06 — DebateTool (p/70#54, PR #2917): `gh pr merge 2917 --squash --match-head-commit <sha>` failed immediately after removing the `consult-hold` label. `consult-hold-guard` was still PENDING from the label-removal re-trigger. Resolved by waiting ~10s for the check to pass, then re-running the merge command successfully.
+
+**Root Cause:** `consult-hold-guard` is a **required status check** on `main`. Any event that re-triggers it (including label removal) briefly puts the PR in a "check pending" state, which blocks merges. The merge command does not implicitly wait for in-flight checks — it reads the current check state at call time.
+
+**Prevention:**
+1. **After removing `consult-hold`, wait for `consult-hold-guard` to re-run and pass before merging.** Poll with `gh pr checks <n> --json name,state --jq '.[] | select(.name == "consult-hold-guard") | .state'` until it returns `SUCCESS`.
+2. **Do not retry the merge immediately on "policy prohibits" error** — this is a transient state, not a permanent block. A 10–30s wait then a single retry is the right pattern.
+3. Sibling of exit-8 / pending-checks discipline (#121): the same "checks must be concluded before merge" rule applies here, but the trigger is label removal rather than CI.
+
+**Status:** Active — 1 instance (DebateTool, p/70#54).
+
+**Applies To:** All agents clearing a `consult-hold` gate and self-merging the PR.
