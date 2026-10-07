@@ -16,6 +16,7 @@ import { assertSafeId } from '../../../lib/electron-shared/safeId.js';
 import type { Entity } from '../../../lib/entities/types.js';
 import { serializeEdgesJson } from '../../../lib/edges/serializeEdges.js';
 import type { ContainerMentions, EntityMentionsFile } from '../../../lib/entities/mentionTypes.js';
+import { serializePovTagProposals, type PovTagProposalsFile } from '../../../lib/schema/povTagProposals.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -492,6 +493,21 @@ export function readPolicyRegistry(): unknown {
   const filePath = path.join(activeTaxonomyDir, 'policy_actions.json');
   if (!fs.existsSync(filePath)) return null;
   return parseJsonFile(filePath);
+}
+
+// t/4054: pov-tag-proposals.json (t/4052) — absent file is a legitimate "nothing to review yet"
+// state (null), not an error; a present-but-malformed file is the caller's problem to surface.
+export function readPovTagProposals(): unknown {
+  const filePath = path.join(activeTaxonomyDir, 'pov-tag-proposals.json');
+  if (!fs.existsSync(filePath)) return null;
+  return parseJsonFile(filePath);
+}
+
+// serializePovTagProposals is the one serializer (lib/schema/povTagProposals.ts) — byte-identical
+// to the committed file — so desktop and the server route never fight over formatting (t/4052).
+export function writePovTagProposals(file: PovTagProposalsFile): void {
+  const filePath = path.join(activeTaxonomyDir, 'pov-tag-proposals.json');
+  writeStringAtomic(filePath, serializePovTagProposals(file), 'writePovTagProposals');
 }
 
 export function readAggregatedCruxes(): unknown | null {
