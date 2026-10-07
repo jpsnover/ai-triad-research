@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { SeatTagPicker, seatTagLabel, seatTagRefusal } from './SeatTagPicker';
+import { SeatTagPicker, seatTagLabel, seatTagRefusal, seatTagIssueMessage } from './SeatTagPicker';
 import type { PovNode } from '@lib/debate/taxonomyTypes';
 import type { PovTagRegistry } from '@lib/schema/povTags';
 
@@ -60,6 +60,20 @@ describe('seatTagRefusal', () => {
   });
 });
 
+// TL p/696#6: the insufficient-scope message must show all three values — in-scope, excluded, minimum.
+describe('seatTagIssueMessage', () => {
+  it('shows in-scope, excluded, and minimum together for a Scope-below-floor refusal', () => {
+    const message = seatTagIssueMessage({ inScope: 3, excluded: 7, minimum: 5 });
+    expect(message).toMatch(/\b3\b/);
+    expect(message).toMatch(/\b7\b/);
+    expect(message).toMatch(/\b5\b/);
+  });
+
+  it('has no minimum to show for a Prioritize-zero refusal', () => {
+    expect(seatTagIssueMessage({ inScope: 0, excluded: 10 })).toBe('No nodes carry this tag');
+  });
+});
+
 describe('SeatTagPicker', () => {
   it('renders nothing when the registry has no entries for the POV', () => {
     const { container } = render(
@@ -96,9 +110,12 @@ describe('SeatTagPicker', () => {
     expect(screen.getByText('1 in scope, 1 untagged')).toBeTruthy();
   });
 
-  it('shows the refusal message when Scope is below the floor', () => {
-    const povNodes = [makeNode('skp-beliefs-001', ['critical'])];
+  it('shows in-scope, excluded, and minimum together when Scope is below the floor', () => {
+    const povNodes = [makeNode('skp-beliefs-001', ['critical']), makeNode('skp-beliefs-002'), makeNode('skp-beliefs-003')];
     render(<SeatTagPicker pov="skeptic" povNodes={povNodes} registry={registry} seatTag={{ pov_tag: 'critical', tag_mode: 'scope' }} onChange={vi.fn()} />);
-    expect(screen.getByRole('alert')).toHaveTextContent(/minimum 5/);
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/\b1\b/); // inScope
+    expect(alert).toHaveTextContent(/\b2\b/); // excluded
+    expect(alert).toHaveTextContent(/\b5\b/); // minimum
   });
 });
