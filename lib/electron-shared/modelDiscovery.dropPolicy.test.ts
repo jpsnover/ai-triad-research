@@ -82,6 +82,19 @@ describe('SO 1: pinned ids are exempt from family curation; TL e/263#3 pinned-ca
   });
 });
 
+describe('CL e/263#5: a pinned-candidate report on a debate-tier pin writes nothing to the slot and starts no epoch', () => {
+  it('a newer flash-lite beside the pinned basic tier: tier unchanged, no sign-off, no epoch event', async () => {
+    geminiCatalog = ['gemini-3.1-pro', 'gemini-3.5-flash-lite', 'gemini-3.9-flash-lite', 'gemini-2.5-pro'];
+    const r = await refreshAIModels(deps);
+    expect(r.refusal).toBeUndefined();
+    expect(r.pinnedCandidates).toContainEqual({ slots: ['debateTiers.basic.gemini', 'fallbackChains[gemini-3.1-pro]'], pinned: 'gemini-3.5-flash-lite', newerInFamily: 'gemini-3.9-flash-lite' });
+    expect(saved().debateTiers.basic.gemini).toBe('gemini-3.5-flash-lite');
+    expect(r.proposal!.changes).toEqual([]);
+    expect(r.signoff).toBeUndefined();
+    expect(recorder.buffer.drain().some((e) => String(e.message).includes('calibration epoch'))).toBe(false);
+  });
+});
+
 describe('refuse and propose; accept the exact proposal (CL p/742#3 sign-off)', () => {
   beforeEach(() => { geminiCatalog = ['gemini-3.6-pro', 'gemini-3.5-flash-lite', 'gemini-2.5-pro']; });
 
@@ -107,7 +120,8 @@ describe('refuse and propose; accept the exact proposal (CL p/742#3 sign-off)', 
     expect(saved().fallbackChains['gemini-3.6-pro']).toEqual(['gemini-3.5-flash-lite']);
     expect(saved().fallbackChains['zai-glm']).toEqual(['gemini-3.6-pro']);
     expect(r.signoff).toMatchObject({ approvedBy: 'CL', reason: 'gemini-3.1-pro retired by vendor', proposalHash: dry.proposal!.hash, calibrationEpoch: true });
-    expect(r.signoff!.slots).toContain('defaults.gemini: "gemini-3.1-pro" → "gemini-3.6-pro"');
+    expect(r.signoff!.slots).toContain('defaults.gemini: "gemini-3.1-pro" → "gemini-3.6-pro" (family gemini-pro, vendor-absent)');
+    expect(Date.parse(r.signoff!.at)).not.toBeNaN(); // CL e/263#5: the accept record carries the date
     const info = recorder.buffer.drain().filter((e) => e.type === 'system.info' && e.component === 'model-discovery-refresh');
     expect(info).toHaveLength(1);
     expect(info[0].message).toContain('starts a calibration epoch');
@@ -205,7 +219,7 @@ describe('CL: a default or tier never changes family through refresh', () => {
     geminiCatalog = ['gemini-3.1-pro', 'gemini-2.5-pro', 'gemini-3.8-flash'];
     const r = await refreshAIModels(deps);
     expect(r.refusal?.reason).toBe('needs-human');
-    expect(r.proposal!.changes).toContainEqual({ slot: 'debateTiers.basic.gemini', from: 'gemini-3.5-flash-lite', to: null });
+    expect(r.proposal!.changes).toContainEqual({ slot: 'debateTiers.basic.gemini', from: 'gemini-3.5-flash-lite', to: null, family: 'gemini-flash-lite', reason: 'vendor-absent' });
     expect(writes).toBe(0);
   });
 });

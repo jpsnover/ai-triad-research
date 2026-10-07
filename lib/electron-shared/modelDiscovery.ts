@@ -60,7 +60,7 @@ export interface RefreshResult {
   pinnedCandidates?: PinnedCandidate[];
   catalogSources?: Record<string, CatalogSource>;
   dryRun?: boolean;
-  signoff?: { approvedBy: string; reason: string; proposalHash: string; catalogFingerprint: string; slots: string[]; calibrationEpoch: boolean };
+  signoff?: { approvedBy: string; reason: string; at: string; proposalHash: string; catalogFingerprint: string; slots: string[]; calibrationEpoch: boolean };
 }
 
 export interface ModelDiscoveryDeps {
@@ -792,10 +792,10 @@ function guardAndWrite(
   result.written = true;
   const notes = [...autoPrunes];
   if (accept) {
-    const slots = result.proposal!.changes.map(c => `${c.slot}: ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}`);
+    const slots = result.proposal!.changes.map(c => `${c.slot}: ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)} (family ${c.family ?? 'none'}, ${c.reason ?? 'vendor-absent'})`);
     // A changed default or debate tier starts a calibration epoch (CL p/742#3).
     const calibrationEpoch = result.proposal!.changes.some(c => c.slot.startsWith('defaults.') || c.slot.startsWith('debateTiers.'));
-    result.signoff = { approvedBy: accept.approvedBy, reason: accept.reason, proposalHash: result.proposal!.hash, catalogFingerprint: result.proposal!.catalogFingerprint, slots, calibrationEpoch };
+    result.signoff = { approvedBy: accept.approvedBy, reason: accept.reason, at: config.lastRefreshed!, proposalHash: result.proposal!.hash, catalogFingerprint: result.proposal!.catalogFingerprint, slots, calibrationEpoch };
     getGlobalRecorder()?.record({
       type: 'system.info', component: 'model-discovery-refresh', level: 'info',
       message: `ai-models.json: accepted proposal ${result.proposal!.hash} by ${accept.approvedBy} (${accept.reason})${calibrationEpoch ? ' — starts a calibration epoch' : ''}`,

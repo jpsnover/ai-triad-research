@@ -300,7 +300,7 @@ describe('refreshAIModels — repair + guard (t/2039)', () => {
 
     expect(result.written).toBe(false);
     expect(result.refusal?.reason).toBe('needs-human');
-    expect(result.proposal?.changes).toEqual([{ slot: 'defaults.gemini', from: 'gemini-gone', to: null }]);
+    expect(result.proposal?.changes).toEqual([{ slot: 'defaults.gemini', from: 'gemini-gone', to: null, family: null, reason: 'vendor-absent' }]);
     expect(result.configWarning).toContain('gemini-gone');
     expect(fileContent).toBe(original);
   });

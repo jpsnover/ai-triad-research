@@ -19,6 +19,11 @@
  *     (TL e/263#3), never in the proposal (SO e/263#4), so it can't make an accept fail.
  *   - A default or debate tier never changes family through refresh (CL p/742#3): a successor is always the newest
  *     surviving member of the SAME family on the SAME backend, or there is none and a human decides.
+ *   - An ACCEPTED change to a default or debate tier starts a calibration epoch (CL e/263#5): the refresh records
+ *     who, why, when and old→new in `result.signoff` and the flight recorder.
+ *     NOT ENFORCED (SO e/263#6): a HAND edit of `defaults`/`debateTiers` in ai-models.json (e.g. adopting a
+ *     `pinnedCandidates` upgrade) bypasses this tool, so nothing records the epoch. Manual edits must add the
+ *     calibration-register entry by hand until a verify:config check exists (follow-up t/4032).
  */
 
 import { createHash } from 'node:crypto';
@@ -185,6 +190,10 @@ export interface ProposedChange {
   from: string | string[];
   /** null = no same-family successor exists: a human must decide, so the proposal can't be accepted. */
   to: string | string[] | null;
+  /** The family the slot stays in (CL e/263#5), or null when the old id has none. Derived, so not hashed. */
+  family?: string | null;
+  /** Why the slot must change. Today the only cause is the vendor no longer listing the model (CL e/263#5). */
+  reason?: 'vendor-absent';
 }
 
 export interface Proposal {
@@ -288,7 +297,11 @@ export function computeProposal(
     if (prune) autoPrunes.push(prune);
   }
   changes.push(...rekeyChanges(merged, selection));
-  return { changes, autoPrunes };
+  // CL e/263#5: every write-affecting slot shows its family key and the reason. A chain slot carries the family
+  // of its first dead target; a re-key carries the moved default's family.
+  const familyOfId = (id: string) => { const m = removed.find((r) => r.id === id); const f = m ? familyOf(m) : null; return f ? f.family : null; };
+  const firstDead = (c: ProposedChange) => (Array.isArray(c.from) ? c.from.find((id) => !ctx.resolves(id)) : c.from);
+  return { changes: changes.map((c) => ({ ...c, family: familyOfId(firstDead(c) ?? ''), reason: 'vendor-absent' as const })), autoPrunes };
 }
 
 /**

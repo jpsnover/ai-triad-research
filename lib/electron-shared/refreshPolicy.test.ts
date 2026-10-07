@@ -102,11 +102,13 @@ describe('computeProposal + applyProposal', () => {
 
   it('proposes the same-family successor for every slot, plus the chain re-key', () => {
     const { changes } = computeProposal(base(), removed);
+    // CL e/263#5: every slot carries its family key and the reason.
+    const v = { family: 'gemini-pro', reason: 'vendor-absent' };
     expect(changes).toEqual([
-      { slot: 'defaults.gemini', from: 'gemini-3.1-pro', to: 'gemini-3.6-pro' },
-      { slot: 'fallbackChains[zai-glm]', from: ['gemini-3.1-pro'], to: ['gemini-3.6-pro'] },
-      { slot: 'fallbackChains[gemini-3.5-flash-lite]', from: ['gemini-3.1-pro', 'zai-glm'], to: ['gemini-3.6-pro', 'zai-glm'] },
-      { slot: 'fallbackChains{gemini-3.1-pro→gemini-3.6-pro}', from: 'gemini-3.1-pro', to: 'gemini-3.6-pro' },
+      { slot: 'defaults.gemini', from: 'gemini-3.1-pro', to: 'gemini-3.6-pro', ...v },
+      { slot: 'fallbackChains[zai-glm]', from: ['gemini-3.1-pro'], to: ['gemini-3.6-pro'], ...v },
+      { slot: 'fallbackChains[gemini-3.5-flash-lite]', from: ['gemini-3.1-pro', 'zai-glm'], to: ['gemini-3.6-pro', 'zai-glm'], ...v },
+      { slot: 'fallbackChains{gemini-3.1-pro→gemini-3.6-pro}', from: 'gemini-3.1-pro', to: 'gemini-3.6-pro', ...v },
     ]);
   });
 
@@ -121,7 +123,7 @@ describe('computeProposal + applyProposal', () => {
   it('a default never changes family: no same-family survivor means `to: null`', () => {
     const cfg = base();
     cfg.models = cfg.models.filter((x) => x.id !== 'gemini-3.6-pro'); // only flash-lite (another family) survives
-    expect(computeProposal(cfg, removed).changes.find((c) => c.slot === 'defaults.gemini')).toEqual({ slot: 'defaults.gemini', from: 'gemini-3.1-pro', to: null });
+    expect(computeProposal(cfg, removed).changes.find((c) => c.slot === 'defaults.gemini')).toEqual({ slot: 'defaults.gemini', from: 'gemini-3.1-pro', to: null, family: 'gemini-pro', reason: 'vendor-absent' });
   });
 
   it('a dead target in a chain that stays non-empty is an automatic prune, not a proposal', () => {
