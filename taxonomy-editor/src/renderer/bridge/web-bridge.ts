@@ -788,6 +788,9 @@ const rawApi: AppAPI = {
   pullDataUpdates: () => pullDataUpdatesRest(), // extracted (ADR-007) — see dataUpdatesPull.ts
 
   getChangedFiles: () => post<{ path: string; status: string }[]>('/api/data/changed-files').catch(bridgeWarn('getChangedFiles failed', [])),
+  // t/4052: read everywhere; review is desktop-only (hosted answers 405), so the web queue disables it.
+  loadPovTagProposals: () => get('/api/pov-tag-proposals'),
+  reviewPovTagProposal: (nodeId, decision, expectedStatus) => post('/api/pov-tag-proposals/review', { nodeId, decision, expectedStatus }),
   getFileDiff: (filePath) => post<string>('/api/data/file-diff', { filePath }).catch(bridgeWarn('getFileDiff failed', '')),
 
   // AI models & keys

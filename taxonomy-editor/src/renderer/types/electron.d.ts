@@ -123,6 +123,9 @@ export interface ElectronAPI {
   checkDataUpdates: () => Promise<unknown>;
   pullDataUpdates: () => Promise<unknown>;
   getChangedFiles: () => Promise<{ path: string; status: string }[]>;
+  /** t/4052: optional until the main-process handlers land (t/4054). */
+  loadPovTagProposals?: () => Promise<import('@lib/schema/povTagProposals').PovTagProposalsFile | null>;
+  reviewPovTagProposal?: (nodeId: string, decision: import('@lib/schema/povTagProposals').ProposalDecision, expectedStatus: import('@lib/schema/povTagProposals').ProposalStatus) => Promise<import('@lib/schema/povTagProposals').ApplyProposalDecisionResult>;
   getFileDiff: (filePath: string) => Promise<string>;
 
   // AI models & keys
