@@ -19,13 +19,6 @@
     "[Yellow]    ⚠    skeptic : no data returned",
     "[Green]    ✓    factual_claims    : 2",
     "[Green]    ✓    unmapped_concepts : 0",
-    "[Cyan] \n▶  Writing summary file",
-    "[Green]    ✓  Summary written to: summaries/doc-1.json",
-    "[Cyan] \n▶  Updating metadata",
-    "[Green]    ✓  metadata.json updated: summary_status=current, summary_version=2.4.0",
-    "[Cyan] \n▶  Running conflict detection",
-    "[Green]    ✓    Created new conflict file: conflict-short-claim-doc-1.json",
-    "[Green]    ✓    Appended to existing conflict: conflict-small",
     "[Cyan] \n════════════════════════════════════════════════════════════════════════",
     "[White]   POV SUMMARY: doc-1",
     "[Gray]   Taxonomy v2.4.0  |  Model: gemini-3.5-flash-lite",
@@ -38,9 +31,7 @@
     "[Yellow] \n  [SKEPTIC]",
     "[DarkGray]     (no key points extracted)",
     "[Cyan] \n════════════════════════════════════════════════════════════════════════",
-    "[White]   Files written:",
-    "[Green]     summaries/doc-1.json",
-    "[Green]     sources/doc-1/metadata.json  (summary_status=current)",
+    "[Yellow]   No files written.",
     "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
   ],
   "warnings": [],
@@ -90,18 +81,9 @@
           "accelerationist": 9
         }
       }
-    },
-    {
-      "call": "indexRebuild",
-      "quiet": true
     }
   ],
-  "writes": [
-    "summaries/doc-1.json",
-    "sources/doc-1/metadata.json",
-    "conflicts/conflict-short-claim-doc-1.json",
-    "conflicts/conflict-small.json"
-  ],
+  "writes": [],
   "tree": {
     "conflicts/": "(dir)",
     "conflicts/conflict-compute-doubles-every-x.json": "{\n  \"claim_id\": \"conflict-compute-doubles-every-x\",\n  \"claim_label\": \"conflict-compute-doubles-every-x label\",\n  \"description\": \"conflict-compute-doubles-every-x description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [],\n  \"instances\": [\n    {\n      \"doc_id\": \"someone-else\",\n      \"stance\": \"disputes\",\n      \"assertion\": \"other\",\n      \"date_flagged\": \"2025-11-01\"\n    }\n  ],\n  \"human_notes\": []\n}",

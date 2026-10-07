@@ -55,7 +55,6 @@
   ],
   "writes": [],
   "tree": {
-    "conflicts/": "(dir)",
     "sources/": "(dir)",
     "sources/doc-1/": "(dir)",
     "sources/doc-1/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"pending\",\n  \"claims_by_pov\": {\n    \"accelerationist\": 9\n  }\n}",

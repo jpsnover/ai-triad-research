@@ -21,9 +21,13 @@
     One normalization: metadata.json's node_references_by_pov and primary_pov_distribution are plain
     hashtables, so their key order is randomized per process. Only the lines inside those two blocks
     are sorted; every other byte is compared as written.
-    Known pre-existing bugs pinned as-is: t/4070 (claim-missing-label, keypoint-missing-stance,
-    camp-missing, current-no-version; the -WhatIf and -DryRun side effects).
-    Regenerate the goldens ONLY on pre-refactor code: set $env:POVSUMMARY_REGEN_GOLDEN = '1' and run once.
+    t/4070 fixed the bugs these goldens first pinned: claim-missing-label, keypoint-missing-stance,
+    camp-missing and current-no-version now degrade with a fallback WARN instead of throwing; -WhatIf
+    writes and reports nothing (whatif); -DryRun creates no directories (dryrun-no-taxonomy); and the
+    summary file's factual_claims/unmapped_concepts are always arrays. Every scenario that reaches the
+    write phase also carries ShouldProcess's "Performing the operation" verbose line.
+    Regenerate the goldens ONLY when a behaviour change is intended and reviewed: set
+    $env:POVSUMMARY_REGEN_GOLDEN = '1' and run once.
 #>
 
 # Summaries the mocked pipeline returns (as parsed JSON, like the real one). Every claim and key point
@@ -423,7 +427,11 @@ Describe 'Invoke-POVSummary characterization (t/3910)' -Tag 'summary' {
         @{ Name = 'fire-full-taxonomy';          Text = 'Under-extraction detected: 0 claims' }
         @{ Name = 'fire-no-stats-unknown-prefix'; Text = 'extraction_mode\\": \\"fire' }
         @{ Name = 'metadata-write-failed';       Text = 'Summary written but metadata update failed' }
-        @{ Name = 'whatif';                      Text = 'Appended to existing conflict: conflict-small' }
+        @{ Name = 'whatif';                      Text = 'No files written\.' }
+        @{ Name = 'current-no-version';          Text = 'taxonomy version not recorded' }
+        @{ Name = 'claim-missing-label';         Text = 'is missing claim_label, potential_conflict_id' }
+        @{ Name = 'keypoint-missing-stance';     Text = 'a key point is missing stance' }
+        @{ Name = 'camp-missing';                Text = "has no 'skeptic' camp" }
     ) {
         $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir "$Name.json"))
         $g | Should -Match $Text
@@ -442,6 +450,19 @@ Describe 'Invoke-POVSummary characterization (t/3910)' -Tag 'summary' {
         )
     }
 
+    It 'whatif makes no write, rebuilds no index and reports no file as written (t/4070)' {
+        $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'whatif.json')) | ConvertFrom-Json
+        @($g.writes).Count | Should -Be 0
+        @($g.calls | Where-Object call -eq 'indexRebuild').Count | Should -Be 0
+        # Case-sensitive: the footer "No files written." must not count as a "Files written:" claim.
+        @($g.host | Where-Object { $_ -cmatch 'written to|updated:|Appended to|Created new conflict|Files written:' }).Count | Should -Be 0
+    }
+
+    It 'dryrun-no-taxonomy creates no conflicts/ directory (t/4070)' {
+        $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'dryrun-no-taxonomy.json')) | ConvertFrom-Json
+        @($g.tree.PSObject.Properties.Name) | Should -Not -Contain 'conflicts/'
+    }
+
     It '<Name> leaves every pre-existing file byte-identical' -ForEach @(
         $script:Scenarios | Where-Object { $_.Name -in 'dryrun-current-long', 'whatif', 'skip-already-current' }
     ) {
@@ -454,5 +475,35 @@ Describe 'Invoke-POVSummary characterization (t/3910)' -Tag 'summary' {
         $after = script:Get-Tree $script:RootFixture
         foreach ($k in @($before.Keys)) { $after[$k] | Should -BeExactly $before[$k] -Because "$k must be untouched" }
         @($after.Keys | Where-Object { $_ -notlike '*/' }).Count | Should -Be @($before.Keys | Where-Object { $_ -notlike '*/' }).Count
+    }
+}
+
+Describe 'Invoke-POVSummary persists factual_claims and unmapped_concepts as arrays (t/4070)' -Tag 'summary' {
+
+    # A bare if-expression in the summary literal unrolled: 0 items persisted as null and 1 item as a
+    # bare object. Readers expect arrays (t/1726), which is what 869 of 870 summaries on disk hold.
+    It 'writes <Field> as a JSON array for <Case>' -ForEach @(
+        foreach ($f in 'factual_claims', 'unmapped_concepts') {
+            @{ Field = $f; Case = 'an omitted field'; Json = '{ "pov_summaries": {} }'; Count = 0 }
+            @{ Field = $f; Case = 'an explicit null'; Json = "{ `"pov_summaries`": {}, `"$f`": null }"; Count = 0 }
+            @{ Field = $f; Case = '0 items'; Json = "{ `"pov_summaries`": {}, `"$f`": [] }"; Count = 0 }
+            @{ Field = $f; Case = '1 item'; Json = "{ `"pov_summaries`": {}, `"$f`": [ { `"claim`": `"one`" } ] }"; Count = 1 }
+            @{ Field = $f; Case = '2 items'; Json = "{ `"pov_summaries`": {}, `"$f`": [ { `"claim`": `"one`" }, { `"claim`": `"two`" } ] }"; Count = 2 }
+        }
+    ) {
+        $written = InModuleScope AITriad -Parameters @{ Json = $Json } {
+            param($Json)
+            $script:Captured = $null
+            Mock Write-Utf8NoBom { $script:Captured = $Value }
+            Mock Write-OK { }
+            $summary = $Json | ConvertFrom-Json
+            Write-POVSummaryFile -Path 'unused.json' -DocId 'doc-1' -TaxonomyVersion '2.4.0' -ModelInfo ([ordered]@{}) `
+                -SummaryObject $summary -ContextRotObj $null
+            $script:Captured
+        }
+        $written | Should -Match ('"' + $Field + '":\s*\[')
+        $parsed = $written | ConvertFrom-Json -AsHashtable
+        ($parsed[$Field] -is [System.Collections.IList]) | Should -BeTrue -Because 'null or a bare object must not be persisted in place of an array'
+        @($parsed[$Field]).Count | Should -Be $Count
     }
 }
