@@ -1,0 +1,249 @@
+// @vitest-environment node
+//
+// t/4039 — POST /api/policy-registry/recount.
+// Tests HTTP behaviour (status codes, response shapes, auth rejection) against a mocked
+// storage backend and fs. Lock-timeout correctness relies on the PS-verified protocol
+// (t/4028, Enter-GroundingLock); the pure recount logic is covered in lib/policy/__tests__.
+
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { IncomingMessage, ServerResponse } from 'http';
+import path from 'path';
+
+const FAKE_TAX_DIR = '/fake/taxonomy';
+const REGISTRY_PATH = path.join(FAKE_TAX_DIR, 'policy_actions.json');
+
+const {
+  readFileMock,
+  writeFileMock,
+  readTaxonomyFileMock,
+  recordMock,
+  isAnonymousMock,
+  ensureSessionBranchMock,
+  fsOpenMock,
+  fsUnlinkMock,
+  fsStatMock,
+} = vi.hoisted(() => ({
+  readFileMock: vi.fn<[string, ({ optional?: boolean } | undefined)?], Promise<string | null>>(),
+  writeFileMock: vi.fn<[string, string], Promise<void>>(),
+  readTaxonomyFileMock: vi.fn<[string], Promise<unknown>>(),
+  recordMock: vi.fn(),
+  isAnonymousMock: vi.fn<[], boolean>(),
+  ensureSessionBranchMock: vi.fn<[], Promise<void>>(),
+  fsOpenMock: vi.fn(),
+  fsUnlinkMock: vi.fn<[string], Promise<void>>(),
+  fsStatMock: vi.fn(),
+}));
+
+vi.mock('../storage/fileIO.js', () => ({
+  getTaxonomyDir: () => FAKE_TAX_DIR,
+  getBackend: () => ({ readFile: readFileMock, writeFile: writeFileMock }),
+  readTaxonomyFile: readTaxonomyFileMock,
+}));
+vi.mock('../security/userContext.js', () => ({ isAnonymousUser: isAnonymousMock }));
+vi.mock('../../../../lib/flight-recorder/index.js', () => ({ getGlobalRecorder: () => ({ record: recordMock }) }));
+vi.mock('fs/promises', () => ({
+  default: { open: fsOpenMock, stat: fsStatMock, unlink: fsUnlinkMock },
+}));
+
+import type { ServerCtx } from '../routes/context.js';
+import { createRouter } from '../httpKit.js';
+import { registerPolicyRegistryRoutes } from '../routes/policyRegistry.js';
+
+// ── minimal registry fixture ────────────────────────────────────────────────
+
+const POLICY_A = { id: 'pol-001', title: 'Policy A', member_count: 0, source_povs: [] };
+const POLICY_B = { id: 'pol-002', title: 'Policy B', member_count: 1, source_povs: ['acc'] };
+const REGISTRY = { version: 1, policies: [POLICY_A, POLICY_B] };
+const REGISTRY_RAW = JSON.stringify(REGISTRY, null, 2) + '\n';
+
+// ── POV file fixture: pol-001 referenced once in accelerationist ─────────────
+
+const ACC_FILE = {
+  nodes: [
+    { id: 'acc-001', graph_attributes: { policy_actions: [{ policy_id: 'pol-001' }] } },
+  ],
+};
+
+// ── route harness ────────────────────────────────────────────────────────────
+
+type InvokeOpts = { body?: unknown };
+
+async function invoke(opts: InvokeOpts = {}): Promise<{ status: number; body: unknown }> {
+  const routes: { method: string; path: string; handler: Function }[] = [];
+  const router = createRouter(routes);
+  const ctx = {
+    ensureSessionBranch: ensureSessionBranchMock,
+  } as unknown as ServerCtx;
+  registerPolicyRegistryRoutes(router, ctx);
+
+  const route = routes.find(r => r.method === 'POST' && r.path === '/api/policy-registry/recount');
+  if (!route) throw new Error('route not found');
+
+  const req = { url: '/api/policy-registry/recount', method: 'POST', headers: {} } as unknown as IncomingMessage;
+  let status = 200;
+  let body: unknown;
+  const res = {
+    writableEnded: false,
+    headersSent: false,
+    req,
+    writeHead(s: number) { status = s; this.headersSent = true; },
+    end(b?: string) { body = b ? JSON.parse(b) : undefined; this.writableEnded = true; },
+  } as unknown as ServerResponse;
+
+  await route.handler(req, res, opts.body);
+  return { status, body };
+}
+
+// ── setup ────────────────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  readFileMock.mockReset();
+  writeFileMock.mockReset();
+  readTaxonomyFileMock.mockReset();
+  recordMock.mockReset();
+  isAnonymousMock.mockReset();
+  ensureSessionBranchMock.mockReset();
+  fsOpenMock.mockReset();
+  fsUnlinkMock.mockReset();
+  fsStatMock.mockReset();
+
+  // Defaults: authenticated, session branch ok, lock acquires immediately
+  isAnonymousMock.mockReturnValue(false);
+  ensureSessionBranchMock.mockResolvedValue(undefined);
+  fsOpenMock.mockResolvedValue({ close: vi.fn() });
+  fsUnlinkMock.mockResolvedValue(undefined);
+  // readTaxonomyFile returns an empty file for all POV files by default
+  readTaxonomyFileMock.mockResolvedValue({ nodes: [] });
+});
+
+// ── tests ────────────────────────────────────────────────────────────────────
+
+describe('POST /api/policy-registry/recount (t/4039)', () => {
+  it('returns 403 for anonymous users', async () => {
+    isAnonymousMock.mockReturnValue(true);
+    const { status } = await invoke({ body: { ids: ['pol-001'] } });
+    expect(status).toBe(403);
+    expect(readFileMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when ids is not an array', async () => {
+    const { status } = await invoke({ body: { ids: 'pol-001' } });
+    expect(status).toBe(400);
+  });
+
+  it('returns 400 when ids contains a non-string', async () => {
+    const { status } = await invoke({ body: { ids: ['pol-001', 42] } });
+    expect(status).toBe(400);
+  });
+
+  it('returns 400 when body is missing ids', async () => {
+    const { status } = await invoke({ body: {} });
+    expect(status).toBe(400);
+  });
+
+  it('returns 404 when policy_actions.json is absent', async () => {
+    readFileMock.mockResolvedValue(null);
+    const { status } = await invoke({ body: { ids: ['pol-001'] } });
+    expect(status).toBe(404);
+    expect(writeFileMock).not.toHaveBeenCalled();
+  });
+
+  it('returns { status: unchanged } when recount changes nothing', async () => {
+    // pol-002 has member_count:1, source_povs:['acc'] — feed it the same data
+    const acc = { nodes: [{ id: 'acc-001', graph_attributes: { policy_actions: [{ policy_id: 'pol-002' }] } }] };
+    readFileMock.mockResolvedValue(REGISTRY_RAW);
+    readTaxonomyFileMock.mockImplementation(async (pov: string) => pov === 'accelerationist' ? acc : { nodes: [] });
+
+    const { status, body } = await invoke({ body: { ids: ['pol-002'] } });
+
+    expect(status).toBe(200);
+    expect((body as { status: string }).status).toBe('unchanged');
+    expect(writeFileMock).not.toHaveBeenCalled();
+  });
+
+  it('returns { status: written, updated } and writes the file when counts change', async () => {
+    readFileMock.mockResolvedValue(REGISTRY_RAW);
+    readTaxonomyFileMock.mockImplementation(async (pov: string) =>
+      pov === 'accelerationist' ? ACC_FILE : { nodes: [] },
+    );
+    writeFileMock.mockResolvedValue(undefined);
+
+    const { status, body } = await invoke({ body: { ids: ['pol-001'] } });
+    const b = body as { status: string; updated: { id: string; member_count: number; source_povs: string[] }[] };
+
+    expect(status).toBe(200);
+    expect(b.status).toBe('written');
+    expect(b.updated).toHaveLength(1);
+    expect(b.updated[0].id).toBe('pol-001');
+    expect(b.updated[0].member_count).toBe(1);
+    expect(b.updated[0].source_povs).toEqual(['accelerationist']);
+    expect(writeFileMock).toHaveBeenCalledWith(REGISTRY_PATH, expect.stringMatching(/^\{/));
+    // Written content must end with a trailing LF (serializePolicyRegistry contract)
+    const written = writeFileMock.mock.calls[0][1] as string;
+    expect(written.endsWith('\n')).toBe(true);
+  });
+
+  it('releases the lock (unlinks the lock file) after a successful write', async () => {
+    readFileMock.mockResolvedValue(REGISTRY_RAW);
+    readTaxonomyFileMock.mockImplementation(async (pov: string) =>
+      pov === 'accelerationist' ? ACC_FILE : { nodes: [] },
+    );
+    writeFileMock.mockResolvedValue(undefined);
+
+    await invoke({ body: { ids: ['pol-001'] } });
+
+    expect(fsUnlinkMock).toHaveBeenCalledWith(path.join(FAKE_TAX_DIR, 'policy_actions.lock'));
+  });
+
+  it('releases the lock even when the write throws', async () => {
+    readFileMock.mockResolvedValue(REGISTRY_RAW);
+    readTaxonomyFileMock.mockImplementation(async (pov: string) =>
+      pov === 'accelerationist' ? ACC_FILE : { nodes: [] },
+    );
+    writeFileMock.mockRejectedValue(new Error('disk full'));
+
+    const { status } = await invoke({ body: { ids: ['pol-001'] } });
+
+    expect(status).toBe(500);
+    expect(fsUnlinkMock).toHaveBeenCalled();
+  });
+
+  it('proceeds without a lock when the lock directory is not writable (ENOENT)', async () => {
+    const enoent = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    fsOpenMock.mockRejectedValue(enoent);
+    readFileMock.mockResolvedValue(REGISTRY_RAW);
+    readTaxonomyFileMock.mockImplementation(async (pov: string) =>
+      pov === 'accelerationist' ? ACC_FILE : { nodes: [] },
+    );
+    writeFileMock.mockResolvedValue(undefined);
+
+    const { status, body } = await invoke({ body: { ids: ['pol-001'] } });
+
+    expect(status).toBe(200);
+    expect((body as { status: string }).status).toBe('written');
+    expect(fsUnlinkMock).not.toHaveBeenCalled(); // onDisk === false → no unlink
+    expect(recordMock).toHaveBeenCalledWith(expect.objectContaining({ level: 'warn', message: expect.stringContaining('lock unavailable') }));
+  });
+
+  it('returns { status: refused, reason: locked } when lock times out', async () => {
+    // Simulate lock always held with a fresh mtime (not stale)
+    const eexist = Object.assign(new Error('EEXIST'), { code: 'EEXIST' });
+    fsOpenMock.mockRejectedValue(eexist);
+    fsStatMock.mockResolvedValue({ mtimeMs: Date.now() }); // fresh — not stale
+
+    readFileMock.mockResolvedValue(REGISTRY_RAW); // for the refused-path recount
+
+    // LOCK_TIMEOUT_MS is 60 000 ms. Fake timers advance it.
+    vi.useFakeTimers();
+    const invokePromise = invoke({ body: { ids: ['pol-001'] } });
+    // Advance past the 60 s timeout plus one poll interval
+    await vi.advanceTimersByTimeAsync(61_000);
+    const { status, body } = await invokePromise;
+    vi.useRealTimers();
+
+    expect(status).toBe(200);
+    const b = body as { status: string; reason: string };
+    expect(b.status).toBe('refused');
+    expect(b.reason).toBe('locked');
+  });
+});
