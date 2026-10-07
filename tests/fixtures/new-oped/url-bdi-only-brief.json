@@ -7,7 +7,7 @@
     },
     {
       "call": "retrieval",
-      "query": "Write an op-ed responding to the source material below (from https://example.com/doc.pdf). Choose the sharpest angle consistent with your camp's convictions.Audits will slow innovation and cost millions, the report argues.",
+      "query": "Write an op-ed responding to the source material below (from https://example.com/doc.pdf). Choose the sharpest angle consistent with your camp's convictions.. Audits will slow innovation and cost millions, the report argues.",
       "pov": [
         "safetyist"
       ],

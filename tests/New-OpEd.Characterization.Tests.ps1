@@ -401,10 +401,23 @@ Describe 'New-OpEd characterization (t/3910)' -Tag 'oped' {
         $g.output.EditingMeta.edited | Should -BeTrue
     }
 
-    It 'pins current behaviour: the -OutputPath file carries the PRE-edit body, not the returned edited Body' -ForEach @(@{ B = $script:Bodies }) {
+    It 'the -OutputPath file carries the same edited body the cmdlet returns (t/4069)' -ForEach @(@{ B = $script:Bodies }) {
         $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'default-outlet-strict-good-edit.json')) | ConvertFrom-Json
         $g.output.Body | Should -BeExactly $B.Good
-        $g.file | Should -Match ([regex]::Escape($B.Orig.Split("`n")[0]))
+        $g.file | Should -Match ([regex]::Escape($B.Good.Split("`n")[0]))
+        $g.file | Should -Not -Match ([regex]::Escape($B.Orig.Split("`n")[0]))
         $g.fileCount | Should -Be 1
+    }
+
+    It 'a URL-only retrieval query joins the topic and the source slice with ". " (t/4069)' {
+        $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'url-bdi-only-brief.json')) | ConvertFrom-Json
+        $q = @($g.calls | Where-Object { $_.PSObject.Properties['query'] })[0].query
+        $q | Should -Match '\. Audits will slow innovation'
+    }
+
+    It 'a -SourcePrep without a SourceBrief property gets the brief attached with no WARN (t/4069)' {
+        $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'prep-no-sourcebrief-property.json')) | ConvertFrom-Json
+        @($g.warnings).Count | Should -Be 0
+        $g.prepBriefAfter.thesis | Should -Be 'Audits slow innovation.'
     }
 }
