@@ -212,3 +212,106 @@ jobs:
               }
               console.log(`no alert: ${vd.state} — ${vd.reason}`);
             }
+
+      # ── SCHEDULED-WORKFLOW HEALTH (t/4058) ───────────────────────────────────────────────────
+      # Everything above watches PUSH-event runs on main's head. Scheduled workflows never run on push,
+      # so they were unmonitored: deploy-drift-check crashed 7x, compliance-live failed daily since its
+      # first run, dependabot-weekly every Monday, cluster-conflicts for 6 weeks, all silently (t/4058#1).
+      # This step judges each workflow DECLARED in operations/devops/scheduled-workflows.json from its
+      # recent `schedule` runs (pure verdict: scheduled-workflow-health.mjs, suite in CI) and keeps ONE
+      # issue current, labelled `alert-escalated` so DevOps' hourly r/23 bridge surfaces it. It also
+      # re-derives the set of workflows that declare `schedule:` but are NOT listed, and reports those
+      # as unmonitored (the list-completeness lint also runs in CI; this catches what reached main).
+      # Re-surfacing: when the problem set changes, `owner-acked` is removed so r/23 shows it again.
+      # Scheduled/dispatch runs only (workflow_run fires per CI completion; this needs no such cadence).
+      # continue-on-error: a fault here must never take down the main-health monitoring above it.
+      - name: Scheduled-workflow health → alert-escalated issue (t/4058)
+        if: github.event_name != 'workflow_run'
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const { pathToFileURL } = require('url');
+            const fs = require('fs'), path = require('path');
+            const ws = process.env.GITHUB_WORKSPACE;
+            const { scheduledWorkflowVerdict, problemFingerprint, scheduledWorkflowFiles } =
+              await import(pathToFileURL(`${ws}/operations/devops/scheduled-workflow-health.mjs`).href);
+            const { ESCALATED_LABEL } = await import(pathToFileURL(`${ws}/operations/devops/main-ci-monitor.mjs`).href);
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const LABEL = 'scheduled-workflow-alert', ACK = 'owner-acked';
+            const declared = JSON.parse(fs.readFileSync(`${ws}/operations/devops/scheduled-workflows.json`, 'utf8')).workflows;
+            const wfDir = path.join(ws, '.github', 'workflows');
+            const actual = scheduledWorkflowFiles(fs.readdirSync(wfDir).filter(n => /\.ya?ml$/.test(n))
+              .map(n => ({ name: n, text: fs.readFileSync(path.join(wfDir, n), 'utf8') })));
+            const listed = new Set(declared.map(w => w.file));
+            const unlisted = actual.filter(f => !listed.has(f));
+
+            const nowMs = Date.now();
+            const verdicts = [];
+            for (const w of declared) {
+              let runs = [];
+              try {
+                const r = await github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: w.file, event: 'schedule', branch: 'main', per_page: 6 });
+                runs = r.data.workflow_runs.map(x => ({ conclusion: x.conclusion, createdAt: x.created_at }));
+                console.log(`  ${w.file}: total=${r.data.total_count} newest=${r.data.workflow_runs.slice(0,2).map(x => `#${x.id}@${x.created_at}/${x.event}/${x.head_branch}`).join(' ')}`);
+              } catch (e) {
+                verdicts.push({ file: w.file, status: 'silent', streak: 0, lastRunAt: null, reason: `could not list runs: ${e.message}` });
+                continue;
+              }
+              let v = scheduledWorkflowVerdict({ file: w.file, runs, maxSilentHours: w.maxSilentHours, nowMs });
+              if (v.status === 'silent') {
+                // A stale API read once reported pr-triage's newest scheduled run as 31 days old while a run
+                // from 1.5h earlier existed (t/4058 live probe). Confirm SILENT with a second read.
+                const r2 = await github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: w.file, event: 'schedule', branch: 'main', per_page: 6 });
+                v = scheduledWorkflowVerdict({ file: w.file, runs: r2.data.workflow_runs.map(x => ({ conclusion: x.conclusion, createdAt: x.created_at })), maxSilentHours: w.maxSilentHours, nowMs });
+              }
+              verdicts.push(v);
+            }
+            for (const f of unlisted) verdicts.push({ file: f, status: 'unmonitored', reason: 'declares schedule: but is not in scheduled-workflows.json' });
+
+            const problems = verdicts.filter(v => v.status !== 'ok');
+            const fp = problemFingerprint(verdicts);
+            const summary = problems.map(v => `- **\`${v.file}\`** — ${v.status}: ${v.reason}${v.lastRunAt ? ` (last scheduled run ${v.lastRunAt})` : ''}`).join('\n');
+            core.summary.addHeading('Scheduled-workflow health (t/4058)', 3)
+              .addRaw(`Checked ${declared.length} declared workflows; ${problems.length} problem(s).\n\n${summary || 'All healthy.'}\n`).write();
+            console.log(`scheduled-workflow health: ${declared.length} checked, ${problems.length} problem(s); fp=${fp}`);
+
+            const open = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: LABEL, per_page: 1 });
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            if (problems.length === 0) {
+              if (open.data.length) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: open.data[0].number, body: `Resolved — all ${declared.length} scheduled workflows healthy. ${runUrl}` });
+                await github.rest.issues.update({ owner, repo, issue_number: open.data[0].number, state: 'closed' });
+              }
+              return;
+            }
+            const body = `<!-- fp:${fp} -->\n@${owner} **Scheduled workflows failing, silent, or unmonitored** (t/4058). main-ci-monitor does not watch these otherwise.\n\n${summary}\n\nFix each, or record why it is accepted. This issue updates in place and closes itself when all are healthy.\n\n- **Run:** ${runUrl}`;
+            if (!open.data.length) {
+              const created = await github.rest.issues.create({ owner, repo, title: `Scheduled workflow health: ${problems.length} problem(s)`, body, labels: [LABEL, ESCALATED_LABEL] });
+              try { await github.rest.issues.addAssignees({ owner, repo, issue_number: created.data.number, assignees: [owner] }); }
+              catch (e) { core.warning(`could not assign ${owner}: ${e.message}`); }
+              return;
+            }
+            const issue = open.data[0];
+            const priorFp = ((issue.body || '').match(/<!-- fp:(.*?) -->/) || [])[1];
+            await github.rest.issues.update({ owner, repo, issue_number: issue.number, title: `Scheduled workflow health: ${problems.length} problem(s)`, body });
+            if (priorFp !== fp) {
+              const before = new Set((priorFp || '').split(',').filter(Boolean));
+              const now = fp.split(',').filter(Boolean);
+              const added = now.filter(x => !before.has(x));
+              const cleared = [...before].filter(x => !now.includes(x));
+              if (added.length) {
+                // NEW problems: re-surface through r/23 (drop owner-acked) AND outside Orca (@mention) —
+                // r/23 is an Orca reminder and stalls with the Orca host (t/4053#5, CL p/210#99).
+                if (issue.labels.some(l => (l.name || l) === ACK)) {
+                  await github.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name: ACK }).catch(() => {});
+                }
+                const clr = cleared.length ? `; cleared: \`${cleared.join(', ')}\`` : '';
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number,
+                  body: `@${owner} **New scheduled-workflow problem(s):** \`${added.join(', ')}\`${clr}. ${runUrl}` });
+              } else {
+                // Only clearances: record them, but do not un-ack or re-ping — something got better.
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number,
+                  body: `Cleared: \`${cleared.join(', ')}\` (no new problems). ${runUrl}` });
+              }
+            }
