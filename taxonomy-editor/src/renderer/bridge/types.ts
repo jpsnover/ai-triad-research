@@ -452,7 +452,15 @@ export interface AppAPI {
    *  only on success and never echoed from the request — absent means untracked (older backend
    *  or an error path), never filled in from the requested model. Desktop always equals the
    *  requested/defaulted model (no fallback chain there, e/275); web is unset until ServerAPI's
-   *  own `servedModel` lands (its chain in `aiBackends.ts` is where failover is real). */
+   *  own `servedModel` lands (its chain in `aiBackends.ts` is where failover is real).
+   *
+   *  WHAT IT DOES NOT CLAIM: "answered" means which link of OUR model routing answered (failover
+   *  tracking). It does NOT verify that the PROVIDER served that model. Provider-side substitution
+   *  (sent X, provider reports Y) is detected separately by the `ai.model_identity` flight-recorder
+   *  event (t/3677, t/3731), not here. `ProviderResult.providerReportedModel` is deliberately NOT
+   *  the source: it is a raw provider string (a different namespace from registry ids), and it is
+   *  forensics-only. Reading it here would lapse its no-consumer exemption. So a run marked
+   *  'tracked' on this field is failover-tracked, NOT identity-verified (TL review, #3061). */
   generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, opts?: GenerateTextOptions) => Promise<{ text: string; stopReason?: StopReason; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number }; diagnostics?: ProviderCallDiagnostics; servedModel?: string }>;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{
     text: string;

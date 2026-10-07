@@ -152,6 +152,8 @@ export interface ElectronAPI {
   // correlates the request so `cancelGenerate` can abort the exact in-flight provider call.
   // t/4048: servedModel is the registry id the call actually resolved to (after defaulting) —
   // present so the debate store can mark a renderer run 'tracked' (e/268#6 condition 3).
+  // 'tracked' = failover-tracked, NOT provider-identity-verified; provider-side substitution
+  // is the ai.model_identity FR event's job (t/3731). See bridge/types.ts generateText doc.
   generateText: (payload: GenerateTextIpcPayload) => Promise<{ text: string; stopReason?: StopReason; servedModel?: string }>;
   // Fire-and-forget cancel for an in-flight generateText (t/2508, wired t/2509) —
   // unconditionally implemented since; required-ness verified t/3532. electron-bridge.ts's
