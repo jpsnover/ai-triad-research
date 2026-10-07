@@ -1,10 +1,12 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# Advisory→blocking flip point (t/3598, SO + TL Gate-Verification). Stays $false until the
-# Computational Linguist obtains the mandatory Second Opinion and Main (TL) Gate-Verification
-# for the blocking-gate promotion. Flipping to $true makes any leg's offenders fail the gate.
-$script:CitationIntegrityBlocking = $false
+# Blocking state, reported as the result's `.blocking` field (t/3598). $true since the LEG-A
+# promotion (t/4042: SO e/266, TL Gate-Verification, data PR #29 -> ceffc431). Blocking is LEG-A
+# ONLY: ai-triad-data's citation-link-integrity.yml fails the run on a leg-a offender (or on leg-a
+# absent / below its coverage floor); legs b and c stay advisory there. This flag is informational:
+# NO consumer branches on it, and the cmdlet itself never throws on offenders either way.
+$script:CitationIntegrityBlocking = $true
 
 # Leg-b accepted-baseline allowlist (t/3743, CL disposition t/3598#8). These 3 source_ids are
 # genuine cross-repo orphans — the summary exists with real content, but the source dir is
@@ -58,8 +60,9 @@ function Test-CitationLinkIntegrity {
               `missing-key`).
 
         Advisory: failing legs emit a WARN with offender detail and set the returned .pass to
-        $false, but the cmdlet NEVER throws on offenders. When $script:CitationIntegrityBlocking
-        is $true (the future SO/TL-GV flip), callers treat .pass -eq $false as a gate failure.
+        $false, but the cmdlet NEVER throws on offenders. $script:CitationIntegrityBlocking is
+        $true since the leg-a promotion (t/4042): the data CI workflow treats a leg-a .pass -eq
+        $false as a gate failure. Legs b and c remain advisory.
     .PARAMETER SummariesDir
         Summary JSON directory. Default: Get-SummariesDir.
     .PARAMETER TaxonomyDir
