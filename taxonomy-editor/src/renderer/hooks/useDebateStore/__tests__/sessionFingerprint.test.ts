@@ -4,7 +4,7 @@
 // t/4044 (t/4040 SO conditions e/268#4 item 3, e/265#30): through the REAL creation path into
 // extractCalibrationData and replicationSet, with the real eligibleDebateBackends and
 // resolveMultiProviderModels. No hand-built eligible lists.
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mockApi } from './storeTestHarness';
 import { useDebateStore } from '../../useDebateStore';
 import { setLiveModelRegistry } from '../shared/sessionFingerprint';
@@ -31,7 +31,11 @@ function cleanRow(session: DebateSession): CalibrationDataPoint {
   return { ...extractCalibrationData(session, 'test'), working_tree_state: 'clean' };
 }
 
-beforeEach(() => setLiveModelRegistry(registry));
+// File-scoped: lets the not-loaded arm assert the fallback WARN. createDebate also calls setEventContext.
+const { mockRecord } = vi.hoisted(() => ({ mockRecord: vi.fn() }));
+vi.mock('@lib/flight-recorder/index', () => ({ getGlobalRecorder: () => ({ record: mockRecord, setEventContext: vi.fn() }) }));
+
+beforeEach(() => { mockRecord.mockClear(); setLiveModelRegistry(registry); });
 
 describe('renderer session fingerprint (t/4044)', () => {
   it('multi-provider: non-empty model_pool + initial_speaker_models, survives extraction, excluded as unavailable', async () => {
@@ -74,5 +78,21 @@ describe('renderer session fingerprint (t/4044)', () => {
     const saved = mockApi.saveDebateSession.mock.calls.at(-1)![0] as DebateSession;
     expect(saved.model_api_id).toBe(original);
     expect(saved.model_api_id).not.toContain('repointed');
+  });
+
+  it('live registry not loaded: NO fingerprint fields, a WARN, still unavailable, and the row is excluded (CL e/268#17, SO e/268#19)', async () => {
+    setLiveModelRegistry(null);
+    const eligibleBackends = eligibleDebateBackends('advanced', BACKENDS, registry);
+    const speakerModels = resolveMultiProviderModels('advanced', BACKENDS, [...AI_SEATS], registry);
+    const session = await create({ speakerModels, modelTier: 'advanced', eligibleBackends });
+    expect(session.model_pool).toBeUndefined();
+    expect(session.model_api_id).toBeUndefined();
+    expect(session.initial_speaker_models).toEqual(speakerModels);
+    expect(session.failover_tracking).toBe('unavailable');
+    expect(mockRecord).toHaveBeenCalledWith(expect.objectContaining({ level: 'warn', message: expect.stringContaining('live model registry not loaded') }));
+    const row = cleanRow(session);
+    expect(row.failover_tracking).toBe('unavailable');
+    // An explicit 'unavailable' is excluded whether or not the row is fingerprinted (SO e/268#19 condition 2).
+    expect(replicationSet([row], fixedConfigKey(row))).toEqual([]);
   });
 });
