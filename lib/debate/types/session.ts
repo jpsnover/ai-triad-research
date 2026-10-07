@@ -386,8 +386,9 @@ export interface DebateSession {
   failover_tracking?: 'tracked' | 'unavailable';
   /** Internal latch for computing failover_tracking. Only the debate store branches on it;
    *  the calibration gate reads failover_tracking, never this field (SO e/281#2 condition 3).
-   *  Set to true the first time a speaker turn returns without servedModel; never cleared.
-   *  NO consumer branches on it — SO-exempt from second-opinion loop. THE EXEMPTION LAPSES
+   *  Set to true the first time a speaker turn returns without servedModel, or on load for
+   *  a session whose earlier speaker turns were never observed; never cleared.
+   *  Exempt from the SO loop because only the debate store reads it. THE EXEMPTION LAPSES
    *  the moment any consumer other than the debate store reads this field. */
   failover_untracked?: boolean;
   /** Fully-resolved per-stage model map (9 keys: brief, plan, draft, cite, evaluator, scope, summary, moderator, crux). */
