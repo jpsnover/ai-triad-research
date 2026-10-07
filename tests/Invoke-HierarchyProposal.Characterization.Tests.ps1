@@ -413,7 +413,7 @@ Describe 'Invoke-HierarchyProposal characterization (t/3910)' -Tag 'taxonomy' {
         @{ Name = 'sizes';                           Text = 'Clustering produced 2 clusters' }
         @{ Name = 'dryrun';                          Text = 'DryRun — showing prompt for first bucket only' }
         @{ Name = 'err-no-key-claude';               Text = "No API key found for backend 'claude'" }
-        @{ Name = 'err-no-key-unknown-prefix';       Text = "No API key found for backend 'gemini'" }
+        @{ Name = 'err-no-key-unknown-prefix';       Text = "No API key found for backend 'xai'" }   # registry backend, not a gemini guess (t/4087)
         @{ Name = 'no-buckets';                      Text = 'No proposals generated' }
         @{ Name = 'bad-inputs-api-throws';           Text = 'API call failed for skeptic/Desires: 503 Service Unavailable' }
         @{ Name = 'bad-inputs-api-throws';           Text = 'Could not load embeddings' }

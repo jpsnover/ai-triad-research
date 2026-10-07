@@ -297,20 +297,13 @@ function Get-TopicFrequency {
         Write-Step "Labeling clusters with AI"
 
         try {
-            if     ($Model -match '^gemini') { $Backend = 'gemini' }
-            elseif ($Model -match '^claude') { $Backend = 'claude' }
-            elseif ($Model -match '^groq')   { $Backend = 'groq'   }
-        elseif ($Model -match '^openai') { $Backend = 'openai' }
-            else                             { $Backend = 'gemini'  }
-
-            $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-            if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-                Write-Warn "No API key found for $Backend — falling back to -NoAI labeling"
+            # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+            $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+            if (-not $KeyStatus.HasKey) {
+                Write-Warn "No API key found for $($KeyStatus.Backend) — falling back to -NoAI labeling"
                 $NoAI = $true
             }
             else {
-                $ApiKey = $ResolvedKey
-
                 # Build cluster descriptions for the prompt
                 $ClusterDescs = [System.Text.StringBuilder]::new()
                 foreach ($Camp in $TargetCamps) {

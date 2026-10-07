@@ -199,7 +199,7 @@
     {
       "call": "ai",
       "model": "openai-gpt-4o",
-      "apiKey": "resolved-openai-key",
+      "apiKey": "",
       "temperature": 0.2,
       "maxTokens": 8192,
       "jsonMode": true,

@@ -136,7 +136,7 @@
     {
       "call": "ai",
       "model": "claude-haiku-4-5",
-      "apiKey": "resolved-claude-key",
+      "apiKey": "",
       "temperature": 0.2,
       "maxTokens": 8192,
       "jsonMode": true,

@@ -53,7 +53,7 @@
     {
       "call": "ai",
       "model": "gemini-2.5-flash",
-      "apiKey": "resolved-gemini-key",
+      "apiKey": "",
       "temperature": 0.3,
       "maxTokens": 65536,
       "jsonMode": true,

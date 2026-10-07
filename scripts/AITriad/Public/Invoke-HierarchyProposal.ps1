@@ -59,12 +59,13 @@ function Invoke-HierarchyProposal {
 
     # ── Resolve API key ──────────────────────────────────────────────────────
     # -DryRun only previews the prompt, so it needs no key (t/4071).
-    $ResolvedKey = $null
+    # Backend from ai-models.json, never guessed (t/4087). $ResolvedKey is the key FORWARDED to
+    # Invoke-AIApi: only the user's own -ApiKey (or ''), never an env key resolved here.
+    $ResolvedKey = $ApiKey
     if (-not $DryRun) {
-        $Backend = Get-HierarchyModelBackend -Model $Model
-        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-        if (-not $ResolvedKey) {
-            Write-Fail "No API key found for backend '$Backend'. Set the appropriate environment variable."
+        $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+        if (-not $KeyStatus.HasKey) {
+            Write-Fail "No API key found for backend '$($KeyStatus.Backend)'. Set $($KeyStatus.EnvHint) or AI_API_KEY, or pass -ApiKey."
             return
         }
     }

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Extracted from Invoke-EdgeDiscovery's per-node (non-batch, non-embedding-first)
@@ -53,7 +53,7 @@ function Invoke-PerNodeEdgeDiscovery {
         [Parameter(Mandatory)][AllowEmptyCollection()][hashtable]$EdgeSchema,
         [Parameter(Mandatory)][int]$MaxConcurrent,
         [Parameter(Mandatory)][string]$Model,
-        [Parameter(Mandatory)][string]$ResolvedKey,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$ResolvedKey,
         [Parameter(Mandatory)][double]$Temperature,
         [Parameter(Mandatory)][int]$CheckpointEvery,
         [Parameter(Mandatory)][string]$EdgesPath,

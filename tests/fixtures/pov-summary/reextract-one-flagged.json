@@ -71,7 +71,7 @@
       "call": "pipeline",
       "docId": "doc-a",
       "model": "claude-haiku-4-5",
-      "apiKey": "resolved-claude-key",
+      "apiKey": "explicit-key",
       "temperature": 0.1,
       "taxonomyVersion": "2.4.0",
       "systemPromptTemplate": "<<pov-summary-system>>",

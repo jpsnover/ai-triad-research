@@ -218,8 +218,20 @@ Describe 'Mode-dispatch characterization (t/3837 pre-refactor safety net)' -Tag 
                 return
             }
 
-            { Invoke-EdgeDiscovery -Force -MaxConcurrent 2 -RepoRoot $TempDir -WarningAction SilentlyContinue 3>$null 6>$null } |
-                Should -Throw -Because 'current behavior: an unreachable AI backend in parallel mode throws out of the cmdlet rather than degrading per-node like sequential mode does'
+            # The -Parallel runspaces don't see the Resolve-AIApiKey mock, and since t/4087 the cmdlet
+            # forwards only the user's -ApiKey (none here), so a worker resolves its key from the
+            # environment. Pin every key variable to a fake value for this test so a real key on the
+            # machine can never turn this into a live, billed call.
+            $KeyVars = 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'CLAUDE_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY',
+                'AZURE_OPENAI_API_KEY', 'ZAI_API_KEY', 'MOONSHOT_API_KEY', 'XAI_API_KEY', 'DEEPSEEK_API_KEY', 'AI_API_KEY'
+            $SavedKeys = @{}
+            foreach ($V in $KeyVars) { $SavedKeys[$V] = [Environment]::GetEnvironmentVariable($V); [Environment]::SetEnvironmentVariable($V, "fake-$V") }
+            try {
+                { Invoke-EdgeDiscovery -Force -MaxConcurrent 2 -RepoRoot $TempDir -WarningAction SilentlyContinue 3>$null 6>$null } |
+                    Should -Throw -Because 'current behavior: an unreachable AI backend in parallel mode throws out of the cmdlet rather than degrading per-node like sequential mode does'
+            } finally {
+                foreach ($V in $KeyVars) { [Environment]::SetEnvironmentVariable($V, $SavedKeys[$V]) }
+            }
 
             Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
         }

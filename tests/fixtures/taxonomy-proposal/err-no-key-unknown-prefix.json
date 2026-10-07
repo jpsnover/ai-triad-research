@@ -2,18 +2,18 @@
   "scenario": "err-no-key-unknown-prefix",
   "host": [
     "[Cyan] \n▶  Validating environment",
-    "[Red]    ✗  No API key found for gemini backend.",
-    "[Gray]    →  Set GEMINI_API_KEY or AI_API_KEY, or pass -ApiKey."
+    "[Red]    ✗  No API key found for xai backend.",
+    "[Gray]    →  Set XAI_API_KEY or AI_API_KEY, or pass -ApiKey."
   ],
   "warnings": [],
   "verbose": [],
-  "error": "No API key found for gemini backend.",
+  "error": "No API key found for xai backend.",
   "output": [],
   "calls": [
     {
       "call": "resolveKey",
       "explicitKey": "",
-      "backend": "gemini"
+      "backend": "xai"
     }
   ],
   "writes": [],

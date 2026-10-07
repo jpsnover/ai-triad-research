@@ -33,13 +33,6 @@ function Initialize-HierarchyOutputDir {
     }
 }
 
-function Get-HierarchyModelBackend {
-    param([string]$Model)
-    if ($Model -match '^gemini') { return 'gemini' }
-    if ($Model -match '^claude') { return 'claude' }
-    if ($Model -match '^groq')   { return 'groq' }
-    'gemini'
-}
 
 function Import-HierarchyTaxonomy {
     param([string]$TaxDir, [hashtable]$PovFileMap)

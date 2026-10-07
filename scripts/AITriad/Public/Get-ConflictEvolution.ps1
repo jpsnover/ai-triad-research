@@ -123,15 +123,11 @@ function Get-ConflictEvolution {
     Write-Step "Analyzing $($Conflicts.Count) conflict(s)"
 
     # ── Resolve API key if analyzing ──
-    $ResolvedKey = $null
     if ($Analyze) {
-        $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                   elseif ($Model -match '^claude') { 'claude' }
-                   elseif ($Model -match '^groq')   { 'groq'   }
-                   else                             { 'gemini'  }
-        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-        if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-            Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
+        # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+        $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+        if (-not $KeyStatus.HasKey) {
+            Write-Fail "No API key found for the $($KeyStatus.Backend) backend. Set $($KeyStatus.EnvHint) or AI_API_KEY, or pass -ApiKey."
             throw 'No API key configured'
         }
     }
@@ -324,7 +320,7 @@ $ConflictJson
             $AIResult = Invoke-AIApi `
                 -Prompt $AnalysisPrompt `
                 -Model $Model `
-                -ApiKey $ResolvedKey `
+                -ApiKey $ApiKey `
                 -Temperature 0.3 `
                 -MaxTokens 4096 `
                 -ResponseSchema $EvolutionSchema

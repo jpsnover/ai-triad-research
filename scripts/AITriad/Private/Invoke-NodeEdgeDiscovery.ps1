@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Per-node edge discovery API call, factored out for parallel execution support.
@@ -29,7 +29,7 @@ function Invoke-NodeEdgeDiscovery {
         [Parameter(Mandatory)][PSObject]$Node,
         [Parameter(Mandatory)][string]$FullPrompt,
         [Parameter(Mandatory)][string]$Model,
-        [Parameter(Mandatory)][string]$ApiKey,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$ApiKey,
         [double]$Temperature = 0.3,
         [hashtable]$ResponseSchema
     )

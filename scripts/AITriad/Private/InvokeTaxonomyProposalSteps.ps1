@@ -9,18 +9,6 @@
 # Collections that must keep their exact shape (empty, or a single element) are returned with the
 # unary comma so the pipeline doesn't unroll them.
 
-# Model prefix -> backend, checked in order; anything else falls back to gemini. The openai entry is
-# reachable: ai-models.json registers openai-* models (e.g. openai-gpt-4-0613), so keep it (t/4076 item 9).
-$script:TaxonomyProposalBackends = @(
-    @{ Pattern = '^gemini'; Backend = 'gemini' }
-    @{ Pattern = '^claude'; Backend = 'claude' }
-    @{ Pattern = '^groq';   Backend = 'groq'   }
-    @{ Pattern = '^openai'; Backend = 'openai' }
-)
-$script:TaxonomyProposalKeyHints = @{
-    gemini = 'GEMINI_API_KEY'; claude = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY'
-}
-
 # Per-action schema rules, checked in order. NonBlank: the field must be present and not blank.
 # MinCount: the field must be present with at least 2 items.
 $script:TaxonomyProposalActionRules = @{
@@ -57,19 +45,17 @@ function Get-TaxonomyProposalValue {
 # ── 1. Environment ────────────────────────────────────────────────────────────
 
 function Resolve-TaxonomyProposalApiKey {
+    # Checks that a key exists for the model's REGISTRY backend (never a prefix guess), or throws naming
+    # the env var to set. Returns the key to FORWARD: only the user's own -ApiKey (or ''), never an env
+    # key resolved here; Invoke-AIApi resolves the key for the registry backend itself (t/4087).
     param([string]$Model, [string]$ApiKey)
-    $Backend = 'gemini'
-    foreach ($Entry in $script:TaxonomyProposalBackends) {
-        if ($Model -match $Entry.Pattern) { $Backend = $Entry.Backend; break }
+    $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+    if (-not $KeyStatus.HasKey) {
+        Write-Fail "No API key found for $($KeyStatus.Backend) backend."
+        Write-Info "Set $($KeyStatus.EnvHint) or AI_API_KEY, or pass -ApiKey."
+        throw "No API key found for $($KeyStatus.Backend) backend."
     }
-    $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-    if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-        $EnvHint = if ($script:TaxonomyProposalKeyHints.ContainsKey($Backend)) { $script:TaxonomyProposalKeyHints[$Backend] } else { 'AI_API_KEY' }
-        Write-Fail "No API key found for $Backend backend."
-        Write-Info "Set $EnvHint or AI_API_KEY, or pass -ApiKey."
-        throw "No API key found for $Backend backend."
-    }
-    $ResolvedKey
+    $ApiKey
 }
 
 # ── 3. Prompt context ─────────────────────────────────────────────────────────

@@ -171,12 +171,9 @@ function Repair-PovAttributes {
     }
 
     # ── Resolve API key ───────────────────────────────────────────────────────
-    if ($Model -match '^gemini') { $Backend = 'gemini' }
-    elseif ($Model -match '^claude') { $Backend = 'claude' }
-    elseif ($Model -match '^openai') { $Backend = 'openai' }
-    else { $Backend = 'gemini' }
-    $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-    if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
+    # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+    $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+    if (-not $KeyStatus.HasKey) {
         Write-Warning "No API key — cannot generate attributes"
         return
     }
@@ -220,7 +217,7 @@ No markdown fences, no explanation.
 "@
 
         try {
-            $Result = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ResolvedKey `
+            $Result = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey `
                 -Temperature 0.3 -MaxTokens 8192 -JsonMode -TimeoutSec 60
             if (-not $Result -or -not $Result.Text) {
                 Write-Warning "  No response for batch $BatchNum"

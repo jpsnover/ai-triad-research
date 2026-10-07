@@ -53,7 +53,7 @@
     {
       "call": "ai",
       "model": "groq-llama-3.1-8b-instant",
-      "apiKey": "resolved-groq-key",
+      "apiKey": "",
       "temperature": 0.3,
       "maxTokens": 65536,
       "jsonMode": true,
