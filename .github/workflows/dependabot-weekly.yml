@@ -33,6 +33,9 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # No checkout in these jobs, so gh cannot infer the repo from .git ("fatal: not a git repository").
+  # Every scheduled run since at least 2026-09-14 failed on this, unnoticed (t/4058).
+  GH_REPO: ${{ github.repository }}
 
 jobs:
   # ── Step 1: Merge all green Dependabot PRs ─────────────────────────────────
