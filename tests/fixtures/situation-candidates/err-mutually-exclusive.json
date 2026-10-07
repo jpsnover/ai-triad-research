@@ -1,0 +1,10 @@
+{
+  "scenario": "err-mutually-exclusive",
+  "host": [],
+  "warnings": [],
+  "error": "-ShowSharedOnly and -ShowDebatesOnly are mutually exclusive.",
+  "result": null,
+  "calls": [],
+  "writes": [],
+  "written": null
+}

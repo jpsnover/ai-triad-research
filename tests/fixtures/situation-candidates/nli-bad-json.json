@@ -1,0 +1,63 @@
+{
+  "scenario": "nli-bad-json",
+  "host": [
+    "[Cyan] ",
+    "▶  Building node index",
+    "[Green]    ✓  Indexed 18 nodes",
+    "[Cyan] ",
+    "▶  Loading embeddings",
+    "[Green]    ✓  Loaded 17 embeddings",
+    "[Cyan] ",
+    "▶  Loading edges",
+    "[Green]    ✓  Loaded edge data for boost scoring",
+    "[Cyan] ",
+    "▶  Computing cross-POV pairwise cosine similarities",
+    "[Green]    ✓  Checked 83 cross-POV pairs, found 14 above threshold",
+    "[Cyan] ",
+    "▶  Running NLI cross-encoder classification",
+    "[Yellow]    ⚠  NLI classification failed: Conversion from JSON failed with error: Unexpected character encountered while parsing value: T. Path '', line 0, position 0. — continuing without NLI labels",
+    "[Cyan] ",
+    "▶  Merging overlapping pairs into clusters",
+    "[Green]    ✓  Formed 6 agreement groups + 0 debate groups; selected 6 shared + 0 debate (top 10)",
+    "[Cyan] ",
+    "════════════════════════════════════════════════════════════════════════",
+    "[White]   CROSS-CUTTING CANDIDATES — 6 found (threshold: 0.6)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[White] ",
+    "  cluster-0: Label acc-1 / Label acc-7 / Label saf-1 / Label skp-1"
+  ],
+  "warnings": [],
+  "error": "The property 'nli_relationship' cannot be found on this object. Verify that the property exists.",
+  "result": null,
+  "calls": [
+    {
+      "call": "tierModel",
+      "tier": "basic"
+    },
+    {
+      "call": "python3",
+      "args": [
+        "<ROOT>/scripts/embed_taxonomy.py",
+        "nli-classify"
+      ],
+      "pairs": [
+        "The accelerationist position is: Label acc-1 — Description of acc-1. <|> The safetyist position is: Label saf-1 — Description of saf-1.",
+        "The accelerationist position is: Label acc-1 — Description of acc-1. <|> The skeptic position is: Label skp-1 — Description of skp-1.",
+        "The accelerationist position is: Label acc-2 — Description of acc-2. <|> The safetyist position is: Label saf-2 — Description of saf-2.",
+        "The accelerationist position is: Label acc-2 — Description of acc-2. <|> The skeptic position is: Label skp-2 — Description of skp-2.",
+        "The accelerationist position is: Label acc-3 — Description of acc-3. <|> The safetyist position is: Label saf-3 — Description of saf-3.",
+        "The accelerationist position is: Label acc-4 — Description of acc-4. <|> The skeptic position is: Label skp-4 — Description of skp-4.",
+        "The accelerationist position is: Label acc-5 — Description of acc-5. <|> The safetyist position is: Label saf-5 — Description of saf-5.",
+        "The accelerationist position is: Label acc-5 — Description of acc-5. <|> The skeptic position is: Label skp-5 — Description of skp-5.",
+        "The accelerationist position is: Label acc-7 — Description of acc-7. <|> The safetyist position is: Label saf-1 — Description of saf-1.",
+        "The accelerationist position is: Label acc-7 — Description of acc-7. <|> The skeptic position is: Label skp-1 — Description of skp-1.",
+        "The accelerationist position is: Label acc-8 — Description of acc-8. <|> The skeptic position is: Label skp-8 — Label skp-8",
+        "The safetyist position is: Label saf-1 — Description of saf-1. <|> The skeptic position is: Label skp-1 — Description of skp-1.",
+        "The safetyist position is: Label saf-2 — Description of saf-2. <|> The skeptic position is: Label skp-2 — Description of skp-2.",
+        "The safetyist position is: Label saf-5 — Description of saf-5. <|> The skeptic position is: Label skp-5 — Description of skp-5."
+      ]
+    }
+  ],
+  "writes": [],
+  "written": null
+}

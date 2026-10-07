@@ -1,0 +1,38 @@
+{
+  "scenario": "none-above-threshold",
+  "host": [
+    "[Cyan] ",
+    "▶  Building node index",
+    "[Green]    ✓  Indexed 18 nodes",
+    "[Cyan] ",
+    "▶  Loading embeddings",
+    "[Green]    ✓  Loaded 17 embeddings",
+    "[Cyan] ",
+    "▶  Loading edges",
+    "[Green]    ✓  Loaded edge data for boost scoring",
+    "[Cyan] ",
+    "▶  Computing cross-POV pairwise cosine similarities",
+    "[Green]    ✓  Checked 83 cross-POV pairs, found 0 above threshold",
+    "[Cyan] ",
+    "▶  Merging overlapping pairs into clusters",
+    "[Green]    ✓  Formed 0 agreement groups + 0 debate groups; selected 0 shared + 0 debate (top 10)",
+    "[Cyan] ",
+    "════════════════════════════════════════════════════════════════════════",
+    "[White]   CROSS-CUTTING CANDIDATES — 0 found (threshold: 0.95)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[Cyan] ",
+    "════════════════════════════════════════════════════════════════════════"
+  ],
+  "warnings": [],
+  "error": "",
+  "result": {
+    "generated_at": "2026-01-02T03:04:05.0000000Z",
+    "min_similarity": 0.95,
+    "pairs_checked": 83,
+    "pairs_above": 0,
+    "candidates": []
+  },
+  "calls": [],
+  "writes": [],
+  "written": null
+}
