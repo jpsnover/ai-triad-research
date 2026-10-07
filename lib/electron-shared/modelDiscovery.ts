@@ -4,7 +4,7 @@ import { ActionableError } from '../debate/errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { findDanglingRefs, findChainlessDefaults, KNOWN_VERBATIM } from '../ai-config/validate.js';
 import {
-  referenceSlots, curateByFamily, partialCatalog, computeProposal, applyProposal, proposalHash, catalogFingerprint, diffProposals,
+  referenceSlots, curateByFamily, partialCatalog, computeProposal, applyProposal, proposalHash, catalogFingerprint, diffProposals, crossFamilyChanges,
   type PartialCatalog, type PinnedCandidate, type Proposal,
 } from './refreshPolicy.js';
 
@@ -606,6 +606,7 @@ export type RefreshRefusal =
   | { reason: 'suspected-partial-catalog'; backends: PartialCatalog[] }
   | { reason: 'proposal-required'; proposal: Proposal }
   | { reason: 'needs-human'; proposal: Proposal; unresolved: string[] }
+  | { reason: 'cross-family'; proposal: Proposal; slots: string[] }
   | { reason: 'proposal-changed'; accepted: Proposal; recomputed: Proposal; diff: ReturnType<typeof diffProposals> }
   | { reason: 'invalid'; dangling: string[]; chainless: string[] };
 
@@ -615,6 +616,8 @@ const refusalText = (r: RefreshRefusal): string => {
       return `suspected partial catalog: ${r.backends.map(b => `${b.backend} lists ${b.vendorListed} of ${b.registered} registered (would drop ${b.wouldDrop})`).join('; ')}. Nothing was proposed; retry later.`;
     case 'proposal-required':
       return `this refresh would change ${r.proposal.changes.length} selection slot(s): ${r.proposal.changes.map(c => c.slot).join(', ')}. Review the proposal and accept it explicitly.`;
+    case 'cross-family':
+      return `the proposal would move ${r.slots.join(', ')} to a different model family, which a refresh never does (CL p/742#3). A human must choose.`;
     case 'needs-human': {
       const from = new Map(r.proposal.changes.map(c => [c.slot, c.from]));
       const listed = r.unresolved.map(s => `${s} (${JSON.stringify(from.get(s))})`).join(', ');
@@ -743,6 +746,10 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps, opts: RefreshOpt
   }
 
   if (changes.length === 0) return guardAndWrite(deps, config, result, opts, autoPrunes, undefined);
+
+  // CL p/742#3 enforced, not assumed: a default or tier never changes family through refresh (TL review of #2984).
+  const crossFamily = crossFamilyChanges(changes, removed, merged);
+  if (crossFamily.length > 0) return refuse(result, { reason: 'cross-family', proposal, slots: crossFamily });
 
   const unresolved = changes.filter(c => c.to === null).map(c => c.slot);
   if (!opts.accept) {

@@ -278,14 +278,17 @@ function rekeyChanges(merged: PolicyConfig, selection: readonly ProposedChange[]
     .map((c) => ({ slot: `fallbackChains{${c.from}→${c.to}}`, from: c.from, to: c.to }));
 }
 
+export type SuccessorFn = (oldId: string, removed: readonly PolicyModel[], survivors: readonly PolicyModel[]) => string | null;
+
 export function computeProposal(
   merged: PolicyConfig,
   removed: readonly PolicyModel[],
+  successor: SuccessorFn = successorOf,
 ): { changes: ProposedChange[]; autoPrunes: string[] } {
   const ids = new Set(merged.models.map((m) => m.id));
   const ctx: ProposalContext = {
     resolves: (id) => ids.has(id) || KNOWN_VERBATIM.has(id),
-    succ: (id) => successorOf(id, removed, merged.models),
+    succ: (id) => successor(id, removed, merged.models),
   };
   const selection = selectionChanges(merged, ctx);
   const changes: ProposedChange[] = [...selection];
@@ -302,6 +305,31 @@ export function computeProposal(
   const familyOfId = (id: string) => { const m = removed.find((r) => r.id === id); const f = m ? familyOf(m) : null; return f ? f.family : null; };
   const firstDead = (c: ProposedChange) => (Array.isArray(c.from) ? c.from.find((id) => !ctx.resolves(id)) : c.from);
   return { changes: changes.map((c) => ({ ...c, family: familyOfId(firstDead(c) ?? ''), reason: 'vendor-absent' as const })), autoPrunes };
+}
+
+/**
+ * CL p/742#3, enforced rather than assumed (TL review of #2984): a `defaults` or `debateTiers` slot must never change
+ * family through refresh. successorOf only ever picks a same-family model, so today this returns []; it exists so a
+ * future successor rule (or a bug in this one) can't move a calibration-bearing slot across families unnoticed.
+ * Returns the offending slots. An old id with no family moving to any model also counts.
+ */
+export function crossFamilyChanges(
+  changes: readonly ProposedChange[],
+  removed: readonly PolicyModel[],
+  survivors: readonly PolicyModel[],
+): string[] {
+  const familyKey = (id: string, pool: readonly PolicyModel[]): string | null => {
+    const model = pool.find((x) => x.id === id);
+    const f = model ? familyOf(model) : null;
+    return model && f ? `${model.backend}:${f.family}` : null;
+  };
+  return changes
+    .filter((c) => (c.slot.startsWith('defaults.') || c.slot.startsWith('debateTiers.')) && typeof c.from === 'string' && typeof c.to === 'string')
+    .filter((c) => {
+      const from = familyKey(c.from as string, removed);
+      return from === null || from !== familyKey(c.to as string, survivors);
+    })
+    .map((c) => c.slot);
 }
 
 /**

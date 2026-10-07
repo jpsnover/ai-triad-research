@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   familyOf, curateByFamily, referenceSlots, partialCatalog, computeProposal, applyProposal,
-  proposalHash, catalogFingerprint, diffProposals, successorOf, type PolicyConfig, type PolicyModel,
+  proposalHash, catalogFingerprint, diffProposals, successorOf, crossFamilyChanges, type PolicyConfig, type PolicyModel,
 } from './refreshPolicy.js';
 
 const m = (backend: string, id: string, apiModelId = id): PolicyModel => ({ backend, id, apiModelId });
@@ -154,5 +154,38 @@ describe('proposal hash, fingerprint and diff (TL t/3553#5 cond 2)', () => {
     expect(d.added.map((c) => c.slot)).toEqual(['defaults.claude']);
     expect(d.removed.map((c) => c.slot)).toEqual(['debateTiers.basic.gemini']);
     expect(d.changed.map((c) => c.slot)).toEqual(['defaults.gemini']);
+  });
+});
+
+describe('crossFamilyChanges: a default or tier never changes family through refresh (CL p/742#3, TL #2984 review)', () => {
+  const merged = (): PolicyConfig => ({
+    models: [m('gemini', 'gemini-3.6-pro'), m('gemini', 'gemini-3.8-flash'), m('zai', 'zai-glm')],
+    defaults: { gemini: 'gemini-3.1-pro', zai: 'zai-glm' },
+    debateTiers: { basic: { gemini: 'gemini-3.5-flash-lite' } },
+    fallbackChains: { 'zai-glm': ['gemini-3.6-pro'] },
+  });
+  const removed = [m('gemini', 'gemini-3.1-pro'), m('gemini', 'gemini-3.5-flash-lite')];
+
+  it('the real successor rule never crosses families: nothing to flag', () => {
+    const { changes } = computeProposal(merged(), removed);
+    expect(crossFamilyChanges(changes, removed, merged().models)).toEqual([]);
+  });
+
+  it('an injected cross-family successor is caught on every default and tier slot it moves', () => {
+    // A buggy successor that always picks the flash model, whatever family the old id was in.
+    const crossing = () => 'gemini-3.8-flash';
+    const { changes } = computeProposal(merged(), removed, crossing);
+    expect(crossFamilyChanges(changes, removed, merged().models).sort()).toEqual(['debateTiers.basic.gemini', 'defaults.gemini']);
+  });
+
+  it('a successor on another backend is cross-family too, even with a matching family name', () => {
+    const changes = [{ slot: 'defaults.gemini', from: 'gemini-3.1-pro', to: 'other-gemini-3.6-pro' }];
+    const survivors = [{ backend: 'vertex', id: 'other-gemini-3.6-pro', apiModelId: 'gemini-3.6-pro' }];
+    expect(crossFamilyChanges(changes, removed, survivors)).toEqual(['defaults.gemini']);
+  });
+
+  it('only selection slots are checked: a chain re-point is not a family move of a default or tier', () => {
+    const changes = [{ slot: 'fallbackChains[zai-glm]', from: ['gemini-3.1-pro'], to: ['gemini-3.8-flash'] }];
+    expect(crossFamilyChanges(changes, removed, merged().models)).toEqual([]);
   });
 });
