@@ -50,14 +50,30 @@ export type PolicyCountUpdate = RecountUpdate;
 /**
  * What `recount-policy-members` (Electron IPC t/4038) and `POST /api/policy-registry/recount` (server t/4039) return
  * (Rosetta e/264#10). Defined once here so the two handlers can't drift. Handler order (PowerShell e/264#11): take
- * `policy_actions.lock`, then read + `recountPolicyMembers`; `changed === false` → `unchanged` (checked BEFORE the
- * dirty-tree check, as PowerShell skips an identical write even on a dirty registry); dirty → `refused`; else write
- * with `serializePolicyRegistry` → `written`; release the lock in a `finally`. Any other failure throws.
+ * `policy_actions.lock` (held by another writer → `refused: 'locked'`), then read + `recountPolicyMembers`;
+ * `changed === false` → `unchanged`; else write with `serializePolicyRegistry` → `written`; release the lock in a
+ * `finally`. Any other failure throws.
+ *
+ * NO DIRTY-REGISTRY REFUSAL — an exemption from PowerShell's BLOCK-tier rule, approved by the PI 2026-10-07 (option (a),
+ * e/264#20–#29). PowerShell refuses a dirty `policy_actions.json` so that ITS OWN COMMIT can't sweep someone else's
+ * uncommitted registry edits. This writer never commits on desktop (Electron `syncCommit` is a no-op), and on the web
+ * every write is committed to the session branch, so there is no "dirty" state there. The recount re-reads the file
+ * under the lock and changes only `member_count` / `source_povs`, so any uncommitted edit is carried through intact.
+ * Surviving vectors, all DESKTOP-ONLY (t/4034#8, #10):
+ *   1. An external editor holding the file open and saving a stale buffer after a recount reverts the counts until
+ *      the next recount (the lock can't see it).
+ *   2. While the recounted file stays uncommitted, PowerShell registry writers refuse it by design, so the next
+ *      pipeline run leaves new policy actions unregistered (WARN + remedy). MITIGATED, NOT CLOSED: the desktop
+ *      `needs-commit` notice (#3022) tells the user to commit first, but nothing blocks the run.
+ *   3. A pipeline step whose commit includes `policy_actions.json` sweeps the editor's count changes into an
+ *      unrelated commit (the t/3943 "unattributed" shape; counts only).
+ * The variant was removed with no consumer branching on it (t/4034#7); if a handler ever needs to refuse for another
+ * reason, add a new `reason` rather than reviving this one.
  */
 export type RecountPolicyMembersResult =
   | { status: 'written'; updated: PolicyCountUpdate[] }
   | { status: 'unchanged'; updated: [] }
-  | { status: 'refused'; reason: 'dirty-registry' | 'locked'; updated: PolicyCountUpdate[] };
+  | { status: 'refused'; reason: 'locked'; updated: PolicyCountUpdate[] };
 
 export interface RecountResult {
   /** A new registry; the input is never mutated. */
