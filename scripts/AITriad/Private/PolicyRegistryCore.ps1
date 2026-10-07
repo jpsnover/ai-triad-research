@@ -26,6 +26,24 @@ function Get-GraphAttributePolicyIds {
         ForEach-Object { [string]$_.policy_id })
 }
 
+function Enter-PolicyRegistryLock {
+    <#
+    .SYNOPSIS
+        Advisory lock for Update-PolicyRegistry -Fix (t/4028): `policy_actions.lock` beside the
+        registry, taken from the registry read to the registry write. Reuses the grounding-lock
+        mechanism (atomic create, 120s staleness break, bounded 60s wait, ActionableError on timeout).
+        It closes the window between Assert-PolicyIdsUnminted and the write. It does NOT let a second
+        writer through a dirty registry: that is the BLOCK-tier guard's job, and the preflight in
+        Update-PolicyRegistry refuses it before any node file is written.
+    #>
+    [CmdletBinding()]
+    [OutputType([System.IO.FileStream])]
+    param([Parameter(Mandatory)][string]$LockPath)
+    return Enter-GroundingLock -LockPath $LockPath `
+        -Purpose 'policy id minting and registration (policy_actions.json and the POV files)' `
+        -OtherWriters 'another Update-PolicyRegistry -Fix, Invoke-AttributeExtraction or Find-PolicyAction'
+}
+
 function Invoke-NodePolicyRegistration {
     <#
     .SYNOPSIS
@@ -46,8 +64,12 @@ function Invoke-NodePolicyRegistration {
     }
     catch {
         # Fallback-path logging: the taxonomy write landed but its policy actions are unregistered.
-        Write-Warning ("{0}: policy registration failed for {1} node(s): {2} -- {3}. Their new policy_actions have no policy_id. Remedy: run Update-PolicyRegistry -Fix (t/4004)." -f
-            $Caller, @($NodeId).Count, ($NodeId -join ', '), $_.Exception.Message)
+        # The remedy is node-scoped on purpose: a corpus-wide -Fix rewrites unrelated policies' counts
+        # into an unattributed commit (t/3943). The usual cause is an uncommitted earlier registry
+        # change (policy_actions.json is BLOCK-tier), hence "commit first".
+        $Scoped = "Update-PolicyRegistry -Fix -NodeId " + (($NodeId | ForEach-Object { "'$_'" }) -join ',')
+        Write-Warning ("{0}: policy registration failed for {1} node(s): {2} -- {3}. Their new policy_actions have no policy_id. Remedy: commit policy_actions.json if it has uncommitted changes, then run: {4} (t/4004, t/4028)." -f
+            $Caller, @($NodeId).Count, ($NodeId -join ', '), $_.Exception.Message, $Scoped)
     }
 }
 

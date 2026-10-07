@@ -136,6 +136,10 @@
     "max": 53,
     "countOver": 1
   },
+  "AITriad/Private/Invoke-PolicyRegistryUpdate.ps1": {
+    "max": 16,
+    "countOver": 1
+  },
   "AITriad/Private/Invoke-ProposalApply.ps1": {
     "max": 65,
     "countOver": 1
@@ -880,10 +884,6 @@
   },
   "AITriad/Public/Update-NodeTestingRecord.ps1": {
     "max": 30,
-    "countOver": 1
-  },
-  "AITriad/Public/Update-PolicyRegistry.ps1": {
-    "max": 16,
     "countOver": 1
   },
   "AITriad/Public/Update-Snapshot.ps1": {
