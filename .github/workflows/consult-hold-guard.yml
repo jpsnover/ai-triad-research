@@ -57,57 +57,35 @@ jobs:
   consult-hold-guard:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
+      contents: read        # checkout: trailers are read with git, not the 250-commit-capped API (SO e/276 cond 2)
+      pull-requests: read   # PR comments, read ONLY when a Consult-Hold trailer exists
+      issues: read
     steps:
-      - name: Refuse merge while a consult-hold label is present
+      # Full history so BASE..HEAD is always walkable (an epic->main PR can exceed any shallow depth).
+      # A missing SHA is reported as an INFRA failure by the verdict script, never as "no trailers".
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      # The verdict lives in operations/devops/consult-hold-verdict.sh (local arms:
+      # consult-hold-verdict.test.sh — the SAME script). Two holds, either blocks:
+      #   (1) the `consult-hold` LABEL (t/3680, unchanged), read from the EVENT PAYLOAD (no API call);
+      #   (2) any `Consult-Hold: t/N` commit TRAILER in base..head (t/4062), cleared only by a
+      #       `HOLD CLEARED: t/N @<head sha>` comment for the CURRENT head + the `consult-hold-cleared`
+      #       label (the label event is the re-run trigger; a push re-runs and re-blocks).
+      # An untrailered PR makes ZERO API calls (SO e/276 cond 2 / arm I).
+      # no warn cycle: deterministic, all arms (A–J) proven in CI (t/4062, SO e/276).
+      - name: Refuse merge while a consult-hold label or uncleared Consult-Hold trailer is present
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
-          # Make fail-closed EXPLICIT (mirror joint-gv-guard): GitHub's default run shell is
-          # `bash -eo pipefail`, so a malformed-but-200 API response makes jq error and reds the
-          # job. That is the behaviour we want for a required gate, but it rests on an implicit
-          # flag — state it in-script so a future `shell:` override can't silently flip it to
-          # fail-OPEN (report success on garbage — the Arm-E class).
-          set -euo pipefail
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          REPO="${{ github.repository }}"
-
-          # Retry the API read: once this is REQUIRED, a transient gh/API error would block EVERY
-          # PR. Retry 3x with short backoff; on exhaustion FAIL CLOSED but with a message that says
-          # the API query failed — NOT that a hold exists — because the remedies are opposite: a
-          # transient 5xx wants a re-run; a token/permission error wants a workflow fix and will
-          # never recover on re-run (Fallback-Path Logging: capture + surface the stderr).
-          PR_JSON=""
-          last_err=""
-          errfile="${RUNNER_TEMP:-/tmp}/consult-hold-guard.err"
-          for attempt in 1 2 3; do
-            if PR_JSON=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json labels 2>"$errfile"); then
-              break
-            fi
-            PR_JSON=""
-            last_err=$(head -c 400 "$errfile" 2>/dev/null | tr '\n' ' ')
-            echo "::warning::consult-hold-guard: gh pr view attempt ${attempt}/3 failed — ${last_err} — retrying in $((attempt * 3))s"
-            sleep $((attempt * 3))
-          done
-          if [ -z "$PR_JSON" ]; then
-            echo "::error::consult-hold-guard: could NOT read PR labels after 3 attempts — API/INFRA failure, NOT a hold. Last error: ${last_err}. A transient 5xx -> re-run this job; a token/permission error -> fix the workflow (will NOT recover on re-run). (Failing closed — required gate.)"
-            exit 1
-          fi
-
-          # Shape assertion (complement to set -euo pipefail, not a substitute): a malformed-but-200
-          # payload ({}, partial JSON) makes the jq below fail. set -e already reds the job, but the
-          # only diagnostic would be jq's raw error on a step whose other legible errors name a hold
-          # / API failure — a third indistinguishable red. Name this cause explicitly.
-          if ! echo "$PR_JSON" | jq -e 'has("labels")' >/dev/null 2>&1; then
-            echo "::error::consult-hold-guard: PR labels read succeeded but the payload is MALFORMED (missing labels) — NOT a hold, NOT API-unreachable. Re-run; if it persists the gh JSON contract changed. (Failing closed — required gate.)"
-            exit 1
-          fi
-
-          HAS_HOLD=$(echo "$PR_JSON" | jq -r '[.labels[].name] | contains(["consult-hold"]) | tostring')
-          echo "consult-hold label present: $HAS_HOLD"
-
-          if [ "$HAS_HOLD" = "true" ]; then
-            echo "::error::consult-hold-guard: this PR carries the 'consult-hold' label — a mandatory consult/review hold is OUTSTANDING, so merge is blocked (required gate; blocks human, agent, and server-side auto-merge alike). The outstanding conditions and who can clear them are in this PR's HOLD comment (the landed hold-comment practice, 89b26d41) — read it there. TO CLEAR: resolve the conditions, then REMOVE the 'consult-hold' label; this check re-runs on unlabel and goes green with NO push. EMERGENCY OVERRIDE: a branch-protection admin override (there is NO feedback rule to disable — t/3680#3)."
-            exit 1
-          fi
-          echo "guard OK — no consult-hold label present; reporting success."
+          set -uo pipefail
+          LABELS="$(printf '%s' "$LABELS_JSON" | jq -r '.[]')" || { echo "::error::consult-hold-guard: could not parse PR labels from the event payload — NOT a hold; failing closed (required gate)."; exit 1; }
+          export LABELS
+          bash operations/devops/consult-hold-verdict.sh
