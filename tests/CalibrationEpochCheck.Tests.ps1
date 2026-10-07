@@ -152,3 +152,20 @@ Describe 'Calibration-epoch register check: apiModelId repoints (t/4041)' -Tag '
         @(Find-UnrecordedEpochChanges -BaseConfig $RepointBase -HeadConfig $head -RegisterRows @()).Count | Should -Be 0
     }
 }
+
+Describe 'Calibration-epoch register check: real slots resolve to a served model (t/4043)' -Tag 'config' {
+
+    It 'every real defaults/debateTiers slot resolves to a non-empty apiModelId' {
+        # If a registry shape change leaves a slot's id without a models entry (or without apiModelId), the slot
+        # would quietly resolve to 'id:' and the lane could no longer see a repoint. Fail loudly and name it.
+        $config = Get-Content -Raw (Join-Path $PSScriptRoot '..' 'ai-models.json') | ConvertFrom-Json
+        $slots = Get-EpochModelSlots -Config $config
+        $apiIds = Get-EpochApiModelIds -Config $config
+        $slots.Count | Should -BeGreaterThan 0 -Because 'an empty slot map would make this check vacuous'
+        $unresolved = @($slots.Keys | Where-Object {
+                $served = Get-EpochServedModel -Id $slots[$_] -ApiIds $apiIds
+                $served -notmatch ':.+$'
+            } | ForEach-Object { "$_ = $($slots[$_])" })
+        $unresolved | Should -BeNullOrEmpty -Because "these slots don't resolve to an apiModelId: $($unresolved -join '; ')"
+    }
+}
