@@ -15,6 +15,12 @@ const h = vi.hoisted(() => ({
   handlers: new Map<string, (...a: unknown[]) => unknown>(),
   registry: null as unknown,
   povFiles: {} as Record<string, unknown>,
+  // e/274#4 (Rosetta): a real POV file is never legitimately empty — ai-triad-data/taxonomy's
+  // one taxonomy dir has 227-455 nodes per file. The default fixture is a filler node that
+  // references no policy, so "no longer referenced" means *no node references the id*, not
+  // *the file is empty* — this stays correct whether or not #3050's empty-nodes refusal has
+  // landed in the lib yet.
+  povFileErrors: new Set<string>(),
   lockHandle: {} as unknown | null,
   acquireCalls: 0,
   releaseCalls: 0,
@@ -34,7 +40,14 @@ vi.mock('os', () => ({
 vi.mock('../fileIO.js', () => {
   const stub = (): undefined => undefined;
   return {
-    readTaxonomyFile: (pov: string): unknown => h.povFiles[pov] ?? { nodes: [] },
+    readTaxonomyFile: (pov: string): unknown => {
+      if (h.povFileErrors.has(pov)) {
+        // Simulates parseJsonFile's real failure mode (ENOENT / a parse error) — unguarded in
+        // the handler, so it must propagate, never be swallowed into an empty-file default.
+        throw new Error(`ENOENT: no such file or directory, open '${pov}.json'`);
+      }
+      return h.povFiles[pov] ?? { nodes: [{ id: 'fixture-filler' }] };
+    },
     writeTaxonomyFile: stub, readAllConflictFiles: stub, readConflictClusters: stub,
     writeConflictFile: stub, createConflictFile: stub, deleteConflictFile: stub,
     readEdgesFile: stub, writeEdgesFile: stub, getTaxonomyDirs: stub,
@@ -79,6 +92,7 @@ beforeEach(() => {
   h.handlers.clear();
   h.registry = { policies: [] };
   h.povFiles = {};
+  h.povFileErrors = new Set();
   h.lockHandle = {};
   h.acquireCalls = 0;
   h.releaseCalls = 0;
@@ -103,7 +117,9 @@ describe('recount-policy-members (t/4034/t/4038)', () => {
 
   it('no-longer-referenced: member_count drops to 0 and source_povs is left alone', async () => {
     h.registry = { policies: [{ id: 'pol-001', member_count: 1, source_povs: ['accelerationist'] }] };
-    h.povFiles = { accelerationist: { nodes: [] } }; // no node references it anymore
+    // A filler node that references no policy — "no longer referenced" means no NODE references
+    // the id, not that the file is empty (e/274#4: no real POV file is ever legitimately empty).
+    h.povFiles = { accelerationist: { nodes: [{ id: 'fixture-filler' }] } };
 
     const result = await getHandler('recount-policy-members')({}, ['pol-001']) as
       { status: string; updated: Array<{ id: string; member_count: number; source_povs: string[] }> };
@@ -165,6 +181,20 @@ describe('recount-policy-members (t/4034/t/4038)', () => {
   it('throws (and still releases the lock) when policy_actions.json does not exist', async () => {
     h.registry = null;
     await expect(getHandler('recount-policy-members')({}, ['pol-001'])).rejects.toThrow(ActionableError);
+    expect(h.writeArg).toBeUndefined(); // e/274#6/#7: a rejection must never be paired with a write
+    expect(h.releaseCalls).toBe(1);
+  });
+
+  // e/274#5-#7 (Second Opinion / Rosetta Stone): the handler's own half of the fail-closed
+  // contract — a thrown read error becomes a rejected call, and NOTHING gets written. #3050
+  // adds the lib-level "nodes: []" refusal arm to this suite separately once it lands.
+  it('fails closed on a POV read error: rejects, writes nothing, and releases the lock', async () => {
+    h.registry = { policies: [{ id: 'pol-001', member_count: 0, source_povs: [] }] };
+    h.povFileErrors.add('safetyist'); // simulates parseJsonFile's real ENOENT/parse-error throw
+
+    await expect(getHandler('recount-policy-members')({}, ['pol-001'])).rejects.toThrow('ENOENT');
+
+    expect(h.writeArg).toBeUndefined();
     expect(h.releaseCalls).toBe(1);
   });
 });
