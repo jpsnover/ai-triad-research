@@ -634,10 +634,6 @@
     "max": 41,
     "countOver": 1
   },
-  "AITriad/Public/Repair-PovLineage.ps1": {
-    "max": 148,
-    "countOver": 1
-  },
   "AITriad/Public/Repair-ResolvedBackfill.ps1": {
     "max": 57,
     "countOver": 1
