@@ -33,6 +33,10 @@ function Enter-GroundingLock {
     [OutputType([System.IO.FileStream])]
     param(
         [Parameter(Mandatory)][string]$LockPath,
+        # What the lock guards and who else takes it, for error text only. The defaults are the
+        # original entity_mentions wording; the policy registry lock (t/4028) passes its own.
+        [string]$Purpose = 'the entity_mentions.json read-merge-write across grounding writers',
+        [string]$OtherWriters = 'reconcile_grounding.py or another Update-EntityMentionIndex',
         [int]$WaitSec = $script:GroundingLockWaitSec,
         [int]$StaleSec = $script:GroundingLockStaleSec,
         [double]$PollSec = $script:GroundingLockPollSec
@@ -42,10 +46,10 @@ function Enter-GroundingLock {
     $lockDir = Split-Path -Parent $LockPath
     if ($lockDir -and -not (Test-Path -LiteralPath $lockDir)) {
         throw (New-ActionableError -PassThru `
-                -Goal     'Acquire the entity_mentions grounding lock' `
+                -Goal     "Acquire the lock serializing $Purpose" `
                 -Problem  "Lock directory does not exist: $lockDir" `
                 -Location 'Enter-GroundingLock' `
-                -NextSteps @('Ensure the entity_mentions.json output directory exists before writing.'))
+                -NextSteps @('Ensure the directory of the guarded file exists before writing.'))
     }
 
     $start = Get-Date
@@ -65,11 +69,11 @@ function Enter-GroundingLock {
                 }
                 if (((Get-Date) - $start).TotalSeconds -ge $WaitSec) {
                     throw (New-ActionableError -PassThru `
-                            -Goal     'Serialize the entity_mentions.json read-merge-write across grounding writers' `
+                            -Goal     "Serialize $Purpose" `
                             -Problem  "Lock '$LockPath' held by another writer for >${WaitSec}s and not stale (mtime age $([int]$age)s)." `
                             -Location 'Enter-GroundingLock' `
                             -NextSteps @(
-                                'Wait for the other grounding writer (reconcile_grounding.py or another Update-EntityMentionIndex) to finish.',
+                                "Wait for the other writer ($OtherWriters) to finish.",
                                 "If no writer is actually running, the lock is stale — remove it: $LockPath"
                             ))
                 }
