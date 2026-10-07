@@ -1,16 +1,20 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-// t/4048 (SO ruling e/275#2/#4, option (a)): desktop's generateText has no fallback chain —
-// lib/debate/aiAdapter.ts's createCLIAdapter is the only code that walks registry.fallbackChains,
-// and it's CLI-only, never this path (ElectronMain's t/4048#1 trace, verified by Rosetta on
-// origin/main at e/275#2). So servedModel is simply the single model this call resolved to,
-// DERIVED from the same defaulting as the call (friendlyModel = model || DEFAULT_MODEL), never
-// echoed from the raw `model` param. These are the three arms SO accepted in place of the
-// "chain's second link answers" test, which doesn't apply to a backend with no chain:
+// t/4048 (option (a), binding test set e/275#6, confirmed by CL #9 and DebateTool #11): desktop's
+// generateText has no fallback chain — lib/debate/aiAdapter.ts's createCLIAdapter is the only
+// code that walks the model registry's fallback-chain config, and it's CLI-only, never this path
+// (ElectronMain's t/4048#1 trace, verified by Rosetta on origin/main at e/275#2). So servedModel
+// is simply the single model this call resolved to, DERIVED from the same defaulting as the call
+// (friendlyModel = model || DEFAULT_MODEL), never echoed from the raw `model` param. The four
+// behavioral arms below are the full binding set in place of the ticket's "chain's second link
+// answers" test, which doesn't apply to a backend with no chain:
 //   1. derived-not-echoed (the one real substitution: model omitted → DEFAULT_MODEL)
 //   2. explicit model (servedModel matches both the request and what the provider received)
-//   3. retry-exhaustion (rejects — nothing carries a stale servedModel)
+//   3. retry succeeds on attempt 2 (proves retry never substitutes a different model)
+//   4. retry exhaustion (rejects — nothing carries a stale servedModel)
+// The fifth binding arm, the structural tripwire, lives in its own file
+// (embeddings.noFallbackChainTripwire.test.ts) so it can read the real, unmocked source.
 // Mock scaffold mirrors embeddings.fixedTemperature.test.ts.
 
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
@@ -124,6 +128,28 @@ describe('servedModel (t/4048, SO e/275#2/#4)', () => {
 
     expect(result.servedModel).toBe('groq-explicit');
     expect(providerModelArg()).toBe('groq-explicit-api');
+  });
+
+  it('retry succeeds on attempt 2: servedModel is still the originally-requested model — no substitution under retry', async () => {
+    mockCallProvider
+      .mockRejectedValueOnce(new Error('503 Service Unavailable'))
+      .mockResolvedValueOnce({ text: 'test response' });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const pending = generateText('test prompt', 'groq-explicit');
+      for (let i = 0; i < 20; i++) {
+        await vi.advanceTimersByTimeAsync(30_000);
+      }
+      const result = await pending;
+
+      expect(result.servedModel).toBe('groq-explicit');
+      expect(mockCallProvider).toHaveBeenCalledTimes(2);
+      // Both attempts called the SAME resolved model — retry never substitutes a different one.
+      expect(mockCallProvider.mock.calls[0]?.[3]).toBe('groq-explicit-api');
+      expect(mockCallProvider.mock.calls[1]?.[3]).toBe('groq-explicit-api');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('retry exhaustion: the call rejects, and there is no result to carry a stale servedModel', async () => {
