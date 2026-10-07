@@ -6,6 +6,7 @@ import type { TaxonomyStore } from '../types';
 import { api } from '@bridge';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { reportRetiredModel } from '../../../utils/retiredModelNotice';
 import { applyThemeToRoot, getStoredTheme, THEME_STORAGE_KEY } from '../../../utils/theme';
 // t/3517: real (not type-only) import — the bundled snapshot becomes MODELS_BY_BACKEND/
 // AI_BACKENDS/DEFAULT_MODELS' pre-load fallback via deriveModelsByBackend/deriveBackends
@@ -127,7 +128,10 @@ export function getStoredModel(): AIModel {
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
-  return resolveStoredModel(stored, getStoredBackend(), DEFAULT_MODELS, ALL_MODEL_IDS, DEFAULT_MODEL);
+  const model = resolveStoredModel(stored, getStoredBackend(), DEFAULT_MODELS, ALL_MODEL_IDS, DEFAULT_MODEL);
+  // t/4030: a saved id the registry no longer lists falls back silently otherwise (Fallback-Path Logging).
+  if (stored && !ALL_MODEL_IDS.has(stored)) reportRetiredModel(stored, model);
+  return model;
 }
 
 interface AIModelsConfig {
