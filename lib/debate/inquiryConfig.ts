@@ -5,6 +5,7 @@
 // Pure function: no I/O. The caller loads ai-models.json and passes the registry in.
 
 import type { DebateConfig } from './debateEngine/internals.js';
+import type { SoulResolverFn } from './soulDocSchema.js';
 import type { InquiryRequest, ResolvedDerivation, Fidelity } from '../inquiry/index.js';
 import type { ModelRegistry } from '../ai-client/registry.js';
 import { ActionableError } from './errors.js';
@@ -42,7 +43,11 @@ export interface DerivedDebateConfig {
  *
  * Throws ActionableError when a model override names an unregistered id.
  */
-export function deriveDebateConfig(request: InquiryRequest, registry: ModelRegistry): DerivedDebateConfig {
+export function deriveDebateConfig(
+  request: InquiryRequest,
+  registry: ModelRegistry,
+  soulResolver?: SoulResolverFn,
+): DerivedDebateConfig {
   const profile = FIDELITY_PROFILES[request.fidelity];
   const tierMap: Record<string, string> = registry.debateTiers?.[profile.tier] ?? {};
 
@@ -92,6 +97,7 @@ export function deriveDebateConfig(request: InquiryRequest, registry: ModelRegis
     maxTotalRounds: profile.maxTotalRounds,
     turnValidation: { enabled: true },
     stageModels: { evaluator: evaluatorModel },
+    ...(soulResolver ? { soulResolver } : {}),
   };
 
   // Map request.tagSelection → DebateConfig.seat_tags for the one owning seat (t/3965).

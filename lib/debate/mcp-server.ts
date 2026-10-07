@@ -13,6 +13,7 @@ import type { DebateConfig, DebateProgress } from './debateEngine.js';
 import { runHeadlessDebate } from './headlessRunner.js';
 import { createCLIAdapter } from './aiAdapter.js';
 import { loadTaxonomy, resolveRepoRoot, resolveDataRoot, type LoadedTaxonomy } from './taxonomyLoader.js';
+import { resolvePoverInfo } from './soulDocLoader.js';
 import type { DebateSession } from './types.js';
 import { DebateSessionSchema } from './schemas.js';
 import { listDebateSessionsIndexed, updateDebateIndexEntry } from './debateIndex.js';
@@ -226,6 +227,7 @@ server.tool(
       pacing: params.pacing as DebateConfig['pacing'],
       signal: controller.signal,
       audience: params.audience as DebateConfig['audience'],
+      soulResolver: resolvePoverInfo,
     };
 
     const adapter = createCLIAdapter(repoRoot);
