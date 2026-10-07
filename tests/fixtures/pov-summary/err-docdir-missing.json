@@ -1,0 +1,21 @@
+{
+  "scenario": "err-docdir-missing",
+  "host": [
+    "[Cyan] \n▶  Validating inputs",
+    "[Red]    ✗  Document folder not found: <ROOT>/sources/doc-1",
+    "[Gray]    →  Expected: sources/doc-1/"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": "Document folder not found: sources/doc-1/",
+  "output": [],
+  "calls": [],
+  "writes": [],
+  "tree": {
+    "conflicts/": "(dir)",
+    "sources/": "(dir)",
+    "summaries/": "(dir)",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}

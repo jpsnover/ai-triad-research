@@ -1,0 +1,67 @@
+{
+  "scenario": "dryrun-no-taxonomy",
+  "host": [
+    "[Cyan] \n▶  Validating inputs",
+    "[Green]    ✓  Doc ID      : doc-1",
+    "[Green]    ✓  Repo root   : <ROOT>",
+    "[Green]    ✓  Model       : gemini-3.5-flash-lite",
+    "[Green]    ✓  Temperature : 0.1",
+    "[Yellow]    ⚠  DRY RUN — no API call, no file writes",
+    "[Cyan] \n▶  Loading taxonomy",
+    "[Green]    ✓  Taxonomy version: 2.4.0",
+    "[Cyan] \n▶  Loading document snapshot",
+    "[Green]    ✓  Snapshot loaded: 68 chars (~17 tokens estimated)",
+    "[Gray]    →  Title from metadata: Doc Title",
+    "[Gray]    →  POV tags in metadata: accelerationist, safetyist",
+    "[DarkGray] \n────────────────────────────────────────────────────────────────────────",
+    "[Yellow]   DRY RUN: FULL PROMPT PREVIEW",
+    "[DarkGray] ────────────────────────────────────────────────────────────────────────",
+    "[Cyan] \n[SYSTEM PROMPT]",
+    "[Gray] <<pov-summary-system>>\n{KP_MAX}=8\n{KP_MIN}=3\n{TOTAL_FLOOR}=6\n{UC_MAX}=5\n{UC_MIN}=2\n{WORD_COUNT}=14",
+    "[Cyan] \n[TAXONOMY CONTEXT — first 500 chars]",
+    "[Gray] {}",
+    "[DarkGray] ... (truncated for display)",
+    "[Cyan] \n[DOCUMENT CONTENT — first 500 chars]",
+    "[Gray] # Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+    "[DarkGray] ... (truncated for display)",
+    "[Cyan] \n[OUTPUT SCHEMA]",
+    "[Gray] <<pov-summary-schema>>",
+    "[DarkGray] \n────────────────────────────────────────────────────────────────────────",
+    "[Yellow]   DRY RUN complete. No API call made. No files written.",
+    "[DarkGray] ────────────────────────────────────────────────────────────────────────\n"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "prompt",
+      "name": "pov-summary-schema",
+      "replacements": null
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-system",
+      "replacements": {
+        "KP_MAX": 8,
+        "KP_MIN": 3,
+        "TOTAL_FLOOR": 6,
+        "UC_MAX": 5,
+        "UC_MIN": 2,
+        "WORD_COUNT": 14
+      }
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "conflicts/": "(dir)",
+    "sources/": "(dir)",
+    "sources/doc-1/": "(dir)",
+    "sources/doc-1/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"pending\",\n  \"claims_by_pov\": {\n    \"accelerationist\": 9\n  }\n}",
+    "sources/doc-1/snapshot.md": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+    "summaries/": "(dir)",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}
