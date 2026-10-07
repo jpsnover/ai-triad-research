@@ -2,10 +2,9 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Steps of Invoke-HierarchyProposal (t/3910 complexity refactor). Behaviour is pinned by
-# tests/Invoke-HierarchyProposal.Characterization.Tests.ps1; keep every message, write and
-# StrictMode dereference exactly as it was. These helpers run under the caller's
-# Set-StrictMode -Version Latest and $ErrorActionPreference = 'Stop' (dynamic scope), which the
-# off-schema crash in the review Markdown depends on (t/4071).
+# tests/Invoke-HierarchyProposal.Characterization.Tests.ps1. These helpers run under the caller's
+# Set-StrictMode -Version Latest and $ErrorActionPreference = 'Stop' (dynamic scope), so any
+# dereference of a model-supplied field must be presence-guarded or it throws (t/4071).
 # Collections that must keep their exact shape (empty, or a single element) are returned with
 # the unary comma so the pipeline doesn't unroll them.
 
@@ -17,15 +16,21 @@ $script:HierarchyMaxClusterSteps = @(
 )
 $script:HierarchyMaxClustersCap = 8
 
+# Resolves the output directory path only. It is created by Initialize-HierarchyOutputDir right
+# before a write, so -DryRun and runs that produce no proposal create nothing (t/4071).
 function Resolve-HierarchyOutputDir {
     param([string]$OutputDir)
     if ([string]::IsNullOrWhiteSpace($OutputDir)) {
         $OutputDir = Join-Path (Join-Path (Get-DataRoot) 'taxonomy') 'hierarchy-proposals'
     }
+    $OutputDir
+}
+
+function Initialize-HierarchyOutputDir {
+    param([string]$OutputDir)
     if (-not (Test-Path $OutputDir)) {
         $null = New-Item -Path $OutputDir -ItemType Directory -Force
     }
-    $OutputDir
 }
 
 function Get-HierarchyModelBackend {
@@ -145,6 +150,11 @@ function Get-HierarchyBucketClusterSet {
 }
 
 # Phase 1.2: intra-cluster edge counts by type, and cohesion = supportive edges / possible pairs.
+# cohesion_score is an edge-density measure, NOT a 0-1 ratio: it counts SUPPORTS, ASSUMES and
+# SUPPORTED_BY edges in both directions over ordered pairs, so two nodes joined by several
+# supportive edges score above 1.0 (the "rich" golden has 1.5). The hierarchy-proposal prompt's
+# interpretation table reads it as 0-1; aligning the two is a deliberate decision tracked in t/4073.
+# Don't "fix" the formula here without that decision, since it changes every prompt.
 function Get-HierarchyClusterEdgeStat {
     param([string[]]$ClusterIds, $IdSet, $AllEdges)
     $IntraEdges = @{}
@@ -412,13 +422,17 @@ function Get-HierarchyAdjacency {
 }
 
 # Iterative DFS from each unvisited root; reports every back edge as "parent -> child".
+# Roots are walked in ordinal order: a plain hashtable's key order is randomized per process, so
+# walking $AdjList.Keys directly made which back edge got reported vary run to run (t/4071).
 function Find-HierarchyCycleEdge {
     param([hashtable]$AdjList)
     $CycleEdges = [System.Collections.Generic.List[string]]::new()
     $Visited = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $InStack  = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $Stack    = [System.Collections.Generic.Stack[object]]::new()
-    foreach ($Root in $AdjList.Keys) {
+    [string[]]$Roots = @($AdjList.Keys)
+    [Array]::Sort($Roots, [System.StringComparer]::Ordinal)
+    foreach ($Root in $Roots) {
         if ($Visited.Contains($Root)) { continue }
         $Stack.Push(@{ Node = $Root; Index = 0 })
         [void]$Visited.Add($Root)
@@ -537,21 +551,44 @@ function Add-HierarchyReviewChildTable {
     }
 }
 
-function Add-HierarchyReviewParent {
-    param([System.Text.StringBuilder]$Md, $Parent, [int]$ParentIdx, [hashtable]$AllTaxData, [hashtable]$PovFileMap)
-    if ($Parent.promoted_from) {
-        $PromotedNode = Find-HierarchyTaxonomyNode -Id $Parent.promoted_from -AllTaxData $AllTaxData -PovFileMap $PovFileMap
-        if ($PromotedNode) { $ParentLabel = "$($PromotedNode.label) ($($Parent.promoted_from))" }
-        else { $ParentLabel = $Parent.promoted_from }
-    }
-    else { $ParentLabel = $Parent.label }
+# Value of an optional field on a model-supplied object, or $null when the field is absent.
+# The proposal JSON is already written when the review Markdown is built, so an off-schema
+# response must degrade here, not throw: warn what is missing and why, and render without it (t/4071).
+function Get-HierarchyReviewField {
+    param($Object, [string]$Name, [string]$Context)
+    if ($Object.PSObject.Properties[$Name]) { return $Object.$Name }
+    Write-Warn "Review Markdown: $Context has no '$Name' field (off-schema model response); rendering it without one"
+    $null
+}
 
-    if ($Parent.promoted_from) { $StatusTag = 'PROMOTED' } else { $StatusTag = 'NEW' }
+# Every line of a multi-line description gets the blockquote marker, not just the first (t/4071).
+function ConvertTo-HierarchyBlockquote {
+    param([string]$Text)
+    '> ' + ($Text -replace '\r?\n', "`n> ")
+}
+
+function Get-HierarchyReviewParentLabel {
+    param($PromotedFrom, $Parent, [string]$Context, [hashtable]$AllTaxData, [hashtable]$PovFileMap)
+    if (-not $PromotedFrom) { return (Get-HierarchyReviewField -Object $Parent -Name 'label' -Context $Context) }
+    $PromotedNode = Find-HierarchyTaxonomyNode -Id $PromotedFrom -AllTaxData $AllTaxData -PovFileMap $PovFileMap
+    if ($PromotedNode) { return "$($PromotedNode.label) ($PromotedFrom)" }
+    $PromotedFrom
+}
+
+function Add-HierarchyReviewParent {
+    param([System.Text.StringBuilder]$Md, $Parent, [int]$ParentIdx, [string]$BucketLabel,
+          [hashtable]$AllTaxData, [hashtable]$PovFileMap)
+    $Context = "parent $ParentIdx in $BucketLabel"
+    $PromotedFrom = Get-HierarchyReviewField -Object $Parent -Name 'promoted_from' -Context $Context
+    $ParentLabel = Get-HierarchyReviewParentLabel -PromotedFrom $PromotedFrom -Parent $Parent -Context $Context `
+        -AllTaxData $AllTaxData -PovFileMap $PovFileMap
+    if ($PromotedFrom) { $StatusTag = 'PROMOTED' } else { $StatusTag = 'NEW' }
 
     [void]$Md.AppendLine("### Parent $ParentIdx`: $ParentLabel [$StatusTag]")
     [void]$Md.AppendLine('')
-    if ($Parent.description) {
-        [void]$Md.AppendLine("> $($Parent.description)")
+    $Description = Get-HierarchyReviewField -Object $Parent -Name 'description' -Context $Context
+    if ($Description) {
+        [void]$Md.AppendLine((ConvertTo-HierarchyBlockquote -Text $Description))
         [void]$Md.AppendLine('')
     }
     Add-HierarchyReviewChildTable -Md $Md -Parent $Parent -AllTaxData $AllTaxData -PovFileMap $PovFileMap
@@ -561,41 +598,45 @@ function Add-HierarchyReviewParent {
 }
 
 function Add-HierarchyReviewOutlierTable {
-    param([System.Text.StringBuilder]$Md, $Proposal, [hashtable]$AllTaxData, [hashtable]$PovFileMap)
+    param([System.Text.StringBuilder]$Md, $Proposal, [string]$BucketLabel, [hashtable]$AllTaxData, [hashtable]$PovFileMap)
     if (-not ($Proposal.PSObject.Properties['outliers'] -and @($Proposal.outliers).Count -gt 0)) { return }
     [void]$Md.AppendLine('### Outliers (no parent assigned)')
     [void]$Md.AppendLine('')
     [void]$Md.AppendLine('| Node ID | Label | Reason |')
     [void]$Md.AppendLine('|---------|-------|--------|')
     foreach ($Outlier in @($Proposal.outliers)) {
+        # node_id is guaranteed here: validation dereferences it and skips the bucket when it's absent.
         $OLabel = Get-HierarchyNodeLabelOrId -Id $Outlier.node_id -AllTaxData $AllTaxData -PovFileMap $PovFileMap
-        $Reason = ConvertTo-HierarchyMarkdownCell -Text $Outlier.reason
+        $RawReason = Get-HierarchyReviewField -Object $Outlier -Name 'reason' -Context "outlier $($Outlier.node_id) in $BucketLabel"
+        $Reason = ConvertTo-HierarchyMarkdownCell -Text $RawReason
         [void]$Md.AppendLine("| $($Outlier.node_id) | $OLabel | $Reason |")
     }
     [void]$Md.AppendLine('')
 }
 
 function Add-HierarchyReviewBucket {
-    param([System.Text.StringBuilder]$Md, $Proposal, [hashtable]$AllTaxData, [hashtable]$PovFileMap)
-    $PovLabel = $Proposal.pov
+    param([System.Text.StringBuilder]$Md, $Proposal, [int]$BucketIdx, [hashtable]$AllTaxData, [hashtable]$PovFileMap)
+    $PovLabel = Get-HierarchyReviewField -Object $Proposal -Name 'pov' -Context "bucket $BucketIdx"
     if ($Proposal.PSObject.Properties['category'] -and $Proposal.category) {
         $CatLabel = $Proposal.category
     } else { $CatLabel = '(situations)' }
+    $BucketLabel = "$PovLabel / $CatLabel"
 
     [void]$Md.AppendLine("---")
     [void]$Md.AppendLine('')
-    [void]$Md.AppendLine("## $PovLabel / $CatLabel")
+    [void]$Md.AppendLine("## $BucketLabel")
     [void]$Md.AppendLine('')
 
     if ($Proposal.PSObject.Properties['parents']) {
         $ParentIdx = 0
         foreach ($Parent in @($Proposal.parents)) {
             $ParentIdx++
-            Add-HierarchyReviewParent -Md $Md -Parent $Parent -ParentIdx $ParentIdx -AllTaxData $AllTaxData -PovFileMap $PovFileMap
+            Add-HierarchyReviewParent -Md $Md -Parent $Parent -ParentIdx $ParentIdx -BucketLabel $BucketLabel `
+                -AllTaxData $AllTaxData -PovFileMap $PovFileMap
         }
     }
 
-    Add-HierarchyReviewOutlierTable -Md $Md -Proposal $Proposal -AllTaxData $AllTaxData -PovFileMap $PovFileMap
+    Add-HierarchyReviewOutlierTable -Md $Md -Proposal $Proposal -BucketLabel $BucketLabel -AllTaxData $AllTaxData -PovFileMap $PovFileMap
 
     if (@($Proposal._metadata.missing_nodes).Count -gt 0) {
         [void]$Md.AppendLine("**Warning:** $(@($Proposal._metadata.missing_nodes).Count) nodes not assigned by AI: ``$($Proposal._metadata.missing_nodes -join '``, ``')``")
@@ -610,8 +651,10 @@ function ConvertTo-HierarchyReviewMarkdown {
     [void]$Md.AppendLine('')
     [void]$Md.AppendLine("**Model:** $Model | **Generated:** $(Get-Date -Format 'yyyy-MM-dd HH:mm')")
     [void]$Md.AppendLine('')
+    $BucketIdx = 0
     foreach ($Proposal in $AllProposals) {
-        Add-HierarchyReviewBucket -Md $Md -Proposal $Proposal -AllTaxData $AllTaxData -PovFileMap $PovFileMap
+        $BucketIdx++
+        Add-HierarchyReviewBucket -Md $Md -Proposal $Proposal -BucketIdx $BucketIdx -AllTaxData $AllTaxData -PovFileMap $PovFileMap
     }
     $Md.ToString()
 }

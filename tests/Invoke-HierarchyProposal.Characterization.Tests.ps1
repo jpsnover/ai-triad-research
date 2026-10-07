@@ -25,8 +25,12 @@
       - "Response in N.Ns" (a Stopwatch reading) is masked;
       - the validation catch's "at <script>:<line>" is masked, since a refactor moves the code;
       - the -DryRun "total N chars" is masked, since it counts ConvertTo-Json's platform newline.
-    Known pre-existing bug pinned as-is: md-parent-missing-promoted-from (see the ticket filed for it).
-    Regenerate the goldens ONLY on pre-refactor code: set $env:HIERPROP_REGEN_GOLDEN = '1' and run once.
+    t/4071 fixed the bugs these goldens first pinned: the review Markdown now degrades on an off-schema
+    parent (md-parent-missing-promoted-from), -DryRun and the no-proposal paths create no directory
+    and -DryRun needs no API key, a multi-line description is a full blockquote (rich), and cycle
+    detection walks roots in sorted order (cycle-long).
+    Regenerate the goldens ONLY for an intended behaviour change: set $env:HIERPROP_REGEN_GOLDEN = '1',
+    run once, and check `git diff --stat` lists exactly the goldens that change was meant to change.
 #>
 
 # ── AI responses (by "<pov>/<category line>") ─────────────────────────────────
@@ -75,6 +79,16 @@ $script:MissingPromotedFrom = @'
   "outliers": [] }
 '@
 
+# A three-node cycle (cyc-a -> cyc-b -> cyc-c -> cyc-a). Which back edge gets reported depends on the
+# DFS start root, so this only has one right answer when roots are walked in a fixed order (t/4071).
+$script:LongCycle = @'
+{ "pov": "accelerationist", "category": "Beliefs",
+  "parents": [ { "promoted_from": "cyc-a", "label": null, "description": null, "children": [ { "node_id": "cyc-b", "relationship": "is_a", "rationale": "a-b" } ] },
+               { "promoted_from": "cyc-b", "label": null, "description": null, "children": [ { "node_id": "cyc-c", "relationship": "is_a", "rationale": "b-c" } ] },
+               { "promoted_from": "cyc-c", "label": null, "description": null, "children": [ { "node_id": "cyc-a", "relationship": "is_a", "rationale": "c-a" } ] } ],
+  "outliers": [ { "node_id": "acc-b-1" } ] }
+'@
+
 $script:Scenarios = @(
     @{ Name = 'rich'; Tax = 'rich'; Embeddings = 'rich'; Edges = 'rich'
        Params = @{ Model = 'gemini-2.5-flash' }
@@ -100,6 +114,9 @@ $script:Scenarios = @(
     @{ Name = 'md-parent-missing-promoted-from'; Tax = 'small'; Embeddings = 'small'
        Params = @{ Model = 'gemini-2.5-flash'; POV = 'accelerationist' }
        Responses = @{ 'accelerationist/Beliefs' = $script:MissingPromotedFrom } }
+    @{ Name = 'cycle-long'; Tax = 'small'; Embeddings = 'small'
+       Params = @{ Model = 'gemini-2.5-flash'; POV = 'accelerationist' }
+       Responses = @{ 'accelerationist/Beliefs' = $script:LongCycle } }
 )
 
 BeforeAll {
@@ -400,7 +417,10 @@ Describe 'Invoke-HierarchyProposal characterization (t/3910)' -Tag 'taxonomy' {
         @{ Name = 'bad-inputs-api-throws';           Text = 'Could not load edges' }
         @{ Name = 'situations-with-category';        Text = '0 buckets to process' }
         @{ Name = 'parse-fail-and-validation-throw'; Text = 'Validation failed for safetyist/Beliefs' }
-        @{ Name = 'md-parent-missing-promoted-from'; Text = "The property 'promoted_from' cannot be found" }
+        @{ Name = 'md-parent-missing-promoted-from'; Text = "Review Markdown: parent 1 in accelerationist / Beliefs has no 'promoted_from' field" }
+        @{ Name = 'rich';                            Text = '> Line one.\n> Line two.' }
+        @{ Name = 'cycle-long';                      Text = 'Cycle detected in hierarchy: cyc-c -> cyc-a' }
+        @{ Name = 'cycle-long';                      Text = "Review Markdown: outlier acc-b-1 in accelerationist / Beliefs has no 'reason' field" }
     ) {
         $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir "$Name.json"))
         $g.Contains($Text) | Should -BeTrue -Because "golden $Name should show: $Text"
@@ -426,5 +446,25 @@ Describe 'Invoke-HierarchyProposal characterization (t/3910)' -Tag 'taxonomy' {
         @($script:Writes).Count | Should -Be 0
         foreach ($k in @($before.Keys)) { $after[$k] | Should -BeExactly $before[$k] -Because "$k must be untouched" }
         @($after.Keys | Where-Object { $_ -notlike '*/' }).Count | Should -Be @($before.Keys | Where-Object { $_ -notlike '*/' }).Count
+    }
+
+    # t/4071: no run that writes nothing may create the output directory either.
+    It '<Name> creates no output directory' -ForEach @(
+        $script:Scenarios | Where-Object { $_.Name -in 'dryrun', 'whatif', 'no-buckets', 'err-no-key-claude',
+            'situations-with-category', 'parse-fail-and-validation-throw', 'bad-inputs-api-throws' }
+    ) {
+        $null = script:Invoke-Scenario $_
+        @(Get-ChildItem -LiteralPath $script:RootFixture -Recurse -Directory |
+            Where-Object { $_.Name -in 'hierarchy-proposals', 'custom' }).Count | Should -Be 0
+    }
+
+    It '-DryRun resolves no API key and succeeds without one (t/4071)' -ForEach @(
+        $script:Scenarios | Where-Object { $_.Name -eq 'dryrun' }
+    ) {
+        $s = @{} + $_
+        $s.NoKey = $true
+        $null = script:Invoke-Scenario $s
+        @($script:Calls | Where-Object { $_.call -eq 'resolveKey' }).Count | Should -Be 0
+        @($script:Calls | Where-Object { $_.call -eq 'ai' }).Count | Should -Be 0
     }
 }

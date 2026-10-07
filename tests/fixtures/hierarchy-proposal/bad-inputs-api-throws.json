@@ -49,7 +49,6 @@
   "writes": [],
   "tree": {
     "taxonomy/": "(dir)",
-    "taxonomy/hierarchy-proposals/": "(dir)",
     "taxonomy/Origin/": "(dir)",
     "taxonomy/Origin/edges.json": "sha256:a570d8a7c14bc8153854739c1dba91087da7c4265dec24624b76eb20a46be9c7 (13 chars)",
     "taxonomy/Origin/embeddings.json": "sha256:0ded64321c41d65190015af6b0650d4af39447f9c0caac37e8b14fecf971e75c (23 chars)",

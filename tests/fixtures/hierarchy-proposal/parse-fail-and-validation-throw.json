@@ -68,7 +68,6 @@
   "writes": [],
   "tree": {
     "taxonomy/": "(dir)",
-    "taxonomy/hierarchy-proposals/": "(dir)",
     "taxonomy/Origin/": "(dir)",
     "taxonomy/Origin/accelerationist.json": "sha256:866fc0e82c48027fd05179b0e09ae64b96b75f42699ae0eca4047b962030a282 (307 chars)",
     "taxonomy/Origin/embeddings.json": "sha256:c30331756b20ec6ba8b8fd6a06e4464f6524d1646e09246d34a255ca3198c644 (350 chars)",
