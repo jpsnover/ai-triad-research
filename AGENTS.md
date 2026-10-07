@@ -229,18 +229,29 @@ It catches **scope** gaps as well as logic gaps, and scope is the harder case: a
 - Done (PR merged or no-code task complete) → **Done**.
 - Never leave a ticket Unstarted while actively working it.
 
-## Second Opinion
+## Change Tiers and Decision Rights (t/4092, PI-approved 2026-10-07)
 
-Any Main instance may consult `main.engineering-second-opinion@ai-triad-research.orca.local` when any one holds: **irreversibility** (>1 sprint to undo, prod data, shared infra), **cost/risk asymmetry**, **novel territory** (no precedent), **conflicting signals** (no tie-breaker), **security/compliance surface**, or **post-incident gate design**.
+**Declare the tier in the PR body's first line: `Tier: T0`, `T1` or `T2`.** A PR touching a T2 path must declare T2. That is enforced by the tier check (t/4103, advisory until promoted); until then the TL spot-checks. When the tier is otherwise unclear, choose **T1**, not a consult.
 
-**MANDATORY (not discretionary) consultation — two classes (t/3361, audit G3):** a Second Opinion MUST be obtained **before** the commit/flip for (1) **blocking-gate promotions** — any gate, guard, or CI check moving from advisory/warn-only to blocking, or a new blocking gate/required check; and (2) **schema/data-model changes** — validation schemas, data-file shapes, shared type contracts. These are the two highest-stakes classes and otherwise ship on the designer's own judgment alone. The requesting role sends the evidence package (proposal + gate-verification evidence + alternatives) and the flip/merge waits for the Recommendation. An erroring or unreachable Second Opinion backend is an infra issue (route to Orca Support and retry) — it neither blocks the evidence nor waives the consult.
+- **T0 (default):** features, fixes, refactors, tests, docs, dependency bumps, warn-only checks, and additive optional fields nothing branches on. Green CI, then auto-merge. No consult, hold or TL review.
+  - An additive field is T0 only if its definition carries a point-of-use exemption note with its lapse condition. The model is `lib/ai-client/types.ts`: *"NO consumer branches on it… THE EXEMPTION LAPSES the moment a consumer branches on it."* Written-and-never-read is forensics; written-and-compared is semantic.
+- **T1:** a new cross-role contract or shared type, a schema field a consumer reads, the **first branching reader of a previously exempt field**, or a new non-blocking gate. The owner plus one reviewer (Quality round-robin, `docs/review-routing.md`) approve on the PR, then auto-merge.
+- **T2 (the only consult class):** making a gate blocking, a breaking schema or data-shape change, auth or secrets, writes to production or corpus data, or anything that takes more than a sprint to undo.
+  - One Second Opinion round (`main.engineering-second-opinion@ai-triad-research.orca.local`), time-boxed to **2 hours**. Send the proposal, alternatives, what's at stake and the evidence; the reply is Recommendation / Key risks / Conditions / Dissent.
+  - **Silence never approves.** After the time-box, the PR goes to the T2 human approver marked "SO did not review", and the approver decides knowingly. An unreachable SO backend is an infra issue for Orca Support; it neither blocks nor waives.
+  - Conditions name the files they edit **and the files their logic depends on**. A new head needs re-confirmation only if it touches one of those.
+  - Apply the **`consult-hold` label** (the required context `consult-hold-guard` enforces it for every merge path) and a one-line comment naming the open conditions. Human approval is required: the PI, or the TL once agent identities exist (t/4096). Merge pinned with `--match-head-commit`.
+- **Incident remediation is an automated check, test or platform fix.** A new prose rule needs a second occurrence, an owner and a review-by date.
 
-**Surface the hold where the merge happens (t/3680).** A consult is conducted in email and tickets; the action it gates happens on GitHub. A hold can therefore be recorded perfectly and still be **invisible at the merge button** — which is how #2441 landed with conditions outstanding (t/3664#11). Draft was set and working; the owner lifted it and merged, acting on exactly what the PR showed: rebased, green, no marker, no stated conditions.
+**Only the PI decides:**
+- spending and accounts;
+- credentials and secrets policy;
+- product and UX direction;
+- research claims and publication;
+- deleting production data;
+- adding or removing roles;
+- repo and branch-protection settings.
 
-So when a mandatory consult gates a PR, **apply the `consult-hold` label** — now a **live required status context** (`consult-hold-guard`, t/3680) that refuses the merge on GitHub's side for every path, surviving un-draft and binding admins under `enforce_admins: true` (t/3736) — **and** post a hold comment naming the outstanding conditions and who can clear them, updated as each clears. The two do different jobs and neither substitutes for the other: **the label blocks; the comment tells someone why before they clear it.** (Draft remains fine as extra visibility but does **not** reliably enforce — automation can un-draft; t/3680#3.) The comment costs nothing and the label is the gate.
+Everything else is decided by the owning role, or the TL if roles disagree, and recorded on the ticket.
 
-**Record exemptions at the point of use, with their lapse condition (t/3566#2, e/213).** Judging a change *out* of a mandatory class is a decision that outlives the thread it was made in — so write it where the next editor will hit it, not in a ticket or email. The in-repo model is `lib/ai-client/types.ts`: *"NO consumer branches on it. This is why the field is SO-exempt. THE EXEMPTION LAPSES the moment a consumer branches on it."* An exemption with a stated expiry is auditable later; a one-time ruling is only as durable as someone's memory of it. Useful discriminator for additive fields: **written-and-never-read is forensics; written-and-compared is semantic** — the second branches on the value, so it is not exempt.
-
-**Ambiguity resolves to consult.** If it is genuinely unclear whether a change falls in a mandatory class, consult — do not rule. The asymmetry decides it: a consult on an out-of-class change costs one exchange; a missed consult on an in-class one costs what t/3664 nearly cost (a blocking gate whose green certified a model binding production never performed). Optimising the boundary to avoid cheap consults is optimising the wrong side.
-
-**Non-triggers:** playbook-covered routine work, easily-reversed single-role decisions, clarifying questions (use QnA/human). Consult via email with proposal, alternatives, what's at stake, time constraint. Response is Recommendation / Key risks / Conditions / Dissent.
+**Asks to the PI** go in one daily TL digest. Each ask carries a recommendation and a default that takes effect by a stated time. **Defaults never apply to T2 approvals, anything on the PI-only list, or active security incidents.** Those wait for an explicit answer and are re-raised in each digest until answered.
