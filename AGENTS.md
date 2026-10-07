@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for agents working in this repository.
+Guidance for agents working in this repository. The rules here are kept short. The rationale and incident history behind each one live in **`docs/agent-rules-reference.md`** (cited below as Ref §N). A new rule needs a second occurrence, an owner and a review-by date (see Change Tiers).
 
 ## Project Overview
 
@@ -23,110 +23,62 @@ Code here; data in `../ai-triad-data`. `.aitriad.json` maps relative paths to da
 
 ### Orca Overlay Repo
 
-Orca config (`.orca.yaml`, nested `AGENTS.md`, `.orca/`) lives in a **separate overlay repo** at `.orca-git/`, keeping Orca infra private while the main repo stays public.
+Orca config (`.orca.yaml`, nested `AGENTS.md`, `.orca/`) lives in a **separate overlay repo** at `.orca-git/`, so Orca infra stays private while the main repo stays public.
 
-- `git` → main repo; `ogit` (alias for `git --git-dir=.orca-git --work-tree=.`) → overlay. Run `ogit` from repo root only.
-- **Never `git add`/`commit`** overlay-tracked files: `.orca.yaml`, `.orca/`, `.orca-gitignore`, every **nested** `AGENTS.md`.
-- Which repo owns an `AGENTS.md`? Don't guess — run `sh .githooks/agent-file-owner.sh --path <file>` → `main | overlay | NEITHER` (t/2080). Rule: main-repo-tracked **iff a public-repo consumer needs it without the overlay** — today exactly two files, this root `AGENTS.md` and `operations/devops/azure/AGENTS.md` (commit both with `git`). All other `AGENTS.md` are overlay-only. The sets are disjoint by construction (`.gitignore` allowlist vs `.orca-gitignore` re-exclusions); the pre-commit audit refuses any double-track or neither-tracked nested file.
+- `git` → main repo. `ogit` (`git --git-dir=.orca-git --work-tree=.`, run from the repo root) → overlay.
+- **Never `git add`/`commit`** overlay-tracked files: `.orca.yaml`, `.orca/`, `.orca-gitignore`, every **nested** `AGENTS.md`. Unsure which repo owns an `AGENTS.md`? Run `sh .githooks/agent-file-owner.sh --path <file>`. Only this root file and `operations/devops/azure/AGENTS.md` are main-repo tracked.
+- **New role or instance:** `ogit add -f <role>/AGENTS.md`, then `sh .githooks/agent-file-owner.sh --audit` before your next commit. Never `--no-verify` past the audit. Don't ogit-add a `.worktrees/<name>/AGENTS.md`.
 
-**Creating a role/instance?** The generated nested `AGENTS.md` is tracked by neither repo until you overlay-track it — before your next commit:
-1. `ogit add -f <new-role>/AGENTS.md` (whitelist alone won't stage a *new* file — t/1971).
-2. `sh .githooks/agent-file-owner.sh --audit` → expect clean.
-3. Commit normally. **Never `--no-verify` past the audit** (strands an unbacked orphan — Pattern #146). If the audit flags a `.worktrees/<name>/AGENTS.md`, that's a worktree checkout of a main-tracked file — do **not** ogit-add it (t/2205).
+### Feedback Rules
 
-### Feedback Rules — author via MCP only (t/3698)
+- **Author and repair rules only through the MCP tools** (`create_feedback_rule`), never by editing `.orca/feedback-rules/*.yaml`; a hand-written rule loads as dead. `update_feedback_rule` refuses an invalid stored rule, so repair it by backing up, deleting and re-creating, keeping its `scope`.
+- **Only an observed injection proves a rule works.** Being listed only shows the rule loaded; `fire_count_24h` only shows its matcher fired. Ref §1.
 
-**Create feedback rules only through `create_feedback_rule` — never hand-edit `.orca/feedback-rules/*.yaml`.** Hand-writing bypasses validation *and* registration: the file lands on disk, `get_feedback_rule` reports it `enabled: true`, and the rule never loads or fires. Invisible-dead. Same discipline as `SKILL.md` → `manage_skill`, for the same reason.
+### Workflow Mode and the Shared Checkout
 
-This is how **13 rules sat dead fleet-wide**, including the workspace secret scanner — invalid parameter `source:` prefixes (`input.`, `toolInput.`, bare `tool_name`) that `create_feedback_rule` rejects at authoring but a direct file-write admits silently.
+- **Mode** is line 1 of the overlay file `.orca/workflow-mode` (`sh .githooks/read-workflow-mode.sh`): `worktree` (strict; also the fail-safe for any other value) or `direct`. Change it only deliberately, and record who, when and why in the file.
+- **In both modes the shared checkout stays on `main`.** Anything that moves HEAD or rewrites the tree (`checkout`, `reset`, `rebase`, `merge`, `pull --rebase`, `stash`) happens only in a worktree. On the shared checkout:
+  - never `git commit -a` or `git add -A`;
+  - commit with a pathspec and push immediately;
+  - if a push is rejected, land it from a worktree.
 
-**Repairing an already-invalid rule: `update_feedback_rule` will refuse it.** It validates the *stored* definition first, so it rejects exactly the rules that need fixing. **Delete-then-create is the only repair route** — back the definition up first; the delete is irreversible, and per-rule `scope`/`scope_path` is easy to drop on re-creation (that would silently widen a profile-scoped guard fleet-wide).
+  Only DevOps cleans up a diverged shared tree (`docs/shared-tree-divergence.md`). Ref §2.
+- **In `worktree` mode:**
+  - work on a branch: `git worktree add -b <branch>`, or `/land-from-worktree`;
+  - be in the worktree before your first edit;
+  - `cd` into it **in the same command**, because the shell cwd resets between calls.
 
-**Three facts, and only the third proves a *specific* rule ran:**
-- **Listed** in `list_feedback_rules(enabled: true)` → the runtime *loaded* it. (As of 2026-10-01 this returns all loaded rules — 33 — so the older short-set gap is gone; see the Pre-Self-Merge note below.)
-- **`fire_count_24h > 0`** → the rule's **matcher** was invoked — **not** that *this* rule executed. The counter is per-matcher (within a scope), so every rule sharing a matcher reports the *same* number (e.g. all workspace `Bash|PowerShell` PreToolUse rules show one identical count, including rules that skip on every call). A non-zero count cannot distinguish a rule that ran from one merely eligible.
-- **An injection you have read, with correct content** → it *works*. With the middle rung demoted to "the matcher was hit," this is the **only** evidence a specific rule executed.
-
-A parameter referenced only in the `template` (not the `condition`) can resolve to empty while the rule fires normally — which is how the secret scanner ran telling agents to scan and handing them nothing. Where a parameter is used in the `condition`, a fire *does* prove resolution, because the condition cannot evaluate true on an empty value.
-
-**Read the mode before assuming the rules below.** A single overlay-tracked file, `.orca/workflow-mode`, selects the fleet's branching discipline. Line 1 is the mode; everything from `#` is provenance (who set it, when, why). Check it with `sh .githooks/read-workflow-mode.sh`.
-
-- **`worktree`** (strict) — feature work happens in a worktree off a branch; the shared checkout stays on `main`; `pre-commit` refuses commits on `main`.
-- **`direct`** — worktrees and branches are not required; commits on `main` in the shared checkout are permitted.
-
-**Fail-safe:** anything other than exactly `direct` on line 1 — missing file, empty, `Direct`, `direct foo` — resolves to `worktree`. A deleted or corrupt file tightens, never loosens. The canonical parse (trimmed line 1, case-sensitive `== "direct"`) lives in `.githooks/read-workflow-mode.sh`; the two feedback-rule scripts mirror it.
-
-**Changing the mode is a deliberate act, not a preference.** `direct` removes a protection born from an incident (t/1926): the fleet shares one `main` checkout, so a commit there sits in every other agent's tree. That is low-cost when one person works alone and hazardous at high parallelism — **the dangerous transition is leaving `direct` on when the fleet spins back up.** Record set-by/set-at/reason in the file when you change it.
-
-**In `direct` mode the shared checkout still stays on `main`. `direct` licenses *committing* there — not *rewriting what is on disk* there.** Six collisions in one session (2026-09-28), one cause: anything that moves HEAD or rewrites the working tree mutates every file other agents are actively reading. A file vanished from disk mid-edit; a working tree was swapped out from under an in-flight task (t/3704#8); uncommitted WIP compiled into a peer's `npm run verify`, producing a red that belonged to neither agent; a commit was orphaned by a concurrent HEAD move; and a `reset` left the tree **behind its own HEAD**, missing three just-landed files — a state in which any `git commit -a` would have deleted a colleague's merged work from `main`.
-
-This is not `direct` failing at what it is chosen for — one agent committing small changes straight to `main` is exactly what it makes cheap, and that still works. Two things make it hazardous at fan-out. *"Branches are not required"* reads as *"branches are safe here."* And **the hazard is realized by careful work, not careless work**: the `reset` above was a deliberate attempt to resolve a push conflict *without* disturbing a colleague's uncommitted file. A mode whose failures arrive through care cannot be mitigated by asking people to be careful. So:
-
-- **Safe *for other agents' trees*:** `commit`, `push`, `fetch`, `status`, `log`, `diff` — read-only, or additive to history. **"Safe" here means only that it will not disturb a colleague's working tree. It does NOT mean a direct push of code to `main` is sanctioned** — that bypasses the required status checks in *either* mode, which is a review concern the workflow mode does not govern. Land code through a PR.
-- **Worktree-only, in BOTH modes:** `checkout`, `reset`, `rebase`, `merge`, `pull --rebase`, `stash` — anything that moves HEAD or rewrites the tree. `git worktree add` costs seconds; the collision costs a colleague's uncommitted work.
-- **Never `git commit -a` (or `git add -A`) here.** Distinct from the staged-index rule below: `-a` bypasses the index and commits every tracked modification **including deletions**, so a stale working tree becomes a destructive commit in one step. Commit with an explicit pathspec.
-- **Scan `git status --short` UNSCOPED before any tree-wide build.** A peer's uncommitted file compiles into your `npm run verify`, so a red may not be yours. Your branch's CI sees only committed files and is the authoritative signal.
-- **Push immediately after committing on shared `main`** — not at the end of the task. If the push is rejected, do **not** resolve it in place; cherry-pick to a worktree and land it from there. Resolving a rejected push on the shared tree *is* the prohibited rewrite. A tree that has already diverged is cleaned up by **DevOps only**, per **`docs/shared-tree-divergence.md`** — the distinction is that an incidental rewrite mid-task is prohibited while an announced, precondition-checked maintenance sync is required (a tree that can never sync goes stale, which caused two of the six collisions itself).
-
-### Shared-Checkout Commit Guard (pre-commit hook)
-
-**Applies in `worktree` mode.** `.githooks/pre-commit` refuses commits on `main` (t/1926); in `direct` mode it permits them. **Both modes** still refuse a commit on a detached HEAD inside a worktree (t/2009) — that guards a different failure and the switch does not govern it. `--no-verify` remains the emergency override. Enable once per checkout: `git config core.hooksPath .githooks`.
-
-**In `worktree` mode, feature work is worktree-only and the shared checkout stays on `main`.** `/land-from-worktree` is branch-first (`git worktree add -b <branch>`). `.githooks/post-checkout` warns (advisory) when the shared tree leaves `main` (t/2209); silent in `direct`.
-
-**Confirm you're in a worktree before your FIRST edit (t/3207) — in `worktree` mode.** Editing tracked files on the shared `main` tree leaks uncommitted WIP and risks a `git add -A` sweep spraying 0-byte junk. The PreToolUse Edit/Write hook warns, but the discipline is: worktree first, then edit. **Known gap:** the two feedback rules do not yet honour `direct` and will warn regardless — noise, not obstruction (t/3632).
-
-**Shell cwd resets to the shared checkout between tool calls (t/2222).** Creating a worktree isn't enough — always `cd` into it **in the same command**: `cd .worktrees/<name> && <cmd>`. A stray `cd`-reliant command combined with a mis-quote sprays 0-byte junk files across every scope. Prevention: same-command `cd`; never paste multi-line code into the shell (see Shell Quoting Rule).
+  The pre-commit hook (`git config core.hooksPath .githooks`) refuses commits on `main`, and in both modes refuses commits on a detached HEAD in a worktree.
 
 ### Pre-Self-Merge Verification
 
-Before `gh pr merge`, confirm all four (prevents stranded/stale-head merges — #710, #701, #830/#831, t/2470):
-0. **Base is `main`** — `gh pr view <N> --json baseRefName` (GitHub silently suggests the parent feature branch).
-1. **Head matches your push — ENFORCE it with `--match-head-commit`.** Always self-merge as:
-   `gh pr merge <N> --squash --match-head-commit $(gh pr view <N> --json headRefOid -q .headRefOid)`
-   GitHub then refuses the merge *atomically* if the live head ≠ that SHA — race-free: a stale local view OR a newer push both abort instead of stranding the later commit (#1868). Never run a bare `gh pr merge` without this flag.
-2. **CI ran on that exact OID** — `gh run list --commit <headRefOid>` is green, not a predecessor's.
-3. **No open decision/hold** you haven't cleared.
+- **Land code through a PR to `main`.** The required contexts are `ci-gate`, `CodeQL`, `joint-gv-guard` and `consult-hold-guard`, with `enforce_admins` on.
+- **Before a manual merge,** confirm all of:
+  - the base is `main`;
+  - CI is green on the exact head;
+  - no hold is still open.
 
-> **✅ LIVE as of 2026-10-05, ADVISORY (it warns; it does not block yet).** `pre-self-merge-verify` was inert for weeks: the stored rule had `parameters: []`, so `{command}` in its `run:` was never substituted. Orca Support re-created it with the parameter declared, and a bare `gh pr merge 99999` then **injected** the `PRE-SELF-MERGE HEAD GUARD (advisory…)` text in two independent fresh sessions (t/3698#38, #41). That is the only evidence that counts. **Flip to blocking** = one advisory cycle, then TL Gate Verification, then a mandatory Second Opinion. An earlier version of this note said "do NOT re-author, the definition is correct"; that was wrong, and re-creation was the fix.
->
-> **Branch protection is still the enforcing layer** (t/3736: `enforce_admins: true`, required contexts `[ci-gate, CodeQL, joint-gv-guard]`). GitHub refuses any merge, admins included, unless every required context passed on the PR's **current head**, so *merging a head nothing tested* is refused there (observed, t/3736#11: `HTTP 405 Required status check "ci-gate" is failing.`). **What protection does not cover:** old head and new head **both green**, and you merge a SHA you never reviewed. `--match-head-commit` guards exactly that, so always pass it. (Reasoned from the protection predicate, not yet observed.)
->
-> **`auto-merge-jointgv-guard`** had different defects (an invalid `input.command` source and an `argv[2]` off-by-one). Its definition is fixed but it stays **disabled** by design, since the `joint-gv-guard` required context covers the hazard. **Do not re-enable it without TL** (t/3698#39).
->
-> **Authoring lessons for any `run:`-based rule** (all from these repairs, t/3698#38):
-> 1. Every `{name}` used in `run.args` must be declared in `parameters`. An undeclared one renders empty, and the rule looks enabled while judging nothing.
-> 2. `template` must contain `{run.stdout}`, or the run's output is silently dropped.
-> 3. **Never put adjacent `}}` or `{{` in an inline script.** The executor collapses them into `}`/`{` and the script breaks (platform bug **t/3909**). Separate them with a space. `/feedback-rule-drift-check` now scans for this.
-> 4. **No tool tells you a rule is live; only an observed injection does.** `get_feedback_rule` reports the *definition* (this rule said `enabled: true` while dead). `list_feedback_rules(enabled: true)` is the better liveness signal (absent ⇒ not live), but present ≠ executing. Fire a deliberately triggering no-op and read what comes back, and repeat after any platform update.
+  Then merge with `gh pr merge <N> --squash --match-head-commit <headRefOid>`; never do a bare manual merge. Ref §3.
 
-The `pre-self-merge-verify` hook **injects an advisory** on a manual `gh pr merge` that omits `--match-head-commit` (t/3270; pure-predicate `operations/devops/merge-guard-predicate.mjs`). It is not blocking yet; see above. `--auto` is exempt: it can't carry the flag and is stale-head-safe by GitHub re-targeting, and its gated-PR risk is handled by the `consult-hold` and `joint-gv` contexts. **Emergency override, once it blocks** (broken tooling / P1 hotfix), in the same spirit as the commit-guard's `--no-verify`: `disable_feedback_rule pre-self-merge-verify`, merge, then re-enable.
+### PR-Flow Practice Rules
 
-### PR-Flow Practice Rules (q/40)
+- **Batch sequential same-feature work** into one PR, unless the diff is over ~400 lines or mixes concerns. Merge promptly on green, or record why not.
+- **Arm auto-merge at PR creation** (`gh pr merge <N> --auto --squash`) for T0 and T1 PRs. Arming means "done", so disarm before pushing more.
+  - Never arm consult-hold, joint-gv or draft PRs, or PRs whose base isn't `main`.
+- **Holds:** the `consult-hold` label is the gate; draft alone is not. A PR implementing consult conditions lists them verbatim and stays unarmed until every one is ticked.
+- **Co-landing PRs** carry `joint-gv` and are merged manually after their joint review.
+- **Where this section differs from Change Tiers below, Change Tiers wins.** The hold ceremony is being simplified in t/4093. Ref §4.
 
-- **Batch sequential same-feature work** onto one branch / one PR unless the diff exceeds ~400 lines, mixes concerns, or a peer needs an intermediate step on `main`.
-- **Merge promptly on green** — verify (above) and merge within ~15 min, or record the hold as a PR/ticket comment. An unmerged green PR with no recorded hold is drift.
-- **Arm auto-merge at PR creation for eligible PRs:** `gh pr merge <N> --auto --squash` right after `gh pr create`. **Arming means "I'm done"** — anything pushed afterwards merges as soon as it's green, so disarm (`--disable-auto`) before pushing more work. **Do not arm** `consult-hold` or `joint-gv` PRs (arming a `joint-gv` PR fails its required check), PRs awaiting a mandatory Second Opinion or implementing consult conditions (t/3714), PRs needing a Main (TL) review before merge, drafts, or PRs whose base isn't `main` (epic children and the epic → `main` PR). (e/245)
-- **Gated PRs: apply the `consult-hold` label (the enforcing gate), AND keep draft + a hold comment (visibility).** The `consult-hold` label is now a **live required status context** — `consult-hold-guard` (t/3680; refusal proven end-to-end 2026-09-30, both arms isolated) **blocks the merge on GitHub's side for every path** (human, agent, server-side auto-merge), binding admins too under `enforce_admins: true` (t/3736). That is the gate. **Do NOT rely on draft alone to enforce** — the prior "only draft enforces" claim was false: automation can un-draft a PR with the owner's credentials, indistinguishable from a human in the timeline (t/3680#3, #2494). Draft + a hold comment remain worth keeping — they tell a reader *why* before they clear the label — but the enforcement is the label. Clear it only when the gate is verifiably clear (removing the label re-runs the check green without a push); emergency override is a branch-protection admin override — **PI-only; agents are classifier-blocked from branch-protection changes, so escalate rather than attempt it** (`deploy/azure/runbooks/enforce-admins-override.md`), not un-drafting. (t/2603/#997, t/3680)
-- **A PR implementing consult conditions carries them in its body as a checklist — VERBATIM — and stays draft with no `--auto` until every box is ticked (t/3714, e/218).** Copy the conditions **as the consultant wrote them** and tick against *that* text, never against your own restatement: a faithful paraphrase is precisely where items vanish, and they vanish invisibly to the person paraphrasing. Five of nine went missing that way on 2026-09-28 and were only recovered because a third party diffed the two lists. Like a hold comment, the checklist is **visibility at the merge button, not a gate** — which is why it needs its pair: **auto-merge removes merge time, so a checklist on an `--auto` PR is a well-formatted list nobody reaches.** Both #2480 and #2491 armed auto-merge while the review that produced their conditions was still in flight, on the same day this rule was written. **The enforceable form — the `consult-hold` label as a live required context — is now in force (t/3680, 2026-09-30): apply it at PR creation (`gh pr create --label consult-hold`) so the gate holds from t=0.** The checklist + draft remain the *visibility* half (they say why); the label is the *gate* half (it blocks).
-- **Co-merge / joint-GV PRs carry the `joint-gv` label; never `--auto` them.** When two+ PRs must land together (a locked cross-role contract) or a PR is gated on a joint TL Gate-Verification, label it `joint-gv`. Auto-merge fires the moment checks go green and merges the PR ALONE on whatever head is current — jumping the group and stranding reviewed work (t/3307: #1947 auto-merged without its ElectronMain pair, briefly breaking main). **The `auto-merge-jointgv-guard` FEEDBACK RULE is disabled by design.** Its definition was repaired on 2026-10-05 (t/3698#39), but the hazard it guarded is covered by a required status context. Don't re-enable it without TL. `.github/workflows/joint-gv-guard.yml` (t/3607) is a required check on `main` that **fails when a `joint-gv`-labelled PR has auto-merge armed**, and with `enforce_admins: true` (t/3736) that refusal binds admins, agents and GitHub's server-side auto-merge alike. So `--auto` on a `joint-gv` PR **is** blocked — by branch protection, not by the rule (the disabled rule's `merge-guard-predicate.mjs` `--jointgv` mode, t/3318). Keep merging these manually with `--match-head-commit` after the joint GV; the guard is a backstop, not a substitute for the coordination.
+### Claim Before Implement
 
-### Claim Before Implement (q/42)
+Claim before implementing (assign yourself or comment). First check for a peer's claim, a PR on any base, or a recent landed commit.
 
-Before implementing an assigned ticket, claim it (assign to your instance or comment you're starting). Multi-instance roles: check for a peer's claim, in-flight PR, or recent landed commit **before** choosing an approach (parallel impls of t/2514 burned two CI cycles).
+### Epic Branches
 
-### Epic Branches (multi-role features on one shared PR)
-
-A large feature spanning multiple roles uses an **epic integration branch** (`epic/<name>`) with a single shared PR (epic → `main`) as the sole integration point. Rules for everyone working an epic (t/3618):
-
-- **Child PRs target the epic base, NEVER `main`.** A child that lands on `main` while the epic is live is the duplicate-parallel-land bug below. Epic-base PRs now get **full CI** (t/3642, #2403 — `push`/`pull_request` triggers include `epic/**`), so the old "open against `main` first, then retarget" workaround (t/3623#5) is **RETIRED** — that workaround was itself the duplicate-parallel-land vector.
-- **Claim before implementing** an epic child (per above), and check whether the ticket already has a PR **on any base** — an epic child and a direct-to-`main` PR for the same ticket is exactly the failure.
-- **One shared PR** (epic → `main`) is the integration point; don't open a second PR for the same ticket against a different base.
-- **Review each child at merge-into-epic time**, not deferred to the final epic PR. A multi-role diff reviewed only at the end is effectively unreviewable; per-child review at integration is what keeps the shared PR landable.
-
-**Duplicate parallel land** (t/3655, from t/3621 landing on both `main` #2385 and the epic branch): one ticket implemented twice, onto two non-ancestor bases, whose copies then co-evolve. Two variants:
-- **LOUD** — the copies touch the same files → merge conflict blocks the epic→`main` PR. Self-announcing; you'll see it (this is how t/3621 surfaced). No gate needed; this section is the prevention.
-- **QUIET** — one copy is a subset of, or disjoint from, the other → the epic PR **auto-merges clean and nobody notices** the duplicated work. "No conflict" does **not** mean "no duplicate land." This variant has no signal — the only defense is claiming + targeting the epic base up front.
+- **Epics:**
+  - child PRs target `epic/<name>`, never `main`;
+  - there is one shared epic → `main` PR;
+  - review each child when it merges into the epic. Ref §5.
 
 ### Subsystem Map
 
@@ -144,50 +96,32 @@ Four POV camps with BDI categories. Node IDs: `{pov}-{category}-{NNN}` (pov ∈ 
 
 ### AI Backends
 
-Configured in `ai-models.json` (single source of truth for PS + Electron): Gemini, Claude, Groq. Keys via `Register-AIBackend` or env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `AI_API_KEY` fallback). **Before landing any edit, run `npm run verify:config`** (runs all six registry-completeness gates; t/1933). Adding a backend? Follow `/add-ai-backend`.
+`ai-models.json` is the single source of truth for both PowerShell and Electron. A model's backend comes from the registry, never from its id prefix (t/4087). Keys come via `Register-AIBackend` or per-backend env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, …), with an `AI_API_KEY` fallback. **Run `npm run verify:config` before landing any edit.** Adding a backend? Follow `/add-ai-backend`.
 
 ### Dependency Security Bumps
 
-Resolving a Dependabot/security alert on an npm dep? Follow the mechanics in **`docs/security/dependency-policy.md`**, section "Executing a Dependency Security Bump." The load-bearing gotcha is that overrides live in **`pnpm-workspace.yaml`** (the SSOT for both lockfiles), while `package.json` `overrides` are **inert** and `pnpm update` bumps only the direct edge, so transitive copies stay vulnerable. One atomic PR does all of: the `pnpm-workspace.yaml` override (capped), regen the root lockfile, `sync-standalone-lockfile.mjs`, `npm run licenses`, then verify grep-clean on both lockfiles. **Never remove an override without checking which advisory it closes** (a `>=X` pin is often the fix for a `<X` alert; t/3442).
+Follow `docs/security/dependency-policy.md` ("Executing a Dependency Security Bump"). Overrides live in **`pnpm-workspace.yaml`**; `package.json` `overrides` are inert. Never remove an override without checking which advisory it closes.
 
-## Shell Quoting Rule
+## Shell Quoting Rule (and Git Hygiene)
 
-For code with special shell chars (template literals, nested quotes, apostrophes, backticks, `$` vars, f-strings), **use Edit/Write, not Bash `sed`/`awk`/heredocs**. Run Python/PowerShell scripts from a temp file (Write then execute), never inline heredocs. Shell escaping is the #1 silent-corruption source.
-
-**Junk-file hygiene (t/2112).** Mis-quoted Bash commands word-split into 0-byte files named after the fragment (`0)`, `30s`, `{,+`). Before any `git add`, scan `git status --short` for bare-fragment filenames and `rm --` them. Prefer explicit paths over `git add -A`/`-u`.
-
-**Staged-index inheritance on the shared checkout (t/3670).** The fleet shares one index, so **another agent's `git add` stages files into *your* commit.** A bare `git commit` commits the **whole index**, not the path you added — `git add <file> && git commit` is not scoped, and the explicit pathspec on the `add` reads like a safeguard while providing none.
-
-- **Commit with a pathspec: `git commit -m "…" -- <paths>`.** This is the fix; it commits only those paths whatever else is staged.
-  - **Exception — executable-bit changes (Sage Pattern #197).** Under `core.fileMode=false` (the Windows default), a pathspec commit rebuilds the named paths from the working tree and **silently drops a mode staged with `git update-index --chmod=+x`**. The file lands `100644`, so a hook is inert on every Linux/macOS clone, and nothing errors. For a commit that sets `+x`, use an index nobody else shares: a worktree (`git add` → `git update-index --chmod=+x` → plain `git commit`) or a private `GIT_INDEX_FILE`. Then verify the mode with `git ls-tree HEAD <path>` → `100755`, and again on `origin/main` after the push.
-- **Scan `git status --short` UNSCOPED before committing.** A path-scoped status (`git status --short -- <your file>`) cannot show inherited staged files — it reports clean while the index is dirty outside your filter.
-
-Origin (t/3666/t/3637): a bare commit swept three of another agent's staged files into an unrelated docs PR under one author's message. It was **silent** — the commit succeeded, `git log -1` showed the expected message, and it surfaced only because the other agent read `git show --stat` on a PR that wasn't theirs. **Verify with `git show --stat HEAD` after committing on a shared checkout**; the file list is the only thing that distinguishes the two outcomes.
-
-## Git Forensics on the Bash Tool
-
-On some Windows agents, MSYS path conversion mangles the `<path>` half of a git colon-revspec (`git show <ref>:<path>`, `cat-file`, `rev-parse`), so a **valid** ref reports a spurious `unknown revision or path`. Discriminator: valid ref + `unknown revision` = suspect MSYS, not a real absence (confirmed on ≥2 agents). Fix: prefix `MSYS_NO_PATHCONV=1` or run via PowerShell.
+- **Code with special shell characters:** use Edit/Write, and run scripts from a file; never use inline heredocs, `sed` or `awk` for it.
+- **0-byte files named after code fragments:** confirm each is empty and untracked, then `rm --` it. Never commit one.
+- **Shared index:** commit with a pathspec (`git commit -m "…" -- <paths>`). Scan `git status --short` **unscoped** before committing, and check `git show --stat HEAD` afterwards. Commits that set the executable bit go through a worktree. Ref §6.
+- **Windows Bash:** MSYS mangles `git show <ref>:<path>`, so prefix the command with `MSYS_NO_PATHCONV=1`.
 
 ## Verify Against the Authoritative Source
 
-Before asserting what a system *is* doing, read the system — not the artifact that describes it. Config, docs, and local state are **descriptions**. They drift, and a description that has drifted reads exactly like one that hasn't.
+Before asserting what a system *is* doing, read the system, not a file that describes it:
+- **Merged state:** read `origin/main`, never the shared checkout.
+- **Infrastructure:** query the registry or cloud API, not the workflow YAML.
+- **Baselines:** check against design intent.
+- **Gate behaviour:** run the failing arm.
 
-Same rule, four surfaces:
-
-- **Merged state** → read `origin/main` (`gh api …/contents?ref=main`, `MSYS_NO_PATHCONV=1 git show origin/main:<path>`), never the shared checkout, which lags behind merges (t/3332).
-- **Infrastructure state** → query the registry or cloud API, not the workflow YAML that populates it. A `:latest` tag reasoned about from `metadata-action` config turned out to exist, be stale, and be the production deploy default (t/3522).
-- **Baselines** → validate against design intent, not recent observation (t/3085).
-- **Gate behaviour** → run the failing arm. A green build proves only the passing one, and silence never discriminates *enforcing* from *inert* (t/3396).
-
-**Discriminator:** if you are about to write "X does Y" and your evidence is a file that *configures* Y, you have not verified it. One query usually settles it.
+If your evidence for "X does Y" is a file that *configures* Y, you haven't verified it.
 
 ## Error Handling Convention
 
-Unrecoverable errors use `New-ActionableError` (PS) / `ActionableError` (TS) with **Goal / Problem / Location / Next Steps**. Never bare `throw "message"`. Prefer recovery over failure. See `docs/error-handling.md`.
-
-**Log every fallback path, and why.** Whenever code takes a fallback / degraded / alternate path instead of the primary one (cache miss → recompute, primary → secondary backend, retry-exhausted → default, ADR-001 graceful-empty, flag-off branch, any catch-and-continue), emit a `WARN` recording **that** the fallback was taken and **why** (the triggering condition + discriminating data). A silent fallback is invisible degradation — every layer reports local success while the aggregate is broken (t/3165). Full rule: **Fallback-Path Logging** in `docs/error-handling.md`.
-
-**Assert against rendered labels, not param names (PS).** `New-ActionableError` renders `-Problem` as `Error:` and `-NextSteps` as `Resolve:` (labels: `Goal:`/`Error:`/`Location:`/`Resolve:`). Assertions on emitted text must match the rendered labels or they spuriously fail (t/2952).
+Unrecoverable errors use `New-ActionableError` (PS) / `ActionableError` (TS) with **Goal / Problem / Location / Next Steps**. Never use a bare `throw "message"`. Prefer recovery over failure. **Log every fallback path with a `WARN` stating that it was taken and why**; a silent fallback is invisible degradation. In PowerShell, assert on the rendered labels (`Goal:`/`Error:`/`Location:`/`Resolve:`). See `docs/error-handling.md`.
 
 ## Token Efficiency
 
@@ -199,29 +133,14 @@ Unrecoverable errors use `New-ActionableError` (PS) / `ActionableError` (TS) wit
 
 ## Incident Response
 
-- **Claim follow-ups before filing.** During a live incident, claim a follow-up on the anchor thread before `create_ticket` — prevents duplicate filings (t/2053+t/2054, t/2061+t/2062).
-- **Claim binds per-instance and to writes, not just filings (t/2945).** Claim per instance/background-job on the anchor **before any shared-tree write** *and* before any filing. The anchor is a visibility point, not a lock; where serialization is required, re-read the anchor after claiming before acting.
-- The Technical Lead coordinates incidents (`/tl-incident-response`); the anchor ticket is the source of truth.
+- **The TL coordinates** (`/tl-incident-response`), and the anchor ticket is the source of truth. Claim a follow-up on the anchor before filing it, and before any shared-tree write.
+- **Every diagnosis files two follow-ups:**
+  - **Observability**: make it diagnosable next time;
+  - **Prevention**: an automated check, test or platform fix, mapped to a failure class in `docs/CodeReview/failure-classes.md`.
 
-### Prevention-per-incident (t/2379)
-
-Every diagnosis files **two** follow-ups: **Observability** (make it diagnosable next time) **and Prevention** (the gate/test/guard that stops recurrence). Map each incident to a failure class (`docs/CodeReview/failure-classes.md`) and file the prevention that closes that class's gap for this surface. Gate-touching prevention tickets route to **Main (TL)** for Gate Verification (both arms proven; no flaky blocking gates; config co-located).
-
-### Second recurrence → baseline validation (t/3085)
-
-When an incident maps to a failure class that has **already recurred**, the diagnosis MUST include a **baseline-validation pass**: state what load/latency/behavior you treat as "normal," then verify it against **design intent** (docs, precomputation assets, original PR/ticket) — not just recent observations. A recurring class whose fixes keep landing at the symptom layer signals the assumed baseline is itself the bug.
-
-### Closing a prevention: name a surviving vector (t/3666)
-
-**Before closing any ticket that claims to prevent a failure class, name one concrete way that class could still occur through ordinary use of the system, without anyone bypassing or removing the mechanism you just built. If you can name one, you closed a *vector*, not the class — say so in the closing note, and file the remainder where it's worth tracking.**
-
-The bound is load-bearing. "Name any way it could still fail" is satisfiable by *a future author deletes the test* — true, useless, and it fires on every close, which trains a reflex sentence and destroys the signal. Restricting it to **ordinary use, mechanism intact** makes it discriminating: it fires on real remainders and stays silent on adversarial or self-inflicted ones.
-
-Why this needs saying at all: *vector* and *class* are indistinguishable at the moment you finish the work. You have just proven the fix, every arm is green, and "this class is closed" is the honest-feeling description. It only becomes visibly wrong when someone finds the next vector. So this is a structural blind spot, not a discipline lapse — which is why the check has to be answerable in the moment rather than a reminder to be careful.
-
-It catches **scope** gaps as well as logic gaps, and scope is the harder case: a mechanism that works correctly everywhere it looks feels closed precisely because nothing fails. The model-literal lint (t/3557) went blocking with both implementations agreeing and zero offenders — and scanned only `.ps1` and `.ts`, so a retired model id in a `.json` config passes untouched (t/3664, found by applying this rule to that ticket's own close-out).
-
-**Enforcement is TL Gate Verification, not a hook.** Gate-touching prevention tickets already route to Main (TL) per the rule above; the surviving-vector question belongs in that review. A Done-transition prompt was considered and rejected — feedback rules cannot filter on ticket type or label, so it would fire on every close including typo fixes and dep bumps, which is the decay this bound exists to avoid.
+  Gate-touching prevention goes to TL Gate Verification.
+- **When a failure class recurs, validate the baseline against design intent.**
+- **Before closing a prevention,** name one way the class could still occur through ordinary use with the mechanism intact. If you can name one, you closed a *vector*, not the class: say so and file the remainder. Ref §7.
 
 ## Ticket Lifecycle
 
