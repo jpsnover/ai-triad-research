@@ -1,0 +1,11 @@
+{
+  "scenario": "soul-missing",
+  "calls": [],
+  "warnings": [],
+  "verbose": [],
+  "error": "\r\n  Goal:     Generate an op-ed in a POV voice\r\n  Error:    Soul document not found for POV 'skeptic': <REPO>/lib/debate/soul-docs/skeptic.soul.json\r\n  Location: New-OpEd\r\n  Resolve:\r\n   1. Confirm lib/debate/soul-docs/skeptic.soul.json exists in the repo\n   2. Run from a full checkout; Soul documents ship with the code repo, not the data repo",
+  "output": null,
+  "prepBriefAfter": "(no SourceBrief property)",
+  "fileCount": 0,
+  "file": null
+}
