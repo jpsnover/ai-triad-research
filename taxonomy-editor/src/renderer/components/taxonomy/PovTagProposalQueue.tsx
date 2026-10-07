@@ -132,6 +132,10 @@ export function PovTagProposalQueue({ pov, initialFile, onClose }: {
           <h2 className="ptp-title">POV tag proposals</h2>
           <button type="button" className="btn btn-ghost" onClick={() => onClose(file)} aria-label="Close">&times;</button>
         </div>
+        {/* t/4083 (PI UAT): an accept records the decision only; pov_tags are written later in one batch (spec t3935 §7 step 4). */}
+        <div className="ptp-note ptp-outcome">
+          Decisions are recorded here, not on the node. Tags are applied to the taxonomy in one batch once every item is reviewed ({all.filter(p => p.status === 'pending').length} pending).
+        </div>
         {!canReview && <div className="ptp-note">Reviews are recorded from the desktop app so they land in the data repo. This list is read-only here.</div>}
         {uncommitted && <div className="ptp-note">Reviews are saved in your local data checkout but not yet committed; step 4 uses data <code>main</code>.</div>}
         {run && <ProvenanceNote state={provenance} />}
@@ -172,6 +176,16 @@ export function PovTagProposalQueue({ pov, initialFile, onClose }: {
   );
 }
 
+/** t/4083 (PI UAT): an accepted or modified decision is saved in the proposals file, not on the node. */
+function RecordedBadge({ status }: { status: PovTagProposal['status'] }) {
+  if (status !== 'accepted' && status !== 'modified') return null;
+  return (
+    <span className="ptp-recorded" title="This decision is saved in the proposals file. The node's POV tags change only when the reviewed batch is applied.">
+      Recorded — not yet applied
+    </span>
+  );
+}
+
 /** One proposal: the node, what was proposed and why, and the decision controls. */
 function ProposalItem({ pov, p, node, registry, run, tagLabel, editing, disabled, message, onEdit, onDecide }: {
   pov: Pov;
@@ -197,6 +211,7 @@ function ProposalItem({ pov, p, node, registry, run, tagLabel, editing, disabled
         <strong>{node?.label ?? '(node not loaded)'}</strong>
         <code>{p.node_id}</code>
         <span className={`ptp-status ptp-status-${p.status}`}>{p.status}</span>
+        <RecordedBadge status={p.status} />
       </div>
       {node?.description && <p className="ptp-desc">{node.description}</p>}
       <div className="ptp-row"><span className="ptp-key">Proposed</span>{chips(p.proposed)}</div>
