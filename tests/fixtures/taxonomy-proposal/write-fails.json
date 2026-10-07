@@ -25,7 +25,9 @@
     "[Gray]    →  Proposal data was generated but NOT saved. Check path and permissions."
   ],
   "warnings": [],
-  "verbose": [],
+  "verbose": [
+    "Performing the operation \"Write taxonomy proposal file\" on target \"<ROOT>/taxonomy/proposals/proposal-20260102-030405.json\"."
+  ],
   "error": "Write refused for taxonomy/proposals/proposal-20260102-030405.json",
   "output": [],
   "calls": [

@@ -114,7 +114,7 @@ $script:Scenarios = @(
     @{ Name = 'missing-proposals-array'; Health = 'rich'; PassHealth = $true; Params = @{ Model = 'gemini-2.5-flash' }; Response = '{"notes":"nothing to propose"}' }
     @{ Name = 'write-fails'; Health = 'rich'; PassHealth = $true; FailWrite = $true
        Params = @{ Model = 'gemini-2.5-flash' }; Response = '{"proposals":[]}' }
-    # Pre-existing defects, pinned as-is (pure-refactor rule); see the follow-up ticket.
+    # Formerly pinned defects, fixed in t/4076 (the names are kept so the goldens' history stays readable).
     @{ Name = 'bug-proposal-missing-pov'; Health = 'rich'; PassHealth = $true
        Params = @{ Model = 'gemini-2.5-flash' }
        Response = '{"proposals":[{"action":"NEW","suggested_id":"x-1","label":"No pov key","category":"Beliefs","rationale":"r"}]}' }
@@ -122,6 +122,17 @@ $script:Scenarios = @(
        Params = @{ Model = 'gemini-2.5-flash' }
        Response = '{"proposals":[{"action":"MERGE","label":"Merge","pov":"skeptic","category":"Beliefs","rationale":"r","merge_node_ids":["skp-b-1","skp-b-2"],"surviving_node_id":"skp-b-1"}]}' }
     @{ Name = 'bug-dictionary-term-missing-field'; Health = 'rich'; PassHealth = $true; Dictionary = 'std-missing-field'
+       Params = @{ Model = 'gemini-2.5-flash'; DryRun = $true } }
+    # t/4076: crash paths no earlier golden reached.
+    @{ Name = 'merge-without-label-with-existing'; Health = 'rich'; PassHealth = $true; Existing = 'rich'; ExistingText = $script:ExistingProposals
+       Params = @{ Model = 'gemini-2.5-flash' }
+       Response = '{"proposals":[{"action":"MERGE","pov":"accelerationist","rationale":"r","merge_node_ids":["acc-d-1","acc-d-9"],"surviving_node_id":"acc-d-1"}]}' }
+    @{ Name = 'proposal-missing-action'; Health = 'rich'; PassHealth = $true
+       Params = @{ Model = 'gemini-2.5-flash' }
+       Response = '{"proposals":[{"label":"No action key","pov":"skeptic","category":"Beliefs","rationale":"r"},{"action":"NEW","suggested_id":"skp-beliefs-903","label":"Kept","pov":"skeptic","category":"Beliefs","rationale":"r"}]}' }
+    # Not named proposals-*: .gitignore ignores proposals-*.json, which would drop the golden.
+    @{ Name = 'null-proposals-key'; Health = 'rich'; PassHealth = $true; Params = @{ Model = 'gemini-2.5-flash' }; Response = '{"proposals":null}' }
+    @{ Name = 'colloquial-term-missing-status'; Health = 'rich'; PassHealth = $true; Dictionary = 'col-missing-status'
        Params = @{ Model = 'gemini-2.5-flash'; DryRun = $true } }
 )
 
@@ -226,6 +237,12 @@ BeforeAll {
             'std-missing-field' {
                 script:Write-FixtureFile (Join-Path $dict 'standardized' 'thin.json') (script:ConvertTo-FixtureJson ([ordered]@{
                             canonical_form = 'thin'; definition = 'No display_form or primary_camp_origin.' }))
+            }
+            'col-missing-status' {
+                script:Write-FixtureFile (Join-Path $dict 'colloquial' 'risk.json') (script:ConvertTo-FixtureJson ([ordered]@{
+                            colloquial_term = 'risk' }))
+                script:Write-FixtureFile (Join-Path $dict 'colloquial' 'safety.json') (script:ConvertTo-FixtureJson ([ordered]@{
+                            colloquial_term = 'safety'; status = 'retired' }))
             }
         }
         switch ($S['HarvestQueue']) {
@@ -454,11 +471,22 @@ Describe 'Invoke-TaxonomyProposal characterization (t/3910)' -Tag 'taxonomy' {
         @{ Name = 'parse-repair';                   Text = 'JSON repaired successfully' }
         @{ Name = 'api-returns-null';               Text = 'AI API call returned null' }
         @{ Name = 'write-fails';                    Text = 'Proposal data was generated but NOT saved' }
-        @{ Name = 'bug-proposal-missing-pov';       Text = "The property 'pov' cannot be found" }
-        @{ Name = 'bug-display-merge-without-suggested-id'; Text = "The property 'suggested_id' cannot be found" }
-        @{ Name = 'bug-dictionary-term-missing-field';      Text = "The property 'display_form' cannot be found" }
-        @{ Name = 'parse-fail-debug-file';          Text = "The variable '`$ProposalObject' cannot be retrieved" }
-        @{ Name = 'missing-proposals-array';        Text = "The property 'proposals' cannot be found" }
+        # t/4076: each formerly-crashing path now completes, rejects or warns.
+        @{ Name = 'bug-proposal-missing-pov';       Text = "rejected: invalid or missing pov ''" }
+        @{ Name = 'bug-display-merge-without-suggested-id'; Text = 'Merging: skp-b-1, skp-b-2' }
+        @{ Name = 'bug-dictionary-term-missing-field';      Text = "Dictionary term 'thin' skipped: missing display_form, primary_camp_origin" }
+        @{ Name = 'colloquial-term-missing-status';         Text = "Dictionary term 'risk' skipped: missing status" }
+        @{ Name = 'parse-fail-debug-file';          Text = 'AI returned invalid JSON for taxonomy proposal, and repair failed' }
+        @{ Name = 'parse-fail-debug-file';          Text = 'Inspect the raw response saved at' }
+        @{ Name = 'missing-proposals-array';        Text = "Response missing 'proposals' array" }
+        @{ Name = 'null-proposals-key';             Text = "Response missing 'proposals' array" }
+        @{ Name = 'proposal-missing-action';        Text = "rejected: invalid or missing action type ''" }
+        @{ Name = 'merge-without-label-with-existing'; Text = '[MERGE] (1)' }
+        @{ Name = 'rich';                           Text = '[REORDER] (1)' }
+        @{ Name = 'rich';                           Text = '[DEPTH_EXPAND] (1)' }
+        @{ Name = 'rich';                           Text = '[WIDTH_EXPAND] (1)' }
+        @{ Name = 'rich';                           Text = 'New parent: acc-b-1' }
+        @{ Name = 'whatif';                         Text = 'Proposal file not written (WhatIf): 1 proposal(s) would go to' }
     ) {
         $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir "$Name.json"))
         $g.Contains(($Text | ConvertTo-Json).Trim('"')) | Should -BeTrue -Because "golden $Name should show: $Text"
@@ -474,8 +502,10 @@ Describe 'Invoke-TaxonomyProposal characterization (t/3910)' -Tag 'taxonomy' {
         @($g.writes) | Should -Be @('out/custom/my-proposal.json')
     }
 
+    # bug-proposal-missing-pov left this list in t/4076: its one proposal is now rejected and the run
+    # writes an empty proposal file, as any all-rejected response does.
     It '<Name> writes nothing and leaves every input file byte-identical' -ForEach @(
-        $script:Scenarios | Where-Object { $_.Name -in 'dryrun', 'err-no-key-claude', 'err-repo-root-missing', 'api-throws', 'api-returns-null', 'bug-proposal-missing-pov' }
+        $script:Scenarios | Where-Object { $_.Name -in 'dryrun', 'err-no-key-claude', 'err-repo-root-missing', 'api-throws', 'api-returns-null', 'whatif' }
     ) {
         $s = $_
         $pristine = script:New-TaxPropFixture $s
@@ -491,12 +521,25 @@ Describe 'Invoke-TaxonomyProposal characterization (t/3910)' -Tag 'taxonomy' {
     }
 
     # Scenarios reach It bodies through -ForEach: $script:Scenarios is set at discovery and is $null at run time.
-    It '<Name> creates nothing on disk, though the write guard is consulted' -ForEach @(
+    # t/4076: -WhatIf now stops at ShouldProcess, before the write guard (it was consulted before).
+    It '<Name> creates nothing on disk and never reaches the write guard' -ForEach @(
         $script:Scenarios | Where-Object { $_.Name -eq 'whatif' }
     ) {
         $null = script:Invoke-Scenario $_
         @(Get-ChildItem -LiteralPath $script:RootFixture -Recurse -Force).Count | Should -Be 0
-        @($script:Writes) | Should -Be @('taxonomy/proposals/proposal-20260102-030405.json')
+        @($script:Writes).Count | Should -Be 0
+    }
+
+    It 'dictionary list fields stay JSON arrays in the prompt (t/4076 item 7)' -ForEach @(
+        $script:Scenarios | Where-Object { $_.Name -eq 'rich' }
+    ) {
+        $null = script:Invoke-Scenario $_
+        $prompt = [string](@($script:Calls | Where-Object { $_.call -eq 'ai' })[0].prompt)
+        $prompt | Should -Match '"used_by_nodes":\["saf-b-1"\]'
+        $prompt | Should -Match '"used_by_nodes":\[\]'
+        $prompt | Should -Match '"resolves_to":\["a_term \(safetyist\)"\]'
+        $prompt | Should -Match '"resolves_to":\[\]'
+        $prompt | Should -Not -Match '"used_by_nodes":(null|")'
     }
 
     It '-DryRun resolves no API key and calls no AI (<Name>)' -ForEach @(

@@ -1,5 +1,5 @@
 {
-  "scenario": "bug-display-merge-without-suggested-id",
+  "scenario": "proposal-missing-action",
   "host": [
     "[Cyan] \n▶  Validating environment",
     "[Green]    ✓  Model       : gemini-2.5-flash",
@@ -18,6 +18,8 @@
     "[Green]    ✓  Response received from mock-backend in 0s",
     "[Cyan] \n▶  Parsing AI response",
     "[Green]    ✓  Valid JSON received",
+    "[Yellow]    ⚠  Proposal 'No action key' () rejected: invalid or missing action type ''",
+    "[Yellow]    ⚠  1 proposal(s) rejected by schema validation",
     "[Green]    ✓  1 proposal(s) after validation",
     "[Cyan] \n▶  Writing proposal file",
     "[Green]    ✓  Proposal written to: <ROOT>/taxonomy/proposals/proposal-20260102-030405.json",
@@ -25,11 +27,10 @@
     "[White]   TAXONOMY PROPOSALS",
     "[Gray]   Model: gemini-2.5-flash  |  Taxonomy v9.9.9  |  1 proposal(s)",
     "[Cyan] ════════════════════════════════════════════════════════════════════════",
-    "[Yellow] \n  [MERGE] (1)",
-    "[White]      Merge",
+    "[Green] \n  [NEW] (1)",
+    "[White]     [skp-beliefs-903] Kept",
     "[Gray]       POV: skeptic  |  Category: Beliefs",
     "[DarkGray]       Rationale: r",
-    "[Gray]       Merging: skp-b-1, skp-b-2 → skp-b-1",
     "[Cyan] \n════════════════════════════════════════════════════════════════════════",
     "[Green]   Output: <ROOT>/taxonomy/proposals/proposal-20260102-030405.json",
     "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
@@ -71,6 +72,6 @@
   "tree": {
     "taxonomy/": "(dir)",
     "taxonomy/proposals/": "(dir)",
-    "taxonomy/proposals/proposal-20260102-030405.json": "{\n  \"generated_at\": \"2026-01-02T03:04:05Z\",\n  \"model\": \"gemini-2.5-flash\",\n  \"taxonomy_version\": \"9.9.9\",\n  \"summary_count\": 42,\n  \"proposals\": [\n    {\n      \"action\": \"MERGE\",\n      \"label\": \"Merge\",\n      \"pov\": \"skeptic\",\n      \"category\": \"Beliefs\",\n      \"rationale\": \"r\",\n      \"merge_node_ids\": [\n        \"skp-b-1\",\n        \"skp-b-2\"\n      ],\n      \"surviving_node_id\": \"skp-b-1\"\n    }\n  ]\n}\n"
+    "taxonomy/proposals/proposal-20260102-030405.json": "{\n  \"generated_at\": \"2026-01-02T03:04:05Z\",\n  \"model\": \"gemini-2.5-flash\",\n  \"taxonomy_version\": \"9.9.9\",\n  \"summary_count\": 42,\n  \"proposals\": [\n    {\n      \"action\": \"NEW\",\n      \"suggested_id\": \"skp-beliefs-903\",\n      \"label\": \"Kept\",\n      \"pov\": \"skeptic\",\n      \"category\": \"Beliefs\",\n      \"rationale\": \"r\"\n    }\n  ]\n}\n"
   }
 }

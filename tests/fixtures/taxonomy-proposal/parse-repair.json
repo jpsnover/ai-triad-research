@@ -35,7 +35,9 @@
     "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
   ],
   "warnings": [],
-  "verbose": [],
+  "verbose": [
+    "Performing the operation \"Write taxonomy proposal file\" on target \"<ROOT>/taxonomy/proposals/proposal-20260102-030405.json\"."
+  ],
   "error": null,
   "output": [],
   "calls": [

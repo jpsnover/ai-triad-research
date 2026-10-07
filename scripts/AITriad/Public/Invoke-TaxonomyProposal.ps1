@@ -64,8 +64,8 @@ function Invoke-TaxonomyProposal {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    # Each step lives in Private/InvokeTaxonomyProposalSteps.ps1 (t/3910). Behaviour, defects included,
-    # is pinned by tests/Invoke-TaxonomyProposal.Characterization.Tests.ps1.
+    # Each step lives in Private/InvokeTaxonomyProposalSteps.ps1 (t/3910). Behaviour is pinned by
+    # tests/Invoke-TaxonomyProposal.Characterization.Tests.ps1.
 
     # ── 1. Validate environment ────────────────────────────────────────────────
     Write-Step "Validating environment"
@@ -151,6 +151,13 @@ function Invoke-TaxonomyProposal {
     Write-OK "$ProposalCount proposal(s) after validation"
 
     # ── 9–10. Write the proposal file and print the summary ───────────────────
+    # One ShouldProcess gate over the write step (t/4076 item 6): under -WhatIf nothing is written,
+    # no directory is created, and nothing reports a write that didn't happen.
+    $OutputFile = Resolve-TaxonomyProposalOutputPath -RepoRoot $RepoRoot -OutputFile $OutputFile
+    if (-not $PSCmdlet.ShouldProcess($OutputFile, 'Write taxonomy proposal file')) {
+        Write-Info "Proposal file not written (WhatIf): $ProposalCount proposal(s) would go to $OutputFile"
+        return
+    }
     $OutputFile = Save-TaxonomyProposalFile -RepoRoot $RepoRoot -OutputFile $OutputFile -Model $Model -HealthData $HealthData -Proposals $ProposalObject.proposals
     Show-TaxonomyProposalSummary -Proposals $ProposalObject.proposals -Model $Model -HealthData $HealthData -ProposalCount $ProposalCount -OutputFile $OutputFile
 }

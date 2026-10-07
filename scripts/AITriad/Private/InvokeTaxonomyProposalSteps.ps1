@@ -2,13 +2,15 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Steps of Invoke-TaxonomyProposal (t/3910 complexity refactor). Behaviour is pinned by
-# tests/Invoke-TaxonomyProposal.Characterization.Tests.ps1, defects included (t/4076). These
-# helpers run under the caller's Set-StrictMode -Version Latest and $ErrorActionPreference = 'Stop'
-# (dynamic scope), so an unguarded read of a model-supplied field throws exactly as it did inline.
+# tests/Invoke-TaxonomyProposal.Characterization.Tests.ps1. These helpers run under the caller's
+# Set-StrictMode -Version Latest and $ErrorActionPreference = 'Stop' (dynamic scope), so every
+# model-supplied or dictionary-supplied field is read through Get-TaxonomyProposalValue (t/4076):
+# a direct read of a key the model omitted throws under StrictMode.
 # Collections that must keep their exact shape (empty, or a single element) are returned with the
 # unary comma so the pipeline doesn't unroll them.
 
-# Model prefix -> backend, checked in order; anything else falls back to gemini.
+# Model prefix -> backend, checked in order; anything else falls back to gemini. The openai entry is
+# reachable: ai-models.json registers openai-* models (e.g. openai-gpt-4-0613), so keep it (t/4076 item 9).
 $script:TaxonomyProposalBackends = @(
     @{ Pattern = '^gemini'; Backend = 'gemini' }
     @{ Pattern = '^claude'; Backend = 'claude' }
@@ -35,8 +37,22 @@ $script:TaxonomyProposalActionRules = @{
     'WIDTH_EXPAND' = @(@{ Field = 'suggested_id'; Kind = 'NonBlank'; Message = 'WIDTH_EXPAND requires suggested_id' })
 }
 
-# Console summary: the action groups shown, in order, with their colours.
-$script:TaxonomyProposalDisplayColors = [ordered]@{ NEW = 'Green'; SPLIT = 'Cyan'; MERGE = 'Yellow'; RELABEL = 'Magenta' }
+# Console summary: the action groups shown, in order, with their colours. Every action the validator
+# accepts is listed, so nothing written to the proposal file is left out of the summary (t/4076 item 8).
+$script:TaxonomyProposalDisplayColors = [ordered]@{
+    NEW = 'Green'; SPLIT = 'Cyan'; MERGE = 'Yellow'; RELABEL = 'Magenta'
+    REORDER = 'Blue'; DEPTH_EXPAND = 'DarkCyan'; WIDTH_EXPAND = 'DarkGreen'
+}
+
+# A field of a model- or dictionary-supplied object, or nothing when the key is absent (t/4076).
+# Reading $Obj.<name> directly throws under the caller's StrictMode when the key was omitted.
+# Emits no value (not $null) for an absent key, so @(Get-TaxonomyProposalValue ...) is an empty array.
+function Get-TaxonomyProposalValue {
+    param($Obj, [string]$Name)
+    if ($null -eq $Obj -or $Obj -isnot [System.Management.Automation.PSCustomObject]) { return }
+    if (-not $Obj.PSObject.Properties[$Name]) { return }
+    $Obj.$Name
+}
 
 # ── 1. Environment ────────────────────────────────────────────────────────────
 
@@ -133,30 +149,43 @@ function Get-TaxonomyProposalCitationStatistic {
 
 # ── 3b. Vocabulary ────────────────────────────────────────────────────────────
 
+# True when the term has every required key. Otherwise warns, naming the term, the missing keys and
+# the file, and returns $false so the caller skips it instead of crashing the run (t/4076 item 3).
+function Test-TaxonomyProposalTermComplete {
+    param($T, [string[]]$Required, [string]$NameKey, [string]$Path)
+    $Missing = @($Required | Where-Object { $null -eq $T -or -not $T.PSObject.Properties[$_] })
+    if ($Missing.Count -eq 0) { return $true }
+    $Name = Get-TaxonomyProposalValue $T $NameKey
+    if (-not $Name) { $Name = [System.IO.Path]::GetFileNameWithoutExtension($Path) }
+    Write-Warning "Dictionary term '$Name' skipped: missing $($Missing -join ', ') ($Path). Fix the term file to include it in the prompt vocabulary."
+    $false
+}
+
+# The list fields are wrapped in @(...) so a one-element list stays an array and an absent one is []
+# in the prompt JSON, not a bare string or null (t/4076 item 7).
 function ConvertTo-TaxonomyProposalStandardizedTerm {
     param([string]$Path)
     $T = Get-Content $Path -Raw | ConvertFrom-Json
+    $Required = 'canonical_form', 'display_form', 'definition', 'primary_camp_origin'
+    if (-not (Test-TaxonomyProposalTermComplete -T $T -Required $Required -NameKey 'canonical_form' -Path $Path)) { return }
     @{
         canonical_form    = $T.canonical_form
         display_form      = $T.display_form
         definition        = $T.definition
         primary_camp      = $T.primary_camp_origin
-        used_by_nodes     = if ($T.PSObject.Properties['used_by_nodes']) { @($T.used_by_nodes) } else { @() }
-        do_not_confuse    = if ($T.PSObject.Properties['do_not_confuse_with']) {
-            @($T.do_not_confuse_with | ForEach-Object { "$($_.term): $($_.note)" })
-        } else { @() }
+        used_by_nodes     = @(Get-TaxonomyProposalValue $T 'used_by_nodes')
+        do_not_confuse    = @(Get-TaxonomyProposalValue $T 'do_not_confuse_with' | ForEach-Object { "$($_.term): $($_.note)" })
     }
 }
 
 function ConvertTo-TaxonomyProposalColloquialTerm {
     param([string]$Path)
     $T = Get-Content $Path -Raw | ConvertFrom-Json
+    if (-not (Test-TaxonomyProposalTermComplete -T $T -Required 'colloquial_term', 'status' -NameKey 'colloquial_term' -Path $Path)) { return }
     @{
         colloquial_term = $T.colloquial_term
         status          = $T.status
-        resolves_to     = if ($T.PSObject.Properties['resolves_to']) {
-            @($T.resolves_to | ForEach-Object { "$($_.standardized_term) ($($_.default_for_camp))" })
-        } else { @() }
+        resolves_to     = @(Get-TaxonomyProposalValue $T 'resolves_to' | ForEach-Object { "$($_.standardized_term) ($($_.default_for_camp))" })
     }
 }
 
@@ -312,13 +341,13 @@ function Invoke-TaxonomyProposalAI {
     $AiResult
 }
 
-# Parses the response, repairing truncated JSON. Pinned defect (t/4076 item 4): when the repair yields
-# nothing, $ProposalObject is never assigned, so the null check throws an unset-variable error before
-# the debug file can be saved. $ProposalObject must not be assigned anywhere above the catch.
+# Parses the response, repairing truncated JSON. When neither the response nor its repair parses, the
+# raw response is saved to a debug file and an ActionableError names the parse failure (t/4076 item 4).
 function ConvertFrom-TaxonomyProposalResponse {
     param($AiResult, [string]$RepoRoot)
     Write-Step "Parsing AI response"
 
+    $ProposalObject = $null
     $RawText     = $AiResult.Text
     $CleanedText = $RawText -replace '(?s)^```json\s*', '' -replace '(?s)\s*```$', ''
     $CleanedText = $CleanedText.Trim()
@@ -328,6 +357,7 @@ function ConvertFrom-TaxonomyProposalResponse {
         Write-OK "Valid JSON received"
     }
     catch {
+        $ParseError = $_.Exception.Message
         Write-Warn "JSON parse failed — attempting repair"
         $Repaired = Repair-TruncatedJson -Text $RawText
         if ($Repaired) {
@@ -340,57 +370,70 @@ function ConvertFrom-TaxonomyProposalResponse {
             }
         }
         if ($null -eq $ProposalObject) {
-            Save-TaxonomyProposalDebugFile -RepoRoot $RepoRoot -RawText $RawText
+            Save-TaxonomyProposalDebugFile -RepoRoot $RepoRoot -RawText $RawText -ParseError $ParseError
         }
     }
+    Resolve-TaxonomyProposalObject -ProposalObject $ProposalObject
+}
 
-    # Validate presence of proposals array
-    if (-not $ProposalObject.proposals) {
-        Write-Warn "Response missing 'proposals' array — may be empty or malformed"
-        $ProposalObject | Add-Member -NotePropertyName 'proposals' -NotePropertyValue @() -ErrorAction SilentlyContinue
+# The parsed response with a proposals array. A response that isn't a JSON object, or has no (or an
+# empty or null) 'proposals' key, takes the WARN + empty-list path instead of throwing (t/4076 item 5).
+function Resolve-TaxonomyProposalObject {
+    param($ProposalObject)
+    $Missing = "Response missing 'proposals' array — may be empty or malformed"
+    if ($ProposalObject -isnot [System.Management.Automation.PSCustomObject]) {
+        Write-Warn $Missing
+        return [pscustomobject]@{ proposals = @() }
+    }
+    if (-not $ProposalObject.PSObject.Properties['proposals']) {
+        Write-Warn $Missing
+        $ProposalObject | Add-Member -NotePropertyName 'proposals' -NotePropertyValue @()
+    }
+    elseif (-not $ProposalObject.proposals) {
+        Write-Warn $Missing
+        $ProposalObject.proposals = @()
     }
     $ProposalObject
 }
 
 function Save-TaxonomyProposalDebugFile {
-    param([string]$RepoRoot, [string]$RawText)
+    param([string]$RepoRoot, [string]$RawText, [string]$ParseError)
     $DebugPath = Join-Path (Join-Path (Join-Path $RepoRoot 'taxonomy') 'proposals') "proposal-debug-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
     $ProposalsDir = Join-Path (Join-Path $RepoRoot 'taxonomy') 'proposals'
     if (-not (Test-Path $ProposalsDir)) { New-Item -ItemType Directory -Path $ProposalsDir -Force | Out-Null }
     Write-Utf8NoBom -Path $DebugPath -Value $RawText
     Write-Fail "AI returned invalid JSON. Raw response saved: $DebugPath"
-    throw "AI returned invalid JSON for taxonomy proposal"
+    throw (New-ActionableError -PassThru `
+        -Goal 'Parse the AI taxonomy proposal response' `
+        -Problem "AI returned invalid JSON for taxonomy proposal, and repair failed: $ParseError" `
+        -Location 'Invoke-TaxonomyProposal (ConvertFrom-TaxonomyProposalResponse)' `
+        -NextSteps @("Inspect the raw response saved at $DebugPath", 'Re-run; if it recurs, try another -Model or a lower -Temperature'))
 }
 
 # ── Gap 9.1: schema validation per proposal type ──────────────────────────────
 
-# The base checks every proposal gets. Pinned defect (t/4076 item 1): the messages interpolate
-# $P.action, $P.pov and $P.category unguarded, so a proposal missing one of them throws.
+# The base checks every proposal gets. Every field is read through Get-TaxonomyProposalValue, so a
+# proposal missing a key is rejected with a message naming it, instead of aborting the run (t/4076 item 1).
 function Get-TaxonomyProposalBaseError {
     param($P, [string]$ActionType)
     $Errors = [System.Collections.Generic.List[string]]::new()
+    $Pov      = Get-TaxonomyProposalValue $P 'pov'
+    $Category = Get-TaxonomyProposalValue $P 'category'
+    $LabelOptional = $ActionType -in @('MERGE','REORDER')
 
     if (-not $ActionType -or $ActionType -notin @('NEW','SPLIT','MERGE','RELABEL','REORDER','DEPTH_EXPAND','WIDTH_EXPAND')) {
-        $Errors.Add("invalid or missing action type '$($P.action)'")
+        $Errors.Add("invalid or missing action type '$(Get-TaxonomyProposalValue $P 'action')'")
     }
-
-    if (-not $P.PSObject.Properties['pov'] -or $P.pov -notin @('accelerationist','safetyist','skeptic','situations')) {
-        $Errors.Add("invalid or missing pov '$($P.pov)'")
+    if ($Pov -notin @('accelerationist','safetyist','skeptic','situations')) {
+        $Errors.Add("invalid or missing pov '$Pov'")
     }
-
-    if ($P.pov -ne 'situations' -and (-not $P.PSObject.Properties['category'] -or $P.category -notin @('Desires','Beliefs','Intentions'))) {
-        if ($ActionType -notin @('MERGE','REORDER')) {
-            $Errors.Add("invalid or missing category '$($P.category)' for non-situations node")
-        }
+    if ($Pov -ne 'situations' -and $Category -notin @('Desires','Beliefs','Intentions') -and -not $LabelOptional) {
+        $Errors.Add("invalid or missing category '$Category' for non-situations node")
     }
-
-    if (-not $P.PSObject.Properties['label'] -or [string]::IsNullOrWhiteSpace($P.label)) {
-        if ($ActionType -notin @('MERGE','REORDER')) {
-            $Errors.Add("missing label")
-        }
+    if ([string]::IsNullOrWhiteSpace([string](Get-TaxonomyProposalValue $P 'label')) -and -not $LabelOptional) {
+        $Errors.Add("missing label")
     }
-
-    if (-not $P.PSObject.Properties['rationale'] -or [string]::IsNullOrWhiteSpace($P.rationale)) {
+    if ([string]::IsNullOrWhiteSpace([string](Get-TaxonomyProposalValue $P 'rationale'))) {
         $Errors.Add("missing rationale")
     }
     , $Errors
@@ -398,9 +441,23 @@ function Get-TaxonomyProposalBaseError {
 
 function Test-TaxonomyProposalRule {
     param($P, [hashtable]$Rule)
-    if (-not $P.PSObject.Properties[$Rule.Field]) { return $false }
+    if ($null -eq $P -or -not $P.PSObject.Properties[$Rule.Field]) { return $false }
     if ($Rule.Kind -eq 'MinCount') { return (@($P.($Rule.Field)).Count -ge 2) }
     -not [string]::IsNullOrWhiteSpace($P.($Rule.Field))
+}
+
+# The upper-cased action of a proposal, or $null when it has none.
+function Get-TaxonomyProposalActionType {
+    param($P)
+    $Action = [string](Get-TaxonomyProposalValue $P 'action')
+    if ($Action) { $Action.ToUpperInvariant() } else { $null }
+}
+
+# Up to 40 characters of a proposal's label, or '(no label)'.
+function Get-TaxonomyProposalShortLabel {
+    param($P)
+    $Label = [string](Get-TaxonomyProposalValue $P 'label')
+    if ($Label) { $Label.Substring(0, [Math]::Min(40, $Label.Length)) } else { '(no label)' }
 }
 
 # All schema errors for one proposal: the base checks, then the action's own rules.
@@ -420,10 +477,10 @@ function Select-ValidTaxonomyProposal {
     param([object[]]$Proposals)
     $ValidatedProposals = [System.Collections.Generic.List[object]]::new()
     foreach ($P in $Proposals) {
-        $ActionType = if ($P.PSObject.Properties['action']) { $P.action.ToUpperInvariant() } else { $null }
+        $ActionType = Get-TaxonomyProposalActionType $P
         $Errors = Get-TaxonomyProposalError -P $P -ActionType $ActionType
 
-        $PLabel = if ($P.PSObject.Properties['label'] -and $P.label) { $P.label.Substring(0, [Math]::Min(40, $P.label.Length)) } else { '(no label)' }
+        $PLabel = Get-TaxonomyProposalShortLabel $P
         if ($Errors.Count -gt 0) {
             Write-Warn "Proposal '$PLabel' ($ActionType) rejected: $($Errors -join '; ')"
         } else {
@@ -482,11 +539,11 @@ function Test-NewTaxonomyProposalDuplicate {
     }
     if (-not ($P.PSObject.Properties['label'] -and $Existing.PSObject.Properties['label'])) { return $false }
     $NewWords = [System.Collections.Generic.HashSet[string]]::new(
-        [string[]]($P.label.ToLowerInvariant() -split '\s+'),
+        [string[]](([string]$P.label).ToLowerInvariant() -split '\s+'),
         [System.StringComparer]::OrdinalIgnoreCase
     )
     $ExWords = [System.Collections.Generic.HashSet[string]]::new(
-        [string[]]($Existing.label.ToLowerInvariant() -split '\s+'),
+        [string[]](([string]$Existing.label).ToLowerInvariant() -split '\s+'),
         [System.StringComparer]::OrdinalIgnoreCase
     )
     Test-TaxonomyProposalSetOverlap -A $NewWords -B $ExWords -Threshold 0.7
@@ -503,7 +560,7 @@ function Test-TargetTaxonomyProposalDuplicate {
 function Test-TaxonomyProposalDuplicate {
     param($P, [string]$ActionType, [System.Collections.Generic.List[object]]$ExistingProposals)
     foreach ($Existing in $ExistingProposals) {
-        $ExAction = if ($Existing.PSObject.Properties['action']) { $Existing.action.ToUpperInvariant() } else { '' }
+        $ExAction = [string](Get-TaxonomyProposalActionType $Existing)
         if ($ExAction -ne $ActionType) { continue }
         $IsDup = switch ($ActionType) {
             'MERGE'   { Test-MergeTaxonomyProposalDuplicate -P $P -Existing $Existing }
@@ -523,10 +580,11 @@ function Select-NonDuplicateTaxonomyProposal {
     if ($ExistingProposals.Count -eq 0) { return , $ValidatedProposals }
     $DedupedProposals = [System.Collections.Generic.List[object]]::new()
     foreach ($P in $ValidatedProposals) {
-        $ActionType = $P.action.ToUpperInvariant()
+        $ActionType = Get-TaxonomyProposalActionType $P
         $IsDup = Test-TaxonomyProposalDuplicate -P $P -ActionType $ActionType -ExistingProposals $ExistingProposals
 
-        $PLabel = if ($P.label) { $P.label.Substring(0, [Math]::Min(40, $P.label.Length)) } else { '(no label)' }
+        # A label-less MERGE or REORDER is valid; reading $P.label directly threw here (t/4076 item 2).
+        $PLabel = Get-TaxonomyProposalShortLabel $P
         if ($IsDup) {
             Write-Warn "Duplicate proposal skipped: [$ActionType] $PLabel"
         } else {
@@ -543,7 +601,15 @@ function Select-NonDuplicateTaxonomyProposal {
 
 # ── 9. Write proposal file ────────────────────────────────────────────────────
 
-# Writes the proposal file and returns its path.
+# The proposal file's path: -OutputFile, or taxonomy/proposals/proposal-<timestamp>.json.
+function Resolve-TaxonomyProposalOutputPath {
+    param([string]$RepoRoot, [string]$OutputFile)
+    if ($OutputFile) { return $OutputFile }
+    $ProposalsDir = Join-Path (Join-Path $RepoRoot 'taxonomy') 'proposals'
+    Join-Path $ProposalsDir "proposal-$(Get-Date -Format 'yyyyMMdd-HHmmss').json"
+}
+
+# Writes the proposal file to $OutputFile (already resolved) and returns its path.
 function Save-TaxonomyProposalFile {
     param([string]$RepoRoot, [string]$OutputFile, [string]$Model, [hashtable]$HealthData, $Proposals)
     Write-Step "Writing proposal file"
@@ -551,11 +617,6 @@ function Save-TaxonomyProposalFile {
     $ProposalsDir = Join-Path (Join-Path $RepoRoot 'taxonomy') 'proposals'
     if (-not (Test-Path $ProposalsDir)) {
         New-Item -ItemType Directory -Path $ProposalsDir -Force | Out-Null
-    }
-
-    $Timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    if (-not $OutputFile) {
-        $OutputFile = Join-Path $ProposalsDir "proposal-$Timestamp.json"
     }
 
     # Enrich with metadata
@@ -582,29 +643,35 @@ function Save-TaxonomyProposalFile {
 
 # ── 10. Human-readable summary ────────────────────────────────────────────────
 
-# One proposal in the console summary. Pinned defect (t/4076 item 2): suggested_id, target_node_id,
-# label and category are read unguarded, so a proposal without one of them throws here.
+# One proposal in the console summary. Optional fields (suggested_id for MERGE/SPLIT/RELABEL,
+# target_node_id for MERGE, label for MERGE/REORDER) are read through Get-TaxonomyProposalValue and
+# simply omitted when absent (t/4076 item 2).
 function Write-TaxonomyProposalSummaryEntry {
     param($P)
-    if ($P.suggested_id) { $IdStr = "[$($P.suggested_id)]" } else { $IdStr = '' }
-    if ($P.target_node_id) { $TargetStr = " (target: $($P.target_node_id))" } else { $TargetStr = '' }
-    Write-Host "    $IdStr $($P.label)$TargetStr" -ForegroundColor White
-    Write-Host "      POV: $($P.pov)  |  Category: $($P.category)" -ForegroundColor Gray
-    if ($P.rationale) {
-        if ($P.rationale.Length -gt 120) {
-            $RatSnippet = $P.rationale.Substring(0, 120) + '...'
-        } else { $RatSnippet = $P.rationale }
+    $SuggestedId = Get-TaxonomyProposalValue $P 'suggested_id'
+    $TargetId    = Get-TaxonomyProposalValue $P 'target_node_id'
+    $Rationale   = [string](Get-TaxonomyProposalValue $P 'rationale')
+    $IdStr     = if ($SuggestedId) { "[$SuggestedId]" } else { '' }
+    $TargetStr = if ($TargetId) { " (target: $TargetId)" } else { '' }
+    Write-Host "    $IdStr $(Get-TaxonomyProposalValue $P 'label')$TargetStr" -ForegroundColor White
+    Write-Host "      POV: $(Get-TaxonomyProposalValue $P 'pov')  |  Category: $(Get-TaxonomyProposalValue $P 'category')" -ForegroundColor Gray
+    if ($Rationale) {
+        $RatSnippet = if ($Rationale.Length -gt 120) { $Rationale.Substring(0, 120) + '...' } else { $Rationale }
         Write-Host "      Rationale: $RatSnippet" -ForegroundColor DarkGray
     }
-    if ($P.PSObject.Properties['children'] -and $null -ne $P.children -and @($P.children).Count -gt 0) {
+    $Children = @(Get-TaxonomyProposalValue $P 'children' | Where-Object { $null -ne $_ })
+    if ($Children.Count -gt 0) {
         Write-Host "      Children:" -ForegroundColor Gray
-        foreach ($Child in $P.children) {
-            Write-Host "        [$($Child.suggested_id)] $($Child.label)" -ForegroundColor Gray
+        foreach ($Child in $Children) {
+            Write-Host "        [$(Get-TaxonomyProposalValue $Child 'suggested_id')] $(Get-TaxonomyProposalValue $Child 'label')" -ForegroundColor Gray
         }
     }
-    if ($P.PSObject.Properties['merge_node_ids'] -and $null -ne $P.merge_node_ids -and @($P.merge_node_ids).Count -gt 0) {
-        Write-Host "      Merging: $($P.merge_node_ids -join ', ') → $($P.surviving_node_id)" -ForegroundColor Gray
+    $MergeIds = @(Get-TaxonomyProposalValue $P 'merge_node_ids' | Where-Object { $null -ne $_ })
+    if ($MergeIds.Count -gt 0) {
+        Write-Host "      Merging: $($MergeIds -join ', ') → $(Get-TaxonomyProposalValue $P 'surviving_node_id')" -ForegroundColor Gray
     }
+    $NewParent = Get-TaxonomyProposalValue $P 'new_parent_id'
+    if ($NewParent) { Write-Host "      New parent: $NewParent" -ForegroundColor Gray }
 }
 
 function Show-TaxonomyProposalSummary {
@@ -615,12 +682,16 @@ function Show-TaxonomyProposalSummary {
     Write-Host "$('═' * 72)" -ForegroundColor Cyan
 
     foreach ($Action in $script:TaxonomyProposalDisplayColors.Keys) {
-        $Group = @($Proposals | Where-Object { $_.action -eq $Action })
+        $Group = @($Proposals | Where-Object { (Get-TaxonomyProposalActionType $_) -eq $Action })
         if ($Group.Count -eq 0) { continue }
 
         Write-Host "`n  [$Action] ($($Group.Count))" -ForegroundColor $script:TaxonomyProposalDisplayColors[$Action]
 
-        foreach ($P in $Group) { Write-TaxonomyProposalSummaryEntry -P $P }
+        # The proposal file is already written, so a display failure must not fail the run (t/4076 item 2).
+        foreach ($P in $Group) {
+            try { Write-TaxonomyProposalSummaryEntry -P $P }
+            catch { Write-Warning "Console summary: a [$Action] proposal could not be displayed ($($_.Exception.Message)); it is in the written proposal file $OutputFile." }
+        }
     }
 
     Write-Host "`n$('═' * 72)" -ForegroundColor Cyan
