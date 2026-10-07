@@ -27,6 +27,7 @@ import type { RunControlRecord, VoiceState } from '../storage/opedRunStore.js';
 import { log } from '../logger.js';
 import { listOpedSets, loadOpedSet, deleteOpedSet, getOpedSetsQuotaStatus, finalizeOpedSet } from '../storage/opedStore.js';
 import type { OpEdSet, OpEdMember, OpEdParams, PovKey } from '../../../../lib/oped/types.js';
+import { parseOpEdRequest } from '../../../../lib/oped/schemas.js';
 import type { GenerateOpEdRequest, OpEdGeneratorDeps, OpEdProgressEvent } from '../../../../lib/oped/generate.js';
 import { getStorageUserId, isAnonymousUser } from '../security/userContext.js';
 import { checkRate } from '../security/rateLimiter.js';
@@ -233,6 +234,16 @@ export function registerOpedRoutes(r: Router, _ctx: ServerCtx): void {
     // pinned to a registered model, so this only rejects a caller-chosen unregistered id.
     if (!isRegisteredModel(model)) { error(res, `Model '${model}' is not available — choose another model in Settings.`, 400); return; }
     if (enforceBackendAllowed(res, tier, backend)) return;
+    // t/3993: validate tagSelection at the server boundary — unknown tag → 400 before SSE commits.
+    try { parseOpEdRequest(body); } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'oped', level: 'warn',
+        message: 'Op-ed generate request rejected: invalid tagSelection',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      error(res, err instanceof ActionableError ? err.problem : clientSafeMessage(String(err)), 400);
+      return;
+    }
 
     const userId = getStorageUserId();
     const quota = await getOpedSetsQuotaStatus();
