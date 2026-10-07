@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { StateCreator } from 'zustand';
+import { setLiveModelRegistry } from '../../useDebateStore/shared/sessionFingerprint';
 import type { TaxonomyStore } from '../types';
 import { api } from '@bridge';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
+import type { ModelRegistry } from '@lib/ai-client/registry';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { reportRetiredModel } from '../../../utils/retiredModelNotice';
 import { applyThemeToRoot, getStoredTheme, THEME_STORAGE_KEY } from '../../../utils/theme';
@@ -213,6 +215,7 @@ export async function initAIModels(): Promise<void> {
     if (config.debateTiers) {
       DEBATE_TIERS = config.debateTiers;
     }
+    setLiveModelRegistry(config as unknown as ModelRegistry); // t/4044: debate fingerprints use the live registry
 
     if (config.fallbackChains) {
       FALLBACK_CHAINS = config.fallbackChains;
