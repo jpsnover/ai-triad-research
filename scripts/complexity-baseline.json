@@ -618,10 +618,6 @@
     "max": 53,
     "countOver": 1
   },
-  "AITriad/Public/New-OpEd.ps1": {
-    "max": 130,
-    "countOver": 1
-  },
   "AITriad/Public/New-SyntheticCorpus.ps1": {
     "max": 92,
     "countOver": 1
