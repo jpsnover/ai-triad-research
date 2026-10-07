@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "registry_version": 1,
+  "run": {
+    "ticket": "t/4036",
+    "model": "gemini-3.8-flash",
+    "prompt_version": "v1",
+    "created_at": "2026-10-07T01:56:28+00:00",
+    "scope": "ids skp-beliefs-315,skp-beliefs-316,skp-beliefs-317,skp-beliefs-318,skp-desires-093",
+    "failures": []
+  },
+  "proposals": [
+    {
+      "node_id": "skp-beliefs-315",
+      "proposed": [
+        "critical",
+        "institutional"
+      ],
+      "confidence": 0.85,
+      "rationale": "The observation that single-state mandates face binding constraints from cross-border arbitrage and workload relocation is a pragmatic governance reality recognized across both skeptic wings, without taking a definitive side on cruxes C1–C6.",
+      "crux": null,
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-316",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.85,
+      "rationale": "The node locates the primary danger of state halt mechanisms in structural power dynamics and coercion against labor organizers and dissidents, aligning with the critical wing's analysis of harm stemming from ownership and power.",
+      "crux": "C3",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-317",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "By focusing on operational gaps in certification cadences and telemetry rather than broad structural capture or refusal, the node analyzes how oversight institutions must be technically and procedurally adapted to govern deployed systems.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-desires-093",
+      "proposed": [
+        "critical"
+      ],
+      "confidence": 0.9,
+      "rationale": "The proposal calls for outright refusal and legal prohibition of automation across entire social domains to protect labor, aligning with the critical wing's stance on refusal rather than institutional diffusion with guardrails.",
+      "crux": "C4",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    },
+    {
+      "node_id": "skp-beliefs-318",
+      "proposed": [
+        "institutional"
+      ],
+      "confidence": 0.8,
+      "rationale": "The node focuses on sector-by-sector administrative law mechanics (such as Section 1071 rules, statutory backstop dates, and filing duties) to prevent regulatory delay, exemplifying the institutional wing's approach to adapting existing regulatory frameworks.",
+      "crux": "C2",
+      "status": "pending",
+      "final": null,
+      "reviewed_by": null,
+      "reviewed_at": null
+    }
+  ]
+}

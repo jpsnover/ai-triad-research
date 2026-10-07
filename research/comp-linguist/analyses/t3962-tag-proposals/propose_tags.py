@@ -47,6 +47,8 @@ def main():
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--sample", type=int)
     g.add_argument("--all", action="store_true")
+    g.add_argument("--ids", help="comma-separated node ids (t/4036: nodes added after the full run)")
+    ap.add_argument("--ticket", default="t/3962", help="ticket recorded in run.ticket")
     ap.add_argument("--model", default="gemini-3.8-flash")
     ap.add_argument("--seed", type=int, default=3962)
     ap.add_argument("--out", default=os.path.join(HERE, "out", "pov-tag-proposals.sample.json"))
@@ -56,6 +58,13 @@ def main():
     if sorted(allowed) != ["critical", "institutional"]:
         sys.exit(f"ABORT: registry skeptic tags are {allowed}; this prompt is written for critical/institutional")
     nodes = json.load(open(os.path.join(DATA, "taxonomy", "Origin", "skeptic.json"), encoding="utf-8"))["nodes"]
+    if a.ids:
+        want = [i.strip() for i in a.ids.split(",") if i.strip()]
+        have = {n["id"] for n in nodes}
+        missing = [i for i in want if i not in have]
+        if missing:
+            sys.exit(f"ABORT: not Skeptic node ids in {DATA}: {missing}")
+        nodes = [n for n in nodes if n["id"] in set(want)]
     if a.sample:
         rnd = random.Random(a.seed)
         by_cat = {}
@@ -117,9 +126,10 @@ def main():
         print(f"{n['id']:18} {str(p['proposed']):34} {p.get('crux')!s:5} {p['confidence']:.2f}", flush=True)
 
     doc = {"version": 1, "registry_version": reg_version,
-           "run": {"ticket": "t/3962", "model": a.model, "prompt_version": PROMPT_VERSION,
+           "run": {"ticket": a.ticket, "model": a.model, "prompt_version": PROMPT_VERSION,
                    "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-                   "scope": "all" if a.all else f"sample {a.sample} (seed {a.seed})", "failures": failures},
+                   "scope": "all" if a.all else (f"ids {a.ids}" if a.ids else f"sample {a.sample} (seed {a.seed})"),
+                   "failures": failures},
            "proposals": sorted(out, key=lambda r: order.get(r["node_id"], len(order)))}
     ck.close()
     open(a.out, "w", encoding="utf-8", newline="").write(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
