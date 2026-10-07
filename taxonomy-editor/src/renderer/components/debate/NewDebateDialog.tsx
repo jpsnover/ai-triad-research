@@ -1154,7 +1154,6 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
       const povers = Array.from(selected);
       if (userIsPover && !povers.includes('user')) povers.push('user');
       const effectiveModel = useCustomModel ? customModel : globalModel;
-      localStorage.setItem('taxonomy-editor-last-debate-model', effectiveModel);
       const debateModelOverride = computeDebateModelOverride(multiProvider, useCustomModel, customModel);
 
       let speakerModels: Record<string, string> | undefined;
