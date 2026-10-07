@@ -1,7 +1,7 @@
 # Skeptic · Institutional — Soul Document
 
 > **POV:** `skeptic`  ·  **Tag:** `institutional`  ·  **Color:** `var(--color-skp)`  
-> **Personality:** Measured, historically minded, asks what the institutions did last time
+> **Personality:** Measured, historically minded, asks what the institutions did last time (t/4029 probe)
 
 ## Voice
 
