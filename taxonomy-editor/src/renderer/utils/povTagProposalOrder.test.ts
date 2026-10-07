@@ -25,8 +25,8 @@ describe('reviewTier (t/4052#9)', () => {
   });
 
   it('not tier 1 when any wing is firm, or the shared entry has an element', () => {
-    expect(reviewTier(item('a', ['critical', 'institutional'], [firm('critical'), unsupported('institutional')], shared('unsupported'))).rank).toBe(4);
-    expect(reviewTier(item('b', ['critical', 'institutional'], [unsupported('critical'), unsupported('institutional')], shared('firm'))).rank).toBe(4);
+    expect(reviewTier(item('a', ['critical', 'institutional'], [firm('critical'), unsupported('institutional')], shared('unsupported'))).rank).toBe(5);
+    expect(reviewTier(item('b', ['critical', 'institutional'], [unsupported('critical'), unsupported('institutional')], shared('firm'))).rank).toBe(5);
   });
 
   it('tier 2: nothing proposed', () => {
@@ -38,18 +38,30 @@ describe('reviewTier (t/4052#9)', () => {
     expect(reviewTier(item('a', ['critical'], [unsupported('critical')])).rank).toBe(3);
   });
 
-  it('tier 4: a both-item with an unsupported wing (not misplaced)', () => {
-    expect(reviewTier(item('a', ['critical', 'institutional'], [firm('critical'), unsupported('institutional')], shared('firm'))).rank).toBe(4);
+  it('tier 4: no value_basis yet — its own tier right after single-tag-unsupported (SO e/278#21, CL e/278#22)', () => {
+    const t = reviewTier(item('b', ['critical']));
+    expect(t.rank).toBe(4);
+    expect(t.label).toBe('No justification yet');
+    expect(reviewTier(item('c', ['critical'], [])).rank).toBe(4);
   });
 
-  it('tier 5: any element cited in only one run, wing or shared', () => {
-    expect(reviewTier(item('a', ['critical'], [uncertainOnly('critical')])).rank).toBe(5);
-    expect(reviewTier(item('b', ['critical', 'institutional'], [firm('critical'), firm('institutional')], shared('uncertain'))).rank).toBe(5);
+  it('tier 5: a both-item with an unsupported wing (not misplaced)', () => {
+    expect(reviewTier(item('a', ['critical', 'institutional'], [firm('critical'), unsupported('institutional')], shared('firm'))).rank).toBe(5);
   });
 
-  it('tier 6: fully firm, and items with no value_basis (never treated as unsupported)', () => {
-    expect(reviewTier(item('a', ['critical'], [firm('critical')])).rank).toBe(6);
-    expect(reviewTier(item('b', ['critical'])).rank).toBe(6);
+  it('tier 6: any element cited in only one run, wing or shared', () => {
+    expect(reviewTier(item('a', ['critical'], [uncertainOnly('critical')])).rank).toBe(6);
+    expect(reviewTier(item('b', ['critical', 'institutional'], [firm('critical'), firm('institutional')], shared('uncertain'))).rank).toBe(6);
+  });
+
+  it('tier 7: fully firm', () => {
+    expect(reviewTier(item('a', ['critical'], [firm('critical')])).rank).toBe(7);
+  });
+
+  it('an item without value_basis ranks ahead of a fully firm one (SO e/278#21)', () => {
+    const firmItem = item('skp-beliefs-001', ['critical'], [firm('critical')]);
+    const unjustified = item('skp-beliefs-999', ['critical']);
+    expect(sortForReview([firmItem, unjustified]).map(x => x.node_id)).toEqual(['skp-beliefs-999', 'skp-beliefs-001']);
   });
 });
 
@@ -67,7 +79,7 @@ describe('sortForReview (t/4052)', () => {
       'skp-beliefs-200', // tier 1
       'skp-beliefs-9', 'skp-beliefs-10', // tier 2, numeric id order
       'skp-beliefs-003', // tier 3
-      'skp-beliefs-010', // tier 6
+      'skp-beliefs-010', // tier 7
     ]);
     expect(input.map(x => x.node_id)).toEqual(before);
   });
