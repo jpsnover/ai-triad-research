@@ -238,6 +238,7 @@ const CLAUDE_CANDIDATES: { apiModelId: string; label: string }[] = [
   { apiModelId: 'claude-sonnet-4-5-20250514',     label: 'Sonnet 4.5 (May 2025)' },
   { apiModelId: 'claude-opus-4-20250514',         label: 'Opus 4' },
   { apiModelId: 'claude-sonnet-4-20250514',       label: 'Sonnet 4' },
+  { apiModelId: 'claude-haiku-5-5',               label: 'Haiku 5.5 (alias)' },
   { apiModelId: 'claude-haiku-4-5-20251001',      label: 'Haiku 4.5' },
   { apiModelId: 'claude-3-5-haiku-20241022',      label: 'Haiku 3.5' },
   { apiModelId: 'claude-3-5-sonnet-20241022',     label: 'Sonnet 3.5 v2 (Oct 2024)' },
