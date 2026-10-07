@@ -67,7 +67,8 @@ export interface CalibrationDataPoint {
   // ── Multi-provider model tracking (t/4040) ──
   /** Speaker model assignments at session init (multi-provider runs only). Absent on single-model rows and pre-t/4040 entries. */
   speaker_models?: Record<string, string>;
-  /** Per-speaker failovers in this run: speaker → replacement model. Absent when no failover occurred. */
+  /** Last failover per speaker (speaker → replacement model). Presence ⇒ excluded from replication count.
+   *  Full failover history is in FR `ai.fallback` events. Absent when no failover occurred. */
   speaker_model_failovers?: Record<string, string>;
   /** Multi-provider model pool fingerprint: `"tierName|b1=registryId1:apiModelId1,..."` sorted by backend. Absent on single-model rows. */
   model_pool?: string;

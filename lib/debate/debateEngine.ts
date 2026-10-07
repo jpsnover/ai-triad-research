@@ -157,6 +157,7 @@ import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js'
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration.js';
 import { pruneSessionData, pruneModeratorState } from './sessionPruning.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { computeModelFingerprint } from './debateEngine/modelFingerprint.js';
 import { resolveBackground } from './debateEngine/backgroundIngestion.js';
 import { callByUsage } from '../ai-client/usageRegistry.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
@@ -946,25 +947,16 @@ export class DebateEngine {
   // ── Initialization ───────────────────────────────────────
 
   private _computeModelFingerprint(): { model_pool?: string; model_api_id?: string } {
-    const registry = this.adapter.registry;
-    if (!registry) return {};
-    if (this.config.modelTier) {
-      const tierMap = registry.debateTiers?.[this.config.modelTier];
-      if (tierMap) {
-        const entries = Object.entries(tierMap)
-          .map(([backendId, registryId]) => {
-            const apiModelId = registry.models?.find(m => m.id === registryId)?.apiModelId ?? registryId;
-            return `${backendId}=${registryId}:${apiModelId}`;
-          })
-          .sort();
-        return { model_pool: `${this.config.modelTier}|${entries.join(',')}` };
-      }
-    }
-    if (this.config.model) {
-      const apiModelId = registry.models?.find(m => m.id === this.config.model)?.apiModelId ?? this.config.model;
-      return { model_api_id: `${this.config.model}:${apiModelId}` };
-    }
-    return {};
+    // model_pool only for multi-provider runs (speakerModels set). Every preset sets modelTier
+    // including single-model runs — gating on speakerModels prevents single-model runs from
+    // being keyed on a tier pool they never drew from (CL e/265#14).
+    const isMultiProvider = Boolean(this.config.speakerModels);
+    return computeModelFingerprint(
+      this.adapter.registry,
+      isMultiProvider ? this.config.modelTier : undefined,
+      isMultiProvider ? this.config.eligibleBackends : undefined,
+      this.config.model,
+    );
   }
 
   private initSession(): void {
