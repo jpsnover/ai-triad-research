@@ -150,3 +150,41 @@ Describe 'Lockfile release under -WhatIf (t/4047)' -Tag 'taxonomy' {
         Test-Path $script:Lock | Should -BeFalse
     }
 }
+
+Describe 'Stale-lock break that cannot delete the lockfile (t/4049)' -Tag 'taxonomy' {
+
+    BeforeEach { $script:Dir = New-LockFixture; $script:Lock = Join-Path $script:Dir 'policy_actions.lock' }
+    AfterEach { Remove-Item $script:Dir -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'terminates within WaitSec with an ActionableError instead of spinning forever' {
+        New-Item -ItemType File -Path $script:Lock | Out-Null
+        (Get-Item $script:Lock).LastWriteTime = (Get-Date).AddMinutes(-10)
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        $err = $null
+        try {
+            InModuleScope AITriad -Parameters @{ Lock = $script:Lock } {
+                param($Lock)
+                Mock Remove-Item { }   # the delete "succeeds" but the file stays: permissions, an open handle, AV
+                Enter-GroundingLock -LockPath $Lock -WaitSec 2 -PollSec 0.1 3> $null
+            }
+        } catch { $err = $_ }
+        $sw.Stop()
+        $err | Should -Not -BeNullOrEmpty
+        $err.Exception.Message | Should -Match 'could not be deleted'
+        $err.Exception.Message | Should -Match 'Error:'
+        $sw.Elapsed.TotalSeconds | Should -BeLessThan 15
+        Test-Path $script:Lock | Should -BeTrue   # the lock it could not delete is still there
+    }
+
+    It 'warns once about the failed delete, not on every poll' {
+        New-Item -ItemType File -Path $script:Lock | Out-Null
+        (Get-Item $script:Lock).LastWriteTime = (Get-Date).AddMinutes(-10)
+        $warnings = InModuleScope AITriad -Parameters @{ Lock = $script:Lock } {
+            param($Lock)
+            Mock Remove-Item { }
+            try { Enter-GroundingLock -LockPath $Lock -WaitSec 1 -PollSec 0.05 3>&1 } catch { }
+        }
+        @(@($warnings) | Where-Object { "$_" -match 'could not delete stale lock' }).Count | Should -Be 1
+        @(@($warnings) | Where-Object { "$_" -match 'breaking stale lock' }).Count | Should -Be 1
+    }
+}
