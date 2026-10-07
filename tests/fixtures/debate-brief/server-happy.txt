@@ -1,0 +1,35 @@
+VERBOSE: Server mode: exporting debate 'deb-123' via https://srv.example (auth: bearer token).
+VERBOSE: Performing the operation "export brief (preset=conference, model=gem-1) via https://srv.example" on target "debate 'deb-123'".
+VERBOSE: Created async export job 'job-1' (preset=conference, model=gem-1, checker=chk-1). Polling every 2s (timeout 300s).
+VERBOSE:   job 'job-1': running (40%)
+VERBOSE:   job 'job-1': done (100%)
+VERBOSE: Job done (exportId 'exp-1'). Downloading 4 artifacts → <ROOT>/srv-out
+VERBOSE:   ↓ deck_spec.json (0.0 KB)
+VERBOSE:   ↓ narration.json (0.0 KB)
+VERBOSE:   ↓ audit-manifest.json (0.2 KB)
+VERBOSE:   ↓ brief.pptx (0.0 KB)
+VERBOSE: ──────── Brief export complete (server) ────────
+VERBOSE:   Debate:         deb-123
+VERBOSE:   Title:          Server T
+VERBOSE:   Preset:         conference
+VERBOSE:   Model:          gem-1 (source: ServerResolved)
+VERBOSE:   Checker model:  chk-1
+VERBOSE:   Trace coverage: 92.5%
+VERBOSE:   Verdicts:       Disputed=1, Supported=3
+VERBOSE:   Warnings:       1
+VERBOSE:   Deck (.pptx):   <ROOT>/srv-out/brief.pptx
+VERBOSE:   Deck spec:      <ROOT>/srv-out/deck_spec.json
+VERBOSE:   Audit manifest: <ROOT>/srv-out/audit-manifest.json
+OUTPUT: {"CheckerModel":"chk-1","DebateId":"deb-123","ManifestPath":"<ROOT>/srv-out/audit-manifest.json","Model":"gem-1","ModelSource":"ServerResolved","Path":"<ROOT>/srv-out/brief.pptx","Preset":"conference","SpecPath":"<ROOT>/srv-out/deck_spec.json","Title":"Server T","TraceCoveragePct":92.5,"Verdicts":{"Disputed":1,"Supported":3},"Warnings":["m-warn"]}
+WARNING: warn-A
+WARNING: warn-B
+CALL: POST https://srv.example/api/debates/deb-123/exports body={"checkerModel":"chk-1","model":"gem-1","preset":"conference"} headers=Authorization auth=Bearer TOK ok=202 timeout=300 json=True
+CALL: GET https://srv.example/api/export-jobs/job-1 headers=Authorization ok=200 timeout=300 json=True
+CALL: SLEEP 2
+CALL: GET https://srv.example/api/export-jobs/job-1 headers=Authorization ok=200 timeout=300 json=True
+CALL: SLEEP 2
+CALL: GET https://srv.example/api/export-jobs/job-1 headers=Authorization ok=200 timeout=300 json=True
+CALL: SAVE https://srv.example exp-1 deck_spec.json -> <ROOT>/srv-out/deck_spec.json headers=Authorization timeout=300
+CALL: SAVE https://srv.example exp-1 narration.json -> <ROOT>/srv-out/narration.json headers=Authorization timeout=300
+CALL: SAVE https://srv.example exp-1 audit-manifest.json -> <ROOT>/srv-out/audit-manifest.json headers=Authorization timeout=300
+CALL: SAVE https://srv.example exp-1 brief.pptx -> <ROOT>/srv-out/brief.pptx headers=Authorization timeout=300

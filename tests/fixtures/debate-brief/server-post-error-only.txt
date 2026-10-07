@@ -1,0 +1,4 @@
+VERBOSE: Server mode: exporting debate 'deb-123' via https://srv.example (auth: none — anonymous).
+VERBOSE: Performing the operation "export brief (preset=policymaker, model=(none — narration skipped)) via https://srv.example" on target "debate 'deb-123'".
+ERROR: ModelUnavailable,Export-TriadDebateBrief | ResourceUnavailable | model gone | deb-123
+CALL: POST https://srv.example/api/debates/deb-123/exports body={"preset":"policymaker","skipNarration":true} headers= auth= ok=202 timeout=300 json=True

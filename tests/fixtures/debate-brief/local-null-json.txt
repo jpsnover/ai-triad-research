@@ -1,0 +1,7 @@
+VERBOSE: Local mode: debate '<ROOT>/debate-1.json'
+VERBOSE:   Preset=policymaker, model=m1. Output → <ROOT>/out-null
+VERBOSE: Performing the operation "export brief (preset=policymaker, model=m1) → <ROOT>/out-null" on target "<ROOT>/debate-1.json".
+VERBOSE:   CLI: <PWSH> -NoProfile -File <ROOT>/stub-null-json.ps1
+VERBOSE:   Pipeline finished (exit code 0).
+ERROR: SpecSchemaFailure,Export-TriadDebateBrief | InvalidData | The brief CLI output parsed to null — no TriadDeckExport emitted. | <ROOT>/debate-1.json
+ARGS: --path <ROOT>/debate-1.json --preset policymaker --out <ROOT>/out-null --model m1
