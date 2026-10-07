@@ -600,10 +600,6 @@
     "max": 31,
     "countOver": 1
   },
-  "AITriad/Public/Invoke-TaxEditorSmokeTest.ps1": {
-    "max": 108,
-    "countOver": 1
-  },
   "AITriad/Public/Invoke-TaxonomyProposal.ps1": {
     "max": 144,
     "countOver": 1
