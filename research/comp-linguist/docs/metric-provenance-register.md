@@ -400,6 +400,21 @@ Each calibration entry records what was actually served, captured **when the run
 
 **`failover_tracking` (SO e/268#6, CL e/268#10):** each fingerprinted row states whether its writer could see failover. The engine writes `'tracked'`. Editor and web write `'unavailable'` until `servedModel` lands, then `'tracked'`. **The gate counts a fingerprinted row only when it says `'tracked'`.** A fingerprinted row without the field is excluded with a WARN, because "tracked" must be an explicit claim and never the default. Legacy rows (no fingerprint) stay in the model-mixed bucket as before. Provenance class: instrument provenance, and semantic, because the gate branches on it.
 
+## 18. Citation-link leg-a coverage floor (t/4042, SO e/266#10)
+
+Leg-a of the data repo's citation-link check (`Test-CitationLinkIntegrity`, summary-to-node link resolution) is a **failing check** as of data PR #29. A leg-a that examined nothing would report `pass=True offenders=0`. To stop that, the leg-a result reports how much it checked (#3007, `5c33bd7b`), and `ai-triad-data/.github/workflows/citation-link-integrity.yml` fails closed when either count is absent or below the floor. **These are corpus-integrity thresholds, not `CalibrationDataPoint` fields, so they're excluded from the §5 count.**
+
+| Threshold | Value | Provenance | Evidence / notes |
+|---|---|---|---|
+| `summariesScanned` floor (summary files read by leg-a) | ≥ 400 | **stipulated** | 50% of 870 summaries on data `02c0c2c9` (2026-10-07). Three counts agree exactly: PowerShell #3007, DevOps, and CL via `git show origin/main:`. Clean-data run 37566351376 reported `summariesScanned=870`. |
+| `refsChecked` floor (non-blank refs passed to `Resolve-Ref`) | ≥ 8000 | **stipulated** | 50% of 16,676 refs: 11,424 `key_points[].taxonomy_node_id` and 5,252 `factual_claims[].linked_taxonomy_nodes[]`. Blank and null refs aren't counted. (CL's first count of 16,685 included 9 blank links; t/4042#8.) |
+
+**Why 50%:** the floor targets an emptied or narrowed scan, such as a moved directory, a bad checkout path or a sparse checkout. Those drop the counts to roughly zero, far below the floor. Normal corpus change is growth, and summaries are rarely removed, so 50% leaves wide headroom for genuine removals. It isn't fitted to any distribution, so it's stipulated.
+
+**Proven arms (data #29 final head `86450101`, t/4042#11):** an empty summaries directory goes RED with "leg-a evaluated below floor (summariesScanned=0 / 400, refsChecked=0 / 8000)" (run 37567172256). A missing leg-a goes RED with "not evaluated" (run 37566900155). The `lega=pass` output is written only after both guards pass, so a below-floor run can't auto-close an open leg-a issue as recovered.
+
+**Revisit when** the corpus shrinks by design (for example, a summary purge or a split into a second repo). Then reset the floor against the new count in the same change.
+
 ## Maintenance
 
 - Every PR adding or modifying a metric, threshold, weight, or lexicon must state its provenance class and update this register in the same PR (CL review checklist item).
