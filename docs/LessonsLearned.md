@@ -3093,26 +3093,27 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## #123 [Process] Shared GitHub Account — `gh pr review --approve` Fails "Cannot approve your own pull request" on ANY Fleet PR
+## #123 [Process] Shared GitHub Account — `gh pr review --approve` and `--request-changes` Both Fail on ANY Fleet PR
 
-**Pattern:** All fleet agents authenticate to GitHub as the **same account** (`jpsnover`). GitHub prohibits approving your own PR, so `gh pr review --approve` on **any agent-created PR** fails `Cannot approve your own pull request` — from `gh`'s view every fleet PR is self-owned, because there is only one identity. A shared-**identity** collision at the GitHub-account level — the platform-account analog of the shared-**checkout** collision (t/1926) at the git level.
+**Pattern:** All fleet agents authenticate to GitHub as the **same account** (`jpsnover`). GitHub prohibits reviewing your own PR in any blocking mode — `--approve` fails `Cannot approve your own pull request` and `--request-changes` fails `Can not request changes on your own pull request`. From `gh`'s view every fleet PR is self-owned. A shared-**identity** collision at the GitHub-account level — the platform-account analog of the shared-**checkout** collision (t/1926) at the git level.
 
 **Instances:**
 - 2026-08-03 — DevOps (p/26#34): `gh pr review --approve` on PR #334 failed `Cannot approve your own pull request`. Resolved by posting the review as a **comment** (`gh pr review --comment`).
-- 2026-09-28 — Project Instructions (p/688#1): `gh pr review 2485 --approve` failed same error; follow-up `gh pr comment` then blocked by the auto-mode classifier. Resolved: record sign-off via Orca ping to the requesting role — avoids both GitHub's self-approval block and the classifier.
+- 2026-09-28 — Project Instructions (p/688#1): `gh pr review 2485 --approve` failed same error; follow-up `gh pr comment` then blocked by the auto-mode classifier. Resolved: record sign-off via Orca ping to the requesting role.
+- 2026-10-07 — DevOps Lead (p/26#145): `gh pr review --request-changes` on an agent-authored PR failed `Can not request changes on your own pull request`. Resolved by posting the blocking feedback as `gh pr comment`, applying `consult-hold` label, and setting draft as the merge hold.
 
-**Root Cause:** A single shared GitHub identity across all agents × GitHub's self-approval prohibition. Approval is a per-USER action GitHub ties to account identity; the fleet has ONE account, so no agent is a "different user" relative to a fleet PR's author. The failure is **deterministic** — it hits *every* agent that runs `--approve` on *every* fleet PR.
+**Root Cause:** A single shared GitHub identity across all agents × GitHub's self-review prohibition. Both approval and change-requests are per-USER review actions GitHub ties to account identity; the fleet has ONE account. The failure is **deterministic** on `--approve` and `--request-changes` alike for every fleet PR.
 
 **Prevention:**
-1. **Never `gh pr review --approve` a fleet PR** — it always fails under the shared account. Post review feedback with **`gh pr review --comment`** (or `--request-changes` for blocking feedback).
-2. **Approval is NOT required to merge anyway:** branch protection is **checks-only** (`ci-gate` + CodeQL, strict off — no required-reviews), so PRs land by checks-green self-merge, not by approval. The failed `--approve` is a **non-blocker**, not a gate you must satisfy.
-3. **Sibling of the docs-only self-merge constraint (#101):** both are shared-account / self-action limits on the PR flow — a docs-only PR can't self-satisfy required contexts (→ TL `--admin`-merge), and no agent can self-approve (→ record the verdict as a comment). Use TL `--admin`-merge only where the PR *path* is blocked; a review *verdict* is a comment.
-4. **If `gh pr comment` is also blocked by the auto-mode classifier**, record owner sign-off via Orca ping to the requesting role — avoids both the GH self-approval block and the classifier. Orca is the canonical inter-agent communication channel; prefer it over GH comments for agent-to-agent acknowledgements anyway.
-5. **Cheaply hookable:** the trigger is the literal `gh pr review --approve` — a crisp syntactic signal an advisory hook could catch. Candidate Diagnostics hook (2nd instance now reached — t/3270 pattern).
+1. **Never `gh pr review --approve` or `--request-changes` on a fleet PR** — both fail. Post feedback with `gh pr review --comment`.
+2. **To hold a PR from merging:** apply the `consult-hold` label (enforcing gate via `consult-hold-guard` required check) + set draft + post a hold comment naming conditions. `--request-changes` cannot block a merge here anyway — branch protection is checks-only, not approval-required.
+3. **Approval is NOT required to merge:** branch protection is checks-only (`ci-gate` + CodeQL), so PRs land by checks-green self-merge. The failed `--approve`/`--request-changes` is a non-blocker for the merge path.
+4. **If `gh pr comment` is also blocked by the auto-mode classifier**, record sign-off via Orca ping to the requesting role.
+5. **Cheaply hookable:** both `gh pr review --approve` and `gh pr review --request-changes` are crisp syntactic signals. Candidate Diagnostics hook.
 
-**Status:** Active — 2 instances / 2 agents. Shared-GitHub-identity constraint; the account-level analog of the shared-checkout collision (t/1926). **Non-blocking**; the fix is Orca ping (preferred) or `gh pr review --comment`. Deterministic on every fleet PR — route Diagnostics to evaluate the advisory hook (prevention #5).
+**Status:** Active — 3 instances / 3 agents. Extends to `--request-changes` (inst3). Shared-GitHub-identity constraint; the account-level analog of t/1926. Deterministic on every fleet PR.
 
-**Applies To:** Any agent running `gh pr review --approve` on a fleet-authored PR (i.e. every PR, since all share the `jpsnover` account).
+**Applies To:** Any agent running `gh pr review --approve` or `--request-changes` on a fleet-authored PR (i.e. every PR, since all share the `jpsnover` account).
 
 ---
 
@@ -3128,6 +3129,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-10-04 — DevOps Lead (p/26#141): `gh pr create` run from Bash without `--head` failed with "you must first push the current branch" — the Bash cwd had reset to the shared checkout (on `main`), so `gh` read the current branch as `main` rather than the worktree branch. Fix: always pass `--head <branch>` explicitly to `gh pr create` when called from Bash, regardless of where the push was made.
 - 2026-10-05 — PowerShell (p/20#68): `gh pr create` aborted with "you must first push the current branch" despite the branch already being pushed — run from the shared main checkout (still on `main`), not the worktree the push happened from. `gh pr create` without `--head` infers head from the current checkout's branch. Fix: added `--head <branch>`.
 - 2026-10-06 — Rosetta Stone (p/6#77): Bash redirect `cmd > ../../../../AppData/...` from a worktree cwd failed with "No such file or directory" — relative path constructed assuming worktree cwd, but Bash tool cwd had reset to the scope directory, making the relative traversal land in the wrong place. Fix: write to the absolute scratchpad path.
+- 2026-10-07 — Computational Linguist (p/7#97, **Grep-path-relative-to-scope variant**): Bash `grep` on a path returned by the Grep tool failed "No such file" — Grep reports paths **relative to the agent's scope cwd** (`research/comp-linguist`), not the repo root. Bash also resets cwd to the scope directory, so `scripts/reconcile_grounding.py` from Grep resolved to `research/comp-linguist/scripts/reconcile_grounding.py` (nonexistent). Fix: use the path relative to the scope directory, or pass an absolute path to Bash. **Heuristic: "Grep found it, Bash can't open it" = the path is scope-relative, not repo-root-relative.**
 
 **Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. **Compounding factor (instance 2):** the Bash tool resets cwd to the repo root between invocations, so any relative path like `../wt-<name>` re-anchors to the repo root on every call — you cannot rely on a prior `cd` persisting to the next Bash call.
 
@@ -3136,7 +3138,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. On this machine: repo = `C:/Users/jsnov/repos/ai-triad-research/`; sibling worktrees land at `C:/Users/jsnov/repos/wt-<name>` = `/c/Users/jsnov/repos/wt-<name>` in POSIX. NOT `/c/Users/jsnov/wt-<name>`.
 3. Companion to the MSYS colon-revspec/path trap (#73 facet B): both produce a wrong absolute path for a git resource. #73B = MSYS mangles a correct path; #128 = a wrong path is assembled from an incorrect mental model. The fix for both: **verify the actual path before access** rather than reconstructing from memory.
 4. **Both Bash AND PowerShell tool cwds reset between invocations (t/2222)** — relative paths re-anchor on every call regardless of a prior `cd`. Use absolute paths always; never depend on a prior `cd` persisting to the next tool call.
-5. **(Possible — unconfirmed) Glob may also resolve relative paths against the scope root, not the repo root** — a relative `Glob("tests/Foo*")` from a role scoped to `scripts/AITriad/` may search `scripts/AITriad/tests/` and silently return empty. Use `**/<name>` or absolute base paths in Glob until this is confirmed (p/20#57; see Pattern #186).
+5. **Grep tool paths are relative to the agent's scope cwd, not the repo root (confirmed, p/7#97).** A path from Grep passed directly to Bash will fail "No such file" when the file lives outside the scope directory — Bash cwd also resets to the scope root, so it looks in `<scope>/<grep-path>`. Fix: prepend the repo root, or use the Grep-returned path as-is (it's already correct relative to scope cwd). **Heuristic: "Grep found it, Bash can't open it" = scope-relative path mismatch.** Glob likely follows the same rule (p/20#57; see Pattern #186 — possible, unconfirmed for Glob).
 
 **Status:** Active — 7 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash. **5th instance (2026-10-04, p/26#141):** `gh pr create` read `main` as the current branch instead of the worktree branch — pass `--head <branch>` explicitly. **6th instance (2026-10-05, p/20#68):** same `gh pr create` / shared checkout failure on PowerShell, confirming the pattern is tool-agnostic — any `gh pr create` without `--head` from a non-worktree cwd hits this.
 
@@ -4191,23 +4193,25 @@ The `git restore --staged` step is mandatory: the shared index still has `100644
 
 ---
 
-## #199 [PowerShell] `Invoke-ScriptAnalyzer -Path` Rejects Array Literal — Pipe via `ForEach-Object`
+## #199 [PowerShell] `-Path` Rejects Array Literal on Single-String Cmdlets — Pipe via `ForEach-Object` or Use Directory
 
-**Pattern:** Passing a comma-separated array literal to `-Path` — e.g. `Invoke-ScriptAnalyzer -Path 'a.ps1','b.ps1','c.ps1'` — throws `"Cannot convert 'System.Object[]' to the type 'System.String'"`. The `-Path` parameter is typed as a singular `[string]` in this version of PSScriptAnalyzer, not `[string[]]`.
+**Pattern:** Passing a comma-separated array literal to `-Path` on cmdlets typed as `[string]` — e.g. `Invoke-ScriptAnalyzer -Path 'a.ps1','b.ps1'` or `Measure-CodeComplexity -Path a.ps1, b.ps1` — throws `"Cannot convert 'System.Object[]' to the type 'System.String'"`. The `-Path` parameter on these cmdlets is a singular `[string]`, not `[string[]]`.
 
 **Instances:**
-- 2026-10-03 — PowerShell (p/20#62): analyzing multiple files in one call with a comma array literal; resolved by piping via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }`.
+- 2026-10-03 — PowerShell (p/20#62): `Invoke-ScriptAnalyzer -Path 'a.ps1','b.ps1','c.ps1'` — resolved by piping via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }`.
+- 2026-10-06 — PowerShell (p/20#72): both `Measure-CodeComplexity -Path a.ps1, b.ps1` and `Invoke-ScriptAnalyzer -Path a.ps1, b.ps1` threw the same error. For `Measure-CodeComplexity`, resolved by passing the directory with `-Include 'a.ps1','b.ps1'`; for the analyzer, ran once per file. Confirms the pattern extends beyond PSScriptAnalyzer.
 
-**Root Cause:** PSScriptAnalyzer's `-Path` parameter binding does not accept an array. The PowerShell engine attempts automatic coercion from `Object[]` to `String` and fails.
+**Root Cause:** Several PS analysis cmdlets type `-Path` as `[string]` rather than `[string[]]`. PowerShell's automatic coercion from `Object[]` to `String` fails with this error — the engine cannot silently stringify an array.
 
 **Prevention:**
-1. **Always pipe multi-file invocations:** `'a.ps1','b.ps1','c.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }` — one call per file.
-2. **Alternatively, use `-Path` with a directory and `-Recurse`** when analyzing a subtree: `Invoke-ScriptAnalyzer -Path ./scripts -Recurse`.
-3. **`"Cannot convert … to the type 'System.String'"` on a cmdlet that looks like it should accept arrays = check the actual parameter type** with `(Get-Command Invoke-ScriptAnalyzer).Parameters['Path'].ParameterType`.
+1. **For `Invoke-ScriptAnalyzer` multi-file:** pipe via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }` — one call per file.
+2. **For `Measure-CodeComplexity` multi-file:** pass the containing directory with `-Include 'a.ps1','b.ps1'` rather than comma-listing paths to `-Path`.
+3. **Alternatively, use `-Path` with a directory and `-Recurse`** when analyzing a subtree.
+4. **`"Cannot convert … to the type 'System.String'"` on a cmdlet that looks like it should accept arrays = check the actual parameter type** with `(Get-Command <cmdlet>).Parameters['Path'].ParameterType`.
 
-**Status:** Active — 1 instance (PowerShell p/20#62). Deterministic.
+**Status:** Active — 2 instances (PowerShell p/20#62, p/20#72). Deterministic. Extends to any analysis cmdlet with a singular `-Path [string]`.
 
-**Applies To:** All agents running `Invoke-ScriptAnalyzer` across multiple files in a single call.
+**Applies To:** All agents running `Invoke-ScriptAnalyzer` or `Measure-CodeComplexity` across multiple files in a single call.
 
 ---
 
