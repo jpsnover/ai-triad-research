@@ -9,7 +9,7 @@ packages:
 overrides:
   axios: ">=1.20.0 <2"
   brace-expansion: ">=5.0.12 <6"
-  sharp: ">=0.35.4 <0.36"
+  sharp: ">=0.35.5 <0.36"
   fast-xml-parser: ">=5.10.1"
   ip-address: ">=10.3.1"
   uuid: ">=11.1.1"
@@ -39,7 +39,9 @@ overrides:
   # Transitive deps — sharp arrives via @huggingface/transformers, hono via @hono/node-server plus
   # @modelcontextprotocol/sdk. A direct `pnpm update` bumped only the direct edge and left transitive
   # copies vulnerable (t/3440 reopen) — overrides force EVERY instance. Capped to the patched line per
-  # the convergence rule above. sharp raised in place (was >=0.35.0, which 0.35.3 satisfied). morgan
+  # the convergence rule above. sharp raised in place again at t/4057 (was >=0.35.4, which 0.35.4
+  # itself satisfied but left in the live image) — >=0.35.5 CLOSES GHSA-wq5f-xc86-pv6w (HIGH), found
+  # live in the deployed digest via code-scanning alert #5988 plus Dependabot #421/#423. morgan
   # and joi are no-ops on the root lockfile (already patched via #2137) but are the floor the standalone
   # sync (sync-standalone-lockfile.mjs copies THIS block) needs for taxonomy-editor (t/3441).
   # NB — comment lines here must avoid a colon-then-space sequence; check-lockfile-overrides.mjs is
