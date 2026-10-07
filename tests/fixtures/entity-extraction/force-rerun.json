@@ -1,0 +1,99 @@
+{
+  "scenario": "force-rerun",
+  "host": [
+    "",
+    "Done. Nodes processed: 1 | Proposals: 1 | Minted: 1 | Linked: 0 | Possible dups (advisory): 0 | Dropped (below gate): 0 | Near-gate minted: 0 | Invalid: 0 | Failed: 0"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Invoke-EntityExtraction: organizations.json unavailable — \n  Goal:     Load organizations registry\n  Error:    organizations.json not found at <ROOT>/taxonomy/organizations.json\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Verify the data repo is present at ../ai-triad-data/\n   2. Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for override\n   3. Confirm taxonomy/Origin/organizations.json exists in the data repo",
+    "Work items: 1 (skipped no-facts: 0, already-done: 0)",
+    "Performing the operation \"Extract entity proposals via enrichment.entity-extraction\" on target \"1 node(s)\"."
+  ],
+  "error": null,
+  "output": [
+    {
+      "NodesProcessed": 1,
+      "ProposalsTotal": 1,
+      "Minted": 1,
+      "Linked": 0,
+      "DroppedBelowGate": 0,
+      "DroppedItems": [],
+      "NearGateMinted": 0,
+      "InvalidDropped": 0,
+      "InvalidItems": [],
+      "Failed": 0,
+      "FailedItems": [],
+      "SkippedNoFacts": 0,
+      "SkippedAlreadyDone": 0,
+      "MintedEntities": [
+        {
+          "node_id": "node-1",
+          "id": "ent-001",
+          "name": "Solo Thing",
+          "entity_type": "artifact",
+          "dolce_category": "non-agentive-functional-artifact",
+          "confidence": 0.9,
+          "near_gate": false
+        }
+      ],
+      "LinkedDispositions": [],
+      "PossibleDuplicates": [],
+      "OutputPath": "<ROOT>/taxonomy/entity_extraction_log.json"
+    }
+  ],
+  "calls": [
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- One",
+        "node_id": "node-1"
+      },
+      "override": {}
+    },
+    {
+      "call": "embed",
+      "pairs": [
+        {
+          "id": "solo thing",
+          "text": "Solo Thing"
+        }
+      ]
+    },
+    {
+      "call": "import",
+      "path": "<ROOT>/taxonomy/entities.json",
+      "embeddingsPath": "<ROOT>/taxonomy/entity_embeddings.json",
+      "proposals": [
+        {
+          "aliases": [
+            "ST"
+          ],
+          "confidence": 0.9,
+          "discovered_by": {
+            "model": "stub",
+            "usage_id": "enrichment.entity-extraction"
+          },
+          "dolce_category": "non-agentive-functional-artifact",
+          "entity_type": "artifact",
+          "name": "Solo Thing",
+          "source_refs": [
+            "doc-1"
+          ],
+          "status": "proposed"
+        }
+      ]
+    }
+  ],
+  "writes": [
+    "<ROOT>/taxonomy/entities.json",
+    "<ROOT>/taxonomy/entity_extraction_log.json"
+  ],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/entities.json": "{\n  \"_schema_version\": \"1.0.0\",\n  \"_doc\": \"Entity records (ent-*). Ref kinds and the Entity type: lib/entities/types.ts.\",\n  \"entity_count\": 1,\n  \"last_modified\": \"2026-01-02\",\n  \"entities\": [\n    {\n      \"id\": \"ent-001\",\n      \"name\": \"Solo Thing\",\n      \"aliases\": [\n        \"ST\"\n      ],\n      \"entity_type\": \"artifact\",\n      \"dolce_category\": \"non-agentive-functional-artifact\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [\n        \"doc-1\"\n      ],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\",\n      \"discovered_by\": {\n        \"model\": \"stub\",\n        \"usage_id\": \"enrichment.entity-extraction\"\n      },\n      \"confidence\": 0.9\n    }\n  ]\n}\n",
+    "taxonomy/entity_extraction_log.json": "{\n  \"_schema_version\": \"1.2.0\",\n  \"_doc\": \"Entity extraction idempotence log (t/1806 Phase 1). Feeds -Force replay decisions; not a data-of-record store (entities.json is). Each node carries evidence[] (supporting quote per minted entity id, for curation) and dropped[] (below-gate proposals, for gate-recall audit) — added t/1830 — and possible_duplicates[] (advisory near-variant pairs {candidate_id, proposal_name, matched_id, matched_name, similarity}: both entities were minted, curation reviews via merge/redirect; name-only cosine cannot safely auto-link siblings) — added t/1881.\",\n  \"last_modified\": \"2026-01-02\",\n  \"node_count\": 2,\n  \"nodes\": [\n    {\n      \"node_id\": \"node-keep\",\n      \"processed_at\": \"2025-12-01T00:00:00Z\",\n      \"model\": \"old-model\",\n      \"proposals_total\": 1,\n      \"org_mentions\": [],\n      \"evidence\": [],\n      \"dropped\": [],\n      \"possible_duplicates\": []\n    },\n    {\n      \"node_id\": \"node-1\",\n      \"processed_at\": \"2026-01-02T03:04:05.0000000Z\",\n      \"model\": \"stub\",\n      \"proposals_total\": 1,\n      \"org_mentions\": [\n        \"Org X\"\n      ],\n      \"evidence\": [\n        {\n          \"id\": \"ent-001\",\n          \"name\": \"Solo Thing\",\n          \"quote\": \"solo\"\n        }\n      ],\n      \"dropped\": [],\n      \"possible_duplicates\": []\n    }\n  ]\n}\n",
+    "taxonomy/source_evidence_index.json": "{\n  \"node-1\": {\n    \"facts\": [\n      {\n        \"claim\": \"One\",\n        \"doc_id\": \"doc-1\"\n      }\n    ]\n  }\n}"
+  }
+}

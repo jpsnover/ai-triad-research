@@ -1,0 +1,13 @@
+{
+  "scenario": "err-sei-missing",
+  "host": [],
+  "warnings": [],
+  "verbose": [],
+  "error": "\n  Goal:     Extract entity proposals from source evidence\n  Error:    source_evidence_index.json not found at <ROOT>/taxonomy/source_evidence_index.json\n  Location: Invoke-EntityExtraction\n  Resolve:\n   1. Run the summary pipeline first — source_evidence_index.json is a pipeline output\n   2. Verify .aitriad.json or $env:AI_TRIAD_DATA_ROOT for a data-root override",
+  "output": [],
+  "calls": [],
+  "writes": [],
+  "tree": {
+    "taxonomy/": "(dir)"
+  }
+}
