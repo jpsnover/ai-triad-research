@@ -87,9 +87,7 @@ function Get-PolicyReferenceScan {
     $Referenced   = @{}
     $Unregistered = [System.Collections.Generic.List[object]]::new()
     foreach ($PovKey in $script:PolicyPovFiles) {
-        $FilePath = Join-Path $TaxDir "$PovKey.json"
-        if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Read-PolicyPovFile -TaxDir $TaxDir -PovKey $PovKey
         foreach ($Node in $FileData.nodes) {
             foreach ($PA in (Get-NodePolicyActions -Node $Node)) {
                 Add-PolicyReference -Referenced $Referenced -Unregistered $Unregistered -NodeId $Node.id -PovKey $PovKey -PolicyAction $PA
@@ -97,6 +95,42 @@ function Get-PolicyReferenceScan {
         }
     }
     return [pscustomobject]@{ Referenced = $Referenced; Unregistered = $Unregistered }
+}
+
+function Read-PolicyPovFile {
+    # One POV file for the reference scan, or a refusal. The scan feeds the recount, which writes
+    # member_count from what it saw, so a POV that silently contributes nothing becomes committed zeros
+    # for every policy it references (t/4065, the PS twin of #3048). Missing, unreadable, unparseable,
+    # null, no nodes array and an empty nodes array all refuse. The four refusals match the TS lib's
+    # recountPolicyMembers guard (#3050, SO e/274#2), so the two recount paths agree on what a
+    # complete corpus is. No real POV file is legitimately empty.
+    param([Parameter(Mandatory)][string]$TaxDir, [Parameter(Mandatory)][string]$PovKey)
+    $FilePath = Join-Path $TaxDir "$PovKey.json"
+    $Problem = $null
+    $FileData = $null
+    if (-not (Test-Path -LiteralPath $FilePath -PathType Leaf)) {
+        $Problem = "$PovKey.json does not exist"
+    }
+    else {
+        try {
+            $FileData = Get-Content -Raw -LiteralPath $FilePath -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            $Problem = "$PovKey.json could not be read or parsed: $($_.Exception.Message)"
+        }
+        if (-not $Problem) {
+            if ($null -eq $FileData) { $Problem = "$PovKey.json is empty or null" }
+            elseif (-not $FileData.PSObject.Properties['nodes'] -or $FileData.nodes -isnot [array]) { $Problem = "$PovKey.json has no nodes array" }
+            elseif (@($FileData.nodes).Count -eq 0) { $Problem = "$PovKey.json has an empty nodes array" }
+        }
+    }
+    if ($Problem) {
+        throw (New-ActionableError -PassThru `
+            -Goal 'Scan the four POV files for policy references before recounting member_count' `
+            -Problem "$Problem. A partial scan would write member_count 0 for every policy that file references." `
+            -Location "Read-PolicyPovFile ($FilePath)" `
+            -NextSteps @("Restore $FilePath (git status / git diff in the data repo) and re-run", 'Nothing was written'))
+    }
+    return $FileData
 }
 
 function Add-PolicyReference {

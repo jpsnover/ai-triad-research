@@ -10,6 +10,7 @@
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'PolicyPovFixture.ps1')
 
     function New-LockFixture {
         $Dir = Join-Path ([System.IO.Path]::GetTempPath()) "polreg-lock-$(Get-Random)"
@@ -20,6 +21,7 @@ BeforeAll {
         [ordered]@{ _schema_version = '1.0.0'; _doc = 'x'; policy_count = 1; policies = @(
                 [ordered]@{ id = 'pol-001'; action = 'kept'; source_povs = @('skeptic'); member_count = 0; status = 'active' }) } |
             ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $Dir 'policy_actions.json')
+        Add-PolicyPovFillers -Dir $Dir
         return $Dir
     }
 }

@@ -14,6 +14,7 @@
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'PolicyPovFixture.ps1')
 
     function Node([string]$Id, [string[]]$PolicyIds) {
         $acts = @($PolicyIds | ForEach-Object { [ordered]@{ action = "action for $_"; framing = 'f'; policy_id = $_ } })
@@ -29,6 +30,7 @@ BeforeAll {
             ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $Dir 'skeptic.json')
         [ordered]@{ _schema_version = '1.0.0'; _doc = 'x'; policy_count = @($Policies).Count; policies = @($Policies) } |
             ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $Dir 'policy_actions.json')
+        Add-PolicyPovFillers -Dir $Dir
         return $Dir
     }
     function MergeProposal([string]$Survivor, [string[]]$MergeIds) {

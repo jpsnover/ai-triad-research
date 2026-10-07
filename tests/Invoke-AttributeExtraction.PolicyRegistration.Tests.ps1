@@ -16,6 +16,7 @@
 BeforeAll {
     Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force -WarningAction SilentlyContinue
     Import-Module "$PSScriptRoot/../scripts/AIEnrich.psm1" -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'PolicyPovFixture.ps1')
 }
 
 Describe 'Invoke-AttributeExtraction -- registers the policy actions it writes (t/4004)' -Tag 'policy-registration' {
@@ -38,6 +39,7 @@ Describe 'Invoke-AttributeExtraction -- registers the policy actions it writes (
         }
         $script:skepticPath = Join-Path $taxDir 'skeptic.json'
         Set-Content -Path $skepticPath -Value ($skeptic | ConvertTo-Json -Depth 10) -Encoding utf8
+        Add-PolicyPovFillers -Dir $taxDir
         $registry = [ordered]@{ _schema_version = '1.0.0'; _doc = 'x'; policy_count = 1; policies = @(
                 [ordered]@{ id = 'pol-007'; action = 'Existing'; source_povs = @('skeptic'); member_count = 0; status = 'active' }) }
         $script:registryPath = Join-Path $taxDir 'policy_actions.json'
