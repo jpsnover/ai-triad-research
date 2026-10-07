@@ -2,7 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { ActionableError } from '../debate/errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
-import { findDanglingRefs, findChainlessDefaults, KNOWN_VERBATIM, CHAIN_EXEMPT_BACKENDS } from '../ai-config/validate.js';
+import { findDanglingRefs, findChainlessDefaults, KNOWN_VERBATIM } from '../ai-config/validate.js';
+import codeReferencedModels from '../ai-config/codeReferencedModels.json' with { type: 'json' };
+import {
+  referenceSlots, curateByFamily, partialCatalog, codeReferencedAbsent, computeProposal, applyProposal, proposalHash, catalogFingerprint, diffProposals, crossFamilyChanges,
+  type CodeReferencedAbsence, type PartialCatalog, type PinnedCandidate, type Proposal,
+} from './refreshPolicy.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -49,11 +54,25 @@ export interface RefreshResult {
   // were applied on the successful-write path.
   written: boolean;
   configWarning?: string;
+  // t/3553 drop policy. `refusal` names why nothing was written; `proposal` is what an explicit accept would
+  // apply; `pinnedCandidates` is informational and never part of the proposal (SO e/263#4).
+  refusal?: RefreshRefusal;
+  proposal?: Proposal;
+  pinnedCandidates?: PinnedCandidate[];
+  catalogSources?: Record<string, CatalogSource>;
+  dryRun?: boolean;
+  signoff?: { approvedBy: string; reason: string; at: string; proposalHash: string; catalogFingerprint: string; slots: string[]; calibrationEpoch: boolean };
 }
 
 export interface ModelDiscoveryDeps {
   loadApiKey: (backend: string) => string | null;
   repoRoot: string;
+  /**
+   * Registered ids that code names as literals, which the refresh pins (t/3553 item 1). Omit it in production: the
+   * default is the bundled `lib/ai-config/codeReferencedModels.json`, because the refresh runs where there's no
+   * source tree to scan. Tests inject a list.
+   */
+  codeReferencedIds?: readonly string[];
 }
 
 // ── Config I/O ─────────────────────────────────────────────────────────────────
@@ -95,6 +114,21 @@ function extractGeminiVersion(id: string): number {
 
 const GEMINI_EXCLUDE_RE = /tts|robotics|agent|image|audio|embed|aqa|lyria/i;
 
+/**
+ * Every Gemini text model the catalog lists, in a tier, BEFORE family curation (t/3553). The refresh curates these
+ * with the pinned set (refreshPolicy.curateByFamily), and measures a partial catalog against them.
+ */
+export function geminiCandidates(rawModels: GeminiModelInfo[]): ModelEntry[] {
+  return rawModels
+    .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+    .map(m => ({ ...m, id: m.name.replace('models/', '') }))
+    .filter(m => /^gemini-\d/.test(m.id))
+    .filter(m => !GEMINI_EXCLUDE_RE.test(m.id))
+    .filter(m => classifyGeminiTier(m.id) !== null)
+    .map(m => ({ id: m.id, apiModelId: m.id, label: m.displayName || m.id, backend: 'gemini' }));
+}
+
+/** Latest model per tier, with no pinned set: the unpinned view of the curation (kept for its callers and tests). */
 export function curateGeminiModels(rawModels: GeminiModelInfo[]): ModelEntry[] {
   const candidates = rawModels
     .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
@@ -136,7 +170,7 @@ export async function discoverGeminiModels(apiKey: string): Promise<ModelEntry[]
     });
   }
   const json = await resp.json() as { models: GeminiModelInfo[] };
-  return curateGeminiModels(json.models);
+  return geminiCandidates(json.models);
 }
 
 // ── Groq: GET /openai/v1/models ────────────────────────────────────────────────
@@ -166,7 +200,8 @@ export async function discoverGroqModels(apiKey: string): Promise<ModelEntry[]> 
     .filter(m => m.active !== false)
     .filter(m => {
       const id = m.id.toLowerCase();
-      return !id.includes('whisper') && !id.includes('embed') && !id.includes('guard');
+      // orpheus / tts: text-to-speech, not a text model (CL p/742#3).
+      return !id.includes('whisper') && !id.includes('embed') && !id.includes('guard') && !id.includes('orpheus') && !id.includes('tts');
     })
     .map(m => {
       const friendlyId = 'groq-' + m.id
@@ -304,6 +339,15 @@ async function probeClaudeCandidates(apiKey: string): Promise<ModelEntry[]> {
 }
 
 export async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]> {
+  return (await discoverClaudeCatalog(apiKey)).models;
+}
+
+/**
+ * Claude discovery, with WHERE the list came from (t/3553, SO e/263#2 cond 2). `catalog` = the authoritative
+ * /v1/models listing. `probe` = the hand-picked candidate fallback: never authoritative, so the refresh treats a
+ * probe-sourced backend as additive only and never lets it drive a drop.
+ */
+export async function discoverClaudeCatalog(apiKey: string): Promise<{ models: ModelEntry[]; source: 'catalog' | 'probe' }> {
   try {
     const resp = await fetch('https://api.anthropic.com/v1/models', {
       headers: {
@@ -316,7 +360,7 @@ export async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]
       const models = curateClaudeModels(json.data ?? []);
       if (models.length > 0) {
         console.log(`[ModelDiscovery] Claude: ${models.length} models via /v1/models catalog`);
-        return models;
+        return { models, source: 'catalog' };
       }
       console.warn('[ModelDiscovery] Claude /v1/models returned empty list; falling back to probe');
     } else {
@@ -334,7 +378,7 @@ export async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]
     console.warn('[ModelDiscovery] Claude /v1/models failed; falling back to probe:', err);
   }
 
-  return probeClaudeCandidates(apiKey);
+  return { models: await probeClaudeCandidates(apiKey), source: 'probe' };
 }
 
 // Claude's offline fallback (when live discovery fails) is DERIVED from ai-models.json, not a hardcoded
@@ -437,59 +481,62 @@ function recordError(err: unknown): void {
   });
 }
 
+/**
+ * Where a backend's model list came from this run (t/3553, SO e/263#2 cond 2):
+ *   - `catalog`: the vendor's authoritative listing, the only source that may drive a drop;
+ *   - `probe`: a non-authoritative fallback (Claude's candidate probe), additive only;
+ *   - `existing`: discovery failed or had no key, so the registry's own entries were returned unchanged.
+ */
+export type CatalogSource = 'catalog' | 'probe' | 'existing';
+
 async function discoverBackend(
   backendId: string,
   config: AIModelsConfig,
   deps: ModelDiscoveryDeps,
-): Promise<{ models: ModelEntry[]; result: BackendResult }> {
+): Promise<{ models: ModelEntry[]; result: BackendResult; source: CatalogSource }> {
+  const existing = () => config.models.filter(m => m.backend === backendId);
   if (backendId === 'ollama') {
     try {
       const models = await discoverOllamaModels();
       console.log(`[ModelDiscovery] Ollama: discovered ${models.length} local models`);
-      return { models, result: { ok: true, count: models.length } };
+      return { models, result: { ok: true, count: models.length }, source: 'catalog' };
     } catch (err) {
       recordError(err);
       const msg = err instanceof Error ? err.message : String(err);
       console.log(`[ModelDiscovery] Ollama not available: ${msg}`);
-      return {
-        models: config.models.filter(m => m.backend === 'ollama'),
-        result: { ok: false, count: 0, error: msg },
-      };
+      return { models: existing(), result: { ok: false, count: 0, error: msg }, source: 'existing' };
     }
   }
 
   const apiKey = deps.loadApiKey(backendId);
   if (!apiKey) {
-    const fallback = config.models.filter(m => m.backend === backendId);
-    return { models: fallback, result: { ok: false, count: 0, error: 'No API key configured' } };
+    return { models: existing(), result: { ok: false, count: 0, error: 'No API key configured' }, source: 'existing' };
   }
 
-  const discoverers: Record<string, (key: string) => Promise<ModelEntry[]>> = {
-    gemini: discoverGeminiModels,
-    claude: discoverClaudeModels,
-    groq: discoverGroqModels,
-    deepseek: discoverDeepSeekModels,
+  const discoverers: Record<string, (key: string) => Promise<{ models: ModelEntry[]; source: 'catalog' | 'probe' }>> = {
+    gemini: async (k) => ({ models: await discoverGeminiModels(k), source: 'catalog' }),
+    claude: discoverClaudeCatalog,
+    groq: async (k) => ({ models: await discoverGroqModels(k), source: 'catalog' }),
+    deepseek: async (k) => ({ models: await discoverDeepSeekModels(k), source: 'catalog' }),
   };
 
   const discover = discoverers[backendId];
   if (!discover) {
-    return { models: [], result: { ok: false, count: 0, error: `Unknown backend: ${backendId}` } };
+    return { models: existing(), result: { ok: false, count: 0, error: `Unknown backend: ${backendId}` }, source: 'existing' };
   }
 
   try {
-    const models = await discover(apiKey);
+    const { models, source } = await discover(apiKey);
     if (backendId === 'claude' && models.length === 0) {
-      const fallback = config.models.filter(m => m.backend === 'claude');
-      return { models: fallback, result: { ok: false, count: 0, error: 'No valid models found via probing — kept existing' } };
+      return { models: existing(), result: { ok: false, count: 0, error: 'No valid models found via probing — kept existing' }, source: 'existing' };
     }
-    console.log(`[ModelDiscovery] ${backendId}: discovered ${models.length} models`);
-    return { models, result: { ok: true, count: models.length } };
+    console.log(`[ModelDiscovery] ${backendId}: discovered ${models.length} models (${source})`);
+    return { models, result: { ok: true, count: models.length }, source };
   } catch (err) {
     recordError(err);
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[ModelDiscovery] ${backendId} error:`, msg);
-    const fallback = config.models.filter(m => m.backend === backendId);
-    return { models: fallback, result: { ok: false, count: 0, error: msg } };
+    return { models: existing(), result: { ok: false, count: 0, error: msg }, source: 'existing' };
   }
 }
 
@@ -540,6 +587,14 @@ export function mergeDiscoveredModels(
   return [...preserved, ...merged];
 }
 
+/** An explicit sign-off for one proposal (t/3553; CL p/742#3: who, why, the exact proposal, old→new per slot). */
+export interface RefreshAccept {
+  /** The exact `proposal` a dry run (or a refused refresh) returned. */
+  proposal: Proposal;
+  approvedBy: string;
+  reason: string;
+}
+
 export interface RefreshOptions {
   /** Additive-only: add newly-discovered ids, drop nothing (t/3551 decision 2). */
   additive?: boolean;
@@ -547,8 +602,70 @@ export interface RefreshOptions {
    *  Distinct from the always-manually-curated set. (openai is no longer an example here: it moved to
    *  the permanently-manual set — absent from ALL_BACKENDS — per t/3552 decision b.) */
   skipBackends?: readonly string[];
+  /** Compute and report the outcome (proposal, pinned candidates, refusals) but never write (t/3553). */
+  dryRun?: boolean;
+  /** Apply exactly this proposal. Refused as `proposal-changed` if the recomputed one differs (t/3553). */
+  accept?: RefreshAccept;
 }
 
+/** Why a refresh did not write (t/3553). `invalid` is the t/2039 guard; the rest are the drop policy's. */
+export type RefreshRefusal =
+  | { reason: 'suspected-partial-catalog'; backends: PartialCatalog[] }
+  | { reason: 'code-referenced-absent'; absent: CodeReferencedAbsence[] }
+  | { reason: 'proposal-required'; proposal: Proposal }
+  | { reason: 'needs-human'; proposal: Proposal; unresolved: string[] }
+  | { reason: 'cross-family'; proposal: Proposal; slots: string[] }
+  | { reason: 'proposal-changed'; accepted: Proposal; recomputed: Proposal; diff: ReturnType<typeof diffProposals> }
+  | { reason: 'invalid'; dangling: string[]; chainless: string[] };
+
+const refusalText = (r: RefreshRefusal): string => {
+  switch (r.reason) {
+    case 'suspected-partial-catalog':
+      return `suspected partial catalog: ${r.backends.map(b => `${b.backend} lists ${b.vendorListed} of ${b.registered} registered (would drop ${b.wouldDrop})`).join('; ')}. Nothing was proposed; retry later.`;
+    case 'code-referenced-absent':
+      return `the vendor no longer lists ${r.absent.length} model(s) that code still names: ${r.absent.map(a => `${a.id} (${a.backend})`).join(', ')}. No proposal can fix this. Update the code that names them, regenerate with \`npm run gen:code-referenced-models\`, then refresh again.`;
+    case 'proposal-required':
+      return `this refresh would change ${r.proposal.changes.length} selection slot(s): ${r.proposal.changes.map(c => c.slot).join(', ')}. Review the proposal and accept it explicitly.`;
+    case 'cross-family':
+      return `the proposal would move ${r.slots.join(', ')} to a different model family, which a refresh never does (CL p/742#3). A human must choose.`;
+    case 'needs-human': {
+      const from = new Map(r.proposal.changes.map(c => [c.slot, c.from]));
+      const listed = r.unresolved.map(s => `${s} (${JSON.stringify(from.get(s))})`).join(', ');
+      return `${r.unresolved.length} slot(s) have no same-family successor and need a manual choice: ${listed}.`;
+    }
+    case 'proposal-changed':
+      return `the catalog moved since the proposal was made (${r.diff.added.length} added, ${r.diff.removed.length} removed, ${r.diff.changed.length} changed slot(s)). Review the new proposal.`;
+    case 'invalid':
+      return `the refreshed registry is invalid (${[...(r.dangling.length ? [`dangling refs: ${r.dangling.join(', ')}`] : []), ...r.chainless].join(' | ')}).`;
+  }
+};
+
+function refuse(result: RefreshResult, refusal: RefreshRefusal): RefreshResult {
+  result.written = false;
+  result.refusal = refusal;
+  result.configWarning = `Refused to write ai-models.json — ${refusalText(refusal)} The existing file is unchanged.`;
+  console.warn(`[ModelDiscovery] REFUSED write: ${result.configWarning}`);
+  // t/2039#3: a refused write is surfaced in the flight recorder too, ids/backends only, no secrets.
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'model-discovery-refresh',
+    level: 'warn',
+    message: result.configWarning,
+    data: {
+      refusal: refusal.reason,
+      ...(refusal.reason === 'invalid' ? { dangling: refusal.dangling, chainless: refusal.chainless } : {}),
+      ...(refusal.reason === 'code-referenced-absent' ? { absent: refusal.absent } : {}),
+    },
+  });
+  return result;
+}
+
+/**
+ * Refresh the model registry from the vendor catalogs. Replace mode (the default) curates each authoritative
+ * catalog to the latest model per family, keeps every pinned (referenced) model the vendor still lists, and never
+ * moves a selection surface on its own: anything that would change a default or debate tier, or re-point or empty a
+ * chain, is returned as a proposal and written only through `opts.accept`. Design and conditions: t/3553#6.
+ */
 export async function refreshAIModels(deps: ModelDiscoveryDeps, opts: RefreshOptions = {}): Promise<RefreshResult> {
   const skip = new Set(opts.skipBackends ?? []);
   const config = loadModelConfig(deps.repoRoot);
@@ -563,8 +680,7 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps, opts: RefreshOpt
     written: false,
   };
 
-  const newModels: ModelEntry[] = [];
-
+  const discovered: { backend: string; models: ModelEntry[]; source: CatalogSource }[] = [];
   for (const backendId of ALL_BACKENDS) {
     if (skip.has(backendId)) {
       // Not probed this run → treated as non-probed so its existing models survive untouched.
@@ -572,9 +688,10 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps, opts: RefreshOpt
       continue;
     }
     const discovery = await discoverBackend(backendId, config, deps);
-    newModels.push(...discovery.models);
+    discovered.push({ backend: backendId, models: discovery.models, source: discovery.source });
     result[backendId] = discovery.result;
   }
+  result.catalogSources = Object.fromEntries(discovered.map(d => [d.backend, d.source]));
 
   // openai is manually curated (t/3552 decision b) — absent from ALL_BACKENDS, so the loop never touches
   // it. Report it as such for the Settings panel and count its preserved hand-maintained entries (mirrors
@@ -585,115 +702,138 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps, opts: RefreshOpt
     error: 'manually curated — excluded from auto-discovery (t/3552)',
   };
 
-  // Merge, not replace (t/1711): only the backends probed this run are regenerated; non-probed
-  // backends (zai, azure, manually-curated) survive untouched with their defaults/debateTiers/
-  // fallbackChains refs (a bare replace caused the Z.AI outage: dropped zai models -> dangling
-  // defaults.zai -> HTTP 1211). And attribute-preserving (t/3551): a discovered model keeps the prior
-  // entry's curated extras (picker, minTimeoutMs [t/3518], fixedTemperature) — a bare replace wiped
-  // them, invisibly to verify:config since they're unreferenced.
-  // Skipped backends are excluded from `probed` so the merge preserves their existing models. openai is
-  // now permanently manually-curated (t/3552 decision b) — absent from ALL_BACKENDS, so it too is
-  // preserved as non-probed. Additive mode (t/3551 decision 2) drops nothing.
-  const probedThisRun = new Set<string>(ALL_BACKENDS.filter(b => !skip.has(b)));
-  config.models = mergeDiscoveredModels(config.models, newModels, probedThisRun, opts.additive ?? false);
-  // ── Repair pass (t/2039) ──────────────────────────────────────────────────────
-  // Extend the merge repair from defaults-only to ALL runtime model-id reference
-  // surfaces, on the merged in-memory config, BEFORE the validate-before-write guard.
-  const resolves = (id: string): boolean =>
-    config.models.some(m => m.id === id) || KNOWN_VERBATIM.has(id);
-  const repairs: string[] = [];
-
-  // 1. fallbackChains VALUES: prune failover targets that no longer resolve. A dead
-  //    target is already a no-op, so pruning is strictly a repair (KNOWN_VERBATIM kept).
-  if (config.fallbackChains) {
-    for (const [key, chain] of Object.entries(config.fallbackChains)) {
-      const kept = chain.filter(resolves);
-      if (kept.length !== chain.length) {
-        config.fallbackChains[key] = kept;
-        repairs.push(`pruned ${chain.length - kept.length} dangling fallbackChains["${key}"] target(s)`);
-      }
-    }
+  if (opts.additive) {
+    // Additive (t/3551 decision 2): keep every entry, append new ids. Nothing can dangle or move.
+    const probed = new Set(discovered.map(d => d.backend));
+    config.models = mergeDiscoveredModels(config.models, discovered.flatMap(d => d.models), probed, true);
+    return guardAndWrite(deps, config, result, opts, [], undefined);
   }
 
-  // 2. defaults: repoint a dangling default to a surviving same-backend model that
-  //    ITSELF has a non-empty chain (chain-exempt backend → any surviving same-backend
-  //    model). Never silently repoint to a chain-less model — that just relocates the
-  //    invariant break; the guard below refuses instead. Checked against the full merged
-  //    set so a surviving non-probed backend's default is never falsely rewritten.
-  for (const [backend, defaultId] of Object.entries(config.defaults)) {
-    if (resolves(defaultId)) continue;
-    const candidates = config.models.filter(m => m.backend === backend);
-    const pick = CHAIN_EXEMPT_BACKENDS.has(backend)
-      ? candidates[0]
-      : candidates.find(m => (config.fallbackChains?.[m.id]?.length ?? 0) > 0);
-    if (pick) {
-      config.defaults[backend] = pick.id;
-      repairs.push(`repointed dangling default["${backend}"] -> ${pick.id}`);
-    }
-    // else: leave dangling — the guard refuses the write below.
+  // ── 1. Partial-catalog check, BEFORE curation (TL t/3553#5 cond 1; SO e/263#2 baseline) ─────────────
+  const authoritative = discovered.filter(d => d.source === 'catalog');
+  const partial = authoritative
+    .map(d => partialCatalog(d.backend, config.models.filter(m => m.backend === d.backend).map(m => m.id), new Set(d.models.map(m => m.id))))
+    .filter((p): p is PartialCatalog => p !== null);
+  if (partial.length > 0) return refuse(result, { reason: 'suspected-partial-catalog', backends: partial });
+
+  // ── 1b. A model code still names is gone from its vendor: refuse, no proposal (e/271#12 item 2) ──────
+  // After the partial check, so a mass absence still reads as an outage (SO e/271 cond 1).
+  const codeReferenced = deps.codeReferencedIds ?? codeReferencedModels.ids;
+  const absent = codeReferencedAbsent(codeReferenced, config.models, new Map(authoritative.map(d => [d.backend, new Set(d.models.map(m => m.id))])));
+  if (absent.length > 0) return refuse(result, { reason: 'code-referenced-absent', absent });
+
+  // ── 2. Curate authoritative catalogs; a probe is additive only (SO e/263#2 cond 2) ─────────────────
+  const pinned = referenceSlots(config, codeReferenced);
+  const curated: ModelEntry[] = [];
+  const pinnedCandidates: PinnedCandidate[] = [];
+  for (const d of authoritative) {
+    const { kept, pinnedCandidates: pc } = curateByFamily(d.models, pinned);
+    curated.push(...kept);
+    pinnedCandidates.push(...pc);
+  }
+  for (const d of discovered.filter(x => x.source === 'probe')) {
+    // Fallback-Path Logging: the catalog wasn't authoritative, so this backend can only gain models.
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'model-discovery-refresh', level: 'warn',
+      message: `${d.backend}: model list came from the candidate probe, not the vendor catalog — additive only this run (no drops, no proposal).`,
+      data: { backend: d.backend, listed: d.models.length },
+    });
+  }
+  result.pinnedCandidates = pinnedCandidates;
+
+  // `existing` and probe-sourced backends are non-probed for the replace merge, so they survive untouched;
+  // probe-sourced ids are then appended additively.
+  const replaced = mergeDiscoveredModels(config.models, curated, new Set(authoritative.map(d => d.backend)), false);
+  const merged = mergeDiscoveredModels(replaced, discovered.filter(d => d.source === 'probe').flatMap(d => d.models), new Set(), true);
+  const mergedIds = new Set(merged.map(m => m.id));
+  const removed = config.models.filter(m => !mergedIds.has(m.id));
+  config.models = merged;
+
+  // ── 3. Proposal: every selection-surface change, never applied on its own (TL t/3553#1, CL #2) ───────
+  const { changes, autoPrunes } = computeProposal(config, removed);
+  const proposal: Proposal = {
+    catalogFingerprint: catalogFingerprint(Object.fromEntries(authoritative.map(d => [d.backend, d.models.map(m => m.id)]))),
+    hash: proposalHash(changes),
+    changes,
+  };
+  result.proposal = proposal;
+
+  // A dead target in a chain that stays non-empty is already a no-op: pruning it stays automatic, and logged.
+  const changedSlots = new Set(changes.map(c => c.slot));
+  const resolves = (id: string) => mergedIds.has(id) || KNOWN_VERBATIM.has(id);
+  for (const [key, chain] of Object.entries(config.fallbackChains ?? {})) {
+    if (!changedSlots.has(`fallbackChains[${key}]`)) config.fallbackChains![key] = chain.filter(resolves);
   }
 
-  // 3. debateTiers VALUES: repoint a dangling {tier}.{backend} to the repaired backend
-  //    default if it resolves, else drop that entry. Skip the "_comment" string key.
-  if (config.debateTiers) {
-    for (const [tier, tierValue] of Object.entries(config.debateTiers)) {
-      // `tierValue === null` guard: typeof null === 'object' (t/2039#3 null-tier nit).
-      if (tier === '_comment' || tierValue === null || typeof tierValue !== 'object') continue;
-      for (const [backend, modelId] of Object.entries(tierValue)) {
-        if (resolves(modelId)) continue;
-        const repaired = config.defaults[backend];
-        if (repaired && resolves(repaired)) {
-          tierValue[backend] = repaired;
-          repairs.push(`repointed dangling debateTiers.${tier}.${backend} -> ${repaired}`);
-        } else {
-          delete tierValue[backend];
-          repairs.push(`dropped dangling debateTiers.${tier}.${backend}`);
-        }
-      }
-    }
-  }
+  if (changes.length === 0) return guardAndWrite(deps, config, result, opts, autoPrunes, undefined);
 
+  // CL p/742#3 enforced, not assumed: a default or tier never changes family through refresh (TL review of #2984).
+  const crossFamily = crossFamilyChanges(changes, removed, merged);
+  if (crossFamily.length > 0) return refuse(result, { reason: 'cross-family', proposal, slots: crossFamily });
+
+  const unresolved = changes.filter(c => c.to === null).map(c => c.slot);
+  if (!opts.accept) {
+    return refuse(result, unresolved.length > 0
+      ? { reason: 'needs-human', proposal, unresolved }
+      : { reason: 'proposal-required', proposal });
+  }
+  // ── 4. Accept: only the exact proposal, recomputed now (TL t/3553#5 cond 2; SO e/263#4) ─────────────
+  const accepted = opts.accept.proposal;
+  if (accepted.hash !== proposal.hash || proposalHash(accepted.changes) !== accepted.hash) {
+    return refuse(result, { reason: 'proposal-changed', accepted, recomputed: proposal, diff: diffProposals(accepted.changes, changes) });
+  }
+  if (unresolved.length > 0) return refuse(result, { reason: 'needs-human', proposal, unresolved });
+  applyProposal(config, changes);
+  return guardAndWrite(deps, config, result, opts, autoPrunes, opts.accept);
+}
+
+/**
+ * The t/2039 validate-before-write guard, then the write. Every path goes through here, an accepted proposal
+ * included (TL t/3553#5 cond 3): accepting can never persist a registry the invariants reject.
+ */
+function guardAndWrite(
+  deps: ModelDiscoveryDeps,
+  config: AIModelsConfig,
+  result: RefreshResult,
+  opts: RefreshOptions,
+  autoPrunes: string[],
+  accept: RefreshAccept | undefined,
+): RefreshResult {
   result.totalModels = config.models.length;
-
-  // ── Validate-before-write guard (t/2039) ───────────────────────────────────────
-  // Run the invariants IN-PROCESS on the repaired registry (TL t/2038#1: the pure
-  // invariant fns, NOT a shell-out to the 6-gate verify:config runner). If anything
-  // still dangles or a live non-exempt default is chain-less, REFUSE to write — leave
-  // ai-models.json byte-untouched and report why. Never persist a known-invalid
-  // registry (the t/2038 corruption class). Per-backend results above are already
-  // populated (discovery ran) so a refuse still reports "discovered, not saved".
+  // Run the invariants IN-PROCESS on the final registry (TL t/2038#1: the pure invariant fns, NOT a shell-out
+  // to the verify:config runner, which gates the committed file in CI). If anything dangles or a live
+  // non-exempt default is chain-less, REFUSE: ai-models.json stays byte-untouched (the t/2038 corruption class).
   const dangling = findDanglingRefs(config);
   const chainless = findChainlessDefaults(config);
-  if (dangling.length > 0 || chainless.length > 0) {
-    const reasons: string[] = [];
-    if (dangling.length > 0) reasons.push(`dangling refs: ${dangling.join(', ')}`);
-    if (chainless.length > 0) reasons.push(chainless.join('; '));
-    result.written = false;
-    result.configWarning =
-      `Refused to write ai-models.json — the refreshed registry is invalid (${reasons.join(' | ')}). The existing file is unchanged.`;
-    console.warn(`[ModelDiscovery] REFUSED write: ${result.configWarning}`);
-    // t/2039#3: a refused write is a t/2038 corruption-class event — surface it in the
-    // flight recorder too (beyond console + the RefreshResult field) so a diagnostics
-    // dump captures which refs would have broken. Lists only ids/backends, no secrets.
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'model-discovery-refresh',
-      level: 'warn',
-      message: result.configWarning,
-      data: { dangling, chainless },
-    });
+  if (dangling.length > 0 || chainless.length > 0) return refuse(result, { reason: 'invalid', dangling, chainless });
+
+  if (opts.dryRun) {
+    result.dryRun = true;
+    if (autoPrunes.length > 0) result.configWarning = `Dry run, nothing written. Would apply: ${autoPrunes.join('; ')}.`;
     return result;
   }
 
-  // Clean (or fully repaired): persist. Bump lastRefreshed only on the write path so a
-  // refused refresh leaves the on-disk timestamp untouched too.
+  // Clean: persist. Bump lastRefreshed only on the write path, so a refused refresh leaves the timestamp alone.
   config.lastRefreshed = new Date().toISOString();
   saveModelConfig(deps.repoRoot, config);
   result.written = true;
-  if (repairs.length > 0) {
-    result.configWarning = `Refresh repaired config before writing: ${repairs.join('; ')}.`;
+  const notes = [...autoPrunes];
+  if (accept) {
+    const slots = result.proposal!.changes.map(c => `${c.slot}: ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)} (family ${c.family ?? 'none'}, ${c.reason ?? 'vendor-absent'})`);
+    // A changed default or debate tier starts a calibration epoch (CL p/742#3).
+    const calibrationEpoch = result.proposal!.changes.some(c => c.slot.startsWith('defaults.') || c.slot.startsWith('debateTiers.'));
+    result.signoff = { approvedBy: accept.approvedBy, reason: accept.reason, at: config.lastRefreshed!, proposalHash: result.proposal!.hash, catalogFingerprint: result.proposal!.catalogFingerprint, slots, calibrationEpoch };
+    getGlobalRecorder()?.record({
+      type: 'system.info', component: 'model-discovery-refresh', level: 'info',
+      message: `ai-models.json: accepted proposal ${result.proposal!.hash} by ${accept.approvedBy} (${accept.reason})${calibrationEpoch ? ' — starts a calibration epoch' : ''}`,
+      data: { ...result.signoff },
+    });
+    notes.push(`applied accepted proposal ${result.proposal!.hash} (${slots.length} slot(s))`);
+    // TL #2984 review, cond 3 reading: the in-process guard is only half the gate. The other half runs at commit
+    // time, so tell whoever ran the refresh.
+    notes.push('ai-models.json was written; `npm run verify:config` must pass before you commit it');
   }
-  console.log(`[ModelDiscovery] Saved ${newModels.length} models to ai-models.json`);
-
+  if (notes.length > 0) result.configWarning = `Refresh repaired config before writing: ${notes.join('; ')}.`;
+  console.log(`[ModelDiscovery] Saved ${config.models.length} models to ai-models.json`);
   return result;
 }
