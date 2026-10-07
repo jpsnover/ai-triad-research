@@ -225,6 +225,11 @@ jobs:
               # research/comp-linguist/tools/** — formalizer / golden scorer / Option C parity
               # tests (t/3940). Previously matched no filter, so they never ran in CI.
               - 'research/comp-linguist/tools/**'
+              # lib/debate/soul-docs/** — the ONLY input of tools/test_render_soul_md.py (its
+              # _SOUL_DIR). Without it a soul-JSON-only PR skipped test-python, ci-gate counted the
+              # skip as a pass, and #2938 left main's .soul.md views stale unobserved (t/4029, the
+              # t/3189 shape). Rule: every path a test-python test READS must be in this list.
+              - 'lib/debate/soul-docs/**'
               - '.github/workflows/ci.yml'
             # 'container' gates test-container (t/2094). SOUNDNESS: ci-gate treats
             # a SKIPPED gated job as satisfied, so this list must cover EVERYTHING
