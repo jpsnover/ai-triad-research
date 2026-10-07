@@ -1,0 +1,23 @@
+{
+  "scenario": "no-values",
+  "host": [
+    "[Cyan] Unique lineage values: 0",
+    "[Green] No bare-string lineage entries to process."
+  ],
+  "warnings": [],
+  "verbose": [
+    "UniqueValues type: HashSet`1, count: 0"
+  ],
+  "error": null,
+  "output": [],
+  "calls": [],
+  "guards": [],
+  "writes": [],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"acc-1\",\n      \"label\": \"Label acc-1\",\n      \"description\": \"Description of acc-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Cybernetics\",\n            \"description\": \"Old description of Cybernetics.\",\n            \"url\": \"https://old.example/cyb\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-2\",\n      \"label\": \"Label acc-2\",\n      \"description\": \"Description of acc-2.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          \"   \"\n        ]\n      }\n    }\n  ]\n}"
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "scenario": "regen-failures",
+  "host": [
+    "[Cyan] === Regenerate Lineage Content ===",
+    "[Gray]   Nodes to process: 3",
+    "[Gray]   Batch size: 1 nodes/batch",
+    "[Gray]   Model: claude-haiku-4-5",
+    "[Gray]   Total batches: 3",
+    "[Gray][nn]   Batch 1/3 (1 nodes: r-1)...",
+    "[Red]  no response",
+    "[Gray][nn]   Batch 2/3 (1 nodes: r-2)...",
+    "[Red]  failed: 500 Internal Server Error",
+    "[Gray][nn]   Batch 3/3 (1 nodes: r-5)...",
+    "[Green]  done (1 nodes)",
+    "[Green]   Saved accelerationist.json",
+    "[Cyan] \n=== SUMMARY ===",
+    "[Gray]   Nodes updated: 1",
+    "[Gray]   Nodes failed: 2",
+    "[Gray]   POV files saved: accelerationist"
+  ],
+  "warnings": [],
+  "verbose": [
+    "  r-5 — 1/1 entries updated"
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "prompt",
+      "name": "lineage-regenerate"
+    },
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "claude"
+    },
+    {
+      "call": "ai",
+      "index": 1,
+      "model": "claude-haiku-4-5",
+      "apiKey": "resolved-claude-key",
+      "temperature": 0.3,
+      "maxTokens": 16384,
+      "jsonMode": true,
+      "timeoutSec": null,
+      "system": "<<lineage-regenerate>>",
+      "prompt": "Regenerate the description field for each lineage entry on each node below.\nKeep name, url, and category fields EXACTLY as provided. Only replace the description.\n\nNODES:\n{\n  \"node_id\": \"r-1\",\n  \"label\": \"Label r-1\",\n  \"description\": \"Description of r-1.\",\n  \"category\": \"Beliefs\",\n  \"pov\": \"accelerationist\",\n  \"lineage_entries\": [\n    {\n      \"name\": \"Alpha\",\n      \"url\": \"https://a.example\",\n      \"category\": \"social_theory\"\n    },\n    {\n      \"name\": \"Beta\",\n      \"url\": \"https://b.example\",\n      \"category\": \"other\"\n    }\n  ],\n  \"other_entry_names\": [\n    \"Alpha\",\n    \"Beta\"\n  ]\n}\n\nReturn a JSON object mapping node_id to an array of updated lineage entries:\n{\n  \"node_id_1\": [\n    {\"name\": \"...\", \"description\": \"2-4 paragraphs...\", \"url\": \"...\", \"category\": \"...\"},\n    ...\n  ],\n  ...\n}"
+    },
+    {
+      "call": "ai",
+      "index": 2,
+      "model": "claude-haiku-4-5",
+      "apiKey": "resolved-claude-key",
+      "temperature": 0.3,
+      "maxTokens": 16384,
+      "jsonMode": true,
+      "timeoutSec": null,
+      "system": "<<lineage-regenerate>>",
+      "prompt": "Regenerate the description field for each lineage entry on each node below.\nKeep name, url, and category fields EXACTLY as provided. Only replace the description.\n\nNODES:\n{\n  \"node_id\": \"r-2\",\n  \"label\": \"Label r-2\",\n  \"description\": \"\",\n  \"category\": \"Situation\",\n  \"pov\": \"accelerationist\",\n  \"lineage_entries\": [\n    {\n      \"name\": \"Delta\",\n      \"url\": \"\",\n      \"category\": \"other\"\n    }\n  ],\n  \"other_entry_names\": [\n    \"Delta\"\n  ]\n}\n\nReturn a JSON object mapping node_id to an array of updated lineage entries:\n{\n  \"node_id_1\": [\n    {\"name\": \"...\", \"description\": \"2-4 paragraphs...\", \"url\": \"...\", \"category\": \"...\"},\n    ...\n  ],\n  ...\n}"
+    },
+    {
+      "call": "sleep",
+      "seconds": 1.0
+    },
+    {
+      "call": "ai",
+      "index": 3,
+      "model": "claude-haiku-4-5",
+      "apiKey": "resolved-claude-key",
+      "temperature": 0.3,
+      "maxTokens": 16384,
+      "jsonMode": true,
+      "timeoutSec": null,
+      "system": "<<lineage-regenerate>>",
+      "prompt": "Regenerate the description field for each lineage entry on each node below.\nKeep name, url, and category fields EXACTLY as provided. Only replace the description.\n\nNODES:\n{\n  \"node_id\": \"r-5\",\n  \"label\": \"Label r-5\",\n  \"description\": \"Description of r-5.\",\n  \"category\": \"Desires\",\n  \"pov\": \"accelerationist\",\n  \"lineage_entries\": [\n    {\n      \"name\": \"Epsilon\",\n      \"url\": \"https://e.example\",\n      \"category\": \"other\"\n    }\n  ],\n  \"other_entry_names\": [\n    \"Epsilon\"\n  ]\n}\n\nReturn a JSON object mapping node_id to an array of updated lineage entries:\n{\n  \"node_id_1\": [\n    {\"name\": \"...\", \"description\": \"2-4 paragraphs...\", \"url\": \"...\", \"category\": \"...\"},\n    ...\n  ],\n  ...\n}"
+    }
+  ],
+  "guards": [
+    "taxonomy/Origin/accelerationist.json"
+  ],
+  "writes": [
+    "taxonomy/Origin/accelerationist.json (encoding=utf-8, bom=False)"
+  ],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"r-1\",\n      \"label\": \"Label r-1\",\n      \"description\": \"Description of r-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Alpha\",\n            \"description\": \"Old description of Alpha.\",\n            \"url\": \"https://a.example\",\n            \"category\": \"social_theory\"\n          },\n          {\n            \"name\": \"Beta\",\n            \"description\": \"Old description of Beta.\",\n            \"url\": \"https://b.example\",\n            \"category\": \"other\"\n          }\n        ]\n      },\n      \"category\": \"Beliefs\"\n    },\n    {\n      \"id\": \"r-2\",\n      \"label\": \"Label r-2\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Delta\",\n            \"description\": \"Old description of Delta.\",\n            \"url\": \"\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"r-3\",\n      \"label\": \"Label r-3\",\n      \"description\": \"Description of r-3.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          \"bare only\"\n        ]\n      }\n    },\n    {\n      \"id\": \"r-4\",\n      \"label\": \"Label r-4\",\n      \"description\": \"Description of r-4.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": []\n      }\n    },\n    {\n      \"id\": \"r-5\",\n      \"label\": \"Label r-5\",\n      \"description\": \"Description of r-5.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Epsilon\",\n            \"description\": \"A long, multi-sentence description that is comfortably over one hundred characters, so the regenerate path accepts it as a replacement.\",\n            \"url\": \"https://e.example\",\n            \"category\": \"other\"\n          }\n        ]\n      },\n      \"category\": \"Desires\"\n    }\n  ]\n}\n"
+  }
+}

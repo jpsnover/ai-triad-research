@@ -1,0 +1,38 @@
+{
+  "scenario": "regen-whatif",
+  "host": [
+    "[Cyan] === Regenerate Lineage Content ===",
+    "[Gray]   Nodes to process: 6",
+    "[Gray]   Batch size: 3 nodes/batch",
+    "[Gray]   Model: gemini-2.5-flash",
+    "[Gray]   Total batches: 2",
+    "[Gray] \nWhatIf: Would regenerate 6 nodes in 2 batches",
+    "[DarkGray]   r-1: Label r-1 (1 entries)",
+    "[DarkGray]   r-2: Label r-2 (1 entries)",
+    "[DarkGray]   r-3: Label r-3 (1 entries)",
+    "[DarkGray]   r-4: Label r-4 (1 entries)",
+    "[DarkGray]   r-5: Label r-5 (1 entries)"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "prompt",
+      "name": "lineage-regenerate"
+    },
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    }
+  ],
+  "guards": [],
+  "writes": [],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"r-1\",\n      \"label\": \"Label r-1\",\n      \"description\": \"Description of r-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Name 1\",\n            \"description\": \"Old description of Name 1.\",\n            \"url\": \"https://n1.example\",\n            \"category\": \"other\"\n          }\n        ]\n      },\n      \"category\": \"Beliefs\"\n    },\n    {\n      \"id\": \"r-2\",\n      \"label\": \"Label r-2\",\n      \"description\": \"Description of r-2.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Name 2\",\n            \"description\": \"Old description of Name 2.\",\n            \"url\": \"https://n2.example\",\n            \"category\": \"other\"\n          }\n        ]\n      },\n      \"category\": \"Beliefs\"\n    },\n    {\n      \"id\": \"r-3\",\n      \"label\": \"Label r-3\",\n      \"description\": \"Description of r-3.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Name 3\",\n            \"description\": \"Old description of Name 3.\",\n            \"url\": \"https://n3.example\",\n            \"category\": \"other\"\n          }\n        ]\n      },\n      \"category\": \"Beliefs\"\n    },\n    {\n      \"id\": \"r-4\",\n      \"label\": \"Label r-4\",\n      \"description\": \"Description of r-4.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Name 4\",\n            \"description\": \"Old description of Name 4.\",\n            \"url\": \"https://n4.example\",\n            \"category\": \"other\"\n          }\n        ]\n      },\n      \"category\": \"Beliefs\"\n    },\n    {\n      \"id\": \"r-5\",\n      \"label\": \"Label r-5\",\n      \"description\": \"Description of r-5.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Name 5\",\n            \"description\": \"Old description of Name 5.\",\n            \"url\": \"https://n5.example\",\n            \"category\": \"other\"\n          }\n        ]\n      },\n      \"category\": \"Beliefs\"\n    },\n    {\n      \"id\": \"r-6\",\n      \"label\": \"Label r-6\",\n      \"description\": \"Description of r-6.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Name 6\",\n            \"description\": \"Old description of Name 6.\",\n            \"url\": \"https://n6.example\",\n            \"category\": \"other\"\n          }\n        ]\n      },\n      \"category\": \"Beliefs\"\n    }\n  ]\n}"
+  }
+}

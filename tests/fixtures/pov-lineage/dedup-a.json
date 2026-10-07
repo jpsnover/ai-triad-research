@@ -1,0 +1,75 @@
+{
+  "scenario": "dedup-a",
+  "host": [
+    "[Cyan] Unique lineage values: 6",
+    "[Gray] Computing embeddings for dedup...",
+    "[Gray] Clustering at cosine >= 0.85...",
+    "[Green] Dedup: 6 → 4 canonical values (2 merged)",
+    "[Gray]   Sample merges:",
+    "[DarkGray]     'Asimov's Laws (conceptual)' → 'Asimov's Laws'",
+    "[DarkGray]     'Techno-optimism' → 'Techno Optimism'",
+    "[Green]   Dedup references updated in taxonomy files",
+    "[Gray] Post-dedup unique: 4",
+    "[Gray] Already cached: 4",
+    "[Gray] Need enrichment: 0",
+    "[Green] Cache saved: 4 entries → <ROOT>/calibration/core/lineage-enrichments.json",
+    "[Cyan] \nApplying enrichments to taxonomy files...",
+    "[Green]   Saved accelerationist.json",
+    "[Cyan] \n=== SUMMARY ===",
+    "[Gray]   Unique values: 4",
+    "[Gray]   Enriched (new): 0",
+    "[Gray]   From cache: 4",
+    "[Gray]   Nodes updated: 3"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Loaded 4 cached enrichments",
+    "UniqueValues type: HashSet`1, count: 6",
+    "  acc-1 [accelerationist]: 3 bare → enriched, 0 already rich",
+    "  acc-2 [accelerationist]: 2 bare → enriched, 0 already rich",
+    "  acc-3 [accelerationist]: 2 bare → enriched, 0 already rich",
+    "Performing the operation \"Enrich lineage\" on target \"acc-1 (3 lineage entries)\".",
+    "Performing the operation \"Enrich lineage\" on target \"acc-2 (2 lineage entries)\".",
+    "Performing the operation \"Enrich lineage\" on target \"acc-3 (2 lineage entries)\"."
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "embed",
+      "texts": [
+        "Asimov's Laws",
+        "Asimov's Laws (conceptual)",
+        "Techno-optimism",
+        "Techno Optimism",
+        "Obscure Doctrine",
+        "Game Theory"
+      ],
+      "ids": [
+        "Asimov's Laws",
+        "Asimov's Laws (conceptual)",
+        "Techno-optimism",
+        "Techno Optimism",
+        "Obscure Doctrine",
+        "Game Theory"
+      ]
+    }
+  ],
+  "guards": [
+    "taxonomy/Origin/accelerationist.json",
+    "taxonomy/Origin/accelerationist.json"
+  ],
+  "writes": [
+    "taxonomy/Origin/accelerationist.json (encoding=utf-8, bom=False)",
+    "calibration/core/lineage-enrichments.json (encoding=utf-8, bom=False)",
+    "taxonomy/Origin/accelerationist.json (encoding=utf-8, bom=False)"
+  ],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "calibration/core/lineage-enrichments.json": "canonical: {\"Asimov's Laws\":{\"category\":\"other\",\"description\":\"Laws of robotics.\",\"url\":\"https://asimov.example\",\"url_status\":200},\"Game Theory\":{\"category\":\"other\",\"description\":\"Strategic interaction.\",\"url\":\"https://gt.example\",\"url_status\":200},\"Obscure Doctrine\":{\"category\":\"other\",\"description\":\"Rare.\",\"url\":\"\",\"url_status\":\"cleared\"},\"Techno Optimism\":{\"category\":\"other\",\"description\":\"Optimism about technology.\",\"url\":\"https://to.example\",\"url_status\":200}}",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"acc-1\",\n      \"label\": \"Label acc-1\",\n      \"description\": \"Description of acc-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Asimov's Laws\",\n            \"description\": \"Laws of robotics.\",\n            \"url\": \"https://asimov.example\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Asimov's Laws\",\n            \"description\": \"Laws of robotics.\",\n            \"url\": \"https://asimov.example\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Techno Optimism\",\n            \"description\": \"Optimism about technology.\",\n            \"url\": \"https://to.example\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-2\",\n      \"label\": \"Label acc-2\",\n      \"description\": \"Description of acc-2.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Techno Optimism\",\n            \"description\": \"Optimism about technology.\",\n            \"url\": \"https://to.example\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Obscure Doctrine\",\n            \"description\": \"Rare.\",\n            \"url\": \"\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-3\",\n      \"label\": \"Label acc-3\",\n      \"description\": \"Description of acc-3.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Techno Optimism\",\n            \"description\": \"Optimism about technology.\",\n            \"url\": \"https://to.example\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Game Theory\",\n            \"description\": \"Strategic interaction.\",\n            \"url\": \"https://gt.example\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    }\n  ]\n}\n"
+  }
+}

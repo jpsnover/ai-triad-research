@@ -1,0 +1,91 @@
+{
+  "scenario": "url-phase",
+  "host": [
+    "[Cyan] Unique lineage values: 5",
+    "[Gray] Computing embeddings for dedup...",
+    "[Yellow]   Embedding unavailable — skipping dedup",
+    "[Gray] Post-dedup unique: 5",
+    "[Gray] Already cached: 5",
+    "[Gray] Need enrichment: 0",
+    "[Green] Cache saved: 5 entries → <ROOT>/calibration/core/lineage-enrichments.json",
+    "[Cyan] \nValidating 5 URLs (GET)...",
+    "[Gray]   Valid: 1 | Wiki fallback: 1 | Cleared: 1 | Skipped: 2",
+    "[Cyan] \nApplying enrichments to taxonomy files...",
+    "[Green]   Saved skeptic.json",
+    "[Cyan] \n=== SUMMARY ===",
+    "[Gray]   Unique values: 5",
+    "[Gray]   Enriched (new): 0",
+    "[Gray]   From cache: 5",
+    "[Gray]   Nodes updated: 1",
+    "[Gray]   URLs valid: 1 | invalid: 1"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Loaded 5 cached enrichments",
+    "UniqueValues type: HashSet`1, count: 5",
+    "  skp-1 [skeptic]: 5 bare → enriched, 0 already rich",
+    "Performing the operation \"Enrich lineage\" on target \"skp-1 (5 lineage entries)\"."
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "embed",
+      "texts": [
+        "Ay",
+        "Bee",
+        "Cee",
+        "Dee",
+        "Eee"
+      ],
+      "ids": [
+        "Ay",
+        "Bee",
+        "Cee",
+        "Dee",
+        "Eee"
+      ]
+    },
+    {
+      "call": "testUrl",
+      "url": "https://c.example/ok",
+      "result": true
+    },
+    {
+      "call": "testUrl",
+      "url": "https://d.example/dead",
+      "result": false
+    },
+    {
+      "call": "testUrl",
+      "url": "https://en.wikipedia.org/wiki/Dee",
+      "result": true
+    },
+    {
+      "call": "testUrl",
+      "url": "https://e.example/dead",
+      "result": false
+    },
+    {
+      "call": "testUrl",
+      "url": "https://en.wikipedia.org/wiki/Eee",
+      "result": false
+    }
+  ],
+  "guards": [
+    "taxonomy/Origin/skeptic.json"
+  ],
+  "writes": [
+    "calibration/core/lineage-enrichments.json (encoding=utf-8, bom=False)",
+    "calibration/core/lineage-enrichments.json (encoding=utf-8, bom=False)",
+    "taxonomy/Origin/skeptic.json (encoding=utf-8, bom=False)"
+  ],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "calibration/core/lineage-enrichments.json": "canonical: {\"Ay\":{\"category\":\"other\",\"description\":\"No url at all.\",\"url\":\"\",\"url_status\":\"cleared\"},\"Bee\":{\"category\":\"other\",\"description\":\"Not http.\",\"url\":\"ftp://bee.example\",\"url_status\":\"cleared\"},\"Cee\":{\"category\":\"other\",\"description\":\"Valid url.\",\"url\":\"https://c.example/ok\",\"url_status\":200},\"Dee\":{\"category\":\"other\",\"description\":\"Dead url, wiki ok.\",\"url\":\"https://en.wikipedia.org/wiki/Dee\",\"url_status\":200},\"Eee\":{\"category\":\"other\",\"description\":\"Dead url, no wiki.\",\"url\":null,\"url_status\":\"cleared\"}}",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/skeptic.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"skp-1\",\n      \"label\": \"Label skp-1\",\n      \"description\": \"Description of skp-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Ay\",\n            \"description\": \"No url at all.\",\n            \"url\": \"\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Bee\",\n            \"description\": \"Not http.\",\n            \"url\": \"ftp://bee.example\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Cee\",\n            \"description\": \"Valid url.\",\n            \"url\": \"https://c.example/ok\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Dee\",\n            \"description\": \"Dead url, wiki ok.\",\n            \"url\": \"https://en.wikipedia.org/wiki/Dee\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Eee\",\n            \"description\": \"Dead url, no wiki.\",\n            \"url\": null,\n            \"category\": \"other\"\n          }\n        ]\n      }\n    }\n  ]\n}\n"
+  }
+}
