@@ -3,9 +3,10 @@ import path from 'path';
 import { ActionableError } from '../debate/errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { findDanglingRefs, findChainlessDefaults, KNOWN_VERBATIM } from '../ai-config/validate.js';
+import codeReferencedModels from '../ai-config/codeReferencedModels.json' with { type: 'json' };
 import {
-  referenceSlots, curateByFamily, partialCatalog, computeProposal, applyProposal, proposalHash, catalogFingerprint, diffProposals, crossFamilyChanges,
-  type PartialCatalog, type PinnedCandidate, type Proposal,
+  referenceSlots, curateByFamily, partialCatalog, codeReferencedAbsent, computeProposal, applyProposal, proposalHash, catalogFingerprint, diffProposals, crossFamilyChanges,
+  type CodeReferencedAbsence, type PartialCatalog, type PinnedCandidate, type Proposal,
 } from './refreshPolicy.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -66,6 +67,12 @@ export interface RefreshResult {
 export interface ModelDiscoveryDeps {
   loadApiKey: (backend: string) => string | null;
   repoRoot: string;
+  /**
+   * Registered ids that code names as literals, which the refresh pins (t/3553 item 1). Omit it in production: the
+   * default is the bundled `lib/ai-config/codeReferencedModels.json`, because the refresh runs where there's no
+   * source tree to scan. Tests inject a list.
+   */
+  codeReferencedIds?: readonly string[];
 }
 
 // ── Config I/O ─────────────────────────────────────────────────────────────────
@@ -604,6 +611,7 @@ export interface RefreshOptions {
 /** Why a refresh did not write (t/3553). `invalid` is the t/2039 guard; the rest are the drop policy's. */
 export type RefreshRefusal =
   | { reason: 'suspected-partial-catalog'; backends: PartialCatalog[] }
+  | { reason: 'code-referenced-absent'; absent: CodeReferencedAbsence[] }
   | { reason: 'proposal-required'; proposal: Proposal }
   | { reason: 'needs-human'; proposal: Proposal; unresolved: string[] }
   | { reason: 'cross-family'; proposal: Proposal; slots: string[] }
@@ -614,6 +622,8 @@ const refusalText = (r: RefreshRefusal): string => {
   switch (r.reason) {
     case 'suspected-partial-catalog':
       return `suspected partial catalog: ${r.backends.map(b => `${b.backend} lists ${b.vendorListed} of ${b.registered} registered (would drop ${b.wouldDrop})`).join('; ')}. Nothing was proposed; retry later.`;
+    case 'code-referenced-absent':
+      return `the vendor no longer lists ${r.absent.length} model(s) that code still names: ${r.absent.map(a => `${a.id} (${a.backend})`).join(', ')}. No proposal can fix this. Update the code that names them, regenerate with \`npm run gen:code-referenced-models\`, then refresh again.`;
     case 'proposal-required':
       return `this refresh would change ${r.proposal.changes.length} selection slot(s): ${r.proposal.changes.map(c => c.slot).join(', ')}. Review the proposal and accept it explicitly.`;
     case 'cross-family':
@@ -641,7 +651,11 @@ function refuse(result: RefreshResult, refusal: RefreshRefusal): RefreshResult {
     component: 'model-discovery-refresh',
     level: 'warn',
     message: result.configWarning,
-    data: { refusal: refusal.reason, ...(refusal.reason === 'invalid' ? { dangling: refusal.dangling, chainless: refusal.chainless } : {}) },
+    data: {
+      refusal: refusal.reason,
+      ...(refusal.reason === 'invalid' ? { dangling: refusal.dangling, chainless: refusal.chainless } : {}),
+      ...(refusal.reason === 'code-referenced-absent' ? { absent: refusal.absent } : {}),
+    },
   });
   return result;
 }
@@ -702,8 +716,14 @@ export async function refreshAIModels(deps: ModelDiscoveryDeps, opts: RefreshOpt
     .filter((p): p is PartialCatalog => p !== null);
   if (partial.length > 0) return refuse(result, { reason: 'suspected-partial-catalog', backends: partial });
 
+  // ── 1b. A model code still names is gone from its vendor: refuse, no proposal (e/271#12 item 2) ──────
+  // After the partial check, so a mass absence still reads as an outage (SO e/271 cond 1).
+  const codeReferenced = deps.codeReferencedIds ?? codeReferencedModels.ids;
+  const absent = codeReferencedAbsent(codeReferenced, config.models, new Map(authoritative.map(d => [d.backend, new Set(d.models.map(m => m.id))])));
+  if (absent.length > 0) return refuse(result, { reason: 'code-referenced-absent', absent });
+
   // ── 2. Curate authoritative catalogs; a probe is additive only (SO e/263#2 cond 2) ─────────────────
-  const pinned = referenceSlots(config);
+  const pinned = referenceSlots(config, codeReferenced);
   const curated: ModelEntry[] = [];
   const pinnedCandidates: PinnedCandidate[] = [];
   for (const d of authoritative) {
@@ -809,6 +829,9 @@ function guardAndWrite(
       data: { ...result.signoff },
     });
     notes.push(`applied accepted proposal ${result.proposal!.hash} (${slots.length} slot(s))`);
+    // TL #2984 review, cond 3 reading: the in-process guard is only half the gate. The other half runs at commit
+    // time, so tell whoever ran the refresh.
+    notes.push('ai-models.json was written; `npm run verify:config` must pass before you commit it');
   }
   if (notes.length > 0) result.configWarning = `Refresh repaired config before writing: ${notes.join('; ')}.`;
   console.log(`[ModelDiscovery] Saved ${config.models.length} models to ai-models.json`);

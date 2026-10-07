@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  familyOf, curateByFamily, referenceSlots, partialCatalog, computeProposal, applyProposal,
+  familyOf, curateByFamily, referenceSlots, partialCatalog, codeReferencedAbsent, CODE_LITERAL_SLOT, computeProposal, applyProposal,
   proposalHash, catalogFingerprint, diffProposals, successorOf, crossFamilyChanges, type PolicyConfig, type PolicyModel,
 } from './refreshPolicy.js';
 
@@ -187,5 +187,38 @@ describe('crossFamilyChanges: a default or tier never changes family through ref
   it('only selection slots are checked: a chain re-point is not a family move of a default or tier', () => {
     const changes = [{ slot: 'fallbackChains[zai-glm]', from: ['gemini-3.1-pro'], to: ['gemini-3.8-flash'] }];
     expect(crossFamilyChanges(changes, removed, merged().models)).toEqual([]);
+  });
+});
+
+describe('code-referenced pins (TL checklist e/271#12 items 1, 2, 9; SO e/271)', () => {
+  const config: PolicyConfig = { models: [m('gemini', 'gemini-3.1-pro')], defaults: { gemini: 'gemini-3.1-pro' } };
+
+  it('item 1: each code-referenced id is pinned under slot code-literal, alongside any config slots', () => {
+    const slots = referenceSlots(config, ['gemini-2.5-pro', 'gemini-3.1-pro', 'gemini-2.5-pro']);
+    expect(slots.get('gemini-2.5-pro')).toEqual([CODE_LITERAL_SLOT]); // duplicates in the list collapse
+    expect(slots.get('gemini-3.1-pro')).toEqual(['defaults.gemini', CODE_LITERAL_SLOT]);
+    expect(CODE_LITERAL_SLOT).toBe('code-literal');
+  });
+
+  it('item 9: curation keeps a model named only in code beside a newer family member, and reports it', () => {
+    const candidates = [m('gemini', 'gemini-2.5-pro'), m('gemini', 'gemini-3.1-pro')];
+    const pinned = curateByFamily(candidates, referenceSlots(config, ['gemini-2.5-pro']));
+    expect(pinned.kept.map((x) => x.id).sort()).toEqual(['gemini-2.5-pro', 'gemini-3.1-pro']);
+    expect(pinned.pinnedCandidates).toEqual([{ slots: ['code-literal'], pinned: 'gemini-2.5-pro', newerInFamily: 'gemini-3.1-pro' }]);
+    // Arm: with no code list, the same curation drops it.
+    expect(curateByFamily(candidates, referenceSlots(config)).kept.map((x) => x.id)).toEqual(['gemini-3.1-pro']);
+  });
+
+  it('item 2: an authoritative catalog that no longer lists a code-referenced id reports it; a listed id does not', () => {
+    const registered = [m('gemini', 'gemini-2.5-pro'), m('gemini', 'gemini-3.1-pro'), m('claude', 'claude-sonnet-4-5')];
+    const listed = new Map([['gemini', new Set(['gemini-3.1-pro'])]]);
+    expect(codeReferencedAbsent(['gemini-3.1-pro', 'gemini-2.5-pro'], registered, listed)).toEqual([{ id: 'gemini-2.5-pro', backend: 'gemini' }]);
+    expect(codeReferencedAbsent(['gemini-3.1-pro'], registered, listed)).toEqual([]);
+  });
+
+  it('item 2: no refusal where nothing can be dropped (a non-authoritative backend, or an unregistered id)', () => {
+    const registered = [m('claude', 'claude-sonnet-4-5')];
+    const listed = new Map([['gemini', new Set<string>(['gemini-3.1-pro'])]]); // claude: probe or untouched
+    expect(codeReferencedAbsent(['claude-sonnet-4-5', 'not-registered'], registered, listed)).toEqual([]);
   });
 });

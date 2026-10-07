@@ -16,7 +16,9 @@
  *   - Pinned set (SO e/263#2 cond 1): every id the config REFERENCES (the same three surfaces findDanglingRefs scans:
  *     defaults values, debateTiers values, fallbackChains VALUES) is exempt from family curation. Only vendor absence
  *     can make a reference dangle. A pinned id kept beside a newer family member is reported in `pinnedCandidates`
- *     (TL e/263#3), never in the proposal (SO e/263#4), so it can't make an accept fail.
+ *     (TL e/263#3), never in the proposal (SO e/263#4), so it can't make an accept fail. Every id CODE names as a
+ *     literal (`lib/ai-config/codeReferencedModels.json`) is pinned too, under slot `code-literal`. If the vendor
+ *     drops one, the refresh refuses as `code-referenced-absent`, because no proposal can fix code (e/271#12 1-2).
  *   - A default or debate tier never changes family through refresh (CL p/742#3): a successor is always the newest
  *     surviving member of the SAME family on the SAME backend, or there is none and a human decides.
  *   - An ACCEPTED change to a default or debate tier starts a calibration epoch (CL e/263#5): the refresh records
@@ -108,8 +110,16 @@ function isNewer(a: { model: PolicyModel; f: Family }, b: { model: PolicyModel; 
 
 // ── Pinned set ───────────────────────────────────────────────────────────────────────────────────
 
-/** id -> the slots that reference it. Exactly the surfaces findDanglingRefs scans (chain KEYS are inert). */
-export function referenceSlots(config: PolicyConfig): Map<string, string[]> {
+/** The slot a code-referenced pin is reported under (TL checklist e/271#12 item 1). */
+export const CODE_LITERAL_SLOT = 'code-literal';
+
+/**
+ * id -> the slots that reference it. The config surfaces are exactly the ones findDanglingRefs scans (chain KEYS are
+ * inert). `codeReferenced` is `lib/ai-config/codeReferencedModels.json`'s `ids`: every registered id written as a
+ * literal in code (t/3553 item 1, SO e/271). Each is pinned under the `code-literal` slot, so curation can never drop
+ * a model code still names.
+ */
+export function referenceSlots(config: PolicyConfig, codeReferenced: readonly string[] = []): Map<string, string[]> {
   const slots = new Map<string, string[]>();
   const add = (id: string, slot: string) => slots.set(id, [...(slots.get(id) ?? []), slot]);
   for (const [backend, id] of Object.entries(config.defaults ?? {})) add(id, `defaults.${backend}`);
@@ -120,7 +130,35 @@ export function referenceSlots(config: PolicyConfig): Map<string, string[]> {
   for (const [key, chain] of Object.entries(config.fallbackChains ?? {})) {
     for (const id of chain) add(id, `fallbackChains[${key}]`);
   }
+  for (const id of new Set(codeReferenced)) add(id, CODE_LITERAL_SLOT);
   return slots;
+}
+
+export interface CodeReferencedAbsence {
+  id: string;
+  backend: string;
+}
+
+/**
+ * Code-referenced ids that a refresh would drop because the vendor no longer lists them (TL checklist e/271#12
+ * item 2; SO e/271 cond 1). Only a registered id on a backend whose catalog is AUTHORITATIVE can be dropped, so
+ * only those are checked. A probe or an untouched backend drops nothing. No proposal can fix this: the code
+ * itself has to change, so the caller refuses outright. Run it AFTER `partialCatalog`, so a mass absence still
+ * reads as an outage.
+ */
+export function codeReferencedAbsent(
+  codeReferenced: readonly string[],
+  registered: readonly PolicyModel[],
+  vendorListedByBackend: ReadonlyMap<string, ReadonlySet<string>>,
+): CodeReferencedAbsence[] {
+  const backendOf = new Map(registered.map((m) => [m.id, m.backend]));
+  const absent: CodeReferencedAbsence[] = [];
+  for (const id of [...new Set(codeReferenced)].sort()) {
+    const backend = backendOf.get(id);
+    const listed = backend === undefined ? undefined : vendorListedByBackend.get(backend);
+    if (backend !== undefined && listed !== undefined && !listed.has(id)) absent.push({ id, backend });
+  }
+  return absent;
 }
 
 // ── Curation ─────────────────────────────────────────────────────────────────────────────────────

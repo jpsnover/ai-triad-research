@@ -39,7 +39,9 @@ function baseConfig() {
 }
 
 let geminiCatalog: string[] = [];
-const deps = { loadApiKey: (b: string) => (b === 'gemini' ? 'test-key' : null), repoRoot: '/fake' };
+// No code-referenced pins by default, so each describe below tests only its own rule. The code-literal describe
+// at the end injects a list, and its last test pins the production default, the bundled JSON.
+const deps = { loadApiKey: (b: string) => (b === 'gemini' ? 'test-key' : null), repoRoot: '/fake', codeReferencedIds: [] as string[] };
 const saved = () => JSON.parse(fileContent);
 
 function stubFetch(extra?: (url: string, init?: RequestInit) => Response | undefined) {
@@ -249,5 +251,93 @@ describe('SO 2: a probe-sourced backend is additive only', () => {
     expect(saved().defaults.claude).toBe('claude-sonnet-4-6');
     const warns = recorder.buffer.drain().filter((e) => e.level === 'warn' && String(e.message).includes('candidate probe'));
     expect(warns).toHaveLength(1);
+  });
+});
+
+// TL checklist e/271#12, items 1, 2 and 9 (SO e/271). `gemini-2.5-pro` is in no default, tier or chain. Only the
+// code-referenced list names it, and gemini-3.1-pro is a newer member of its family, so plain curation would drop it.
+describe('e/271#12: models named in code are pinned (1, 9) and their vendor absence refuses (2)', () => {
+  const codeDeps = { ...deps, codeReferencedIds: ['gemini-2.5-pro'] };
+
+  it('item 9: a model named only in the code list is never dropped, and is reported under slot code-literal', async () => {
+    geminiCatalog = ['gemini-3.1-pro', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'];
+    const r = await refreshAIModels(codeDeps);
+    expect(r.refusal).toBeUndefined();
+    expect(r.written).toBe(true);
+    expect(saved().models.map((m: { id: string }) => m.id)).toContain('gemini-2.5-pro');
+    expect(r.pinnedCandidates).toContainEqual({ slots: ['code-literal'], pinned: 'gemini-2.5-pro', newerInFamily: 'gemini-3.1-pro' });
+  });
+
+  it('item 9 (arm): without the code pin, the same catalog drops it', async () => {
+    geminiCatalog = ['gemini-3.1-pro', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'];
+    await refreshAIModels(deps);
+    expect(saved().models.map((m: { id: string }) => m.id)).not.toContain('gemini-2.5-pro');
+  });
+
+  it('item 2: the vendor no longer lists it, so the refresh refuses: no proposal, file unchanged, the id named', async () => {
+    const original = fileContent;
+    geminiCatalog = ['gemini-3.1-pro', 'gemini-3.5-flash-lite'];
+    const r = await refreshAIModels(codeDeps);
+    expect(r.refusal).toEqual({ reason: 'code-referenced-absent', absent: [{ id: 'gemini-2.5-pro', backend: 'gemini' }] });
+    expect(r.proposal).toBeUndefined();
+    expect(r.configWarning).toContain('gemini-2.5-pro');
+    expect(fileContent).toBe(original);
+    expect(writes).toBe(0);
+  });
+
+  it('item 2: an accept cannot get past it either', async () => {
+    // A fourth registered model keeps the accept-time catalog under the "more than half missing" partial threshold.
+    const cfg = baseConfig();
+    cfg.models.push(gm('gemini-3.8-flash'));
+    fileContent = JSON.stringify(cfg);
+    geminiCatalog = ['gemini-3.6-pro', 'gemini-3.5-flash-lite', 'gemini-2.5-pro', 'gemini-3.8-flash'];
+    const dry = await refreshAIModels(codeDeps, { dryRun: true });
+    expect(dry.refusal?.reason).toBe('proposal-required');
+    geminiCatalog = ['gemini-3.6-pro', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+    const r = await refreshAIModels(codeDeps, { accept: { proposal: dry.proposal!, approvedBy: 'CL', reason: 'r' } });
+    expect(r.refusal?.reason).toBe('code-referenced-absent');
+    expect(writes).toBe(0);
+  });
+
+  it('item 2: a mass absence still reads as suspected-partial-catalog, not code-referenced-absent', async () => {
+    geminiCatalog = [];
+    const r = await refreshAIModels(codeDeps);
+    expect(r.refusal?.reason).toBe('suspected-partial-catalog');
+  });
+
+  it('a probe-sourced backend drops nothing, so a code-referenced id missing from the probe does not refuse', async () => {
+    const cfg = baseConfig();
+    cfg.models.push({ id: 'claude-sonnet-4-5', apiModelId: 'claude-sonnet-4-5', label: 'Sonnet 4.5', backend: 'claude' });
+    fileContent = JSON.stringify(cfg);
+    geminiCatalog = ['gemini-3.1-pro', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'];
+    stubFetch((url, init) => {
+      if (url.endsWith('/v1/models')) return new Response('down', { status: 503 });
+      if (url.endsWith('/v1/messages')) return new Response('{}', { status: JSON.parse(String(init?.body)).model === 'claude-opus-5' ? 200 : 404 });
+      return undefined;
+    });
+    const r = await refreshAIModels({ ...deps, codeReferencedIds: ['claude-sonnet-4-5'], loadApiKey: (b: string) => (b === 'gemini' || b === 'claude' ? 'test-key' : null) });
+    expect(r.catalogSources?.claude).toBe('probe');
+    expect(r.refusal).toBeUndefined();
+    expect(saved().models.map((m: { id: string }) => m.id)).toContain('claude-sonnet-4-5');
+  });
+
+  it('item 1: production pins the bundled codeReferencedModels.json when deps give no list', async () => {
+    // gemini-3.5-flash-lite is in the real list (scripts and lib name it). With no injected list, its absence refuses.
+    const { default: real } = await import('../ai-config/codeReferencedModels.json', { with: { type: 'json' } });
+    expect(real.ids).toContain('gemini-3.5-flash-lite');
+    geminiCatalog = ['gemini-3.1-pro', 'gemini-2.5-pro', 'gemini-3.6-flash-lite'];
+    const { codeReferencedIds: _omit, ...prodDeps } = deps;
+    const r = await refreshAIModels(prodDeps);
+    expect(r.refusal).toMatchObject({ reason: 'code-referenced-absent' });
+    const refusal = r.refusal as Extract<RefreshResult['refusal'], { reason: 'code-referenced-absent' }>;
+    expect(refusal.absent.map((a) => a.id)).toContain('gemini-3.5-flash-lite');
+  });
+
+  it('TL #2984 review: a successful accept says verify:config must pass before the commit', async () => {
+    geminiCatalog = ['gemini-3.6-pro', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'];
+    const dry = await refreshAIModels(deps, { dryRun: true });
+    const r = await refreshAIModels(deps, { accept: { proposal: dry.proposal!, approvedBy: 'CL', reason: 'r' } });
+    expect(r.written).toBe(true);
+    expect(r.configWarning).toContain('`npm run verify:config` must pass before you commit it');
   });
 });
