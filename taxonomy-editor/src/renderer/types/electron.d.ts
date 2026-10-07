@@ -150,7 +150,9 @@ export interface ElectronAPI {
   // AI generation
   // Single-payload signature (t/3528) — see GenerateTextIpcPayload. `requestId` (t/2508)
   // correlates the request so `cancelGenerate` can abort the exact in-flight provider call.
-  generateText: (payload: GenerateTextIpcPayload) => Promise<{ text: string; stopReason?: StopReason }>;
+  // t/4048: servedModel is the registry id the call actually resolved to (after defaulting) —
+  // present so the debate store can mark a renderer run 'tracked' (e/268#6 condition 3).
+  generateText: (payload: GenerateTextIpcPayload) => Promise<{ text: string; stopReason?: StopReason; servedModel?: string }>;
   // Fire-and-forget cancel for an in-flight generateText (t/2508, wired t/2509) —
   // unconditionally implemented since; required-ness verified t/3532. electron-bridge.ts's
   // `?.()` call site is harmless on a required function and left as-is.

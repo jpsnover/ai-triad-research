@@ -448,7 +448,12 @@ export interface AppAPI {
   /** `diagnostics` (t/3568 item 2) rides the resolved value on the SUCCESS path only — providers
    *  throw before returning a ProviderResult on a non-2xx/timeout, so there is nothing to attach
    *  on a rejected generateText call yet (see instrumentBridge.ts's extractResultMeta). */
-  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, opts?: GenerateTextOptions) => Promise<{ text: string; stopReason?: StopReason; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number }; diagnostics?: ProviderCallDiagnostics }>;
+  /** `servedModel` (t/4048, e/268#6 condition 3) is the registry id that actually answered, set
+   *  only on success and never echoed from the request — absent means untracked (older backend
+   *  or an error path), never filled in from the requested model. Desktop always equals the
+   *  requested/defaulted model (no fallback chain there, e/275); web is unset until ServerAPI's
+   *  own `servedModel` lands (its chain in `aiBackends.ts` is where failover is real). */
+  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, opts?: GenerateTextOptions) => Promise<{ text: string; stopReason?: StopReason; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number }; diagnostics?: ProviderCallDiagnostics; servedModel?: string }>;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{
     text: string;
     searchQueries?: string[];
