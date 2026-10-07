@@ -1,0 +1,125 @@
+{
+  "scenario": "reextract-one-flagged",
+  "host": [
+    "[Yellow] \n  RE-EXTRACTION: 1 document(s) flagged",
+    "[Gray]     - doc-a",
+    "[Gray] ",
+    "[Cyan] \n▶  Validating inputs",
+    "[Green]    ✓  Doc ID      : doc-a",
+    "[Green]    ✓  Repo root   : <ROOT>",
+    "[Green]    ✓  Model       : claude-haiku-4-5",
+    "[Green]    ✓  Temperature : 0.1",
+    "[Cyan] \n▶  Loading taxonomy",
+    "[Green]    ✓  Taxonomy version: 2.4.0",
+    "[Cyan] \n▶  Loading document snapshot",
+    "[Green]    ✓  Snapshot loaded: 34 chars (~8 tokens estimated)",
+    "[Gray]    →  Title from metadata: Doc Title",
+    "[Gray]    →  POV tags in metadata: accelerationist, safetyist",
+    "[Cyan] \n▶  Running extraction pipeline",
+    "[Green]    ✓  Pipeline complete in 12.5s (mock-backend)",
+    "[Yellow]    ⚠    accelerationist : no data returned",
+    "[Green]    ✓    safetyist : 1 key points (0 unmapped)",
+    "[Yellow]    ⚠    skeptic : no data returned",
+    "[Green]    ✓    factual_claims    : 2",
+    "[Green]    ✓    unmapped_concepts : 0",
+    "[Cyan] \n▶  Writing summary file",
+    "[Green]    ✓  Summary written to: summaries/doc-a.json",
+    "[Cyan] \n▶  Updating metadata",
+    "[Green]    ✓  metadata.json updated: summary_status=current, summary_version=2.4.0",
+    "[Cyan] \n▶  Running conflict detection",
+    "[Green]    ✓    Created new conflict file: conflict-short-claim-doc-a.json",
+    "[Yellow]    ⚠    Suggested conflict 'conflict-small' not found — creating new file",
+    "[Green]    ✓    Created new conflict file: conflict-small.json",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   POV SUMMARY: doc-a",
+    "[Gray]   Taxonomy v2.4.0  |  Model: claude-haiku-4-5",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[Green] \n  [ACCELERATIONIST]",
+    "[DarkGray]     (no key points extracted)",
+    "[Red] \n  [SAFETYIST]",
+    "[White]     Beliefs:",
+    "[Gray]       [saf-beliefs-001] (supports) One.",
+    "[Yellow] \n  [SKEPTIC]",
+    "[DarkGray]     (no key points extracted)",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   Files written:",
+    "[Green]     summaries/doc-a.json",
+    "[Green]     sources/doc-a/metadata.json  (summary_status=current)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "explicit-key",
+      "backend": "claude"
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-system",
+      "replacements": null
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-schema",
+      "replacements": null
+    },
+    {
+      "call": "pipeline",
+      "docId": "doc-a",
+      "model": "claude-haiku-4-5",
+      "apiKey": "resolved-claude-key",
+      "temperature": 0.1,
+      "taxonomyVersion": "2.4.0",
+      "systemPromptTemplate": "<<pov-summary-system>>",
+      "outputSchema": "<<pov-summary-schema>>",
+      "fullTaxonomy": false,
+      "iterativeExtraction": false,
+      "autoFire": true,
+      "ragMaxTotal": 300,
+      "crossEncoderRerank": false,
+      "snapshotText": "# doc-a\n\nShort snapshot for doc-a.",
+      "metadata": {
+        "title": "Doc Title",
+        "pov_tags": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "source_type": "blog",
+        "summary_status": "needs_reextraction",
+        "claims_by_pov": {
+          "accelerationist": 9
+        }
+      }
+    },
+    {
+      "call": "indexRebuild",
+      "quiet": true
+    }
+  ],
+  "writes": [
+    "summaries/doc-a.json",
+    "sources/doc-a/metadata.json",
+    "conflicts/conflict-short-claim-doc-a.json",
+    "conflicts/conflict-small.json"
+  ],
+  "tree": {
+    "conflicts/": "(dir)",
+    "conflicts/conflict-short-claim-doc-a.json": "{\n  \"claim_id\": \"conflict-short-claim-doc-a\",\n  \"claim_label\": \"short\",\n  \"description\": \"Short claim.\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"saf-beliefs-001\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"doc-a\",\n      \"stance\": \"supports\",\n      \"assertion\": \"Short claim.\",\n      \"date_flagged\": \"2026-01-02\"\n    }\n  ],\n  \"human_notes\": []\n}\n",
+    "conflicts/conflict-small.json": "{\n  \"claim_id\": \"conflict-small\",\n  \"claim_label\": \"Second short claim.\",\n  \"description\": \"Second short claim.\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"skp-beliefs-001\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"doc-a\",\n      \"stance\": \"neutral\",\n      \"assertion\": \"Second short claim.\",\n      \"date_flagged\": \"2026-01-02\"\n    }\n  ],\n  \"human_notes\": []\n}\n",
+    "sources/": "(dir)",
+    "sources/doc-a/": "(dir)",
+    "sources/doc-a/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"current\",\n  \"summary_version\": \"2.4.0\",\n  \"summary_updated\": \"2026-01-02T03:04:05Z\",\n  \"total_claims\": 2,\n  \"node_references_by_pov\": {\n    \"accelerationist\": 0,\n    \"safetyist\": 1,\n    \"situations\": 0,\n    \"skeptic\": 1\n  },\n  \"primary_pov_distribution\": {\n    \"accelerationist\": 0,\n    \"safetyist\": 1,\n    \"situations\": 0,\n    \"skeptic\": 1\n  },\n  \"total_facts\": 1,\n  \"unmapped_concepts\": 0\n}\n",
+    "sources/doc-a/snapshot.md": "# doc-a\n\nShort snapshot for doc-a.",
+    "sources/doc-b/": "(dir)",
+    "sources/doc-b/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"current\",\n  \"summary_version\": \"2.3.0\",\n  \"claims_by_pov\": {\n    \"accelerationist\": 9\n  }\n}",
+    "sources/doc-b/snapshot.md": "# doc-b\n\nShort snapshot for doc-b.",
+    "summaries/": "(dir)",
+    "summaries/doc-a.json": "{\n  \"doc_id\": \"doc-a\",\n  \"taxonomy_version\": \"2.4.0\",\n  \"generated_at\": \"2026-01-02T03:04:05Z\",\n  \"model_info\": {\n    \"model\": \"claude-haiku-4-5\",\n    \"temperature\": 0.1,\n    \"max_tokens\": 32768,\n    \"extraction_mode\": \"single_shot\",\n    \"taxonomy_filter\": \"rag\",\n    \"taxonomy_nodes\": 3\n  },\n  \"pov_summaries\": {\n    \"accelerationist\": {\n      \"key_points\": []\n    },\n    \"safetyist\": {\n      \"key_points\": [\n        {\n          \"taxonomy_node_id\": \"saf-beliefs-001\",\n          \"category\": \"Beliefs\",\n          \"point\": \"One.\",\n          \"stance\": \"supports\"\n        }\n      ]\n    },\n    \"skeptic\": {\n      \"key_points\": []\n    }\n  },\n  \"factual_claims\": [\n    {\n      \"claim\": \"Short claim.\",\n      \"claim_label\": \"short\",\n      \"doc_position\": \"supports\",\n      \"potential_conflict_id\": null,\n      \"linked_taxonomy_nodes\": [\n        \"saf-beliefs-001\"\n      ]\n    },\n    {\n      \"claim\": \"Second short claim.\",\n      \"claim_label\": null,\n      \"potential_conflict_id\": \"conflict-small\",\n      \"doc_position\": \"neutral\",\n      \"linked_taxonomy_nodes\": [\n        \"skp-beliefs-001\"\n      ]\n    }\n  ],\n  \"unmapped_concepts\": null,\n  \"context_rot\": null\n}\n",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}

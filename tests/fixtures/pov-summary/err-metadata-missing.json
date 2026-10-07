@@ -1,0 +1,22 @@
+{
+  "scenario": "err-metadata-missing",
+  "host": [
+    "[Cyan] \n▶  Validating inputs",
+    "[Red]    ✗  metadata.json not found: <ROOT>/sources/doc-1/metadata.json"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": "metadata.json not found for doc-1",
+  "output": [],
+  "calls": [],
+  "writes": [],
+  "tree": {
+    "conflicts/": "(dir)",
+    "sources/": "(dir)",
+    "sources/doc-1/": "(dir)",
+    "sources/doc-1/snapshot.md": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+    "summaries/": "(dir)",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}

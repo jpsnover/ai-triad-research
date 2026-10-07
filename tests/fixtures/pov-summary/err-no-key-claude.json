@@ -1,0 +1,30 @@
+{
+  "scenario": "err-no-key-claude",
+  "host": [
+    "[Cyan] \n▶  Validating inputs",
+    "[Red]    ✗  No API key found for claude backend.",
+    "[Gray]    →  Set ANTHROPIC_API_KEY or AI_API_KEY, or pass -ApiKey."
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": "No API key found for claude backend.",
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "claude"
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "conflicts/": "(dir)",
+    "sources/": "(dir)",
+    "sources/doc-1/": "(dir)",
+    "sources/doc-1/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"pending\",\n  \"claims_by_pov\": {\n    \"accelerationist\": 9\n  }\n}",
+    "sources/doc-1/snapshot.md": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+    "summaries/": "(dir)",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}

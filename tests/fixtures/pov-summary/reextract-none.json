@@ -1,0 +1,27 @@
+{
+  "scenario": "reextract-none",
+  "host": [
+    "[Green]    ✓  No documents flagged for re-extraction."
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [],
+  "writes": [],
+  "tree": {
+    "conflicts/": "(dir)",
+    "sources/": "(dir)",
+    "sources/doc-a/": "(dir)",
+    "sources/doc-a/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"current\",\n  \"summary_version\": \"2.3.0\",\n  \"claims_by_pov\": {\n    \"accelerationist\": 9\n  }\n}",
+    "sources/doc-a/snapshot.md": "# doc-a\n\nShort snapshot for doc-a.",
+    "sources/doc-b/": "(dir)",
+    "sources/doc-b/snapshot.md": "# doc-b\n\nShort snapshot for doc-b.",
+    "sources/doc-c/": "(dir)",
+    "sources/doc-c/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"claims_by_pov\": {\n    \"accelerationist\": 9\n  }\n}",
+    "sources/doc-c/snapshot.md": "# doc-c\n\nShort snapshot for doc-c.",
+    "summaries/": "(dir)",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}
