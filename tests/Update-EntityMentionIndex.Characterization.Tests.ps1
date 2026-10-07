@@ -170,12 +170,12 @@ Describe 'Update-EntityMentionIndex characterization (t/3910)' -Tag 'unit' {
         Test-Path $f.Out | Should -BeFalse
     }
 
-    It '-WhatIf currently LEAVES the lockfile behind (pinned pre-existing bug t/4047; flip to BeFalse when fixed)' {
-        # Exit-GroundingLock's Remove-Item inherits the ambient WhatIfPreference, so the release is a
-        # "What if" no-op. Pinned here so the t/3910 refactor provably does not change it either way.
+    It '-WhatIf releases the lockfile (t/4047 fixed: the release no longer inherits the ambient WhatIfPreference)' {
+        # Before t/4047, Exit-GroundingLock's Remove-Item inherited the ambient WhatIfPreference, so the
+        # release was a "What if" no-op and the lock stayed behind, blocking every writer for 120s.
         $f = script:New-EmiFixture
         script:Invoke-Emi $f $script:T1 @{ WhatIf = $true } | Out-Null
-        Test-Path $f.Lock | Should -BeTrue
+        Test-Path $f.Lock | Should -BeFalse
     }
 
     It 'a write failure throws the ActionableError, removes the temp file, keeps the old index, and releases the lock' {

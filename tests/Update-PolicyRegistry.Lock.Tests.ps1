@@ -109,3 +109,44 @@ Describe 'Invoke-NodePolicyRegistration remedy (t/4028)' -Tag 'taxonomy' {
         $msg | Should -Match 'commit policy_actions.json'
     }
 }
+
+Describe 'Lockfile release under -WhatIf (t/4047)' -Tag 'taxonomy' {
+
+    BeforeEach { $script:Dir = New-LockFixture; $script:Lock = Join-Path $script:Dir 'policy_actions.lock' }
+    AfterEach { Remove-Item $script:Dir -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'Update-PolicyRegistry -Fix -WhatIf leaves no policy_actions.lock behind' {
+        $before = (Get-FileHash (Join-Path $script:Dir 'skeptic.json')).Hash
+        InModuleScope AITriad -Parameters @{ Dir = $script:Dir } {
+            param($Dir)
+            Mock Get-TaxonomyDir { $Dir }
+            Update-PolicyRegistry -Fix -NodeId 'skp-target' -WhatIf *> $null
+        }
+        Test-Path $script:Lock | Should -BeFalse
+        (Get-FileHash (Join-Path $script:Dir 'skeptic.json')).Hash | Should -Be $before   # -WhatIf still writes nothing
+    }
+
+    It 'Exit-GroundingLock deletes the lockfile even with an ambient $WhatIfPreference' {
+        InModuleScope AITriad -Parameters @{ Lock = $script:Lock } {
+            param($Lock)
+            $h = Enter-GroundingLock -LockPath $Lock
+            $WhatIfPreference = $true
+            Exit-GroundingLock -Handle $h -LockPath $Lock 6> $null
+            $WhatIfPreference = $false
+        }
+        Test-Path $script:Lock | Should -BeFalse
+    }
+
+    It 'the stale-lock break also deletes under an ambient $WhatIfPreference' {
+        New-Item -ItemType File -Path $script:Lock | Out-Null
+        (Get-Item $script:Lock).LastWriteTime = (Get-Date).AddMinutes(-10)
+        InModuleScope AITriad -Parameters @{ Lock = $script:Lock } {
+            param($Lock)
+            $WhatIfPreference = $true
+            $h = Enter-GroundingLock -LockPath $Lock -WaitSec 2 3> $null 6> $null
+            $WhatIfPreference = $false
+            Exit-GroundingLock -Handle $h -LockPath $Lock
+        }
+        Test-Path $script:Lock | Should -BeFalse
+    }
+}
