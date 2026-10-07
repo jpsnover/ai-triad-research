@@ -18,6 +18,7 @@ import { getStorageUserId, isAnonymousUser, runWithUser, type UserContext } from
 import { getUserContentBackend, assertSafeId, isSafeId, readTaxonomyFile } from './fileIO.js';
 import { loadOpedSet } from './opedStore.js';
 import { log } from '../logger.js';
+import { AppliedTagSchema, type TagMode } from '../../../../lib/schema/povTags.js';
 
 // t/3488 (SO-fixed contract t/3487#1, TL amendment t/3488#2): description excerpt
 // length cap, defined at the pick site per SO condition 1.
@@ -51,6 +52,10 @@ function shareRegistryPath(): string {
 // Only these fields ever reach the public copy at rest. Generation params (model,
 // prompts, thesis, authorBio, newsHook), grounding internals,
 // userId, and the storage set_id are all STRIPPED — never a spread/denylist.
+// `soul` is STRIPPED too (t/3990; TL e/254#4, t/3960#8): it records which soul file
+// voiced the member — an internal file path and hash, the same class as `debateId`
+// on the inquiry share. It identifies internals, not the essay, so a public reader
+// has no use for it and a prober would.
 export interface PublicOpEdMember {
   pov: string;
   status: string;
@@ -59,6 +64,22 @@ export interface PublicOpEdMember {
   body: string;
   wordCount: number;
   grounding: OpEdGroundingRef[];
+  /** t/3990: present only on a tagged member — see PublicOpEdMemberTag. */
+  tag?: PublicOpEdMemberTag;
+}
+/**
+ * t/3990 (SO e/254#6, mirroring e/252 cond 1): the tagged member's scope, so a Scope op-ed is not
+ * published as the whole camp's voice when it is one wing's. Copied by named field reads from the
+ * member's applied tag — never a spread. Count meanings per mode live on `AppliedTagSchema`
+ * (`APPLIED_TAG_COUNT_MEANING`): in Prioritize `excludedUntagged` is 0 by construction and means
+ * "this mode excludes nothing", NOT full coverage — readers show the exclusion count only for Scope.
+ */
+export interface PublicOpEdMemberTag {
+  pov: string;
+  tag: string;
+  mode: TagMode;
+  included: number;
+  excludedUntagged: number;
 }
 // t/3488 (SO cond 1): explicit five-field pick, never `{...node}`. `pov`/`category`
 // come from the grounding ref (the citing voice's classification — situation
@@ -148,6 +169,24 @@ async function buildGroundingNodes(members: OpEdMember[]): Promise<Record<string
   return result;
 }
 
+/**
+ * t/3990: project a member's applied tag (if any) by NAMED field reads — the stored `tag` is a
+ * passthrough-tolerant record, so a spread would carry any future field into the public copy.
+ * Validated with `AppliedTagSchema` first: a malformed tag is omitted with a WARN (fallback-path
+ * logging) — there is nothing trustworthy to show, and the member itself still projects.
+ */
+function projectMemberTag(m: OpEdMember): PublicOpEdMemberTag | undefined {
+  if (m.tag === undefined) return undefined;
+  const parsed = AppliedTagSchema.safeParse(m.tag);
+  if (!parsed.success) {
+    log.server.warn({ pov: m.pov, issues: parsed.error.issues.map(i => i.message), cause: 'oped-share-tag-malformed' },
+      'malformed applied tag on an op-ed member — omitting it from the public projection (t/3990)');
+    return undefined;
+  }
+  const { pov, tag, mode, included, excludedUntagged } = parsed.data;
+  return { pov, tag, mode, included, excludedUntagged };
+}
+
 /** Build the public projection by EXPLICIT field — never `{...set}` or a delete-keys denylist. */
 export async function projectPublicOpEd(set: OpEdSet, shareId: string): Promise<PublicOpEd> {
   const members = Array.isArray(set.opeds) ? set.opeds : [];
@@ -157,26 +196,30 @@ export async function projectPublicOpEd(set: OpEdSet, shareId: string): Promise<
     topic: String(set.topic ?? ''),
     outlet: set.params?.outlet ?? null, // editorial context, public-safe
     created_at: String(set.created_at ?? ''),
-    opeds: members.map((m: OpEdMember) => ({
-      pov: m.pov,
-      status: m.status,
-      headline: String(m.headline ?? ''),
-      subtitle: String(m.subtitle ?? ''),
-      body: String(m.body ?? ''),
-      wordCount: typeof m.wordCount === 'number' ? m.wordCount : 0,
-      grounding: (Array.isArray(m.grounding) ? m.grounding : []).map(g => ({
-        node_id: g.node_id,
-        label: g.label,
-        category: g.category,
-        pov: g.pov,
-        relevance: truncateExcerpt(String(g.relevance ?? ''), GROUNDING_FREE_TEXT_MAX_CHARS),
-        how_reflected: truncateExcerpt(String(g.how_reflected ?? ''), GROUNDING_FREE_TEXT_MAX_CHARS),
-        ...(g.document_claims?.length
-          ? { document_claims: g.document_claims.slice(0, DOCUMENT_CLAIMS_MAX_COUNT)
-            .map(c => truncateExcerpt(String(c ?? ''), DOCUMENT_CLAIM_MAX_CHARS)) }
-          : {}),
-      })),
-    })),
+    opeds: members.map((m: OpEdMember) => {
+      const tag = projectMemberTag(m);
+      return {
+        pov: m.pov,
+        status: m.status,
+        headline: String(m.headline ?? ''),
+        subtitle: String(m.subtitle ?? ''),
+        body: String(m.body ?? ''),
+        wordCount: typeof m.wordCount === 'number' ? m.wordCount : 0,
+        grounding: (Array.isArray(m.grounding) ? m.grounding : []).map(g => ({
+          node_id: g.node_id,
+          label: g.label,
+          category: g.category,
+          pov: g.pov,
+          relevance: truncateExcerpt(String(g.relevance ?? ''), GROUNDING_FREE_TEXT_MAX_CHARS),
+          how_reflected: truncateExcerpt(String(g.how_reflected ?? ''), GROUNDING_FREE_TEXT_MAX_CHARS),
+          ...(g.document_claims?.length
+            ? { document_claims: g.document_claims.slice(0, DOCUMENT_CLAIMS_MAX_COUNT)
+              .map(c => truncateExcerpt(String(c ?? ''), DOCUMENT_CLAIM_MAX_CHARS)) }
+            : {}),
+        })),
+        ...(tag ? { tag } : {}),
+      };
+    }),
     grounding_nodes: await buildGroundingNodes(members),
     grounded_at: new Date().toISOString(),
   };

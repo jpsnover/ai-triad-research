@@ -5,9 +5,16 @@
 // Differences would silently break t/3963 cross-run comparisons.
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { resolvePoverInfo as nodeResolve, clearSoulDocCache } from './soulDocLoader.js';
 import { resolvePoverInfo as browserResolve } from './tagSoulRegistry.js';
+import { buildSoulProvenance } from './soulDocSchema.js';
 import type { TagSelection } from './types/session.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const SOUL_DOCS_DIR = resolve(__dirname, 'soul-docs');
 
 const BASE_SPEAKERS = ['accelerationist', 'safetyist', 'skeptic'] as const;
 const TAG_CASES: { speaker: typeof BASE_SPEAKERS[number]; tag: string }[] = [
@@ -47,4 +54,32 @@ describe('soul provenance parity — Node loader vs browser registry', () => {
       expect(soulProvenance.file).not.toMatch(/^\//);
     }
   });
+});
+
+// Condition 6: debate path vs op-ed path — same file + same encoding → same hash (t/4007).
+// Op-ed generate.ts reads each soul via readFileSync(path, 'utf-8') + buildSoulProvenance, identically
+// to soulDocLoader. This arm catches any divergence in encoding, BOM handling, or file path resolution.
+describe('soul provenance parity — debate loader vs op-ed read path', () => {
+  const ALL_SOULS: { name: string; speaker: typeof BASE_SPEAKERS[number]; tag?: string }[] = [
+    ...BASE_SPEAKERS.map(s => ({ name: `${s}.soul.json`, speaker: s })),
+    { name: 'skeptic.critical.soul.json', speaker: 'skeptic', tag: 'critical' },
+    { name: 'skeptic.institutional.soul.json', speaker: 'skeptic', tag: 'institutional' },
+  ];
+
+  beforeEach(() => clearSoulDocCache());
+
+  for (const { name, speaker, tag } of ALL_SOULS) {
+    it(`${name}: debate loader and op-ed read path produce identical provenance`, () => {
+      // Op-ed path: readFileSync + buildSoulProvenance (mirrors generate.ts:loadSoulDoc)
+      const raw = readFileSync(resolve(SOUL_DOCS_DIR, name), 'utf-8');
+      const opedProv = buildSoulProvenance(name, raw);
+
+      // Debate path: resolvePoverInfo (Node loader)
+      const tagSelection = tag ? ({ tag, mode: 'scope' } as TagSelection) : undefined;
+      const { soulProvenance: debateProv } = nodeResolve(speaker, tagSelection);
+
+      expect(debateProv.file).toBe(opedProv.file);
+      expect(debateProv.hash).toBe(opedProv.hash);
+    });
+  }
 });

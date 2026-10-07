@@ -5,7 +5,6 @@ import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { SoulDocumentSchema, buildSoulProvenance, type SoulDocument, type SoulProvenance } from './soulDocSchema.js';
-export type { SoulProvenance } from './soulDocSchema.js';
 import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { PovInfo, SpeakerId } from './types.js';

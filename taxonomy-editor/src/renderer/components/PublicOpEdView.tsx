@@ -19,6 +19,8 @@ import remarkGfm from 'remark-gfm';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { resolvePovMeta } from './opeds/povResolve';
 import type { OpEdGroundingRef } from '../../../../lib/oped/types';
+import { loadPovTagRegistry, type PovTagRegistry, type TagMode } from '@lib/schema/povTags';
+import { opedTagScopeText, tagLabelFor } from './opeds/opedTagScopeText';
 import './PublicOpEdView.css';
 
 /**
@@ -39,6 +41,24 @@ export interface PublicOpEdMember {
   body: string;
   wordCount: number;
   grounding?: OpEdGroundingRef[];
+  /** t/3990/t/3992: the tagged member's scope, on that member only. No label: the wing name is resolved
+   *  from the bundled registry. Absent on untagged members and on shares projected before t/3990. */
+  tag?: { pov: string; tag: string; mode: TagMode; included: number; excludedUntagged: number };
+}
+
+/** The bundled POV-tag registry, or null if it fails to load: the share then shows the tag id rather
+ *  than failing the public page. Not the SeatTagPicker helper, to keep the debate picker out of this bundle. */
+function tagRegistryOrNull(): PovTagRegistry | null {
+  try {
+    return loadPovTagRegistry();
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'public-oped-view', level: 'warn',
+      message: 'POV tag registry failed to load; showing tag ids on the public op-ed (t/3992)',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return null;
+  }
 }
 /**
  * Resolved snapshot of a grounded node, embedded in the projection at mint time
@@ -182,6 +202,12 @@ function OpEdArticle({
       >
         {metaLine}
       </div>
+      {/* t/3992: a one-wing essay says so, so a shared Scope op-ed never reads as the whole camp (SO e/254#6). */}
+      {member.tag && (
+        <p className="pov-oped-tag-scope" role="note">
+          {opedTagScopeText(meta.label, tagLabelFor(member.tag.pov, member.tag.tag, tagRegistryOrNull()), member.tag)}
+        </p>
+      )}
       {member.status !== 'complete' ? (
         <div className="pov-oped-notice" role="status">
           This voice {member.status === 'failed' ? 'failed to generate' : 'was cancelled'} — no essay is available for it.

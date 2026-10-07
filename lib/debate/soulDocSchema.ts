@@ -95,8 +95,8 @@ export function compareSoulProvenance(
   if (!a || !b) return 'unknown';
 
   const VALID_HASH = /^(sha256|fnv1a64):[0-9a-f]{16}$/;
-  const resolveHash = (p: SoulProvenance | { file: string; sha: string }): string | undefined =>
-    'hash' in p ? p.hash : (p as { file: string; sha: string }).sha;
+  const resolveHash = (p: SoulProvenance | { file: string; hash?: string; sha?: string }): string | undefined =>
+    (p as { hash?: string }).hash || (p as { sha?: string }).sha;
   const normaliseHash = (h: string | undefined): string | undefined => {
     if (!h) return undefined;
     const n = h.includes(':') ? h : `sha256:${h}`;

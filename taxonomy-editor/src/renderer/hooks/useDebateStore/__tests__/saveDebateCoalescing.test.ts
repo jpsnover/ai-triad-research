@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import type { DebateStore } from '../types';
 import { createSessionSlice } from '../slices/sessionSlice';
-import type { ActionableError } from '@lib/errors/ActionableError';
+import type { ActionableError } from '@lib/debate/errors';
 
 const mockSaveDebateSession = vi.fn<(session: unknown) => Promise<void>>();
 const mockRecords: Array<Record<string, unknown>> = [];

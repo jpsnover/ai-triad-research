@@ -20,6 +20,8 @@ import {
 import { deriveTruncation } from '../../../../lib/inquiry/index.js';
 import type { InquiryResult } from '../../../../lib/inquiry/index.js';
 import { CLASSIFICATION, dispositionFor, type Surface } from '../../../../lib/inquiry/fieldClassification.js';
+import { AppliedTagSchema, loadPovTagRegistry } from '../../../../lib/schema/povTags.js';
+import type { OpEdCommunityEntry } from '../../../../lib/oped/types.js';
 
 // ── Paths ──
 
@@ -63,7 +65,7 @@ const COMMUNITY_INDEX_FILE = '_index.json';
 // Bump when toEntry shape changes so stale caches are replaced on next list.
 const CHAT_INDEX_VERSION = 'chat-v2'; // v2: added model (t/2779)
 const DEBATE_INDEX_VERSION = 'debate-v2'; // v2: added model + turn_count (t/2362/t/2384)
-const OPED_INDEX_VERSION = 'oped-v2'; // v2: added outlet (t/2993)
+const OPED_INDEX_VERSION = 'oped-v3'; // v2: added outlet (t/2993); v3: added tag (t/3991)
 const INQUIRY_INDEX_VERSION = 'inquiry-v1'; // t/3621
 
 interface ListingIndexSpec<T> {
@@ -167,11 +169,48 @@ interface CommunityDebateEntry {
   model?: string; turn_count?: number;
 }
 
+type CommunityOpEdTag = NonNullable<OpEdCommunityEntry['tag']>;
+
 interface CommunityOpEdEntry {
   id: unknown; topic: string; created_at: string; updated_at: string;
   community_metadata: unknown;
   camps: string[];
   voice_count: number;
+  tag?: CommunityOpEdTag;
+}
+
+/**
+ * t/3991 (TL t/3960#3 cond 2; SO e/252#2 cond 1): the tagged member's scope, so a list row never labels
+ * a one-wing essay as the whole camp's. Named reads only — `{ pov, tag, mode }` from the member's applied
+ * tag, `label` (the wing name) from the tag registry. Absent for untagged sets.
+ *
+ * Two fallbacks, both WARNed (fallback-path logging):
+ *  - a tag no longer in the registry (retired after the set was stored) keeps the tag with its id as the
+ *    label. Dropping it would show the essay as the whole camp's — the misattribution this field prevents.
+ *  - a malformed applied tag is omitted: there is nothing trustworthy to show.
+ */
+function communityOpEdTag(setId: unknown, opeds: unknown): CommunityOpEdTag | undefined {
+  if (!Array.isArray(opeds)) return undefined;
+  const tagged = opeds.filter((m): m is { tag: unknown } =>
+    !!m && typeof m === 'object' && (m as { tag?: unknown }).tag !== undefined);
+  if (tagged.length === 0) return undefined;
+  if (tagged.length > 1) {
+    log.server.warn({ setId, taggedMembers: tagged.length },
+      'Community op-ed index: more than one tagged member (a tag applies to one camp) — using the first');
+  }
+  const parsed = AppliedTagSchema.safeParse(tagged[0].tag);
+  if (!parsed.success) {
+    log.server.warn({ setId, issues: parsed.error.issues.map((i) => i.message) },
+      'Community op-ed index: malformed applied tag on a member — omitting the tag from the list entry');
+    return undefined;
+  }
+  const { pov, tag, mode } = parsed.data;
+  const label = loadPovTagRegistry().povs[pov]?.find((e) => e.id === tag)?.label;
+  if (label === undefined) {
+    log.server.warn({ setId, pov, tag },
+      'Community op-ed index: tag not in the registry (retired?) — showing the tag id as its label');
+  }
+  return { pov, tag, mode, label: label ?? tag };
 }
 
 interface CommunityInquiryEntry {
@@ -228,18 +267,22 @@ export async function listCommunityOpEds(): Promise<unknown[]> {
     prefix: 'oped-',
     version: OPED_INDEX_VERSION,
     malformedMessage: 'Skipping malformed community op-ed file',
-    toEntry: (parsed) => ({
-      id: parsed.id,
-      topic: typeof parsed.topic === 'string' ? parsed.topic || 'Untitled' : 'Untitled',
-      created_at: parsed.created_at || '',
-      updated_at: parsed.updated_at || parsed.created_at || '',
-      community_metadata: stripOriginalId(parsed.community_metadata || null),
-      camps: Array.isArray(parsed.opeds)
-        ? [...new Set<string>((parsed.opeds as { pov?: string }[]).map(m => m.pov).filter((p): p is string => Boolean(p)))]
-        : [],
-      voice_count: Array.isArray(parsed.opeds) ? (parsed.opeds as unknown[]).length : 0,
-      outlet: typeof parsed.params?.outlet === 'string' ? parsed.params.outlet : undefined,
-    }),
+    toEntry: (parsed) => {
+      const tag = communityOpEdTag(parsed.id, parsed.opeds);
+      return {
+        id: parsed.id,
+        topic: typeof parsed.topic === 'string' ? parsed.topic || 'Untitled' : 'Untitled',
+        created_at: parsed.created_at || '',
+        updated_at: parsed.updated_at || parsed.created_at || '',
+        community_metadata: stripOriginalId(parsed.community_metadata || null),
+        camps: Array.isArray(parsed.opeds)
+          ? [...new Set<string>((parsed.opeds as { pov?: string }[]).map(m => m.pov).filter((p): p is string => Boolean(p)))]
+          : [],
+        voice_count: Array.isArray(parsed.opeds) ? (parsed.opeds as unknown[]).length : 0,
+        outlet: typeof parsed.params?.outlet === 'string' ? parsed.params.outlet : undefined,
+        ...(tag ? { tag } : {}),
+      };
+    },
   });
   return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
 }

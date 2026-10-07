@@ -666,8 +666,6 @@ export async function runCrossRespondRound(engine: DebateEngineInternals, round:
     pov: info.pov,
     soul: info,
     personality: info.personality,
-    // t/4007: the stage prompts now require the resolved soul (no POVER_INFO fallback).
-    soul: info,
     opponentSouls: Object.fromEntries(
       engine.config.activePovers
         .filter(id => id !== responder && (id as string) !== 'user')

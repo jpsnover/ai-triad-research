@@ -6,7 +6,7 @@ import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities
 import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
 import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload, StartInquiryRequest, InquiryStatusResponse, InquiryResult, InquiryResultSummary, NodeDeleteLogEntry } from '../bridge/types';
-import type { BriefArtifactName } from '@lib/brief/types';
+import type { BriefArtifactName } from '../../../../lib/brief/types';
 import type { StopReason } from '@lib/ai-client/types';
 import type { OpEdSet, OpEdSetSummary } from '@lib/oped/types';
 
