@@ -123,3 +123,33 @@ describe('PovTagProposalQueue (t/4052)', () => {
     expect(await screen.findByText(/not yet committed/)).toBeTruthy();
   });
 });
+
+describe('PovTagProposalQueue: an accept is recorded, not applied (t/4083, PI UAT)', () => {
+  it('the header says decisions are recorded and applied later in one batch, with the pending count', async () => {
+    const reviewed = { ...pending, status: 'accepted' as const, final: ['critical'], reviewed_by: 'me', reviewed_at: '2026-10-07' };
+    api.reviewPovTagProposal.mockResolvedValueOnce({ file: file(reviewed), item: reviewed });
+    render(<PovTagProposalQueue pov="skeptic" initialFile={file()} onClose={() => {}} />);
+    const note = screen.getByText(/Decisions are recorded here, not on the node/);
+    expect(note.textContent).toMatch(/applied to the taxonomy in one batch/);
+    expect(note.textContent).toMatch(/\(1 pending\)/);
+    fireEvent.click(screen.getByText('Accept'));
+    await waitFor(() => expect(screen.getByText(/Decisions are recorded here/).textContent).toMatch(/\(0 pending\)/));
+  });
+
+  it('accepted and modified items carry the "Recorded — not yet applied" badge; pending and rejected do not', () => {
+    const at = (node_id: string, status: PovTagProposal['status'], final: string[] | null) =>
+      ({ ...pending, node_id, status, final, reviewed_by: status === 'pending' ? null : 'me', reviewed_at: status === 'pending' ? null : '2026-10-07' });
+    const f: PovTagProposalsFile = { version: 1, run: {}, proposals: [
+      at('skp-beliefs-001', 'accepted', ['critical']),
+      at('skp-beliefs-002', 'modified', ['institutional']),
+      at('skp-beliefs-003', 'rejected', []),
+      at('skp-beliefs-004', 'pending', null),
+    ] };
+    render(<PovTagProposalQueue pov="skeptic" initialFile={f} onClose={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'all' } });
+    const badges = screen.getAllByText('Recorded — not yet applied');
+    expect(badges).toHaveLength(2);
+    const ids = badges.map(b => b.closest('li')!.querySelector('code')!.textContent);
+    expect(ids.sort()).toEqual(['skp-beliefs-001', 'skp-beliefs-002']);
+  });
+});

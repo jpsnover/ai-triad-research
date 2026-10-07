@@ -31,6 +31,8 @@
 .ptp-status { margin-left: auto; font-size: 0.8rem; padding: 1px 6px; border-radius: 10px; background: var(--bg-secondary); }
 .ptp-status-accepted, .ptp-status-modified { color: var(--success, var(--text-primary)); }
 .ptp-status-rejected { color: var(--error-color, var(--text-primary)); }
+/* t/4083: a reviewed decision is recorded, not yet applied to the node. */
+.ptp-recorded { font-size: 0.75rem; padding: 1px 6px; border-radius: 10px; border: 1px dashed var(--border-color); color: var(--text-secondary); }
 .ptp-desc, .ptp-rationale { margin: 0; font-size: 0.85rem; }
 .ptp-rationale { color: var(--text-secondary); font-style: italic; }
 .ptp-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
