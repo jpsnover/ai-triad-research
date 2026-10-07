@@ -584,10 +584,6 @@
     "max": 62,
     "countOver": 1
   },
-  "AITriad/Public/Invoke-POVSummary.ps1": {
-    "max": 119,
-    "countOver": 1
-  },
   "AITriad/Public/Invoke-QbafConflictAnalysis.ps1": {
     "max": 79,
     "countOver": 2
