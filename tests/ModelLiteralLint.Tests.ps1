@@ -89,75 +89,14 @@ BeforeAll {
     # DEMOTION: record why, because the ratchet and the typed grammar assume enforcement.
     $script:ProductionModelLintBlocking = $true
 
-    # tests/ pattern (t/1858): a -Model parameter bound to a literal. Group 2 = id.
-    # Leading dash required, so it never matches a `Model = '...'` mock property.
-    $script:TestModelPattern = '-Model(?::|\s+)([''"])([^''"]+)\1'
-
-    # production pattern (t/3560): widened to three model-binding positions —
-    #   -<*Model*> param binding | $<*Model*> = assignment | standalone model = key.
-    # Group 2 = id in every alternation. The `(?<![\w$-])` on the bare-key arm keeps a
-    # compound key like `ModelUnavailable = '...'` from matching (its value isn't an id).
-    $script:ProdModelPattern = '(?:-[A-Za-z]*[Mm]odel[A-Za-z]*(?::|\s+)|\$[A-Za-z]*[Mm]odel[A-Za-z]*\s*=\s*|(?<![\w$-])[Mm]odel\s*=\s*)([''"])([^''"]+)\1'
-
-    # ── Pure predicate (t/3565, Guard Testability t/2971) ───────────────────────
-    # The offender resolution is factored into PURE functions that operate on
-    # in-memory lines/records (no file IO), so the blocking arm's exact logic is
-    # exercised by direct both-arms unit tests below EVEN while the toggle is $false.
-    # Without this, flipping $ProductionModelLintBlocking would run the blocking
-    # assertion on main for the first time ever (t/2971 clean-arm-never-exercised class).
-
-    # Pure: parse a line's co-located model-lint marker (t/3657 grammar, shared with
-    # lib/ai-config/modelLiteralLint.ts). Grammar: `model-lint:allow-<kind> <reason>`,
-    # kind ∈ {pin, external, nonselect} MANDATORY, reason MANDATORY (≥1 non-ws).
-    # Bare `model-lint:allow` and `allow-<kind>` with no reason are INVALID (not exempt).
-    # Returns { Present, Valid, Kind, Reason }. Anchored at $ so a trailing comment
-    # captures its reason to EOL; callers pass line-terminator-stripped lines.
-    function script:Get-ModelLintMarker {
-        param([string]$Line)
-        $m = [regex]::Match($Line, 'model-lint:allow(?:-(pin|external|nonselect))?(?:\s+(\S.*))?$')
-        if (-not $m.Success) { return [PSCustomObject]@{ Present = $false; Valid = $false; Kind = $null; Reason = $null } }
-        $kind   = if ($m.Groups[1].Success -and $m.Groups[1].Value) { $m.Groups[1].Value } else { $null }
-        $reason = if ($m.Groups[2].Success -and -not [string]::IsNullOrWhiteSpace($m.Groups[2].Value)) { $m.Groups[2].Value.Trim() } else { $null }
-        [PSCustomObject]@{ Present = $true; Valid = ($null -ne $kind -and $null -ne $reason); Kind = $kind; Reason = $reason }
-    }
-
-    # Pure: parse in-memory lines -> literal records, each carrying its co-located Marker
-    # (t/3657 — no longer skips marked lines; the marker's validity is resolved downstream).
-    # (when -Exclusions) drops non-literal / non-single-id values. No file IO.
-    function script:Get-ModelLiteralsFromLines {
-        param([string[]]$Lines, [string]$Pattern, [switch]$Exclusions, [string]$FileName = '(memory)')
-        $out = [System.Collections.Generic.List[object]]::new()
-        $lineNo = 0
-        foreach ($line in $Lines) {
-            $lineNo++
-            $marker = script:Get-ModelLintMarker -Line $line
-            foreach ($match in [regex]::Matches($line, $Pattern)) {
-                $id = $match.Groups[2].Value
-                if ($Exclusions) {
-                    if ([string]::IsNullOrWhiteSpace($id)) { continue }  # runtime-resolved default
-                    if ($id.Contains('$'))                 { continue }  # interpolation, not a literal
-                    if ($id.Contains(','))                 { continue }  # alias CSV, not a single id
-                }
-                $out.Add([PSCustomObject]@{ File = $FileName; Line = $lineNo; Id = $id; Marker = $marker })
-            }
-        }
-        $out
-    }
-
-    # Pure: offenders per the t/3657 shared predicate (marker semantics + registry).
-    #   valid marker + UNregistered id  -> exempt (legitimate pin/external/nonselect)
-    #   valid marker + REGISTERED id     -> OFFENDER (contradiction — pin/etc. on a live id)
-    #   invalid / no marker              -> OFFENDER iff the id is NOT registered
-    # A record with no Marker property (e.g. seeded resolution-only cases) resolves normally.
-    function script:Get-ModelLintOffenders {
-        param([object[]]$Literals, [string[]]$ValidIds)
-        @($Literals | Where-Object {
-            $registered = ($_.Id -in $ValidIds)
-            $mk = if ($_.PSObject.Properties['Marker']) { $_.Marker } else { $null }
-            if ($mk -and $mk.Present -and $mk.Valid) { $registered }   # valid marker: offender only if it's a contradiction
-            else { -not $registered }                                  # no/invalid marker: normal resolution
-        })
-    }
+    # ── The scan (patterns + pure predicate), extracted (t/3553, SO e/271) ───────
+    # $TestModelPattern, $ProdModelPattern, Get-ModelLintMarker, Get-ModelLiteralsFromLines,
+    # Get-ModelLintOffenders, Get-ModelLiterals and the scope table now live in ONE place,
+    # scripts/ModelLiteralScan.ps1, moved verbatim from here. The generator's PS emitter
+    # (scripts/Get-CodeReferencedModels.ps1) dot-sources the same file, so the pinned list
+    # and this lint can never disagree. The pure functions stay pure (t/3565, t/2971): the
+    # blocking arm's exact logic is still exercised by the direct both-arms tests below.
+    . (Join-Path $script:RepoRoot 'scripts' 'ModelLiteralScan.ps1')
 
     # Pure: registry-usability guard (t/3657 cond 3). Empty/unreadable registry is an
     # INFRA error, distinct from "unregistered literal" — throw a typed ActionableError
@@ -179,25 +118,13 @@ BeforeAll {
         }
     }
 
-    # Impure shell: read each file's lines and delegate to the pure parser above.
-    function script:Get-ModelLiterals {
-        param([string]$Path, [string]$Pattern, [switch]$Exclusions)
-        $out = [System.Collections.Generic.List[object]]::new()
-        foreach ($file in Get-ChildItem -Path $Path -File -Recurse -Include '*.ps1', '*.psm1') {
-            $lines = [System.IO.File]::ReadAllLines($file.FullName)
-            foreach ($rec in (script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $Pattern -Exclusions:$Exclusions -FileName $file.Name)) {
-                $out.Add($rec)
-            }
-        }
-        $out
-    }
-
+    # Both scopes go through the shared scope table (scripts/ModelLiteralScan.ps1), the same call the
+    # generator's PS emitter makes, so the lint's literal set IS the emitter's literal set (t/3553, SO e/271).
     # tests/ — the original t/1858 scope (blocking), -Model bindings only.
-    $script:ModelLiterals = @(script:Get-ModelLiterals -Path $PSScriptRoot -Pattern $script:TestModelPattern)
+    $script:ModelLiterals = @(script:Get-ModelLiteralScopeScan -RepoRoot $script:RepoRoot -Scope Tests)
 
-    # scripts/AITriad/ — production scope (WARN-only), widened pattern + exclusions.
-    $ProdRoot = Join-Path $script:RepoRoot 'scripts' 'AITriad'
-    $script:ProdLiterals = @(script:Get-ModelLiterals -Path $ProdRoot -Pattern $script:ProdModelPattern -Exclusions)
+    # scripts/AITriad/ — production scope (blocking since t/3557 condition 5), widened pattern + exclusions.
+    $script:ProdLiterals = @(script:Get-ModelLiteralScopeScan -RepoRoot $script:RepoRoot -Scope Production)
 }
 
 Describe 'Model-id literals resolve to registered models' -Tag 'config' {
@@ -226,7 +153,7 @@ Describe 'Model-id literals resolve to registered models' -Tag 'config' {
         $offenders.Count | Should -Be 0 -Because "test fixtures must mock only registered models. Fix each: register the id in ai-models.json, repoint to a valid id, or (if the id is intentionally invalid) append a typed '# model-lint:allow-<pin|external|nonselect> <reason>' marker on that line.`n$report"
     }
 
-    It 'every production model-id literal names a registered model (WARN-only — t/3560)' {
+    It 'every production model-id literal names a registered model (blocking since t/3557 condition 5)' {
         $offenders = @(script:Get-ModelLintOffenders -Literals $script:ProdLiterals -ValidIds $script:ValidIds)
         $report = ($offenders | ForEach-Object { "$($_.File):$($_.Line) names unregistered id '$($_.Id)'" }) -join "`n"
         $remedy = "register the id in ai-models.json, repoint to a registered id, or append '$($script:SuppressMarker) <reason>' on that line (raw provider ids / embedding / reranker / TTS models are legitimate pins)."
@@ -483,5 +410,53 @@ Describe 'Exemption ratchet — production model-lint exemptions do not grow sil
         # EXACT match -> not flagged
         $exact = @{ pin = 2; external = 1; nonselect = 0 }
         @(foreach ($k in 'pin', 'external', 'nonselect') { if ($c[$k] -ne $exact[$k]) { $k } }).Count | Should -Be 0
+    }
+}
+
+Describe 'Code-referenced model emitter shares the lint scan (t/3553, SO e/271)' -Tag 'config' {
+
+    It 'the emitter returns exactly the registered ids among the literals this lint scans (both scopes)' {
+        # SO e/271: the generator and the lint must not disagree. The emitter runs as a separate pwsh
+        # process (as the generator calls it); its output must equal the registered subset of THIS run's
+        # tests/ + production literals, and the lint's offender set must be the remaining unregistered,
+        # unexempted ones — i.e. literal ids = emitted ∪ offenders ∪ exempt-unregistered, nothing else.
+        $emitter = Join-Path $script:RepoRoot 'scripts' 'Get-CodeReferencedModels.ps1'
+        $emitted = @(pwsh -NoProfile -File $emitter | ConvertFrom-Json)
+        $all = @($script:ModelLiterals) + @($script:ProdLiterals)
+        $expected = @(script:Get-CodeReferencedModelIds -Literals $all -ValidIds $script:ValidIds)
+        @($emitted | Sort-Object) | Should -Be @($expected | Sort-Object)
+
+        $registeredLiteralIds = @($all | Where-Object { $_.Id -in $script:ValidIds } | ForEach-Object Id | Sort-Object -Unique)
+        @($emitted | Sort-Object) | Should -Be $registeredLiteralIds
+        $emitted.Count | Should -BeGreaterThan 0 -Because 'an empty pin list would let a refresh curate away every code-named model'
+    }
+
+    It 'a literal the extracted scan reports as unregistered is exactly what the lint flags (offender parity)' {
+        # The flag is split ('-Mo' + 'del') so this test file's own source line never matches the
+        # tests/ scan pattern; only the assembled in-memory strings do.
+        $flag = '-Mo' + 'del'
+        $lines = @(
+            "Invoke-X $flag 'gemini-3.5-flash-lite'"
+            "Invoke-X $flag 'retired-model-999'"
+            "Invoke-X $flag 'raw-provider-id' # model-lint:allow-external raw provider id"
+        )
+        $lits = @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:TestModelPattern)
+        $valid = @('gemini-3.5-flash-lite')
+        $off = @(script:Get-ModelLintOffenders -Literals $lits -ValidIds $valid)
+        $emit = @(script:Get-CodeReferencedModelIds -Literals $lits -ValidIds $valid)
+        @($off.Id) | Should -Be @('retired-model-999')
+        $emit | Should -Be @('gemini-3.5-flash-lite')
+        @($emit) + @($off.Id) | Should -Not -Contain 'raw-provider-id'   # exempt + unregistered: neither pinned nor flagged
+    }
+
+    It 'membership is registration, not the marker: registered+allow-pin is IN, unregistered+allow-external is OUT (SO e/271#6 (c))' {
+        $lines = @(
+            "`$DefaultModel = 'claude-sonnet-4-6' # model-lint:allow-pin deliberate pin"
+            "`$EmbedModel = 'text-embedding-raw' # model-lint:allow-external embedding model, not in registry"
+        )
+        $lits = @(script:Get-ModelLiteralsFromLines -Lines $lines -Pattern $script:ProdModelPattern -Exclusions)
+        $emit = @(script:Get-CodeReferencedModelIds -Literals $lits -ValidIds @('claude-sonnet-4-6'))
+        $emit | Should -Contain 'claude-sonnet-4-6'
+        $emit | Should -Not -Contain 'text-embedding-raw'
     }
 }
