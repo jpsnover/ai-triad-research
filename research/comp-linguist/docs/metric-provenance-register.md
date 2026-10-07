@@ -372,9 +372,11 @@ Op-ed generation applies a conditional readability edit pass (`lib/oped/readabil
 
 **Who writes the row:** nothing writes it automatically. The t/3553 refresh tool records an accepted proposal only as a flight-recorder `signoff` event, which is forensics, not this table (t/4032). So **every change to a `defaults` or `debateTiers` model, whether by accepted proposal or by hand edit, must add its row above in the same PR.**
 
-**Checked, warn-only:** `npm run verify:config` reports every changed `defaults` or `debateTiers` slot (compared against the merge-base with `origin/main`) that has no row here with the same Slot and Old → new (t/4037, #2996). It **warns and does not block.** Making it blocking needs TL Gate Verification and the mandatory Second Opinion.
+**Checked, warn-only:** `npm run verify:config` reports every `defaults` or `debateTiers` slot whose **served model** changed since the merge-base with `origin/main`, when this table has no row with the same Slot and Old → new (t/4037, #2996; t/4041, #3000). It **warns and does not block.** Making it blocking needs TL Gate Verification and the mandatory Second Opinion.
 
-**Known gap:** the check compares registry ids only. Repointing a model's `apiModelId` under an unchanged id changes the served model without being flagged (t/4041). Until that lands, add the row by hand for an `apiModelId` repoint, written as `id:api` → `id:api`.
+**How to write the row:**
+- **Registry id changed:** use bare ids, e.g. `claude-haiku-4-5 → claude-sonnet-5`. The `id:api` form is also accepted.
+- **Same id, `apiModelId` repointed:** use `id:api` on both sides, e.g. `claude-haiku-4-5:claude-haiku-4-5-20251001 → claude-haiku-4-5:claude-haiku-4-5-20260301`. A bare `x → x` row doesn't satisfy it.
 
 **Not the only safeguard:** calibration comparisons don't depend on this table. Once t/4040 lands, each calibration entry records the served model pool, and the replication gate keys on it, so runs on different served models are never pooled whether or not a row exists. This table is the human audit record.
 
