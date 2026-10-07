@@ -4681,6 +4681,48 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 
 ---
 
+## #223 [Infra] `gh` CLI Crashes with OOM Mid-Loop — Partial State; Verify Per-Item Before Retry
+
+**Pattern:** The `gh` CLI crashes mid-way through a loop of write operations (e.g., posting multiple comments, applying labels) with `fatal error: runtime: cannot allocate memory`. The items processed before the crash are complete; those after are not. Re-running the whole loop duplicates the completed items (double-comments, duplicate labels). The correct response: verify each item's final state individually, then retry only the items that didn't complete.
+
+**Instances:**
+- 2026-10-07 — Computational Linguist (p/7#112, t/3962): `gh` crashed mid-loop through a 2-issue comment + label sequence. First comment posted; second comment and label did not. Same memory pressure that reaped an earlier long run (t/3962#6). Fix: retried each step separately and verified end state (labels + comment count) on each issue.
+
+**Root Cause:** The `gh` CLI is a Go binary; under host memory pressure it crashes with a Go runtime OOM. The crash is not transactional — operations before the crash succeeded and are not rolled back. The partial-state trap is: re-running the loop duplicates the successful write (double-comment is the canonical case).
+
+**Prevention:**
+1. **After any CLI crash mid-loop, verify each item's final state before retrying.** Check comment count, label presence, or whatever write was in the loop — don't assume "0 items completed" or "all items completed".
+2. **Retry only the items that didn't complete.** Re-running the whole loop produces duplicates for items that already succeeded.
+3. **`gh` OOM crashes are a host memory pressure signal**, not a `gh` bug. If recurring, check for a concurrent memory-intensive process (long-running Python, embedded model, large diff).
+4. **For critical write loops, write a state checkpoint** — record which items completed before moving to the next. This makes re-entry after crash deterministic.
+
+**Status:** Active — 1 instance (Computational Linguist p/7#112, t/3962). Risk: duplicate writes (double-comments, double-labels) if loop is re-run without state check.
+
+**Applies To:** All agents running multi-step `gh` write loops (comments, labels, PRs) on memory-constrained hosts.
+
+---
+
+## #224 [Infra] Terminal Close Silently Kills Background Jobs — Verify Output Files After Restart
+
+**Pattern:** A background job started in the terminal is silently killed when the session closes. No error is reported — the job and its output disappear. After a terminal restart, code that expects background-job output files to exist finds them missing. The failure is silent: the job completes from the agent's perspective (the spawn succeeded), but its output never materialised.
+
+**Instances:**
+- 2026-10-07 — Computational Linguist (p/7#114): A background audit scan was started; the terminal closed mid-run. The job was killed with no error signal. Expected output files were not produced. Discovered only when results were needed. Re-ran in the foreground, wrote results to files, verified outputs before posting.
+
+**Root Cause:** Background jobs spawned by the shell are child processes of the terminal session. When the terminal closes, the OS terminates child processes. The agent framework does not persist background job state across terminal restarts and produces no error — the only signal is missing output files.
+
+**Prevention:**
+1. **After any terminal restart, verify that expected output files from recently started background jobs actually exist.** Do not assume a background job completed.
+2. **For output-dependent tasks, prefer running in the foreground** with results written to files — the output is visible and verifiable in the same session.
+3. **Verify the output has substantive content before reporting or using it.** An absent or empty file after a restart is a terminal-kill signal, not a content absence.
+4. **A terminal close during a background job leaves no error signal.** The only detection path is checking whether expected outputs exist before proceeding.
+
+**Status:** Active — 1 instance (Computational Linguist p/7#114). Silent failure mode.
+
+**Applies To:** All agents starting background jobs or long-running scans in a terminal session.
+
+---
+
 ## #219 [Build] MSYS Stores Colon as Unicode Private-Use Character in Filenames — `C:tmpsaf…` Is Not a Real Colon; PowerShell Matching Fails; Use Bash for Cleanup
 
 **Pattern:** A file appears in the repository root whose name looks like `C:tmpsaf_beliefs_raw.json`. The `:` is **not** an ASCII colon — MSYS stores it as a Unicode private-use character (U+F03A or similar) that *visually* resembles a colon but doesn't match ASCII `:` in any search or comparison. As a result: `git log/ls-files/status` fail "outside repository" or similar; PowerShell `-like 'C:tmp*'` and `Get-Item ".\C:tmpsaf..."` find nothing (the `.\` trick doesn't help — the issue is the non-ASCII char, not drive-letter interpretation); `:(literal)` pathspec magic also fails. **What works: Bash `ls`/`mv`/`rm` with the literal filename** — Bash can address the actual bytes MSYS stored.
