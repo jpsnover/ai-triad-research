@@ -1,0 +1,8 @@
+VERBOSE: Local mode: debate '<ROOT>/debate-1.json'
+VERBOSE:   Preset=policymaker, model=m1. Output → <ROOT>/out-fail
+VERBOSE: Performing the operation "export brief (preset=policymaker, model=m1) → <ROOT>/out-fail" on target "<ROOT>/debate-1.json".
+VERBOSE:   CLI: <PWSH> -NoProfile -File <ROOT>/stub-fail-plain.ps1
+VERBOSE:   Pipeline finished (exit code 5).
+WARNING: before failing
+ERROR: RenderFailure,Export-TriadDebateBrief | InvalidData | brief CLI exited with code 5 | <ROOT>/debate-1.json
+ARGS: --path <ROOT>/debate-1.json --preset policymaker --out <ROOT>/out-fail --model m1
