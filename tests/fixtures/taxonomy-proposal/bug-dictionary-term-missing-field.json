@@ -1,0 +1,27 @@
+{
+  "scenario": "bug-dictionary-term-missing-field",
+  "host": [
+    "[Cyan] \n▶  Validating environment",
+    "[Green]    ✓  Model       : gemini-2.5-flash",
+    "[Green]    ✓  Temperature : 0.3",
+    "[Yellow]    ⚠  DRY RUN — no API call, no file writes",
+    "[Cyan] \n▶  Preparing health data",
+    "[Green]    ✓  Using pre-computed health data (42 summaries)",
+    "[Cyan] \n▶  Building prompt context",
+    "[Green]    ✓  Compact nodes       : 6",
+    "[Green]    ✓  Unmapped for prompt : 2",
+    "[Green]    ✓  Orphan nodes        : 50",
+    "[Green]    ✓  High-variance nodes : 1"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": "The property 'display_form' cannot be found on this object. Verify that the property exists.",
+  "output": [],
+  "calls": [],
+  "writes": [],
+  "tree": {
+    "dictionary/": "(dir)",
+    "dictionary/standardized/": "(dir)",
+    "dictionary/standardized/thin.json": "sha256:774c2ff7a839315833fa104ed9a233baab10011a7233af327f9af7ed42660d3e (89 chars)"
+  }
+}
