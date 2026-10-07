@@ -548,10 +548,6 @@
     "max": 77,
     "countOver": 1
   },
-  "AITriad/Public/Invoke-EntityExtraction.ps1": {
-    "max": 182,
-    "countOver": 1
-  },
   "AITriad/Public/Invoke-GraphQuery.ps1": {
     "max": 88,
     "countOver": 1
