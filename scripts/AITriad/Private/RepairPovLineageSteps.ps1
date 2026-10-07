@@ -774,9 +774,12 @@ function Test-LineageEnrichKey {
 function Find-LineageCacheMatch {
     # Dedup guard: an existing cache key in the same category whose words (over 2 chars) overlap the
     # enriched name with Jaccard > 0.75, or $null. Prevents duplicate lineage entries (t/330).
+    # Names that differ only by a version token ('Doctrine 2' vs 'Doctrine 1') are distinct entries,
+    # never a match: tokens of 2 chars or fewer are dropped below, so Jaccard alone scores them 1.0 (t/4077).
     param($Entry, [System.Collections.IDictionary]$Cache)
     foreach ($CKey in @($Cache.Keys)) {
         if ($Cache[$CKey].category -ne $Entry.category) { continue }
+        if (Test-EntityVersionSibling -A $Entry.name -B $CKey) { continue }
         # Quick string similarity check (Jaccard on words)
         $W1 = @($Entry.name.ToLower() -split '\W+' | Where-Object { $_.Length -gt 2 })
         $W2 = @($CKey.ToLower() -split '\W+' | Where-Object { $_.Length -gt 2 })
