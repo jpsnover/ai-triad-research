@@ -370,6 +370,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-10-06 — Computational Linguist (p/7#96, t/3271, **zero-result heuristic instance**): counted `claim_relations` at the summary's top level — got 0, but there are 43. They're nested inside each claim, not at the top level. Caught by reading the prompt schema before reporting. **New heuristic: a "0 found" result should trigger a schema check before reporting.** Zero is a valid count, but it is also the exact symptom of a nesting/path mismatch — they are indistinguishable without a schema check.
 - 2026-10-07 — Computational Linguist (p/7#102, **zero-result heuristic inst2 — embeddings field name**): embeddings comparison script crashed IndexError after reporting 0 vectors. Field assumed as `embedding`; actual field in `embeddings.json` is `vector`. The 0-vector count was the tell before the crash. Fixed by inspecting one entry and rerunning. Confirms zero result = schema-mismatch signal; crash is downstream of the 0 that preceded it.
 - 2026-10-06 — Computational Linguist (p/7#94, **new variant: own-artifact shape assumption**): a read-only inspection one-liner raised `KeyError 'node_id'` on t/3939's `frozen-ops.json`. t/3939's file keys ops by `id`; agent assumed `node_id` from their own t/3952 frozen list, which uses a different shape. Nothing was written. Fix: re-read the file shape before querying. The rule applies to **your own artifacts** as much as shared data — different tickets produce different schemas even when the content is related.
+- 2026-10-07 — Computational Linguist (p/7#110, t/4072): inline Python summary of `ai-models.json` crashed `AttributeError: 'str' has no .get` — assumed `debateTiers[tier]` values were dicts; they're strings. Facts already printed; no rerun needed. Same family as the `embedding`/`vector` slip.
 
 **Root Cause:** Code written based on assumed structure without inspecting first. Covers both JSON field layout (nested vs flat within a document) and filesystem directory layout (subdirectory vs flat). Applies across all project data: taxonomy JSON, debate sessions, and tool/API returns. Field types and file paths both vary — never assume flat without checking.
 
@@ -4635,6 +4636,48 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (PowerShell p/20#86, t/3910). Flake risk: silently passes until a process runs with a different hash seed.
 
 **Applies To:** All agents writing golden/snapshot tests that involve hashtable iteration in fixture construction.
+
+---
+
+## #221 [PowerShell] `-WarningVariable` Does Not Capture `Write-Warning` from the First Command of a Nested Pipeline
+
+**Pattern:** When a function uses `-WarningVariable` on a cmdlet call, warnings emitted by `Write-Warning` inside a **helper that is the first command of a nested pipeline** (e.g. `@( Get-X | Where-Object … )`) are NOT collected into the variable — they appear on the host but are absent from the capture. A `Write-Warning` in a plain statement in the same function IS collected. This makes a fallback path look silent when it isn't, and goldens that assert on the warning capture will silently fail to include it.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#88, t/4072): `-WarningVariable` missed a `Write-Warning` emitted from a helper that was the first command in a nested pipeline `@( Get-X | Where-Object … )`. The warning appeared on the host; it was absent from the captured variable and from goldens. Confirmed by direct repro.
+
+**Root Cause:** PowerShell's warning stream propagation through nested pipelines has a gap: the first command of a sub-expression/nested pipeline runs in a context where the `-WarningVariable` binding from the outer call is not inherited. Subsequent pipeline stages are unaffected — only the first command is in the gap.
+
+**Prevention:**
+1. **Restructure nested pipelines to avoid the gap:** call the helper as a plain statement first (`$items = Get-X`), then pipe the result (`$items | Where-Object …`). The helper's warning stream now flows to the plain-statement context, which inherits the `-WarningVariable` binding.
+2. **If restructuring is not possible, redirect the warning stream explicitly:** `Get-X -WarningVariable innerWarn 3>&1 | …` and merge `$innerWarn` into the outer capture.
+3. **When goldens assert on a warning being captured, verify with a direct repro** that the warning actually lands in `-WarningVariable`, not just on the host. Host output and variable capture diverge at nested pipeline boundaries.
+4. **A fallback that looks silent in a golden but shows on the host is a symptom of this gap**, not a silent fallback.
+
+**Status:** Active — 1 instance (PowerShell p/20#88, t/4072). Confirmed by direct repro.
+
+**Applies To:** All agents using `-WarningVariable` to capture warnings from functions that internally use nested pipelines.
+
+---
+
+## #222 [Build] `gh run view --job <id> --log` Returns Empty Until the Whole Run Is `completed` — Job Completion Is Not Enough
+
+**Pattern:** `gh run view --job <id> --log` returns an empty log even when the specified job has finished, if the overall workflow run is not yet in `completed` state. Counting errors or test lines over the empty file produces "0 failures" / "0 tests found" — a false green. This is silent: the command exits 0, the file exists, it's just empty.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#90, t/4081): `gh run view --job <id> --log` returned empty for a finished job while the run was still in-progress. Counting `##[error][-]` over the empty file gave "0 failures"; agent reported `main` clean before any evidence existed. A re-check happened to confirm it later (t/4081#6), but the initial report was evidence-free.
+
+**Root Cause:** GitHub's log retrieval endpoint for a job returns empty (or incomplete) until the parent workflow run reaches terminal state (`completed`). A job can be `completed: success` while its parent run is still `in_progress` waiting for other jobs — and in that window the log is unavailable.
+
+**Prevention:**
+1. **Before reading job logs, verify `gh run view <run-id> --json status -q .status` is `completed`.** Job completion is not sufficient — check the run-level status.
+2. **Verify the log has substantive content before drawing conclusions from it.** For PowerShell test shards, expect `Running tests from` > 0 (approximately 166 per shard). If the line is absent, the log is empty or incomplete — report "no data", not "0 failures".
+3. **A log count of 0 errors on an empty file is not evidence of a clean run.** Apply the zero-result heuristic: 0 is indistinguishable from "log not available yet" without a content check.
+4. **Never report CI status from a job log without first confirming the run is `completed` and the log is non-empty.** An evidence-free "clean" report is worse than no report.
+
+**Status:** Active — 1 instance (PowerShell p/20#90, t/4081). Silent failure: exit 0, file exists, but empty.
+
+**Applies To:** All agents inspecting CI logs via `gh run view --log` to assess test or build status.
 
 ---
 
