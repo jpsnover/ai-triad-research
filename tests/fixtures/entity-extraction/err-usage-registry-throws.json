@@ -1,0 +1,14 @@
+{
+  "scenario": "err-usage-registry-throws",
+  "host": [],
+  "warnings": [],
+  "verbose": [],
+  "error": "\n  Goal:     Extract entity proposals from source evidence\n  Error:    UsageID 'enrichment.entity-extraction' is not registered in ai-usages.json\n  Location: Invoke-EntityExtraction\n  Resolve:\n   1. Land t/1819 (enrichment.entity-extraction go-live) to register the UsageID\n   2. Verify with: (Get-UsageRegistry).PSObject.Properties.Name | Where-Object { $_ -eq 'enrichment.entity-extraction' }\n   3. Do not hand-add the UsageID outside t/1819 — its responseSchema/model choice is that ticket's design surface",
+  "output": [],
+  "calls": [],
+  "writes": [],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/source_evidence_index.json": "null"
+  }
+}

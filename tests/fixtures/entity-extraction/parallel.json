@@ -1,0 +1,134 @@
+{
+  "scenario": "parallel",
+  "host": [
+    "",
+    "Done. Nodes processed: 4 | Proposals: 3 | Minted: 2 | Linked: 0 | Possible dups (advisory): 0 | Dropped (below gate): 1 | Near-gate minted: 1 | Invalid: 2 | Failed: 2"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Invoke-EntityExtraction: organizations.json unavailable — \n  Goal:     Load organizations registry\n  Error:    organizations.json not found at <ROOT>/taxonomy/organizations.json\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Verify the data repo is present at ../ai-triad-data/\n   2. Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for override\n   3. Confirm taxonomy/Origin/organizations.json exists in the data repo",
+    "Work items: 4 (skipped no-facts: 0, already-done: 0)",
+    "Performing the operation \"Extract entity proposals via enrichment.entity-extraction\" on target \"4 node(s)\"."
+  ],
+  "error": null,
+  "output": [
+    {
+      "NodesProcessed": 4,
+      "ProposalsTotal": 3,
+      "Minted": 2,
+      "Linked": 0,
+      "DroppedBelowGate": 1,
+      "DroppedItems": [
+        {
+          "node_id": "node-1",
+          "name": "Par Low",
+          "entity_type": "event",
+          "confidence": 0.1
+        }
+      ],
+      "NearGateMinted": 1,
+      "InvalidDropped": 2,
+      "InvalidItems": [
+        "node-1: entity_type 'alien' not in {person, artifact, event, legislation, institution}",
+        "node-4: missing name"
+      ],
+      "Failed": 2,
+      "FailedItems": [
+        "node-2: parallel backend down",
+        "node-3: empty AI response"
+      ],
+      "SkippedNoFacts": 0,
+      "SkippedAlreadyDone": 0,
+      "MintedEntities": [
+        {
+          "node_id": "node-1",
+          "id": "ent-001",
+          "name": "Par Thing",
+          "entity_type": "artifact",
+          "dolce_category": "non-agentive-functional-artifact",
+          "confidence": 0.9,
+          "near_gate": false
+        },
+        {
+          "node_id": "node-4",
+          "id": "ent-002",
+          "name": "Par Near",
+          "entity_type": "event",
+          "dolce_category": "perdurant",
+          "confidence": 0.62,
+          "near_gate": true
+        }
+      ],
+      "LinkedDispositions": [],
+      "PossibleDuplicates": [],
+      "OutputPath": "<ROOT>/taxonomy/entity_extraction_log.json"
+    }
+  ],
+  "calls": [
+    {
+      "call": "embed",
+      "pairs": [
+        {
+          "id": "par thing",
+          "text": "Par Thing"
+        }
+      ]
+    },
+    {
+      "call": "embed",
+      "pairs": [
+        {
+          "id": "par near",
+          "text": "Par Near"
+        }
+      ]
+    },
+    {
+      "call": "import",
+      "path": "<ROOT>/taxonomy/entities.json",
+      "embeddingsPath": "<ROOT>/taxonomy/entity_embeddings.json",
+      "proposals": [
+        {
+          "aliases": [
+            "PT"
+          ],
+          "confidence": 0.9,
+          "discovered_by": {
+            "model": "par-model",
+            "usage_id": "enrichment.entity-extraction"
+          },
+          "dolce_category": "non-agentive-functional-artifact",
+          "entity_type": "artifact",
+          "name": "Par Thing",
+          "source_refs": [
+            "doc-1"
+          ],
+          "status": "proposed"
+        },
+        {
+          "aliases": [],
+          "confidence": 0.62,
+          "discovered_by": {
+            "model": "",
+            "usage_id": "enrichment.entity-extraction"
+          },
+          "dolce_category": "perdurant",
+          "entity_type": "event",
+          "name": "Par Near",
+          "source_refs": [],
+          "status": "proposed"
+        }
+      ]
+    }
+  ],
+  "writes": [
+    "<ROOT>/taxonomy/entities.json",
+    "<ROOT>/taxonomy/entity_extraction_log.json"
+  ],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/entities.json": "{\n  \"_schema_version\": \"1.0.0\",\n  \"_doc\": \"Entity records (ent-*). Ref kinds and the Entity type: lib/entities/types.ts.\",\n  \"entity_count\": 2,\n  \"last_modified\": \"2026-01-02\",\n  \"entities\": [\n    {\n      \"id\": \"ent-001\",\n      \"name\": \"Par Thing\",\n      \"aliases\": [\n        \"PT\"\n      ],\n      \"entity_type\": \"artifact\",\n      \"dolce_category\": \"non-agentive-functional-artifact\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [\n        \"doc-1\"\n      ],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\",\n      \"discovered_by\": {\n        \"model\": \"par-model\",\n        \"usage_id\": \"enrichment.entity-extraction\"\n      },\n      \"confidence\": 0.9\n    },\n    {\n      \"id\": \"ent-002\",\n      \"name\": \"Par Near\",\n      \"aliases\": [],\n      \"entity_type\": \"event\",\n      \"dolce_category\": \"perdurant\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\",\n      \"discovered_by\": {\n        \"model\": \"\",\n        \"usage_id\": \"enrichment.entity-extraction\"\n      },\n      \"confidence\": 0.62\n    }\n  ]\n}\n",
+    "taxonomy/entity_extraction_log.json": "{\n  \"_schema_version\": \"1.2.0\",\n  \"_doc\": \"Entity extraction idempotence log (t/1806 Phase 1). Feeds -Force replay decisions; not a data-of-record store (entities.json is). Each node carries evidence[] (supporting quote per minted entity id, for curation) and dropped[] (below-gate proposals, for gate-recall audit) — added t/1830 — and possible_duplicates[] (advisory near-variant pairs {candidate_id, proposal_name, matched_id, matched_name, similarity}: both entities were minted, curation reviews via merge/redirect; name-only cosine cannot safely auto-link siblings) — added t/1881.\",\n  \"last_modified\": \"2026-01-02\",\n  \"node_count\": 2,\n  \"nodes\": [\n    {\n      \"node_id\": \"node-1\",\n      \"processed_at\": \"2026-01-02T03:04:05.0000000Z\",\n      \"model\": \"par-model\",\n      \"proposals_total\": 2,\n      \"org_mentions\": [\n        \"Par Org\"\n      ],\n      \"evidence\": [\n        {\n          \"id\": \"ent-001\",\n          \"name\": \"Par Thing\",\n          \"quote\": \"pq\"\n        }\n      ],\n      \"dropped\": [\n        {\n          \"node_id\": \"node-1\",\n          \"name\": \"Par Low\",\n          \"entity_type\": \"event\",\n          \"confidence\": 0.1\n        }\n      ],\n      \"possible_duplicates\": []\n    },\n    {\n      \"node_id\": \"node-4\",\n      \"processed_at\": \"2026-01-02T03:04:05.0000000Z\",\n      \"model\": \"\",\n      \"proposals_total\": 1,\n      \"org_mentions\": [],\n      \"evidence\": [\n        {\n          \"id\": \"ent-002\",\n          \"name\": \"Par Near\",\n          \"quote\": \"\"\n        }\n      ],\n      \"dropped\": [],\n      \"possible_duplicates\": []\n    }\n  ]\n}\n",
+    "taxonomy/source_evidence_index.json": "{\n  \"node-1\": {\n    \"facts\": [\n      {\n        \"claim\": \"One\",\n        \"doc_id\": \"doc-1\"\n      }\n    ]\n  },\n  \"node-2\": {\n    \"facts\": [\n      {\n        \"claim\": \"Two\",\n        \"doc_id\": \"doc-2\"\n      }\n    ]\n  },\n  \"node-3\": {\n    \"facts\": [\n      {\n        \"claim\": \"Three\"\n      }\n    ]\n  },\n  \"node-4\": {\n    \"facts\": [\n      {\n        \"claim\": \"Four\"\n      }\n    ]\n  }\n}"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "scenario": "all-failed-no-write",
+  "host": [
+    "",
+    "Done. Nodes processed: 1 | Proposals: 0 | Minted: 0 | Linked: 0 | Possible dups (advisory): 0 | Dropped (below gate): 0 | Near-gate minted: 0 | Invalid: 0 | Failed: 1"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Invoke-EntityExtraction: organizations.json unavailable — \n  Goal:     Load organizations registry\n  Error:    organizations.json not found at <ROOT>/taxonomy/organizations.json\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Verify the data repo is present at ../ai-triad-data/\n   2. Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for override\n   3. Confirm taxonomy/Origin/organizations.json exists in the data repo",
+    "Work items: 1 (skipped no-facts: 0, already-done: 0)",
+    "Performing the operation \"Extract entity proposals via enrichment.entity-extraction\" on target \"1 node(s)\"."
+  ],
+  "error": null,
+  "output": [
+    {
+      "NodesProcessed": 1,
+      "ProposalsTotal": 0,
+      "Minted": 0,
+      "Linked": 0,
+      "DroppedBelowGate": 0,
+      "DroppedItems": [],
+      "NearGateMinted": 0,
+      "InvalidDropped": 0,
+      "InvalidItems": [],
+      "Failed": 1,
+      "FailedItems": [
+        "node-1: backend down"
+      ],
+      "SkippedNoFacts": 0,
+      "SkippedAlreadyDone": 0,
+      "MintedEntities": [],
+      "LinkedDispositions": [],
+      "PossibleDuplicates": [],
+      "OutputPath": "<ROOT>/taxonomy/entity_extraction_log.json"
+    }
+  ],
+  "calls": [
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- One",
+        "node_id": "node-1"
+      },
+      "override": {}
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/source_evidence_index.json": "{\n  \"node-1\": {\n    \"facts\": [\n      {\n        \"claim\": \"One\",\n        \"doc_id\": \"doc-1\"\n      }\n    ]\n  }\n}"
+  }
+}
