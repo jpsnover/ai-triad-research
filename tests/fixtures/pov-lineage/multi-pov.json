@@ -1,0 +1,64 @@
+{
+  "scenario": "multi-pov",
+  "host": [
+    "[Cyan] Unique lineage values: 3",
+    "[Gray] Computing embeddings for dedup...",
+    "[Yellow]   Embedding unavailable — skipping dedup",
+    "[Gray] Post-dedup unique: 3",
+    "[Gray] Already cached: 3",
+    "[Gray] Need enrichment: 0",
+    "[Green] Cache saved: 3 entries → <ROOT>/calibration/core/lineage-enrichments.json",
+    "[Cyan] \nApplying enrichments to taxonomy files...",
+    "[Green]   Saved accelerationist.json",
+    "[Green]   Saved skeptic.json",
+    "[Cyan] \n=== SUMMARY ===",
+    "[Gray]   Unique values: 3",
+    "[Gray]   Enriched (new): 0",
+    "[Gray]   From cache: 3",
+    "[Gray]   Nodes updated: 2"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Loaded 3 cached enrichments",
+    "UniqueValues type: HashSet`1, count: 3",
+    "  acc-1 [accelerationist]: 2 bare → enriched, 0 already rich",
+    "  skp-1 [skeptic]: 2 bare → enriched, 0 already rich",
+    "Performing the operation \"Enrich lineage\" on target \"acc-1 (2 lineage entries)\".",
+    "Performing the operation \"Enrich lineage\" on target \"skp-1 (2 lineage entries)\"."
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "embed",
+      "texts": [
+        "Game Theory",
+        "Cybernetics",
+        "Luddism"
+      ],
+      "ids": [
+        "Game Theory",
+        "Cybernetics",
+        "Luddism"
+      ]
+    }
+  ],
+  "guards": [
+    "taxonomy/Origin/accelerationist.json",
+    "taxonomy/Origin/skeptic.json"
+  ],
+  "writes": [
+    "calibration/core/lineage-enrichments.json (encoding=utf-8, bom=False)",
+    "taxonomy/Origin/accelerationist.json (encoding=utf-8, bom=False)",
+    "taxonomy/Origin/skeptic.json (encoding=utf-8, bom=False)"
+  ],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "calibration/core/lineage-enrichments.json": "canonical: {\"Cybernetics\":{\"category\":\"other\",\"description\":\"Cyb.\",\"url\":\"https://cyb.example\",\"url_status\":200},\"Game Theory\":{\"category\":\"other\",\"description\":\"GT.\",\"url\":\"https://gt.example\",\"url_status\":200},\"Luddism\":{\"category\":\"other\",\"description\":\"Lud.\",\"url\":\"\",\"url_status\":\"cleared\"}}",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"acc-1\",\n      \"label\": \"Label acc-1\",\n      \"description\": \"Description of acc-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Game Theory\",\n            \"description\": \"GT.\",\n            \"url\": \"https://gt.example\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Cybernetics\",\n            \"description\": \"Cyb.\",\n            \"url\": \"https://cyb.example\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    }\n  ]\n}\n",
+    "taxonomy/Origin/skeptic.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"skp-1\",\n      \"label\": \"Label skp-1\",\n      \"description\": \"Description of skp-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Cybernetics\",\n            \"description\": \"Cyb.\",\n            \"url\": \"https://cyb.example\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Luddism\",\n            \"description\": \"Lud.\",\n            \"url\": \"\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    }\n  ]\n}\n"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "scenario": "fixurls-whatif",
+  "host": [
+    "[Cyan] === Fix Broken URLs ===",
+    "[Gray]   Entries to check: 3 / 4",
+    "[Gray] \nWhatIf: Would validate 3 URLs via GET with Wikipedia fallback",
+    "[DarkGray]   Game Theory: https://gt.example/now-ok",
+    "[DarkGray]   Longtermism: https://lt.example/dead",
+    "[DarkGray]   Obscure (doctrine): "
+  ],
+  "warnings": [],
+  "verbose": [
+    "Loaded 4 cached enrichments"
+  ],
+  "error": null,
+  "output": [],
+  "calls": [],
+  "guards": [],
+  "writes": [],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "calibration/core/lineage-enrichments.json": "canonical: {\"Cybernetics\":{\"category\":\"other\",\"description\":\"Cyb.\",\"url\":\"https://cyb.example/ok\",\"url_status\":200},\"Game Theory\":{\"category\":\"other\",\"description\":\"GT.\",\"url\":\"https://gt.example/now-ok\",\"url_status\":404},\"Longtermism\":{\"category\":\"other\",\"description\":\"LT.\",\"url\":\"https://lt.example/dead\"},\"Obscure (doctrine)\":{\"category\":\"other\",\"description\":\"Ob.\",\"url\":\"\"}}",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"acc-1\",\n      \"label\": \"Label acc-1\",\n      \"description\": \"Description of acc-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Game Theory\",\n            \"description\": \"Old description of Game Theory.\",\n            \"url\": \"https://gt.example/now-ok\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Longtermism\",\n            \"description\": \"Old description of Longtermism.\",\n            \"url\": \"https://lt.example/dead\",\n            \"category\": \"other\"\n          },\n          \"Bare Value\"\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-2\",\n      \"label\": \"Label acc-2\",\n      \"description\": \"Description of acc-2.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Obscure (doctrine)\",\n            \"description\": \"Old description of Obscure (doctrine).\",\n            \"url\": \"\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Not Cached\",\n            \"description\": \"Old description of Not Cached.\",\n            \"url\": \"https://nc.example\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-3\",\n      \"label\": \"No attributes\"\n    }\n  ]\n}",
+    "taxonomy/Origin/skeptic.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"skp-1\",\n      \"label\": \"Label skp-1\",\n      \"description\": \"Description of skp-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Cybernetics\",\n            \"description\": \"Old description of Cybernetics.\",\n            \"url\": \"https://stale.example/cyb\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    }\n  ]\n}"
+  }
+}

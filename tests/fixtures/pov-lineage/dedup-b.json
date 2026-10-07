@@ -1,0 +1,71 @@
+{
+  "scenario": "dedup-b",
+  "host": [
+    "[Cyan] Unique lineage values: 4",
+    "[Gray] Computing embeddings for dedup...",
+    "[Gray] Clustering at cosine >= 0.85...",
+    "[Green] Dedup: 4 → 2 canonical values (2 merged)",
+    "[Gray]   Sample merges:",
+    "[DarkGray]     'Marxism (classical)' → 'Marxism'",
+    "[DarkGray]     'Marxism' → 'Marxism'",
+    "[DarkGray]     'Realism (international relations)' → 'Realism'",
+    "[DarkGray]     'Realism (philosophy)' → 'Realism'",
+    "[Green]   Dedup references updated in taxonomy files",
+    "[Gray] Post-dedup unique: 2",
+    "[Gray] Already cached: 2",
+    "[Gray] Need enrichment: 0",
+    "[Green] Cache saved: 2 entries → <ROOT>/calibration/core/lineage-enrichments.json",
+    "[Cyan] \nApplying enrichments to taxonomy files...",
+    "[Green]   Saved accelerationist.json",
+    "[Cyan] \n=== SUMMARY ===",
+    "[Gray]   Unique values: 2",
+    "[Gray]   Enriched (new): 0",
+    "[Gray]   From cache: 2",
+    "[Gray]   Nodes updated: 2"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Loaded 2 cached enrichments",
+    "UniqueValues type: HashSet`1, count: 4",
+    "  acc-1 [accelerationist]: 2 bare → enriched, 0 already rich",
+    "  acc-2 [accelerationist]: 2 bare → enriched, 0 already rich",
+    "Performing the operation \"Enrich lineage\" on target \"acc-1 (2 lineage entries)\".",
+    "Performing the operation \"Enrich lineage\" on target \"acc-2 (2 lineage entries)\"."
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "embed",
+      "texts": [
+        "Marxism (classical)",
+        "Realism (international relations)",
+        "Marxism",
+        "Realism (philosophy)"
+      ],
+      "ids": [
+        "Marxism (classical)",
+        "Realism (international relations)",
+        "Marxism",
+        "Realism (philosophy)"
+      ]
+    }
+  ],
+  "guards": [
+    "taxonomy/Origin/accelerationist.json",
+    "taxonomy/Origin/accelerationist.json"
+  ],
+  "writes": [
+    "taxonomy/Origin/accelerationist.json (encoding=utf-8, bom=False)",
+    "calibration/core/lineage-enrichments.json (encoding=utf-8, bom=False)",
+    "taxonomy/Origin/accelerationist.json (encoding=utf-8, bom=False)"
+  ],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "calibration/core/lineage-enrichments.json": "canonical: {\"Marxism\":{\"category\":\"other\",\"description\":\"Marx.\",\"url\":\"https://marx.example\",\"url_status\":200},\"Realism\":{\"category\":\"other\",\"description\":\"Realism base.\",\"url\":\"https://realism.example\",\"url_status\":200}}",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"acc-1\",\n      \"label\": \"Label acc-1\",\n      \"description\": \"Description of acc-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Marxism\",\n            \"description\": \"Marx.\",\n            \"url\": \"https://marx.example\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Realism\",\n            \"description\": \"Realism base.\",\n            \"url\": \"https://realism.example\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-2\",\n      \"label\": \"Label acc-2\",\n      \"description\": \"Description of acc-2.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Marxism\",\n            \"description\": \"Marx.\",\n            \"url\": \"https://marx.example\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Realism\",\n            \"description\": \"Realism base.\",\n            \"url\": \"https://realism.example\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    }\n  ]\n}\n"
+  }
+}

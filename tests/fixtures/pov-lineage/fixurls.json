@@ -1,0 +1,60 @@
+{
+  "scenario": "fixurls",
+  "host": [
+    "[Cyan] === Fix Broken URLs ===",
+    "[Gray]   Entries to check: 3 / 4",
+    "[Gray]   Already valid: 1 | Wikipedia fallback: 1 | Cleared: 1",
+    "[Green] Cache saved",
+    "[Green]   Saved accelerationist.json",
+    "[Green]   Saved skeptic.json",
+    "[Green] Updated 3 lineage entries in taxonomy files"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Loaded 4 cached enrichments",
+    "  Wiki fallback: Longtermism → https://en.wikipedia.org/wiki/Longtermism",
+    "  Cleared: Obscure (doctrine) (no valid URL found)"
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "testUrl",
+      "url": "https://gt.example/now-ok",
+      "result": true
+    },
+    {
+      "call": "testUrl",
+      "url": "https://lt.example/dead",
+      "result": false
+    },
+    {
+      "call": "testUrl",
+      "url": "https://en.wikipedia.org/wiki/Longtermism",
+      "result": true
+    },
+    {
+      "call": "testUrl",
+      "url": "https://en.wikipedia.org/wiki/Obscure",
+      "result": false
+    }
+  ],
+  "guards": [
+    "taxonomy/Origin/accelerationist.json",
+    "taxonomy/Origin/skeptic.json"
+  ],
+  "writes": [
+    "calibration/core/lineage-enrichments.json (encoding=utf-8, bom=False)",
+    "taxonomy/Origin/accelerationist.json (encoding=utf-8, bom=False)",
+    "taxonomy/Origin/skeptic.json (encoding=utf-8, bom=False)"
+  ],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "calibration/core/lineage-enrichments.json": "canonical: {\"Cybernetics\":{\"category\":\"other\",\"description\":\"Cyb.\",\"url\":\"https://cyb.example/ok\",\"url_status\":200},\"Game Theory\":{\"category\":\"other\",\"description\":\"GT.\",\"url\":\"https://gt.example/now-ok\",\"url_status\":200},\"Longtermism\":{\"category\":\"other\",\"description\":\"LT.\",\"url\":\"https://en.wikipedia.org/wiki/Longtermism\",\"url_status\":200},\"Obscure (doctrine)\":{\"category\":\"other\",\"description\":\"Ob.\",\"url\":null,\"url_status\":\"cleared\"}}",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"acc-1\",\n      \"label\": \"Label acc-1\",\n      \"description\": \"Description of acc-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Game Theory\",\n            \"description\": \"Old description of Game Theory.\",\n            \"url\": \"https://gt.example/now-ok\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Longtermism\",\n            \"description\": \"Old description of Longtermism.\",\n            \"url\": \"https://en.wikipedia.org/wiki/Longtermism\",\n            \"category\": \"other\"\n          },\n          \"Bare Value\"\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-2\",\n      \"label\": \"Label acc-2\",\n      \"description\": \"Description of acc-2.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Obscure (doctrine)\",\n            \"description\": \"Old description of Obscure (doctrine).\",\n            \"url\": null,\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Not Cached\",\n            \"description\": \"Old description of Not Cached.\",\n            \"url\": \"https://nc.example\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-3\",\n      \"label\": \"No attributes\"\n    }\n  ]\n}\n",
+    "taxonomy/Origin/skeptic.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"skp-1\",\n      \"label\": \"Label skp-1\",\n      \"description\": \"Description of skp-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Cybernetics\",\n            \"description\": \"Old description of Cybernetics.\",\n            \"url\": \"https://cyb.example/ok\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    }\n  ]\n}\n"
+  }
+}
