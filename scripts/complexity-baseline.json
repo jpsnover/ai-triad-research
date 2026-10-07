@@ -324,10 +324,6 @@
     "max": 44,
     "countOver": 1
   },
-  "AITriad/Public/Export-TriadDebateBrief.ps1": {
-    "max": 101,
-    "countOver": 1
-  },
   "AITriad/Public/Find-AITSource.ps1": {
     "max": 17,
     "countOver": 1
