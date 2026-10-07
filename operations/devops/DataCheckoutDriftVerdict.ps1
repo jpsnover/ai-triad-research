@@ -61,8 +61,9 @@
 .PARAMETER Untracked
     Paths git does not track at all (`git status --porcelain`, `??` entries).
 .PARAMETER OldestUncommittedMtime
-    [Nullable[datetime]] last-write-time of the OLDEST file among TrackedModified+Untracked.
-    $null when the caller could not determine it (fail-safe: treated as infinitely old below).
+    [Nullable[datetime]] last-write-time of the OLDEST file among TrackedModified+Untracked, in
+    UTC (the caller reads it via GetLastWriteTimeUtc). $null when the caller could not determine
+    it (fail-safe: treated as infinitely old below).
 .PARAMETER Ahead
     Commits this checkout has that origin does not (`origin..HEAD`).
 .PARAMETER Behind
@@ -71,9 +72,10 @@
     Paths the behind-commits touch (`git diff --name-only HEAD origin/main`). Only meaningful
     when Behind > 0; an empty list when Behind = 0 is expected, not a failure.
 .PARAMETER Now
-    Wall-clock time to compute age against. Mandatory — this function is pure, so "now" is
-    supplied by the caller, never read internally (Get-Date would make this impure and
-    untestable-by-fixed-clock).
+    Wall-clock time to compute age against, in UTC (same clock as OldestUncommittedMtime --
+    mixing local and UTC here produces a timezone-offset-sized error in AgeHours, t/4060).
+    Mandatory — this function is pure, so "now" is supplied by the caller, never read
+    internally (Get-Date would make this impure and untestable-by-fixed-clock).
 .PARAMETER AgeThresholdHours
     Hours after which uncommitted work is considered stale enough to alarm. Default 24 (t/4005
     spec: "say 24h").

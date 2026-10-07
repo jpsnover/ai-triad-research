@@ -35,7 +35,11 @@
 .PARAMETER AgeThresholdHours
     Passed through to Get-DataCheckoutDriftVerdict. Default 24.
 .PARAMETER Now
-    Wall-clock reference for age computation. Defaults to the real Get-Date; override in tests.
+    Wall-clock reference for age computation, in UTC. Defaults to the real UTC now; override in
+    tests. MUST be UTC: the mtime side (GetLastWriteTimeUtc above) is already UTC, and comparing
+    a local-time $Now against it produces a timezone-offset-sized error in AgeHours -- e.g. EDT
+    (UTC-4) read AgeHours as -3.49 on a file modified moments ago, because local-time "now" is
+    ~4h behind UTC "now" while the mtime it's diffed against is already in UTC (t/4060, p/648#98).
 .PARAMETER ProtectedPaths
     Passed through to Get-DataCheckoutDriftVerdict (t/4056). Hashtable of repo-relative-path
     -> owner name, data rather than code so more entries can be added without touching either
@@ -53,7 +57,7 @@ param(
         'ai-triad-sources' = 'C:\Users\jsnov\repos\ai-triad-sources'
     },
     [double]$AgeThresholdHours = 24,
-    [datetime]$Now = (Get-Date),
+    [datetime]$Now = (Get-Date).ToUniversalTime(),
     [hashtable]$ProtectedPaths = @{ 'taxonomy/Origin/pov-tag-proposals.json' = 'Computational Linguist' }
 )
 
