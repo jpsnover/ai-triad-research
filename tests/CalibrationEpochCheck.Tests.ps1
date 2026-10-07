@@ -96,3 +96,59 @@ Describe 'Calibration-epoch register check (t/4037)' -Tag 'config' {
         $slots.Keys | Should -Contain 'debateTiers.advanced.gemini'
     }
 }
+
+Describe 'Calibration-epoch register check: apiModelId repoints (t/4041)' -Tag 'config' {
+
+    BeforeAll {
+        # The served model is `id:apiModelId` (t/4040). Same slot id, repointed api id.
+        function New-ServedConfig([string]$SlotId, [string]$ApiId) {
+            [pscustomobject]@{
+                defaults = [pscustomobject]@{ claude = $SlotId }
+                models   = @(
+                    [pscustomobject]@{ id = 'claude-haiku-4-5'; apiModelId = $ApiId }
+                    [pscustomobject]@{ id = 'claude-sonnet-5'; apiModelId = 'claude-sonnet-5-20260101' }
+                )
+            }
+        }
+        $script:RepointBase = New-ServedConfig 'claude-haiku-4-5' 'claude-haiku-4-5-20251001'
+        $script:RepointHead = New-ServedConfig 'claude-haiku-4-5' 'claude-haiku-4-5-20260301'
+    }
+
+    It 'WARN arm: a repoint under an unchanged slot id is reported as id:api' {
+        $gaps = @(Find-UnrecordedEpochChanges -BaseConfig $RepointBase -HeadConfig $RepointHead -RegisterRows @())
+        $gaps.Count | Should -Be 1
+        $gaps[0].Slot | Should -Be 'defaults.claude'
+        $gaps[0].Old | Should -Be 'claude-haiku-4-5:claude-haiku-4-5-20251001'
+        $gaps[0].New | Should -Be 'claude-haiku-4-5:claude-haiku-4-5-20260301'
+    }
+
+    It 'PASS arm: a matching id:api row satisfies the repoint' {
+        $reg = New-Register @('| 2026-10-07 | `defaults.claude` | `claude-haiku-4-5:claude-haiku-4-5-20251001` → `claude-haiku-4-5:claude-haiku-4-5-20260301` | manual | t/4041 |')
+        @(Find-UnrecordedEpochChanges -BaseConfig $RepointBase -HeadConfig $RepointHead -RegisterRows @(Get-EpochRegisterRows $reg)).Count | Should -Be 0
+    }
+
+    It 'a bare-id row does not satisfy a repoint (it would read x → x)' {
+        $reg = New-Register @('| 2026-10-07 | defaults.claude | claude-haiku-4-5 → claude-haiku-4-5 | manual | t/4041 |')
+        @(Find-UnrecordedEpochChanges -BaseConfig $RepointBase -HeadConfig $RepointHead -RegisterRows @(Get-EpochRegisterRows $reg)).Count | Should -Be 1
+    }
+
+    It 'an id change is still satisfied by a bare-id row, and also by an id:api row' {
+        $head = New-ServedConfig 'claude-sonnet-5' 'claude-haiku-4-5-20251001'
+        $bare = New-Register @('| 2026-10-07 | defaults.claude | claude-haiku-4-5 → claude-sonnet-5 | manual | t/4041 |')
+        @(Find-UnrecordedEpochChanges -BaseConfig $RepointBase -HeadConfig $head -RegisterRows @(Get-EpochRegisterRows $bare)).Count | Should -Be 0
+        $served = New-Register @('| 2026-10-07 | defaults.claude | claude-haiku-4-5:claude-haiku-4-5-20251001 → claude-sonnet-5:claude-sonnet-5-20260101 | manual | t/4041 |')
+        @(Find-UnrecordedEpochChanges -BaseConfig $RepointBase -HeadConfig $head -RegisterRows @(Get-EpochRegisterRows $served)).Count | Should -Be 0
+        $gaps = @(Find-UnrecordedEpochChanges -BaseConfig $RepointBase -HeadConfig $head -RegisterRows @())
+        $gaps[0].Old | Should -Be 'claude-haiku-4-5'   # reported with bare ids, as before
+        $gaps[0].New | Should -Be 'claude-sonnet-5'
+    }
+
+    It 'a repoint of a model no slot uses is not reported' {
+        $head = $RepointBase.PSObject.Copy()
+        $head.models = @(
+            [pscustomobject]@{ id = 'claude-haiku-4-5'; apiModelId = 'claude-haiku-4-5-20251001' }
+            [pscustomobject]@{ id = 'claude-sonnet-5'; apiModelId = 'claude-sonnet-5-20270101' }
+        )
+        @(Find-UnrecordedEpochChanges -BaseConfig $RepointBase -HeadConfig $head -RegisterRows @()).Count | Should -Be 0
+    }
+}

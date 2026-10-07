@@ -69,11 +69,38 @@ function Get-EpochRegisterRows {
     return $Rows.ToArray()
 }
 
+function Get-EpochApiModelIds {
+    # Registry id -> apiModelId from the config's `models` array. An epoch is the SERVED model,
+    # `registryId:apiModelId` (t/4040, e/265#8), so a slot can change what it serves without its id changing.
+    param([Parameter(Mandatory)]$Config)
+    $Map = @{}
+    if ($Config.PSObject.Properties['models']) {
+        foreach ($M in @($Config.models)) {
+            if ($M -and $M.PSObject.Properties['id'] -and $M.PSObject.Properties['apiModelId']) { $Map[[string]$M.id] = [string]$M.apiModelId }
+        }
+    }
+    return $Map
+}
+
+function Get-EpochServedModel {
+    # 'id:apiModelId' for a slot's registry id, or '' for an absent slot. An id with no models entry gives 'id:'.
+    param([string]$Id, [hashtable]$ApiIds)
+    if (-not $Id) { return '' }
+    $Api = if ($ApiIds.ContainsKey($Id)) { $ApiIds[$Id] } else { '' }
+    return "${Id}:$Api"
+}
+
 function Find-UnrecordedEpochChanges {
     <#
     .SYNOPSIS
-        Every model slot whose value differs between the base and head configs (added and removed slots
-        included) and has no §17 row with the same Slot and the same Old → new. Returns { Slot; Old; New }.
+        Every model slot whose SERVED model differs between the base and head configs (added and removed
+        slots included) and has no matching §17 row. Returns { Slot; Old; New } in the form a row needs.
+    .DESCRIPTION
+        Two kinds of change (t/4041):
+        - The slot's registry id changed: satisfied by a row with bare ids (Old → new = old id → new id), or
+          by one written as `id:api`. Reported with bare ids.
+        - The id is unchanged but `models[id].apiModelId` was repointed: satisfied only by an `id:api` row,
+          since bare ids would read "x → x". Reported as `id:api`.
     #>
     param(
         [Parameter(Mandatory)]$BaseConfig,
@@ -82,6 +109,8 @@ function Find-UnrecordedEpochChanges {
     )
     $Base = Get-EpochModelSlots -Config $BaseConfig
     $Head = Get-EpochModelSlots -Config $HeadConfig
+    $BaseApi = Get-EpochApiModelIds -Config $BaseConfig
+    $HeadApi = Get-EpochApiModelIds -Config $HeadConfig
     $Recorded = [System.Collections.Generic.HashSet[string]]::new()
     foreach ($R in $RegisterRows) { [void]$Recorded.Add("$($R.Slot)|$($R.Old)|$($R.New)") }
     $AllSlots = @(@($Base.Keys) + @($Head.Keys) | Sort-Object -Unique)
@@ -89,9 +118,15 @@ function Find-UnrecordedEpochChanges {
     foreach ($Slot in $AllSlots) {
         $Old = if ($Base.Contains($Slot)) { [string]$Base[$Slot] } else { '' }
         $New = if ($Head.Contains($Slot)) { [string]$Head[$Slot] } else { '' }
-        if ($Old -ceq $New) { continue }
-        if (-not $Recorded.Contains("$Slot|$Old|$New")) {
-            $Gaps.Add([pscustomobject]@{ Slot = $Slot; Old = $Old; New = $New })
+        $OldServed = Get-EpochServedModel -Id $Old -ApiIds $BaseApi
+        $NewServed = Get-EpochServedModel -Id $New -ApiIds $HeadApi
+        if ($OldServed -ceq $NewServed) { continue }
+        if ($Recorded.Contains("$Slot|$OldServed|$NewServed")) { continue }
+        if ($Old -cne $New) {
+            if (-not $Recorded.Contains("$Slot|$Old|$New")) { $Gaps.Add([pscustomobject]@{ Slot = $Slot; Old = $Old; New = $New }) }
+        }
+        else {
+            $Gaps.Add([pscustomobject]@{ Slot = $Slot; Old = $OldServed; New = $NewServed })
         }
     }
     return $Gaps.ToArray()
