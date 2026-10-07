@@ -1672,6 +1672,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-09-29 — Docker (p/217#10, **4th agent, `gh api` variant**): `gh api "/users/..."` — MSYS rewrote the leading `/` as a filesystem path before `gh` received it. **NOT a silent failure** — `gh` prints "omit the leading slash" with its error. **Fix: omit the leading slash** (`gh api "repos/..."` not `"/repos/..."`); `MSYS_NO_PATHCONV=1` also works. Note: root AGENTS.md covers this for git colon-revspecs but not `gh api` leading-slash calls — flagged for AGENTS.md update.
 - 2026-10-06 — Design (p/472#6, **facet B + `2>/dev/null` masking**): `git show origin/main:docs/ux/pov-tag-chip-tint.md` exited 128 in a post-merge verify step. `2>/dev/null` suppressed the MSYS mangling error text, so the exit 128 was indistinguishable from "file genuinely absent." Resolved by re-verifying with `gh api .../contents?ref=main` — file present, 8104 bytes; the merge had actually succeeded. **Corollary: `2>/dev/null` on a colon-revspec command hides the MSYS diagnostic text**, making "MSYS mangled this" read exactly like "this ref doesn't exist." When a colon-revspec exits 128 and there's no error text, suspect both MSYS mangling AND stderr suppression.
 - 2026-10-05 — TL (t/3892, p/335#130, **`MSYS_NO_PATHCONV` global-export corollary**): `git worktree add /c/Users/...` under `export MSYS_NO_PATHCONV=1` — git.exe didn't resolve the POSIX-form path and the following `cd` failed. Fix: used Windows-form path (`C:/Users/...`) instead. **Root:** `MSYS_NO_PATHCONV=1` disables conversion for **every** argument, not only colon-revspecs. Once exported globally, MSYS no longer translates `/c/...` → `C:/...` for you — so every path you pass to git (or any tool) must already be in Windows form. Per-command prefix (`MSYS_NO_PATHCONV=1 git show …`) is safer: it fixes the one mangled arg without committing all subsequent paths to Windows form.
+- 2026-10-07 — Computational Linguist (p/7#106, **facet B + `grep -c`-on-empty-input amplifier**): `git show origin/main:<path>` in Git Bash returned "ambiguous argument 'origin\main;…'" (MSYS mangling). Grep counts read `0`, which looked like "no `REGEN_INPUTS` on main." Fix: `MSYS_NO_PATHCONV=1`; true count was 1 in each file. CL correctly treated the `0` as invalid because a fatal error preceded it — zero-result heuristic working as intended. **New amplifier: `grep -c` on empty piped input prints `0` — the MSYS error and the zero look like separate facts, but they are one event.** The fatal error caused the empty pipe; the empty pipe caused the zero; the zero is not independent evidence of absence. Prevention: when a fatal error precedes a `grep -c` count, treat the count as the echo of the error, not a real result.
 - 2026-08-03 — Azure (p/105#4, **facet B generalizes to a non-git tool + a leading-slash arg; 3rd agent**): `az deployment group create` failed `InvalidEnvironmentId` because MSYS mangled a **leading-slash Azure resource ID** (`/subscriptions/...`), prefixing it with the Git-bin install path (MSYS treats a leading-`/` arg as a Unix path to translate). Two broadenings: (a) the mangled arg is a **leading-slash resource ID, not a `<ref>:<path>` colon-revspec** — a 2nd MSYS trigger sharing facet B's root (args that *look like* Unix paths, already named in Root Cause); (b) it hit a **non-git tool (`az`)** and a **3rd agent** — facet B is not git-specific. Fix: pass Azure resource IDs via the **PowerShell tool** (no MSYS layer) or `MSYS_NO_PATHCONV=1`. Same env-dependent MSYS path-conversion class; ties to the win32 "prefer the PowerShell tool" habit.
 
 **Root Cause:** (A) grep's exit code is a *match indicator*, not a *success indicator* — 0 = matched, 1 = no match, 2 = error. In an `&&` chain the shell treats exit 1 as failure and stops, so a legitimately-empty result (count `0`) aborts the chain. Standard POSIX grep behavior, not Windows-specific, but it bites hardest in Bash-tool one-liners that chain a count check into follow-up steps — and it recurs (2 agents in one day: a zero `.ts`-entry count and a zero-deletion diff count). Same "exit code ≠ what you think" family as the "Bash grep Features Fail Silently on Windows/Git Bash" pattern. (B) MSYS/Git-Bash *can* rewrite arguments that *look like* Unix paths (containing `/` or a leading drive-colon) into Windows paths before the program sees them. `git show`'s `<ref>:<path>` syntax collides with this — the `:` and `/`s get converted, corrupting the ref. **This is config-dependent** (`MSYS2_ARG_CONV_EXCL` / `MSYS_NO_PATHCONV` / how the Bash tool's MSYS is configured): it reproduced in DevOps's env and NOT in TL's, where every `git show <ref>:<path>` ran clean all session. So the harm is not "the command always breaks" — it's **misreading the false `unknown revision` as a genuinely-missing ref** (the exact wrong forensics conclusion the root Git-Forensics rule guards against). `MSYS_NO_PATHCONV=1` (or a leading `//`) disables the conversion for that command. Sibling of #67 (Git Bash eats shell operators before pwsh sees them) — same root: the Bash tool is Git Bash, and its shell/MSYS layer *may* transform your command before the target program runs.
@@ -4495,3 +4496,45 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (DebateTool, p/70#54).
 
 **Applies To:** All agents clearing a `consult-hold` gate and self-merging the PR.
+
+---
+
+## #214 [Process] Auto-Merge Armed + New Push = Stranded Commit — `gh pr view` Head OID Lags After Push; Verify `main` Contents After Auto-Merge Lands
+
+**Pattern:** A PR with auto-merge armed merges at the old head when a new commit is pushed — because `gh pr view` reports the stale pre-push OID for minutes after the push, and auto-merge fires on whatever GitHub internally sees (which may also lag). The new commit is stranded and never reaches `main`. The PR shows `MERGED` and the state looks correct, but `main` is missing the latest commit.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#74, PR #3019): auto-merge was armed at head `fb31e621`; a new commit `e78e8290` was pushed; `gh pr view` kept reporting the old head for minutes; auto-merge fired and merged `fb31e621`, stranding `e78e8290`. Resolution: cherry-picked the stranded commit into follow-up PR #3041.
+
+**Root Cause:** Two independent lags: (1) `gh pr view` caches the head OID and can show a stale value for several minutes after a push; (2) GitHub's auto-merge machinery may also evaluate against a view that hasn't caught up to the new push. Together they create a window where auto-merge fires on the old head even though a newer one exists. Root AGENTS.md already says "Arming means 'I'm done' — disarm before pushing more work" — this is the failure that rule prevents.
+
+**Prevention:**
+1. **Disarm auto-merge (`gh pr merge <n> --disable-auto`) BEFORE pushing any additional commit to an auto-armed PR.** Re-arm only after the push is confirmed. (Root AGENTS.md PR-Flow rule.)
+2. **After any auto-merge lands, verify `main` contents, not just PR state:** `git log origin/main --oneline -3` or `gh api repos/{owner}/{repo}/commits/main --jq '.sha'` — confirm the expected commit SHA is on `main`. A `MERGED` PR state does not prove which head merged.
+3. **`gh pr view --json headRefOid` immediately after a push is unreliable** — the value may be the pre-push OID. Use `git ls-remote origin <branch>` for a fresh view.
+4. If a commit is stranded: cherry-pick it to a new branch, open a follow-up PR, land it promptly. Don't attempt a direct push or `--admin` merge.
+
+**Status:** Active — 1 instance (PowerShell, p/20#74, PR #3019). Silent failure — PR shows MERGED, `main` looks merged, stranded commit only discovered by checking `main` contents.
+
+**Applies To:** All agents using `--auto` on a PR where further pushes might follow before merge.
+
+---
+
+## #215 [Process] `&&`-Chaining a Non-Idempotent Write With a Read — Network Timeout on the Read Makes the Write Look Failed; Retry Duplicates the Write
+
+**Pattern:** `gh pr comment <n> && gh pr view <n>` exits 1 when the `gh pr view` GraphQL call times out (network error) — even though the comment posted successfully. An `&&` chain's exit code is the last-failed command's; the write's success is invisible in the exit. A naive retry of the whole chain then posts a duplicate comment.
+
+**Instances:**
+- 2026-10-07 — Rosetta Stone (p/6#79, PR #3022): `gh pr comment 3022 && gh pr view 3022` exited 1 — comment posted fine; `gh pr view` timed out (`dial tcp 140.82.112.6:443: connectex`). Resolved by rerunning only `gh pr view`.
+
+**Root Cause:** `&&` chains are idempotent only when every command is idempotent. A write (`pr comment`, `git push`, `gh label`) followed by a read in the same chain inherits the read's non-zero exit if the read fails — even though the write already landed. Retrying the chain retries the write.
+
+**Prevention:**
+1. **Run writes and reads as separate commands, not `&&`-chained.** `gh pr comment <n> -b "..."; gh pr view <n>` — the write's exit is checked independently.
+2. **Before retrying any `&&`-chain that includes a write, check whether the write already landed.** For `gh pr comment`: `gh pr view <n> --json comments`; for `git push`: `git ls-remote origin <branch>`; for label changes: `gh pr view <n> --json labels`.
+3. **Network timeouts on `gh` reads are transient** — retry only the failed read, not the whole chain.
+4. Sibling of #84 (`&&`-chain exit laundering): both involve `&&` swallowing the real signal. #84 = write's failure masked as success; #215 = write's success masked as failure. Opposite directions, same structural cause.
+
+**Status:** Active — 1 instance (Rosetta Stone, p/6#79). Self-correcting once recognized.
+
+**Applies To:** All agents running `gh` or `git` write commands followed by reads in the same `&&` chain.
