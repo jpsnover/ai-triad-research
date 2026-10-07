@@ -39,6 +39,7 @@
     }
   ],
   "guards": [
+    "calibration/core/lineage-enrichments.json",
     "taxonomy/Origin/skeptic.json"
   ],
   "writes": [

@@ -119,7 +119,9 @@ function Repair-PovLineage {
     $CachePath = Join-Path $CacheDir 'lineage-enrichments.json'
 
     # ── Load cache ────────────────────────────────────────────────────────────
-    $Cache = @{}
+    # The same type ConvertFrom-Json -AsHashtable returns for a loaded cache (ordered, case-sensitive), so
+    # enumeration order, and the dedup guard's first match, are deterministic either way (t/4077).
+    $Cache = [System.Management.Automation.OrderedHashtable]::new()
     if (Test-Path $CachePath) {
         $CacheData = Get-Content $CachePath -Raw | ConvertFrom-Json -AsHashtable
         if ($CacheData) { $Cache = $CacheData }

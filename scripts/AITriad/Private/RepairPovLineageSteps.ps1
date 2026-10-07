@@ -67,6 +67,70 @@ function ConvertFrom-LineageAiJson {
     (Get-LineageFirstJson -Text $CleanText -Open $Open -Close $Close) | ConvertFrom-Json
 }
 
+function Get-LineageSortedKey {
+    # A dictionary's keys in ordinal order. Output that follows a hashtable's enumeration order (POV write
+    # order, "Saved" lines, sampled merges) varies from run to run; ordinal also ignores culture (t/4077).
+    param([System.Collections.IDictionary]$Dictionary)
+    $Keys = [string[]]@($Dictionary.Keys)
+    [Array]::Sort($Keys, [System.StringComparer]::Ordinal)
+    $Keys
+}
+
+function ConvertTo-LineageSortedCache {
+    # The cache with its entries, and each entry's fields, in ordinal key order, so lineage-enrichments.json
+    # is byte-stable across runs and processes. Same shape and values; only the key order changes (t/4077).
+    # OrderedHashtable, not [ordered]: it is case-sensitive like the loaded cache, so keys that differ only
+    # in case stay distinct.
+    param([System.Collections.IDictionary]$Cache)
+    $Sorted = [System.Management.Automation.OrderedHashtable]::new()
+    foreach ($Key in (Get-LineageSortedKey $Cache)) {
+        $Value = $Cache[$Key]
+        if ($Value -is [System.Collections.IDictionary]) {
+            $Fields = [System.Management.Automation.OrderedHashtable]::new()
+            foreach ($Field in (Get-LineageSortedKey $Value)) { $Fields[$Field] = $Value[$Field] }
+            $Value = $Fields
+        }
+        $Sorted[$Key] = $Value
+    }
+    $Sorted
+}
+
+function Save-LineageCache {
+    # Writes lineage-enrichments.json. It is a tracked data-repo file (calibration/core, Warn tier), so the
+    # whole-file rewrite goes through the data-write guard: over someone's uncommitted edits it WARNs, and
+    # never blocks (t/4077 item 6). -SameRun marks a later rewrite, in this same run, of a file this run
+    # already wrote: the guard's same-sequence exemption (t/2902 condition 4), so the run doesn't warn
+    # about its own write.
+    param([System.Collections.IDictionary]$Cache, [string]$CachePath, [switch]$SameRun)
+    if ($SameRun) { Assert-DataWriteAllowed -Path $CachePath -AllowDirty }
+    else { Assert-DataWriteAllowed -Path $CachePath }
+    ConvertTo-LineageSortedCache -Cache $Cache | ConvertTo-Json -Depth 5 | Set-Content -Path $CachePath -Encoding UTF8
+}
+
+function Get-LineageCacheLookup {
+    # Lower-cased cache key → actual key (the AI may return different casing).
+    param([System.Collections.IDictionary]$Cache)
+    $Lookup = @{}
+    foreach ($CKey in $Cache.Keys) { $Lookup[$CKey.ToLower()] = $CKey }
+    $Lookup
+}
+
+function Resolve-LineageCacheKey {
+    # The cache key for a lineage value: an exact match, else a case-insensitive one; $null when uncached.
+    # The need-enrichment check and the apply step both resolve through here, so they agree on case
+    # (t/4077: a loaded cache is a case-sensitive OrderedHashtable).
+    param([string]$Value, [System.Collections.IDictionary]$Cache, [hashtable]$Lookup)
+    if ($Cache.Contains($Value)) { return $Value }
+    $Lookup[$Value.ToLower()]
+}
+
+function Test-LineageCacheStale {
+    # A cache entry with no description is stale: it is queued for enrichment, and refreshed when enriched.
+    param($Data)
+    if ($null -eq $Data) { return $true }
+    [string]::IsNullOrWhiteSpace([string]$Data['description'])
+}
+
 # ── -FixUrls ──────────────────────────────────────────────────────────────────
 
 function Get-LineageUrlCheckList {
@@ -164,7 +228,7 @@ function Invoke-LineageUrlFix {
     foreach ($Entry in $ToCheck) { $Tally[(Repair-LineageCacheUrl -Name $Entry.Key -Data $Entry.Value)]++ }
     Write-Host "  Already valid: $($Tally.valid) | Wikipedia fallback: $($Tally.wiki) | Cleared: $($Tally.cleared)"
 
-    $Cache | ConvertTo-Json -Depth 5 | Set-Content -Path $CachePath -Encoding UTF8
+    Save-LineageCache -Cache $Cache -CachePath $CachePath
     Write-Host "Cache saved" -ForegroundColor Green
 
     $TaxUpdated = Sync-LineageTaxonomyUrl -TaxDir $TaxDir -Cache $Cache
@@ -328,7 +392,7 @@ function Invoke-LineageRegenBatch {
 function Save-LineageRegenFile {
     # Re-reads each modified POV file, swaps in the regenerated entries, and writes it.
     param([string]$TaxDir, [hashtable]$PovModified, $NodesToProcess)
-    foreach ($PovName in $PovModified.Keys) {
+    foreach ($PovName in (Get-LineageSortedKey $PovModified)) {
         $FilePath = Join-Path $TaxDir "$PovName.json"
         $Data = Get-Content $FilePath -Raw | ConvertFrom-Json
 
@@ -407,7 +471,7 @@ function Invoke-LineageRegenerate {
     Write-Host "`n=== SUMMARY ===" -ForegroundColor Cyan
     Write-Host "  Nodes updated: $TotalUpdated"
     Write-Host "  Nodes failed: $TotalFailed"
-    Write-Host "  POV files saved: $($PovModified.Keys -join ', ')"
+    Write-Host "  POV files saved: $((Get-LineageSortedKey $PovModified) -join ', ')"
 }
 
 # ── Default mode: enrich bare-string lineage entries ──────────────────────────
@@ -567,12 +631,12 @@ function Get-LineageDedupCluster {
 }
 
 function Write-LineageMergeSample {
-    # The first ten merges, and a count of the rest.
+    # The first ten merges in ordinal key order (a fixed sample, t/4077), and a count of the rest.
     param([hashtable]$DedupMap)
-    $SampleMerges = @($DedupMap.GetEnumerator() | Select-Object -First 10)
+    $SampleKeys = @(Get-LineageSortedKey $DedupMap | Select-Object -First 10)
     Write-Host "  Sample merges:" -ForegroundColor Gray
-    foreach ($M in $SampleMerges) {
-        Write-Host "    '$($M.Key)' → '$($M.Value)'" -ForegroundColor DarkGray
+    foreach ($Key in $SampleKeys) {
+        Write-Host "    '$Key' → '$($DedupMap[$Key])'" -ForegroundColor DarkGray
     }
     if ($DedupMap.Count -gt 10) {
         Write-Host "    ... and $($DedupMap.Count - 10) more" -ForegroundColor DarkGray
@@ -596,7 +660,7 @@ function Rename-LineageDedupEntry {
 function Sync-LineageDedupReference {
     # Applies the dedup map to every loaded POV file and writes the files that changed.
     param([hashtable]$TaxData, [hashtable]$DedupMap, [string]$TaxDir)
-    foreach ($PovName in $TaxData.Keys) {
+    foreach ($PovName in (Get-LineageSortedKey $TaxData)) {
         $Data = $TaxData[$PovName]
         $PovModified = $false
         foreach ($Node in $Data.nodes) {
@@ -745,32 +809,77 @@ function Resolve-LineageEnrichUrl {
     $null
 }
 
+function Get-LineageEntryField {
+    # One field of an AI-returned entry, or $null when absent: under StrictMode a bare dereference of a
+    # missing property throws, and one bad entry would fail its whole batch (t/4077).
+    param($Entry, [string]$Field)
+    if ($null -eq $Entry) { return $null }
+    if ($Entry -is [System.Collections.IDictionary]) { return $Entry[$Field] }
+    $Prop = $Entry.PSObject.Properties[$Field]
+    if ($Prop) { $Prop.Value } else { $null }
+}
+
+function ConvertTo-LineageEnrichEntry {
+    # The AI's enriched entry with every field presence-guarded, or $null when it has no name: such an
+    # entry can't be matched to a lineage value, so it is skipped with a WARN and the batch continues.
+    param($Entry)
+    $Name = [string](Get-LineageEntryField $Entry 'name')
+    $Description = Get-LineageEntryField $Entry 'description'
+    if ([string]::IsNullOrWhiteSpace($Name)) {
+        $Hint = [string]$Description
+        if ($Hint.Length -gt 60) { $Hint = $Hint.Substring(0, 60) + '...' }
+        Write-Warning "Lineage enrichment: skipped an AI entry with no 'name' (description: '$Hint'), because it can't be matched to a lineage value; the rest of the batch is kept (t/4077)."
+        return $null
+    }
+    [pscustomobject]@{
+        name        = $Name
+        description = $Description
+        url         = Get-LineageEntryField $Entry 'url'
+        category    = Get-LineageEntryField $Entry 'category'
+    }
+}
+
+function Add-LineageCacheAlias {
+    # Maps an enriched name onto an existing cache key, and adds the name to the cache so the bare-string
+    # lookup succeeds. Nothing to do when the names are the same.
+    param([string]$Name, [string]$Existing, [System.Collections.IDictionary]$Cache, [hashtable]$DedupMap)
+    if ($Name -eq $Existing) { return }
+    $DedupMap[$Name] = $Existing
+    $Cache[$Name] = $Cache[$Existing]  # alias to same data
+    Write-Verbose "  Dedup guard: '$Name' → existing '$Existing'"
+}
+
 function Add-LineageEnrichedEntry {
-    # Caches one enriched entry, or aliases it to a near-duplicate cache key.
+    # Caches one enriched entry, aliases it to a near-duplicate cache key, or refreshes a stale one.
+    # Returns $true when the entry was used, $false when it was skipped.
     param($Entry, [System.Collections.IDictionary]$Cache, [hashtable]$DedupMap, [switch]$SkipUrlValidation)
-    if (-not $Entry.name) { return }
+    $Entry = ConvertTo-LineageEnrichEntry -Entry $Entry
+    if ($null -eq $Entry) { return $false }
     # Dedup guard: if enriched name is a near-duplicate of an existing cache key (same category), reuse
     # the existing key instead of creating a new entry (prevents duplicate lineage entries — t/330)
     $ExistingMatch = Find-LineageCacheMatch -Entry $Entry -Cache $Cache
-    if ($ExistingMatch) {
-        # Map enriched name to existing canonical, and also add the
-        # original name to cache so bare-string lookup succeeds
-        if ($Entry.name -ne $ExistingMatch) {
-            $DedupMap[$Entry.name] = $ExistingMatch
-            $Cache[$Entry.name] = $Cache[$ExistingMatch]  # alias to same data
-            Write-Verbose "  Dedup guard: '$($Entry.name)' → existing '$ExistingMatch'"
-        }
-        return
+    if ($ExistingMatch -and -not (Test-LineageCacheStale $Cache[$ExistingMatch])) {
+        Add-LineageCacheAlias -Name $Entry.name -Existing $ExistingMatch -Cache $Cache -DedupMap $DedupMap
+        return $true
     }
+    # A stale match (no description) is refreshed under its existing key. It was queued for enrichment
+    # for exactly that, and a re-enriched value usually matches its own key (t/4077).
+    $Key = if ($ExistingMatch) { $ExistingMatch } else { $Entry.name }
     $ValidatedUrl = Resolve-LineageEnrichUrl -Url $Entry.url -Name $Entry.name -SkipUrlValidation:$SkipUrlValidation
-    $Cache[$Entry.name] = @{
+    $Cache[$Key] = @{
         description = $Entry.description
         url         = $ValidatedUrl
         url_status  = if ($ValidatedUrl) { 200 } else { 'cleared' }
         category    = $Entry.category
     }
+    if ($ExistingMatch) {
+        Write-Verbose "  Refreshed stale cache entry: '$Key'"
+        Add-LineageCacheAlias -Name $Entry.name -Existing $Key -Cache $Cache -DedupMap $DedupMap
+        return $true
+    }
     $DescPreview = if ($Entry.description.Length -gt 60) { $Entry.description.Substring(0, 60) + '...' } else { $Entry.description }
     Write-Verbose "  Enriched: '$($Entry.name)' [$($Entry.category)] → $DescPreview"
+    $true
 }
 
 function Invoke-LineageEnrichBatch {
@@ -802,10 +911,13 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
             return
         }
         $Enriched = ConvertFrom-LineageAiJson -Text $Result.Text -Open '[' -Close ']'
+        $Used = 0
         foreach ($E in @($Enriched)) {
-            Add-LineageEnrichedEntry -Entry $E -Cache $Cache -DedupMap $DedupMap -SkipUrlValidation:$SkipUrlValidation
+            # Plain statement, not a pipeline: keeps the skipped-entry WARN visible to -WarningVariable (Sage #221).
+            $Ok = Add-LineageEnrichedEntry -Entry $E -Cache $Cache -DedupMap $DedupMap -SkipUrlValidation:$SkipUrlValidation
+            if ($Ok) { $Used++ }
         }
-        Write-Host " $(@($Enriched).Count) enriched" -ForegroundColor Green
+        Write-Host " $Used enriched" -ForegroundColor Green
     }
     catch {
         Write-Host " failed: $($_.Exception.Message)" -ForegroundColor Red
@@ -869,8 +981,8 @@ function Invoke-LineageUrlValidation {
     foreach ($KV in $ToValidate) { $Tally[(Confirm-LineageCacheUrl -Name $KV.Key -Entry $KV.Value)]++ }
     Write-Host "  Valid: $($Tally.Valid) | Wiki fallback: $($Tally.Wiki) | Cleared: $($Tally.Invalid) | Skipped: $($Tally.Skipped)"
 
-    # Re-save cache with url_status
-    $Cache | ConvertTo-Json -Depth 5 | Set-Content -Path $CachePath -Encoding UTF8
+    # Re-save cache with url_status. This run already wrote it after enrichment, so this is a same-run rewrite.
+    Save-LineageCache -Cache $Cache -CachePath $CachePath -SameRun
     $Tally
 }
 
@@ -878,9 +990,7 @@ function ConvertTo-LineageRichEntry {
     # A bare string with a cache hit (case-insensitive) becomes a rich object; anything else is unchanged.
     param($Entry, [System.Collections.IDictionary]$Cache, [hashtable]$CacheLookup)
     if ($Entry -isnot [string]) { return $Entry }  # already a rich object
-    $CacheKey = if ($Cache.ContainsKey($Entry)) { $Entry }
-                elseif ($CacheLookup.ContainsKey($Entry.ToLower())) { $CacheLookup[$Entry.ToLower()] }
-                else { $null }
+    $CacheKey = Resolve-LineageCacheKey -Value $Entry -Cache $Cache -Lookup $CacheLookup
     if (-not $CacheKey) { return $Entry }  # no cache hit: keep as bare string
     $Cached = $Cache[$CacheKey]
     [ordered]@{
@@ -899,7 +1009,7 @@ function Sync-LineageNodeEnrichment {
     $Lin = @($GA.intellectual_lineage)
     $NeedUpdate = $false
     foreach ($Entry in $Lin) {
-        if ($Entry -is [string] -and ($Cache.ContainsKey($Entry) -or $CacheLookup.ContainsKey($Entry.ToLower()))) { $NeedUpdate = $true; break }
+        if ($Entry -is [string] -and (Resolve-LineageCacheKey -Value $Entry -Cache $Cache -Lookup $CacheLookup)) { $NeedUpdate = $true; break }
     }
     if (-not $NeedUpdate) { return $false }
 
@@ -921,10 +1031,9 @@ function Sync-LineageEnrichment {
     $TotalUpdated = 0
 
     # Build case-insensitive lookup for cache keys (AI may return different casing)
-    $CacheLookup = @{}
-    foreach ($CKey in $Cache.Keys) { $CacheLookup[$CKey.ToLower()] = $CKey }
+    $CacheLookup = Get-LineageCacheLookup -Cache $Cache
 
-    foreach ($PovName in $TaxData.Keys) {
+    foreach ($PovName in (Get-LineageSortedKey $TaxData)) {
         $Data = $TaxData[$PovName]
         $Updated = 0
         foreach ($Node in $Data.nodes) {
@@ -939,6 +1048,18 @@ function Sync-LineageEnrichment {
         }
     }
     $TotalUpdated
+}
+
+function Get-LineageNeedEnrichment {
+    # Values with no cache entry, or a stale one. A value resolves to its cache key the same way the apply
+    # step resolves it (exact, then case-insensitive), so a value cached under different casing is not
+    # sent for enrichment again (t/4077).
+    param($UniqueValues, [System.Collections.IDictionary]$Cache)
+    $Lookup = Get-LineageCacheLookup -Cache $Cache
+    foreach ($Value in $UniqueValues) {
+        $Key = Resolve-LineageCacheKey -Value $Value -Cache $Cache -Lookup $Lookup
+        if (-not $Key -or (Test-LineageCacheStale $Cache[$Key])) { $Value }
+    }
 }
 
 function Invoke-LineageEnrich {
@@ -971,10 +1092,7 @@ function Invoke-LineageEnrich {
     $Dedup = Invoke-LineageEmbeddingDedup -UniqueValues $UniqueValues -TaxData $TaxData -TaxDir $TaxDir
     $UniqueValues = $Dedup.UniqueValues
 
-    $NeedEnrichment = @($UniqueValues | Where-Object {
-            -not $Cache.ContainsKey($_) -or
-            [string]::IsNullOrWhiteSpace($Cache[$_].description)
-        })
+    $NeedEnrichment = @(Get-LineageNeedEnrichment -UniqueValues $UniqueValues -Cache $Cache)
     $AlreadyCached = $UniqueValues.Count - $NeedEnrichment.Count
 
     Write-Host "Post-dedup unique: $($UniqueValues.Count)"
@@ -1000,7 +1118,7 @@ function Invoke-LineageEnrich {
 
     # ── Save cache ────────────────────────────────────────────────────────────
     if ($Cache.Count -gt 0) {
-        $Cache | ConvertTo-Json -Depth 5 | Set-Content -Path $CachePath -Encoding UTF8
+        Save-LineageCache -Cache $Cache -CachePath $CachePath
         Write-Host "Cache saved: $($Cache.Count) entries → $CachePath" -ForegroundColor Green
     }
 
