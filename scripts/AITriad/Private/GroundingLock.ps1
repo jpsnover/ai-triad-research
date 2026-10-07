@@ -53,6 +53,7 @@ function Enter-GroundingLock {
     }
 
     $start = Get-Date
+    $breakFailure = $null   # t/4049: set when a stale lock could not be deleted, so the timeout says why
     while ($true) {
         try {
             # CreateNew == O_CREAT|O_EXCL: succeeds only if the file does not already exist.
@@ -63,14 +64,29 @@ function Enter-GroundingLock {
                 # Held by another writer — check mtime staleness.
                 $age = ((Get-Date) - (Get-Item -LiteralPath $LockPath -Force).LastWriteTime).TotalSeconds
                 if ($age -gt $StaleSec) {
-                    Write-Warning "Enter-GroundingLock: breaking stale lock '$LockPath' (mtime age $([int]$age)s > ${StaleSec}s — holder presumed dead). Fallback-path per docs/error-handling.md."
-                    Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue -WhatIf:$false -Confirm:$false
-                    continue   # re-acquire immediately
+                    if (-not $breakFailure) {
+                        Write-Warning "Enter-GroundingLock: breaking stale lock '$LockPath' (mtime age $([int]$age)s > ${StaleSec}s — holder presumed dead). Fallback-path per docs/error-handling.md."
+                    }
+                    $rmErr = $null
+                    Remove-Item -LiteralPath $LockPath -Force -ErrorAction SilentlyContinue -ErrorVariable rmErr -WhatIf:$false -Confirm:$false
+                    # t/4049: only re-acquire once the lock is actually gone. A delete that keeps failing
+                    # (permissions, an open handle, AV) used to `continue` forever without ever reaching
+                    # the $WaitSec check below; now it falls through to that bounded wait instead.
+                    if (-not (Test-Path -LiteralPath $LockPath)) { continue }
+                    if (-not $breakFailure) {
+                        $breakFailure = if ($rmErr) { [string]$rmErr[0].Exception.Message } else { 'the lockfile still exists after Remove-Item' }
+                        Write-Warning "Enter-GroundingLock: could not delete stale lock '$LockPath': $breakFailure. Waiting up to ${WaitSec}s."
+                    }
                 }
                 if (((Get-Date) - $start).TotalSeconds -ge $WaitSec) {
+                    $problem = if ($breakFailure) {
+                        "Stale lock '$LockPath' (mtime age $([int]$age)s) could not be deleted for >${WaitSec}s: $breakFailure."
+                    } else {
+                        "Lock '$LockPath' held by another writer for >${WaitSec}s and not stale (mtime age $([int]$age)s)."
+                    }
                     throw (New-ActionableError -PassThru `
                             -Goal     "Serialize $Purpose" `
-                            -Problem  "Lock '$LockPath' held by another writer for >${WaitSec}s and not stale (mtime age $([int]$age)s)." `
+                            -Problem  $problem `
                             -Location 'Enter-GroundingLock' `
                             -NextSteps @(
                                 "Wait for the other writer ($OtherWriters) to finish.",
