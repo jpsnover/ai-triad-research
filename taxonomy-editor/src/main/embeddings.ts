@@ -709,7 +709,7 @@ export async function generateText(
   model?: string,
   onRetry?: (progress: GenerateTextProgress) => void,
   opts?: GenerateTextCallOptions,
-): Promise<{ text: string; stopReason?: StopReason; diagnostics?: ProviderCallDiagnostics }> {
+): Promise<{ text: string; stopReason?: StopReason; diagnostics?: ProviderCallDiagnostics; servedModel?: string }> {
   const { timeoutMs, temperature, signal, responseSchema, maxTokens } = opts ?? {};
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
@@ -776,7 +776,24 @@ export async function generateText(
   );
 
   console.log('[generateText] Success, result length:', result.text.length);
-  return { text: result.text, stopReason: result.stopReason, diagnostics: result.diagnostics };
+  // t/4048 (e/275#2/#4, SO condition 4 satisfied for this backend): desktop has no fallback
+  // chain — lib/debate/aiAdapter.ts's createCLIAdapter is the only code that walks the model
+  // registry's fallback-chain config, and it's CLI-only, never this path — so servedModel is
+  // simply the single model this call resolved to, DERIVED from the same defaulting as the call
+  // itself (friendlyModel = model || DEFAULT_MODEL), never echoed from the raw `model` param.
+  // THIS EXEMPTION LAPSES the moment this function starts walking that per-model fallback
+  // config: servedModel must become the answering link, and e/268#6 condition 4's
+  // forced-fallback test becomes mandatory. See embeddings.noFallbackChainTripwire.test.ts,
+  // which fails loudly if that line is crossed without this comment being revisited. (That
+  // test name-matches the registry field and the two ServerAPI/CLI helper functions that walk
+  // it — spelled out there, deliberately not here, so this comment can't trip its own tripwire.)
+  //
+  // SCOPE (TL review, #3061): servedModel tracks OUR routing (which registry link answered), NOT
+  // whether the provider served that model. Provider-side substitution is classified by
+  // callProvider's ai.model_identity event (t/3677/t/3731) using `result.providerReportedModel`.
+  // That field is deliberately NOT read here: it is a raw provider string (not a registry id) and
+  // forensics-only, so consuming it would lapse its own no-consumer exemption (lib/ai-client/types.ts).
+  return { text: result.text, stopReason: result.stopReason, diagnostics: result.diagnostics, servedModel: friendlyModel };
 }
 
 export interface ChatMessage {

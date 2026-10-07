@@ -296,7 +296,10 @@ function buildElectronApi() {
   // t/3569: return type also carries ProviderCallDiagnostics (t/3566) — FR forensics
   // only, forwarded verbatim so instrumentBridge.ts can attach it to ai.response/ai.error
   // (the desktop half of t/3568; renderer FR-event wiring is Rosetta's).
-  generateText: (payload: { prompt: string; model?: string; timeoutMs?: number; temperature?: number; requestId?: string; maxTokens?: number }): Promise<{ text: string; stopReason?: StopReason; diagnostics?: ProviderCallDiagnostics }> =>
+  // t/4048: servedModel is the registry id the call actually resolved to (after defaulting) —
+  // desktop has no fallback chain, so it always equals the requested/defaulted model; present so
+  // the debate store can mark the run 'tracked' (e/268#6 condition 3; see embeddings.ts).
+  generateText: (payload: { prompt: string; model?: string; timeoutMs?: number; temperature?: number; requestId?: string; maxTokens?: number }): Promise<{ text: string; stopReason?: StopReason; diagnostics?: ProviderCallDiagnostics; servedModel?: string }> =>
     ipcRenderer.invoke('generate-text', payload),
 
   cancelGenerate: (requestId: string): void =>
