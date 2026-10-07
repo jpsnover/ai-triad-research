@@ -16,7 +16,7 @@ import { generateDebateTitlePrompt } from '../../prompts/newDebateDialog';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
-import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
+import { resolveMultiProviderModels, eligibleDebateBackends } from '@lib/ai-client/modelRouter';
 import { useTierInfo, isFreeTier, type TierInfo } from '../../hooks/useTierInfo';
 import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
 import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
@@ -66,15 +66,17 @@ async function fetchDebateUrlContent(sourceRef: string): Promise<string> {
   }
 }
 
+// t/4046: eligibleBackends is the same (tier, availableBackends, registry) triple resolveMultiProviderModels draws from — computed from the one registry built here so the two never disagree (SO e/267#3); threaded into CreateDebateOptions for sessionSlice's model_pool fingerprint.
 function resolveDebateSpeakerModels(
   modelTier: 'basic' | 'advanced',
   activeBackends: string[],
   povers: SpeakerId[],
-): Record<string, string> | undefined | typeof RESOLVE_FAILED {
+): { speakerModels: Record<string, string>; eligibleBackends: string[] } | typeof RESOLVE_FAILED {
   try {
     const aiSpeakers = povers.filter(p => p !== 'user');
     const registry = { backends: AI_BACKENDS.map(b => ({ id: b.value, label: b.label })), models: [], debateTiers: DEBATE_TIERS };
-    return resolveMultiProviderModels(modelTier, activeBackends, aiSpeakers, registry);
+    const speakerModels = resolveMultiProviderModels(modelTier, activeBackends, aiSpeakers, registry);
+    return { speakerModels, eligibleBackends: eligibleDebateBackends(modelTier, activeBackends, registry) };
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'new-debate-dialog', level: 'error', message: 'Failed to resolve multi-provider models', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return RESOLVE_FAILED;
@@ -1156,11 +1158,11 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
       const effectiveModel = useCustomModel ? customModel : globalModel;
       const debateModelOverride = computeDebateModelOverride(multiProvider, useCustomModel, customModel);
 
-      let speakerModels: Record<string, string> | undefined;
+      let speakerModels: Record<string, string> | undefined; let eligibleBackends: string[] | undefined;
       if (multiProvider) {
         const resolved = resolveDebateSpeakerModels(modelTier, activeBackends, povers);
         if (resolved === RESOLVE_FAILED) { setCreating(false); return; }
-        speakerModels = resolved;
+        speakerModels = resolved.speakerModels; eligibleBackends = resolved.eligibleBackends;
       }
 
       const { sourceTypeArg, sourceRefArg, contentArg } = buildDebateSourceArgs(
@@ -1170,7 +1172,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
       const id = await createDebate(
         finalTopic, povers, userIsPover, sourceTypeArg, sourceRefArg, contentArg,
         debateModelOverride, protocolId, temperature, audience,
-        buildDebateOptions({ debateTitle: titleOverride, background, evaluatorModel, confrontationRounds, argumentationRounds, concludingRounds, speakerModels, multiProvider, modelTier, stepMode, excludeGreatestHits, narrativeVoicing, stageModels, seatTags }),
+        buildDebateOptions({ debateTitle: titleOverride, background, evaluatorModel, confrontationRounds, argumentationRounds, concludingRounds, speakerModels, eligibleBackends, multiProvider, modelTier, stepMode, excludeGreatestHits, narrativeVoicing, stageModels, seatTags }),
       );
       await loadDebate(id);
       const creationWeights = buildCreationWeights(confrontationRounds, argumentationRounds, concludingRounds);
