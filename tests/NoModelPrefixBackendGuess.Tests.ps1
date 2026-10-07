@@ -37,8 +37,6 @@ BeforeAll {
            Reason = 'Get-AIDefaultTimeoutSec: picks a TIMEOUT default, not a key or a backend to call; inside Invoke-AIApi, which is out of scope for t/4087 (moves to the registry with t/3910 #36 / t/4078).' }
         @{ File = 'scripts/AIEnrich.psm1'; Fragment = "Resolve-AIApiKey -ExplicitKey `$ApiKey -Backend 'gemini' }"
            Reason = "Measure-PromptTokens calls Gemini's countTokens endpoint, so a GEMINI key is the correct pairing; Resolve-AIApiKey's guard refuses a foreign explicit key." }
-        @{ File = 'scripts/AITriad/Private/RepairPovLineageSteps.ps1'; Fragment = "-match '^"
-           Reason = 'TEMPORARY: Repair-PovLineage has t/4077 in flight on these files; its prefix guess is converted in the t/4087 follow-up once t/4077 lands. Remove this entry then.' }
     )
 
     function Get-PrefixGuessHits {

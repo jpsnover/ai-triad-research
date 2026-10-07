@@ -3,7 +3,7 @@
   "host": [],
   "warnings": [],
   "verbose": [],
-  "error": "\n  Goal:     Regenerate lineage content\n  Error:    No API key available\n  Location: Repair-PovLineage -RegenerateContent\n  Resolve:\n   1. Set GEMINI_API_KEY or ANTHROPIC_API_KEY environment variable\n   2. Pass -ApiKey parameter",
+  "error": "\n  Goal:     Regenerate lineage content\n  Error:    No API key available for the gemini backend\n  Location: Repair-PovLineage -RegenerateContent\n  Resolve:\n   1. Set the GEMINI_API_KEY environment variable\n   2. Pass -ApiKey parameter",
   "output": [],
   "calls": [
     {
