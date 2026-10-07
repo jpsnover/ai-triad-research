@@ -31,6 +31,9 @@ function makeEntry(opts: {
   config_revision?: string;
   prompt_version?: string;
   model?: string;
+  model_pool?: string;
+  model_api_id?: string;
+  speaker_model_failovers?: Record<string, string>;
   working_tree_state?: 'clean' | 'dirty' | 'unknown';
   metric?: number | null;
 }): CalibrationDataPoint {
@@ -40,15 +43,18 @@ function makeEntry(opts: {
     model: opts.model ?? 'modelX',
     working_tree_state: opts.working_tree_state ?? 'clean',
     crux_addressed_ratio: opts.metric === undefined ? 0.5 : opts.metric,
+    ...(opts.model_pool ? { model_pool: opts.model_pool } : {}),
+    ...(opts.model_api_id ? { model_api_id: opts.model_api_id } : {}),
+    ...(opts.speaker_model_failovers ? { speaker_model_failovers: opts.speaker_model_failovers } : {}),
   } as unknown as CalibrationDataPoint;
 }
 
 const metric: MetricSelector = (d) => d.crux_addressed_ratio;
 
 describe('fixedConfigKey', () => {
-  it('joins the t/1672 provenance triple: config_revision | prompt_version | model', () => {
+  it('appends empty 4th segment when neither model_pool nor model_api_id is set (legacy rows)', () => {
     expect(fixedConfigKey(makeEntry({ config_revision: 'r1', prompt_version: 'p2', model: 'm3' })))
-      .toBe('r1|p2|m3');
+      .toBe('r1|p2|m3|');
   });
 
   it('distinguishes configs that differ in any one component', () => {
@@ -56,6 +62,31 @@ describe('fixedConfigKey', () => {
     expect(fixedConfigKey(base)).not.toBe(fixedConfigKey(makeEntry({ config_revision: 'r2', prompt_version: 'p1', model: 'm1' })));
     expect(fixedConfigKey(base)).not.toBe(fixedConfigKey(makeEntry({ config_revision: 'r1', prompt_version: 'p2', model: 'm1' })));
     expect(fixedConfigKey(base)).not.toBe(fixedConfigKey(makeEntry({ config_revision: 'r1', prompt_version: 'p1', model: 'm2' })));
+  });
+
+  // t/4040: model pool and api id fingerprinting
+  it('appends model_pool as 4th segment for multi-provider runs (t/4040)', () => {
+    const entry = makeEntry({ model_pool: 'basic|claude=claude-sonnet-5:claude-sonnet-5-20251101,gemini=gemini-2.5-flash:gemini-2.5-flash-exp' });
+    expect(fixedConfigKey(entry))
+      .toBe('cfgA|2026-07-22.1|modelX|basic|claude=claude-sonnet-5:claude-sonnet-5-20251101,gemini=gemini-2.5-flash:gemini-2.5-flash-exp');
+  });
+
+  it('appends model_api_id as 4th segment for single-model runs when no model_pool (t/4040)', () => {
+    const entry = makeEntry({ model_api_id: 'gemini-2.5-flash:gemini-2.5-flash-exp' });
+    expect(fixedConfigKey(entry))
+      .toBe('cfgA|2026-07-22.1|modelX|gemini-2.5-flash:gemini-2.5-flash-exp');
+  });
+
+  it('prefers model_pool over model_api_id when both are set (t/4040)', () => {
+    const entry = makeEntry({ model_pool: 'basic|a=b:c', model_api_id: 'd:e' });
+    expect(fixedConfigKey(entry)).toContain('|basic|a=b:c');
+    expect(fixedConfigKey(entry)).not.toContain('|d:e');
+  });
+
+  it('two rows with identical provenance triple but different model_pool have different keys (t/4040)', () => {
+    const a = makeEntry({ model_pool: 'basic|gemini=m1:m1api' });
+    const b = makeEntry({ model_pool: 'basic|gemini=m2:m2api' });
+    expect(fixedConfigKey(a)).not.toBe(fixedConfigKey(b));
   });
 });
 
@@ -130,7 +161,7 @@ describe('computeDistribution', () => {
 
 describe('replicationSet', () => {
   it('includes only clean-tree runs matching the key', () => {
-    const key = 'cfgA|2026-07-22.1|modelX';
+    const key = 'cfgA|2026-07-22.1|modelX|';
     const entries = [
       makeEntry({ working_tree_state: 'clean' }),                       // in
       makeEntry({ working_tree_state: 'dirty' }),                       // out — dirty
@@ -140,10 +171,21 @@ describe('replicationSet', () => {
     const set = replicationSet(entries, key);
     expect(set.length).toBe(1);
   });
+
+  it('excludes clean runs that have speaker_model_failovers (t/4040)', () => {
+    const key = 'cfgA|2026-07-22.1|modelX|';
+    const entries = [
+      makeEntry({ working_tree_state: 'clean' }),                                              // in
+      makeEntry({ working_tree_state: 'clean', speaker_model_failovers: { acc: 'other' } }),  // out — failover
+    ];
+    const set = replicationSet(entries, key);
+    expect(set.length).toBe(1);
+    expect(set[0].speaker_model_failovers).toBeUndefined();
+  });
 });
 
 describe('evaluateReplicationGate', () => {
-  const key = 'cfgA|2026-07-22.1|modelX';
+  const key = 'cfgA|2026-07-22.1|modelX|';
 
   it('forbids firing below the threshold', () => {
     const entries = Array.from({ length: REPLICATION_GATE_MIN_N - 1 }, () => makeEntry({ metric: 0.5 }));
@@ -178,6 +220,16 @@ describe('evaluateReplicationGate', () => {
     expect(r.distribution).toBeNull();
   });
 
+  it('does not count failover runs toward n even when they would reach the threshold (t/4040)', () => {
+    const entries = [
+      ...Array.from({ length: 5 }, () => makeEntry({ working_tree_state: 'clean', metric: 0.5 })),
+      ...Array.from({ length: 8 }, () => makeEntry({ working_tree_state: 'clean', metric: 0.5, speaker_model_failovers: { acc: 'fallback' } })),
+    ];
+    const r = evaluateReplicationGate(entries, key, metric);
+    expect(r.replication_count).toBe(5);
+    expect(r.fire_permitted).toBe(false);
+  });
+
   it('reports an empty gate for a config with no clean replications', () => {
     const r = evaluateReplicationGate([makeEntry({ working_tree_state: 'dirty' })], key, metric);
     expect(r.replication_count).toBe(0);
@@ -195,8 +247,8 @@ describe('replicationGateByConfig', () => {
     ];
     const gates = replicationGateByConfig(entries, metric);
     expect(gates.map(g => g.fixed_config_key)).toEqual([
-      'B|2026-07-22.1|modelX',
-      'A|2026-07-22.1|modelX',
+      'B|2026-07-22.1|modelX|',
+      'A|2026-07-22.1|modelX|',
     ]);
     expect(gates[0].replication_count).toBe(12);
     expect(gates[0].fire_permitted).toBe(true);

@@ -945,6 +945,28 @@ export class DebateEngine {
 
   // ── Initialization ───────────────────────────────────────
 
+  private _computeModelFingerprint(): { model_pool?: string; model_api_id?: string } {
+    const registry = this.adapter.registry;
+    if (!registry) return {};
+    if (this.config.modelTier) {
+      const tierMap = registry.debateTiers?.[this.config.modelTier];
+      if (tierMap) {
+        const entries = Object.entries(tierMap)
+          .map(([backendId, registryId]) => {
+            const apiModelId = registry.models?.find(m => m.id === registryId)?.apiModelId ?? registryId;
+            return `${backendId}=${registryId}:${apiModelId}`;
+          })
+          .sort();
+        return { model_pool: `${this.config.modelTier}|${entries.join(',')}` };
+      }
+    }
+    if (this.config.model) {
+      const apiModelId = registry.models?.find(m => m.id === this.config.model)?.apiModelId ?? this.config.model;
+      return { model_api_id: `${this.config.model}:${apiModelId}` };
+    }
+    return {};
+  }
+
   private initSession(): void {
     const id = generateId();
     const now = nowISO();
@@ -977,7 +999,9 @@ export class DebateEngine {
       generated_with_prompt_version: 'cli-l2',
       debate_model: this.config.model,
       evaluator_model: this.config.evaluatorModel,
-      speaker_models: this.config.speakerModels,
+      speaker_models: this.config.speakerModels ? { ...this.config.speakerModels } : undefined,
+      initial_speaker_models: this.config.speakerModels ? { ...this.config.speakerModels } : undefined,
+      ...this._computeModelFingerprint(),
       stage_models: {
         brief: resolveStageModel(this._internal, 'brief'),
         plan: resolveStageModel(this._internal, 'plan'),
@@ -1192,6 +1216,8 @@ export class DebateEngine {
           if (this.session) {
             if (!this.session.speaker_models) this.session.speaker_models = {};
             this.session.speaker_models[speaker] = chain[i];
+            if (!this.session.speaker_model_failovers) this.session.speaker_model_failovers = {};
+            this.session.speaker_model_failovers[speaker] = chain[i];
           }
           getGlobalRecorder()?.record({
             type: 'ai.fallback',

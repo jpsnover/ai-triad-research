@@ -35,7 +35,7 @@ export const REPLICATION_GATE_MIN_N = 10;
  * gap to fix in t/1672, not by widening this key.
  */
 export function fixedConfigKey(dp: CalibrationDataPoint): string {
-  return [dp.config_revision, dp.prompt_version, dp.model].join('|');
+  return [dp.config_revision, dp.prompt_version, dp.model, dp.model_pool ?? dp.model_api_id ?? ''].join('|');
 }
 
 /** A metric's value for one run; null/undefined means "not measured for this run". */
@@ -109,7 +109,11 @@ export function computeDistribution(values: Array<number | null | undefined>): M
  * it must not count toward n (endorsed by CL, t/1668#2).
  */
 export function replicationSet(entries: CalibrationDataPoint[], key: string): CalibrationDataPoint[] {
-  return entries.filter(e => e.working_tree_state === 'clean' && fixedConfigKey(e) === key);
+  return entries.filter(e =>
+    e.working_tree_state === 'clean' &&
+    fixedConfigKey(e) === key &&
+    !e.speaker_model_failovers,
+  );
 }
 
 /**

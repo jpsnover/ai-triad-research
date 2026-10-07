@@ -439,6 +439,12 @@ export function extractCalibrationData(
     // Same-evaluator comparison window key (t/1846); omitted on sessions that predate the pin.
     ...(session.evaluator_model_id ? { evaluator_model_id: session.evaluator_model_id } : {}),
 
+    // Multi-provider model tracking (t/4040); omitted on single-model rows and pre-t/4040 sessions.
+    ...(session.initial_speaker_models ? { speaker_models: session.initial_speaker_models } : {}),
+    ...(session.speaker_model_failovers ? { speaker_model_failovers: session.speaker_model_failovers } : {}),
+    ...(session.model_pool ? { model_pool: session.model_pool } : {}),
+    ...(session.model_api_id ? { model_api_id: session.model_api_id } : {}),
+
     argumentative_saturation_at_transition: argumentativeSaturationAtTransition,
     argumentation_exit_threshold: config.argumentationExitThreshold ?? 0.65,
     engaging_real_disagreement: engaging,

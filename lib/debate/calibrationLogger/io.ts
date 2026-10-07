@@ -97,6 +97,17 @@ export function appendCalibrationLog(
     ...captureRunProvenance(),
     ...(synthetic ? { synthetic: true } : {}),
   };
+
+  if (stamped.speaker_model_failovers) {
+    getGlobalRecorder()?.record({
+      type: 'system.info',
+      component: 'calibration-io',
+      level: 'warn',
+      message: 'Calibration row has speaker model failovers — excluded from replication count by gate',
+      data: { debate_id: stamped.debate_id, speaker_model_failovers: stamped.speaker_model_failovers },
+    });
+  }
+
   const line = JSON.stringify(stamped) + '\n';
 
   if (synthetic) {

@@ -374,6 +374,14 @@ export interface DebateSession {
   /** Evaluator model for claim extraction/classification. Cross-vendor split recommended. */
   evaluator_model?: string;
   speaker_models?: Record<string, string>;
+  /** Speaker model assignments captured at session init — never overwritten by failover (t/4040). Absent on pre-t/4040 sessions. */
+  initial_speaker_models?: Record<string, string>;
+  /** Per-speaker failover history: speaker → final replacement model (t/4040). Absent when no failover occurred. */
+  speaker_model_failovers?: Record<string, string>;
+  /** Multi-provider model pool fingerprint: `"tierName|b1=registryId1:apiModelId1,..."` sorted by backend (t/4040). Absent on single-model runs. */
+  model_pool?: string;
+  /** Single-model run fingerprint: `"registryId:apiModelId"` resolved at run time (t/4040). Absent on multi-provider runs. */
+  model_api_id?: string;
   /** Fully-resolved per-stage model map (9 keys: brief, plan, draft, cite, evaluator, scope, summary, moderator, crux). */
   stage_models?: Record<string, string>;
   model_tier?: ModelTier;
