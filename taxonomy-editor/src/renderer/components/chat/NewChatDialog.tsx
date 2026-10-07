@@ -16,7 +16,7 @@ import { AI_POVERS } from '@lib/debate/types';
 import type { SeatTag } from '@lib/debate/types/session';
 import { checkTagScope } from '@lib/debate/relevanceSelection';
 import { backendSelectState, type BackendAvailabilityEntry } from '../shared/backendSelectState';
-import { ChatTagPicker } from './ChatTagPicker';
+import { ChatTagPicker, tagBlockedReason } from './ChatTagPicker';
 import './NewChatDialog.css';
 
 interface NewChatDialogProps {
@@ -68,9 +68,9 @@ export function NewChatDialog({ onClose, onCreated }: NewChatDialogProps) {
   }, []);
 
   const povNodes = useTaxonomyStore.getState()[pover]?.nodes ?? [];
-  const scopeInsufficient = chatTag?.tag_mode === 'scope'
-    && !checkTagScope(povNodes, { tag: chatTag.pov_tag, mode: 'scope' }).sufficient;
-  const canStart = topic.trim().length > 0 && !scopeInsufficient;
+  const tagScope = chatTag ? checkTagScope(povNodes, { tag: chatTag.pov_tag, mode: chatTag.tag_mode }) : null;
+  const tagBlocked = !!tagBlockedReason(tagScope, chatTag?.tag_mode);
+  const canStart = topic.trim().length > 0 && !tagBlocked;
 
   const handlePoverChange = (id: Exclude<SpeakerId, 'user'>) => {
     setPover(id);
