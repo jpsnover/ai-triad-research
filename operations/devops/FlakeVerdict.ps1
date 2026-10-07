@@ -61,3 +61,36 @@ function Format-FlakeVerdictMessage {
     $lines.Add("::error::test-powershell: NOTE — the rerun ran immediately in the SAME job, so it cannot clear resource contention held by the first attempt: a fixed/held port in TIME_WAIT, a parallel-shard bind of the same port, a lock, or a temp file. A sub-100ms fast-fail on a port-binding test is the contention signature, not proof of a real defect. Before treating this as definitively broken, verify with a FRESH run on the same head (t/3546).")
     return $lines.ToArray()
 }
+
+function Get-FlakeRerunVerdict {
+    <#
+    .SYNOPSIS
+        t/4080: decide whether run-1 failures "self-healed" on the in-job rerun.
+    .DESCRIPTION
+        The old verdict (ci.yml, t/3530 R4) was `rerun.Result -eq 'Passed' -and rerun.TotalCount -ge
+        failed.Count`. Both halves are blind to NotRun: a rerun whose Filter.FullName matched NOTHING
+        (data-driven `It '... <Name>' -ForEach` tests — the filter cannot match an expanded name) reports
+        Result=Passed (zero failures) and TotalCount=<every discovered test, all NotRun>. Real failures
+        were laundered to green (main 696ea125, run 37668037103: 12 hidden failures).
+
+        HEALED iff EVERY run-1 failed test (by ExpandedPath) appears in the rerun AND its rerun Result is
+        'Passed'. A failed name absent from the rerun, or present but NotRun/Skipped/Failed, is NOT healed.
+        PURE: takes names + the rerun's test objects; no Pester invocation.
+    .OUTPUTS
+        [pscustomobject] Healed [bool]; NotRerun [string[]]; StillFailing [string[]] (rerun ran it, not Passed)
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]] $FailedNames,
+        [AllowNull()][object[]] $RerunTests
+    )
+    $byName = @{}
+    foreach ($t in @($RerunTests)) { if ($null -ne $t) { $byName[[string]$t.ExpandedPath] = [string]$t.Result } }
+    $notRerun = @($FailedNames | Where-Object { -not $byName.ContainsKey($_) })
+    $stillFailing = @($FailedNames | Where-Object { $byName.ContainsKey($_) -and $byName[$_] -ne 'Passed' })
+    [pscustomobject]@{
+        Healed       = ($FailedNames.Count -gt 0 -and $notRerun.Count -eq 0 -and $stillFailing.Count -eq 0)
+        NotRerun     = $notRerun
+        StillFailing = $stillFailing
+    }
+}

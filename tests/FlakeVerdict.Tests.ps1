@@ -81,3 +81,45 @@ Describe 'Format-FlakeVerdictMessage — t/3546 verdict honesty' {
         }
     }
 }
+
+Describe 'Get-FlakeRerunVerdict — t/4080 NotRun must never count as healed' {
+    BeforeAll {
+        . (Join-Path $PSScriptRoot '..' 'operations' 'devops' 'FlakeVerdict.ps1')
+        function script:T([string]$p, [string]$r) { [pscustomobject]@{ ExpandedPath = $p; Result = $r } }
+    }
+
+    It 'LAUNDERING ARM (the t/4080 bug): failed test rerun as NotRun -> NOT healed' {
+        $v = Get-FlakeRerunVerdict -FailedNames @('S.data-driven beta') -RerunTests @(
+            (T 'S.plain' 'NotRun'), (T 'S.data-driven alpha' 'NotRun'), (T 'S.data-driven beta' 'NotRun'))
+        $v.Healed | Should -BeFalse
+        $v.StillFailing | Should -Contain 'S.data-driven beta'
+    }
+    It 'failed test absent from the rerun entirely -> NOT healed, listed as NotRerun' {
+        $v = Get-FlakeRerunVerdict -FailedNames @('S.gone') -RerunTests @((T 'S.other' 'Passed'))
+        $v.Healed | Should -BeFalse
+        $v.NotRerun | Should -Be @('S.gone')
+    }
+    It 'zero rerun tests (filter matched nothing) -> NOT healed' {
+        $v = Get-FlakeRerunVerdict -FailedNames @('S.a', 'S.b') -RerunTests @()
+        $v.Healed | Should -BeFalse
+        @($v.NotRerun).Count | Should -Be 2
+    }
+    It 'null rerun result -> NOT healed' {
+        (Get-FlakeRerunVerdict -FailedNames @('S.a') -RerunTests $null).Healed | Should -BeFalse
+    }
+    It 'genuine flake: every failed test re-ran and PASSED -> healed' {
+        $v = Get-FlakeRerunVerdict -FailedNames @('S.a', 'S.b') -RerunTests @((T 'S.a' 'Passed'), (T 'S.b' 'Passed'), (T 'S.c' 'Passed'))
+        $v.Healed | Should -BeTrue
+    }
+    It 'one of two failed tests still failing -> NOT healed' {
+        $v = Get-FlakeRerunVerdict -FailedNames @('S.a', 'S.b') -RerunTests @((T 'S.a' 'Passed'), (T 'S.b' 'Failed'))
+        $v.Healed | Should -BeFalse
+        $v.StillFailing | Should -Be @('S.b')
+    }
+    It 'skipped on rerun is not a pass -> NOT healed' {
+        (Get-FlakeRerunVerdict -FailedNames @('S.a') -RerunTests @((T 'S.a' 'Skipped'))).Healed | Should -BeFalse
+    }
+    It 'no failed names -> not "healed" (nothing to heal; caller must not reach the rerun path)' {
+        (Get-FlakeRerunVerdict -FailedNames @() -RerunTests @((T 'S.a' 'Passed'))).Healed | Should -BeFalse
+    }
+}
