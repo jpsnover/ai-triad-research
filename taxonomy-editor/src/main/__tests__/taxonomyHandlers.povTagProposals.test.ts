@@ -19,6 +19,14 @@ const h = vi.hoisted(() => ({
   handlers: new Map<string, (...a: unknown[]) => unknown>(),
   fileOnDisk: null as unknown,
   writeArg: undefined as unknown,
+  // t/4052 AC: "node files are byte-unchanged after a review session" — every node-file writer
+  // the module exposes becomes a vi.fn() so tests can assert review-pov-tag-proposal never
+  // touches them (it writes ONLY pov-tag-proposals.json, never pov_tags or any node file).
+  writeTaxonomyFile: vi.fn(),
+  writeConflictFile: vi.fn(),
+  createConflictFile: vi.fn(),
+  deleteConflictFile: vi.fn(),
+  writeEdgesFile: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
@@ -35,9 +43,10 @@ vi.mock('../fileIO.js', () => {
   const stub = (): undefined => undefined;
   return {
     readTaxonomyFile: (): unknown => ({ nodes: [] }),
-    writeTaxonomyFile: stub, readAllConflictFiles: stub, readConflictClusters: stub,
-    writeConflictFile: stub, createConflictFile: stub, deleteConflictFile: stub,
-    readEdgesFile: stub, writeEdgesFile: stub, getTaxonomyDirs: stub,
+    writeTaxonomyFile: h.writeTaxonomyFile,
+    readAllConflictFiles: stub, readConflictClusters: stub,
+    writeConflictFile: h.writeConflictFile, createConflictFile: h.createConflictFile, deleteConflictFile: h.deleteConflictFile,
+    readEdgesFile: stub, writeEdgesFile: h.writeEdgesFile, getTaxonomyDirs: stub,
     getActiveTaxonomyDirName: stub, setActiveTaxonomyDir: stub, buildNodeSourceIndex: stub,
     buildPolicySourceIndex: stub, readPolicyRegistry: (): unknown => ({ policies: [] }),
     readAggregatedCruxes: stub, readLineageCategories: (): unknown => ({ mapping: {} }),
@@ -75,10 +84,16 @@ function makeFile(items: Array<Record<string, unknown>>) {
   };
 }
 
+const nodeFileWriters = [h.writeTaxonomyFile, h.writeConflictFile, h.createConflictFile, h.deleteConflictFile, h.writeEdgesFile];
+function expectNoNodeFileWrites(): void {
+  for (const fn of nodeFileWriters) expect(fn).not.toHaveBeenCalled();
+}
+
 beforeEach(() => {
   h.handlers.clear();
   h.fileOnDisk = null;
   h.writeArg = undefined;
+  for (const fn of nodeFileWriters) fn.mockClear();
   registerTaxonomyHandlers();
 });
 
@@ -116,6 +131,20 @@ describe('review-pov-tag-proposal (t/4054)', () => {
     expect(result.item.final).toEqual(['critical']);
     expect(result.item.reviewed_by).toBe('test-reviewer'); // os.userInfo(), not a server-auth identity
     expect(h.writeArg).toBe(result.file); // the handler wrote the returned file
+    expectNoNodeFileWrites(); // t/4052 AC: review never touches pov_tags or any node file
+  });
+
+  it('modified: writes the file and returns { file, item } — node files still untouched', async () => {
+    h.fileOnDisk = makeFile([{}]);
+    const decision = { status: 'modified' as const, final: ['institutional'] };
+    const result = await getHandler('review-pov-tag-proposal')(
+      {}, REGISTERED_TAG_NODE, decision, 'pending',
+    ) as { file: unknown; item: { status: string; final: string[] } };
+
+    expect(result.item.status).toBe('modified');
+    expect(result.item.final).toEqual(['institutional']);
+    expect(h.writeArg).toBe(result.file);
+    expectNoNodeFileWrites();
   });
 
   it('REGRESSION: a conflict (stale expectedStatus) is returned as a VALUE, never thrown, and writes nothing', async () => {
@@ -128,6 +157,7 @@ describe('review-pov-tag-proposal (t/4054)', () => {
     expect(result.refused).toBe('conflict');
     expect(result.problems?.length).toBeGreaterThan(0);
     expect(h.writeArg).toBeUndefined();
+    expectNoNodeFileWrites();
   });
 
   it('REGRESSION: an invalid decision (unknown node) is returned as a VALUE, never thrown', async () => {
@@ -138,6 +168,7 @@ describe('review-pov-tag-proposal (t/4054)', () => {
     ) as { refused?: string };
     expect(result.refused).toBe('invalid');
     expect(h.writeArg).toBeUndefined();
+    expectNoNodeFileWrites();
   });
 
   it('rejected: final becomes [] and is written', async () => {
@@ -148,6 +179,7 @@ describe('review-pov-tag-proposal (t/4054)', () => {
     expect(result.item.status).toBe('rejected');
     expect(result.item.final).toEqual([]);
     expect(h.writeArg).toBeDefined();
+    expectNoNodeFileWrites();
   });
 
   it('throws when the proposals file does not exist (nothing to review)', () => {
