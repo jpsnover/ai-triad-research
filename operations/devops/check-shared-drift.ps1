@@ -407,10 +407,19 @@ try {
                     $b = $p.headRefName
                     if (-not $latestByBranch.ContainsKey($b) -or $p.number -gt $latestByBranch[$b].number) { $latestByBranch[$b] = $p }
                 }
+                # t/3652 false positive (p/648#99): see Get-OpenPrByBranch's comment
+                # (BranchStrandVerdict.ps1) for why this is checked. Reuses the one
+                # `gh pr list --state all` call already made above (no extra per-branch
+                # `gh pr list --head <b> --state open` round-trip needed).
+                $openByBranch = Get-OpenPrByBranch -Prs $prs
                 $unresolved = 0
                 foreach ($b in $latestByBranch.Keys) {
                     if ($dismissed[$b]) { continue }
                     if (-not $remoteRefs.ContainsKey($b)) { continue }          # branch deleted after merge — the clean, common case
+                    if ($openByBranch.ContainsKey($b)) {
+                        $strandedInfo += "$b (carried-by #$($openByBranch[$b].number) -- branch name reused by a currently open PR, not stranded)"
+                        continue
+                    }
                     $tip = $remoteRefs[$b]
                     $mergedHead = $latestByBranch[$b].headRefOid
                     if ($tip -eq $mergedHead) { continue }                      # unchanged since merge — fast path, no fetch
