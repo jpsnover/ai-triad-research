@@ -259,3 +259,47 @@ Describe 'Test-CitationLinkIntegrity (t/3598)' -Tag 'config' {
         (script:RunCli $f).blocking | Should -BeFalse   # stays advisory until SO/TL-GV flip
     }
 }
+
+Describe 'Test-CitationLinkIntegrity leg-a statistic-provenance (t/4042)' -Tag 'config' {
+
+    It 'leg-a reports summariesScanned and refsChecked on the clean fixture (3 summaries, 5 refs)' {
+        $f = script:New-CliFixture; $script:Fixtures.Add($f.Fx)
+        $a = script:Leg (script:RunCli $f) 'a'
+        $a.summariesScanned | Should -Be 3
+        $a.refsChecked | Should -Be 5   # alpha: 1 key point + 2 linked; beta: 1; gamma: 1
+        $a.pass | Should -BeTrue
+    }
+
+    It 'dead refs are still counted (refsChecked counts what was resolved, not what passed); pass/fail unchanged' {
+        $f = script:New-CliFixture @{ DeadRefs = $true }; $script:Fixtures.Add($f.Fx)
+        $a = script:Leg (script:RunCli $f) 'a'
+        $a.summariesScanned | Should -Be 4
+        $a.refsChecked | Should -Be 7
+        $a.pass | Should -BeFalse
+        @($a.offenders).Count | Should -Be 2
+    }
+
+    It 'blank and null refs are not counted' {
+        $f = script:New-CliFixture; $script:Fixtures.Add($f.Fx)
+        script:WriteJson (Join-Path $f.Sum 'doc-blank.json') @{
+            doc_id = 'src-alpha'
+            pov_summaries = @{ saf = @{ key_points = @(@{ taxonomy_node_id = $null; verbatim = 'n' }, @{ taxonomy_node_id = '  '; verbatim = 'b' }) } }
+            factual_claims = @(@{ claim = 'c'; linked_taxonomy_nodes = @('', 'sit-001') })
+        }
+        $a = script:Leg (script:RunCli $f -SkipSourceResolution) 'a'
+        $a.summariesScanned | Should -Be 4
+        $a.refsChecked | Should -Be 6   # 5 + the one non-blank 'sit-001'
+    }
+
+    It 'an empty summaries dir gives 0/0 and leg-a is still present' {
+        $f = script:New-CliFixture; $script:Fixtures.Add($f.Fx)
+        Get-ChildItem -LiteralPath $f.Sum -Filter '*.json' | Remove-Item -Force
+        $r = script:RunCli $f -SkipSourceResolution
+        $a = script:Leg $r 'a'
+        $a | Should -Not -BeNullOrEmpty
+        $a.summariesScanned | Should -Be 0
+        $a.refsChecked | Should -Be 0
+        $a.PSObject.Properties.Name | Should -Contain 'summariesScanned'
+        $a.PSObject.Properties.Name | Should -Contain 'refsChecked'
+    }
+}
