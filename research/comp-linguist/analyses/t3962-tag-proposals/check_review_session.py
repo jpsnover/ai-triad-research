@@ -23,15 +23,24 @@ def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)
     data = sys.argv[1]
-    # Stale checkout first: if the checkout is behind origin/main, the queue has been reading and saving an old
-    # file (e.g. one without value_basis), and committing it would revert later writes. Name that, don't diff it.
+    # Stale SIDE FILE first. What matters is not whether the whole checkout is behind (it often is, on other files,
+    # while reviews are uncommitted: the protected-WIP guard rightly blocks the sync) but whether THIS file changed
+    # on origin/main since the checkout's HEAD. If it did (e.g. the value_basis write), the queue has been reading
+    # and saving an old version, and committing it would revert that write. Name that; don't diff it.
     # (Fetch first; this script is read-only and never fetches or syncs.)
-    head = subprocess.run(["git", "-C", data, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-    main_ = subprocess.run(["git", "-C", data, "rev-parse", "origin/main"], capture_output=True, text=True).stdout.strip()
-    if not head or head != main_:
-        print(f"FIELD-ONLY CHECK: FAIL\n  - checkout HEAD {head[:8]} != origin/main {main_[:8]}: the checkout is stale. "
-              "Do NOT commit; get the shared data checkout synced (DevOps, docs/shared-tree-divergence.md) and re-review.")
+    blob = lambda rev: subprocess.run(["git", "-C", data, "rev-parse", f"{rev}:{SIDE}"],
+                                      capture_output=True, text=True).stdout.strip()
+    at_head, at_main = blob("HEAD"), blob("origin/main")
+    if not at_head or at_head != at_main:
+        print(f"FIELD-ONLY CHECK: FAIL\n  - {SIDE} at the checkout's HEAD ({at_head[:8]}) != origin/main ({at_main[:8]}): "
+              "the queue edited a stale version. Do NOT commit; get the checkout synced (DevOps, "
+              "docs/shared-tree-divergence.md) and redo the session's reviews on the current file.")
         sys.exit(1)
+    behind = subprocess.run(["git", "-C", data, "rev-list", "--count", "HEAD..origin/main"],
+                            capture_output=True, text=True).stdout.strip()
+    if behind not in ("", "0"):
+        print(f"note: checkout is {behind} commit(s) behind origin/main on OTHER files; the side file is current, so the "
+              "session is valid. Commit it from a clean worktree at origin/main, not from this checkout (README).")
     r = subprocess.run(["git", "-C", data, "show", f"origin/main:{SIDE}"], capture_output=True)
     if r.returncode != 0:
         sys.exit(f"ABORT: cannot read origin/main:{SIDE} in {data}: {r.stderr.decode('utf-8', 'replace')[:200]}")

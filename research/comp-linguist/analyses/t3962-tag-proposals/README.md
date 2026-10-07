@@ -33,15 +33,22 @@ Related guards outside this folder: the DevOps data-checkout drift check treats 
 
 At the end of each editor review session:
 
-0. **Before the session starts:** the shared data checkout's HEAD must equal `origin/main`. If it's behind, the
-   queue reads and saves an old file, for example one without `value_basis`. Syncing is DevOps-only.
-1. `python check_review_session.py <data_root>` (after `git fetch`) must print **PASS**: the checkout isn't
-   stale, and only `status`, `final`, `reviewed_by`
-   and `reviewed_at` changed, only on non-pending items, nothing else, canonical serialization.
-2. Commit **that one path only**, with an explicit pathspec
-   (`git commit -- taxonomy/Origin/pov-tag-proposals.json`); never `-a` or `add -A`. Other actors' WIP in the
-   shared checkout stays untouched.
-3. Push, verify on `origin/main`, and record the session (count, ids, commit) on t/4056.
+0. **Before the session starts:** the side file in the shared data checkout must be the current one, i.e. the
+   same blob as on `origin/main`. If it's stale, the queue reads and saves an old file, for example one without
+   `value_basis`. Syncing is DevOps-only.
+1. `python check_review_session.py <data_root>` (after `git fetch`) must print **PASS**:
+   - the side file at the checkout's HEAD equals `origin/main`'s;
+   - only `status`, `final`, `reviewed_by` and `reviewed_at` changed, only on non-pending items;
+   - nothing else changed, and the serialization is canonical.
+
+   The checkout being behind on **other** files is fine and expected: the protected-WIP guard blocks syncs
+   while reviews are uncommitted.
+2. **Commit from a clean worktree at `origin/main`, not the shared checkout.** Copy the reviewed file into the
+   worktree and confirm the copy is byte-identical. Commit **that one path only**, with an explicit pathspec
+   (`git commit -- taxonomy/Origin/pov-tag-proposals.json`); never `-a` or `add -A`. Committing on a shared
+   checkout that's behind would need a rebase, which is forbidden there.
+3. Push, verify on `origin/main`, and record the session (count, ids, commit) on t/4056. The shared checkout's
+   now-identical edit clears at the next DevOps sync.
 
 A FAIL stops the commit and goes back to the PI. The `pov_tags` write (step 4) is **not** covered by this
 authorization.
