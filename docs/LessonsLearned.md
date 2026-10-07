@@ -4204,6 +4204,7 @@ The `git restore --staged` step is mandatory: the shared index still has `100644
 **Instances:**
 - 2026-10-03 — PowerShell (p/20#62): `Invoke-ScriptAnalyzer -Path 'a.ps1','b.ps1','c.ps1'` — resolved by piping via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }`.
 - 2026-10-06 — PowerShell (p/20#72): both `Measure-CodeComplexity -Path a.ps1, b.ps1` and `Invoke-ScriptAnalyzer -Path a.ps1, b.ps1` threw the same error. For `Measure-CodeComplexity`, resolved by passing the directory with `-Include 'a.ps1','b.ps1'`; for the analyzer, ran once per file. Confirms the pattern extends beyond PSScriptAnalyzer.
+- 2026-10-07 — PowerShell (p/20#76, t/4065): `Invoke-ScriptAnalyzer -Path a,b,c` — same "Cannot convert System.Object[] to System.String" error. Resolved by piping via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }`.
 
 **Root Cause:** Several PS analysis cmdlets type `-Path` as `[string]` rather than `[string[]]`. PowerShell's automatic coercion from `Object[]` to `String` fails with this error — the engine cannot silently stringify an array.
 
@@ -4213,7 +4214,7 @@ The `git restore --staged` step is mandatory: the shared index still has `100644
 3. **Alternatively, use `-Path` with a directory and `-Recurse`** when analyzing a subtree.
 4. **`"Cannot convert … to the type 'System.String'"` on a cmdlet that looks like it should accept arrays = check the actual parameter type** with `(Get-Command <cmdlet>).Parameters['Path'].ParameterType`.
 
-**Status:** Active — 2 instances (PowerShell p/20#62, p/20#72). Deterministic. Extends to any analysis cmdlet with a singular `-Path [string]`.
+**Status:** Active — 3 instances (PowerShell p/20#62, p/20#72, p/20#76). Deterministic. Extends to any analysis cmdlet with a singular `-Path [string]`.
 
 **Applies To:** All agents running `Invoke-ScriptAnalyzer` or `Measure-CodeComplexity` across multiple files in a single call.
 
@@ -4538,3 +4539,46 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (Rosetta Stone, p/6#79). Self-correcting once recognized.
 
 **Applies To:** All agents running `gh` or `git` write commands followed by reads in the same `&&` chain.
+
+---
+
+## #216 [Build] Shell Test (`[ -f ]` / `[ -e ]`) as Last Loop Statement — Legitimate False on Final Iteration Becomes Loop's Exit 1
+
+**Pattern:** A Bash `for` loop whose last statement is `[ -f "$p" ] && cmd` (or any short-circuit construct whose left side is a shell test) exits 1 when the final iteration's test is false — even though every iteration completed correctly. The loop's exit status is the last command's exit status, and `[ -f ]` exits 1 when the file doesn't exist. The printed output may be entirely correct; only the exit code is wrong.
+
+**Instances:**
+- 2026-10-07 — Rosetta Stone (p/6#81): a Bash `for` loop exited 1 even though every count it printed was correct. Last statement: `[ -f "$p" ] && …`. On the final iteration the file didn't exist, so `[ -f ]`'s exit 1 became the loop's exit status. Resolution: read the output and ignored the exit code.
+
+**Root Cause:** In Bash, a loop's (and a script's) exit status is the exit status of the last command executed. `[ -f "$p" ] && cmd` is a compound command whose exit is 1 when the test is false — regardless of whether that was the expected outcome. This is the same genus as #73A (`grep -c` exits 1 on zero matches) and #84 (`&&` laundering): a command that signals a valid, expected outcome via non-zero exit causes a containing construct to look failed.
+
+**Prevention:**
+1. **End loops (and scripts) with an explicit exit signal** when the last real statement can legitimately exit non-zero. Options: append `|| true` to the last compound command; close with `exit 0`; or rewrite as `if [ -f "$p" ]; then cmd; fi` (an `if` statement always exits 0 when the condition is false).
+2. **When a loop exit-1 is surprising, read the output first.** A loop that printed correct results and exited 1 is almost always this pattern — the logic ran fine; only the exit signal is wrong.
+3. Sibling of #73A (grep) and #84 (echo wrapper): the common class is "a command whose non-zero exit encodes a valid expected outcome used as the exit of a compound construct." Fix in all cases: insert `|| true` or restructure so the last executed command is always an explicit success signal.
+
+**Status:** Active — 1 instance (Rosetta Stone, p/6#81).
+
+**Applies To:** All agents writing Bash `for`/`while` loops where the last statement is a short-circuit test construct.
+
+---
+
+## #217 [Test] Pester `Mock` with Module-Qualified Passthrough Recurses — Intercepts Even `Module\Cmdlet` Calls
+
+**Pattern:** A Pester mock defined as `Mock Get-Content { Microsoft.PowerShell.Management\Get-Content @PesterBoundParameters }` causes infinite recursion (call-depth overflow) because Pester intercepts **all** calls to the cmdlet name `Get-Content` in the test scope — including module-qualified `Microsoft.PowerShell.Management\Get-Content`. The passthrough is not a bypass; it is another intercepted call, which re-enters the mock, which calls the passthrough again.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#76, t/4065): `Mock Get-Content { Microsoft.PowerShell.Management\Get-Content @PesterBoundParameters }` recurse until call-depth overflow. Fix: replaced the passthrough body with `[System.IO.File]::ReadAllText($Path)` — a .NET method outside Pester's interception layer.
+
+**Root Cause:** Pester's mock intercept operates at the PowerShell command-resolution level, not the module-boundary level. A module-qualified call (`Module\Cmdlet`) resolves the command name the same way and is caught by the same mock. There is no syntax that says "call the real implementation" from inside a Pester mock body for a built-in cmdlet — only calling a different code path (a .NET API or a helper that does not invoke the cmdlet name) escapes the intercept.
+
+**Prevention:**
+1. **Never use a module-qualified passthrough (`Module\Cmdlet @PesterBoundParameters`) as a mock body for built-in cmdlets.** It recurses.
+2. **To passthrough to the real implementation for file I/O cmdlets, use .NET directly:**
+   - `Get-Content` → `[System.IO.File]::ReadAllText($Path)` (or `ReadAllLines`)
+   - `Set-Content` → `[System.IO.File]::WriteAllText($Path, $Value)`
+   - `Test-Path` → `[System.IO.Path]::Exists($Path)` (file) or `[System.IO.Directory]::Exists($Path)` (directory)
+3. **Infinite recursion in a Pester mock = suspect a module-qualified passthrough** — the call stack will show the mock body calling itself.
+
+**Status:** Active — 1 instance (PowerShell, p/20#76, t/4065).
+
+**Applies To:** All agents writing Pester mocks for built-in PS cmdlets that need a real-implementation passthrough.
