@@ -24,6 +24,7 @@ vi.mock('../../hooks/useTaxonomyStore', () => {
 });
 
 const { PovTagProposalButton, PovTagProposalQueue } = await import('./PovTagProposalQueue');
+const { bundledSkepticSoulProvenance } = await import('./PovTagValueBasis');
 
 const pending: PovTagProposal = { node_id: 'skp-beliefs-001', proposed: ['critical'], status: 'pending', final: null, reviewed_by: null, reviewed_at: null, crux: 'C1', confidence: 0.9, rationale: 'r' };
 const file = (p: PovTagProposal = pending): PovTagProposalsFile => ({ version: 1, run: {}, proposals: [p] });
@@ -82,6 +83,38 @@ describe('PovTagProposalQueue (t/4052)', () => {
     fireEvent.click(screen.getByText('Reject'));
     expect(await screen.findByText(/Someone else reviewed this item first/)).toBeTruthy();
     expect(api.loadPovTagProposals).toHaveBeenCalledTimes(1);
+  });
+
+  describe('value_basis (t/4052#9, SO e/278#2 condition 4)', () => {
+    const vbItem: PovTagProposal = { ...pending, value_basis: [{ tag: 'critical', vh_index: [1], vh_index_uncertain: [], why: 'because', unsupported: false }] };
+    const withRun = (soul_provenance?: Record<string, { file: string; hash: string }>): PovTagProposalsFile => ({
+      ...file(vbItem),
+      value_basis_run: { index_base: 1, value_hierarchies: { critical: ['Cited element — wording'] }, ...(soul_provenance ? { soul_provenance } : {}) },
+    });
+    const bundled = bundledSkepticSoulProvenance() as Record<string, { file: string; hash: string }>;
+
+    it('shows the justification in place of the crux rationale, and no provenance note when the souls match', () => {
+      render(<PovTagProposalQueue pov="skeptic" initialFile={withRun(bundled)} onClose={() => {}} />);
+      expect(screen.getByText(/Cited element/)).toBeTruthy();
+      expect(screen.queryByText('r')).toBeNull(); // the crux rationale is replaced
+      expect(screen.queryByText(/Soul doc changed|Cannot verify/)).toBeNull();
+    });
+
+    it('a recorded soul that differs from the bundled one → "soul doc changed since justification"', () => {
+      render(<PovTagProposalQueue pov="skeptic" initialFile={withRun({ ...bundled, critical: { file: 'skeptic.critical.soul.json', hash: 'fnv1a64:0000000000000000' } })} onClose={() => {}} />);
+      expect(screen.getByText(/Soul doc changed since justification/)).toBeTruthy();
+    });
+
+    it('a run with no recorded provenance → "cannot verify", visibly', () => {
+      render(<PovTagProposalQueue pov="skeptic" initialFile={withRun()} onClose={() => {}} />);
+      expect(screen.getByText(/Cannot verify the soul docs/)).toBeTruthy();
+    });
+
+    it('a file with no value_basis run keeps the crux rationale and shows no provenance note', () => {
+      render(<PovTagProposalQueue pov="skeptic" initialFile={file()} onClose={() => {}} />);
+      expect(screen.getByText('r')).toBeTruthy();
+      expect(screen.queryByText(/Model-suggested/)).toBeNull();
+    });
   });
 
   it('shows the uncommitted note when the side file is changed in the data checkout', async () => {

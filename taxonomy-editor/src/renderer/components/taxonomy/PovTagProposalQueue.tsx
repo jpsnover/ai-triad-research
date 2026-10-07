@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { loadPovTagRegistry, type PovTagRegistry } from '@lib/schema/povTags';
-import type { PovTagProposal, PovTagProposalsFile } from '@lib/schema/povTagProposals';
+import type { PovTagProposal, PovTagProposalsFile, ValueBasisRun } from '@lib/schema/povTagProposals';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api, isElectronMode } from '@bridge';
 import type { Pov } from '../../types/taxonomy';
@@ -14,7 +14,9 @@ import {
   proposalsForPov, filterProposals, decisionFor, proposalFileUncommitted,
   DEFAULT_PROPOSAL_FILTER, NO_TAG, type ProposalFilter,
 } from '../../utils/povTagProposalQueue';
+import { provenanceState } from '../../utils/povTagValueBasis';
 import { PovTagEditor } from './PovTagEditor';
+import { ValueBasisBlock, ProvenanceNote, bundledSkepticSoulProvenance } from './PovTagValueBasis';
 import './PovTagProposalQueue.css';
 
 const COMPONENT = 'pov-tag-proposal-queue';
@@ -80,6 +82,9 @@ export function PovTagProposalQueue({ pov, initialFile, onClose }: {
   const nodeById = useMemo(() => new Map((nodes ?? []).map(n => [n.id, n])), [nodes]);
   const all = useMemo(() => proposalsForPov(file, pov), [file, pov]);
   const shown = useMemo(() => sortForReview(filterProposals(all, filter)), [all, filter]);
+  // t/4052#9: justifications are compared against the souls THIS app bundles, via the canonical comparator.
+  const run = file.value_basis_run;
+  const provenance = useMemo(() => provenanceState(run?.soul_provenance, bundledSkepticSoulProvenance()), [run]);
 
   const refreshUncommitted = useCallback(() => {
     if (!canReview) return;
@@ -129,6 +134,7 @@ export function PovTagProposalQueue({ pov, initialFile, onClose }: {
         </div>
         {!canReview && <div className="ptp-note">Reviews are recorded from the desktop app so they land in the data repo. This list is read-only here.</div>}
         {uncommitted && <div className="ptp-note">Reviews are saved in your local data checkout but not yet committed; step 4 uses data <code>main</code>.</div>}
+        {run && <ProvenanceNote state={provenance} />}
         <div className="ptp-filters">
           <select aria-label="Status" value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value as ProposalFilter['status'] }))}>
             {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s === 'all' ? 'All statuses' : s}</option>)}
@@ -151,6 +157,7 @@ export function PovTagProposalQueue({ pov, initialFile, onClose }: {
               p={p}
               node={nodeById.get(p.node_id)}
               registry={registry}
+              run={run}
               tagLabel={tagLabel}
               editing={editing?.nodeId === p.node_id ? editing.draft : null}
               disabled={!canReview || busy !== null}
@@ -166,11 +173,12 @@ export function PovTagProposalQueue({ pov, initialFile, onClose }: {
 }
 
 /** One proposal: the node, what was proposed and why, and the decision controls. */
-function ProposalItem({ pov, p, node, registry, tagLabel, editing, disabled, message, onEdit, onDecide }: {
+function ProposalItem({ pov, p, node, registry, run, tagLabel, editing, disabled, message, onEdit, onDecide }: {
   pov: Pov;
   p: PovTagProposal;
   node: { label?: string; description?: string } | undefined;
   registry: PovTagRegistry;
+  run: ValueBasisRun | undefined;
   tagLabel: (id: string) => string;
   /** The Modify draft, or null when not modifying. */
   editing: string[] | null;
@@ -196,7 +204,7 @@ function ProposalItem({ pov, p, node, registry, tagLabel, editing, disabled, mes
         <div className="ptp-row"><span className="ptp-key">Final</span>{chips(p.final)}<span className="ptp-meta">by {p.reviewed_by ?? '?'} · {p.reviewed_at ?? '?'}</span></div>
       )}
       <div className="ptp-meta">Crux: {typeof p.crux === 'string' ? p.crux : 'none'} · Confidence: {typeof p.confidence === 'number' ? p.confidence.toFixed(2) : 'n/a'}</div>
-      {p.rationale && <p className="ptp-rationale">{p.rationale}</p>}
+      {run ? <ValueBasisBlock p={p} run={run} tagLabel={tagLabel} /> : p.rationale && <p className="ptp-rationale">{p.rationale}</p>}
       {editing ? (
         <div className="ptp-modify">
           <PovTagEditor pov={pov} tags={editing} readOnly={false} registry={registry} onChange={next => onEdit(next ?? [])} />
