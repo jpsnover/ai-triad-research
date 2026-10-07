@@ -396,6 +396,8 @@ Each calibration entry records what was actually served, captured **when the run
 
 **Failover visibility gap (editor and web):** the server can fall back to another model **below the bridge** (`getFallbackChain`), and the call doesn't report the served model. So an editor or web run that failed over isn't marked in `speaker_model_failovers`, and would count as a clean replication. **Until the bridge reports a per-call served model (t/4040, Rosetta), editor and web rows aren't certified failover-free.** Engine-path rows are.
 
+**`failover_tracking` (SO e/268#6, CL e/268#10):** each fingerprinted row states whether its writer could see failover. The engine writes `'tracked'`. Editor and web write `'unavailable'` until `servedModel` lands, then `'tracked'`. **The gate counts a fingerprinted row only when it says `'tracked'`.** A fingerprinted row without the field is excluded with a WARN, because "tracked" must be an explicit claim and never the default. Legacy rows (no fingerprint) stay in the model-mixed bucket as before. Provenance class: instrument provenance, and semantic, because the gate branches on it.
+
 ## Maintenance
 
 - Every PR adding or modifying a metric, threshold, weight, or lexicon must state its provenance class and update this register in the same PR (CL review checklist item).
