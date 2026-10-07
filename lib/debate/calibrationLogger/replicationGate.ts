@@ -114,6 +114,11 @@ export function replicationSet(entries: CalibrationDataPoint[], key: string): Ca
     if (e.working_tree_state !== 'clean') return false;
     if (fixedConfigKey(e) !== key) return false;
     if (e.speaker_model_failovers) return false;
+    // 'unavailable' is an explicit opt-out: the recording layer cannot observe
+    // failover on this path. Exclude regardless of fingerprint — an unfingerprinted
+    // row with this claim would otherwise skip the isFingerprinted branch and be
+    // counted in the legacy group (t/4040).
+    if (e.failover_tracking === 'unavailable') return false;
     // Fingerprinted rows require explicit 'tracked' claim — absent means the
     // recording layer didn't opt in, so failover visibility is unknown (t/4040).
     const isFingerprinted = Boolean(e.model_pool ?? e.model_api_id);
