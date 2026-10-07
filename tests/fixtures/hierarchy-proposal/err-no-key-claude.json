@@ -1,0 +1,25 @@
+{
+  "scenario": "err-no-key-claude",
+  "host": [
+    "[Red]    ✗  No API key found for backend 'claude'. Set the appropriate environment variable."
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "explicit-key",
+      "backend": "claude"
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/hierarchy-proposals/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "sha256:866fc0e82c48027fd05179b0e09ae64b96b75f42699ae0eca4047b962030a282 (307 chars)",
+    "taxonomy/Origin/safetyist.json": "sha256:60797bf3b2a8d3a767a94e1c2e3af5df29b05d9d084770a2f399baab68d16715 (307 chars)"
+  }
+}

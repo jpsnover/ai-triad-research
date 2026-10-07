@@ -1,0 +1,37 @@
+{
+  "scenario": "no-buckets",
+  "host": [
+    "[Cyan] \n▶  Loading taxonomy data",
+    "[Cyan] \n▶  Loading embeddings",
+    "[Yellow]    ⚠  embeddings.json not found — clustering will be skipped",
+    "[Cyan] \n▶  Loading edges",
+    "[Cyan] \n▶  Building processing buckets",
+    "[Green]    ✓  0 buckets to process",
+    "[Yellow]    ⚠  No proposals generated"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal-schema"
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/hierarchy-proposals/": "(dir)",
+    "taxonomy/Origin/": "(dir)"
+  }
+}
