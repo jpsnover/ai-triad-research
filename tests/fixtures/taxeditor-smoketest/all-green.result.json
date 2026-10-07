@@ -1,0 +1,49 @@
+{
+  "BaseUrl": "https://stub",
+  "OverallPass": true,
+  "HealthOk": true,
+  "AzureOk": true,
+  "GitHubOk": true,
+  "OpedFilesOk": true,
+  "EmbeddingStatus": "ok",
+  "EmbeddingLatencyMs": 100,
+  "EmbeddingCeilingSec": 2.0,
+  "EmbeddingCachePresent": true,
+  "EmbeddingCacheStatus": "present",
+  "EndpointsPassed": 9,
+  "EndpointsFailed": 0,
+  "EndpointsTotal": 9,
+  "AvgResponseMs": 18.0,
+  "MaxResponseMs": 42.0,
+  "MinResponseMs": 10.0,
+  "DurationSec": "<masked>",
+  "Categories": [
+    {
+      "Category": "Analytics",
+      "Pass": 3,
+      "Fail": 0
+    },
+    {
+      "Category": "Community",
+      "Pass": 1,
+      "Fail": 0
+    },
+    {
+      "Category": "Core",
+      "Pass": 1,
+      "Fail": 0
+    },
+    {
+      "Category": "DataPresence",
+      "Pass": 3,
+      "Fail": 0
+    },
+    {
+      "Category": "OpedFiles",
+      "Pass": 1,
+      "Fail": 0
+    }
+  ],
+  "FailedEndpoints": [],
+  "Timestamp": "<masked>"
+}
