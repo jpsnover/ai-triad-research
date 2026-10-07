@@ -289,9 +289,9 @@ function New-OpEd {
     }
 
     # ── Optionally write a Markdown file ─────────────────────────────────────
-    # The file carries the pre-edit draft body (t/4069 tracks this).
+    # The file carries the same body the cmdlet returns: after the edit pass and the para-split (t/4069).
     if (-not [string]::IsNullOrWhiteSpace($OutputPath)) {
-        $Markdown = Format-OpEdMarkdown -Headline $Draft.Headline -Subtitle $Draft.Subtitle -Body $Draft.Body -Grounding $Grounding
+        $Markdown = Format-OpEdMarkdown -Headline $Draft.Headline -Subtitle $Draft.Subtitle -Body $FinalBody -Grounding $Grounding
         $Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
         [System.IO.File]::WriteAllText($OutputPath, $Markdown, $Utf8NoBom)
         Write-Verbose "Wrote op-ed to $OutputPath"

@@ -127,7 +127,8 @@ function Get-OpEdGrounding {
     if ($VoiceOnly -or ($MaxGroundingNodes -le 0 -and $MaxSituations -le 0)) { return $Result }
 
     # Query = the topic signal, plus the hook/thesis and a slice of any source.
-    $QueryParts = @($Topic, $NewsHook, $Thesis) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    # @() keeps a single surviving part an array, so += appends and -join applies (t/4069).
+    $QueryParts = @(@($Topic, $NewsHook, $Thesis) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($ParameterSetName -eq 'FromUrl' -and $SourceMaterial.Length -gt 0) {
         $QueryParts += $SourceMaterial.Substring(0, [Math]::Min(1500, $SourceMaterial.Length))
     }
@@ -227,7 +228,8 @@ function Get-OpEdSourceBrief {
             -MaxTokens 4000 -JsonMode -ResponseSchema $BriefSchema
         if ($null -ne $BriefResult -and -not [string]::IsNullOrWhiteSpace($BriefResult.Text)) {
             $SBrief = $BriefResult.Text | ConvertFrom-Json
-            $Prep.SourceBrief = $SBrief
+            # A hand-built prep may lack the property; assigning it would throw under StrictMode (t/4069).
+            $Prep | Add-Member -NotePropertyName 'SourceBrief' -NotePropertyValue $SBrief -Force
         }
     } catch {
         Write-Warning "Source comprehension pass skipped — SOURCE_* placeholders will be empty. ($($_.Exception.Message))"

@@ -84,9 +84,7 @@
       }
     }
   ],
-  "warnings": [
-    "Source comprehension pass skipped — SOURCE_* placeholders will be empty. (Exception setting \"SourceBrief\": \"The property 'SourceBrief' cannot be found on this object. Verify that the property exists and can be set.\")"
-  ],
+  "warnings": [],
   "verbose": [
     "Generating op-ed: pov='skeptic' outlet='WashingtonPost' words=800 model='gemini-3.7-flash' temp=0.8"
   ],
@@ -123,7 +121,21 @@
     },
     "EditingMeta": null
   },
-  "prepBriefAfter": "(no SourceBrief property)",
+  "prepBriefAfter": {
+    "author": "Jane Roe",
+    "actor_type": "think tank",
+    "thesis": "Audits slow innovation.",
+    "stance": "oppose audits",
+    "primary_recommendations": [
+      "voluntary codes",
+      "sandbox pilots"
+    ],
+    "key_claims": [
+      "Audits cost millions.",
+      "Most harms are speculative."
+    ],
+    "readable": "true"
+  },
   "fileCount": 0,
   "file": null
 }
