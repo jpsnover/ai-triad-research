@@ -92,6 +92,10 @@ jobs:
 
       - name: Commit cluster data
         working-directory: ai-triad-data
+        # TEMP (t/4059 proof only, will revert): push disabled so this dispatch on a
+        # feature branch cannot write to ai-triad-data main. The commit still runs locally
+        # in the runner's checkout so "git diff --cached" behavior is unchanged; only the
+        # push is skipped.
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -100,5 +104,5 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "chore: refresh conflict clusters and embeddings"
-            git push
+            echo "TEMP t/4059 proof: push disabled, not writing to ai-triad-data main"
           fi
