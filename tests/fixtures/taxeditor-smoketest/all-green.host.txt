@@ -1,0 +1,44 @@
+Smoke testing: https://stub
+
+=== Health Checks ===
+  [PASS] /healthz (liveness) — 11ms
+
+=== Endpoint Tests ===
+  [PASS] /api/models — 200 42ms (12 nodes)
+
+=== Anon Community Endpoints ===
+  [PASS] [anon] /api/models — 200 42ms
+
+=== Azure Infrastructure ===
+  [PASS] Container App — revision active
+
+=== GitHub Services ===
+  [PASS] Status page — all systems
+
+=== Analytics Round-Trip ===
+  [PASS] POST /api/analytics/event — 200 10ms
+  [PASS] GET /api/analytics/query (delta read-back) — 200 20ms
+  [PASS] GET /api/analytics/query (view.dwell eventType) — 200 10ms
+
+=== Data Presence ===
+  [PASS] GET /api/entities — 200 (3 rows) 10ms
+  [PASS] GET /api/organizations — 200 (2 rows) 10ms
+  [PASS] GET /api/taxonomy/accelerationist — 200 (4 rows) 10ms
+
+=== Oped Files Health ===
+  [PASS] GET /api/health/oped-files — 200 10ms — all assets present (3 files)
+
+=== Embedding Latency ===
+  [PASS] embeddings.compute — 100ms (ceiling 2s, 2 vectors, http 200)
+
+=== Embeddings Cache Presence ===
+  [PASS] GET /readyz — 200 10ms — embeddings cache present
+
+=== Summary ===
+  Overall: PASS
+  Health:  Healthy
+  Azure:   Healthy
+  GitHub:  Healthy
+  Endpoints: 9/9 passed
+  Response: avg=18ms min=10ms max=42ms
+  Duration: <masked>s

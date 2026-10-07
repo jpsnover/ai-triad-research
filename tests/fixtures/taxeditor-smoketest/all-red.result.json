@@ -1,0 +1,140 @@
+{
+  "BaseUrl": "https://stub",
+  "OverallPass": false,
+  "HealthOk": false,
+  "AzureOk": false,
+  "GitHubOk": false,
+  "OpedFilesOk": false,
+  "EmbeddingStatus": "unreachable",
+  "EmbeddingLatencyMs": 0,
+  "EmbeddingCeilingSec": 2.0,
+  "EmbeddingCachePresent": false,
+  "EmbeddingCacheStatus": "warming",
+  "EndpointsPassed": 0,
+  "EndpointsFailed": 9,
+  "EndpointsTotal": 9,
+  "AvgResponseMs": 18.0,
+  "MaxResponseMs": 42.0,
+  "MinResponseMs": 10.0,
+  "DurationSec": "<masked>",
+  "Categories": [
+    {
+      "Category": "Analytics",
+      "Pass": 0,
+      "Fail": 3
+    },
+    {
+      "Category": "Community",
+      "Pass": 0,
+      "Fail": 1
+    },
+    {
+      "Category": "Core",
+      "Pass": 0,
+      "Fail": 1
+    },
+    {
+      "Category": "DataPresence",
+      "Pass": 0,
+      "Fail": 3
+    },
+    {
+      "Category": "OpedFiles",
+      "Pass": 0,
+      "Fail": 1
+    }
+  ],
+  "FailedEndpoints": [
+    {
+      "Endpoint": "/api/models",
+      "Category": "Core",
+      "Description": "stub",
+      "Status": 500,
+      "Pass": false,
+      "Ms": 42,
+      "NodeCount": 12,
+      "Error": "HTTP 500"
+    },
+    {
+      "Endpoint": "/api/models",
+      "Category": "Community",
+      "Description": "stub",
+      "Status": 500,
+      "Pass": false,
+      "Ms": 42,
+      "NodeCount": 0,
+      "Error": "HTTP 500"
+    },
+    {
+      "Endpoint": "POST /api/analytics/event",
+      "Category": "Analytics",
+      "Description": "Analytics write reachability (200 + ok:true)",
+      "Status": 503,
+      "Pass": false,
+      "Ms": 10,
+      "NodeCount": null,
+      "Error": "HTTP 503"
+    },
+    {
+      "Endpoint": "GET /api/analytics/query (delta read-back)",
+      "Category": "Analytics",
+      "Description": "Analytics storage round-trip (totalEvents increased)",
+      "Status": 200,
+      "Pass": false,
+      "Ms": 20,
+      "NodeCount": 5,
+      "Error": "Silent drop: totalEvents did not increase after write (before=5, after=5, delta=0) — event accepted but not persisted (blob backend misconfigured?)"
+    },
+    {
+      "Endpoint": "GET /api/analytics/query (view.dwell eventType)",
+      "Category": "Analytics",
+      "Description": "view.dwell event_type present in analytics after write (t/2706)",
+      "Status": 200,
+      "Pass": false,
+      "Ms": 10,
+      "NodeCount": null,
+      "Error": "view.dwell absent or zero in eventTypes after probe write (count=0) — event not persisted or event_type mis-routed"
+    },
+    {
+      "Endpoint": "GET /api/entities",
+      "Category": "DataPresence",
+      "Description": "Data presence: entities > 0",
+      "Status": 200,
+      "Pass": false,
+      "Ms": 10,
+      "NodeCount": 0,
+      "Error": "entities: Empty — Response body present but 0 rows"
+    },
+    {
+      "Endpoint": "GET /api/organizations",
+      "Category": "DataPresence",
+      "Description": "Data presence: organizations > 0",
+      "Status": 0,
+      "Pass": false,
+      "Ms": 10,
+      "NodeCount": 0,
+      "Error": "organizations: Response body was null or not valid JSON (http: timeout)"
+    },
+    {
+      "Endpoint": "GET /api/taxonomy/accelerationist",
+      "Category": "DataPresence",
+      "Description": "Data presence: taxonomy nodes > 0",
+      "Status": 200,
+      "Pass": false,
+      "Ms": 10,
+      "NodeCount": 0,
+      "Error": "taxonomy nodes: Expected application/json but got 'text/html' (likely the auth Sign-In interstitial, not data)"
+    },
+    {
+      "Endpoint": "GET /api/health/oped-files",
+      "Category": "OpedFiles",
+      "Description": "Soul-docs + oped prompts present in container image",
+      "Status": 500,
+      "Pass": false,
+      "Ms": 10,
+      "NodeCount": null,
+      "Error": "MISSING: soul.json, p.prompt (status=500)"
+    }
+  ],
+  "Timestamp": "<masked>"
+}
