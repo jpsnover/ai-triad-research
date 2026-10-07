@@ -8,7 +8,7 @@
     "[default] Already cached: 0",
     "[default] Need enrichment: 4",
     "[Gray][nn]   Batch 1/1 (4 values)...",
-    "[Red]  failed: The property 'name' cannot be found on this object. Verify that the property exists.",
+    "[Green]  5 enriched",
     "[Green] Cache saved: 5 entries → <ROOT>/calibration/core/lineage-enrichments.json",
     "[Cyan] \nApplying enrichments to taxonomy files...",
     "[Green]   Saved accelerationist.json",
@@ -19,7 +19,9 @@
     "[default]   Nodes updated: 2",
     "[default]   URLs valid: 0 | invalid: 0"
   ],
-  "warnings": [],
+  "warnings": [
+    "Lineage enrichment: skipped an AI entry with no 'name' (description: 'An entry with no name: the StrictMode dereference throws and...'), because it can't be matched to a lineage value; the rest of the batch is kept (t/4077)."
+  ],
   "verbose": [
     "UniqueValues type: HashSet`1, count: 4",
     "Batch 1/1: Effective Altruism, Utilitarianism, Longtermism, Accelerationism",
@@ -97,6 +99,7 @@
     }
   ],
   "guards": [
+    "calibration/core/lineage-enrichments.json",
     "taxonomy/Origin/accelerationist.json"
   ],
   "writes": [

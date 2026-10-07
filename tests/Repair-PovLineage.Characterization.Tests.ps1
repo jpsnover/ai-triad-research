@@ -20,12 +20,13 @@
     Nothing can reach a network or a live AI backend: Invoke-AIApi, Get-TextEmbedding and
     Test-LineageUrl are mocked per scenario. Every scenario passes Model explicitly (through a splat),
     so the goldens do not depend on the basic-tier default.
-    Normalizations, each forced by the code under test rather than chosen:
+    Normalizations, each originally forced by the code under test. Since t/4077 the code writes in a fixed
+    (ordinal) order and the dedicated raw-order tests below pin it; the normalizations are kept so the
+    goldens stay comparable across that change:
       - runs of POV-file writes, "Saved <pov>.json" host lines and the apply loop's verbose lines
-        (ShouldProcess + per-node) are sorted, because they follow plain hashtables ($TaxData, $PovModified);
-      - runs of "Sample merges" lines are sorted, because they follow the $DedupMap hashtable;
-      - lineage-enrichments.json is compared as canonical JSON (keys sorted), because new cache
-        entries are plain hashtables whose serialized key order varies from process to process;
+        (ShouldProcess + per-node) are sorted ($TaxData, $PovModified);
+      - runs of "Sample merges" lines are sorted ($DedupMap);
+      - lineage-enrichments.json is compared as canonical JSON (keys sorted);
       - CRLF is folded to LF (ConvertTo-Json and Set-Content emit the platform newline).
     Regenerate the goldens ONLY for an intended behaviour change: set $env:POVLINEAGE_REGEN_GOLDEN = '1',
     run once, and check `git diff --stat` lists exactly the goldens that change was meant to change.
@@ -456,7 +457,10 @@ trailing words
         }
         Mock Start-Sleep -ModuleName AITriad { $script:Calls.Add([ordered]@{ call = 'sleep'; seconds = $Seconds }) }
         Mock Assert-DataWriteAllowed -ModuleName AITriad {
-            $script:Guards.Add(([System.IO.Path]::GetFullPath($Path)).Substring($script:RootCurrent.Length + 1).Replace('\', '/'))
+            $rel = ([System.IO.Path]::GetFullPath($Path)).Substring($script:RootCurrent.Length + 1).Replace('\', '/')
+            # A same-run rewrite of the lineage cache passes -AllowDirty (t/4077 item 6); record it.
+            if ($AllowDirty) { $rel += ' [AllowDirty]' }
+            $script:Guards.Add($rel)
         }
         Mock Set-Content -ModuleName AITriad {
             $rel = ([System.IO.Path]::GetFullPath($Path)).Substring($script:RootCurrent.Length + 1).Replace('\', '/')
@@ -545,7 +549,13 @@ Describe 'Repair-PovLineage characterization (t/3910)' -Tag 'taxonomy' {
         @{ Name = 'enrich';              Text = "Dedup guard: 'Effective-Altruism' → existing 'Effective Altruism'" }
         @{ Name = 'enrich';              Text = "URL fallback: 'Utilitarianism' → Wikipedia" }
         @{ Name = 'enrich';              Text = "URL cleared: 'Longtermism' (invalid, no Wikipedia)" }
-        @{ Name = 'enrich';              Text = " failed: The property 'name' cannot be found on this object." }
+        @{ Name = 'enrich';              Text = "Lineage enrichment: skipped an AI entry with no 'name'" }      # t/4077 item 1
+        @{ Name = 'enrich';              Text = '  5 enriched' }                                                  # t/4077 item 1
+        @{ Name = 'batches';             Text = "Refreshed stale cache entry: 'Stale Thing'" }                     # t/4077 item 3
+        @{ Name = 'force';               Text = 'Need enrichment: 0' }                                             # t/4077 item 4
+        @{ Name = 'node-filter';         Text = 'Need enrichment: 0' }                                             # t/4077 item 4
+        # t/4077 item 2 is deferred until t/4075's version-token helper lands: still pinned as-is.
+        @{ Name = 'batches';             Text = "Dedup guard: 'Doctrine 2' → existing 'Doctrine 1'" }
         @{ Name = 'batches';             Text = ' failed: 429 Too Many Requests' }
         @{ Name = 'batches';             Text = ' no response' }
         @{ Name = 'no-key';              Text = 'No API key — can only apply cached enrichments' }
@@ -584,18 +594,57 @@ Describe 'Repair-PovLineage characterization (t/3910)' -Tag 'taxonomy' {
         @($after.Keys | Where-Object { $_ -notlike '*/' }).Count | Should -Be @($before.Keys | Where-Object { $_ -notlike '*/' }).Count
     }
 
-    It 'guards every POV-file write with Assert-DataWriteAllowed, one per written file (<Name>)' -ForEach @(
-        $script:Scenarios | Where-Object { $_.Name -in 'enrich', 'multi-pov', 'fixurls', 'regen', 'dedup-a' }
+    It 'guards every data-file write (POV files and the lineage cache) with Assert-DataWriteAllowed, one per write (<Name>)' -ForEach @(
+        $script:Scenarios | Where-Object { $_.Name -in 'enrich', 'multi-pov', 'fixurls', 'regen', 'dedup-a', 'url-phase' }
     ) {
         $null = script:Invoke-Scenario $_
-        $povWrites = @($script:Writes | Where-Object { $_ -like 'taxonomy/Origin/*' } | ForEach-Object { ($_ -split ' ')[0] })
-        @($script:Guards | Sort-Object) | Should -Be @($povWrites | Sort-Object)
-        $povWrites.Count | Should -BeGreaterThan 0
+        $writes = @($script:Writes | ForEach-Object { ($_ -split ' ')[0] })
+        @($script:Guards | ForEach-Object { ($_ -split ' ')[0] } | Sort-Object) | Should -Be @($writes | Sort-Object)
+        $writes.Count | Should -BeGreaterThan 0
     }
 
-    # More than ten dedup merges: which ten are sampled follows the $DedupMap hashtable, so only the
-    # counts are pinned here (no golden).
-    It 'samples ten dedup merges and counts the rest' {
+    # t/4077 item 6: the cache is a tracked data-repo file, so its first write in a run is guarded, and the
+    # URL-validation re-save in the same run takes the same-sequence exemption (-AllowDirty, t/2902 cond. 4).
+    It 'guards the lineage cache, and marks its same-run rewrite -AllowDirty (t/4077)' -ForEach @(
+        $script:Scenarios | Where-Object { $_.Name -eq 'url-phase' }
+    ) {
+        $null = script:Invoke-Scenario $_
+        @($script:Guards | Where-Object { $_ -like 'calibration/*' }) |
+            Should -Be @('calibration/core/lineage-enrichments.json', 'calibration/core/lineage-enrichments.json [AllowDirty]')
+    }
+
+    # t/4077 item 5: the harness above sorts write runs and canonicalizes the cache, so these read the RAW
+    # order the code produces.
+    It 'writes lineage-enrichments.json with keys in ordinal order at both levels (t/4077)' -ForEach @(
+        $script:Scenarios | Where-Object { $_.Name -eq 'enrich' }
+    ) {
+        $null = script:Invoke-Scenario $_
+        $text = [System.IO.File]::ReadAllText((Join-Path $script:RootFixture $script:CacheRel))
+        $cache = $text | ConvertFrom-Json -AsHashtable   # an OrderedHashtable: keeps the file's key order
+        $keys = [string[]]@($cache.Keys)
+        $sorted = [string[]]@($keys); [Array]::Sort($sorted, [System.StringComparer]::Ordinal)
+        $keys | Should -Be $sorted
+        $keys.Count | Should -BeGreaterThan 2
+        foreach ($k in $keys) {
+            $fields = [string[]]@($cache[$k].Keys)
+            $fsorted = [string[]]@($fields); [Array]::Sort($fsorted, [System.StringComparer]::Ordinal)
+            $fields | Should -Be $fsorted -Because "entry '$k' fields are written in ordinal order"
+        }
+    }
+
+    It 'writes the POV files in ordinal order (t/4077)' -ForEach @(
+        $script:Scenarios | Where-Object { $_.Name -eq 'multi-pov' }
+    ) {
+        $null = script:Invoke-Scenario $_
+        $pov = [string[]]@($script:Writes | Where-Object { $_ -like 'taxonomy/Origin/*' } | ForEach-Object { ($_ -split ' ')[0] })
+        $sorted = [string[]]@($pov); [Array]::Sort($sorted, [System.StringComparer]::Ordinal)
+        $pov.Count | Should -BeGreaterThan 1
+        $pov | Should -Be $sorted
+    }
+
+    # More than ten dedup merges: the sample is the first ten keys of $DedupMap in ordinal order (t/4077;
+    # before, which ten followed the hashtable).
+    It 'samples the first ten dedup merges in ordinal key order and counts the rest' {
         $vals = @(1..12 | ForEach-Object { "Thing $_" }) + @(1..12 | ForEach-Object { "Thing $_ (variant)" })
         $vec = @{}
         for ($i = 1; $i -le 12; $i++) {
@@ -611,6 +660,8 @@ Describe 'Repair-PovLineage characterization (t/3910)' -Tag 'taxonomy' {
         Mock Get-TextEmbedding -ModuleName AITriad { $h = @{}; foreach ($id in @($Ids)) { if ($script:ManySpec.ContainsKey($id)) { $h[$id] = $script:ManySpec[$id] } }; $h }
         $lines = @(Repair-PovLineage -Model $s.Params.Model -WhatIf 6>&1 | ForEach-Object { [string]$_.MessageData.Message })
         @($lines | Where-Object { $_ -like "    '*' → '*'" }).Count | Should -Be 10
+        $sampled = @($lines | Where-Object { $_ -like "    '*' → '*'" } | ForEach-Object { ($_ -split "'")[1] })
+        $sampled | Should -Be @(1, 10, 11, 12, 2, 3, 4, 5, 6, 7 | ForEach-Object { "Thing $_ (variant)" })
         $lines | Should -Contain '    ... and 2 more'
         $lines | Should -Contain 'Dedup: 24 → 12 canonical values (12 merged)'
     }
