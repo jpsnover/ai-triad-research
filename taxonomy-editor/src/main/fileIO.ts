@@ -495,6 +495,63 @@ export function readPolicyRegistry(): unknown {
   return parseJsonFile(filePath);
 }
 
+// t/4038: policy_actions.lock mirrors PowerShell's Enter-GroundingLock / Enter-PolicyRegistryLock
+// (scripts/AITriad/Private/GroundingLock.ps1, PolicyRegistryCore.ps1, #2983) — same constants, same
+// atomic-exclusive-create + poll + stale-break semantics, so the editor and PS `Update-PolicyRegistry
+// -Fix` serialize against the SAME lockfile. Async (not PS's blocking Start-Sleep) because this runs
+// on Electron's main process event loop.
+const POLICY_LOCK_WAIT_MS = 60_000;
+const POLICY_LOCK_STALE_MS = 120_000;
+const POLICY_LOCK_POLL_MS = 500;
+
+function policyRegistryLockPath(): string {
+  return path.join(activeTaxonomyDir, 'policy_actions.lock');
+}
+
+/** Acquire policy_actions.lock. Returns the open handle, or null on a 60s timeout (caller maps
+ *  that to `{ status: 'refused', reason: 'locked' }` — never throws for a plain timeout). */
+export async function acquirePolicyRegistryLock(): Promise<fs.promises.FileHandle | null> {
+  const lockPath = policyRegistryLockPath();
+  const start = Date.now();
+  let warnedStale = false;
+  for (;;) {
+    try {
+      return await fs.promises.open(lockPath, 'wx');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+      let age = 0;
+      try { age = Date.now() - fs.statSync(lockPath).mtimeMs; } catch { /* telemetry — silent by design; lock vanished between open and stat, retry immediately */ }
+      if (age > POLICY_LOCK_STALE_MS) {
+        if (!warnedStale) {
+          warnedStale = true;
+          getGlobalRecorder()?.record({
+            type: 'system.error', component: 'file-io', level: 'warn',
+            message: `acquirePolicyRegistryLock: breaking stale lock '${lockPath}' (mtime age ${Math.round(age / 1000)}s > ${POLICY_LOCK_STALE_MS / 1000}s — holder presumed dead)`,
+            data: { lockPath, ageSeconds: Math.round(age / 1000) },
+          });
+        }
+        try { fs.unlinkSync(lockPath); } catch { /* telemetry — silent by design; next loop retries the open or re-checks age */ }
+        continue;
+      }
+      if (Date.now() - start >= POLICY_LOCK_WAIT_MS) return null;
+      await new Promise((resolve) => setTimeout(resolve, POLICY_LOCK_POLL_MS));
+    }
+  }
+}
+
+export function releasePolicyRegistryLock(handle: fs.promises.FileHandle): void {
+  handle.close().catch(() => { /* telemetry — silent by design; handle already invalid */ });
+  try { fs.unlinkSync(policyRegistryLockPath()); } catch { /* telemetry — silent by design; already removed */ }
+}
+
+/** The one write path for policy_actions.json from TypeScript — takes the already-serialized
+ *  string from lib/policy/registryRecount.ts's serializePolicyRegistry, so the editor and
+ *  PowerShell never fight over formatting (e/264#7 point 3). */
+export function writePolicyRegistryRaw(content: string): void {
+  const filePath = path.join(activeTaxonomyDir, 'policy_actions.json');
+  writeStringAtomic(filePath, content, 'writePolicyRegistryRaw');
+}
+
 // t/4054: pov-tag-proposals.json (t/4052) — absent file is a legitimate "nothing to review yet"
 // state (null), not an error; a present-but-malformed file is the caller's problem to surface.
 export function readPovTagProposals(): unknown {

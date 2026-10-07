@@ -26,6 +26,9 @@ import {
   buildNodeSourceIndex,
   buildPolicySourceIndex,
   readPolicyRegistry,
+  acquirePolicyRegistryLock,
+  releasePolicyRegistryLock,
+  writePolicyRegistryRaw,
   readPovTagProposals,
   writePovTagProposals,
   readAggregatedCruxes,
@@ -60,6 +63,15 @@ import { computeEmbeddings, computeQueryEmbedding } from '../embeddings.js';
 import { computeClaimTaxonomyAttribution } from '../../../../lib/debate/argumentNetwork/attribution.js';
 import type { ArgumentNetworkNode, ClaimTaxonomyAttribution } from '../../../../lib/debate/types.js';
 import { writeNodeDeleteLogEntry } from '../nodeDeleteLog.js';
+import {
+  recountPolicyMembers,
+  serializePolicyRegistry,
+  POLICY_POV_FILES,
+  type PolicyRegistry,
+  type PolicyPovFile,
+  type PolicyPovFileData,
+  type RecountPolicyMembersResult,
+} from '../../../../lib/policy/registryRecount.js';
 
 // Recorder-backed sink for the rationale re-merge's "baseline twin matched no incoming edge"
 // case: a real rationale isn't written, logged so a systematic tie-break mismatch is
@@ -344,6 +356,42 @@ export function registerTaxonomyHandlers(): void {
     if ('refused' in result) return result;
     writePovTagProposals(result.file);
     return result;
+  });
+
+  // t/4034/t/4038: recount member_count/source_povs for the given policy ids after an editor
+  // edit adds/removes a node's policy action from the registry picker (t/4034 description).
+  // PI ruling e/264#29 (option a): the editor's recount never refuses on an uncommitted registry
+  // — only the lock can refuse. Flow (t/4038#4, minus the dropped dirty-tree step): acquire
+  // policy_actions.lock -> read registry + 4 POV files -> recountPolicyMembers -> `unchanged`
+  // before any write -> write via the one serializer -> release the lock in `finally`.
+  ipcMain.handle('recount-policy-members', async (_event, ids: string[]): Promise<RecountPolicyMembersResult> => {
+    const handle = await acquirePolicyRegistryLock();
+    if (!handle) {
+      return { status: 'refused', reason: 'locked', updated: [] };
+    }
+    try {
+      const rawRegistry = readPolicyRegistry();
+      if (rawRegistry === null) {
+        throw new ActionableError({
+          goal: 'Recount policy registry member counts',
+          problem: 'policy_actions.json does not exist — there is nothing to recount',
+          location: 'ipc/taxonomyHandlers.ts → recount-policy-members',
+          nextSteps: ['Create policy_actions.json before adding policy actions to a node'],
+        });
+      }
+      const povFiles: Partial<Record<PolicyPovFile, PolicyPovFileData>> = {};
+      for (const pov of POLICY_POV_FILES) {
+        povFiles[pov] = readTaxonomyFile(pov) as PolicyPovFileData;
+      }
+      const { registry, updated, changed } = recountPolicyMembers(rawRegistry as PolicyRegistry, povFiles, ids);
+      if (!changed) {
+        return { status: 'unchanged', updated: [] };
+      }
+      writePolicyRegistryRaw(serializePolicyRegistry(registry));
+      return { status: 'written', updated };
+    } finally {
+      releasePolicyRegistryLock(handle);
+    }
   });
 
   ipcMain.handle('load-lineage-categories', () => {

@@ -19,6 +19,7 @@ import type { UserPreferences } from '../../../lib/userPreferencesSchema.js';
 import type { PovTagProposalsFile, ApplyProposalDecisionResult } from '../../../lib/schema/povTagProposals.js';
 import type { InquiryRequest, InquiryResult } from '../../../lib/inquiry/index.js';
 import type { NodeDeleteLogEntry } from './nodeDeleteLog.js';
+import type { RecountPolicyMembersResult } from '../../../lib/policy/registryRecount.js';
 
 // t/3532: mirrors bridge/types.ts's FetchRelevantNodesPayload/FetchClaimAttributionPayload/
 // ClaimAttributionResponse structurally (those are defined directly in bridge/types.ts, not
@@ -147,6 +148,9 @@ function buildElectronApi() {
 
   loadPolicyRegistry: (): Promise<unknown> =>
     ipcRenderer.invoke('load-policy-registry'),
+
+  recountPolicyMembers: (ids: string[]): Promise<RecountPolicyMembersResult> =>
+    ipcRenderer.invoke('recount-policy-members', ids),
 
   loadPovTagProposals: (): Promise<PovTagProposalsFile | null> =>
     ipcRenderer.invoke('load-pov-tag-proposals'),
