@@ -725,7 +725,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
 
       await Promise.all(promises);
       // t/4034: recount the registry for policy ids this save changed, BEFORE the commit so it lands with the edit.
-      const policyRecount = await runPolicyRecount(affectedPolicyIds(savedPolicyNodes(dirtyKeys, state), allPolicyNodes(state), state.policyIdsBaseline), api.recountPolicyMembers);
+      const policyRecount = await runPolicyRecount(affectedPolicyIds(savedPolicyNodes(dirtyKeys, state), allPolicyNodes(state), state.policyIdsBaseline), api.recountPolicyMembers, { leavesRegistryUncommitted: import.meta.env.VITE_TARGET !== 'web' });
 
       const commitResult = await api.syncCommit();
       // save.completed = file write + git commit done — the durable save point (`dirty` is

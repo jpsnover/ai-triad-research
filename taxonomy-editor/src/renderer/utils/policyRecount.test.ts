@@ -61,9 +61,17 @@ describe('runPolicyRecount (t/4034)', () => {
 
   it('refused (any reason) or a rejected call: a notice, never a throw', async () => {
     expect(await runPolicyRecount(['pol-001'], async () => ({ status: 'refused', reason: 'locked', updated: [] })))
-      .toEqual({ updates: [], notice: { ids: ['pol-001'], reason: 'locked' } });
+      .toEqual({ updates: [], notice: { kind: 'not-updated', ids: ['pol-001'], reason: 'locked' } });
     expect(await runPolicyRecount(['pol-001'], async () => { throw new Error('no handler'); }))
-      .toEqual({ updates: [], notice: { ids: ['pol-001'], reason: 'failed' } });
+      .toEqual({ updates: [], notice: { kind: 'not-updated', ids: ['pol-001'], reason: 'failed' } });
+  });
+
+  it('desktop (registry left uncommitted): a write also gives a needs-commit notice; unchanged does not (e/264#26)', async () => {
+    const desktop = { leavesRegistryUncommitted: true };
+    expect(await runPolicyRecount(['pol-001', 'pol-002'], async () => ({ status: 'written', updated: upd }), desktop))
+      .toEqual({ updates: upd, notice: { kind: 'needs-commit', ids: ['pol-001'], reason: 'uncommitted' } });
+    expect(await runPolicyRecount(['pol-001'], async () => ({ status: 'unchanged', updated: [] }), desktop))
+      .toEqual({ updates: [], notice: null });
   });
 });
 

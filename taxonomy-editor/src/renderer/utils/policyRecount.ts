@@ -55,10 +55,14 @@ export function affectedPolicyIds(
   return [...ids].sort();
 }
 
-/** A non-blocking notice when the post-save recount could not update the registry. */
+/** A non-blocking notice after the post-save recount. */
 export interface PolicyRecountNotice {
+  /** 'not-updated': the counts are still stale. 'needs-commit': they were written but policy_actions.json
+   *  is left uncommitted (desktop), and PowerShell registry writers refuse a dirty registry (e/264#26). */
+  kind: 'not-updated' | 'needs-commit';
   ids: string[];
-  /** 'locked': another writer held policy_actions.lock; 'failed': the call errored; otherwise the backend's reason. */
+  /** 'locked': another writer held policy_actions.lock; 'failed': the call errored; 'uncommitted':
+   *  needs-commit; otherwise the backend's reason. */
   reason: string;
 }
 
@@ -68,22 +72,30 @@ export type PolicyCountUpdates = Array<{ id: string; member_count: number; sourc
 /**
  * Run the recount for `ids` and say what to do with the result. Never throws: the POV save already
  * succeeded, so a recount problem is a WARN plus a notice, not a failed save (Fallback-Path Logging).
- * `recount` is the bridge call, injected for tests.
+ * `recount` is the bridge call, injected for tests. `leavesRegistryUncommitted` is true on desktop, where
+ * the editor never commits: a write there also gets a notice, because until someone commits the registry
+ * the next pipeline run leaves new policy actions unregistered. The web backend commits every write.
  */
 export async function runPolicyRecount(
   ids: string[],
   recount: (ids: string[]) => Promise<{ status: string; reason?: string; updated: PolicyCountUpdates }>,
+  opts: { leavesRegistryUncommitted?: boolean } = {},
 ): Promise<{ updates: PolicyCountUpdates; notice: PolicyRecountNotice | null }> {
   if (ids.length === 0) return { updates: [], notice: null };
   try {
     const result = await recount(ids);
-    if (result.status === 'written') return { updates: result.updated, notice: null };
+    if (result.status === 'written') {
+      const notice: PolicyRecountNotice | null = opts.leavesRegistryUncommitted && result.updated.length > 0
+        ? { kind: 'needs-commit', ids: result.updated.map(u => u.id), reason: 'uncommitted' }
+        : null;
+      return { updates: result.updated, notice };
+    }
     if (result.status === 'unchanged') return { updates: [], notice: null };
     getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'warn', message: `Policy registry recount refused (${result.reason ?? 'unknown'}); counts for ${ids.length} policies not updated`, data: { ids, reason: result.reason } });
-    return { updates: [], notice: { ids, reason: result.reason ?? 'refused' } };
+    return { updates: [], notice: { kind: 'not-updated', ids, reason: result.reason ?? 'refused' } };
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Policy registry recount failed after save; counts not updated', data: { ids }, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-    return { updates: [], notice: { ids, reason: 'failed' } };
+    return { updates: [], notice: { kind: 'not-updated', ids, reason: 'failed' } };
   }
 }
 
