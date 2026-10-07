@@ -421,7 +421,7 @@ Describe 'Code-referenced model emitter shares the lint scan (t/3553, SO e/271)'
         # tests/ + production literals, and the lint's offender set must be the remaining unregistered,
         # unexempted ones — i.e. literal ids = emitted ∪ offenders ∪ exempt-unregistered, nothing else.
         $emitter = Join-Path $script:RepoRoot 'scripts' 'Get-CodeReferencedModels.ps1'
-        $emitted = @(pwsh -NoProfile -File $emitter | ConvertFrom-Json)
+        $emitted = @(pwsh -NoProfile -NonInteractive -File $emitter -Scope All -Json | ConvertFrom-Json)
         $all = @($script:ModelLiterals) + @($script:ProdLiterals)
         $expected = @(script:Get-CodeReferencedModelIds -Literals $all -ValidIds $script:ValidIds)
         @($emitted | Sort-Object) | Should -Be @($expected | Sort-Object)

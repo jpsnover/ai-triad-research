@@ -18,15 +18,20 @@
     All (default), Tests or Production.
 .PARAMETER RepoRoot
     The code repository root. Defaults to this script's parent directory.
+.PARAMETER Json
+    Emit a JSON array on stdout — ALWAYS an array, even for zero or one id. This is how the generator
+    calls it (`pwsh -NoProfile -NonInteractive -File scripts/Get-CodeReferencedModels.ps1 -Scope All -Json`),
+    and it refuses non-array output. Without -Json the ids are written as strings, for PowerShell callers.
 .OUTPUTS
-    A JSON array of model id strings on stdout.
+    With -Json: a JSON array of model id strings. Without: [string] ids.
 .EXAMPLE
-    pwsh -NoProfile -File scripts/Get-CodeReferencedModels.ps1
+    pwsh -NoProfile -NonInteractive -File scripts/Get-CodeReferencedModels.ps1 -Scope All -Json
 #>
 [CmdletBinding()]
 param(
     [ValidateSet('All', 'Tests', 'Production')][string]$Scope = 'All',
-    [string]$RepoRoot = (Join-Path $PSScriptRoot '..')
+    [string]$RepoRoot = (Join-Path $PSScriptRoot '..'),
+    [switch]$Json
 )
 
 Set-StrictMode -Version Latest
@@ -51,4 +56,5 @@ if ($validIds.Count -eq 0) {
 $scopes = if ($Scope -eq 'All') { @('Tests', 'Production') } else { @($Scope) }
 $literals = foreach ($s in $scopes) { script:Get-ModelLiteralScopeScan -RepoRoot $RepoRoot -Scope $s }
 $ids = @(script:Get-CodeReferencedModelIds -Literals @($literals) -ValidIds $validIds)
-ConvertTo-Json -InputObject $ids -Compress
+# -InputObject (not the pipeline) keeps a one-element array an array: `@('x') | ConvertTo-Json` unrolls to "x".
+if ($Json) { ConvertTo-Json -InputObject ([string[]]$ids) -Compress } else { $ids }
