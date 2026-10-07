@@ -112,8 +112,8 @@ beforeEach(() => {
   ensureSessionBranchMock.mockResolvedValue(undefined);
   fsOpenMock.mockResolvedValue({ close: vi.fn() });
   fsUnlinkMock.mockResolvedValue(undefined);
-  // readTaxonomyFile returns an empty file for all POV files by default
-  readTaxonomyFileMock.mockResolvedValue({ nodes: [] });
+  // Filler node with no policy references — valid corpus, passes #3050's non-empty guard
+  readTaxonomyFileMock.mockResolvedValue({ nodes: [{ id: 'fixture-filler' }] });
 });
 
 // ── tests ────────────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ describe('POST /api/policy-registry/recount (t/4039)', () => {
     // pol-002 has member_count:1, source_povs:['acc'] — feed it the same data
     const acc = { nodes: [{ id: 'acc-001', graph_attributes: { policy_actions: [{ policy_id: 'pol-002' }] } }] };
     readFileMock.mockResolvedValue(REGISTRY_RAW);
-    readTaxonomyFileMock.mockImplementation(async (pov: string) => pov === 'accelerationist' ? acc : { nodes: [] });
+    readTaxonomyFileMock.mockImplementation(async (pov: string) => pov === 'accelerationist' ? acc : { nodes: [{ id: 'fixture-filler' }] });
 
     const { status, body } = await invoke({ body: { ids: ['pol-002'] } });
 
@@ -164,7 +164,7 @@ describe('POST /api/policy-registry/recount (t/4039)', () => {
   it('returns { status: written, updated } and writes the file when counts change', async () => {
     readFileMock.mockResolvedValue(REGISTRY_RAW);
     readTaxonomyFileMock.mockImplementation(async (pov: string) =>
-      pov === 'accelerationist' ? ACC_FILE : { nodes: [] },
+      pov === 'accelerationist' ? ACC_FILE : { nodes: [{ id: 'fixture-filler' }] },
     );
     writeFileMock.mockResolvedValue(undefined);
 
@@ -186,7 +186,7 @@ describe('POST /api/policy-registry/recount (t/4039)', () => {
   it('releases the lock (unlinks the lock file) after a successful write', async () => {
     readFileMock.mockResolvedValue(REGISTRY_RAW);
     readTaxonomyFileMock.mockImplementation(async (pov: string) =>
-      pov === 'accelerationist' ? ACC_FILE : { nodes: [] },
+      pov === 'accelerationist' ? ACC_FILE : { nodes: [{ id: 'fixture-filler' }] },
     );
     writeFileMock.mockResolvedValue(undefined);
 
@@ -198,7 +198,7 @@ describe('POST /api/policy-registry/recount (t/4039)', () => {
   it('releases the lock even when the write throws', async () => {
     readFileMock.mockResolvedValue(REGISTRY_RAW);
     readTaxonomyFileMock.mockImplementation(async (pov: string) =>
-      pov === 'accelerationist' ? ACC_FILE : { nodes: [] },
+      pov === 'accelerationist' ? ACC_FILE : { nodes: [{ id: 'fixture-filler' }] },
     );
     writeFileMock.mockRejectedValue(new Error('disk full'));
 
@@ -213,7 +213,7 @@ describe('POST /api/policy-registry/recount (t/4039)', () => {
     fsOpenMock.mockRejectedValue(enoent);
     readFileMock.mockResolvedValue(REGISTRY_RAW);
     readTaxonomyFileMock.mockImplementation(async (pov: string) =>
-      pov === 'accelerationist' ? ACC_FILE : { nodes: [] },
+      pov === 'accelerationist' ? ACC_FILE : { nodes: [{ id: 'fixture-filler' }] },
     );
     writeFileMock.mockResolvedValue(undefined);
 
