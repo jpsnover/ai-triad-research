@@ -24,7 +24,7 @@ import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { buildDebateOptions } from './newDebateOptions';
 import { SettingsToggleRow } from './SettingsToggleRow';
-import { SeatTagPicker, seatTagLabel, seatTagRefusal, registryOrNull } from './SeatTagPicker';
+import { SeatTagPicker, seatTagLabel, seatTagRefusal, seatTagIssueMessage, registryOrNull } from './SeatTagPicker';
 
 const DEBATE_EXCLUDED_BACKENDS = new Set(['ollama']); // can't reliably produce structured JSON for debates — capability gap, not an oversight
 
@@ -86,7 +86,7 @@ function buildCreationWeights(confrontationRounds: number, argumentationRounds: 
 }
 // t/3958: extracted out of NewDebateDialog/DebateSettingsDialog so their own branch count (ESLint complexity-budget, t/3821) doesn't absorb the seat-tag refusal logic.
 function computeCanStart(hasSource: boolean, selectedSize: number, multiProvider: boolean, activeBackendsLen: number, activeModelHasKey: boolean, seatTagIssue: unknown): boolean { return hasSource && selectedSize >= 1 && (multiProvider ? activeBackendsLen >= 2 : activeModelHasKey) && !seatTagIssue; }
-function renderSeatTagIssueBanner(startError: string | null, seatTagIssue: ReturnType<typeof seatTagRefusal>, className: string) { return !startError && seatTagIssue ? <div className={className} role="alert">{seatTagIssue.minimum ? `Only ${seatTagIssue.inScope} node${seatTagIssue.inScope === 1 ? '' : 's'} carry the selected tag (minimum ${seatTagIssue.minimum})` : 'No nodes carry the selected tag'} — change the tag or mode for that seat.</div> : null; }
+function renderSeatTagIssueBanner(startError: string | null, seatTagIssue: ReturnType<typeof seatTagRefusal>, className: string) { return !startError && seatTagIssue ? <div className={className} role="alert">{seatTagIssueMessage(seatTagIssue)} — change the tag or mode for that seat.</div> : null; }
 
 function buildDebateSourceArgs(sourceType: DebateSourceType, sourceRef: string, finalContent: string): { sourceTypeArg: DebateSourceType; sourceRefArg: string; contentArg: string } {
   return {

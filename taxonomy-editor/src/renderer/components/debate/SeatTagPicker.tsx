@@ -44,6 +44,15 @@ export function seatTagRefusal(povNodes: PovNode[], seatTag: SeatTag | undefined
   return undefined;
 }
 
+/** TL p/696#6: the insufficient-scope message must show all three values — in-scope count,
+ *  excluded count, and the minimum — not just in-scope and minimum. Shared by SeatTagPicker's
+ *  own inline refusal and NewDebateDialog's banner so the wording only lives once. */
+export function seatTagIssueMessage(refusal: NonNullable<ReturnType<typeof seatTagRefusal>>): string {
+  return refusal.minimum
+    ? `Only ${refusal.inScope} in scope, ${refusal.excluded} excluded (minimum ${refusal.minimum})`
+    : 'No nodes carry this tag';
+}
+
 interface SeatTagPickerProps {
   pov: PovName;
   povNodes: PovNode[];
@@ -103,11 +112,7 @@ export function SeatTagPicker({ pov, povNodes, registry, seatTag, onChange }: Se
       )}
 
       {refusal && (
-        <div className="seat-tag-picker-refusal" role="alert">
-          {refusal.minimum
-            ? `Only ${refusal.inScope} node${refusal.inScope === 1 ? '' : 's'} carry this tag (minimum ${refusal.minimum}) — pick a different tag or mode.`
-            : `No nodes carry this tag — pick a different tag or mode.`}
-        </div>
+        <div className="seat-tag-picker-refusal" role="alert">{seatTagIssueMessage(refusal)} — pick a different tag or mode.</div>
       )}
     </div>
   );
