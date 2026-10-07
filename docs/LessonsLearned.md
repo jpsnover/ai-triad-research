@@ -720,6 +720,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-26 — PowerShell 2 (p/228#1): `node require('/c/Users/.../file.json')` (a **git-bash `/c/...` msys path**) threw MODULE_NOT_FOUND — `node`'s win32 runtime doesn't resolve msys paths. Fixed by reading the JSON via the PowerShell tool with a native `C:\...` path. Tell: the wrong-tool axis isn't just *syntax* — it's also **path format**; a native win32 program invoked from Bash needs a native `C:\...` (or repo-relative) path, not `/c/...`.
 - 2026-07-28 — Taxonomy Editor 2 (**`/tmp` mount variant**, p/195#5): `node -e "require('/tmp/x.json')"` failed MODULE_NOT_FOUND — Node's win32 runtime can't resolve git-bash's **`/tmp` mount** (virtual msys mount, not a real Windows path), and `> /tmp/…` redirects write where Node can't `require`. Fix: for any **Node-consumed temp file, use the session scratchpad's absolute Windows path**, not `/tmp`. Generalizes p/228#1: `/tmp` and `/c/...` are both git-bash-only paths native `node` can't see.
 - 2026-10-06 — DevOps Lead (**`/tmp` mount variant — Python**, p/26#143): Python one-liner reading `/tmp/rec.json` got `FileNotFoundError` immediately after Bash wrote that file. Same root: Git-Bash's `/tmp` is a virtual MSYS mount; Python (a native win32 process) resolves its own `/tmp` — a different directory. Fix: write to the session scratchpad absolute path and pass that to Python. Second `/tmp`-mount instance; Node and Python both affected — **any native win32 process reading a file Bash wrote to `/tmp` will get FileNotFoundError.**
+- 2026-10-07 — PowerShell (p/20#78, t/3910, **`/tmp` mount variant — pwsh child process**): `pwsh -Command "Invoke-ScriptAnalyzer -Path /tmp/x.ps1"` run from Git Bash reported "Cannot find path C:\tmp\x.ps1". Git-Bash's `/tmp` is a virtual MSYS mount; when `pwsh` is spawned as a child process it resolves `/tmp` as the literal Windows path `C:\tmp`, which doesn't exist. Fix: write scratch files under a Windows-visible path (session scratchpad or worktree) when a `pwsh` child process reads them. Third `/tmp`-mount instance; Node, Python, AND pwsh (as a child of Bash) all affected.
 - 2026-08-03 — Shared Lib (p/5#23): **`cd C:\...` path in Bash (POSIX sh)** — Windows backslash paths are not valid POSIX paths; Bash interprets `\` as escape sequences and silently fails with "No such file or directory". Fixed by switching to the PowerShell tool for all git/shell ops.
 - 2026-08-04 — TL (p/335#1): **Bash glob with `C:\...` Windows path** — MSYS mangled the backslashes during glob expansion; no matches returned. Resolved by switching to the **Glob tool**, which handles Windows paths natively without MSYS translation.
 - 2026-08-04 — Shared Lib (p/5#25): **`cd C:\...` path in Bash again** — same failure as p/5#23. **Second time same agent hit identical mistake** → per-agent memory ("on win32, paths/shell ops = PowerShell tool") is the durable fix (mirrors the Diagnostics double-hit, p/9#28+34).
@@ -4379,8 +4380,15 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 4. Covered in root AGENTS.md PR-Flow Practice Rules — this instance demonstrates the non-consult variant.
 
 - 2026-10-07 — Computational Linguist (p/7#104, t/4040#19): PR #3032 (draft, meant to merge after #3033) was un-drafted and merged 12 minutes early by an unknown actor on shared credentials. Draft provided no real ordering enforcement. Both PRs ended up on `main` and consistent, so no rollback needed. **Prevention identified:** use `consult-hold` label for ordering dependencies, or don't open the dependent PR until its prerequisite merges.
+- 2026-10-07 — Computational Linguist (p/7#108, same day): same unknown actor also **un-drafted and armed auto-merge** on PR #3031 (a held PR). This time `consult-hold` label was present — `consult-hold-guard` blocked the merge and the attempt was caught by Rosetta Stone before it landed. **New amplifiers: (1) the actor also armed auto-merge (not just un-drafted), and (2) two held PRs targeted in the same day suggests a systematic sweep, not a one-off.** TL flagged on e/268#35. **Confirms that `consult-hold` label is the one mechanism that held** — draft + un-draft + auto-merge arm = one action away from landing; the required status context is the gate.
 
-**Status:** Active — 2 instances (Computational Linguist p/7#90 t/3956; p/7#104 t/4040#19). Both: draft lifted early, merge completes normally, no warning. Silent failure class.
+**Status:** Active — 3 instances (Computational Linguist p/7#90 t/3956; p/7#104 t/4040#19; p/7#108). Escalating severity: inst3 added auto-merge arming and a second target on the same day. `consult-hold` label confirmed as the only enforced gate.
+
+**Prevention (updated):**
+1. **Apply `consult-hold` label to ANY PR that must not merge** — not just mandatory-consult ones. It is the only mechanism that survives an unknown actor un-drafting and arming auto-merge.
+2. **Draft + ticket relations + hold comments = visibility only.** The label is the gate.
+3. **Set `consult-hold` at PR creation** (`gh pr create --label consult-hold`), not reactively — a post-creation window exists where the PR is unprotected.
+4. **Two un-draft events on the same day = sweep, not coincidence.** If you see unexplained un-drafting, escalate to TL immediately; the cause may be automation or an actor with broad credentials.
 
 **Applies To:** All agents holding PRs on cross-ticket blockers or external conditions of any kind.
 
@@ -4582,3 +4590,24 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (PowerShell, p/20#76, t/4065).
 
 **Applies To:** All agents writing Pester mocks for built-in PS cmdlets that need a real-implementation passthrough.
+
+---
+
+## #218 [Build] Transient GitHub Receive-Pack 500 — `git push` Fails Repeatedly While Fetch and REST Writes Succeed
+
+**Pattern:** `git push` fails with HTTP 500 on the `git-smart-http receive-pack` path 5+ times consecutively across different branch names, while `git fetch` and GitHub REST API writes (`gh api .../git/refs`) succeed throughout. This is a GitHub-side transient degradation **isolated to the receive-pack push path** — not a repo-wide outage, not a branch-specific block, not a credentials issue.
+
+**Instances:**
+- 2026-10-07 — DevOps Worker (p/749#1): `git push` 500'd 5x on receive-pack across 2 different branch names; `git fetch` and `gh api` REST writes worked the whole time. Resolved by waiting briefly and retrying once — succeeded clean with no workaround.
+
+**Root Cause:** GitHub's receive-pack endpoint is a separate service path from `fetch` (upload-pack) and the REST API. Partial degradations can affect one path while others remain healthy. Five consecutive failures across different branches confirms it is not branch-specific; simultaneous REST write success confirms it is not repo-wide.
+
+**Prevention:**
+1. **Diagnose before workarounds:** if `git push` 500s but `git fetch` and `gh api` writes work, the issue is GitHub-side transient on the receive-pack path. Wait 1–2 minutes and retry once — no branch rename, credential rotation, or protocol change is needed.
+2. **Discriminator: `git fetch` works + REST writes work + `git push` 500s = receive-pack-specific.** If fetch also fails, it may be a broader outage; check GitHub status.
+3. **5 consecutive failures across 2 branch names rules out branch-specific causes.** Do not assume the remote ref is corrupted or the branch is protected.
+4. **Do not force-push or workaround the 500.** Wait and retry plain `git push`; the transient resolves without intervention.
+
+**Status:** Active — 1 instance (DevOps Worker, p/749#1). Self-resolving; risk is unnecessary workarounds consuming time.
+
+**Applies To:** All agents pushing to GitHub remotes via `git push`.
