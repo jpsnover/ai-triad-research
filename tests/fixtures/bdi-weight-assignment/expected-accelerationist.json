@@ -1,0 +1,82 @@
+{
+  "last_modified": "2026-01-01",
+  "nodes": [
+    {
+      "id": "acc-beliefs-001",
+      "category": "Beliefs",
+      "label": "acc emp high",
+      "graph_attributes": {
+        "epistemic_type": "empirical_claim",
+        "falsifiability": "high"
+      },
+      "confidence": 0.8,
+      "confidence_history": [
+        {
+          "date": "2026-03-04",
+          "value": 0.8,
+          "delta": 0,
+          "reason": "Initial multi-signal assignment"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "confidence",
+            "confidence_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "acc-desires-001",
+      "category": "Desires",
+      "label": "acc root desire",
+      "children": [],
+      "priority": 4,
+      "priority_history": [
+        {
+          "date": "2026-03-04",
+          "value": 4,
+          "delta": 0,
+          "reason": "Initial assignment: root-level Desire"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "priority",
+            "priority_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "acc-intentions-001",
+      "category": "Intentions",
+      "label": "acc leaf intention",
+      "operationality": 4,
+      "operationality_history": [
+        {
+          "date": "2026-03-04",
+          "value": 4,
+          "delta": 0,
+          "reason": "Initial assignment: leaf Intention"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "operationality",
+            "operationality_history"
+          ]
+        }
+      ]
+    }
+  ]
+}

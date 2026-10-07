@@ -295,11 +295,42 @@ describe('useChatStore', () => {
       expect(tagWarns()).toHaveLength(0);
     });
 
-    it('a Prioritize chat gets every node and a WARN until t/3996 orders them', async () => {
+    // t/3995 part 3: Prioritize keeps every node and hands formatTaxonomyContext the tagged ids, which it
+    // sorts first and marks ▲ (t/3996; the ordering itself is tested in lib/debate/taxonomyContext.test.ts).
+    const sentTagSelection = () => vi.mocked(formatTaxonomyContext).mock.calls.map(c => c[3]?.tagSelection);
+
+    it('a Prioritize chat gets every node, with its tagged ids passed to the formatter', async () => {
       await opening({ pov_tag: 'critical', tag_mode: 'prioritize' });
       expect(sentNodeIds()).toEqual([NODES.map(n => n.id)]);
+      const sel = sentTagSelection()[0];
+      expect(sel?.mode).toBe('prioritize');
+      expect([...(sel?.taggedIds ?? [])].sort()).toEqual(['skp-beliefs-001', 'skp-desires-001']);
+      expect(tagWarns()).toHaveLength(0);
+    });
+
+    it('follow-up turns of a Prioritize chat pass the tagged ids too', async () => {
+      useChatStore.setState({
+        activeChat: makeChatSession({
+          pover: 'skeptic', pov_tag: 'critical', tag_mode: 'prioritize',
+          transcript: [{ id: 'e1', timestamp: '2026-01-01T00:00:00Z', speaker: 'skeptic', content: 'Opening', taxonomy_refs: [] }],
+        }) as never,
+      });
+      await useChatStore.getState().sendMessage('follow-up');
+      expect([...(sentTagSelection()[0]?.taggedIds ?? [])].sort()).toEqual(['skp-beliefs-001', 'skp-desires-001']);
+    });
+
+    it('untagged and Scope chats pass no tagSelection (Scope is narrowed before formatting)', async () => {
+      await opening({});
+      await opening({ pov_tag: 'critical', tag_mode: 'scope' });
+      expect(sentTagSelection()).toEqual([undefined, undefined]);
+    });
+
+    it('a Prioritize chat whose tag no longer matches any node WARNs and still sends every node', async () => {
+      taxonomyNodes.skeptic = [{ id: 'skp-beliefs-009' }];
+      await opening({ pov_tag: 'critical', tag_mode: 'prioritize' });
+      expect(sentNodeIds()).toEqual([['skp-beliefs-009']]);
       expect(tagWarns()).toHaveLength(1);
-      expect(tagWarns()[0][0].message).toMatch(/t\/3996/);
+      expect(tagWarns()[0][0].message).toMatch(/no tagged nodes left/);
     });
 
     it('chatTagSelection needs both fields', () => {
