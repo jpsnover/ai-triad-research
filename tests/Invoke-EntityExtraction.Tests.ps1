@@ -503,7 +503,7 @@ Describe 'Invoke-EntityExtraction (t/1806 Phase 1)' -Tag 'unit' {
                 $node2 = $log.nodes | Where-Object { $_.node_id -eq 'node-2' }
                 @($node2.possible_duplicates).Count | Should -Be 1
                 @($node2.possible_duplicates)[0].matched_name | Should -Be 'Gemini 3.5 Flash'
-                $log._schema_version | Should -Be '1.2.0' -Because 'the additive possible_duplicates[] field bumps the log schema'
+                $log._schema_version | Should -Be '1.3.0' -Because 'possible_duplicates[] arrived in 1.2.0; existing_entity_candidates[] (t/4075) bumped it to 1.3.0'
 
                 # Both siblings persist as DISTINCT records — nothing was destroyed
                 $store = Get-Content -Raw -Path $EntPath | ConvertFrom-Json

@@ -416,8 +416,8 @@ Describe 'Invoke-EntityExtraction characterization (t/3910)' -Tag 'unit' {
         @{ Name = 'nothing-to-do';             Text = 'Nothing to extract' }
         @{ Name = 'whatif';                    Text = '"WouldProcess": 1' }
         @{ Name = 'rich';                      Text = 'within-run embedding batch failed for node node-h' }
-        @{ Name = 'rich-thresholds';           Text = 'cosine>=1 (sim=1)' }
-        @{ Name = 'embeddings-records';        Text = 'entity_embeddings.json could not be loaded' }
+        @{ Name = 'rich-thresholds';           Text = '"entity_name": "Vector Labs"' }
+        @{ Name = 'embeddings-records';        Text = '"entity_id": "ent-002"' }
         @{ Name = 'stores-degraded';           Text = 'organizations.json could not be loaded' }
         @{ Name = 'force-rerun';               Text = '\"node_id\": \"node-keep\"' }
         @{ Name = 'maxnodes';                  Text = 'Work items: 2' }
@@ -430,20 +430,30 @@ Describe 'Invoke-EntityExtraction characterization (t/3910)' -Tag 'unit' {
         [System.IO.File]::ReadAllText($golden) | Should -Match ([regex]::Escape($Text))
     }
 
-    It 'the rich golden links by every match source and pins both cosine stages' {
+    It 'the rich golden links by every exact match source and pins both ADVISORY cosine stages' {
         $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'rich.json'))
         foreach ($kind in '"matched_kind": "entity"', '"matched_kind": "organization"', '"matched_kind": "node"', '"matched_kind": "term"', '"matched_kind": "policy"') {
             $g | Should -Match ([regex]::Escape($kind))
         }
-        $g | Should -Match 'cosine>=0\.6 \(sim=1\)'
+        $g | Should -Not -Match 'cosine>=' -Because 'the existing-entity cosine stage never links (t/4075)'
         $g | Should -Match '"proposal_name": "Gemini Beta"'
         $g | Should -Match '"reason": "within-run-dedup"'
+        $o = @(($g | ConvertFrom-Json).output)[0]
+        @($o.LinkedDispositions | Where-Object { $_.proposal_name -eq 'Vector Lab Clone' }).Count | Should -Be 0
+        @($o.MintedEntities | Where-Object { $_.name -eq 'Vector Lab Clone' }).Count | Should -Be 1
+        $c = @($o.ExistingEntityCandidates | Where-Object { $_.proposal_name -eq 'Vector Lab Clone' })
+        $c.Count | Should -Be 1
+        $c[0].entity_name | Should -Be 'Vector Labs'
+        $c[0].version_sibling | Should -BeFalse
     }
 
-    It 't/4072: a schema-2.0.0 store is still not used for linking, and says so with a WARN' {
+    It 't/4075: a schema-2.0.0 store is read (name_vector) for advisory candidates and still never links' {
         $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'embeddings-records.json')) | ConvertFrom-Json
-        @($g.warnings | Where-Object { $_ -match '^Invoke-EntityExtraction: entity_embeddings\.json could not be loaded' }).Count | Should -Be 1
-        @(@($g.output)[0].LinkedDispositions | Where-Object { $_.proposal_name -eq 'Vector Lab Clone' }).Count | Should -Be 0
+        @($g.warnings | Where-Object { $_ -match 'entity_embeddings\.json could not be loaded' }).Count | Should -Be 0
+        $o = @($g.output)[0]
+        @($o.LinkedDispositions | Where-Object { $_.proposal_name -eq 'Vector Lab Clone' }).Count | Should -Be 0
+        @($o.ExistingEntityCandidates | Where-Object { $_.entity_id -eq 'ent-002' }).Count | Should -Be 1
+        $g.tree.'taxonomy/entity_extraction_log.json' | Should -Match '"_schema_version": "1\.3\.0"'
     }
 
     It 't/4072: a response without org_mentions succeeds with a WARN and is processed' {
