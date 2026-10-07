@@ -580,10 +580,6 @@
     "max": 31,
     "countOver": 1
   },
-  "AITriad/Public/Invoke-TaxonomyProposal.ps1": {
-    "max": 144,
-    "countOver": 1
-  },
   "AITriad/Public/Invoke-VernacularBatch.ps1": {
     "max": 28,
     "countOver": 1,
