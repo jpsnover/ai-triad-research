@@ -222,6 +222,15 @@ describe('replicationSet', () => {
     const entry = makeEntry({}); // no model_pool, no model_api_id, no failover_tracking
     expect(replicationSet([entry], key).length).toBe(1);
   });
+
+  it('excludes unfingerprinted rows with failover_tracking: unavailable (t/4040)', () => {
+    // The renderer path stamps 'unavailable' when it has no failover visibility.
+    // Without this check, an unfingerprinted unavailable row skips the isFingerprinted
+    // branch and returns true — counted in the legacy group. Must be excluded.
+    const key = 'cfgA|2026-07-22.1|modelX|'; // empty 4th segment (no fingerprint)
+    const entry = makeEntry({ failover_tracking: 'unavailable' });
+    expect(replicationSet([entry], key).length).toBe(0);
+  });
 });
 
 describe('evaluateReplicationGate', () => {
