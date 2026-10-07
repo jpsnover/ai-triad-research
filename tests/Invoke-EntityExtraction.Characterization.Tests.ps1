@@ -24,12 +24,15 @@
     The 'parallel' scenario runs the real ForEach-Object -Parallel path. Its runspaces re-import the
     module from $script:ModuleRoot, which the test points at a stub module (deterministic
     Invoke-AIByUsage and ConvertFrom-TruncatableJson) for the duration of the call.
-    Pinned pre-existing behaviour (pure-refactor rule; filed as t/4072):
+    Still pinned (t/4072 item 1, withheld pending a design decision):
       - embeddings-records: a schema-2.0.0 entity_embeddings.json (vectors[id] = { name_vector })
-        fails the [double[]] cast and is dropped with only a Write-Verbose, so the existing-entity
-        cosine stage never fires on the real store shape.
-      - rich (node-c, node-k): a response without org_mentions throws under StrictMode after the
-        node's proposals were accepted, so the node is counted Failed AND marked processed AND minted.
+        fails the [double[]] cast and is dropped, so the existing-entity cosine stage never fires on
+        the real store shape. Since t/4072 the drop is a WARN rather than a Write-Verbose.
+    Fixed in t/4072 (each flipped only its own goldens):
+      - rich (node-c, node-k): a response without org_mentions is treated as empty with a WARN; the
+        node succeeds (not Failed) and is processed and minted, consistently.
+      - store-load fallbacks WARN (was Write-Verbose), which flips every golden whose fixture lacks
+        organizations.json; discovered_by is an ordered dictionary, so the harness no longer sorts it.
     Regenerate the goldens ONLY when a behaviour change is intended and reviewed: set
     $env:ENTITYEXTRACTION_REGEN_GOLDEN = '1' and run once.
 #>
@@ -414,8 +417,8 @@ Describe 'Invoke-EntityExtraction characterization (t/3910)' -Tag 'unit' {
         @{ Name = 'whatif';                    Text = '"WouldProcess": 1' }
         @{ Name = 'rich';                      Text = 'within-run embedding batch failed for node node-h' }
         @{ Name = 'rich-thresholds';           Text = 'cosine>=1 (sim=1)' }
-        @{ Name = 'embeddings-records';        Text = 'failed to load entity_embeddings.json' }
-        @{ Name = 'stores-degraded';           Text = 'organizations.json unavailable' }
+        @{ Name = 'embeddings-records';        Text = 'entity_embeddings.json could not be loaded' }
+        @{ Name = 'stores-degraded';           Text = 'organizations.json could not be loaded' }
         @{ Name = 'force-rerun';               Text = '\"node_id\": \"node-keep\"' }
         @{ Name = 'maxnodes';                  Text = 'Work items: 2' }
         @{ Name = 'all-failed-no-write';       Text = 'node-1: backend down' }
@@ -435,6 +438,26 @@ Describe 'Invoke-EntityExtraction characterization (t/3910)' -Tag 'unit' {
         $g | Should -Match 'cosine>=0\.6 \(sim=1\)'
         $g | Should -Match '"proposal_name": "Gemini Beta"'
         $g | Should -Match '"reason": "within-run-dedup"'
+    }
+
+    It 't/4072: a schema-2.0.0 store is still not used for linking, and says so with a WARN' {
+        $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'embeddings-records.json')) | ConvertFrom-Json
+        @($g.warnings | Where-Object { $_ -match '^Invoke-EntityExtraction: entity_embeddings\.json could not be loaded' }).Count | Should -Be 1
+        @(@($g.output)[0].LinkedDispositions | Where-Object { $_.proposal_name -eq 'Vector Lab Clone' }).Count | Should -Be 0
+    }
+
+    It 't/4072: a response without org_mentions succeeds with a WARN and is processed' {
+        $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'rich.json')) | ConvertFrom-Json
+        $o = @($g.output)[0]
+        @($o.FailedItems | Where-Object { $_ -match '^node-(c|k):' }).Count | Should -Be 0
+        @($g.warnings) | Should -Contain "Invoke-EntityExtraction: node-c: response has no 'org_mentions'; treating it as empty."
+        @($g.warnings) | Should -Contain "Invoke-EntityExtraction: node-k: response has no 'org_mentions'; treating it as empty."
+        $g.tree.'taxonomy/entity_extraction_log.json' | Should -Match '"node_id": "node-c"'
+    }
+
+    It 't/4072: discovered_by is written in a fixed key order' {
+        $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'rich.json')) | ConvertFrom-Json
+        $g.tree.'taxonomy/entities.json' | Should -Match '"discovered_by": \{\s*"model": "[^"]*",\s*"usage_id": '
     }
 
     It 'batch-21 mints in two Import-Entity calls (20 + 1)' {

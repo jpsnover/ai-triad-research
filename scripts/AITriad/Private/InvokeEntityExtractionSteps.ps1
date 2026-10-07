@@ -94,7 +94,14 @@ function Add-OrganizationMatch {
             Add-EntityMatch $Index ([string]$o.name) 'organization' ([string]$o.id) ([string]$o.name)
             if ($o.PSObject.Properties['short_name']) { Add-EntityMatch $Index ([string]$o.short_name) 'organization' ([string]$o.id) ([string]$o.name) }
         }
-    } catch { Write-Verbose "Invoke-EntityExtraction: organizations.json unavailable — $($_.Exception.Message)" }
+    } catch { Write-EntityStoreFallback 'organizations.json' $_ }
+}
+
+function Write-EntityStoreFallback {
+    # Fallback-Path Logging (docs/error-handling.md, t/4072): a store that fails to load narrows the
+    # match index, so proposals mint instead of linking. Say which store and why; the run continues.
+    param([string]$Store, $ErrorRecord)
+    Write-Warning "Invoke-EntityExtraction: $Store could not be loaded ($($ErrorRecord.Exception.Message)); continuing without it, so proposals it would have linked may be minted as new entities."
 }
 
 function Add-TaxonomyLabelMatch {
@@ -109,7 +116,7 @@ function Add-TaxonomyLabelMatch {
                 $lbl = if ($n.PSObject.Properties['label']) { [string]$n.label } else { '' }
                 Add-EntityMatch $Index $lbl 'node' ([string]$n.id) $lbl
             }
-        } catch { Write-Verbose "Invoke-EntityExtraction: failed to load $PovKey.json — $($_.Exception.Message)" }
+        } catch { Write-EntityStoreFallback "$PovKey.json" $_ }
     }
 }
 
@@ -128,7 +135,7 @@ function Add-DictionaryMatch {
                 if ($Term.PSObject.Properties[$Field]) {
                     Add-EntityMatch $Index ([string]$Term.$Field) 'term' ([string]$Term.$Field) ([string]$Term.$Field)
                 }
-            } catch { Write-Verbose "Invoke-EntityExtraction: failed to parse $($F.Name) — $($_.Exception.Message)" }
+            } catch { Write-EntityStoreFallback "dictionary/$SubDir/$($F.Name)" $_ }
         }
     }
 }
@@ -143,13 +150,16 @@ function Add-PolicyActionMatch {
             if (-not $p.PSObject.Properties['id']) { continue }
             Add-EntityMatch $Index ([string]$p.action) 'policy' ([string]$p.id) ([string]$p.action)
         }
-    } catch { Write-Verbose "Invoke-EntityExtraction: failed to parse policy_actions.json — $($_.Exception.Message)" }
+    } catch { Write-EntityStoreFallback 'policy_actions.json' $_ }
 }
 
 function Get-EntityVectorIndex {
     # Existing entity vectors (entity id -> vector). The cosine fallback is scoped to entities ONLY
-    # (design). Pinned as-is: a schema-2.0.0 record value fails the [double[]] cast and the whole
-    # store is dropped here (t/4072).
+    # (design). Still reads only the schema-1.0.0 flat-array shape: a schema-2.0.0 record fails the
+    # [double[]] cast and the store is dropped, now with a WARN (t/4072 item 3). Reading v2 name_vector
+    # here is DELIBERATELY not done: on the real store, name-only vectors put distinct entities above
+    # the 0.60 link threshold (Claude 3.5 vs 3.7 Sonnet 0.987, GPT-4.1 vs GPT-4.5 0.932), so stage 2
+    # would auto-link proposals to the wrong entity. See t/4072 for the open design decision.
     param([string]$Path)
     $EntityVectors = @{}
     if (-not (Test-Path $Path)) { return $EntityVectors }
@@ -160,7 +170,7 @@ function Get-EntityVectorIndex {
                 $EntityVectors[$prop.Name] = [double[]]@($prop.Value)
             }
         }
-    } catch { Write-Verbose "Invoke-EntityExtraction: failed to load entity_embeddings.json — $($_.Exception.Message)" }
+    } catch { Write-EntityStoreFallback 'entity_embeddings.json' $_ }
     return $EntityVectors
 }
 
@@ -278,7 +288,7 @@ function Get-EntityExtractionWorkList {
 }
 
 # ── Extraction: AI call + shape validation ONLY ─────────────────────────────────────────────────
-# The next three helpers are re-defined inside each ForEach-Object -Parallel runspace (Private helpers
+# The next four helpers are re-defined inside each ForEach-Object -Parallel runspace (Private helpers
 # aren't visible there — same class of bug as t/1550/t/1553), so they may call only exported commands.
 
 function Get-EntityProposalShapeError {
@@ -310,6 +320,17 @@ function ConvertTo-EntityProposalRecord {
     }
 }
 
+function Get-EntityResponseList {
+    # A list field of the parsed response, or @() when the response omits it (t/4072). An omitted
+    # field reads as empty, matching how an explicit [] is handled and how t/3195 keeps a truncated
+    # response's valid prefix: the node succeeds with what it has rather than failing after its
+    # proposals were already accepted. The omission is a fallback, so it WARNs.
+    param($Parsed, [string]$Field, [string]$NodeId)
+    if ($null -ne $Parsed -and $Parsed.PSObject.Properties[$Field]) { return @($Parsed.$Field) }
+    Write-Warning "Invoke-EntityExtraction: ${NodeId}: response has no '$Field'; treating it as empty."
+    return @()
+}
+
 function ConvertTo-EntityExtractionNode {
     # One work item through the AI: returns the node result; malformed proposals and failures are
     # added to the bags rather than thrown. A node is ParseOk once its response parses.
@@ -335,7 +356,7 @@ function ConvertTo-EntityExtractionNode {
         $Node.ParseOk = $true
 
         $validProps = [System.Collections.Generic.List[object]]::new()
-        foreach ($p in @($parsed.proposals)) {
+        foreach ($p in (Get-EntityResponseList $parsed 'proposals' $Item.NodeId)) {
             if ($null -eq $p) { continue }
             $reason = Get-EntityProposalShapeError -Proposal $p -KnownTypes $KnownTypes
             if ($reason) {
@@ -345,8 +366,11 @@ function ConvertTo-EntityExtractionNode {
             $validProps.Add((ConvertTo-EntityProposalRecord -Proposal $p))
         }
         $Node.Proposals = @($validProps)
+        # A plain statement, not the head of a pipeline: a caller's -WarningVariable doesn't collect a
+        # warning written by the first command of a nested pipeline.
+        $OrgList = Get-EntityResponseList $parsed 'org_mentions' $Item.NodeId
         $Node.OrgMentions = @(
-            @($parsed.org_mentions) | Where-Object { $_ -and $_.PSObject.Properties['name'] -and $_.name } | ForEach-Object { [string]$_.name }
+            @($OrgList) | Where-Object { $_ -and $_.PSObject.Properties['name'] -and $_.name } | ForEach-Object { [string]$_.name }
         )
     } catch {
         $FailBag.Add("$($Item.NodeId): $($_.Exception.Message)")
@@ -382,7 +406,7 @@ function Invoke-EntityProposalExtraction {
         }
     } else {
         $FnDefs = @{}
-        foreach ($fn in 'ConvertTo-EntityExtractionNode', 'Get-EntityProposalShapeError', 'ConvertTo-EntityProposalRecord') {
+        foreach ($fn in 'ConvertTo-EntityExtractionNode', 'Get-EntityProposalShapeError', 'ConvertTo-EntityProposalRecord', 'Get-EntityResponseList') {
             $FnDefs[$fn] = (Get-Command $fn -CommandType Function).ScriptBlock.ToString()
         }
         $WorkItems | ForEach-Object -Parallel {
@@ -615,7 +639,8 @@ function Invoke-EntityCandidateMint {
                 aliases        = @($_.Aliases)
                 source_refs    = @($_.DocIdSet)
                 confidence     = $_.Confidence
-                discovered_by  = @{ usage_id = $UsageId; model = $_.Model }
+                # Ordered so entities.json is byte-stable across processes (t/4072); alphabetical.
+                discovered_by  = [ordered]@{ model = $_.Model; usage_id = $UsageId }
                 status         = 'proposed'
             }
         })

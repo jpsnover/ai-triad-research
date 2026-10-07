@@ -3,9 +3,10 @@
   "host": [
     "Nothing to extract — no nodes with facts match the filter, or all are already done."
   ],
-  "warnings": [],
+  "warnings": [
+    "Invoke-EntityExtraction: organizations.json could not be loaded (\n  Goal:     Load organizations registry\n  Error:    organizations.json not found at <ROOT>/taxonomy/organizations.json\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Verify the data repo is present at ../ai-triad-data/\n   2. Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for override\n   3. Confirm taxonomy/Origin/organizations.json exists in the data repo); continuing without it, so proposals it would have linked may be minted as new entities."
+  ],
   "verbose": [
-    "Invoke-EntityExtraction: organizations.json unavailable — \n  Goal:     Load organizations registry\n  Error:    organizations.json not found at <ROOT>/taxonomy/organizations.json\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Verify the data repo is present at ../ai-triad-data/\n   2. Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for override\n   3. Confirm taxonomy/Origin/organizations.json exists in the data repo",
     "Work items: 0 (skipped no-facts: 1, already-done: 1)"
   ],
   "error": null,
