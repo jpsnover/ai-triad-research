@@ -21,7 +21,7 @@ vi.mock('../../hooks/useTaxonomyStore', () => ({
   ),
 }));
 
-import { ChatTagPicker, seatTagLabel } from './ChatTagPicker';
+import { ChatTagPicker, seatTagLabel, tagBlockedReason } from './ChatTagPicker';
 
 describe('ChatTagPicker (t/3959)', () => {
   beforeEach(() => {
@@ -67,5 +67,28 @@ describe('ChatTagPicker (t/3959)', () => {
     expect(seatTagLabel('accelerationist', 'critical', registry)).toBe('Critical');
     expect(seatTagLabel('accelerationist', 'missing', registry)).toBeUndefined();
     expect(seatTagLabel('accelerationist', undefined, registry)).toBeUndefined();
+  });
+
+  it('shows a zero-nodes refuse message in Prioritize mode (TL t/3959#5)', () => {
+    mockRegistry.povs = { accelerationist: [{ id: 'critical', label: 'Critical' }] };
+    mockNodes.accelerationist = [{ id: 'a1' }, { id: 'a2' }]; // none carry the tag
+    render(
+      <ChatTagPicker
+        pov="accelerationist"
+        seatTag={{ pov_tag: 'critical', tag_mode: 'prioritize' }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/0 in scope, 2 untagged/)).toBeInTheDocument();
+    expect(screen.getByText(/no nodes carry this tag/)).toBeInTheDocument();
+  });
+
+  it('tagBlockedReason: Prioritize with any tagged node is never blocked, only at zero', () => {
+    const oneTagged = { inScope: [{ id: 'a1' }], excluded: [], sufficient: false } as never;
+    const zeroTagged = { inScope: [], excluded: [{ id: 'a1' }], sufficient: false } as never;
+    expect(tagBlockedReason(oneTagged, 'prioritize')).toBeUndefined();
+    expect(tagBlockedReason(zeroTagged, 'prioritize')).toMatch(/no nodes carry this tag/);
+    expect(tagBlockedReason(null, 'scope')).toBeUndefined();
+    expect(tagBlockedReason(oneTagged, undefined)).toBeUndefined();
   });
 });
