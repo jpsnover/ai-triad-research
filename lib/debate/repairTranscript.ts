@@ -12,6 +12,7 @@ import { parsePoverResponse, parseJsonRobust, stripCodeFences } from './helpers.
 import { POVER_INFO } from './types.js';
 import type { SpeakerId } from './types.js';
 import { formatDebateMarkdown } from './formatters.js';
+import { DebateSessionSchema } from './schemas.js';
 
 function log(msg: string): void {
   process.stderr.write(`[repair] ${msg}\n`);
@@ -23,7 +24,13 @@ if (!debatePath) {
   process.exit(1);
 }
 
-const session = JSON.parse(fs.readFileSync(debatePath, 'utf8'));
+const raw: unknown = JSON.parse(fs.readFileSync(debatePath, 'utf8'));
+const parseResult = DebateSessionSchema.safeParse(raw);
+if (!parseResult.success) {
+  log(`WARN: schema validation failed (${parseResult.error.issues.map(i => i.message).join('; ')}) — proceeding with raw session`);
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const session = (parseResult.success ? parseResult.data : raw) as any;
 let fixed = 0;
 
 for (const entry of session.transcript) {
