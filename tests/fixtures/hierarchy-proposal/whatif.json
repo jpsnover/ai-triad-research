@@ -1,0 +1,83 @@
+{
+  "scenario": "whatif",
+  "host": [
+    "[Cyan] \n▶  Loading taxonomy data",
+    "[Green]    ✓  accelerationist: 2 nodes",
+    "[Green]    ✓  safetyist: 2 nodes",
+    "[Cyan] \n▶  Loading embeddings",
+    "[Green]    ✓  Loaded embeddings for 4 nodes",
+    "[Cyan] \n▶  Loading edges",
+    "[Cyan] \n▶  Building processing buckets",
+    "[Green]    ✓  2 buckets to process",
+    "[Gray]    →  accelerationist / Beliefs: 2 nodes",
+    "[Gray]    →  safetyist / Beliefs: 2 nodes",
+    "[Cyan] \n▶  Bucket 1/2: accelerationist / Beliefs (2 nodes)",
+    "[Green]    ✓  Clustering produced 2 clusters",
+    "[Gray]    →  Calling gemini-2.5-flash ...",
+    "[Green]    ✓  Response in <elapsed>s",
+    "[Yellow]    ⚠  2 nodes not assigned: acc-b-1, acc-b-2",
+    "[Green]    ✓  Proposed 0 parents, 0 children, 0 outliers",
+    "[Cyan] \n▶  Bucket 2/2: safetyist / Beliefs (2 nodes)",
+    "[Green]    ✓  Clustering produced 2 clusters",
+    "[Gray]    →  Calling gemini-2.5-flash ...",
+    "[Green]    ✓  Response in <elapsed>s",
+    "[Yellow]    ⚠  2 nodes not assigned: saf-b-1, saf-b-2",
+    "[Green]    ✓  Proposed 0 parents, 0 children, 0 outliers"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [
+    {
+      "ProposalFile": "<ROOT>/out/custom/hierarchy-proposal-2026-01-02-030405.json",
+      "ReviewFile": "<ROOT>/out/custom/hierarchy-review-2026-01-02-030405.md",
+      "BucketCount": 2,
+      "TotalParents": 0.0
+    }
+  ],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal-schema"
+    },
+    {
+      "call": "ai",
+      "bucket": "accelerationist/Beliefs",
+      "model": "gemini-2.5-flash",
+      "apiKey": "resolved-gemini-key",
+      "temperature": 0.3,
+      "maxTokens": 65536,
+      "jsonMode": true,
+      "timeoutSec": 600,
+      "prompt": "<<hierarchy-proposal>>\n\nPOV: accelerationist\nCategory: Beliefs\nNode count: 2\n\n--- NODES ---\n[\n  {\n    \"id\": \"acc-b-1\",\n    \"label\": \"Label acc-b-1\",\n    \"description\": \"Description of acc-b-1.\"\n  },\n  {\n    \"id\": \"acc-b-2\",\n    \"label\": \"Label acc-b-2\",\n    \"description\": \"Description of acc-b-2.\"\n  }\n]\n\n--- PRE-COMPUTED CLUSTERS ---\n[\n  {\n    \"cluster_id\": 0,\n    \"node_ids\": [\n      \"acc-b-1\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  },\n  {\n    \"cluster_id\": 1,\n    \"node_ids\": [\n      \"acc-b-2\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  }\n]\n\n<<hierarchy-proposal-schema>>"
+    },
+    {
+      "call": "ai",
+      "bucket": "safetyist/Beliefs",
+      "model": "gemini-2.5-flash",
+      "apiKey": "resolved-gemini-key",
+      "temperature": 0.3,
+      "maxTokens": 65536,
+      "jsonMode": true,
+      "timeoutSec": 600,
+      "prompt": "<<hierarchy-proposal>>\n\nPOV: safetyist\nCategory: Beliefs\nNode count: 2\n\n--- NODES ---\n[\n  {\n    \"id\": \"saf-b-1\",\n    \"label\": \"Label saf-b-1\",\n    \"description\": \"Description of saf-b-1.\"\n  },\n  {\n    \"id\": \"saf-b-2\",\n    \"label\": \"Label saf-b-2\",\n    \"description\": \"Description of saf-b-2.\"\n  }\n]\n\n--- PRE-COMPUTED CLUSTERS ---\n[\n  {\n    \"cluster_id\": 0,\n    \"node_ids\": [\n      \"saf-b-1\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  },\n  {\n    \"cluster_id\": 1,\n    \"node_ids\": [\n      \"saf-b-2\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  }\n]\n\n<<hierarchy-proposal-schema>>"
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "sha256:866fc0e82c48027fd05179b0e09ae64b96b75f42699ae0eca4047b962030a282 (307 chars)",
+    "taxonomy/Origin/embeddings.json": "sha256:7f3237fc7c95ff4fd3e7e17ca3d7f6a5d811bc68a2613e47e67baffca11de39a (350 chars)",
+    "taxonomy/Origin/safetyist.json": "sha256:60797bf3b2a8d3a767a94e1c2e3af5df29b05d9d084770a2f399baab68d16715 (307 chars)"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "scenario": "md-parent-missing-promoted-from",
+  "host": [
+    "[Cyan] \n▶  Loading taxonomy data",
+    "[Green]    ✓  accelerationist: 2 nodes",
+    "[Green]    ✓  safetyist: 2 nodes",
+    "[Cyan] \n▶  Loading embeddings",
+    "[Green]    ✓  Loaded embeddings for 4 nodes",
+    "[Cyan] \n▶  Loading edges",
+    "[Cyan] \n▶  Building processing buckets",
+    "[Green]    ✓  1 buckets to process",
+    "[Gray]    →  accelerationist / Beliefs: 2 nodes",
+    "[Cyan] \n▶  Bucket 1/1: accelerationist / Beliefs (2 nodes)",
+    "[Green]    ✓  Clustering produced 2 clusters",
+    "[Gray]    →  Calling gemini-2.5-flash ...",
+    "[Green]    ✓  Response in <elapsed>s",
+    "[Green]    ✓  Proposed 1 parents, 2 children, 0 outliers",
+    "[Cyan] \n▶  Done",
+    "[Green]    ✓  Proposal saved to <ROOT>/taxonomy/hierarchy-proposals/hierarchy-proposal-2026-01-02-030405.json"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Performing the operation \"Write hierarchy proposal\" on target \"<ROOT>/taxonomy/hierarchy-proposals/hierarchy-proposal-2026-01-02-030405.json\"."
+  ],
+  "error": "The property 'promoted_from' cannot be found on this object. Verify that the property exists.",
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal-schema"
+    },
+    {
+      "call": "ai",
+      "bucket": "accelerationist/Beliefs",
+      "model": "gemini-2.5-flash",
+      "apiKey": "resolved-gemini-key",
+      "temperature": 0.3,
+      "maxTokens": 65536,
+      "jsonMode": true,
+      "timeoutSec": 600,
+      "prompt": "<<hierarchy-proposal>>\n\nPOV: accelerationist\nCategory: Beliefs\nNode count: 2\n\n--- NODES ---\n[\n  {\n    \"id\": \"acc-b-1\",\n    \"label\": \"Label acc-b-1\",\n    \"description\": \"Description of acc-b-1.\"\n  },\n  {\n    \"id\": \"acc-b-2\",\n    \"label\": \"Label acc-b-2\",\n    \"description\": \"Description of acc-b-2.\"\n  }\n]\n\n--- PRE-COMPUTED CLUSTERS ---\n[\n  {\n    \"cluster_id\": 0,\n    \"node_ids\": [\n      \"acc-b-1\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  },\n  {\n    \"cluster_id\": 1,\n    \"node_ids\": [\n      \"acc-b-2\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  }\n]\n\n<<hierarchy-proposal-schema>>"
+    }
+  ],
+  "writes": [
+    "taxonomy/hierarchy-proposals/hierarchy-proposal-2026-01-02-030405.json"
+  ],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/hierarchy-proposals/": "(dir)",
+    "taxonomy/hierarchy-proposals/hierarchy-proposal-2026-01-02-030405.json": "{\n  \"generated_at\": \"2026-01-02T03:04:05.0000000Z\",\n  \"model\": \"gemini-2.5-flash\",\n  \"buckets\": [\n    {\n      \"pov\": \"accelerationist\",\n      \"category\": \"Beliefs\",\n      \"parents\": [\n        {\n          \"label\": \"New parent\",\n          \"description\": \"No promoted_from key.\",\n          \"children\": [\n            {\n              \"node_id\": \"acc-b-1\",\n              \"relationship\": \"is_a\",\n              \"rationale\": \"r1\"\n            },\n            {\n              \"node_id\": \"acc-b-2\",\n              \"relationship\": \"is_a\",\n              \"rationale\": \"r2\"\n            }\n          ]\n        }\n      ],\n      \"outliers\": [],\n      \"_metadata\": {\n        \"generated_at\": \"2026-01-02T03:04:05.0000000Z\",\n        \"model\": \"gemini-2.5-flash\",\n        \"temperature\": 0.3,\n        \"min_similarity\": 0.4,\n        \"node_count\": 2,\n        \"cluster_count\": 2,\n        \"missing_nodes\": []\n      }\n    }\n  ]\n}\n",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "sha256:866fc0e82c48027fd05179b0e09ae64b96b75f42699ae0eca4047b962030a282 (307 chars)",
+    "taxonomy/Origin/embeddings.json": "sha256:7f3237fc7c95ff4fd3e7e17ca3d7f6a5d811bc68a2613e47e67baffca11de39a (350 chars)",
+    "taxonomy/Origin/safetyist.json": "sha256:60797bf3b2a8d3a767a94e1c2e3af5df29b05d9d084770a2f399baab68d16715 (307 chars)"
+  }
+}
