@@ -26,7 +26,7 @@ vi.mock('../ai/proxyTiers.js', () => ({
   parseFreeTierKeys: () => [],
   byokGeminiFallbackKey: () => undefined,
 }));
-const generateTextByUsage = vi.fn().mockResolvedValue({ text: 'ok', tokenUsage: undefined });
+const generateTextByUsage = vi.fn().mockResolvedValue({ text: 'ok', tokenUsage: undefined, servedModel: 'gemini-3.5-flash-lite' });
 vi.mock('../ai/aiBackends.js', () => ({
   resolveBackend: () => h.backend,
   generateTextByUsage: (...a: unknown[]) => generateTextByUsage(...a),

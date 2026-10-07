@@ -240,6 +240,7 @@ export interface TokenUsage {
 export interface GenerateResult {
   text: string;
   tokenUsage?: TokenUsage;
+  servedModel: string;
 }
 
 /** Convert shared ProviderResult.usage to the local TokenUsage shape. */
@@ -426,7 +427,7 @@ export async function generateText(
           data: { originalModel: resolved, fallbackModel: currentModel, fallbackIndex: mi },
         });
       }
-      return { text: result.text, tokenUsage: mapUsage(result.usage) };
+      return { text: result.text, tokenUsage: mapUsage(result.usage), servedModel: currentModel };
     } catch (err) {
       // t/2524: a deliberate cancellation (client disconnect) must NOT advance the
       // fallback chain — otherwise every remaining chain entry emits a spurious

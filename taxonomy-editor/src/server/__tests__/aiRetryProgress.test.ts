@@ -24,7 +24,7 @@ import type { ServerCtx } from '../routes/context.js';
 vi.mock('../ai/aiBackends.js', () => ({
   generateTextByUsage: vi.fn(async (_id: string, _vals: unknown, _overrides: unknown, onRetry: ((p: unknown) => void) | undefined) => {
     onRetry?.({ attempt: 1, maxRetries: 3, backoffSeconds: 5, limitType: 'rpm', limitMessage: 'rate limited' });
-    return { text: 'ok', tokenUsage: null };
+    return { text: 'ok', tokenUsage: null, servedModel: 'gemini-3.5-flash-lite' };
   }),
   generateTextWithSearchByUsage: vi.fn(),
   generateText: vi.fn(),
