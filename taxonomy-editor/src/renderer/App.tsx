@@ -12,6 +12,7 @@ import { useAppRoute } from './routing/useAppRoute';
 import { Toolbar } from './components/shared/Toolbar';
 import { TabBar } from './components/shared/TabBar';
 import { SaveBar } from './components/sync/SaveBar';
+import { PolicyRecountNotice } from './components/PolicyRecountNotice';
 import { PovTab } from './components/taxonomy/PovTab';
 import { FirstRunDialog } from './components/settings/FirstRunDialog';
 import { WhatsNewToast } from './components/settings/WhatsNewToast';
@@ -763,6 +764,7 @@ function MainApp() {
         <GlobalDetailPaneHost />
       </div>
       <SaveBar />
+      <PolicyRecountNotice />
       <BottomNav onOpenMore={() => setHamburgerOpen(true)} />
       {isMobile && <HamburgerMenu isOpen={hamburgerOpen} onClose={() => setHamburgerOpen(false)} />}
       {UpdatePrompt && !loading && <Suspense fallback={null}><UpdatePrompt /></Suspense>}
