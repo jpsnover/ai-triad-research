@@ -45,23 +45,28 @@ function Invoke-HierarchyProposal {
         [Alias('OutputPath')]
         [string]$OutputDir = '',
 
-        [switch]$DryRun,
-        [switch]$Force
+        [switch]$DryRun
     )
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
     # ── Resolve paths ────────────────────────────────────────────────────────
+    # The output directory is only created right before a write (t/4071), so -DryRun and the
+    # no-proposal paths leave the data tree untouched.
     $TaxDir = Get-TaxonomyDir
     $OutputDir = Resolve-HierarchyOutputDir -OutputDir $OutputDir
 
     # ── Resolve API key ──────────────────────────────────────────────────────
-    $Backend = Get-HierarchyModelBackend -Model $Model
-    $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-    if (-not $ResolvedKey) {
-        Write-Fail "No API key found for backend '$Backend'. Set the appropriate environment variable."
-        return
+    # -DryRun only previews the prompt, so it needs no key (t/4071).
+    $ResolvedKey = $null
+    if (-not $DryRun) {
+        $Backend = Get-HierarchyModelBackend -Model $Model
+        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
+        if (-not $ResolvedKey) {
+            Write-Fail "No API key found for backend '$Backend'. Set the appropriate environment variable."
+            return
+        }
     }
 
     # ── Load taxonomy, embeddings and edges ──────────────────────────────────
@@ -134,6 +139,7 @@ function Invoke-HierarchyProposal {
 
     $Json = $OutputObj | ConvertTo-Json -Depth 30
     if ($PSCmdlet.ShouldProcess($OutputFile, 'Write hierarchy proposal')) {
+        Initialize-HierarchyOutputDir -OutputDir $OutputDir
         Write-Utf8NoBom -Path $OutputFile -Value $Json
         Write-Step 'Done'
         Write-OK "Proposal saved to $OutputFile"
@@ -145,6 +151,7 @@ function Invoke-HierarchyProposal {
         -AllTaxData $AllTaxData -PovFileMap $PovFileMap
 
     if ($PSCmdlet.ShouldProcess($ReviewFile, 'Write review Markdown')) {
+        Initialize-HierarchyOutputDir -OutputDir $OutputDir
         Write-Utf8NoBom -Path $ReviewFile -Value $ReviewMd
         Write-OK "Review document saved to $ReviewFile"
     }
