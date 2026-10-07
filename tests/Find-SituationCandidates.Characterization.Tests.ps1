@@ -20,16 +20,14 @@
     weights, which keeps every score distinct (no ties). python3 is replaced by a global function that
     returns NLI labels by node-id pair, so nothing runs a model. Invoke-AIApi is mocked. Get-Date is frozen.
 
-    Canonicalization, each forced by the code under test rather than chosen. The cmdlet walks a plain
-    hashtable's keys (random order per process) to build its node list and its union-find groups, so:
-      - a pair's (IdA, IdB) orientation, hence the order of a loose pair's members and of each NLI
-        text_a/text_b, varies run to run: NLI payloads are sorted per pair and then as a list;
-      - a cluster's member order varies: members, povs_represented and the fallback "A / B" label are
-        sorted, as are each cluster's member lines in the AI prompt and on the console;
-      - which debate side is printed first follows the BFS start node: each side is sorted, then the
-        two sides are ordered by their first id.
-    Cluster numbering itself is deterministic here because no two candidates tie on score.
-    Regenerate the goldens ONLY on pre-refactor code: set $env:SITCAND_REGEN_GOLDEN = '1' and run once.
+    Canonicalization. Written before t/4074, when the cmdlet walked plain-hashtable keys (random order
+    per process), so the transcript normalises order: NLI payloads are sorted per pair and as a list;
+    members, povs_represented and the fallback "A / B" label are sorted, as are cluster member lines in
+    the AI prompt and on the console; each debate side is sorted and the sides ordered by first id.
+    Since t/4074 the cmdlet emits that order itself, which 'emits members in id order without
+    canonicalization' checks on the raw result. povs_represented still follows member order.
+    Regenerate goldens with $env:SITCAND_REGEN_GOLDEN = '1', only for a deliberate behaviour change, and
+    review the diff: each regenerated golden must be one the change intends to move.
 #>
 
 BeforeDiscovery {
@@ -53,6 +51,10 @@ BeforeDiscovery {
         @{ Name = 'outputfile-write-fails'; Data = 'rich'; OutputFile = 'out/denied.json'; DenyWrite = $true; Params = @{ NoAI = $true; TopN = 1 } }
         @{ Name = 'err-mutually-exclusive'; Data = 'rich'; Params = @{ ShowSharedOnly = $true; ShowDebatesOnly = $true } }
         @{ Name = 'err-no-embeddings'; Data = 'rich'; NoEmbeddings = $true; Params = @{ NoAI = $true } }
+        # t/4074: sit-1 already interprets acc-1 and saf-1, so that pair is skipped.
+        @{ Name = 'situation-linked'; Data = 'rich'; SitLinked = @('acc-1', 'saf-1'); Params = @{ NoAI = $true } }
+        # t/4074: NLI returns fewer results than pairs; the unlabelled pairs are unverified, with a WARN.
+        @{ Name = 'nli-partial'; Data = 'rich'; Nli = 'partial'; Params = @{ NoAI = $true } }
     )
 }
 
@@ -168,12 +170,14 @@ BeforeAll {
             'throw'   { throw 'nli-classify: model download failed' }
             'badjson' { return 'Traceback (most recent call last): not json' }
         }
-        $out = foreach ($p in @($payload | ConvertFrom-Json)) {
+        $out = @(foreach ($p in @($payload | ConvertFrom-Json)) {
             $ids = @(([regex]::Matches("$($p.text_a) $($p.text_b)", 'Label ((?:acc|saf|skp)-\w+)') | ForEach-Object { $_.Groups[1].Value }) | Sort-Object)
             $key = $ids -join '|'
             $label = if ($global:FscNliLabels.ContainsKey($key)) { $global:FscNliLabels[$key] } elseif ($key -like 'acc-o*') { 'contradiction' } else { 'entailment' }
             [ordered]@{ nli_label = $label; nli_entailment = $(if ($label -eq 'entailment') { 0.9 } else { 0.05 }); nli_contradiction = $(if ($label -eq 'contradiction') { 0.9 } else { 0.05 }) }
-        }
+        })
+        # 'partial': the classifier stops early, returning results for all but the last 3 pairs.
+        if ($global:FscScenario['Nli'] -eq 'partial') { $out = @($out | Select-Object -First ([Math]::Max(0, $out.Count - 3))) }
         ConvertTo-Json -InputObject @($out) -Depth 5 -Compress
     }
 
@@ -299,6 +303,7 @@ BeforeAll {
 
     function script:Invoke-Scenario($S) {
         $global:FscScenario = $S
+        $script:FscRawResult = $null
         $global:FscCalls = [System.Collections.Generic.List[object]]::new()
         $script:FscWrites = [System.Collections.Generic.List[object]]::new()
         $root = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
@@ -311,6 +316,9 @@ BeforeAll {
         }
         if (-not $S['NoEdges']) { [System.IO.File]::WriteAllText((Join-Path $taxDir 'edges.json'), (script:Get-EdgesText), $script:Utf8) }
         $tax = script:Get-TaxonomyObjects $S.Data
+        if ($S['SitLinked']) {
+            foreach ($n in @($tax['situations'].nodes)) { $n | Add-Member -NotePropertyName linked_nodes -NotePropertyValue @($S.SitLinked) -Force }
+        }
         InModuleScope AITriad -Parameters @{ Tax = $tax } { param($Tax) $script:TaxonomyData = $Tax }
         if ($S['EnvModel']) { $env:AI_MODEL = $S.EnvModel } else { Remove-Item Env:AI_MODEL -ErrorAction SilentlyContinue }
 
@@ -362,12 +370,13 @@ BeforeAll {
         try {
             Find-SituationCandidates @p -WarningVariable w -WarningAction SilentlyContinue 6>&1 | ForEach-Object { $records.Add($_) }
         } catch {
-            $err = $_.Exception.Message
+            # ActionableError text carries the platform newline (CRLF on Windows): normalise to LF.
+            $err = $_.Exception.Message -replace "`r`n", "`n"
         }
         $hostLines = [System.Collections.Generic.List[string]]::new()
         $pending = ''
         foreach ($r in $records) {
-            if ($r -isnot [System.Management.Automation.InformationRecord]) { $result = $r; continue }
+            if ($r -isnot [System.Management.Automation.InformationRecord]) { $result = $r; $script:FscRawResult = $r; continue }
             $m = $r.MessageData
             $text = if ($m -is [System.Management.Automation.HostInformationMessage]) { "[$($m.ForegroundColor)] $($m.Message)" } else { "[info] $m" }
             if ($m -is [System.Management.Automation.HostInformationMessage] -and $m.NoNewLine) { $pending += $text + ' + '; continue }
@@ -461,18 +470,49 @@ Describe 'Find-SituationCandidates characterization (t/3910)' -Tag 'taxonomy' {
         @{ Name = 'err-mutually-exclusive';       Text = '-ShowSharedOnly and -ShowDebatesOnly are mutually exclusive.' }
         @{ Name = 'err-no-embeddings';            Text = 'embeddings.json required for situation candidate discovery' }
         @{ Name = 'none-above-threshold';         Text = 'CROSS-CUTTING CANDIDATES — 0 found' }
+        @{ Name = 'no-nli-no-ai-flat-embeddings'; Text = 'CROSS-CUTTING CANDIDATES — ' }
+        @{ Name = 'nli-partial';                  Text = 'are treated as unverified' }
+        @{ Name = 'err-mutually-exclusive';       Text = 'Resolve:' }
+        @{ Name = 'err-no-embeddings';            Text = 'Resolve:' }
     ) {
         $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir "$Name.json"))
         $g.Contains($Text) | Should -BeTrue -Because "golden $Name should show: $Text"
     }
 
-    # Pre-existing bug, pinned as-is (filed separately): @( @(SideA) @(SideB) ) flattens, so a contested
-    # cluster's "sides" is one member list. Only a 1-vs-1 cluster gets the "vs." console rendering.
-    It 'pins the flattened sides of a 3-member contested cluster (rich cluster-4)' {
+    # t/4074: a contested cluster's "sides" is two arrays of members, [[acc-2], [saf-2, skp-2]], not one
+    # flat list (the @( @(A) @(B) ) form flattened it). Checked on the written -OutputFile as well, since
+    # that is the export readers consume.
+    It 'keeps the two sides of a 3-member contested cluster apart (rich cluster-4)' {
         $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'rich.json')) | ConvertFrom-Json
-        $c4 = @($g.result.candidates | Where-Object cluster_id -eq 'cluster-4')[0]
-        @($c4.sides).Count | Should -Be 3
-        @($c4.sides | ForEach-Object { $_.id }) | Should -Be @('acc-2', 'saf-2', 'skp-2')
+        foreach ($cands in @(, @($g.result.candidates)) + @(, @($g.written.content.candidates))) {
+            $c4 = @($cands | Where-Object cluster_id -eq 'cluster-4')[0]
+            @($c4.sides).Count | Should -Be 2
+            @(@($c4.sides)[0] | ForEach-Object { $_.id }) | Should -Be @('acc-2')
+            @(@($c4.sides)[1] | ForEach-Object { $_.id }) | Should -Be @('saf-2', 'skp-2')
+        }
+        $g.host | Should -Contain '[DarkYellow]         vs.'
+    }
+
+    # t/4074: output order no longer depends on hashtable key order. The transcripts canonicalize order, so
+    # this checks the raw result instead: members are sorted by id, and each pair's NLI payload is
+    # oriented (smaller id first). Determinism across processes is additionally checked by running the
+    # suite in several pwsh processes.
+    It 'emits members in id order without canonicalization: <Name>' -ForEach @(
+        $script:Scenarios | Where-Object { $_.Name -in @('rich', 'topn-4-both-full', 'situation-linked', 'oversized-debate') }
+    ) {
+        $null = script:Invoke-Scenario $_
+        $raw = $script:FscRawResult
+        @($raw.candidates).Count | Should -BeGreaterThan 0
+        foreach ($c in @($raw.candidates)) {
+            $ids = @($c.members | ForEach-Object { $_.id })
+            $ids | Should -Be @($ids | Sort-Object)
+            if ($c.PSObject.Properties['sides']) {
+                $sides = @($c.sides)
+                $sides.Count | Should -Be 2
+                foreach ($side in $sides) { $sideIds = @($side | ForEach-Object { $_.id }); $sideIds | Should -Be @($sideIds | Sort-Object) }
+                [string]@($sides[0])[0].id | Should -BeLessThan ([string]@($sides[1])[0].id)
+            }
+        }
     }
 
     It 'oversized debate cluster (>10 nodes) falls back to its constituent pairs' {

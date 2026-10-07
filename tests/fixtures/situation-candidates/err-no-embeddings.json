@@ -9,7 +9,7 @@
     "[Red]    ✗  embeddings.json not found — cannot compute similarities"
   ],
   "warnings": [],
-  "error": "embeddings.json required for situation candidate discovery",
+  "error": "\n  Goal:     Find situation candidates\n  Error:    embeddings.json required for situation candidate discovery\n  Location: Get-FscEmbeddingIndex (<ROOT>/taxonomy/Origin/embeddings.json)\n  Resolve:\n   1. Generate node embeddings (embed_taxonomy.py), then re-run\n   2. Nothing was written",
   "result": null,
   "calls": [
     {

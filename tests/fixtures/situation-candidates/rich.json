@@ -60,6 +60,7 @@
     "[Gray]     Similarity: 0.8188 | POVs: accelerationist, safetyist, skeptic | contested",
     "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=2)",
     "[Blue]       [accelerationist] + [DarkGray]  acc-2 — Label acc-2",
+    "[DarkYellow]         vs.",
     "[Green]       [safetyist] + [DarkGray]  saf-2 — Label saf-2",
     "[Yellow]       [skeptic] + [DarkGray]  skp-2 — Label skp-2",
     "[Cyan]     Description: Contested ground.",
@@ -257,21 +258,25 @@
           "contradiction": 2
         },
         "sides": [
-          {
-            "id": "acc-2",
-            "pov": "accelerationist",
-            "label": "Label acc-2"
-          },
-          {
-            "id": "saf-2",
-            "pov": "safetyist",
-            "label": "Label saf-2"
-          },
-          {
-            "id": "skp-2",
-            "pov": "skeptic",
-            "label": "Label skp-2"
-          }
+          [
+            {
+              "id": "acc-2",
+              "pov": "accelerationist",
+              "label": "Label acc-2"
+            }
+          ],
+          [
+            {
+              "id": "saf-2",
+              "pov": "safetyist",
+              "label": "Label saf-2"
+            },
+            {
+              "id": "skp-2",
+              "pov": "skeptic",
+              "label": "Label skp-2"
+            }
+          ]
         ],
         "proposed_label": "Contest",
         "proposed_description": "Contested ground.",
@@ -340,16 +345,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-4",
-            "pov": "accelerationist",
-            "label": "Label acc-4"
-          },
-          {
-            "id": "skp-4",
-            "pov": "skeptic",
-            "label": "Label skp-4"
-          }
+          [
+            {
+              "id": "acc-4",
+              "pov": "accelerationist",
+              "label": "Label acc-4"
+            }
+          ],
+          [
+            {
+              "id": "skp-4",
+              "pov": "skeptic",
+              "label": "Label skp-4"
+            }
+          ]
         ],
         "proposed_label": "Label acc-4 / Label skp-4  (member order canonicalized)"
       }
@@ -416,7 +425,7 @@
     "out/candidates.json"
   ],
   "written": {
-    "bytesLf": 6113,
+    "bytesLf": 6243,
     "bom": false,
     "content": {
       "generated_at": "2026-01-02T03:04:05Z",
@@ -591,21 +600,25 @@
             "neutral": 0
           },
           "sides": [
-            {
-              "id": "acc-2",
-              "label": "Label acc-2",
-              "pov": "accelerationist"
-            },
-            {
-              "id": "saf-2",
-              "label": "Label saf-2",
-              "pov": "safetyist"
-            },
-            {
-              "id": "skp-2",
-              "label": "Label skp-2",
-              "pov": "skeptic"
-            }
+            [
+              {
+                "id": "acc-2",
+                "label": "Label acc-2",
+                "pov": "accelerationist"
+              }
+            ],
+            [
+              {
+                "id": "saf-2",
+                "label": "Label saf-2",
+                "pov": "safetyist"
+              },
+              {
+                "id": "skp-2",
+                "label": "Label skp-2",
+                "pov": "skeptic"
+              }
+            ]
           ],
           "proposed_label": "Contest",
           "proposed_description": "Contested ground.",
@@ -674,16 +687,20 @@
             "neutral": 0
           },
           "sides": [
-            {
-              "id": "acc-4",
-              "label": "Label acc-4",
-              "pov": "accelerationist"
-            },
-            {
-              "id": "skp-4",
-              "label": "Label skp-4",
-              "pov": "skeptic"
-            }
+            [
+              {
+                "id": "acc-4",
+                "label": "Label acc-4",
+                "pov": "accelerationist"
+              }
+            ],
+            [
+              {
+                "id": "skp-4",
+                "label": "Label skp-4",
+                "pov": "skeptic"
+              }
+            ]
           ],
           "proposed_label": "Label acc-4 / Label skp-4  (member order canonicalized)"
         }

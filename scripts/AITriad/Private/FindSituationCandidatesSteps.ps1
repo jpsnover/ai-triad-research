@@ -1,10 +1,12 @@
 ﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# Steps of Find-SituationCandidates (t/3910 complexity refactor). Pure refactor: every message, call,
-# ordering rule and output shape is the original's, including the flattened contested-cluster "sides"
-# (t/4074). Collections cross function boundaries wrapped in a [pscustomobject] or with the unary comma,
-# so a List or HashSet is never unrolled into its items on the way out.
+# Steps of Find-SituationCandidates (t/3910 complexity refactor; t/4074 fixes). Collections cross function
+# boundaries wrapped in a [pscustomobject] or with the unary comma, so a List or HashSet is never unrolled
+# into its items on the way out.
+#
+# Determinism (t/4074): every walk over a hashtable's keys is sorted, cluster members are sorted by id, and
+# score ties break by first member id, so the same inputs give the same output in every process.
 
 # ── Inputs ────────────────────────────────────────────────────────────────────
 
@@ -40,7 +42,11 @@ function Get-FscEmbeddingIndex {
 
     if (-not (Test-Path $EmbeddingsFile)) {
         Write-Fail 'embeddings.json not found — cannot compute similarities'
-        throw 'embeddings.json required for situation candidate discovery'
+        throw (New-ActionableError -PassThru `
+            -Goal 'Find situation candidates' `
+            -Problem 'embeddings.json required for situation candidate discovery' `
+            -Location "Get-FscEmbeddingIndex ($EmbeddingsFile)" `
+            -NextSteps @('Generate node embeddings (embed_taxonomy.py), then re-run', 'Nothing was written'))
     }
 
     $EmbData = Get-Content -Raw -Path $EmbeddingsFile | ConvertFrom-Json
@@ -82,16 +88,26 @@ function Get-FscPairKey {
     if ($A -lt $B) { "$A|$B" } else { "$B|$A" }
 }
 
-# Edge pairs that touch a situations node (step 4 of the original).
+# POV-node pairs that a situation node already interprets: both nodes appear in the same situation's
+# linked_nodes. Such a pair needs no new situation, so the similarity scan skips it.
+# t/4074: this used to collect edge keys touching a situations node; the scan compares only POV nodes,
+# so no key ever matched and the filter never fired. Approved edges are not the right signal either:
+# situations reach POV nodes through SUPPORTS/TENSION_WITH/... edges that would mark ~40k pairs, while
+# linked_nodes (mirrored by the POV nodes' situation_refs) is the explicit "interprets these" record.
 function Get-FscSituationLinkedPairSet {
-    param([hashtable]$EdgePairs, [hashtable]$NodeIndex)
+    param([hashtable]$NodeIndex)
     $CcLinkedPairs = [System.Collections.Generic.HashSet[string]]::new()
-    foreach ($PairKey in $EdgePairs.Keys) {
-        $Parts = $PairKey -split '\|'
-        if ($NodeIndex.ContainsKey($Parts[0])) { $Pov0 = $NodeIndex[$Parts[0]].POV } else { $Pov0 = '' }
-        if ($NodeIndex.ContainsKey($Parts[1])) { $Pov1 = $NodeIndex[$Parts[1]].POV } else { $Pov1 = '' }
-        if ($Pov0 -eq 'situations' -or $Pov1 -eq 'situations') {
-            [void]$CcLinkedPairs.Add($PairKey)
+    $Entry = $script:TaxonomyData['situations']
+    if (-not $Entry) { return , $CcLinkedPairs }
+    foreach ($Sit in @($Entry.nodes)) {
+        if (-not $Sit.PSObject.Properties['linked_nodes'] -or -not $Sit.linked_nodes) { continue }
+        $Ids = @(@($Sit.linked_nodes) | Where-Object {
+                $_ -is [string] -and $NodeIndex.ContainsKey($_) -and $NodeIndex[$_].POV -ne 'situations'
+            } | Sort-Object -Unique)
+        for ($i = 0; $i -lt $Ids.Count; $i++) {
+            for ($j = $i + 1; $j -lt $Ids.Count; $j++) {
+                [void]$CcLinkedPairs.Add((Get-FscPairKey -A $Ids[$i] -B $Ids[$j]))
+            }
         }
     }
     , $CcLinkedPairs
@@ -149,9 +165,10 @@ function Get-FscBoostedSimilarity {
 function Find-FscSimilarPairSet {
     param([hashtable]$NodeIndex, [hashtable]$Embeddings, [hashtable]$EdgePairs, $CcLinkedPairs, [double]$MinSimilarity)
 
+    # Sorted, so each pair's (IdA, IdB) orientation, and the NLI text_a/text_b order, is fixed.
     $PovNodeIds = @($NodeIndex.Keys | Where-Object {
         $NodeIndex[$_].POV -ne 'situations' -and $Embeddings.ContainsKey($_)
-    })
+    } | Sort-Object)
 
     $SimilarPairs = [System.Collections.Generic.List[PSObject]]::new()
     $PairCount = 0
@@ -214,7 +231,12 @@ function Add-FscNliLabel {
     $NliJson = $NliInput | ConvertTo-Json -Depth 5 -Compress
     try {
         $NliResult = $NliJson | python3 $EmbedScript nli-classify 2>$null
-        $NliParsed = $NliResult | ConvertFrom-Json
+        $NliParsed = @($NliResult | ConvertFrom-Json)
+        if ($NliParsed.Count -ne $SimilarPairs.Count) {
+            # Results map to pairs by position; a short list leaves the trailing pairs unlabelled, and they
+            # are then treated as unverified (neutral), not as agreement (t/2747).
+            Write-Warn "NLI returned $($NliParsed.Count) result(s) for $($SimilarPairs.Count) pair(s) — the unlabelled pairs are treated as unverified"
+        }
 
         for ($i = 0; $i -lt $SimilarPairs.Count; $i++) {
             if ($i -lt $NliParsed.Count) {
@@ -245,7 +267,8 @@ function Find-FscRoot {
     return $X
 }
 
-# Union-find over the given pairs; returns root → List[string] of members.
+# Union-find over the given pairs; returns an ordered map of group → List[string] of members. Members
+# are added in sorted id order and groups are keyed by their smallest member, so both are deterministic.
 function Get-FscUnionGroupMap {
     param($Pairs)
     $Parent = @{}
@@ -258,13 +281,16 @@ function Get-FscUnionGroupMap {
         $RootB = Find-FscRoot -Parent $Parent -X $Pair.IdB
         if ($RootA -ne $RootB) { $Parent[$RootA] = $RootB }
     }
-    $Groups = @{}
-    foreach ($NodeId in @($Parent.Keys)) {
+    $ByRoot = @{}
+    $Groups = [ordered]@{}
+    foreach ($NodeId in @($Parent.Keys | Sort-Object)) {
         $Root = Find-FscRoot -Parent $Parent -X $NodeId
-        if (-not $Groups.ContainsKey($Root)) {
-            $Groups[$Root] = [System.Collections.Generic.List[string]]::new()
+        if (-not $ByRoot.ContainsKey($Root)) {
+            # The first (smallest) member seen names the group.
+            $ByRoot[$Root] = [System.Collections.Generic.List[string]]::new()
+            $Groups[$NodeId] = $ByRoot[$Root]
         }
-        $Groups[$Root].Add($NodeId)
+        $ByRoot[$Root].Add($NodeId)
     }
     $Groups
 }
@@ -274,12 +300,19 @@ function Get-FscPovsRepresented {
     @($Members | ForEach-Object { $NodeIndex[$_].POV } | Select-Object -Unique)
 }
 
+# On a tie in counts, the label earlier in this list wins: a split vote is not claimed as agreement
+# (fail closed, t/2747). In practice the only possible tie is entailment vs neutral, since contradiction
+# pairs never reach an agreement cluster when NLI ran.
+$script:FscNliTiePrecedence = @('neutral', 'contradiction', 'entailment')
+
 function Get-FscDominantNli {
     param([hashtable]$NliCounts, [string]$DomLabel)
     if ($DomLabel) { return $DomLabel }
     $NliTotal = $NliCounts.Values | Measure-Object -Sum | Select-Object -ExpandProperty Sum
     if ($NliTotal -gt 0) {
-        return ($NliCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Key
+        return ($NliCounts.GetEnumerator() |
+            Sort-Object @{ Expression = { $_.Value }; Descending = $true }, @{ Expression = { [array]::IndexOf($script:FscNliTiePrecedence, [string]$_.Key) } } |
+            Select-Object -First 1).Key
     }
     $null
 }
@@ -343,6 +376,9 @@ function Add-FscAgreementCluster {
     $MergePairs = @($AgreementPairs | Where-Object { $_.Similarity -ge $script:FscMergeThreshold })
     $LoosePairs = @($AgreementPairs | Where-Object { $_.Similarity -lt $script:FscMergeThreshold })
 
+    # Intended asymmetry (t/4074 item 4): under -NoNLI a merged cluster has no NLI counts, so it carries no
+    # nli_relationship (nothing was verified). A loose pair is labelled 'neutral' by the fail-closed default
+    # below. Both mean "unverified"; neither claims agreement.
     $Groups = Get-FscUnionGroupMap -Pairs $MergePairs
     foreach ($G in $Groups.Values) {
         $Scored = Get-FscGroupScore -Members $G -Pairs $AgreementPairs -DomLabel $null -NodeIndex $NodeIndex
@@ -389,14 +425,13 @@ function Add-FscDebateCluster {
 # Builds every scored cluster: agreement first, then debate (contradiction pairs stay separate).
 function Get-FscScoredClusterList {
     param($SimilarPairs, [hashtable]$NodeIndex)
-    $HasNli = ($SimilarPairs.Count -gt 0 -and
-               $SimilarPairs[0].PSObject.Properties['NliLabel'] -and
-               $SimilarPairs[0].NliLabel)
-
+    # A pair is a contradiction only when its own NLI label says so. Checking each pair's label (rather than
+    # whether pair 0 has one) keeps a partial NLI result from throwing on an unlabelled pair (t/4074).
     $AgreementPairs     = [System.Collections.Generic.List[PSObject]]::new()
     $ContradictionPairs = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($Pair in $SimilarPairs) {
-        if ($HasNli -and $Pair.NliLabel -eq 'contradiction') { $ContradictionPairs.Add($Pair) } else { $AgreementPairs.Add($Pair) }
+        $IsContradiction = $Pair.PSObject.Properties['NliLabel'] -and $Pair.NliLabel -eq 'contradiction'
+        if ($IsContradiction) { $ContradictionPairs.Add($Pair) } else { $AgreementPairs.Add($Pair) }
     }
 
     $AllScoredGroups = [System.Collections.Generic.List[PSObject]]::new()
@@ -427,10 +462,10 @@ function Get-FscSlotAllocation {
 # Top clusters, shared concepts first then debates, each by score.
 function Select-FscTopCluster {
     param($AllScoredGroups, [int]$TopN, [switch]$ShowSharedOnly, [switch]$ShowDebatesOnly)
-    $SharedAll = @($AllScoredGroups | Where-Object { $_.DominantNli -ne 'contradiction' } |
-        Sort-Object { $_.MaxBoosted } -Descending)
-    $DebateAll = @($AllScoredGroups | Where-Object { $_.DominantNli -eq 'contradiction' } |
-        Sort-Object { $_.MaxBoosted } -Descending)
+    # Score descending, then first member id: equal scores always number and cut the same way.
+    $ByScore = @(@{ Expression = { $_.MaxBoosted }; Descending = $true }, @{ Expression = { [string]$_.Members[0] } })
+    $SharedAll = @($AllScoredGroups | Where-Object { $_.DominantNli -ne 'contradiction' } | Sort-Object $ByScore)
+    $DebateAll = @($AllScoredGroups | Where-Object { $_.DominantNli -eq 'contradiction' } | Sort-Object $ByScore)
 
     $Slots = Get-FscSlotAllocation -TopN $TopN -SharedCount $SharedAll.Count -DebateCount $DebateAll.Count -ShowSharedOnly:$ShowSharedOnly -ShowDebatesOnly:$ShowDebatesOnly
     $PickedShared = @($SharedAll | Select-Object -First $Slots.Shared)
@@ -570,21 +605,24 @@ function Resolve-FscComponentColor {
     $Ok
 }
 
-# Adds "sides" to a contested cluster's entry when its NLI labels 2-colour without conflict.
+# Adds "sides" to a contested cluster's entry when its NLI labels 2-colour without conflict:
+# [[sideA members], [sideB members]], each side sorted by id and the sides ordered by their first id.
+# t/4074: built as @( @(A) @(B) ) this flattened into one member list, so readers couldn't tell where a
+# side ended and the console only split 1-vs-1 clusters. A List of arrays keeps the two sides apart.
 function Add-FscContestedSide {
     param($Entry, $G, $SimilarPairs, [hashtable]$NodeIndex)
     $Coloring = Get-FscBipartiteColoring -Members $G.Members -SimilarPairs $SimilarPairs
     if ($Coloring.Conflict) { return }
     $Color = $Coloring.Color
-    $SideA = @($G.Members | Where-Object { $Color[$_] -eq 0 })
-    $SideB = @($G.Members | Where-Object { $Color[$_] -eq 1 })
-    if ($SideA.Count -gt 0 -and $SideB.Count -gt 0) {
-        # Kept as-is: this @( @(A) @(B) ) flattens the two sides into one member list (t/4074).
-        $Entry['sides'] = @(
-            @($SideA | ForEach-Object { [ordered]@{ id = $_; pov = $NodeIndex[$_].POV; label = $NodeIndex[$_].Label } })
-            @($SideB | ForEach-Object { [ordered]@{ id = $_; pov = $NodeIndex[$_].POV; label = $NodeIndex[$_].Label } })
-        )
+    $SideA = @($G.Members | Where-Object { $Color[$_] -eq 0 } | Sort-Object)
+    $SideB = @($G.Members | Where-Object { $Color[$_] -eq 1 } | Sort-Object)
+    if ($SideA.Count -eq 0 -or $SideB.Count -eq 0) { return }
+    if ($SideB[0] -lt $SideA[0]) { $SideA, $SideB = $SideB, $SideA }
+    $Sides = [System.Collections.Generic.List[object]]::new()
+    foreach ($Side in @(, $SideA) + @(, $SideB)) {
+        $Sides.Add(@($Side | ForEach-Object { [ordered]@{ id = $_; pov = $NodeIndex[$_].POV; label = $NodeIndex[$_].Label } }))
     }
+    $Entry['sides'] = $Sides.ToArray()
 }
 
 function Add-FscAiLabelField {
@@ -653,14 +691,22 @@ function Write-FscMemberLine {
     }
 }
 
+# The console display entry for a candidate's NLI relationship, or $null when it has none. A merged
+# cluster under -NoNLI (or after an NLI failure) has no nli_relationship: t/4074, reading it unguarded
+# threw under StrictMode before -OutputFile was written.
+function Get-FscNliDisplay {
+    param($C)
+    if (-not $C.PSObject.Properties['nli_relationship']) { return $null }
+    $Relationship = [string]$C.nli_relationship
+    if ($Relationship -and $script:FscNliDisplay.ContainsKey($Relationship)) { return $script:FscNliDisplay[$Relationship] }
+    $null
+}
+
 function Write-FscCandidate {
     param($C)
     if ($C.PSObject.Properties['proposed_label']) { $Label = $C.proposed_label } else { $Label = $C.cluster_id }
     Write-Host "`n  $($C.cluster_id): $Label" -ForegroundColor White
-    # Unguarded on purpose (pure refactor): a candidate with no nli_relationship (a merged cluster under
-    # -NoNLI) throws here under StrictMode, exactly as the original's switch did. Filed as t/4074.
-    $Relationship = $C.nli_relationship
-    $Display = if ($Relationship -and $script:FscNliDisplay.ContainsKey([string]$Relationship)) { $script:FscNliDisplay[[string]$Relationship] } else { $null }
+    $Display = Get-FscNliDisplay -C $C
     if ($Display) { $NliStr = " | $($Display.Name)" } else { $NliStr = '' }
     Write-Host "    Similarity: $($C.avg_similarity) | POVs: $($C.povs_represented -join ', ')$NliStr" -ForegroundColor Gray
     if ($Display) {

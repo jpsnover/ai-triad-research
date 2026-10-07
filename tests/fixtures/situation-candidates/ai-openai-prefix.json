@@ -41,6 +41,7 @@
     "[Gray]     Similarity: 0.8188 | POVs: accelerationist, safetyist, skeptic | contested",
     "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=2)",
     "[Blue]       [accelerationist] + [DarkGray]  acc-2 — Label acc-2",
+    "[DarkYellow]         vs.",
     "[Green]       [safetyist] + [DarkGray]  saf-2 — Label saf-2",
     "[Yellow]       [skeptic] + [DarkGray]  skp-2 — Label skp-2",
     "[Cyan] ",
@@ -130,21 +131,25 @@
           "contradiction": 2
         },
         "sides": [
-          {
-            "id": "acc-2",
-            "pov": "accelerationist",
-            "label": "Label acc-2"
-          },
-          {
-            "id": "saf-2",
-            "pov": "safetyist",
-            "label": "Label saf-2"
-          },
-          {
-            "id": "skp-2",
-            "pov": "skeptic",
-            "label": "Label skp-2"
-          }
+          [
+            {
+              "id": "acc-2",
+              "pov": "accelerationist",
+              "label": "Label acc-2"
+            }
+          ],
+          [
+            {
+              "id": "saf-2",
+              "pov": "safetyist",
+              "label": "Label saf-2"
+            },
+            {
+              "id": "skp-2",
+              "pov": "skeptic",
+              "label": "Label skp-2"
+            }
+          ]
         ],
         "proposed_label": "Label acc-2 / Label saf-2 / Label skp-2  (member order canonicalized)"
       }
