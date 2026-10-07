@@ -473,7 +473,10 @@ jobs:
           # t/4080 (replaces R4): healed ONLY if every run-1 failed test RE-RAN and PASSED, matched by name.
           # NotRun / Skipped / absent all count as NOT healed — the old Result/TotalCount check counted
           # NotRun tests toward "covered" and read zero-failures-because-nothing-ran as Passed.
-          $verdict = Get-FlakeRerunVerdict -FailedNames $failedNames -RerunTests @(if ($null -ne $r2) { $r2.Tests })
+          # Identity = File + ExpandedPath, aggregated (SO e/279#6): ExpandedPath alone omits the file, so
+          # co-named tests in two files (or two -ForEach rows) would collide and a Passed copy could erase a Failed one.
+          $asId = { param($t) [pscustomobject]@{ File = [string]$t.ScriptBlock.File; ExpandedPath = [string]$t.ExpandedPath; Result = [string]$t.Result } }
+          $verdict = Get-FlakeRerunVerdict -FailedTests @($failedTests | ForEach-Object { & $asId $_ }) -RerunTests @(if ($null -ne $r2) { $r2.Tests | ForEach-Object { & $asId $_ } })
           if ($verdict.Healed) {
             Write-Host "::warning::test-powershell: all $($failedNames.Count) failing test(s) RE-RAN and PASSED — treated as flake (self-healed): $($failedNames -join '; ')"
             exit 0

@@ -69,28 +69,46 @@ function Get-FlakeRerunVerdict {
     .DESCRIPTION
         The old verdict (ci.yml, t/3530 R4) was `rerun.Result -eq 'Passed' -and rerun.TotalCount -ge
         failed.Count`. Both halves are blind to NotRun: a rerun whose Filter.FullName matched NOTHING
-        (data-driven `It '... <Name>' -ForEach` tests — the filter cannot match an expanded name) reports
-        Result=Passed (zero failures) and TotalCount=<every discovered test, all NotRun>. Real failures
-        were laundered to green (main 696ea125, run 37668037103: 12 hidden failures).
+        (data-driven `It '... <Name>' -ForEach` tests) reports Result=Passed and TotalCount=<every test,
+        all NotRun>. Real failures were laundered to green (main 696ea125, run 37668037103: 12 hidden).
 
-        HEALED iff EVERY run-1 failed test (by ExpandedPath) appears in the rerun AND its rerun Result is
-        'Passed'. A failed name absent from the rerun, or present but NotRun/Skipped/Failed, is NOT healed.
-        PURE: takes names + the rerun's test objects; no Pester invocation.
+        IDENTITY = File + ExpandedPath (SO e/279#6). ExpandedPath alone omits the file, so the same
+        Describe/It names in two files, or two -ForEach rows expanding to the same string, would collide;
+        a last-write-wins map then lets a co-named Passed entry erase a Failed one. Entries are therefore
+        AGGREGATED per key, never overwritten.
+
+        A key is HEALED iff the rerun has at least as many entries under it as run 1 had failures, and
+        EVERY rerun entry under it is 'Passed'. Absent / NotRun / Skipped / Failed => not healed.
+        PURE: takes plain objects with File, ExpandedPath (and Result for the rerun); no Pester call.
     .OUTPUTS
-        [pscustomobject] Healed [bool]; NotRerun [string[]]; StillFailing [string[]] (rerun ran it, not Passed)
+        [pscustomobject] Healed [bool]; NotRerun [string[]]; StillFailing [string[]]  (keys "<file> :: <path>")
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)][AllowEmptyCollection()][string[]] $FailedNames,
+        # Run-1 failed tests: objects with File and ExpandedPath.
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]] $FailedTests,
+        # Rerun tests: objects with File, ExpandedPath and Result.
         [AllowNull()][object[]] $RerunTests
     )
-    $byName = @{}
-    foreach ($t in @($RerunTests)) { if ($null -ne $t) { $byName[[string]$t.ExpandedPath] = [string]$t.Result } }
-    $notRerun = @($FailedNames | Where-Object { -not $byName.ContainsKey($_) })
-    $stillFailing = @($FailedNames | Where-Object { $byName.ContainsKey($_) -and $byName[$_] -ne 'Passed' })
+    $key = { param($t) '{0} :: {1}' -f [string]$t.File, [string]$t.ExpandedPath }
+    $need = @{}
+    foreach ($f in @($FailedTests)) { if ($null -ne $f) { $k = & $key $f; $need[$k] = 1 + [int]$need[$k] } }
+    $got = @{}
+    foreach ($t in @($RerunTests)) {
+        if ($null -eq $t) { continue }
+        $k = & $key $t
+        if (-not $got.ContainsKey($k)) { $got[$k] = [System.Collections.Generic.List[string]]::new() }
+        $got[$k].Add([string]$t.Result)
+    }
+    $notRerun = [System.Collections.Generic.List[string]]::new()
+    $stillFailing = [System.Collections.Generic.List[string]]::new()
+    foreach ($k in $need.Keys) {
+        if (-not $got.ContainsKey($k) -or $got[$k].Count -lt $need[$k]) { $notRerun.Add($k); continue }
+        if (@($got[$k] | Where-Object { $_ -ne 'Passed' }).Count -gt 0) { $stillFailing.Add($k) }
+    }
     [pscustomobject]@{
-        Healed       = ($FailedNames.Count -gt 0 -and $notRerun.Count -eq 0 -and $stillFailing.Count -eq 0)
-        NotRerun     = $notRerun
-        StillFailing = $stillFailing
+        Healed       = ($need.Count -gt 0 -and $notRerun.Count -eq 0 -and $stillFailing.Count -eq 0)
+        NotRerun     = @($notRerun | Sort-Object)
+        StillFailing = @($stillFailing | Sort-Object)
     }
 }
