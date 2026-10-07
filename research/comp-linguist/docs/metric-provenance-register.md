@@ -394,6 +394,8 @@ Each calibration entry records what was actually served, captured **when the run
 
 **Coverage:** the engine path (CLI, headless, exploration) stamps the fingerprint from #2998. **Editor and web runs don't stamp it until the renderer session-creation change lands** (t/4040, Rosetta). Until then their rows carry an empty 4th segment, which fails closed into model-mixed.
 
+**Failover visibility gap (editor and web):** the server can fall back to another model **below the bridge** (`getFallbackChain`), and the call doesn't report the served model. So an editor or web run that failed over isn't marked in `speaker_model_failovers`, and would count as a clean replication. **Until the bridge reports a per-call served model (t/4040, Rosetta), editor and web rows aren't certified failover-free.** Engine-path rows are.
+
 ## Maintenance
 
 - Every PR adding or modifying a metric, threshold, weight, or lexicon must state its provenance class and update this register in the same PR (CL review checklist item).
