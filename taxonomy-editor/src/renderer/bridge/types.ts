@@ -13,6 +13,7 @@
 
 import type { StopReason, ProviderCallDiagnostics } from '@lib/ai-client/types';
 import type { PovTagProposalsFile, ProposalDecision, ProposalStatus, ApplyProposalDecisionResult } from '@lib/schema/povTagProposals';
+import type { RecountPolicyMembersResult } from '@lib/policy/registryRecount';
 
 export interface GroundingSegment {
   startIndex: number;
@@ -364,6 +365,9 @@ export interface AppAPI {
   loadTaxonomyFile: (pov: string) => Promise<unknown>;
   saveTaxonomyFile: (pov: string, data: unknown) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
+  /** t/4034: recount member_count / source_povs in policy_actions.json for these policy ids, from the POV
+   *  files on disk (lib/policy/registryRecount.ts). Returns written / unchanged / refused. */
+  recountPolicyMembers: (ids: string[]) => Promise<RecountPolicyMembersResult>;
   loadLineageCategories: () => Promise<unknown>;
 
   /** t/3852: durable audit record for a node deletion — appended to node-delete-log.jsonl

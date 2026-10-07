@@ -110,6 +110,9 @@ export const api: AppAPI = {
   // lands (ElectronMain); delegates automatically once preload exposes saveEdges.
   saveEdges: (data) => window.electronAPI.saveEdges?.(data) ?? Promise.reject(new Error('Edge persistence is not available in desktop mode yet (pending the save-edges IPC handler, t/1816)')),
   loadPolicyRegistry: () => window.electronAPI.loadPolicyRegistry(),
+  // t/4034: optional until the IPC handler lands (t/4038); a missing handler rejects, which the store
+  // records as a WARN plus a notice and never as a failed save.
+  recountPolicyMembers: (ids) => window.electronAPI.recountPolicyMembers?.(ids) ?? Promise.reject(new Error('recount-policy-members IPC handler not available')),
   loadLineageCategories: () => window.electronAPI.loadLineageCategories(),
   // t/3852: durable delete-audit log. Graceful-degrade until the `log-node-deletion` IPC
   // handler lands (ElectronMain, t/3859) — WARN-record and resolve rather than reject, since
