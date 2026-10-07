@@ -110,6 +110,8 @@ export const api: AppAPI = {
   // lands (ElectronMain); delegates automatically once preload exposes saveEdges.
   saveEdges: (data) => window.electronAPI.saveEdges?.(data) ?? Promise.reject(new Error('Edge persistence is not available in desktop mode yet (pending the save-edges IPC handler, t/1816)')),
   loadPolicyRegistry: () => window.electronAPI.loadPolicyRegistry(),
+  // t/4034: IPC handler from t/4038. A rejection is recorded by the store as a WARN plus a notice, never a failed save.
+  recountPolicyMembers: (ids) => window.electronAPI.recountPolicyMembers(ids),
   loadLineageCategories: () => window.electronAPI.loadLineageCategories(),
   // t/3852: durable delete-audit log. Graceful-degrade until the `log-node-deletion` IPC
   // handler lands (ElectronMain, t/3859) — WARN-record and resolve rather than reject, since
@@ -169,6 +171,9 @@ export const api: AppAPI = {
   checkDataUpdates: () => window.electronAPI.checkDataUpdates(),
   pullDataUpdates: () => window.electronAPI.pullDataUpdates(),
   getChangedFiles: () => window.electronAPI.getChangedFiles(),
+  // t/4052: IPC handlers from t/4054 (#3030).
+  loadPovTagProposals: () => window.electronAPI.loadPovTagProposals(),
+  reviewPovTagProposal: (nodeId, decision, expectedStatus) => window.electronAPI.reviewPovTagProposal(nodeId, decision, expectedStatus),
   getFileDiff: (filePath) => window.electronAPI.getFileDiff(filePath),
 
   // AI models & keys

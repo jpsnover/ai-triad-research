@@ -170,7 +170,10 @@ vi.mock('@lib/debate/nodeIdUtils', () => ({
   nodeTypeFromId: vi.fn().mockReturnValue('pov'),
 }));
 
-vi.mock('@lib/debate/qbaf', () => ({
+// t/4044: partial (real constants such as DEFAULT_ATTACK_WEIGHTS kept) so tests can run the real
+// extractCalibrationData over a created session; the mocked function is unchanged.
+vi.mock(import('@lib/debate/qbaf'), async (importOriginal) => ({
+  ...(await importOriginal()),
   computeQbafStrengths: vi.fn().mockReturnValue({ strengths: new Map() }),
 }));
 
@@ -277,7 +280,9 @@ vi.mock('@lib/debate/topicCritique', () => ({
   formatLineageContext: vi.fn().mockReturnValue(''),
 }));
 
-vi.mock('@lib/debate/prompts', () => ({
+// t/4044: partial (real PROMPT_VERSION kept), as for qbaf above; the mocked prompt builders are unchanged.
+vi.mock(import('@lib/debate/prompts'), async (importOriginal) => ({
+  ...(await importOriginal()),
   decomposeResolutionPrompt: vi.fn().mockReturnValue('mock-decompose-prompt'),
   topicScopeExtractionPrompt: vi.fn().mockReturnValue('mock-scope-prompt'),
   setTopicScope: vi.fn(),

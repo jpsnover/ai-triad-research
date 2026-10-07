@@ -1,0 +1,42 @@
+/* t/4052: POV-tag proposal review queue. */
+.ptp-open-btn { white-space: nowrap; }
+
+.ptp-dialog {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: min(900px, 94vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 10px;
+}
+.ptp-header { display: flex; align-items: center; justify-content: space-between; }
+.ptp-title { margin: 0; font-size: 1.1rem; }
+.ptp-note {
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  border-left: 3px solid rgb(var(--accent-rgb));
+}
+.ptp-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ptp-count { margin-left: auto; font-size: 0.85rem; color: var(--text-secondary); }
+.ptp-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.ptp-item { border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.ptp-item-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.ptp-tier { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; }
+.ptp-status { margin-left: auto; font-size: 0.8rem; padding: 1px 6px; border-radius: 10px; background: var(--bg-secondary); }
+.ptp-status-accepted, .ptp-status-modified { color: var(--success, var(--text-primary)); }
+.ptp-status-rejected { color: var(--error-color, var(--text-primary)); }
+/* t/4083: a reviewed decision is recorded, not yet applied to the node. */
+.ptp-recorded { font-size: 0.75rem; padding: 1px 6px; border-radius: 10px; border: 1px dashed var(--border-color); color: var(--text-secondary); }
+.ptp-desc, .ptp-rationale { margin: 0; font-size: 0.85rem; }
+.ptp-rationale { color: var(--text-secondary); font-style: italic; }
+.ptp-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ptp-key { font-size: 0.8rem; font-weight: 600; min-width: 64px; }
+.ptp-none { font-size: 0.8rem; color: var(--text-secondary); }
+.ptp-meta { font-size: 0.8rem; color: var(--text-secondary); }
+.ptp-actions, .ptp-modify { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

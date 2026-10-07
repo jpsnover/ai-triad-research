@@ -1,0 +1,22 @@
+{
+  "scenario": "err-snapshot-missing",
+  "host": [
+    "[Cyan] \n▶  Validating inputs",
+    "[Red]    ✗  snapshot.md not found: <ROOT>/sources/doc-1/snapshot.md"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": "snapshot.md not found for doc-1",
+  "output": [],
+  "calls": [],
+  "writes": [],
+  "tree": {
+    "conflicts/": "(dir)",
+    "sources/": "(dir)",
+    "sources/doc-1/": "(dir)",
+    "sources/doc-1/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"pending\",\n  \"claims_by_pov\": {\n    \"accelerationist\": 9\n  }\n}",
+    "summaries/": "(dir)",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}

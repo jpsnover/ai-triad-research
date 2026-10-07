@@ -1,0 +1,1622 @@
+{
+  "scenario": "oversized-debate",
+  "host": [
+    "[Cyan] ",
+    "▶  Building node index",
+    "[Green]    ✓  Indexed 12 nodes",
+    "[Cyan] ",
+    "▶  Loading embeddings",
+    "[Green]    ✓  Loaded 12 embeddings",
+    "[Cyan] ",
+    "▶  Loading edges",
+    "[Green]    ✓  Loaded edge data for boost scoring",
+    "[Cyan] ",
+    "▶  Computing cross-POV pairwise cosine similarities",
+    "[Green]    ✓  Checked 36 cross-POV pairs, found 36 above threshold",
+    "[Cyan] ",
+    "▶  Running NLI cross-encoder classification",
+    "[Green]    ✓  NLI: 0 entailment, 0 neutral, 36 contradiction",
+    "[Cyan] ",
+    "▶  Merging overlapping pairs into clusters",
+    "[Green]    ✓  Formed 0 agreement groups + 36 debate groups; selected 0 shared + 30 debate (top 30)",
+    "[Cyan] ",
+    "════════════════════════════════════════════════════════════════════════",
+    "[White]   CROSS-CUTTING CANDIDATES — 30 found (threshold: 0.6)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[White] ",
+    "  cluster-0: Label acc-o3 / Label saf-o2",
+    "[Gray]     Similarity: 0.9485 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o3 — Label acc-o3",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o2 — Label saf-o2",
+    "[White] ",
+    "  cluster-1: Label acc-o3 / Label saf-o6",
+    "[Gray]     Similarity: 0.9436 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o3 — Label acc-o3",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o6 — Label saf-o6",
+    "[White] ",
+    "  cluster-2: Label acc-o1 / Label saf-o2",
+    "[Gray]     Similarity: 0.9399 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o1 — Label acc-o1",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o2 — Label saf-o2",
+    "[White] ",
+    "  cluster-3: Label acc-o1 / Label saf-o6",
+    "[Gray]     Similarity: 0.935 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o1 — Label acc-o1",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o6 — Label saf-o6",
+    "[White] ",
+    "  cluster-4: Label acc-o3 / Label saf-o5",
+    "[Gray]     Similarity: 0.9288 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o3 — Label acc-o3",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o5 — Label saf-o5",
+    "[White] ",
+    "  cluster-5: Label acc-o1 / Label saf-o5",
+    "[Gray]     Similarity: 0.9203 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o1 — Label acc-o1",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o5 — Label saf-o5",
+    "[White] ",
+    "  cluster-6: Label acc-o3 / Label saf-o3",
+    "[Gray]     Similarity: 0.9021 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o3 — Label acc-o3",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o3 — Label saf-o3",
+    "[White] ",
+    "  cluster-7: Label acc-o1 / Label saf-o3",
+    "[Gray]     Similarity: 0.8939 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o1 — Label acc-o1",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o3 — Label saf-o3",
+    "[White] ",
+    "  cluster-8: Label acc-o3 / Label saf-o1",
+    "[Gray]     Similarity: 0.8774 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o3 — Label acc-o3",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o1 — Label saf-o1",
+    "[White] ",
+    "  cluster-9: Label acc-o1 / Label saf-o1",
+    "[Gray]     Similarity: 0.8694 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o1 — Label acc-o1",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o1 — Label saf-o1",
+    "[White] ",
+    "  cluster-10: Label acc-o3 / Label saf-o4",
+    "[Gray]     Similarity: 0.8617 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o3 — Label acc-o3",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o4 — Label saf-o4",
+    "[White] ",
+    "  cluster-11: Label acc-o1 / Label saf-o4",
+    "[Gray]     Similarity: 0.8538 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o1 — Label acc-o1",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o4 — Label saf-o4",
+    "[White] ",
+    "  cluster-12: Label acc-o5 / Label saf-o2",
+    "[Gray]     Similarity: 0.8514 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o5 — Label acc-o5",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o2 — Label saf-o2",
+    "[White] ",
+    "  cluster-13: Label acc-o5 / Label saf-o6",
+    "[Gray]     Similarity: 0.847 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o5 — Label acc-o5",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o6 — Label saf-o6",
+    "[White] ",
+    "  cluster-14: Label acc-o4 / Label saf-o2",
+    "[Gray]     Similarity: 0.8351 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o4 — Label acc-o4",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o2 — Label saf-o2",
+    "[White] ",
+    "  cluster-15: Label acc-o5 / Label saf-o5",
+    "[Gray]     Similarity: 0.8337 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o5 — Label acc-o5",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o5 — Label saf-o5",
+    "[White] ",
+    "  cluster-16: Label acc-o2 / Label saf-o2",
+    "[Gray]     Similarity: 0.8322 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o2 — Label acc-o2",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o2 — Label saf-o2",
+    "[White] ",
+    "  cluster-17: Label acc-o4 / Label saf-o6",
+    "[Gray]     Similarity: 0.8308 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o4 — Label acc-o4",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o6 — Label saf-o6",
+    "[White] ",
+    "  cluster-18: Label acc-o2 / Label saf-o6",
+    "[Gray]     Similarity: 0.8279 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o2 — Label acc-o2",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o6 — Label saf-o6",
+    "[White] ",
+    "  cluster-19: Label acc-o6 / Label saf-o2",
+    "[Gray]     Similarity: 0.8274 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o6 — Label acc-o6",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o2 — Label saf-o2",
+    "[White] ",
+    "  cluster-20: Label acc-o6 / Label saf-o6",
+    "[Gray]     Similarity: 0.8231 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o6 — Label acc-o6",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o6 — Label saf-o6",
+    "[White] ",
+    "  cluster-21: Label acc-o4 / Label saf-o5",
+    "[Gray]     Similarity: 0.8177 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o4 — Label acc-o4",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o5 — Label saf-o5",
+    "[White] ",
+    "  cluster-22: Label acc-o2 / Label saf-o5",
+    "[Gray]     Similarity: 0.8149 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o2 — Label acc-o2",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o5 — Label saf-o5",
+    "[White] ",
+    "  cluster-23: Label acc-o6 / Label saf-o5",
+    "[Gray]     Similarity: 0.8102 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o6 — Label acc-o6",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o5 — Label saf-o5",
+    "[White] ",
+    "  cluster-24: Label acc-o5 / Label saf-o3",
+    "[Gray]     Similarity: 0.8098 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o5 — Label acc-o5",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o3 — Label saf-o3",
+    "[White] ",
+    "  cluster-25: Label acc-o4 / Label saf-o3",
+    "[Gray]     Similarity: 0.7943 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o4 — Label acc-o4",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o3 — Label saf-o3",
+    "[White] ",
+    "  cluster-26: Label acc-o2 / Label saf-o3",
+    "[Gray]     Similarity: 0.7915 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o2 — Label acc-o2",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o3 — Label saf-o3",
+    "[White] ",
+    "  cluster-27: Label acc-o5 / Label saf-o1",
+    "[Gray]     Similarity: 0.7877 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o5 — Label acc-o5",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o1 — Label saf-o1",
+    "[White] ",
+    "  cluster-28: Label acc-o6 / Label saf-o3",
+    "[Gray]     Similarity: 0.787 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o6 — Label acc-o6",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o3 — Label saf-o3",
+    "[White] ",
+    "  cluster-29: Label acc-o5 / Label saf-o4",
+    "[Gray]     Similarity: 0.7735 | POVs: accelerationist, safetyist | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-o5 — Label acc-o5",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-o4 — Label saf-o4",
+    "[Cyan] ",
+    "════════════════════════════════════════════════════════════════════════"
+  ],
+  "warnings": [],
+  "error": "",
+  "result": {
+    "generated_at": "2026-01-02T03:04:05.0000000Z",
+    "min_similarity": 0.6,
+    "pairs_checked": 36,
+    "pairs_above": 36,
+    "candidates": [
+      {
+        "cluster_id": "cluster-0",
+        "members": [
+          {
+            "id": "acc-o3",
+            "pov": "accelerationist",
+            "label": "Label acc-o3"
+          },
+          {
+            "id": "saf-o2",
+            "pov": "safetyist",
+            "label": "Label saf-o2"
+          }
+        ],
+        "avg_similarity": 0.9485,
+        "max_boosted": 0.9485,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o3 / Label saf-o2  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-1",
+        "members": [
+          {
+            "id": "acc-o3",
+            "pov": "accelerationist",
+            "label": "Label acc-o3"
+          },
+          {
+            "id": "saf-o6",
+            "pov": "safetyist",
+            "label": "Label saf-o6"
+          }
+        ],
+        "avg_similarity": 0.9436,
+        "max_boosted": 0.9436,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o3 / Label saf-o6  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-2",
+        "members": [
+          {
+            "id": "acc-o1",
+            "pov": "accelerationist",
+            "label": "Label acc-o1"
+          },
+          {
+            "id": "saf-o2",
+            "pov": "safetyist",
+            "label": "Label saf-o2"
+          }
+        ],
+        "avg_similarity": 0.9399,
+        "max_boosted": 0.9399,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o1 / Label saf-o2  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-3",
+        "members": [
+          {
+            "id": "acc-o1",
+            "pov": "accelerationist",
+            "label": "Label acc-o1"
+          },
+          {
+            "id": "saf-o6",
+            "pov": "safetyist",
+            "label": "Label saf-o6"
+          }
+        ],
+        "avg_similarity": 0.935,
+        "max_boosted": 0.935,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o1 / Label saf-o6  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-4",
+        "members": [
+          {
+            "id": "acc-o3",
+            "pov": "accelerationist",
+            "label": "Label acc-o3"
+          },
+          {
+            "id": "saf-o5",
+            "pov": "safetyist",
+            "label": "Label saf-o5"
+          }
+        ],
+        "avg_similarity": 0.9288,
+        "max_boosted": 0.9288,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o3 / Label saf-o5  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-5",
+        "members": [
+          {
+            "id": "acc-o1",
+            "pov": "accelerationist",
+            "label": "Label acc-o1"
+          },
+          {
+            "id": "saf-o5",
+            "pov": "safetyist",
+            "label": "Label saf-o5"
+          }
+        ],
+        "avg_similarity": 0.9203,
+        "max_boosted": 0.9203,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o1 / Label saf-o5  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-6",
+        "members": [
+          {
+            "id": "acc-o3",
+            "pov": "accelerationist",
+            "label": "Label acc-o3"
+          },
+          {
+            "id": "saf-o3",
+            "pov": "safetyist",
+            "label": "Label saf-o3"
+          }
+        ],
+        "avg_similarity": 0.9021,
+        "max_boosted": 0.9021,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o3 / Label saf-o3  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-7",
+        "members": [
+          {
+            "id": "acc-o1",
+            "pov": "accelerationist",
+            "label": "Label acc-o1"
+          },
+          {
+            "id": "saf-o3",
+            "pov": "safetyist",
+            "label": "Label saf-o3"
+          }
+        ],
+        "avg_similarity": 0.8939,
+        "max_boosted": 0.8939,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o1 / Label saf-o3  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-8",
+        "members": [
+          {
+            "id": "acc-o3",
+            "pov": "accelerationist",
+            "label": "Label acc-o3"
+          },
+          {
+            "id": "saf-o1",
+            "pov": "safetyist",
+            "label": "Label saf-o1"
+          }
+        ],
+        "avg_similarity": 0.8774,
+        "max_boosted": 0.8774,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o1",
+              "pov": "safetyist",
+              "label": "Label saf-o1"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o3 / Label saf-o1  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-9",
+        "members": [
+          {
+            "id": "acc-o1",
+            "pov": "accelerationist",
+            "label": "Label acc-o1"
+          },
+          {
+            "id": "saf-o1",
+            "pov": "safetyist",
+            "label": "Label saf-o1"
+          }
+        ],
+        "avg_similarity": 0.8694,
+        "max_boosted": 0.8694,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o1",
+              "pov": "safetyist",
+              "label": "Label saf-o1"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o1 / Label saf-o1  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-10",
+        "members": [
+          {
+            "id": "acc-o3",
+            "pov": "accelerationist",
+            "label": "Label acc-o3"
+          },
+          {
+            "id": "saf-o4",
+            "pov": "safetyist",
+            "label": "Label saf-o4"
+          }
+        ],
+        "avg_similarity": 0.8617,
+        "max_boosted": 0.8617,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o4",
+              "pov": "safetyist",
+              "label": "Label saf-o4"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o3 / Label saf-o4  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-11",
+        "members": [
+          {
+            "id": "acc-o1",
+            "pov": "accelerationist",
+            "label": "Label acc-o1"
+          },
+          {
+            "id": "saf-o4",
+            "pov": "safetyist",
+            "label": "Label saf-o4"
+          }
+        ],
+        "avg_similarity": 0.8538,
+        "max_boosted": 0.8538,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o4",
+              "pov": "safetyist",
+              "label": "Label saf-o4"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o1 / Label saf-o4  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-12",
+        "members": [
+          {
+            "id": "acc-o5",
+            "pov": "accelerationist",
+            "label": "Label acc-o5"
+          },
+          {
+            "id": "saf-o2",
+            "pov": "safetyist",
+            "label": "Label saf-o2"
+          }
+        ],
+        "avg_similarity": 0.8514,
+        "max_boosted": 0.8514,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o5 / Label saf-o2  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-13",
+        "members": [
+          {
+            "id": "acc-o5",
+            "pov": "accelerationist",
+            "label": "Label acc-o5"
+          },
+          {
+            "id": "saf-o6",
+            "pov": "safetyist",
+            "label": "Label saf-o6"
+          }
+        ],
+        "avg_similarity": 0.847,
+        "max_boosted": 0.847,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o5 / Label saf-o6  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-14",
+        "members": [
+          {
+            "id": "acc-o4",
+            "pov": "accelerationist",
+            "label": "Label acc-o4"
+          },
+          {
+            "id": "saf-o2",
+            "pov": "safetyist",
+            "label": "Label saf-o2"
+          }
+        ],
+        "avg_similarity": 0.8351,
+        "max_boosted": 0.8351,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o4",
+              "pov": "accelerationist",
+              "label": "Label acc-o4"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o4 / Label saf-o2  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-15",
+        "members": [
+          {
+            "id": "acc-o5",
+            "pov": "accelerationist",
+            "label": "Label acc-o5"
+          },
+          {
+            "id": "saf-o5",
+            "pov": "safetyist",
+            "label": "Label saf-o5"
+          }
+        ],
+        "avg_similarity": 0.8337,
+        "max_boosted": 0.8337,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o5 / Label saf-o5  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-16",
+        "members": [
+          {
+            "id": "acc-o2",
+            "pov": "accelerationist",
+            "label": "Label acc-o2"
+          },
+          {
+            "id": "saf-o2",
+            "pov": "safetyist",
+            "label": "Label saf-o2"
+          }
+        ],
+        "avg_similarity": 0.8322,
+        "max_boosted": 0.8322,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o2",
+              "pov": "accelerationist",
+              "label": "Label acc-o2"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o2 / Label saf-o2  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-17",
+        "members": [
+          {
+            "id": "acc-o4",
+            "pov": "accelerationist",
+            "label": "Label acc-o4"
+          },
+          {
+            "id": "saf-o6",
+            "pov": "safetyist",
+            "label": "Label saf-o6"
+          }
+        ],
+        "avg_similarity": 0.8308,
+        "max_boosted": 0.8308,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o4",
+              "pov": "accelerationist",
+              "label": "Label acc-o4"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o4 / Label saf-o6  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-18",
+        "members": [
+          {
+            "id": "acc-o2",
+            "pov": "accelerationist",
+            "label": "Label acc-o2"
+          },
+          {
+            "id": "saf-o6",
+            "pov": "safetyist",
+            "label": "Label saf-o6"
+          }
+        ],
+        "avg_similarity": 0.8279,
+        "max_boosted": 0.8279,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o2",
+              "pov": "accelerationist",
+              "label": "Label acc-o2"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o2 / Label saf-o6  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-19",
+        "members": [
+          {
+            "id": "acc-o6",
+            "pov": "accelerationist",
+            "label": "Label acc-o6"
+          },
+          {
+            "id": "saf-o2",
+            "pov": "safetyist",
+            "label": "Label saf-o2"
+          }
+        ],
+        "avg_similarity": 0.8274,
+        "max_boosted": 0.8274,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o6",
+              "pov": "accelerationist",
+              "label": "Label acc-o6"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o6 / Label saf-o2  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-20",
+        "members": [
+          {
+            "id": "acc-o6",
+            "pov": "accelerationist",
+            "label": "Label acc-o6"
+          },
+          {
+            "id": "saf-o6",
+            "pov": "safetyist",
+            "label": "Label saf-o6"
+          }
+        ],
+        "avg_similarity": 0.8231,
+        "max_boosted": 0.8231,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o6",
+              "pov": "accelerationist",
+              "label": "Label acc-o6"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o6 / Label saf-o6  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-21",
+        "members": [
+          {
+            "id": "acc-o4",
+            "pov": "accelerationist",
+            "label": "Label acc-o4"
+          },
+          {
+            "id": "saf-o5",
+            "pov": "safetyist",
+            "label": "Label saf-o5"
+          }
+        ],
+        "avg_similarity": 0.8177,
+        "max_boosted": 0.8177,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o4",
+              "pov": "accelerationist",
+              "label": "Label acc-o4"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o4 / Label saf-o5  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-22",
+        "members": [
+          {
+            "id": "acc-o2",
+            "pov": "accelerationist",
+            "label": "Label acc-o2"
+          },
+          {
+            "id": "saf-o5",
+            "pov": "safetyist",
+            "label": "Label saf-o5"
+          }
+        ],
+        "avg_similarity": 0.8149,
+        "max_boosted": 0.8149,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o2",
+              "pov": "accelerationist",
+              "label": "Label acc-o2"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o2 / Label saf-o5  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-23",
+        "members": [
+          {
+            "id": "acc-o6",
+            "pov": "accelerationist",
+            "label": "Label acc-o6"
+          },
+          {
+            "id": "saf-o5",
+            "pov": "safetyist",
+            "label": "Label saf-o5"
+          }
+        ],
+        "avg_similarity": 0.8102,
+        "max_boosted": 0.8102,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o6",
+              "pov": "accelerationist",
+              "label": "Label acc-o6"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o6 / Label saf-o5  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-24",
+        "members": [
+          {
+            "id": "acc-o5",
+            "pov": "accelerationist",
+            "label": "Label acc-o5"
+          },
+          {
+            "id": "saf-o3",
+            "pov": "safetyist",
+            "label": "Label saf-o3"
+          }
+        ],
+        "avg_similarity": 0.8098,
+        "max_boosted": 0.8098,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o5 / Label saf-o3  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-25",
+        "members": [
+          {
+            "id": "acc-o4",
+            "pov": "accelerationist",
+            "label": "Label acc-o4"
+          },
+          {
+            "id": "saf-o3",
+            "pov": "safetyist",
+            "label": "Label saf-o3"
+          }
+        ],
+        "avg_similarity": 0.7943,
+        "max_boosted": 0.7943,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o4",
+              "pov": "accelerationist",
+              "label": "Label acc-o4"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o4 / Label saf-o3  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-26",
+        "members": [
+          {
+            "id": "acc-o2",
+            "pov": "accelerationist",
+            "label": "Label acc-o2"
+          },
+          {
+            "id": "saf-o3",
+            "pov": "safetyist",
+            "label": "Label saf-o3"
+          }
+        ],
+        "avg_similarity": 0.7915,
+        "max_boosted": 0.7915,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o2",
+              "pov": "accelerationist",
+              "label": "Label acc-o2"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o2 / Label saf-o3  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-27",
+        "members": [
+          {
+            "id": "acc-o5",
+            "pov": "accelerationist",
+            "label": "Label acc-o5"
+          },
+          {
+            "id": "saf-o1",
+            "pov": "safetyist",
+            "label": "Label saf-o1"
+          }
+        ],
+        "avg_similarity": 0.7877,
+        "max_boosted": 0.7877,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o1",
+              "pov": "safetyist",
+              "label": "Label saf-o1"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o5 / Label saf-o1  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-28",
+        "members": [
+          {
+            "id": "acc-o6",
+            "pov": "accelerationist",
+            "label": "Label acc-o6"
+          },
+          {
+            "id": "saf-o3",
+            "pov": "safetyist",
+            "label": "Label saf-o3"
+          }
+        ],
+        "avg_similarity": 0.787,
+        "max_boosted": 0.787,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o6",
+              "pov": "accelerationist",
+              "label": "Label acc-o6"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o6 / Label saf-o3  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-29",
+        "members": [
+          {
+            "id": "acc-o5",
+            "pov": "accelerationist",
+            "label": "Label acc-o5"
+          },
+          {
+            "id": "saf-o4",
+            "pov": "safetyist",
+            "label": "Label saf-o4"
+          }
+        ],
+        "avg_similarity": 0.7735,
+        "max_boosted": 0.7735,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 1
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o4",
+              "pov": "safetyist",
+              "label": "Label saf-o4"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-o5 / Label saf-o4  (member order canonicalized)"
+      }
+    ]
+  },
+  "calls": [
+    {
+      "call": "tierModel",
+      "tier": "basic"
+    },
+    {
+      "call": "python3",
+      "args": [
+        "<ROOT>/scripts/embed_taxonomy.py",
+        "nli-classify"
+      ],
+      "pairs": [
+        "The accelerationist position is: Label acc-o1 — Description of acc-o1. <|> The safetyist position is: Label saf-o1 — Description of saf-o1.",
+        "The accelerationist position is: Label acc-o1 — Description of acc-o1. <|> The safetyist position is: Label saf-o2 — Description of saf-o2.",
+        "The accelerationist position is: Label acc-o1 — Description of acc-o1. <|> The safetyist position is: Label saf-o3 — Description of saf-o3.",
+        "The accelerationist position is: Label acc-o1 — Description of acc-o1. <|> The safetyist position is: Label saf-o4 — Description of saf-o4.",
+        "The accelerationist position is: Label acc-o1 — Description of acc-o1. <|> The safetyist position is: Label saf-o5 — Description of saf-o5.",
+        "The accelerationist position is: Label acc-o1 — Description of acc-o1. <|> The safetyist position is: Label saf-o6 — Description of saf-o6.",
+        "The accelerationist position is: Label acc-o2 — Description of acc-o2. <|> The safetyist position is: Label saf-o1 — Description of saf-o1.",
+        "The accelerationist position is: Label acc-o2 — Description of acc-o2. <|> The safetyist position is: Label saf-o2 — Description of saf-o2.",
+        "The accelerationist position is: Label acc-o2 — Description of acc-o2. <|> The safetyist position is: Label saf-o3 — Description of saf-o3.",
+        "The accelerationist position is: Label acc-o2 — Description of acc-o2. <|> The safetyist position is: Label saf-o4 — Description of saf-o4.",
+        "The accelerationist position is: Label acc-o2 — Description of acc-o2. <|> The safetyist position is: Label saf-o5 — Description of saf-o5.",
+        "The accelerationist position is: Label acc-o2 — Description of acc-o2. <|> The safetyist position is: Label saf-o6 — Description of saf-o6.",
+        "The accelerationist position is: Label acc-o3 — Description of acc-o3. <|> The safetyist position is: Label saf-o1 — Description of saf-o1.",
+        "The accelerationist position is: Label acc-o3 — Description of acc-o3. <|> The safetyist position is: Label saf-o2 — Description of saf-o2.",
+        "The accelerationist position is: Label acc-o3 — Description of acc-o3. <|> The safetyist position is: Label saf-o3 — Description of saf-o3.",
+        "The accelerationist position is: Label acc-o3 — Description of acc-o3. <|> The safetyist position is: Label saf-o4 — Description of saf-o4.",
+        "The accelerationist position is: Label acc-o3 — Description of acc-o3. <|> The safetyist position is: Label saf-o5 — Description of saf-o5.",
+        "The accelerationist position is: Label acc-o3 — Description of acc-o3. <|> The safetyist position is: Label saf-o6 — Description of saf-o6.",
+        "The accelerationist position is: Label acc-o4 — Description of acc-o4. <|> The safetyist position is: Label saf-o1 — Description of saf-o1.",
+        "The accelerationist position is: Label acc-o4 — Description of acc-o4. <|> The safetyist position is: Label saf-o2 — Description of saf-o2.",
+        "The accelerationist position is: Label acc-o4 — Description of acc-o4. <|> The safetyist position is: Label saf-o3 — Description of saf-o3.",
+        "The accelerationist position is: Label acc-o4 — Description of acc-o4. <|> The safetyist position is: Label saf-o4 — Description of saf-o4.",
+        "The accelerationist position is: Label acc-o4 — Description of acc-o4. <|> The safetyist position is: Label saf-o5 — Description of saf-o5.",
+        "The accelerationist position is: Label acc-o4 — Description of acc-o4. <|> The safetyist position is: Label saf-o6 — Description of saf-o6.",
+        "The accelerationist position is: Label acc-o5 — Description of acc-o5. <|> The safetyist position is: Label saf-o1 — Description of saf-o1.",
+        "The accelerationist position is: Label acc-o5 — Description of acc-o5. <|> The safetyist position is: Label saf-o2 — Description of saf-o2.",
+        "The accelerationist position is: Label acc-o5 — Description of acc-o5. <|> The safetyist position is: Label saf-o3 — Description of saf-o3.",
+        "The accelerationist position is: Label acc-o5 — Description of acc-o5. <|> The safetyist position is: Label saf-o4 — Description of saf-o4.",
+        "The accelerationist position is: Label acc-o5 — Description of acc-o5. <|> The safetyist position is: Label saf-o5 — Description of saf-o5.",
+        "The accelerationist position is: Label acc-o5 — Description of acc-o5. <|> The safetyist position is: Label saf-o6 — Description of saf-o6.",
+        "The accelerationist position is: Label acc-o6 — Description of acc-o6. <|> The safetyist position is: Label saf-o1 — Description of saf-o1.",
+        "The accelerationist position is: Label acc-o6 — Description of acc-o6. <|> The safetyist position is: Label saf-o2 — Description of saf-o2.",
+        "The accelerationist position is: Label acc-o6 — Description of acc-o6. <|> The safetyist position is: Label saf-o3 — Description of saf-o3.",
+        "The accelerationist position is: Label acc-o6 — Description of acc-o6. <|> The safetyist position is: Label saf-o4 — Description of saf-o4.",
+        "The accelerationist position is: Label acc-o6 — Description of acc-o6. <|> The safetyist position is: Label saf-o5 — Description of saf-o5.",
+        "The accelerationist position is: Label acc-o6 — Description of acc-o6. <|> The safetyist position is: Label saf-o6 — Description of saf-o6."
+      ]
+    }
+  ],
+  "writes": [],
+  "written": null
+}

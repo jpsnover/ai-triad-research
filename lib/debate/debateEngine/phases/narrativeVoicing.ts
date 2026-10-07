@@ -3,7 +3,6 @@
 
 import type { DebateEngineInternals } from '../internals.js';
 import type { TranscriptEntry } from '../../types.js';
-import { POVER_INFO } from '../../types.js';
 import { getGlobalRecorder } from '../../../flight-recorder/index.js';
 import { narrativeVoicingPrompt } from '../../prompts.js';
 import {
@@ -37,7 +36,7 @@ export async function runNarrativeVoicing(engine: DebateEngineInternals): Promis
   try {
     const materials = [];
     for (const p of povers) {
-      const info = POVER_INFO[p];
+      const info = engine.getSoulForSpeaker(p);
       const context = await getRelevantTaxonomyContext(engine, info.pov);
       materials.push({ pov: info.pov, label: info.label, context: truncateNarrativeMaterial(context) });
     }

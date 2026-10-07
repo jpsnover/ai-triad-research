@@ -1,0 +1,217 @@
+{
+  "scenario": "ai-openai-prefix",
+  "host": [
+    "[Cyan] ",
+    "▶  Building node index",
+    "[Green]    ✓  Indexed 18 nodes",
+    "[Cyan] ",
+    "▶  Loading embeddings",
+    "[Green]    ✓  Loaded 17 embeddings",
+    "[Cyan] ",
+    "▶  Loading edges",
+    "[Green]    ✓  Loaded edge data for boost scoring",
+    "[Cyan] ",
+    "▶  Computing cross-POV pairwise cosine similarities",
+    "[Green]    ✓  Checked 83 cross-POV pairs, found 14 above threshold",
+    "[Cyan] ",
+    "▶  Running NLI cross-encoder classification",
+    "[Green]    ✓  NLI: 7 entailment, 1 neutral, 6 contradiction",
+    "[Cyan] ",
+    "▶  Merging overlapping pairs into clusters",
+    "[Green]    ✓  Formed 4 agreement groups + 3 debate groups; selected 1 shared + 1 debate (top 2)",
+    "[Cyan] ",
+    "▶  Generating situation proposals with AI",
+    "[Green]    ✓  AI proposed 1 situation concepts (mock-backend)",
+    "[Cyan] ",
+    "════════════════════════════════════════════════════════════════════════",
+    "[White]   CROSS-CUTTING CANDIDATES — 2 found (threshold: 0.6)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[White] ",
+    "  cluster-0: Plain JSON",
+    "[Gray]     Similarity: 0.8591 | POVs: accelerationist, safetyist, skeptic | shared",
+    "[Green]     [shared] + [DarkGray]  (shared=5 unclear=0 contested=0)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-1 — Label acc-1",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-7 — Label acc-7",
+    "[Green]       [safetyist] + [DarkGray]  saf-1 — Label saf-1",
+    "[Yellow]       [skeptic] + [DarkGray]  skp-1 — Label skp-1",
+    "[Cyan]     Description: No fence.",
+    "[Green]     Confidence: 90%",
+    "[White] ",
+    "  cluster-1: Label acc-2 / Label saf-2 / Label skp-2",
+    "[Gray]     Similarity: 0.8188 | POVs: accelerationist, safetyist, skeptic | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=2)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-2 — Label acc-2",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-2 — Label saf-2",
+    "[Yellow]       [skeptic] + [DarkGray]  skp-2 — Label skp-2",
+    "[Cyan] ",
+    "════════════════════════════════════════════════════════════════════════"
+  ],
+  "warnings": [],
+  "error": "",
+  "result": {
+    "generated_at": "2026-01-02T03:04:05.0000000Z",
+    "min_similarity": 0.6,
+    "pairs_checked": 83,
+    "pairs_above": 14,
+    "candidates": [
+      {
+        "cluster_id": "cluster-0",
+        "members": [
+          {
+            "id": "acc-1",
+            "pov": "accelerationist",
+            "label": "Label acc-1"
+          },
+          {
+            "id": "acc-7",
+            "pov": "accelerationist",
+            "label": "Label acc-7"
+          },
+          {
+            "id": "saf-1",
+            "pov": "safetyist",
+            "label": "Label saf-1"
+          },
+          {
+            "id": "skp-1",
+            "pov": "skeptic",
+            "label": "Label skp-1"
+          }
+        ],
+        "avg_similarity": 0.8591,
+        "max_boosted": 0.9135,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist",
+          "skeptic"
+        ],
+        "nli_relationship": "entailment",
+        "nli_counts": {
+          "entailment": 5,
+          "neutral": 0,
+          "contradiction": 0
+        },
+        "proposed_label": "Plain JSON",
+        "proposed_description": "No fence.",
+        "interpretations": {},
+        "confidence": 0.9,
+        "rationale": "r"
+      },
+      {
+        "cluster_id": "cluster-1",
+        "members": [
+          {
+            "id": "acc-2",
+            "pov": "accelerationist",
+            "label": "Label acc-2"
+          },
+          {
+            "id": "saf-2",
+            "pov": "safetyist",
+            "label": "Label saf-2"
+          },
+          {
+            "id": "skp-2",
+            "pov": "skeptic",
+            "label": "Label skp-2"
+          }
+        ],
+        "avg_similarity": 0.8188,
+        "max_boosted": 0.828,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist",
+          "skeptic"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 2
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-2",
+              "pov": "accelerationist",
+              "label": "Label acc-2"
+            }
+          ],
+          [
+            {
+              "id": "saf-2",
+              "pov": "safetyist",
+              "label": "Label saf-2"
+            },
+            {
+              "id": "skp-2",
+              "pov": "skeptic",
+              "label": "Label skp-2"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-2 / Label saf-2 / Label skp-2  (member order canonicalized)"
+      }
+    ]
+  },
+  "calls": [
+    {
+      "call": "python3",
+      "args": [
+        "<ROOT>/scripts/embed_taxonomy.py",
+        "nli-classify"
+      ],
+      "pairs": [
+        "The accelerationist position is: Label acc-1 — Description of acc-1. <|> The safetyist position is: Label saf-1 — Description of saf-1.",
+        "The accelerationist position is: Label acc-1 — Description of acc-1. <|> The skeptic position is: Label skp-1 — Description of skp-1.",
+        "The accelerationist position is: Label acc-2 — Description of acc-2. <|> The safetyist position is: Label saf-2 — Description of saf-2.",
+        "The accelerationist position is: Label acc-2 — Description of acc-2. <|> The skeptic position is: Label skp-2 — Description of skp-2.",
+        "The accelerationist position is: Label acc-3 — Description of acc-3. <|> The safetyist position is: Label saf-3 — Description of saf-3.",
+        "The accelerationist position is: Label acc-4 — Description of acc-4. <|> The skeptic position is: Label skp-4 — Description of skp-4.",
+        "The accelerationist position is: Label acc-5 — Description of acc-5. <|> The safetyist position is: Label saf-5 — Description of saf-5.",
+        "The accelerationist position is: Label acc-5 — Description of acc-5. <|> The skeptic position is: Label skp-5 — Description of skp-5.",
+        "The accelerationist position is: Label acc-7 — Description of acc-7. <|> The safetyist position is: Label saf-1 — Description of saf-1.",
+        "The accelerationist position is: Label acc-7 — Description of acc-7. <|> The skeptic position is: Label skp-1 — Description of skp-1.",
+        "The accelerationist position is: Label acc-8 — Description of acc-8. <|> The skeptic position is: Label skp-8 — Label skp-8",
+        "The safetyist position is: Label saf-1 — Description of saf-1. <|> The skeptic position is: Label skp-1 — Description of skp-1.",
+        "The safetyist position is: Label saf-2 — Description of saf-2. <|> The skeptic position is: Label skp-2 — Description of skp-2.",
+        "The safetyist position is: Label saf-5 — Description of saf-5. <|> The skeptic position is: Label skp-5 — Description of skp-5."
+      ]
+    },
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "openai"
+    },
+    {
+      "call": "prompt",
+      "name": "situation-candidates",
+      "replacements": {
+        "CLUSTERS": "--- cluster-0 (avg similarity: 0.8591, POVs: accelerationist, nli, safetyist, skeptic_relationship: entailment, nli_breakdown: entailment=5 neutral=0 contradiction=0) ---\n  - acc-1 [accelerationist]: Label acc-1 — Description of acc-1.\n  - acc-7 [accelerationist]: Label acc-7 — Description of acc-7.\n  - saf-1 [safetyist]: Label saf-1 — Description of saf-1.\n  - skp-1 [skeptic]: Label skp-1 — Description of skp-1.\n\n--- cluster-1 (avg similarity: 0.8188, POVs: accelerationist, nli, safetyist, skeptic_relationship: contradiction, nli_breakdown: entailment=0 neutral=0 contradiction=2) ---\n  - acc-2 [accelerationist]: Label acc-2 — Description of acc-2.\n  - saf-2 [safetyist]: Label saf-2 — Description of saf-2.\n  - skp-2 [skeptic]: Label skp-2 — Description of skp-2.\n\n"
+      }
+    },
+    {
+      "call": "prompt",
+      "name": "situation-candidates-schema",
+      "replacements": {}
+    },
+    {
+      "call": "ai",
+      "model": "openai-gpt-4o",
+      "apiKey": "resolved-openai-key",
+      "temperature": 0.2,
+      "maxTokens": 8192,
+      "jsonMode": true,
+      "maxRetries": 3,
+      "retryDelays": [
+        5,
+        15,
+        45
+      ],
+      "prompt": "<<situation-candidates>>\n\n<<situation-candidates-schema>>"
+    }
+  ],
+  "writes": [],
+  "written": null
+}

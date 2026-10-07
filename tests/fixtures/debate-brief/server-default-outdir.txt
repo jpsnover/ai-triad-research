@@ -1,0 +1,28 @@
+VERBOSE: Server mode: exporting debate 'deb-def' via https://srv.example (auth: none — anonymous).
+VERBOSE: Performing the operation "export brief (preset=policymaker, model=(none — narration skipped)) via https://srv.example" on target "debate 'deb-def'".
+VERBOSE: Created async export job 'job-1' (preset=policymaker, model=(none — narration skipped)). Polling every 2s (timeout 300s).
+VERBOSE:   job 'job-1': done (100%)
+VERBOSE: Job done (exportId 'exp-1'). Downloading 4 artifacts → <ROOT>/deb-def-brief
+VERBOSE:   ↓ deck_spec.json (0.0 KB)
+VERBOSE:   ↓ narration.json (0.0 KB)
+VERBOSE:   ↓ audit-manifest.json (0.2 KB)
+VERBOSE:   ↓ brief.pptx (0.0 KB)
+VERBOSE: ──────── Brief export complete (server) ────────
+VERBOSE:   Debate:         deb-123
+VERBOSE:   Title:          Server T
+VERBOSE:   Preset:         policymaker
+VERBOSE:   Model:          gem-1 (source: ServerResolved)
+VERBOSE:   Checker model:  chk-1
+VERBOSE:   Trace coverage: 92.5%
+VERBOSE:   Verdicts:       Disputed=1, Supported=3
+VERBOSE:   Warnings:       1
+VERBOSE:   Deck (.pptx):   <ROOT>/deb-def-brief/brief.pptx
+VERBOSE:   Deck spec:      <ROOT>/deb-def-brief/deck_spec.json
+VERBOSE:   Audit manifest: <ROOT>/deb-def-brief/audit-manifest.json
+OUTPUT: {"CheckerModel":"chk-1","DebateId":"deb-123","ManifestPath":"<ROOT>/deb-def-brief/audit-manifest.json","Model":"gem-1","ModelSource":"ServerResolved","Path":"<ROOT>/deb-def-brief/brief.pptx","Preset":"policymaker","SpecPath":"<ROOT>/deb-def-brief/deck_spec.json","Title":"Server T","TraceCoveragePct":92.5,"Verdicts":{"Disputed":1,"Supported":3},"Warnings":["m-warn"]}
+CALL: POST https://srv.example/api/debates/deb-def/exports body={"preset":"policymaker","skipNarration":true} headers= auth= ok=202 timeout=300 json=True
+CALL: GET https://srv.example/api/export-jobs/job-1 headers= ok=200 timeout=300 json=True
+CALL: SAVE https://srv.example exp-1 deck_spec.json -> <ROOT>/deb-def-brief/deck_spec.json headers= timeout=300
+CALL: SAVE https://srv.example exp-1 narration.json -> <ROOT>/deb-def-brief/narration.json headers= timeout=300
+CALL: SAVE https://srv.example exp-1 audit-manifest.json -> <ROOT>/deb-def-brief/audit-manifest.json headers= timeout=300
+CALL: SAVE https://srv.example exp-1 brief.pptx -> <ROOT>/deb-def-brief/brief.pptx headers= timeout=300

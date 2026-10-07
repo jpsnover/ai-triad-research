@@ -98,7 +98,7 @@ describe('t/2610 — POST /api/oped-sets cancel-persistence over a real socket',
 
   afterEach(async () => { await new Promise<void>(r => server.close(() => r())); });
 
-  const body = JSON.stringify({ topic: 'AI safety', params: { model: 'gemini-flash', wordCount: 800 }, povs: ['acc', 'saf'] });
+  const body = JSON.stringify({ topic: 'AI safety', params: { model: 'gemini-flash', wordCount: 800 }, povs: ['accelerationist', 'safetyist'] });
 
   it('CLEAN ARM: a normal run persists the FULL set (no false-abort at message-complete)', async () => {
     // Voice 1 completes, then a delay long enough that a req.on('close') false-abort would

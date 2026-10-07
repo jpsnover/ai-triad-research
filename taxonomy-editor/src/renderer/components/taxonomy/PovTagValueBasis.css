@@ -1,0 +1,11 @@
+/* t/4052: model-suggested Value Hierarchy justification in the POV-tag proposal queue.
+   Firm, uncertain and unsupported share one visual weight on purpose (SO e/278#2 condition 4). */
+.ptvb { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border-radius: 4px; background: var(--bg-secondary); }
+.ptvb-head { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
+.ptvb-line { display: flex; flex-direction: column; gap: 2px; }
+.ptvb-cite { font-size: 0.85rem; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-color); }
+.ptvb-marker { font-size: 0.8rem; font-style: italic; }
+.ptvb-unsupported { border-color: var(--danger, var(--border-color)); color: var(--danger, var(--text-primary)); font-weight: 600; }
+.ptvb-error { border-style: dashed; border-color: var(--danger, var(--border-color)); color: var(--danger, var(--text-primary)); }
+.ptvb-why { margin: 0; font-size: 0.85rem; }
+.ptvb-provenance { border-left-color: var(--danger, rgb(var(--accent-rgb))); }

@@ -1,0 +1,57 @@
+{
+  "scenario": "bad-inputs-api-throws",
+  "host": [
+    "[Cyan] \n▶  Loading taxonomy data",
+    "[Green]    ✓  skeptic: 3 nodes",
+    "[Cyan] \n▶  Loading embeddings",
+    "[Yellow]    ⚠  Could not load embeddings: Conversion from JSON failed with error: Unexpected end when reading token. Path 'nodes'.",
+    "[Cyan] \n▶  Loading edges",
+    "[Yellow]    ⚠  Could not load edges: Conversion from JSON failed with error: Unexpected end when reading token. Path 'edges'.",
+    "[Cyan] \n▶  Building processing buckets",
+    "[Green]    ✓  1 buckets to process",
+    "[Gray]    →  skeptic / Desires: 2 nodes",
+    "[Cyan] \n▶  Bucket 1/1: skeptic / Desires (2 nodes)",
+    "[Yellow]    ⚠  Only 0 nodes have embeddings — skipping clustering",
+    "[Gray]    →  Calling claude-haiku-4-5 ...",
+    "[Red]    ✗  API call failed for skeptic/Desires: 503 Service Unavailable",
+    "[Yellow]    ⚠  No proposals generated"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "claude"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal-schema"
+    },
+    {
+      "call": "ai",
+      "bucket": "skeptic/Desires",
+      "model": "claude-haiku-4-5",
+      "apiKey": "resolved-claude-key",
+      "temperature": 0.3,
+      "maxTokens": 65536,
+      "jsonMode": true,
+      "timeoutSec": 600,
+      "prompt": "<<hierarchy-proposal>>\n\nPOV: skeptic\nCategory: Desires\nNode count: 2\n\n--- NODES ---\n[\n  {\n    \"id\": \"skp-d-1\",\n    \"label\": \"Label skp-d-1\",\n    \"description\": \"Description of skp-d-1.\"\n  },\n  {\n    \"id\": \"skp-d-2\",\n    \"label\": \"Label skp-d-2\",\n    \"description\": \"Description of skp-d-2.\"\n  }\n]\n\n--- PRE-COMPUTED CLUSTERS ---\n[\n  {\n    \"cluster_id\": 0,\n    \"node_ids\": [\n      \"skp-d-1\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  },\n  {\n    \"cluster_id\": 1,\n    \"node_ids\": [\n      \"skp-d-2\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  }\n]\n\n<<hierarchy-proposal-schema>>"
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/edges.json": "sha256:a570d8a7c14bc8153854739c1dba91087da7c4265dec24624b76eb20a46be9c7 (13 chars)",
+    "taxonomy/Origin/embeddings.json": "sha256:0ded64321c41d65190015af6b0650d4af39447f9c0caac37e8b14fecf971e75c (23 chars)",
+    "taxonomy/Origin/skeptic.json": "sha256:c5d00965657bd55b9f44ed05bcebd2bc4180ff650de512a0459431f0cbd31d86 (451 chars)"
+  }
+}

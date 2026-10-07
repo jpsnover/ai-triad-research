@@ -68,6 +68,11 @@ export interface ElectronAPI {
   // verified t/3532.
   saveEdges: (data: EdgesFile) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
+  // t/4034/t/4038: typed from the shared contract (lib/policy/registryRecount.ts).
+  recountPolicyMembers: (ids: string[]) => Promise<import('@lib/policy/registryRecount').RecountPolicyMembersResult>;
+  // t/4052/t/4054: typed from the shared contract (lib/schema/povTagProposals.ts).
+  loadPovTagProposals: () => Promise<import('@lib/schema/povTagProposals').PovTagProposalsFile | null>;
+  reviewPovTagProposal: (nodeId: string, decision: import('@lib/schema/povTagProposals').ProposalDecision, expectedStatus: import('@lib/schema/povTagProposals').ProposalStatus) => Promise<import('@lib/schema/povTagProposals').ApplyProposalDecisionResult>;
   loadLineageCategories: () => Promise<unknown>;
   // t/3852/t/3859: durable delete-audit log. Optional until the IPC handler lands
   // (ElectronMain) — the bridge graceful-degrades (WARN + resolve) while absent.

@@ -53,17 +53,17 @@ describe('resolvePoverInfo (no tagSelection)', () => {
     expect(soul).toBe(POVER_INFO.accelerationist);
   });
 
-  it('returns soulProvenance with file path and sha', () => {
+  it('returns soulProvenance with file path and hash', () => {
     const { soulProvenance } = resolvePoverInfo('safetyist');
     expect(soulProvenance.file).toMatch(/safetyist\.soul\.json$/);
-    expect(soulProvenance.sha).toMatch(/^[0-9a-f]{16}$/);
+    expect(soulProvenance.hash).toMatch(/^fnv1a64:[0-9a-f]{16}$/);
   });
 
-  it('provenance sha is consistent across calls', () => {
+  it('provenance hash is consistent across calls', () => {
     const { soulProvenance: p1 } = resolvePoverInfo('skeptic');
     clearSoulDocCache();
     const { soulProvenance: p2 } = resolvePoverInfo('skeptic');
-    expect(p1.sha).toBe(p2.sha);
+    expect(p1.hash).toBe(p2.hash);
   });
 });
 

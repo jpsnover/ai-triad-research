@@ -26,6 +26,24 @@ function Get-GraphAttributePolicyIds {
         ForEach-Object { [string]$_.policy_id })
 }
 
+function Enter-PolicyRegistryLock {
+    <#
+    .SYNOPSIS
+        Advisory lock for Update-PolicyRegistry -Fix (t/4028): `policy_actions.lock` beside the
+        registry, taken from the registry read to the registry write. Reuses the grounding-lock
+        mechanism (atomic create, 120s staleness break, bounded 60s wait, ActionableError on timeout).
+        It closes the window between Assert-PolicyIdsUnminted and the write. It does NOT let a second
+        writer through a dirty registry: that is the BLOCK-tier guard's job, and the preflight in
+        Update-PolicyRegistry refuses it before any node file is written.
+    #>
+    [CmdletBinding()]
+    [OutputType([System.IO.FileStream])]
+    param([Parameter(Mandatory)][string]$LockPath)
+    return Enter-GroundingLock -LockPath $LockPath `
+        -Purpose 'policy id minting and registration (policy_actions.json and the POV files)' `
+        -OtherWriters 'another Update-PolicyRegistry -Fix, Invoke-AttributeExtraction or Find-PolicyAction'
+}
+
 function Invoke-NodePolicyRegistration {
     <#
     .SYNOPSIS
@@ -46,8 +64,12 @@ function Invoke-NodePolicyRegistration {
     }
     catch {
         # Fallback-path logging: the taxonomy write landed but its policy actions are unregistered.
-        Write-Warning ("{0}: policy registration failed for {1} node(s): {2} -- {3}. Their new policy_actions have no policy_id. Remedy: run Update-PolicyRegistry -Fix (t/4004)." -f
-            $Caller, @($NodeId).Count, ($NodeId -join ', '), $_.Exception.Message)
+        # The remedy is node-scoped on purpose: a corpus-wide -Fix rewrites unrelated policies' counts
+        # into an unattributed commit (t/3943). The usual cause is an uncommitted earlier registry
+        # change (policy_actions.json is BLOCK-tier), hence "commit first".
+        $Scoped = "Update-PolicyRegistry -Fix -NodeId " + (($NodeId | ForEach-Object { "'$_'" }) -join ',')
+        Write-Warning ("{0}: policy registration failed for {1} node(s): {2} -- {3}. Their new policy_actions have no policy_id. Remedy: commit policy_actions.json if it has uncommitted changes, then run: {4} (t/4004, t/4028)." -f
+            $Caller, @($NodeId).Count, ($NodeId -join ', '), $_.Exception.Message, $Scoped)
     }
 }
 
@@ -65,9 +87,7 @@ function Get-PolicyReferenceScan {
     $Referenced   = @{}
     $Unregistered = [System.Collections.Generic.List[object]]::new()
     foreach ($PovKey in $script:PolicyPovFiles) {
-        $FilePath = Join-Path $TaxDir "$PovKey.json"
-        if (-not (Test-Path $FilePath)) { continue }
-        $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        $FileData = Read-PolicyPovFile -TaxDir $TaxDir -PovKey $PovKey
         foreach ($Node in $FileData.nodes) {
             foreach ($PA in (Get-NodePolicyActions -Node $Node)) {
                 Add-PolicyReference -Referenced $Referenced -Unregistered $Unregistered -NodeId $Node.id -PovKey $PovKey -PolicyAction $PA
@@ -75,6 +95,42 @@ function Get-PolicyReferenceScan {
         }
     }
     return [pscustomobject]@{ Referenced = $Referenced; Unregistered = $Unregistered }
+}
+
+function Read-PolicyPovFile {
+    # One POV file for the reference scan, or a refusal. The scan feeds the recount, which writes
+    # member_count from what it saw, so a POV that silently contributes nothing becomes committed zeros
+    # for every policy it references (t/4065, the PS twin of #3048). Missing, unreadable, unparseable,
+    # null, no nodes array and an empty nodes array all refuse. The four refusals match the TS lib's
+    # recountPolicyMembers guard (#3050, SO e/274#2), so the two recount paths agree on what a
+    # complete corpus is. No real POV file is legitimately empty.
+    param([Parameter(Mandatory)][string]$TaxDir, [Parameter(Mandatory)][string]$PovKey)
+    $FilePath = Join-Path $TaxDir "$PovKey.json"
+    $Problem = $null
+    $FileData = $null
+    if (-not (Test-Path -LiteralPath $FilePath -PathType Leaf)) {
+        $Problem = "$PovKey.json does not exist"
+    }
+    else {
+        try {
+            $FileData = Get-Content -Raw -LiteralPath $FilePath -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            $Problem = "$PovKey.json could not be read or parsed: $($_.Exception.Message)"
+        }
+        if (-not $Problem) {
+            if ($null -eq $FileData) { $Problem = "$PovKey.json is empty or null" }
+            elseif (-not $FileData.PSObject.Properties['nodes'] -or $FileData.nodes -isnot [array]) { $Problem = "$PovKey.json has no nodes array" }
+            elseif (@($FileData.nodes).Count -eq 0) { $Problem = "$PovKey.json has an empty nodes array" }
+        }
+    }
+    if ($Problem) {
+        throw (New-ActionableError -PassThru `
+            -Goal 'Scan the four POV files for policy references before recounting member_count' `
+            -Problem "$Problem. A partial scan would write member_count 0 for every policy that file references." `
+            -Location "Read-PolicyPovFile ($FilePath)" `
+            -NextSteps @("Restore $FilePath (git status / git diff in the data repo) and re-run", 'Nothing was written'))
+    }
+    return $FileData
 }
 
 function Add-PolicyReference {

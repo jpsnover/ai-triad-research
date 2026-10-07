@@ -1,0 +1,151 @@
+{
+  "scenario": "rich-rag",
+  "host": [
+    "[Cyan] \n▶  Validating inputs",
+    "[Green]    ✓  Doc ID      : altman-2024-agi-path",
+    "[Green]    ✓  Repo root   : <ROOT>",
+    "[Green]    ✓  Model       : gemini-3.5-flash-lite",
+    "[Green]    ✓  Temperature : 0.1",
+    "[Cyan] \n▶  Loading taxonomy",
+    "[Green]    ✓  Taxonomy version: 2.4.0",
+    "[Cyan] \n▶  Loading document snapshot",
+    "[Green]    ✓  Snapshot loaded: 68 chars (~17 tokens estimated)",
+    "[Gray]    →  Title from metadata: Doc Title",
+    "[Gray]    →  POV tags in metadata: accelerationist, safetyist",
+    "[Cyan] \n▶  Running extraction pipeline",
+    "[Green]    ✓  Pipeline complete in 12.5s (mock-backend)",
+    "[Green]    ✓    accelerationist : 3 key points (1 unmapped)",
+    "[Green]    ✓    safetyist : 1 key points (0 unmapped)",
+    "[Yellow]    ⚠    skeptic : no data returned",
+    "[Green]    ✓    factual_claims    : 7",
+    "[Green]    ✓    unmapped_concepts : 4",
+    "[Cyan] \n▶  Writing summary file",
+    "[Green]    ✓  Summary written to: summaries/altman-2024-agi-path.json",
+    "[Cyan] \n▶  Updating metadata",
+    "[Green]    ✓  metadata.json updated: summary_status=current, summary_version=2.4.0",
+    "[Cyan] \n▶  Running conflict detection",
+    "[Green]    ✓    Appended to existing conflict: conflict-existing",
+    "[Gray]    →    SKIP duplicate conflict instance: conflict-logged (doc already logged)",
+    "[Yellow]    ⚠    Suggested conflict 'conflict-new-hint' not found — creating new file",
+    "[Green]    ✓    Created new conflict file: conflict-new-hint.json",
+    "[Yellow]    ⚠    Suggested conflict 'conflict-new-nolabel' not found — creating new file",
+    "[Green]    ✓    Created new conflict file: conflict-new-nolabel.json",
+    "[Green]    ✓    Appended to fuzzy-matched conflict: conflict-compute-doubles-every-x",
+    "[Green]    ✓    Created new conflict file: conflict-liability-rules-lag-behind-deployment-altman-2.json",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   POV SUMMARY: altman-2024-agi-path",
+    "[Gray]   Taxonomy v2.4.0  |  Model: gemini-3.5-flash-lite",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[Green] \n  [ACCELERATIONIST]",
+    "[White]     Beliefs:",
+    "[Gray]       [acc-beliefs-001] (supports) Scale wins.",
+    "[DarkGray]         \"span one\"",
+    "[DarkGray]         \"span two\"",
+    "[Gray]       [UNMAPPED] (disputes) Empty node id.",
+    "[White]     Desires:",
+    "[Gray]       [UNMAPPED] (neutral) Ship faster.",
+    "[DarkGray]         \"single span\"",
+    "[Red] \n  [SAFETYIST]",
+    "[White]     Desires:",
+    "[Gray]       [saf-desires-002] (qualifies) Slow down.",
+    "[Yellow] \n  [SKEPTIC]",
+    "[DarkGray]     (no key points extracted)",
+    "[Magenta] \n  UNMAPPED CONCEPTS (potential new taxonomy nodes):",
+    "[Magenta]     [safetyist / Beliefs]",
+    "[Gray]     Concept one",
+    "[DarkGray]     Reason: Reason one",
+    "[Magenta]     [? / ?]",
+    "[Gray]     Only a concept",
+    "[Magenta]     [? / ?]",
+    "[Gray]     Description only",
+    "[Magenta]     [? / ?]",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   Files written:",
+    "[Green]     summaries/altman-2024-agi-path.json",
+    "[Green]     sources/altman-2024-agi-path/metadata.json  (summary_status=current)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Performing the operation \"Write POV summary, update metadata and log conflicts\" on target \"summaries/altman-2024-agi-path.json, sources/altman-2024-agi-path/metadata.json and conflicts/\"."
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-system",
+      "replacements": null
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-schema",
+      "replacements": null
+    },
+    {
+      "call": "pipeline",
+      "docId": "altman-2024-agi-path",
+      "model": "gemini-3.5-flash-lite",
+      "apiKey": "resolved-gemini-key",
+      "temperature": 0.1,
+      "taxonomyVersion": "2.4.0",
+      "systemPromptTemplate": "<<pov-summary-system>>",
+      "outputSchema": "<<pov-summary-schema>>",
+      "fullTaxonomy": false,
+      "iterativeExtraction": false,
+      "autoFire": false,
+      "ragMaxTotal": 300,
+      "crossEncoderRerank": false,
+      "snapshotText": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+      "metadata": {
+        "title": "Doc Title",
+        "pov_tags": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "source_type": "blog",
+        "summary_status": "pending",
+        "claims_by_pov": {
+          "accelerationist": 9
+        }
+      }
+    },
+    {
+      "call": "indexRebuild",
+      "quiet": true
+    }
+  ],
+  "writes": [
+    "summaries/altman-2024-agi-path.json",
+    "sources/altman-2024-agi-path/metadata.json",
+    "conflicts/conflict-existing.json",
+    "conflicts/conflict-new-hint.json",
+    "conflicts/conflict-new-nolabel.json",
+    "conflicts/conflict-compute-doubles-every-x.json",
+    "conflicts/conflict-liability-rules-lag-behind-deployment-altman-2.json"
+  ],
+  "tree": {
+    "conflicts/": "(dir)",
+    "conflicts/conflict-compute-doubles-every-x.json": "{\n  \"claim_id\": \"conflict-compute-doubles-every-x\",\n  \"claim_label\": \"conflict-compute-doubles-every-x label\",\n  \"description\": \"conflict-compute-doubles-every-x description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"acc-desires-005\",\n    \"other-001\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"someone-else\",\n      \"stance\": \"disputes\",\n      \"assertion\": \"other\",\n      \"date_flagged\": \"2025-11-01\"\n    },\n    {\n      \"doc_id\": \"altman-2024-agi-path\",\n      \"stance\": \"supports\",\n      \"assertion\": \"Compute doubles every six months, say analysts.\",\n      \"date_flagged\": \"2026-01-02\"\n    }\n  ],\n  \"human_notes\": []\n}\n",
+    "conflicts/conflict-existing.json": "{\n  \"claim_id\": \"conflict-existing\",\n  \"claim_label\": \"conflict-existing label\",\n  \"description\": \"conflict-existing description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"acc-beliefs-001\",\n    \"skp-beliefs-009\",\n    \"saf-beliefs-003\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"someone-else\",\n      \"stance\": \"disputes\",\n      \"assertion\": \"other\",\n      \"date_flagged\": \"2025-11-01\"\n    },\n    {\n      \"doc_id\": \"altman-2024-agi-path\",\n      \"stance\": \"supports\",\n      \"assertion\": \"Appends to an existing conflict.\",\n      \"date_flagged\": \"2026-01-02\"\n    }\n  ],\n  \"human_notes\": []\n}\n",
+    "conflicts/conflict-liability-rules-lag-behind-deployment-altman-2.json": "{\n  \"claim_id\": \"conflict-liability-rules-lag-behind-deployment-altman-2\",\n  \"claim_label\": \"Liability rules lag behind deployment!\",\n  \"description\": \"Liability rules lag behind deployment!\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [],\n  \"instances\": [\n    {\n      \"doc_id\": \"altman-2024-agi-path\",\n      \"stance\": \"neutral\",\n      \"assertion\": \"Liability rules lag behind deployment!\",\n      \"date_flagged\": \"2026-01-02\"\n    }\n  ],\n  \"human_notes\": []\n}\n",
+    "conflicts/conflict-logged.json": "{\n  \"claim_id\": \"conflict-logged\",\n  \"claim_label\": \"conflict-logged label\",\n  \"description\": \"conflict-logged description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"skp-beliefs-004\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"altman-2024-agi-path\",\n      \"stance\": \"supports\",\n      \"assertion\": \"earlier\",\n      \"date_flagged\": \"2025-12-01\"\n    }\n  ],\n  \"human_notes\": []\n}",
+    "conflicts/conflict-new-hint.json": "{\n  \"claim_id\": \"conflict-new-hint\",\n  \"claim_label\": \"Hinted label\",\n  \"description\": \"A hinted conflict that does not exist yet.\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"sit-001\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"altman-2024-agi-path\",\n      \"stance\": \"qualifies\",\n      \"assertion\": \"A hinted conflict that does not exist yet.\",\n      \"date_flagged\": \"2026-01-02\"\n    }\n  ],\n  \"human_notes\": []\n}\n",
+    "conflicts/conflict-new-nolabel.json": "{\n  \"claim_id\": \"conflict-new-nolabel\",\n  \"claim_label\": \"A hinted conflict with no label whose claim text runs well past the eighty chara\",\n  \"description\": \"A hinted conflict with no label whose claim text runs well past the eighty character label cutoff point.\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [],\n  \"instances\": [\n    {\n      \"doc_id\": \"altman-2024-agi-path\",\n      \"stance\": \"neutral\",\n      \"assertion\": \"A hinted conflict with no label whose claim text runs well past the eighty character label cutoff point.\",\n      \"date_flagged\": \"2026-01-02\"\n    }\n  ],\n  \"human_notes\": []\n}\n",
+    "conflicts/conflict-open-weights-reduce-power.json": "{\n  \"claim_id\": \"conflict-open-weights-reduce-power\",\n  \"claim_label\": \"conflict-open-weights-reduce-power label\",\n  \"description\": \"conflict-open-weights-reduce-power description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"sit-009\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"altman-2024-agi-path\",\n      \"stance\": \"supports\",\n      \"assertion\": \"earlier\",\n      \"date_flagged\": \"2025-12-01\"\n    }\n  ],\n  \"human_notes\": []\n}",
+    "conflicts/conflict-small.json": "{\n  \"claim_id\": \"conflict-small\",\n  \"claim_label\": \"conflict-small label\",\n  \"description\": \"conflict-small description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"skp-beliefs-001\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"someone-else\",\n      \"stance\": \"disputes\",\n      \"assertion\": \"other\",\n      \"date_flagged\": \"2025-11-01\"\n    }\n  ],\n  \"human_notes\": []\n}",
+    "sources/": "(dir)",
+    "sources/altman-2024-agi-path/": "(dir)",
+    "sources/altman-2024-agi-path/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"current\",\n  \"summary_version\": \"2.4.0\",\n  \"summary_updated\": \"2026-01-02T03:04:05Z\",\n  \"total_claims\": 7,\n  \"node_references_by_pov\": {\n    \"accelerationist\": 3,\n    \"safetyist\": 1,\n    \"situations\": 2,\n    \"skeptic\": 1\n  },\n  \"primary_pov_distribution\": {\n    \"accelerationist\": 2,\n    \"safetyist\": 0,\n    \"situations\": 2,\n    \"skeptic\": 1\n  },\n  \"total_facts\": 4,\n  \"unmapped_concepts\": 4,\n  \"context_rot\": {\n    \"cumulative_retention\": 0.2,\n    \"worst_stage\": \"rag\",\n    \"worst_ratio\": 0.25,\n    \"extraction_density\": 0.6\n  }\n}\n",
+    "sources/altman-2024-agi-path/snapshot.md": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+    "summaries/": "(dir)",
+    "summaries/altman-2024-agi-path.json": "{\n  \"doc_id\": \"altman-2024-agi-path\",\n  \"taxonomy_version\": \"2.4.0\",\n  \"generated_at\": \"2026-01-02T03:04:05Z\",\n  \"model_info\": {\n    \"model\": \"gemini-3.5-flash-lite\",\n    \"temperature\": 0.1,\n    \"max_tokens\": 32768,\n    \"extraction_mode\": \"single_shot\",\n    \"taxonomy_filter\": \"rag\",\n    \"taxonomy_nodes\": 3\n  },\n  \"pov_summaries\": {\n    \"accelerationist\": {\n      \"key_points\": [\n        {\n          \"taxonomy_node_id\": \"acc-beliefs-001\",\n          \"category\": \"Beliefs\",\n          \"point\": \"Scale wins.\",\n          \"stance\": \"supports\",\n          \"verbatim\": [\n            \"span one\",\n            \"span two\"\n          ]\n        },\n        {\n          \"taxonomy_node_id\": null,\n          \"category\": \"Desires\",\n          \"point\": \"Ship faster.\",\n          \"stance\": null,\n          \"verbatim\": \"single span\"\n        },\n        {\n          \"taxonomy_node_id\": \"\",\n          \"category\": \"Beliefs\",\n          \"point\": \"Empty node id.\",\n          \"stance\": \"disputes\"\n        }\n      ]\n    },\n    \"safetyist\": {\n      \"key_points\": [\n        {\n          \"taxonomy_node_id\": \"saf-desires-002\",\n          \"category\": \"Desires\",\n          \"point\": \"Slow down.\",\n          \"stance\": \"qualifies\",\n          \"verbatim\": \"\"\n        }\n      ]\n    },\n    \"skeptic\": {\n      \"key_points\": []\n    }\n  },\n  \"factual_claims\": [\n    {\n      \"claim\": \"Appends to an existing conflict.\",\n      \"claim_label\": \"existing\",\n      \"doc_position\": \"supports\",\n      \"potential_conflict_id\": \"conflict-existing\",\n      \"linked_taxonomy_nodes\": [\n        \"acc-beliefs-001\",\n        \"saf-beliefs-003\",\n        \"acc-beliefs-001\"\n      ]\n    },\n    {\n      \"claim\": \"Already logged for this doc.\",\n      \"claim_label\": \"logged\",\n      \"doc_position\": \"disputes\",\n      \"potential_conflict_id\": \"conflict-logged\",\n      \"linked_taxonomy_nodes\": [\n        \"skp-beliefs-004\"\n      ]\n    },\n    {\n      \"claim\": \"A hinted conflict that does not exist yet.\",\n      \"claim_label\": \"Hinted label\",\n      \"doc_position\": \"qualifies\",\n      \"potential_conflict_id\": \"conflict-new-hint\",\n      \"linked_taxonomy_nodes\": \"sit-001\"\n    },\n    {\n      \"claim\": \"A hinted conflict with no label whose claim text runs well past the eighty character label cutoff point.\",\n      \"claim_label\": null,\n      \"doc_position\": \"neutral\",\n      \"potential_conflict_id\": \"conflict-new-nolabel\",\n      \"linked_taxonomy_nodes\": []\n    },\n    {\n      \"claim\": \"Compute doubles every six months, say analysts.\",\n      \"claim_label\": null,\n      \"doc_position\": \"supports\",\n      \"potential_conflict_id\": null,\n      \"linked_taxonomy_nodes\": [\n        \"acc-desires-005\",\n        null,\n        \"other-001\"\n      ]\n    },\n    {\n      \"claim\": \"Open weights reduce concentration of power.\",\n      \"claim_label\": \"weights\",\n      \"doc_position\": \"disputes\",\n      \"potential_conflict_id\": null,\n      \"linked_taxonomy_nodes\": [\n        \"sit-002\"\n      ]\n    },\n    {\n      \"claim\": \"Liability rules lag behind deployment!\",\n      \"claim_label\": null,\n      \"doc_position\": \"contradicts\",\n      \"potential_conflict_id\": \"\",\n      \"linked_taxonomy_nodes\": null\n    }\n  ],\n  \"unmapped_concepts\": [\n    {\n      \"suggested_pov\": \"safetyist\",\n      \"suggested_category\": \"Beliefs\",\n      \"suggested_label\": \"Label one\",\n      \"concept\": \"Concept one\",\n      \"reason\": \"Reason one\"\n    },\n    {\n      \"concept\": \"Only a concept\"\n    },\n    {\n      \"suggested_label\": \"Label only\",\n      \"suggested_description\": \"Description only\"\n    },\n    {}\n  ],\n  \"context_rot\": {\n    \"schema_version\": 1,\n    \"pipeline\": \"summary\",\n    \"doc_id\": \"altman-2024-agi-path\",\n    \"measured_at\": \"2026-01-02T03:04:05.0000000Z\",\n    \"stages\": [\n      {\n        \"stage\": \"chunking\",\n        \"in_units\": \"chars\",\n        \"in_count\": 1000.0,\n        \"out_units\": \"chars\",\n        \"out_count\": 800.0,\n        \"ratio\": 0.8,\n        \"flags\": {}\n      },\n      {\n        \"stage\": \"rag\",\n        \"in_units\": \"nodes\",\n        \"in_count\": 400.0,\n        \"out_units\": \"nodes\",\n        \"out_count\": 100.0,\n        \"ratio\": 0.25,\n        \"flags\": {\n          \"capped\": true\n        }\n      },\n      {\n        \"stage\": \"extraction\",\n        \"in_units\": \"chars\",\n        \"in_count\": 20000.0,\n        \"out_units\": \"items\",\n        \"out_count\": 12.0,\n        \"ratio\": 0.0006,\n        \"flags\": {}\n      }\n    ],\n    \"cumulative_retention\": 0.2\n  }\n}\n",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}

@@ -45,6 +45,7 @@ Describe 'Update-PolicyRegistry -Fix (t/3431 batched write + idempotent MaxId)' 
                         @{ id = 'pol-003'; action = 'p3'; source_povs = @('situations'); member_count = 1; status = 'active' }
                     ) } | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $TempDir 'policy_actions.json')
 
+                . (Join-Path $PSScriptRoot 'PolicyPovFixture.ps1'); Add-PolicyPovFillers -Dir $TempDir
                 Mock Get-TaxonomyDir { $TempDir }
                 Mock Write-Utf8NoBom { Set-Content -Path $Path -Value $Value -Encoding utf8 }
 
@@ -99,6 +100,7 @@ Describe 'Update-PolicyRegistry -Fix (t/3431 batched write + idempotent MaxId)' 
                         @{ id = 'pol-004'; action = 'd'; source_povs = @('situations'); member_count = 1; status = 'active' }
                     ) } | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $TempDir 'policy_actions.json')
 
+                . (Join-Path $PSScriptRoot 'PolicyPovFixture.ps1'); Add-PolicyPovFillers -Dir $TempDir
                 Mock Get-TaxonomyDir { $TempDir }
                 Mock Write-Utf8NoBom { Set-Content -Path $Path -Value $Value -Encoding utf8 }
 
@@ -131,6 +133,7 @@ Describe 'Update-PolicyRegistry -Fix (t/3431 batched write + idempotent MaxId)' 
                         @{ id = 'pol-001'; action = 'registered'; source_povs = @('situations'); member_count = 1; status = 'active' }
                     ) } | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $TempDir 'policy_actions.json')
 
+                . (Join-Path $PSScriptRoot 'PolicyPovFixture.ps1'); Add-PolicyPovFillers -Dir $TempDir
                 Mock Get-TaxonomyDir { $TempDir }
                 Mock Write-Utf8NoBom { Set-Content -Path $Path -Value $Value -Encoding utf8 }
 
@@ -162,6 +165,7 @@ Describe 'Update-PolicyRegistry -Fix (t/3431 batched write + idempotent MaxId)' 
                         @{ id = 'pol-001'; action = 'kept'; source_povs = @('situations'); member_count = 1; status = 'active' }
                     ) } | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $TempDir 'policy_actions.json')
 
+                . (Join-Path $PSScriptRoot 'PolicyPovFixture.ps1'); Add-PolicyPovFillers -Dir $TempDir
                 Mock Get-TaxonomyDir { $TempDir }
                 Mock Write-Utf8NoBom { Set-Content -Path $Path -Value $Value -Encoding utf8 }
 
@@ -199,6 +203,7 @@ Describe 'Update-PolicyRegistry -Fix (t/3431 batched write + idempotent MaxId)' 
                         @{ id = 'pol-001'; action = 'registered'; source_povs = @('situations'); member_count = 1; status = 'active' }
                     ) } | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $TempDir 'policy_actions.json')
 
+                . (Join-Path $PSScriptRoot 'PolicyPovFixture.ps1'); Add-PolicyPovFillers -Dir $TempDir
                 Mock Get-TaxonomyDir { $TempDir }
                 Mock Write-Utf8NoBom { Set-Content -Path $Path -Value $Value -Encoding utf8 }
                 Update-PolicyRegistry -Fix | Out-Null   # normalize to canonical serialization

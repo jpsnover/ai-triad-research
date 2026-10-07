@@ -64,6 +64,19 @@ export interface CalibrationDataPoint {
    */
   evaluator_model_id?: string;
 
+  // ── Multi-provider model tracking (t/4040) ──
+  /** Speaker model assignments at session init (multi-provider runs only). Absent on single-model rows and pre-t/4040 entries. */
+  speaker_models?: Record<string, string>;
+  /** Last failover per speaker (speaker → replacement model). Presence ⇒ excluded from replication count.
+   *  Full failover history is in FR `ai.fallback` events. Absent when no failover occurred. */
+  speaker_model_failovers?: Record<string, string>;
+  /** Multi-provider model pool fingerprint: `"tierName|b1=registryId1:apiModelId1,..."` sorted by backend. Absent on single-model rows. */
+  model_pool?: string;
+  /** Single-model run fingerprint: `"registryId:apiModelId"` resolved at run time. Absent on multi-provider rows. */
+  model_api_id?: string;
+  /** Whether failover tracking was available for this run. 'tracked' = engine-path (failovers visible); 'unavailable' = renderer-path (failover below bridge, invisible). Absent on pre-t/4040 rows — treated as legacy (unchecked). */
+  failover_tracking?: 'tracked' | 'unavailable';
+
   // ── Parameter 1: Exploration exit threshold ──
   /** Saturation score from the last signal_telemetry entry at debate end (unconditional last-round value; null when no telemetry). Field name is historical — the extraction is not transition-gated. */
   argumentative_saturation_at_transition: number | null;

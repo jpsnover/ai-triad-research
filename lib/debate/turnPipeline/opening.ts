@@ -114,7 +114,7 @@ export async function runOpeningPipeline(
     audience: input.audience,
     userSeedClaims: input.userSeedClaims,
     narrativeVoicing: input.narrativeVoicing,
-    soul: input.soul,
+    soul: input.soul!,
     opponentSouls: input.opponentSouls,
   };
   const stageDiags: StageDiagnostics[] = [];
@@ -321,6 +321,7 @@ export async function runOpeningPipeline(
       round: 0,
       priorTurns: [],
       speaker: input.pov as import('../types.js').SpeakerId,
+      soul: input.soul!,
     });
     const lastDiag = stageDiags[stageDiags.length - 1];
     (lastDiag as Record<string, unknown>).stage_validation = {

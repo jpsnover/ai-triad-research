@@ -1,0 +1,61 @@
+{
+  "scenario": "node-filter",
+  "host": [
+    "[Cyan] Unique lineage values: 2",
+    "[Gray] Computing embeddings for dedup...",
+    "[Yellow]   Embedding unavailable — skipping dedup",
+    "[default] Post-dedup unique: 2",
+    "[default] Already cached: 2",
+    "[default] Need enrichment: 0",
+    "[Green] Cache saved: 4 entries → <ROOT>/calibration/core/lineage-enrichments.json",
+    "[Cyan] \nApplying enrichments to taxonomy files...",
+    "[Green]   Saved accelerationist.json",
+    "[Cyan] \n=== SUMMARY ===",
+    "[default]   Unique values: 2",
+    "[default]   Enriched (new): 0",
+    "[default]   From cache: 2",
+    "[default]   Nodes updated: 2"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Loaded 4 cached enrichments",
+    "Filtering to 1 node ID(s): acc-2",
+    "UniqueValues type: HashSet`1, count: 2",
+    "  acc-1 [accelerationist]: 3 bare → enriched, 0 already rich",
+    "  acc-2 [accelerationist]: 3 bare → enriched, 1 already rich",
+    "Performing the operation \"Enrich lineage\" on target \"acc-1 (3 lineage entries)\".",
+    "Performing the operation \"Enrich lineage\" on target \"acc-2 (4 lineage entries)\"."
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "embed",
+      "texts": [
+        "effective altruism",
+        "Accelerationism"
+      ],
+      "ids": [
+        "effective altruism",
+        "Accelerationism"
+      ]
+    }
+  ],
+  "guards": [
+    "calibration/core/lineage-enrichments.json",
+    "taxonomy/Origin/accelerationist.json"
+  ],
+  "writes": [
+    "calibration/core/lineage-enrichments.json (encoding=utf-8, bom=False)",
+    "taxonomy/Origin/accelerationist.json (encoding=utf-8, bom=False)"
+  ],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "calibration/core/lineage-enrichments.json": "canonical: {\"Accelerationism\":{\"category\":\"political_philosophy\",\"description\":\"Cached A.\",\"url\":\"https://acc.example\",\"url_status\":200},\"Effective Altruism\":{\"category\":\"philosophical_movement\",\"description\":\"Cached EA.\",\"url\":\"https://ea.example/ok\",\"url_status\":200},\"Longtermism\":{\"category\":\"ethical_framework\",\"description\":\"Cached L.\",\"url\":\"\",\"url_status\":\"cleared\"},\"Utilitarianism\":{\"category\":\"ethical_framework\",\"description\":\"Cached U.\",\"url\":\"https://u.example\",\"url_status\":200}}",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"acc-1\",\n      \"label\": \"Label acc-1\",\n      \"description\": \"Description of acc-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Effective Altruism\",\n            \"description\": \"Cached EA.\",\n            \"url\": \"https://ea.example/ok\",\n            \"category\": \"philosophical_movement\"\n          },\n          {\n            \"name\": \"Utilitarianism\",\n            \"description\": \"Cached U.\",\n            \"url\": \"https://u.example\",\n            \"category\": \"ethical_framework\"\n          },\n          {\n            \"name\": \"Longtermism\",\n            \"description\": \"Cached L.\",\n            \"url\": \"\",\n            \"category\": \"ethical_framework\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-2\",\n      \"label\": \"Label acc-2\",\n      \"description\": \"Description of acc-2.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"effective altruism\",\n            \"description\": \"Cached EA.\",\n            \"url\": \"https://ea.example/ok\",\n            \"category\": \"philosophical_movement\"\n          },\n          {\n            \"name\": \"Cybernetics\",\n            \"description\": \"Old description of Cybernetics.\",\n            \"url\": \"https://old.example/cyb\",\n            \"category\": \"scientific_paradigm\"\n          },\n          \"  \",\n          {\n            \"name\": \"Accelerationism\",\n            \"description\": \"Cached A.\",\n            \"url\": \"https://acc.example\",\n            \"category\": \"political_philosophy\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-3\",\n      \"label\": \"No attributes\"\n    },\n    {\n      \"id\": \"acc-4\",\n      \"label\": \"Null attributes\",\n      \"graph_attributes\": null\n    },\n    {\n      \"id\": \"acc-5\",\n      \"label\": \"No lineage\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"empirical\"\n      }\n    }\n  ]\n}\n",
+    "taxonomy/Origin/safetyist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"saf-1\",\n      \"label\": \"Label saf-1\",\n      \"description\": \"Description of saf-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": []\n      }\n    },\n    {\n      \"id\": \"saf-2\",\n      \"label\": \"No attributes\"\n    }\n  ]\n}"
+  }
+}

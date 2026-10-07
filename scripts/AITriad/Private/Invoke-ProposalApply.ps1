@@ -61,6 +61,11 @@ function Invoke-ProposalApply {
     # when $IsCrossCutting. Accumulated here, validated once after the switch.
     $TagValidationEntries = [System.Collections.Generic.List[hashtable]]::new()
 
+    # t/4035: MERGE deletes nodes, and their graph_attributes.policy_actions with them. Set in the MERGE
+    # branch; the registry recount runs after the write (empty for every other action).
+    $PolicyRecountNodeIds = @()
+    $PolicyPriorIds       = @()
+
     switch ($Proposal.action) {
         'NEW' {
             # t/3971: NEW (like WIDTH_EXPAND) starts untagged (CL t/3955#5) — neither node
@@ -180,6 +185,14 @@ function Invoke-ProposalApply {
                     Write-Warning "MERGE: unioned pov_tags onto survivor '$SurvivorId': $($UnionTags -join ', ')"
                 }
             }
+
+            # t/4035: capture the policy ids on every merged-away node BEFORE removing it, so the recount
+            # after the write can bring each dropped id's member_count down (otherwise it stays one high,
+            # and a policy referenced only by a merged-away node becomes an orphan still claiming a member).
+            $PolicyPriorIds = @(@($Raw.nodes | Where-Object { $_.id -in $RemoveIds }) | ForEach-Object {
+                if ($_.PSObject.Properties['graph_attributes']) { Get-GraphAttributePolicyIds -GraphAttributes $_.graph_attributes }
+            } | Sort-Object -Unique)
+            $PolicyRecountNodeIds = @(@($SurvivorId) + @($RemoveIds))
 
             $Raw.nodes = @($Raw.nodes | Where-Object { $_.id -notin $RemoveIds })
 
@@ -429,6 +442,14 @@ function Invoke-ProposalApply {
     }
     catch {
         return [PSCustomObject]@{ Success = $false; Error = "Failed to write $FileName — $($_.Exception.Message)" }
+    }
+
+    # t/4035: recount exactly the ids the merged-away nodes held (plus the survivor's) — the same hook the
+    # other policy_actions writers use (t/4004). Only when they held any, so a policy-less MERGE never
+    # touches the BLOCK-tier registry. A registration failure WARNs with the remedy; it never undoes the
+    # taxonomy write above.
+    if (@($PolicyPriorIds).Count -gt 0) {
+        Invoke-NodePolicyRegistration -NodeId $PolicyRecountNodeIds -PriorPolicyIds $PolicyPriorIds -Caller 'Invoke-ProposalApply'
     }
 
     # t/3971 (TL review of #2855): the flag must be DATA, not just console output — Write-Warning

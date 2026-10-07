@@ -1,0 +1,193 @@
+{
+  "value_basis_run": {
+    "ticket": "t/4066",
+    "model": "gemini-3.8-flash",
+    "prompt_version": "justify-v2",
+    "created_at": "2026-10-07T14:22:21+00:00",
+    "scope": "ids skp-intentions-013,skp-beliefs-074,skp-beliefs-124,skp-desires-009,skp-desires-003,skp-desires-005,skp-beliefs-129,skp-beliefs-006,skp-intentions-007,skp-intentions-008,skp-beliefs-001,skp-beliefs-002",
+    "base_commit": "17ffb1636bf87abb27f4a8b4e58de7dedbea4645",
+    "base_side_file_sha256": "4ec2f77db48522f7003d119dd9da18942c249d4e0f7129cb51adbcf9d215b70b",
+    "soul_doc_sha256": {
+      "critical": "63e1eefdcf92f34a56d9e3f2c6cf8d8b8c43946a48d2e60bb8ef4a5c4c12ccc4",
+      "institutional": "407a36d100ecbde55df6e65bc5e3fcb182700b4df0c740cde7f68676a6af62fe",
+      "shared": "0cdda25000d140b9a7181783d409b742b0e9f116639e6e7fd5712fbb31344e89"
+    },
+    "failures": []
+  },
+  "items": [
+    {
+      "node_id": "skp-desires-003",
+      "value_basis": [
+        {
+          "tag": "critical",
+          "vh_index": 3,
+          "vh_text": "Human stakes over abstraction — the critique exists to protect concrete people: workers, the surveilled, those denied recourse. When you debunk a narrative, say what's actually owed and to whom. Skepticism is a political stance, not detached neutrality.",
+          "why": "The node prioritizes the concrete protection of surveilled individuals by establishing legally binding data sovereignty and opt-in consent against non-consensual corporate extraction."
+        }
+      ]
+    },
+    {
+      "node_id": "skp-beliefs-001",
+      "value_basis": [
+        {
+          "tag": "critical",
+          "vh_index": 1,
+          "vh_text": "Power accountability — explicitly identify who controls the compute, who captures the financial windfall, who sets the contract terms, who bears the operational liability, and who performs the underlying human labor.",
+          "why": "The node directly reflects power accountability by critiquing how profit-seeking actors capture financial windfalls while evading operational liability for discrimination through superficial compliance and bias washing."
+        },
+        {
+          "tag": "institutional",
+          "vh_index": null,
+          "vh_text": null,
+          "why": "While diagnosing a market failure that often prompts regulatory action, the node itself does not articulate a stance on adapting existing institutions, measuring adoption rates, or building systemic resilience."
+        }
+      ],
+      "value_basis_shared": {
+        "vh_index": 2,
+        "vh_text": "Accountability — every claim and proposal should name who decides, who profits, who bears the cost, and who answers when it fails.",
+        "why": "The node centers on accountability by confronting the reality that profit-driven deployers shift the costs of systemic bias onto marginalized groups while evading meaningful answers when algorithms fail."
+      }
+    },
+    {
+      "node_id": "skp-beliefs-002",
+      "value_basis": [
+        {
+          "tag": "critical",
+          "vh_index": 3,
+          "vh_text": "Human stakes over abstraction — the critique exists to protect concrete people: workers, the surveilled, those denied recourse. When you debunk a narrative, say what's actually owed and to whom. Skepticism is a political stance, not detached neutrality.",
+          "why": "The node prioritizes concrete harms suffered by workers—such as layoffs, obsolescence, and wage depression—over speculative abstractions like post-scarcity economics."
+        },
+        {
+          "tag": "institutional",
+          "vh_index": 1,
+          "vh_text": "Deployment evidence over capability evidence — what is adopted, where, at what rate, with what measured effect, outweighs what a model can do in a demo or on a benchmark.",
+          "why": "The node insists on statistical tracking of the measured, empirical economic effects of actual AI deployment rather than unproven employment benchmarks or theoretical forecasts."
+        }
+      ],
+      "value_basis_shared": {
+        "vh_index": 1,
+        "vh_text": "Observed over projected — what is deployed, measured, and happening now outweighs what a system might do, what a demo shows, or what a forecast promises.",
+        "why": "Both wings focus on what is currently happening and empirically measured in the labor market over theoretical forecasts of future employment or post-scarcity."
+      }
+    },
+    {
+      "node_id": "skp-beliefs-129",
+      "value_basis": [
+        {
+          "tag": "critical",
+          "vh_index": 4,
+          "vh_text": "Epistemic humility — treat hype AND alarmism as competitive strategies; demand evidence proportional to the claim — including your own structural claims.",
+          "why": "The node directly implements the principle of treating alarmism as a competitive strategy by interpreting safety-gating narratives as corporate maneuvers designed to entrench industrial consolidation and erect regulatory moats."
+        }
+      ]
+    },
+    {
+      "node_id": "skp-beliefs-006",
+      "value_basis": [
+        {
+          "tag": "critical",
+          "vh_index": 1,
+          "vh_text": "Power accountability — explicitly identify who controls the compute, who captures the financial windfall, who sets the contract terms, who bears the operational liability, and who performs the underlying human labor.",
+          "why": "The node directly embodies power accountability by analyzing how corporate actors deploy architectural opacity and contract terms to evade operational liability and insulate their balance sheets while shifting risks downstream."
+        }
+      ]
+    },
+    {
+      "node_id": "skp-desires-005",
+      "value_basis": [
+        {
+          "tag": "critical",
+          "vh_index": 1,
+          "vh_text": "Power accountability — explicitly identify who controls the compute, who captures the financial windfall, who sets the contract terms, who bears the operational liability, and who performs the underlying human labor.",
+          "why": "The node directly targets concentrated corporate control over compute infrastructure and algorithms by demanding antitrust enforcement, democratic oversight, and resistance to incumbent regulatory capture."
+        }
+      ]
+    },
+    {
+      "node_id": "skp-intentions-007",
+      "value_basis": [
+        {
+          "tag": "institutional",
+          "vh_index": 4,
+          "vh_text": "Proportionality — rules should scale with demonstrated harm in a specific use, not with speculation about the technology in general.",
+          "why": "This node directly enacts institutional proportionality by insisting that regulatory rules scale to concrete harms within specific application domains rather than imposing sweeping restrictions across the underlying technology in general."
+        }
+      ]
+    },
+    {
+      "node_id": "skp-intentions-008",
+      "value_basis": [
+        {
+          "tag": "institutional",
+          "vh_index": 3,
+          "vh_text": "Resilience over prevention — invest in society's ability to detect, absorb, and recover from harms rather than in attempts to halt or contain the technology, which tend to concentrate power and fail at the margins.",
+          "why": "It rejects centralized, preventative gatekeeping like compute pre-clearance in favor of decentralized data-use auditing and legal discovery that enhance society's ability to trace and detect harms."
+        }
+      ]
+    },
+    {
+      "node_id": "skp-intentions-013",
+      "value_basis": [],
+      "value_basis_nearest": {
+        "tag": "critical",
+        "vh_index": 1,
+        "vh_text": "Power accountability — explicitly identify who controls the compute, who captures the financial windfall, who sets the contract terms, who bears the operational liability, and who performs the underlying human labor.",
+        "why": "While it touches on capturing and redistributing financial windfalls to support displaced workers, it takes the speculative promise of automated wealth creation at face value rather than holding existing corporate power, labor exploitation, and compute monopolies accountable."
+      }
+    },
+    {
+      "node_id": "skp-beliefs-124",
+      "value_basis": [
+        {
+          "tag": "critical",
+          "vh_index": null,
+          "vh_text": null,
+          "why": "The node focuses on pedagogical and cognitive impacts on individual learners rather than analyzing power asymmetries, material supply chains, or political accountability."
+        },
+        {
+          "tag": "institutional",
+          "vh_index": null,
+          "vh_text": null,
+          "why": "The node asserts a cognitive and developmental deficit without addressing institutional governance, regulatory adaptation, resilience, or deployment metrics."
+        }
+      ],
+      "value_basis_shared": {
+        "vh_index": 4,
+        "vh_text": "Human stakes over abstraction — the analysis exists to protect concrete people affected by these systems, not to win an argument about the future.",
+        "why": "The claim prioritizes the real cognitive and developmental well-being of concrete human learners over abstract arguments about machine capabilities and performance metrics."
+      }
+    },
+    {
+      "node_id": "skp-desires-009",
+      "value_basis": [
+        {
+          "tag": "critical",
+          "vh_index": 3,
+          "vh_text": "Human stakes over abstraction — the critique exists to protect concrete people: workers, the surveilled, those denied recourse. When you debunk a narrative, say what's actually owed and to whom. Skepticism is a political stance, not detached neutrality.",
+          "why": "It articulates concrete protections owed to individuals whose personal identity and creative labor are appropriated, prioritizing the defense of affected people over abstract debates about generative capabilities."
+        },
+        {
+          "tag": "institutional",
+          "vh_index": 4,
+          "vh_text": "Proportionality — rules should scale with demonstrated harm in a specific use, not with speculation about the technology in general.",
+          "why": "It focuses legal and regulatory safeguards on a specific, demonstrated vector of harm—unauthorized voice replication—rather than imposing broad, speculative restrictions on AI technology in general."
+        }
+      ],
+      "value_basis_shared": {
+        "vh_index": 4,
+        "vh_text": "Human stakes over abstraction — the analysis exists to protect concrete people affected by these systems, not to win an argument about the future.",
+        "why": "Both wings converge on protecting the immediate, tangible personal integrity of real people against misuse rather than engaging in theoretical arguments about AI development."
+      }
+    },
+    {
+      "node_id": "skp-beliefs-074",
+      "value_basis": [],
+      "value_basis_nearest": {
+        "tag": "institutional",
+        "vh_index": 1,
+        "vh_text": "Deployment evidence over capability evidence — what is adopted, where, at what rate, with what measured effect, outweighs what a model can do in a demo or on a benchmark.",
+        "why": "While the node centers on capability benchmarks, it takes benchmark saturation as an authentic threat to human distinctiveness rather than insisting that real-world deployment evidence outweighs benchmark scores."
+      }
+    }
+  ]
+}

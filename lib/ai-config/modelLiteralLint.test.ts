@@ -15,7 +15,7 @@
 // evidence for both sides: t/3557#8. Second Opinion clearance: e/195#2.
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'fs';
+import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import {
@@ -30,6 +30,14 @@ import {
   type SourceFile,
   type MarkerKind,
 } from './modelLiteralLint.js';
+import { collectProductionTsFiles } from './modelLiteralFiles.js';
+import {
+  missingFromList,
+  parseCodeReferencedModels,
+  registeredLiteralIds,
+  staleExtras,
+  REGENERATE_HINT,
+} from './codeReferencedModels.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // lib/ai-config/ -> lib/ -> repo root
@@ -40,35 +48,8 @@ interface Registry { models: { id: string }[] }
 const registry: Registry = JSON.parse(readFileSync(path.join(REPO_ROOT, 'ai-models.json'), 'utf-8'));
 const VALID_IDS: ReadonlySet<string> = new Set(registry.models.map((m) => m.id));
 
-// ── Production-TS file collection (IO — the impure caller; the predicate stays pure) ───────────────
-const SCAN_ROOTS = ['lib', 'taxonomy-editor/src'];
-const EXCLUDE_DIR = new Set(['node_modules', 'dist', '__tests__', '__mocks__', 'fixtures', '.git']);
-function isExcludedFile(name: string): boolean {
-  return (
-    /\.(test|spec)\.tsx?$/.test(name) ||
-    /\.d\.ts$/.test(name) ||
-    /\.testHelpers\.ts$/.test(name) ||
-    /\.mock\.ts$/.test(name) ||
-    name === 'generatedAIModelIds.ts'
-  );
-}
-function collectProductionTsFiles(): SourceFile[] {
-  const out: SourceFile[] = [];
-  const walk = (absDir: string, relDir: string): void => {
-    for (const ent of readdirSync(absDir, { withFileTypes: true })) {
-      if (ent.isDirectory()) {
-        if (EXCLUDE_DIR.has(ent.name)) continue;
-        walk(path.join(absDir, ent.name), `${relDir}/${ent.name}`);
-      } else if (/\.tsx?$/.test(ent.name) && !isExcludedFile(ent.name)) {
-        const rel = `${relDir}/${ent.name}`;
-        out.push({ path: rel, content: readFileSync(path.join(absDir, ent.name), 'utf-8') });
-      }
-    }
-  };
-  for (const root of SCAN_ROOTS) walk(path.join(REPO_ROOT, root), root);
-  return out;
-}
-const PRODUCTION_FILES = collectProductionTsFiles();
+// ── Production-TS file collection: the shared collector, also used by the code-referenced-models generator ──
+const PRODUCTION_FILES = collectProductionTsFiles(REPO_ROOT);
 
 describe('model-literal lint — required guards (t/3559)', () => {
   it('EMPTY-AUTHORITY guard: ai-models.json id set is non-empty (a load failure fails loudly)', () => {
@@ -229,5 +210,30 @@ describe('model-literal lint — registry-unreadable discrimination (t/3657 cond
 
   it('does NOT throw when the registry loaded a non-empty id set', () => {
     expect(() => assertModelRegistryUsable(VALID_IDS)).not.toThrow();
+  });
+});
+
+describe('model-literal lint — codeReferencedModels.json is fresh (t/3553 item 1; SO e/271, TL e/271#12)', () => {
+  const list = parseCodeReferencedModels(JSON.parse(readFileSync(path.join(__dirname, 'codeReferencedModels.json'), 'utf-8')));
+  const found = registeredLiteralIds(PRODUCTION_FILES, VALID_IDS);
+
+  // BLOCKING. No warn cycle: deterministic, both arms proven in CI (t/3553#10, SO e/271).
+  // Subset, not equality: every registered TS literal must be listed, so the registry refresh pins it. An extra
+  // entry only over-pins (fails safe) and is reported by the WARN below, which never fails this suite.
+  it('every registered model id written as a TS literal is in codeReferencedModels.json', () => {
+    const missing = missingFromList(found, list);
+    expect(
+      missing,
+      `codeReferencedModels.json is stale: ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} named in TS code but not ` +
+        `listed, so a registry refresh could curate ${missing.length === 1 ? 'it' : 'them'} away. Fix: ${REGENERATE_HINT}.`,
+    ).toEqual([]);
+  });
+
+  it('stale TS extras are a WARN, not a failure', () => {
+    const extras = staleExtras(list, 'ts', found);
+    if (extras.length > 0) {
+      console.warn(`[model-literal lint] WARN codeReferencedModels.json lists ${extras.join(', ')} for TS, but no TS literal names them any more (safe: over-pinning). Clean up: ${REGENERATE_HINT}.`);
+    }
+    expect(Array.isArray(extras)).toBe(true);
   });
 });

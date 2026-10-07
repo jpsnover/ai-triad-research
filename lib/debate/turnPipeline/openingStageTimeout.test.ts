@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { runOpeningPipelineWithRepair, runOpeningPipeline } from './opening.js';
 import type { OpeningPipelineInput } from './opening.js';
+import { POVER_INFO } from '../types.js';
 
 const STUB_JSON = JSON.stringify({
   statement: 'test', claim_sketches: [], key_assumptions: [],
@@ -19,7 +20,9 @@ function makeInput(overrides: Partial<OpeningPipelineInput> = {}): OpeningPipeli
   return {
     label: 'TestAgent',
     pov: 'acc',
+    soul: POVER_INFO['accelerationist'],
     personality: 'test',
+    soul: POVER_INFO.accelerationist,
     topic: 'test topic',
     taxonomyContext: '',
     priorStatements: '',

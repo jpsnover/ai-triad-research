@@ -16,10 +16,12 @@
 BeforeAll {
     Import-Module "$PSScriptRoot/../scripts/AITriad/AITriad.psm1" -Force -WarningAction SilentlyContinue
     Import-Module "$PSScriptRoot/../scripts/AIEnrich.psm1" -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'PolicyPovFixture.ps1')
 
     function Set-Fixture([object[]]$Nodes, [object[]]$Policies) {
         Set-Content -Path $script:skepticPath -Encoding utf8 -Value (
             [ordered]@{ last_modified = '2026-01-01'; nodes = @($Nodes) } | ConvertTo-Json -Depth 10)
+        Add-PolicyPovFillers -Dir $script:taxDir
         if ($null -ne $Policies) {
             Set-Content -Path $script:registryPath -Encoding utf8 -Value (
                 [ordered]@{ _schema_version = '1.0.0'; _doc = 'x'; policy_count = @($Policies).Count; policies = @($Policies) } | ConvertTo-Json -Depth 10)

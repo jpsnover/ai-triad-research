@@ -20,6 +20,7 @@ import { nextStepsForStatus } from './httpErrorSteps';
 import { computeEmbeddingsChunked } from './embeddingsBatch';
 import { runChatStream, chatStreamBus } from './chatStream';
 import { runOpEdCreate, cancelActiveOpEdRun, opedProgressBus } from './opedStream';
+import { readByokKeys, maskByokKey } from './byokKeys';
 import { onQuotaMilestone } from '../hooks/useQuotaWarning';
 export { getResilienceState, subscribeResilience, resetResilience } from './resilience';
 export type { ResilienceStatus, CircuitState, ThrottleState, EndpointCategory } from './resilience';
@@ -536,37 +537,6 @@ async function patchDebateDelta(delta: DebateDelta): Promise<{ newVersion: numbe
 
 export { get as bridgeGet, post as bridgePost, put as bridgePut, del as bridgeDel };
 
-/** Read BYOK keys from sessionStorage, backward-compatible with legacy single-key strings. */
-function readByokKeys(backend: string): string[] {
-  const raw = sessionStorage.getItem(`byok-${backend}`);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed.filter((k: unknown) => typeof k === 'string' && k);
-  } catch (err) {
-    getGlobalRecorder()?.record({
-      type: 'system.error',
-      component: 'web-bridge',
-      level: 'warn',
-      message: `BYOK key JSON parse fallback for backend '${backend}'`,
-      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-    });
-  }
-  return [raw];
-}
-
-function maskByokKey(key: string): string {
-  const sep = key.indexOf('|');
-  if (sep > 0) {
-    const endpoint = key.slice(0, sep);
-    const k = key.slice(sep + 1);
-    const masked = k.length <= 4 ? k.slice(0, 2) + '***' : k.slice(0, 4) + '...' + k.slice(-4);
-    return `${endpoint} | ${masked}`;
-  }
-  if (key.length <= 4) return key.slice(0, 2) + '***';
-  return key.slice(0, 4) + '...' + key.slice(-4);
-}
-
 function bridgeWarn<T>(message: string, fallback: T) {
   return (err: unknown) => {
     getGlobalRecorder()?.record({
@@ -773,6 +743,8 @@ const rawApi: AppAPI = {
   loadTaxonomyFile: (pov) => get(`/api/taxonomy/${encodeURIComponent(pov)}`),
   saveTaxonomyFile: (pov, data) => put(`/api/taxonomy/${encodeURIComponent(pov)}`, data).then(() => {}),
   loadPolicyRegistry: () => get('/api/policy-registry'),
+  // t/4034: recount member_count / source_povs for these ids after a save (lib/policy/registryRecount.ts).
+  recountPolicyMembers: (ids) => post('/api/policy-registry/recount', { ids }),
   loadLineageCategories: () => get('/api/lineage-categories'),
   // t/3852: durable delete-audit log; WARN+swallow on failure (never block the delete it records).
   logNodeDeletion: (entry) => post('/api/node-delete-log', entry).then(() => {}).catch((err) =>
@@ -818,6 +790,9 @@ const rawApi: AppAPI = {
   pullDataUpdates: () => pullDataUpdatesRest(), // extracted (ADR-007) — see dataUpdatesPull.ts
 
   getChangedFiles: () => post<{ path: string; status: string }[]>('/api/data/changed-files').catch(bridgeWarn('getChangedFiles failed', [])),
+  // t/4052: read everywhere; review is desktop-only (hosted answers 405), so the web queue disables it.
+  loadPovTagProposals: () => get('/api/pov-tag-proposals'),
+  reviewPovTagProposal: (nodeId, decision, expectedStatus) => post('/api/pov-tag-proposals/review', { nodeId, decision, expectedStatus }),
   getFileDiff: (filePath) => post<string>('/api/data/file-diff', { filePath }).catch(bridgeWarn('getFileDiff failed', '')),
 
   // AI models & keys

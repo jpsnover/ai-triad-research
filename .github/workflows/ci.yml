@@ -163,7 +163,9 @@ jobs:
               - 'ai-models.json'
               - 'deploy/azure/main.bicep'
               - 'taxonomy-editor/src/server/briefExportJobs.ts'
-              - '.github/workflows/ci.yml'
+              # .github/workflows/** (t/4058) — the scheduled-workflow list lint reads every workflow
+              # file; a PR that only ADDS a scheduled workflow must still run it (skip-reads-as-pass).
+              - '.github/workflows/**'
             electron:
               - 'taxonomy-editor/**'
               - 'poviewer/**'
@@ -446,15 +448,21 @@ jobs:
             exit 1
           }
           # Pure test failure(s) — eligible for ONE flake rerun of only those tests (R3), no coverage.
-          $failedNames = @($r.Tests | Where-Object { $_.Result -eq 'Failed' } | ForEach-Object { $_.ExpandedPath })
-          Write-Host "::warning::test-powershell: $($failedNames.Count) test(s) failed on run 1 — rerunning only those once to distinguish flake from real failure."
+          $failedTests = @($r.Tests | Where-Object { $_.Result -eq 'Failed' })
+          $failedNames = @($failedTests | ForEach-Object { $_.ExpandedPath })
+          # t/4080: rerun the failing test FILES, not a Filter.FullName name filter. A name filter cannot
+          # match data-driven `It '... <Name>' -ForEach` tests (it matched NOTHING -> every test NotRun ->
+          # the old Result/TotalCount check read that as healed and laundered real failures to green:
+          # main 696ea125, run 37668037103, 12 hidden failures). Rerunning whole files costs a little more,
+          # only on the (rare) failure path; the verdict below then checks each failed test BY NAME.
+          $failedFiles = @($failedTests | ForEach-Object { $_.ScriptBlock.File } | Where-Object { $_ } | Sort-Object -Unique)
+          Write-Host "::warning::test-powershell: $($failedNames.Count) test(s) failed on run 1 — rerunning their $($failedFiles.Count) file(s) once to distinguish flake from real failure."
+          if ($failedFiles.Count -eq 0) { Write-Host "::error::test-powershell: could not resolve the failing tests' files — failing safe (t/4080)."; exit 1 }
           $rc = New-PesterConfiguration
-          $rc.Run.Path = './tests/'
-          $rc.Run.ExcludePath = Get-PesterExcludePaths
+          $rc.Run.Path = $failedFiles
           $rc.Run.Exit = $false
           $rc.Run.PassThru = $true
           $rc.Output.Verbosity = 'Detailed'
-          $rc.Filter.FullName = $failedNames
           # t/3546: best-effort delay before the in-job rerun. Lets TRANSIENT-releasing contention
           # clear — a subprocess mid-teardown still releasing its port, a temp-file / advisory-lock
           # race. Honest limit: it does NOT clear a fixed-port TIME_WAIT (~60s on Linux) or a live
@@ -462,12 +470,19 @@ jobs:
           # (t/3547, PowerShell). Cheap — only paid on the (rare) failure path.
           Start-Sleep -Seconds 5
           $r2 = Invoke-Pester -Configuration $rc
-          # R4: a rerun that discovers FEWER tests than failed (Filter.FullName metachar [ * ? matching
-          # nothing, or discovery no longer finding them) must NOT count as healed — require every
-          # failed test to have re-run AND the rerun to be fully green.
-          if ($null -ne $r2 -and $r2.Result -eq 'Passed' -and $r2.TotalCount -ge $failedNames.Count) {
-            Write-Host "::warning::test-powershell: all $($failedNames.Count) failing test(s) PASSED on rerun — treated as flake (self-healed): $($failedNames -join '; ')"
+          # t/4080 (replaces R4): healed ONLY if every run-1 failed test RE-RAN and PASSED, matched by name.
+          # NotRun / Skipped / absent all count as NOT healed — the old Result/TotalCount check counted
+          # NotRun tests toward "covered" and read zero-failures-because-nothing-ran as Passed.
+          # Identity = File + ExpandedPath, aggregated (SO e/279#6): ExpandedPath alone omits the file, so
+          # co-named tests in two files (or two -ForEach rows) would collide and a Passed copy could erase a Failed one.
+          $asId = { param($t) [pscustomobject]@{ File = [string]$t.ScriptBlock.File; ExpandedPath = [string]$t.ExpandedPath; Result = [string]$t.Result } }
+          $verdict = Get-FlakeRerunVerdict -FailedTests @($failedTests | ForEach-Object { & $asId $_ }) -RerunTests @(if ($null -ne $r2) { $r2.Tests | ForEach-Object { & $asId $_ } })
+          if ($verdict.Healed) {
+            Write-Host "::warning::test-powershell: all $($failedNames.Count) failing test(s) RE-RAN and PASSED — treated as flake (self-healed): $($failedNames -join '; ')"
             exit 0
+          }
+          if (@($verdict.NotRerun).Count -gt 0) {
+            Write-Host "::error::test-powershell: $(@($verdict.NotRerun).Count) failed test(s) did NOT re-run (not found in the rerun of their own files) — NOT treated as flake (fail safe): $($verdict.NotRerun -join '; ')"
           }
           # Real failure (still red, or rerun didn't cover all). t/3546: the verdict claims only
           # what an IN-JOB rerun can prove. An immediate same-job rerun cannot clear resource
@@ -484,9 +499,6 @@ jobs:
             @($r.Tests | Where-Object { $_.Result -eq 'Failed' } | ForEach-Object { @{ Name = $_.ExpandedPath; DurationMs = $_.Duration.TotalMilliseconds } })
           }
           Format-FlakeVerdictMessage -FailedTest $stillFailedTests | ForEach-Object { Write-Host $_ }
-          if ($null -ne $r2 -and $r2.TotalCount -lt $failedNames.Count) {
-            Write-Host "::error::test-powershell: rerun discovered $($r2.TotalCount) of $($failedNames.Count) failed test(s) — NOT treated as flake (fail safe)."
-          }
           exit 1
 
       - name: Explain a test-powershell mid-run kill
@@ -1938,6 +1950,15 @@ jobs:
         # WARN-FIRST: flip by removing continue-on-error after >=1 green cycle (SO + TL GV).
         continue-on-error: true
         run: node --test operations/devops/precommit-hint-guard-parity.test.mjs
+
+      - name: Scheduled-workflow health verdict + list lint (WARN-FIRST — t/4058)
+        # Pure verdict for main-ci-monitor's scheduled-workflow check, plus the LINT that every workflow
+        # with `schedule:` is in operations/devops/scheduled-workflows.json (an unlisted one would be
+        # silently unmonitored — the class behind 4 workflows failing unnoticed for up to 6 weeks).
+        # The suite carries a population floor (>=15 scheduled workflows) so a broken detector cannot
+        # pass it vacuously. WARN-FIRST: flip by removing continue-on-error (SO + TL GV).
+        continue-on-error: true
+        run: node --test operations/devops/scheduled-workflow-health.test.mjs
 
   # ── complexity-tickets: refactor issues for over-budget files (advisory) ─────
   # Collects the complexity-violations-* artifacts that test-electron (ESLint

@@ -29,6 +29,10 @@ export interface DebateConfig {
   evaluatorModel?: string;
   modelTier?: import('../types.js').ModelTier;
   speakerModels?: Record<string, string>;
+  /** Backend IDs eligible for this multi-provider run — the `availableBackends ∩ tierMap` set from
+   *  `resolveMultiProviderModels`. Must be provided alongside `speakerModels`; if absent on a
+   *  multi-provider run the fingerprint degrades to model-mixed with a WARN (t/4040). */
+  eligibleBackends?: string[];
   /** Fallback model chain for per-speaker failover. On hard failure (403, 500, empty), the engine tries each model in order, then falls back to the base `model`. Provided by the caller (server or Electron main). */
   fallbackChain?: string[];
   rounds: number;
@@ -146,6 +150,13 @@ export interface DebateConfig {
   talmudicReferences?: import('../types.js').TalmudicReferencesConfig;
   /** Per-seat tag assignment for one POV (t/3965). Set by deriveDebateConfig from request.tagSelection; copied verbatim to session.seat_tags by initSession. */
   seat_tags?: Partial<Record<SpeakerId, SeatTag>>;
+  /**
+   * Runtime-injected soul resolver (t/3975/t/4007).
+   * - cli/server/Electron main: pass soulDocLoader.resolvePoverInfo
+   * - Electron renderer / web: pass tagSoulRegistry.resolvePoverInfo
+   * Shared lib/debate code must not import either loader directly.
+   */
+  soulResolver?: import('../soulDocSchema.js').SoulResolverFn;
 }
 
 export interface DebateProgress {
@@ -241,6 +252,8 @@ export interface DebateEngineInternals {
   getKnownNodeIds(): Set<string>;
   getPolicyIds(): Set<string>;
   getSuppressedHints(): Set<string>;
+  /** Returns the resolved soul for a speaker. For tagged seats, returns the wing soul; for untagged, returns POVER_INFO[poverId]. */
+  getSoulForSpeaker(poverId: string): import('../types.js').PovInfo;
   updateHintStreaks(speaker: string, firedHints: string[]): void;
   updateSituationCitations(currentRefs: import('../types.js').TaxonomyRef[]): void;
 }

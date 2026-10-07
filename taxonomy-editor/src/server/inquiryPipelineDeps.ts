@@ -25,6 +25,7 @@ import { runInquiryPipeline, type InquiryPipelineDeps, type InquiryStage } from 
 import type { GroundingTaxonomy } from '../../../lib/debate/inquiryGrounding.js';
 import type { NodeEmbeddingMap } from '../../../lib/debate/relevanceSelection.js';
 import { runHeadlessDebate } from '../../../lib/debate/headlessRunner.js';
+import { resolvePoverInfo } from '../../../lib/debate/soulDocLoader.js';
 import { loadTaxonomy, type LoadedTaxonomy } from '../../../lib/debate/taxonomyLoader.js';
 import { getProjectRoot } from './config.js';
 import type { AIAdapter, GenerateOptions } from '../../../lib/debate/aiAdapter.js';
@@ -127,7 +128,8 @@ export function buildInquiryRunPipeline(): InquiryPipelineRunner {
       embed: (texts: string[]) => ai.computeEmbeddings(texts, undefined, undefined, { requester: 'inquiry' }).then(r => r.vectors),
       // runHeadlessDebate takes the config (which already carries the question via deriveDebateConfig)
       // + the engine's LoadedTaxonomy; the pipeline's `question` arg is unused here.
-      runDebate: (config, _question) => runHeadlessDebate(config, adapter, getLoadedTaxonomy())
+      // t/4025: inject soulResolver so server inquiry debates record soul_provenance.
+      runDebate: (config, _question) => runHeadlessDebate({ ...config, soulResolver: resolvePoverInfo }, adapter, getLoadedTaxonomy())
         .then(r => ({ session: r.session, terminationReason: r.terminationReason })),
       adapter,
       onStage: (stage: InquiryStage) => mapStage(stage, ctx),

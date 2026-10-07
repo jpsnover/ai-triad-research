@@ -1,0 +1,9 @@
+VERBOSE: Local mode: debate '<ROOT>/debate-1.json'
+VERBOSE:   Preset=policymaker, model=m1. Output → <ROOT>/out-nj
+VERBOSE: Performing the operation "export brief (preset=policymaker, model=m1) → <ROOT>/out-nj" on target "<ROOT>/debate-1.json".
+VERBOSE:   CLI: <PWSH> -NoProfile -File <ROOT>/stub-not-json.ps1
+VERBOSE:   Pipeline finished (exit code 0).
+ERROR:  |  |  | 
+ERROR: System.ArgumentException,Microsoft.PowerShell.Commands.ConvertFromJsonCommand | NotSpecified | Conversion from JSON failed with error: Error parsing boolean value. Path '', line 1, position 1. | 
+ERROR: SpecSchemaFailure,Export-TriadDebateBrief | InvalidData | Could not parse the brief CLI output as TriadDeckExport JSON. | <ROOT>/debate-1.json
+ARGS: --path <ROOT>/debate-1.json --preset policymaker --out <ROOT>/out-nj --model m1

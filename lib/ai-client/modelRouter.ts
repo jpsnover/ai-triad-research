@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 /**
@@ -232,6 +232,18 @@ function fisherYatesShuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+/**
+ * The backends a multi-provider debate can draw from: `availableBackends` that `tier` defines a model for, in input
+ * order (t/4040). The calibration `model_pool` fingerprint is computed from this set, and resolveMultiProviderModels
+ * draws from exactly this set, so the two can never disagree on the population. Pure and non-throwing: an unknown
+ * tier or no overlap returns [], so a fingerprint-only caller never throws (SO e/267#3).
+ */
+export function eligibleDebateBackends(tier: ModelTier, availableBackends: string[], registry: ModelRegistry): string[] {
+  const tierMap = registry.debateTiers?.[tier];
+  if (!tierMap) return [];
+  return availableBackends.filter(b => tierMap[b] != null);
+}
+
 export function resolveMultiProviderModels(
   tier: ModelTier,
   availableBackends: string[],
@@ -248,7 +260,7 @@ export function resolveMultiProviderModels(
     });
   }
 
-  const eligible = availableBackends.filter(b => tierMap[b] != null);
+  const eligible = eligibleDebateBackends(tier, availableBackends, registry); // one definition of "eligible" (t/4040)
   if (eligible.length === 0) {
     throw new ActionableError({
       goal: 'Resolve multi-provider debate models',

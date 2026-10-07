@@ -1,0 +1,70 @@
+{
+  "scenario": "dryrun",
+  "host": [
+    "[Cyan] \n▶  Validating environment",
+    "[Green]    ✓  Model       : gemini-2.5-flash",
+    "[Green]    ✓  Temperature : 0.3",
+    "[Yellow]    ⚠  DRY RUN — no API call, no file writes",
+    "[Cyan] \n▶  Preparing health data",
+    "[Green]    ✓  Using pre-computed health data (42 summaries)",
+    "[Cyan] \n▶  Building prompt context",
+    "[Green]    ✓  Compact nodes       : 6",
+    "[Green]    ✓  Unmapped for prompt : 2",
+    "[Green]    ✓  Orphan nodes        : 50",
+    "[Green]    ✓  High-variance nodes : 1",
+    "[Green]    ✓  Standardized terms  : 2",
+    "[Green]    ✓  Colloquial terms    : 2",
+    "[Green]    ✓  Prompt assembled: 5733 chars (~1433 tokens est.)",
+    "[DarkGray] \n────────────────────────────────────────────────────────────────────────",
+    "[Yellow]   DRY RUN: PROMPT PREVIEW",
+    "[DarkGray] ────────────────────────────────────────────────────────────────────────",
+    "[Cyan] \n[SYSTEM PROMPT — first 800 chars]",
+    "[Gray] <<taxonomy-proposal v=9.9.9 n=42>> system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-prompt-filler system-pr",
+    "[DarkGray] ... (truncated for display)",
+    "[Cyan] \n[TAXONOMY NODES — 6 nodes, first 400 chars]",
+    "[Gray] <truncated JSON preview: 400 chars>",
+    "[DarkGray] ...",
+    "[Cyan] \n[UNMAPPED CONCEPTS — 2 entries]",
+    "[Gray] JSON:[{\"concept\":\"Compute overhang\",\"doc_count\":2,\"frequency\":3,\"nearest_nodes\":[{\"id\":\"acc-b-1\",\"label\":\"Label acc-b-1\",\"similarity\":0.81},{\"id\":\"acc-unknown\",\"label\":\"\",\"similarity\":0.55}],\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Model welfare\",\"doc_count\":1,\"frequency\":2,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"}]",
+    "[DarkGray] ...",
+    "[Cyan] \n[CITATION STATISTICS]",
+    "[Gray] <truncated JSON preview: 400 chars>",
+    "[DarkGray] ...",
+    "[Cyan] \n[COVERAGE BALANCE]",
+    "[Gray] JSON:{\"accelerationist\":{\"Beliefs\":2,\"Desires\":1},\"safetyist\":{\"Beliefs\":2}}",
+    "[Cyan] \n[VOCABULARY — standardized terms, first 400 chars]",
+    "[Gray] JSON:[{\"canonical_form\":\"a_term\",\"definition\":\"First.\",\"display_form\":\"A term\",\"do_not_confuse\":[\"b_term: different camp\"],\"primary_camp\":\"safetyist\",\"used_by_nodes\":[\"saf-b-1\"]},{\"canonical_form\":\"b_term\",\"definition\":\"Second.\",\"display_form\":\"B term\",\"do_not_confuse\":[],\"primary_camp\":\"skeptic\",\"used_by_nodes\":[]}]",
+    "[DarkGray] ...",
+    "[Cyan] \n[VOCABULARY — colloquial terms]",
+    "[Gray] JSON:[{\"colloquial_term\":\"alignment\",\"resolves_to\":[\"a_term (safetyist)\"],\"status\":\"ambiguous\"},{\"colloquial_term\":\"safety\",\"resolves_to\":[],\"status\":\"retired\"}]",
+    "[DarkGray] ...",
+    "[DarkGray] \n────────────────────────────────────────────────────────────────────────",
+    "[Yellow]   DRY RUN complete. No API call made. No files written.",
+    "[DarkGray] ────────────────────────────────────────────────────────────────────────\n"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "prompt",
+      "name": "taxonomy-proposal",
+      "replacements": {
+        "SUMMARY_COUNT": "42",
+        "TAXONOMY_VERSION": "9.9.9"
+      }
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "dictionary/": "(dir)",
+    "dictionary/colloquial/": "(dir)",
+    "dictionary/colloquial/alignment.json": "sha256:835445979b00c5f51483b92167b535be45ac2e13d7263491bff671e62559c602 (172 chars)",
+    "dictionary/colloquial/safety.json": "sha256:8bd05db15642f2b4c06e63dcd6cbda52afe60d41e88e9f361f40bcbf81ff717d (56 chars)",
+    "dictionary/standardized/": "(dir)",
+    "dictionary/standardized/a-term.json": "sha256:2b8569456655606bdad3a993a76df9cc34879a23a3056c7f4c0a6029e180bc17 (263 chars)",
+    "dictionary/standardized/b-term.json": "sha256:e98eac6991b8000c4be1f6c98d6edcdabdad7a944fca2c0a518c8491a24b596e (123 chars)",
+    "harvest-queue.json": "sha256:fc9eaba050626f5854bfd17d8668fe106a26e2f4e4f497b4421aee8adb54e9f1 (182 chars)"
+  }
+}

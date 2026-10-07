@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { runOpeningPipeline } from './opening.js';
 import type { OpeningPipelineInput } from './opening.js';
+import { POVER_INFO } from '../types.js';
 
 const BASE_STUB = {
   statement: 'test statement',
@@ -36,7 +37,9 @@ function makeSecondSpeakerInput(overrides: Partial<OpeningPipelineInput> = {}): 
   return {
     label: 'Skeptic',
     pov: 'skp',
+    soul: POVER_INFO['skeptic'],
     personality: 'test',
+    soul: POVER_INFO.skeptic,
     topic: 'AI safety policy',
     taxonomyContext: '',
     priorStatements: 'Accelerationist and Safetyist have spoken.',

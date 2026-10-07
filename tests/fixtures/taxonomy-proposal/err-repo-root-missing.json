@@ -1,0 +1,14 @@
+{
+  "scenario": "err-repo-root-missing",
+  "host": [
+    "[Cyan] \n▶  Validating environment",
+    "[Red]    ✗  Repo root not found: <ROOT>/does-not-exist"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": "Repo root not found: <ROOT>/does-not-exist",
+  "output": [],
+  "calls": [],
+  "writes": [],
+  "tree": {}
+}

@@ -91,6 +91,45 @@ Describe 'BranchStrandVerdict (t/3652)' -Tag 'devops' {
     }
 }
 
+Describe 'Get-OpenPrByBranch (t/3652 carried-by false-positive fix, p/648#99)' -Tag 'devops' {
+
+    BeforeAll {
+        . "$PSScriptRoot/../operations/devops/BranchStrandVerdict.ps1"
+    }
+
+    It 'maps a branch name to its open PR, ignoring merged/closed entries for the same name' {
+        $prs = @(
+            [PSCustomObject]@{ number = 3020; state = 'MERGED'; headRefName = 'feat/reused-branch'; headRefOid = 'aaa' }
+            [PSCustomObject]@{ number = 3046; state = 'OPEN';   headRefName = 'feat/reused-branch'; headRefOid = 'bbb' }
+        )
+        $map = Get-OpenPrByBranch -Prs $prs
+        $map.ContainsKey('feat/reused-branch') | Should -BeTrue
+        $map['feat/reused-branch'].number | Should -Be 3046
+    }
+
+    It 'a branch with no open PR is absent from the map' {
+        $prs = @(
+            [PSCustomObject]@{ number = 3020; state = 'MERGED'; headRefName = 'feat/landed-and-gone'; headRefOid = 'aaa' }
+        )
+        $map = Get-OpenPrByBranch -Prs $prs
+        $map.ContainsKey('feat/landed-and-gone') | Should -BeFalse
+    }
+
+    It 'ties between two open PRs on the same branch break toward the higher PR number' {
+        $prs = @(
+            [PSCustomObject]@{ number = 10; state = 'OPEN'; headRefName = 'feat/x'; headRefOid = 'aaa' }
+            [PSCustomObject]@{ number = 20; state = 'OPEN'; headRefName = 'feat/x'; headRefOid = 'bbb' }
+        )
+        $map = Get-OpenPrByBranch -Prs $prs
+        $map['feat/x'].number | Should -Be 20
+    }
+
+    It 'an empty PR list returns an empty map, not an error' {
+        $map = Get-OpenPrByBranch -Prs @()
+        @($map.Keys).Count | Should -Be 0
+    }
+}
+
 Describe 'Resolve-GhFailureReason (t/3652 degradation naming)' -Tag 'devops' {
 
     BeforeAll {

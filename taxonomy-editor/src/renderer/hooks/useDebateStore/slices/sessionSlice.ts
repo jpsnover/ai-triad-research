@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { StateCreator } from 'zustand';
+import { sessionModelFingerprint } from '../shared/sessionFingerprint';
 import type { DebateStore } from '../types';
 import type {
   DebateSession,
@@ -62,7 +63,7 @@ export interface SessionSlice {
   debateLoading: boolean;
 
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced'; stepMode?: boolean; stageModels?: { brief?: string; plan?: string; cite?: string }; background?: string; excludeGreatestHits?: boolean; narrativeVoicing?: boolean; /** t/3958: absent ⇒ every seat untagged. Never pass `{}` — t/3975's seatSouls treats any key presence as "tagged". */ seatTags?: Partial<Record<SpeakerId, SeatTag>> }) => Promise<string>;
+  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced'; /** t/4046: backends eligible for a multi-provider run; keys model_pool (t/4044). */ eligibleBackends?: string[]; stepMode?: boolean; stageModels?: { brief?: string; plan?: string; cite?: string }; background?: string; excludeGreatestHits?: boolean; narrativeVoicing?: boolean; /** t/3958: absent ⇒ every seat untagged. Never pass `{}` — t/3975's seatSouls treats any key presence as "tagged". */ seatTags?: Partial<Record<SpeakerId, SeatTag>> }) => Promise<string>;
   // Config is threaded into createDebate's existing options param at creation time (t/3783) —
   // never patched onto the session afterward. A post-creation mutate-then-save races every
   // concurrent `set({ activeDebate: { ...fresh } })` in the opening/clarification pipeline,
@@ -528,6 +529,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       speaker_models: options?.speakerModels || undefined,
       stage_models: options?.stageModels ? { ...options.stageModels } as Record<string, string> : undefined,
       model_tier: options?.modelTier || undefined,
+      // t/4044: calibration model fingerprint, computed here at creation and never on save.
+      ...sessionModelFingerprint(effectiveModel, options),
       protocol_id: protocolId || 'structured',
       // Greatest-hits exclusion toggle (t/1980, parent t/1979; engine rescope t/1438).
       // Store is the single writer for app-created debates (which orchestrate via

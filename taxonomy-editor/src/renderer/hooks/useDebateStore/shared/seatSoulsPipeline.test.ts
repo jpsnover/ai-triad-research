@@ -97,10 +97,13 @@ describe('buildDebateResponsePrompt with seat souls (t/3975)', () => {
     expect(() => buildDebateResponsePrompt(undefined, 'T', '', '', 'Q', 'all')).toThrow(TypeError);
   });
 
-  it('an untagged seat gets the base prompt, byte for byte (the pre-t/3975 call: base fields, no souls)', () => {
-    const base = POVER_INFO.skeptic;
-    expect(buildDebateResponsePrompt(seatSouls({}, 'skeptic'), 'T', '', '', 'Q', 'all'))
-      .toBe(debateResponsePrompt(base.label, base.pov, base.personality, 'T', '', '', 'Q', 'all'));
+  it('an untagged seat gets the base soul prompt, byte for byte (t/4007: soul is required)', () => {
+    const souls = seatSouls({}, 'skeptic');
+    expect(souls.soul).toEqual(POVER_INFO.skeptic);
+    const base = souls.soul;
+    expect(buildDebateResponsePrompt(souls, 'T', '', '', 'Q', 'all'))
+      .toBe(debateResponsePrompt(base.label, base.pov, base.personality, 'T', '', '', 'Q', 'all',
+        undefined, undefined, undefined, undefined, undefined, souls.soul, souls.opponentSouls));
   });
 });
 

@@ -113,4 +113,53 @@ Describe 'Get-DataCheckoutDriftVerdict (t/4005)' -Tag 'devops' {
         $v.Alarm | Should -BeTrue
         ($v.Reasons -join ' ' | Select-String -Pattern 'file-\d+\.json' -AllMatches).Matches.Count | Should -Be 20
     }
+
+    # t/4056, SO e/270#2: a dirty taxonomy/Origin/pov-tag-proposals.json is reviewer
+    # work-in-progress a sync/restore must never discard. Protected WIP must block the sync
+    # REGARDLESS of the ordinary intersection/staleness/divergence result -- these arms use a
+    # FRESH, non-intersecting, non-diverged tree specifically so the only possible alarm
+    # source is the protected-WIP check itself, not an incidental other reason.
+    It 'ALARM (PROTECTED WIP): a dirty protected path blocks sync even on an otherwise-clean, ff-able tree' {
+        $v = Get-DataCheckoutDriftVerdict -Name 'ai-triad-data' `
+            -TrackedModified @('taxonomy/Origin/pov-tag-proposals.json') `
+            -OldestUncommittedMtime ($script:Now.AddHours(-1)) -Ahead 0 -Behind 2 `
+            -IncomingPaths @('unrelated.json') -Now $script:Now
+        $v.Alarm | Should -BeTrue
+        @($v.ProtectedWip).Count | Should -Be 1
+        $v.ProtectedWip[0].Path | Should -Be 'taxonomy/Origin/pov-tag-proposals.json'
+        $v.ProtectedWip[0].Owner | Should -Be 'Computational Linguist'
+        $v.SyncReason | Should -Match 'protected WIP'
+        $v.SyncReason | Should -Match 'Computational Linguist'
+        $v.SyncReason | Should -Match 'do not sync/restore'
+        $v.Intersects | Should -BeFalse
+        $v.Diverged | Should -BeFalse
+        $v.Reasons -join ' ' | Should -Match 'protected WIP'
+    }
+
+    It 'QUIET: the same path clean (not in TrackedModified/Untracked) behaves as today -- no ProtectedWip, no SyncReason' {
+        $v = Get-DataCheckoutDriftVerdict -Name 'ai-triad-data' -Ahead 0 -Behind 2 `
+            -IncomingPaths @('taxonomy/Origin/pov-tag-proposals.json') -Now $script:Now
+        $v.Alarm | Should -BeFalse
+        @($v.ProtectedWip).Count | Should -Be 0
+        $v.SyncReason | Should -BeNullOrEmpty
+    }
+
+    It 'ALARM (PROTECTED WIP): an UNTRACKED protected path also blocks sync' {
+        $v = Get-DataCheckoutDriftVerdict -Name 'ai-triad-data' `
+            -Untracked @('taxonomy/Origin/pov-tag-proposals.json') `
+            -OldestUncommittedMtime ($script:Now.AddHours(-1)) -Now $script:Now
+        $v.Alarm | Should -BeTrue
+        @($v.ProtectedWip).Count | Should -Be 1
+        $v.ProtectedWip[0].Path | Should -Be 'taxonomy/Origin/pov-tag-proposals.json'
+        $v.SyncReason | Should -Match 'protected WIP'
+    }
+
+    It 'ProtectedWip is DATA, not hardcoded: a custom -ProtectedPaths map is honoured and the default is NOT also checked' {
+        $v = Get-DataCheckoutDriftVerdict -Name 'ai-triad-data' `
+            -Untracked @('some/other/file.json') -OldestUncommittedMtime ($script:Now.AddHours(-1)) `
+            -ProtectedPaths @{ 'some/other/file.json' = 'Someone Else' } -Now $script:Now
+        $v.Alarm | Should -BeTrue
+        @($v.ProtectedWip).Count | Should -Be 1
+        $v.ProtectedWip[0].Owner | Should -Be 'Someone Else'
+    }
 }

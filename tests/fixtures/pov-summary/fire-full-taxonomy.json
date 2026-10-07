@@ -1,0 +1,121 @@
+{
+  "scenario": "fire-full-taxonomy",
+  "host": [
+    "[Cyan] \n▶  Validating inputs",
+    "[Green]    ✓  Doc ID      : doc-1",
+    "[Green]    ✓  Repo root   : <ROOT>",
+    "[Green]    ✓  Model       : groq-llama-3.1-8b-instant",
+    "[Green]    ✓  Temperature : 0.3",
+    "[Cyan] \n▶  Loading taxonomy",
+    "[Green]    ✓  Taxonomy version: 2.4.0",
+    "[Cyan] \n▶  Loading document snapshot",
+    "[Green]    ✓  Snapshot loaded: 31309 chars (~7827 tokens estimated)",
+    "[Gray]    →  Title from metadata: Doc Title",
+    "[Gray]    →  POV tags in metadata: accelerationist, safetyist",
+    "[Cyan] \n▶  Running extraction pipeline",
+    "[Green]    ✓  Pipeline complete in 12.5s (mock-backend)",
+    "[Green]    ✓    accelerationist : 1 key points (0 unmapped)",
+    "[Yellow]    ⚠    safetyist : no data returned",
+    "[Green]    ✓    skeptic : 1 key points (1 unmapped)",
+    "[Green]    ✓    factual_claims    : 0",
+    "[Green]    ✓    unmapped_concepts : 0",
+    "[Gray]    →    FIRE: 9 API calls, 3 iterations, converged",
+    "[Cyan] \n▶  Writing summary file",
+    "[Green]    ✓  Summary written to: summaries/doc-1.json",
+    "[Cyan] \n▶  Updating metadata",
+    "[Yellow]    ⚠  Under-extraction detected: 0 claims from 30.6KB snapshot. Queued for re-extraction with stronger model.",
+    "[Gray]    →  Run Invoke-POVSummary -ReExtract to re-process flagged documents.",
+    "[Green]    ✓  metadata.json updated: summary_status=needs_reextraction, summary_version=2.4.0",
+    "[Cyan] \n▶  Running conflict detection",
+    "[Gray]    →  No factual claims to process.",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   POV SUMMARY: doc-1",
+    "[Gray]   Taxonomy v2.4.0  |  Model: groq-llama-3.1-8b-instant",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[Green] \n  [ACCELERATIONIST]",
+    "[White]     Beliefs:",
+    "[Gray]       [acc-beliefs-001] (aligned) One.",
+    "[Red] \n  [SAFETYIST]",
+    "[DarkGray]     (no key points extracted)",
+    "[Yellow] \n  [SKEPTIC]",
+    "[White]     Intentions:",
+    "[Gray]       [UNMAPPED] (neutral) Two.",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   Files written:",
+    "[Green]     summaries/doc-1.json",
+    "[Yellow]     sources/doc-1/metadata.json  (summary_status=needs_reextraction)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Performing the operation \"Write POV summary, update metadata and log conflicts\" on target \"summaries/doc-1.json, sources/doc-1/metadata.json and conflicts/\".",
+    "Index rebuild skipped: index lock held"
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "groq"
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-system",
+      "replacements": null
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-schema",
+      "replacements": null
+    },
+    {
+      "call": "pipeline",
+      "docId": "doc-1",
+      "model": "groq-llama-3.1-8b-instant",
+      "apiKey": "resolved-groq-key",
+      "temperature": 0.3,
+      "taxonomyVersion": "2.4.0",
+      "systemPromptTemplate": "<<pov-summary-system>>",
+      "outputSchema": "<<pov-summary-schema>>",
+      "fullTaxonomy": true,
+      "iterativeExtraction": true,
+      "autoFire": true,
+      "ragMaxTotal": 50,
+      "crossEncoderRerank": true,
+      "snapshotText": "<31309 chars>",
+      "metadata": {
+        "title": "Doc Title",
+        "pov_tags": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "source_type": "blog",
+        "summary_status": "current",
+        "summary_version": "2.3.0",
+        "claims_by_pov": {
+          "accelerationist": 9
+        }
+      }
+    },
+    {
+      "call": "indexRebuild",
+      "quiet": true
+    }
+  ],
+  "writes": [
+    "summaries/doc-1.json",
+    "sources/doc-1/metadata.json"
+  ],
+  "tree": {
+    "conflicts/": "(dir)",
+    "sources/": "(dir)",
+    "sources/doc-1/": "(dir)",
+    "sources/doc-1/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"needs_reextraction\",\n  \"summary_version\": \"2.4.0\",\n  \"summary_updated\": \"2026-01-02T03:04:05Z\",\n  \"total_claims\": 0,\n  \"node_references_by_pov\": {\n    \"accelerationist\": 0,\n    \"safetyist\": 0,\n    \"situations\": 0,\n    \"skeptic\": 0\n  },\n  \"primary_pov_distribution\": {\n    \"accelerationist\": 0,\n    \"safetyist\": 0,\n    \"situations\": 0,\n    \"skeptic\": 0\n  },\n  \"total_facts\": 2,\n  \"unmapped_concepts\": 0,\n  \"context_rot\": {\n    \"cumulative_retention\": 1.0,\n    \"worst_stage\": null,\n    \"worst_ratio\": null,\n    \"extraction_density\": null\n  }\n}\n",
+    "sources/doc-1/snapshot.md": "<31309 chars> # Large\n\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "summaries/": "(dir)",
+    "summaries/doc-1.json": "{\n  \"doc_id\": \"doc-1\",\n  \"taxonomy_version\": \"2.4.0\",\n  \"generated_at\": \"2026-01-02T03:04:05Z\",\n  \"model_info\": {\n    \"model\": \"groq-llama-3.1-8b-instant\",\n    \"temperature\": 0.3,\n    \"max_tokens\": 32768,\n    \"extraction_mode\": \"fire\",\n    \"taxonomy_filter\": \"full\",\n    \"taxonomy_nodes\": 3,\n    \"fire_confidence_threshold\": 0.7,\n    \"fire_stats\": {\n      \"api_calls\": 9,\n      \"iterations\": 3,\n      \"claims_total\": 12,\n      \"claims_confident\": 10,\n      \"claims_iterated\": 2,\n      \"elapsed_seconds\": 41.5,\n      \"termination_reason\": \"converged\"\n    }\n  },\n  \"pov_summaries\": {\n    \"accelerationist\": {\n      \"key_points\": [\n        {\n          \"taxonomy_node_id\": \"acc-beliefs-001\",\n          \"category\": \"Beliefs\",\n          \"point\": \"One.\",\n          \"stance\": \"aligned\"\n        }\n      ]\n    },\n    \"safetyist\": {\n      \"key_points\": []\n    },\n    \"skeptic\": {\n      \"key_points\": [\n        {\n          \"taxonomy_node_id\": null,\n          \"category\": \"Intentions\",\n          \"point\": \"Two.\",\n          \"stance\": null\n        }\n      ]\n    }\n  },\n  \"factual_claims\": [],\n  \"unmapped_concepts\": [],\n  \"context_rot\": {\n    \"schema_version\": 1,\n    \"pipeline\": \"summary\",\n    \"doc_id\": \"doc-1\",\n    \"measured_at\": \"2026-01-02T03:04:05.0000000Z\",\n    \"stages\": [\n      {\n        \"stage\": \"extraction\",\n        \"in_units\": \"chars\",\n        \"in_count\": 0.0,\n        \"out_units\": \"items\",\n        \"out_count\": 0.0,\n        \"ratio\": 0,\n        \"flags\": {}\n      }\n    ],\n    \"cumulative_retention\": 1.0\n  }\n}\n",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}

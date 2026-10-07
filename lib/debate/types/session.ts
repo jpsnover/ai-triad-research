@@ -374,6 +374,16 @@ export interface DebateSession {
   /** Evaluator model for claim extraction/classification. Cross-vendor split recommended. */
   evaluator_model?: string;
   speaker_models?: Record<string, string>;
+  /** Speaker model assignments captured at session init — never overwritten by failover (t/4040). Absent on pre-t/4040 sessions. */
+  initial_speaker_models?: Record<string, string>;
+  /** Per-speaker failover history: speaker → final replacement model (t/4040). Absent when no failover occurred. */
+  speaker_model_failovers?: Record<string, string>;
+  /** Multi-provider model pool fingerprint: `"tierName|b1=registryId1:apiModelId1,..."` sorted by backend (t/4040). Absent on single-model runs. */
+  model_pool?: string;
+  /** Single-model run fingerprint: `"registryId:apiModelId"` resolved at run time (t/4040). Absent on multi-provider runs. */
+  model_api_id?: string;
+  /** Whether failover tracking was available: 'tracked' = engine stamped (can observe failovers); 'unavailable' = renderer path (failover below bridge). Absent on pre-t/4040 and legacy rows. */
+  failover_tracking?: 'tracked' | 'unavailable';
   /** Fully-resolved per-stage model map (9 keys: brief, plan, draft, cite, evaluator, scope, summary, moderator, crux). */
   stage_models?: Record<string, string>;
   model_tier?: ModelTier;
@@ -384,6 +394,9 @@ export interface DebateSession {
   /** Per-seat POV tag (t/3955; spec §2.3). Absent, or no entry for a seat ⇒ that seat is untagged, so every
    *  existing saved debate loads unchanged. One map beside `active_povers` rather than parallel optionals. */
   seat_tags?: Partial<Record<SpeakerId, SeatTag>>;
+  /** Soul file provenance at session start, keyed by SpeakerId string. Set for every active seat (tagged and base).
+   *  Used by the pilot (t/3963) to compare old and new umbrella runs. Absent in pre-t/4007 saved debates (t/4007). */
+  soul_provenance?: Partial<Record<string, import('../soulDocSchema.js').SoulProvenance>>;
   /** Moderator voices each camp's story before the openings (h3). Absent ⇒ false. */
   narrative_voicing_enabled?: boolean;
   /** Result of the h3 narrative voicing. Absent when disabled or when generation failed. */

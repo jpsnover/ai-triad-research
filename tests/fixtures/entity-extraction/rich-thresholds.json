@@ -1,0 +1,536 @@
+{
+  "scenario": "rich-thresholds",
+  "host": [
+    "",
+    "Done. Nodes processed: 10 | Proposals: 18 | Minted: 7 | Linked: 10 | Possible dups (advisory): 0 | Dropped (below gate): 1 | Near-gate minted: 6 | Invalid: 6 | Failed: 4"
+  ],
+  "warnings": [
+    "Invoke-EntityExtraction: skeptic.json could not be loaded (Conversion from JSON failed with error: Unexpected end when reading token. Path 'nodes'.); continuing without it, so proposals it would have linked may be minted as new entities.",
+    "Invoke-EntityExtraction: dictionary/standardized/broken.json could not be loaded (Conversion from JSON failed with error: Unexpected character encountered while parsing value: n. Path '', line 0, position 0.); continuing without it, so proposals it would have linked may be minted as new entities.",
+    "Invoke-EntityExtraction: node-c: response has no 'org_mentions'; treating it as empty.",
+    "ConvertFrom-TruncatableJson: node-k : response JSON was truncated (Conversion from JSON failed with error: Unterminated string. Expected delimiter: \". Path 'proposals[1].name', line 1, position 88.) — recovered the valid prefix via Repair-TruncatedJson; trailing partial item(s) dropped.",
+    "Invoke-EntityExtraction: node-k: response has no 'org_mentions'; treating it as empty.",
+    "Invoke-EntityExtraction: within-run embedding batch failed for node node-h — cosine dedup skipped for its proposals (embedder offline)"
+  ],
+  "verbose": [
+    "Work items: 10 (skipped no-facts: 3, already-done: 0)",
+    "Performing the operation \"Extract entity proposals via enrichment.entity-extraction\" on target \"10 node(s)\".",
+    "Invoke-EntityExtraction: embedding unavailable for 'Near Thing' — existing-entity cosine check skipped",
+    "Invoke-EntityExtraction: embedding unavailable for 'Near Thing Two' — existing-entity cosine check skipped",
+    "Invoke-EntityExtraction: embedding unavailable for 'Jane Person' — existing-entity cosine check skipped",
+    "Invoke-EntityExtraction: embedding unavailable for 'C Thing' — existing-entity cosine check skipped",
+    "Invoke-EntityExtraction: embedding unavailable for 'EMBEDFAIL Widget' — existing-entity cosine check skipped",
+    "Invoke-EntityExtraction: embedding unavailable for 'Trunc Thing' — existing-entity cosine check skipped"
+  ],
+  "error": null,
+  "output": [
+    {
+      "NodesProcessed": 10,
+      "ProposalsTotal": 18,
+      "Minted": 7,
+      "Linked": 10,
+      "DroppedBelowGate": 1,
+      "DroppedItems": [
+        {
+          "node_id": "node-a",
+          "name": "Low Thing",
+          "entity_type": "artifact",
+          "confidence": 0.3
+        }
+      ],
+      "NearGateMinted": 6,
+      "InvalidDropped": 6,
+      "InvalidItems": [
+        "node-k: entity_type '' not in {person, artifact, event, legislation, institution}",
+        "node-a: confidence 1.5 out of [0,1]",
+        "node-a: confidence not numeric",
+        "node-a: missing confidence",
+        "node-a: entity_type 'alien' not in {person, artifact, event, legislation, institution}",
+        "node-a: missing name"
+      ],
+      "Failed": 4,
+      "FailedItems": [
+        "node-j: Conversion from JSON failed with error: Unexpected character encountered while parsing value: d. Path '', line 0, position 0.",
+        "node-i: empty AI response",
+        "node-g: empty AI response",
+        "node-f: rate limited (429)"
+      ],
+      "SkippedNoFacts": 3,
+      "SkippedAlreadyDone": 0,
+      "MintedEntities": [
+        {
+          "node_id": "node-a",
+          "id": "ent-003",
+          "name": "Near Thing",
+          "entity_type": "artifact",
+          "dolce_category": "non-agentive-functional-artifact",
+          "confidence": 0.65,
+          "near_gate": true
+        },
+        {
+          "node_id": "node-a",
+          "id": "ent-004",
+          "name": "Gemini Alpha",
+          "entity_type": "artifact",
+          "dolce_category": "non-agentive-functional-artifact",
+          "confidence": 0.9,
+          "near_gate": true
+        },
+        {
+          "node_id": "node-b",
+          "id": "ent-005",
+          "name": "Gemini Beta",
+          "entity_type": "artifact",
+          "dolce_category": "non-agentive-functional-artifact",
+          "confidence": 0.9,
+          "near_gate": true
+        },
+        {
+          "node_id": "node-b",
+          "id": "ent-006",
+          "name": "Jane Person",
+          "entity_type": "person",
+          "dolce_category": "agentive-physical-object",
+          "confidence": 0.95,
+          "near_gate": false
+        },
+        {
+          "node_id": "node-c",
+          "id": "ent-007",
+          "name": "C Thing",
+          "entity_type": "event",
+          "dolce_category": "perdurant",
+          "confidence": 0.9,
+          "near_gate": true
+        },
+        {
+          "node_id": "node-h",
+          "id": "ent-008",
+          "name": "EMBEDFAIL Widget",
+          "entity_type": "artifact",
+          "dolce_category": "non-agentive-functional-artifact",
+          "confidence": 0.9,
+          "near_gate": true
+        },
+        {
+          "node_id": "node-k",
+          "id": "ent-009",
+          "name": "Trunc Thing",
+          "entity_type": "event",
+          "dolce_category": "perdurant",
+          "confidence": 0.9,
+          "near_gate": true
+        }
+      ],
+      "LinkedDispositions": [
+        {
+          "node_id": "node-a",
+          "proposal_name": "Existing Corp",
+          "matched_kind": "entity",
+          "matched_id": "ent-001",
+          "matched_label": "Existing Corp",
+          "reason": "exact-or-alias-match"
+        },
+        {
+          "node_id": "node-a",
+          "proposal_name": "Some Other Name",
+          "matched_kind": "entity",
+          "matched_id": "ent-001",
+          "matched_label": "Existing Corp",
+          "reason": "exact-or-alias-match"
+        },
+        {
+          "node_id": "node-a",
+          "proposal_name": "Frontier Org",
+          "matched_kind": "organization",
+          "matched_id": "org-001",
+          "matched_label": "Frontier Org",
+          "reason": "exact-or-alias-match"
+        },
+        {
+          "node_id": "node-a",
+          "proposal_name": "FO",
+          "matched_kind": "organization",
+          "matched_id": "org-001",
+          "matched_label": "Frontier Org",
+          "reason": "exact-or-alias-match"
+        },
+        {
+          "node_id": "node-a",
+          "proposal_name": "Scaling Hypothesis",
+          "matched_kind": "node",
+          "matched_id": "acc-beliefs-001",
+          "matched_label": "Scaling Hypothesis",
+          "reason": "exact-or-alias-match"
+        },
+        {
+          "node_id": "node-a",
+          "proposal_name": "  Compute   Governance ",
+          "matched_kind": "term",
+          "matched_id": "Compute Governance",
+          "matched_label": "Compute Governance",
+          "reason": "exact-or-alias-match"
+        },
+        {
+          "node_id": "node-a",
+          "proposal_name": "AI Doomer",
+          "matched_kind": "term",
+          "matched_id": "AI Doomer",
+          "matched_label": "AI Doomer",
+          "reason": "exact-or-alias-match"
+        },
+        {
+          "node_id": "node-a",
+          "proposal_name": "Mandate Audits",
+          "matched_kind": "policy",
+          "matched_id": "pol-001",
+          "matched_label": "Mandate Audits",
+          "reason": "exact-or-alias-match"
+        },
+        {
+          "node_id": "node-a",
+          "proposal_name": "Vector Lab Clone",
+          "matched_kind": "entity",
+          "matched_id": "ent-002",
+          "matched_label": "Vector Labs",
+          "reason": "cosine>=1 (sim=1)"
+        },
+        {
+          "node_id": "node-b",
+          "proposal_name": "Near Thing Two",
+          "matched_kind": "entity",
+          "matched_id": "ent-003",
+          "matched_label": "Near Thing",
+          "reason": "within-run-dedup"
+        }
+      ],
+      "PossibleDuplicates": [],
+      "OutputPath": "<ROOT>/taxonomy/entity_extraction_log.json"
+    }
+  ],
+  "calls": [
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- A1\n- A2\n- A3",
+        "node_id": "node-a"
+      },
+      "override": {}
+    },
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- B1",
+        "node_id": "node-b"
+      },
+      "override": {}
+    },
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- C1",
+        "node_id": "node-c"
+      },
+      "override": {}
+    },
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- F1",
+        "node_id": "node-f"
+      },
+      "override": {}
+    },
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- G1",
+        "node_id": "node-g"
+      },
+      "override": {}
+    },
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- H1",
+        "node_id": "node-h"
+      },
+      "override": {}
+    },
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- I1",
+        "node_id": "node-i"
+      },
+      "override": {}
+    },
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- J1",
+        "node_id": "node-j"
+      },
+      "override": {}
+    },
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- K1",
+        "node_id": "node-k"
+      },
+      "override": {}
+    },
+    {
+      "call": "ai",
+      "usageId": "enrichment.entity-extraction",
+      "values": {
+        "facts": "- Z1",
+        "node_id": "node-z"
+      },
+      "override": {}
+    },
+    {
+      "call": "embed",
+      "pairs": [
+        {
+          "id": "ai doomer",
+          "text": "AI Doomer"
+        },
+        {
+          "id": "compute governance",
+          "text": "  Compute   Governance "
+        },
+        {
+          "id": "existing corp",
+          "text": "Existing Corp"
+        },
+        {
+          "id": "fo",
+          "text": "FO"
+        },
+        {
+          "id": "frontier org",
+          "text": "Frontier Org"
+        },
+        {
+          "id": "gemini alpha",
+          "text": "Gemini Alpha"
+        },
+        {
+          "id": "mandate audits",
+          "text": "Mandate Audits"
+        },
+        {
+          "id": "near thing",
+          "text": "Near Thing"
+        },
+        {
+          "id": "scaling hypothesis",
+          "text": "Scaling Hypothesis"
+        },
+        {
+          "id": "some other name",
+          "text": "Some Other Name"
+        },
+        {
+          "id": "vector lab clone",
+          "text": "Vector Lab Clone"
+        }
+      ]
+    },
+    {
+      "call": "embed",
+      "pairs": [
+        {
+          "id": "gemini beta",
+          "text": "Gemini Beta"
+        },
+        {
+          "id": "jane person",
+          "text": "Jane Person"
+        },
+        {
+          "id": "near thing two",
+          "text": "Near Thing Two"
+        }
+      ]
+    },
+    {
+      "call": "embed",
+      "pairs": [
+        {
+          "id": "c thing",
+          "text": "C Thing"
+        }
+      ]
+    },
+    {
+      "call": "embed",
+      "pairs": [
+        {
+          "id": "embedfail widget",
+          "text": "EMBEDFAIL Widget"
+        }
+      ]
+    },
+    {
+      "call": "embed",
+      "pairs": [
+        {
+          "id": "trunc thing",
+          "text": "Trunc Thing"
+        }
+      ]
+    },
+    {
+      "call": "import",
+      "path": "<ROOT>/taxonomy/entities.json",
+      "embeddingsPath": "<ROOT>/taxonomy/entity_embeddings.json",
+      "proposals": [
+        {
+          "aliases": [
+            "Single Alias"
+          ],
+          "confidence": 0.65,
+          "discovered_by": {
+            "model": "model-a",
+            "usage_id": "enrichment.entity-extraction"
+          },
+          "dolce_category": "non-agentive-functional-artifact",
+          "entity_type": "artifact",
+          "name": "Near Thing",
+          "source_refs": [
+            "d1",
+            "d2",
+            "d3",
+            "d4"
+          ],
+          "status": "proposed"
+        },
+        {
+          "aliases": [],
+          "confidence": 0.9,
+          "discovered_by": {
+            "model": "model-a",
+            "usage_id": "enrichment.entity-extraction"
+          },
+          "dolce_category": "non-agentive-functional-artifact",
+          "entity_type": "artifact",
+          "name": "Gemini Alpha",
+          "source_refs": [
+            "d1",
+            "d2",
+            "d3"
+          ],
+          "status": "proposed"
+        },
+        {
+          "aliases": [],
+          "confidence": 0.9,
+          "discovered_by": {
+            "model": "",
+            "usage_id": "enrichment.entity-extraction"
+          },
+          "dolce_category": "non-agentive-functional-artifact",
+          "entity_type": "artifact",
+          "name": "Gemini Beta",
+          "source_refs": [
+            "d4"
+          ],
+          "status": "proposed"
+        },
+        {
+          "aliases": [],
+          "confidence": 0.95,
+          "discovered_by": {
+            "model": "",
+            "usage_id": "enrichment.entity-extraction"
+          },
+          "dolce_category": "agentive-physical-object",
+          "entity_type": "person",
+          "name": "Jane Person",
+          "source_refs": [
+            "d4"
+          ],
+          "status": "proposed"
+        },
+        {
+          "aliases": [],
+          "confidence": 0.9,
+          "discovered_by": {
+            "model": "model-c",
+            "usage_id": "enrichment.entity-extraction"
+          },
+          "dolce_category": "perdurant",
+          "entity_type": "event",
+          "name": "C Thing",
+          "source_refs": [],
+          "status": "proposed"
+        },
+        {
+          "aliases": [],
+          "confidence": 0.9,
+          "discovered_by": {
+            "model": "model-h",
+            "usage_id": "enrichment.entity-extraction"
+          },
+          "dolce_category": "non-agentive-functional-artifact",
+          "entity_type": "artifact",
+          "name": "EMBEDFAIL Widget",
+          "source_refs": [
+            "d7"
+          ],
+          "status": "proposed"
+        },
+        {
+          "aliases": [],
+          "confidence": 0.9,
+          "discovered_by": {
+            "model": "model-k",
+            "usage_id": "enrichment.entity-extraction"
+          },
+          "dolce_category": "perdurant",
+          "entity_type": "event",
+          "name": "Trunc Thing",
+          "source_refs": [
+            "d10"
+          ],
+          "status": "proposed"
+        }
+      ]
+    }
+  ],
+  "writes": [
+    "<ROOT>/taxonomy/entities.json",
+    "<ROOT>/taxonomy/entity_extraction_log.json"
+  ],
+  "tree": {
+    "dictionary/": "(dir)",
+    "dictionary/colloquial/": "(dir)",
+    "dictionary/colloquial/ai-doomer.json": "{ \"colloquial_term\": \"AI Doomer\" }",
+    "dictionary/colloquial/no-term.json": "{ \"other\": \"x\" }",
+    "dictionary/standardized/": "(dir)",
+    "dictionary/standardized/broken.json": "not json",
+    "dictionary/standardized/compute-governance.json": "{ \"canonical_form\": \"Compute Governance\" }",
+    "taxonomy/": "(dir)",
+    "taxonomy/accelerationist.json": "{ \"nodes\": [ { \"id\": \"acc-beliefs-001\", \"label\": \"Scaling Hypothesis\" }, { \"id\": \"acc-x\" }, { \"label\": \"no id\" } ] }",
+    "taxonomy/entities.json": "{\n  \"_schema_version\": \"1.0.0\",\n  \"_doc\": \"Entity records (ent-*). Ref kinds and the Entity type: lib/entities/types.ts.\",\n  \"entity_count\": 9,\n  \"last_modified\": \"2026-01-02\",\n  \"entities\": [\n    {\n      \"id\": \"ent-001\",\n      \"name\": \"Existing Corp\",\n      \"aliases\": [\n        \"ExistingCo\"\n      ],\n      \"entity_type\": \"institution\",\n      \"dolce_category\": \"non-agentive-social-object\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\"\n    },\n    {\n      \"id\": \"ent-002\",\n      \"name\": \"Vector Labs\",\n      \"aliases\": [],\n      \"entity_type\": \"artifact\",\n      \"dolce_category\": \"non-agentive-functional-artifact\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\"\n    },\n    {\n      \"id\": \"ent-003\",\n      \"name\": \"Near Thing\",\n      \"aliases\": [\n        \"Single Alias\"\n      ],\n      \"entity_type\": \"artifact\",\n      \"dolce_category\": \"non-agentive-functional-artifact\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [\n        \"d1\",\n        \"d2\",\n        \"d3\",\n        \"d4\"\n      ],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\",\n      \"discovered_by\": {\n        \"model\": \"model-a\",\n        \"usage_id\": \"enrichment.entity-extraction\"\n      },\n      \"confidence\": 0.65\n    },\n    {\n      \"id\": \"ent-004\",\n      \"name\": \"Gemini Alpha\",\n      \"aliases\": [],\n      \"entity_type\": \"artifact\",\n      \"dolce_category\": \"non-agentive-functional-artifact\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [\n        \"d1\",\n        \"d2\",\n        \"d3\"\n      ],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\",\n      \"discovered_by\": {\n        \"model\": \"model-a\",\n        \"usage_id\": \"enrichment.entity-extraction\"\n      },\n      \"confidence\": 0.9\n    },\n    {\n      \"id\": \"ent-005\",\n      \"name\": \"Gemini Beta\",\n      \"aliases\": [],\n      \"entity_type\": \"artifact\",\n      \"dolce_category\": \"non-agentive-functional-artifact\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [\n        \"d4\"\n      ],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\",\n      \"discovered_by\": {\n        \"model\": \"\",\n        \"usage_id\": \"enrichment.entity-extraction\"\n      },\n      \"confidence\": 0.9\n    },\n    {\n      \"id\": \"ent-006\",\n      \"name\": \"Jane Person\",\n      \"aliases\": [],\n      \"entity_type\": \"person\",\n      \"dolce_category\": \"agentive-physical-object\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [\n        \"d4\"\n      ],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\",\n      \"discovered_by\": {\n        \"model\": \"\",\n        \"usage_id\": \"enrichment.entity-extraction\"\n      },\n      \"confidence\": 0.95\n    },\n    {\n      \"id\": \"ent-007\",\n      \"name\": \"C Thing\",\n      \"aliases\": [],\n      \"entity_type\": \"event\",\n      \"dolce_category\": \"perdurant\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\",\n      \"discovered_by\": {\n        \"model\": \"model-c\",\n        \"usage_id\": \"enrichment.entity-extraction\"\n      },\n      \"confidence\": 0.9\n    },\n    {\n      \"id\": \"ent-008\",\n      \"name\": \"EMBEDFAIL Widget\",\n      \"aliases\": [],\n      \"entity_type\": \"artifact\",\n      \"dolce_category\": \"non-agentive-functional-artifact\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [\n        \"d7\"\n      ],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\",\n      \"discovered_by\": {\n        \"model\": \"model-h\",\n        \"usage_id\": \"enrichment.entity-extraction\"\n      },\n      \"confidence\": 0.9\n    },\n    {\n      \"id\": \"ent-009\",\n      \"name\": \"Trunc Thing\",\n      \"aliases\": [],\n      \"entity_type\": \"event\",\n      \"dolce_category\": \"perdurant\",\n      \"description\": \"\",\n      \"external_refs\": [],\n      \"source_refs\": [\n        \"d10\"\n      ],\n      \"status\": \"proposed\",\n      \"created_at\": \"2026-01-02\",\n      \"last_modified\": \"2026-01-02\",\n      \"discovered_by\": {\n        \"model\": \"model-k\",\n        \"usage_id\": \"enrichment.entity-extraction\"\n      },\n      \"confidence\": 0.9\n    }\n  ]\n}\n",
+    "taxonomy/entity_embeddings.json": "{ \"vectors\": { \"ent-002\": [1.0, 0.0, 0.0] } }",
+    "taxonomy/entity_extraction_log.json": "{\n  \"_schema_version\": \"1.2.0\",\n  \"_doc\": \"Entity extraction idempotence log (t/1806 Phase 1). Feeds -Force replay decisions; not a data-of-record store (entities.json is). Each node carries evidence[] (supporting quote per minted entity id, for curation) and dropped[] (below-gate proposals, for gate-recall audit) — added t/1830 — and possible_duplicates[] (advisory near-variant pairs {candidate_id, proposal_name, matched_id, matched_name, similarity}: both entities were minted, curation reviews via merge/redirect; name-only cosine cannot safely auto-link siblings) — added t/1881.\",\n  \"last_modified\": \"2026-01-02\",\n  \"node_count\": 6,\n  \"nodes\": [\n    {\n      \"node_id\": \"node-a\",\n      \"processed_at\": \"2026-01-02T03:04:05.0000000Z\",\n      \"model\": \"model-a\",\n      \"proposals_total\": 12,\n      \"org_mentions\": [\n        \"Mentioned Org\"\n      ],\n      \"evidence\": [\n        {\n          \"id\": \"ent-003\",\n          \"name\": \"Near Thing\",\n          \"quote\": \"near\"\n        },\n        {\n          \"id\": \"ent-004\",\n          \"name\": \"Gemini Alpha\",\n          \"quote\": \"qa\"\n        }\n      ],\n      \"dropped\": [\n        {\n          \"node_id\": \"node-a\",\n          \"name\": \"Low Thing\",\n          \"entity_type\": \"artifact\",\n          \"confidence\": 0.3\n        }\n      ],\n      \"possible_duplicates\": []\n    },\n    {\n      \"node_id\": \"node-b\",\n      \"processed_at\": \"2026-01-02T03:04:05.0000000Z\",\n      \"model\": \"\",\n      \"proposals_total\": 3,\n      \"org_mentions\": [],\n      \"evidence\": [\n        {\n          \"id\": \"ent-005\",\n          \"name\": \"Gemini Beta\",\n          \"quote\": \"\"\n        },\n        {\n          \"id\": \"ent-006\",\n          \"name\": \"Jane Person\",\n          \"quote\": \"Jane said\"\n        }\n      ],\n      \"dropped\": [],\n      \"possible_duplicates\": []\n    },\n    {\n      \"node_id\": \"node-c\",\n      \"processed_at\": \"2026-01-02T03:04:05.0000000Z\",\n      \"model\": \"model-c\",\n      \"proposals_total\": 1,\n      \"org_mentions\": [],\n      \"evidence\": [\n        {\n          \"id\": \"ent-007\",\n          \"name\": \"C Thing\",\n          \"quote\": \"\"\n        }\n      ],\n      \"dropped\": [],\n      \"possible_duplicates\": []\n    },\n    {\n      \"node_id\": \"node-h\",\n      \"processed_at\": \"2026-01-02T03:04:05.0000000Z\",\n      \"model\": \"model-h\",\n      \"proposals_total\": 1,\n      \"org_mentions\": [],\n      \"evidence\": [\n        {\n          \"id\": \"ent-008\",\n          \"name\": \"EMBEDFAIL Widget\",\n          \"quote\": \"\"\n        }\n      ],\n      \"dropped\": [],\n      \"possible_duplicates\": []\n    },\n    {\n      \"node_id\": \"node-k\",\n      \"processed_at\": \"2026-01-02T03:04:05.0000000Z\",\n      \"model\": \"model-k\",\n      \"proposals_total\": 1,\n      \"org_mentions\": [],\n      \"evidence\": [\n        {\n          \"id\": \"ent-009\",\n          \"name\": \"Trunc Thing\",\n          \"quote\": \"\"\n        }\n      ],\n      \"dropped\": [],\n      \"possible_duplicates\": []\n    },\n    {\n      \"node_id\": \"node-z\",\n      \"processed_at\": \"2026-01-02T03:04:05.0000000Z\",\n      \"model\": \"stub-default\",\n      \"proposals_total\": 0,\n      \"org_mentions\": [],\n      \"evidence\": [],\n      \"dropped\": [],\n      \"possible_duplicates\": []\n    }\n  ]\n}\n",
+    "taxonomy/organizations.json": "{ \"organizations\": [ { \"id\": \"org-001\", \"name\": \"Frontier Org\", \"short_name\": \"FO\" }, { \"name\": \"No Id Org\" } ] }",
+    "taxonomy/policy_actions.json": "{ \"policies\": [ { \"id\": \"pol-001\", \"action\": \"Mandate Audits\" }, { \"action\": \"no id\" } ] }",
+    "taxonomy/safetyist.json": "{ \"nodes\": [ { \"id\": \"saf-desires-001\", \"label\": \"Pause Advocacy\" } ] }",
+    "taxonomy/skeptic.json": "{ \"nodes\": [",
+    "taxonomy/source_evidence_index.json": "{\n  \"node-a\": {\n    \"facts\": [\n      {\n        \"claim\": \"A1\",\n        \"doc_id\": \"d1\"\n      },\n      {\n        \"claim\": \"A2\",\n        \"doc_id\": \"d1\"\n      },\n      {\n        \"claim\": \"A3\",\n        \"doc_id\": \"d2\"\n      },\n      \"not-a-fact-object\",\n      {\n        \"doc_id\": \"d3\"\n      }\n    ]\n  },\n  \"node-b\": {\n    \"facts\": [\n      {\n        \"claim\": \"B1\",\n        \"doc_id\": \"d4\"\n      }\n    ]\n  },\n  \"node-c\": {\n    \"facts\": [\n      {\n        \"claim\": \"C1\"\n      }\n    ]\n  },\n  \"node-d\": {\n    \"facts\": []\n  },\n  \"node-e\": {\n    \"other\": 1\n  },\n  \"node-f\": {\n    \"facts\": [\n      {\n        \"claim\": \"F1\",\n        \"doc_id\": \"d5\"\n      }\n    ]\n  },\n  \"node-g\": {\n    \"facts\": [\n      {\n        \"claim\": \"G1\",\n        \"doc_id\": \"d6\"\n      }\n    ]\n  },\n  \"node-h\": {\n    \"facts\": [\n      {\n        \"claim\": \"H1\",\n        \"doc_id\": \"d7\"\n      }\n    ]\n  },\n  \"node-i\": {\n    \"facts\": [\n      {\n        \"claim\": \"I1\",\n        \"doc_id\": \"d8\"\n      }\n    ]\n  },\n  \"node-j\": {\n    \"facts\": [\n      {\n        \"claim\": \"J1\",\n        \"doc_id\": \"d9\"\n      }\n    ]\n  },\n  \"node-k\": {\n    \"facts\": [\n      {\n        \"claim\": \"K1\",\n        \"doc_id\": \"d10\"\n      }\n    ]\n  },\n  \"node-z\": {\n    \"facts\": [\n      {\n        \"claim\": \"Z1\",\n        \"doc_id\": \"d11\"\n      }\n    ]\n  },\n  \"string-entry\": \"just a string\"\n}"
+  }
+}

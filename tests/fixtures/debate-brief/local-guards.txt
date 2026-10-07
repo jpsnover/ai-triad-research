@@ -1,0 +1,4 @@
+--- missing
+ERROR: DebateFileInvalid,Export-TriadDebateBrief | InvalidData | Debate file not found: <ROOT>/nope.json | <ROOT>/nope.json
+--- nomodel
+ERROR: ModelUnavailable,Export-TriadDebateBrief | ResourceUnavailable | Local mode requires -Model unless -SkipNarration (no global model to inherit offline). | <ROOT>/debate-nomodel.json

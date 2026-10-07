@@ -1,0 +1,21 @@
+VERBOSE: Local mode: debate '<ROOT>/debate-happy.json'
+VERBOSE:   Preset=conference, model=m1, checker=c1, allow-open snapshot. Output → <ROOT>/debate-happy-brief
+VERBOSE: Performing the operation "export brief (preset=conference, model=m1) → <ROOT>/debate-happy-brief" on target "<ROOT>/debate-happy.json".
+VERBOSE:   CLI: <PWSH> -NoProfile -File <ROOT>/stub-ok-full.ps1
+VERBOSE:   Pipeline finished (exit code 0).
+VERBOSE: ──────── Brief export complete (local) ────────
+VERBOSE:   Debate:         deb-L
+VERBOSE:   Title:          Local T
+VERBOSE:   Preset:         conference
+VERBOSE:   Model:          m1 (source: Explicit)
+VERBOSE:   Checker model:  c1
+VERBOSE:   Trace coverage: 97.5%
+VERBOSE:   Verdicts:       Disputed=1, Supported=2
+VERBOSE:   Warnings:       2
+VERBOSE:   Deck (.pptx):   P.pptx
+VERBOSE:   Deck spec:      S.json
+VERBOSE:   Audit manifest: M.json
+OUTPUT: {"CheckerModel":"c1","DebateId":"deb-L","ManifestPath":"M.json","Model":"m1","ModelSource":"Explicit","Path":"P.pptx","Preset":"conference","SpecPath":"S.json","Title":"Local T","TraceCoveragePct":97.5,"Verdicts":{"Disputed":1,"Supported":2},"Warnings":["w1","w2"]}
+WARNING: first warning
+WARNING: second warning
+ARGS: --path <ROOT>/debate-happy.json --preset conference --out <ROOT>/debate-happy-brief --model m1 --checker-model c1 --allow-open
