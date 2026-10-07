@@ -742,7 +742,9 @@ const rawApi: AppAPI = {
   // Taxonomy CRUD
   loadTaxonomyFile: (pov) => get(`/api/taxonomy/${encodeURIComponent(pov)}`),
   saveTaxonomyFile: (pov, data) => put(`/api/taxonomy/${encodeURIComponent(pov)}`, data).then(() => {}),
-  loadPolicyRegistry: () => get('/api/policy-registry'), recountPolicyMembers: (ids) => post('/api/policy-registry/recount', { ids }), // t/4034
+  loadPolicyRegistry: () => get('/api/policy-registry'),
+  // t/4034: recount member_count / source_povs for these ids after a save (lib/policy/registryRecount.ts).
+  recountPolicyMembers: (ids) => post('/api/policy-registry/recount', { ids }),
   loadLineageCategories: () => get('/api/lineage-categories'),
   // t/3852: durable delete-audit log; WARN+swallow on failure (never block the delete it records).
   logNodeDeletion: (entry) => post('/api/node-delete-log', entry).then(() => {}).catch((err) =>
