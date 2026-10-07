@@ -4,9 +4,9 @@
     "[Cyan] Unique lineage values: 12",
     "[Gray] Computing embeddings for dedup...",
     "[Yellow]   Embedding unavailable — skipping dedup",
-    "[Gray] Post-dedup unique: 12",
-    "[Gray] Already cached: 1",
-    "[Gray] Need enrichment: 11",
+    "[default] Post-dedup unique: 12",
+    "[default] Already cached: 1",
+    "[default] Need enrichment: 11",
     "[Gray][nn]   Batch 1/3 (5 values)...",
     "[Green]  5 enriched",
     "[Gray][nn]   Batch 2/3 (5 values)...",
@@ -17,10 +17,10 @@
     "[Cyan] \nApplying enrichments to taxonomy files...",
     "[Green]   Saved accelerationist.json",
     "[Cyan] \n=== SUMMARY ===",
-    "[Gray]   Unique values: 12",
-    "[Gray]   Enriched (new): 11",
-    "[Gray]   From cache: 1",
-    "[Gray]   Nodes updated: 1"
+    "[default]   Unique values: 12",
+    "[default]   Enriched (new): 11",
+    "[default]   From cache: 1",
+    "[default]   Nodes updated: 1"
   ],
   "warnings": [],
   "verbose": [

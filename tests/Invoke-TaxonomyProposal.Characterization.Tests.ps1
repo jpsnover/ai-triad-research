@@ -127,6 +127,7 @@ $script:Scenarios = @(
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'HostCapture.ps1')
     $script:GoldenDir = Join-Path $PSScriptRoot 'fixtures' 'taxonomy-proposal'
     $script:Utf8 = [System.Text.UTF8Encoding]::new($false)
     $script:OriginalTaxonomyData = InModuleScope AITriad { $script:TaxonomyData }
@@ -382,6 +383,7 @@ BeforeAll {
         $records = [System.Collections.Generic.List[object]]::new()
         $err = $null
         $w = $null
+        Register-HostCaptureMock
         try {
             Invoke-TaxonomyProposal @p -Verbose -WarningVariable w -WarningAction SilentlyContinue 4>&1 6>&1 | ForEach-Object { $records.Add($_) }
         } catch {
@@ -391,8 +393,9 @@ BeforeAll {
         }
         $hostLines = @($records | Where-Object { $_ -is [System.Management.Automation.InformationRecord] } | ForEach-Object {
                 $m = $_.MessageData
-                $text = script:Format-Payload ([string]$(if ($m -is [System.Management.Automation.HostInformationMessage]) { $m.Message } else { $m }))
-                if ($m -is [System.Management.Automation.HostInformationMessage]) { "[$($m.ForegroundColor)] $text" } else { "[info] $text" }
+                $h = Get-HostCaptureParts $m
+                $text = script:Format-Payload ([string]$(if ($h) { $h.Message } else { $m }))
+                if ($h) { "[$($h.Color)] $text" } else { "[info] $text" }
             })
         $verbose = @($records | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } | ForEach-Object { $_.Message })
         $output  = @($records | Where-Object { $_ -isnot [System.Management.Automation.VerboseRecord] -and $_ -isnot [System.Management.Automation.InformationRecord] })

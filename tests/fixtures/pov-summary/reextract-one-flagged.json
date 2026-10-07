@@ -3,7 +3,7 @@
   "host": [
     "[Yellow] \n  RE-EXTRACTION: 1 document(s) flagged",
     "[Gray]     - doc-a",
-    "[Gray] ",
+    "[default] ",
     "[Cyan] \n▶  Validating inputs",
     "[Green]    ✓  Doc ID      : doc-a",
     "[Green]    ✓  Repo root   : <ROOT>",

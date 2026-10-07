@@ -2,10 +2,10 @@
   "scenario": "regen-failures",
   "host": [
     "[Cyan] === Regenerate Lineage Content ===",
-    "[Gray]   Nodes to process: 3",
-    "[Gray]   Batch size: 1 nodes/batch",
-    "[Gray]   Model: claude-haiku-4-5",
-    "[Gray]   Total batches: 3",
+    "[default]   Nodes to process: 3",
+    "[default]   Batch size: 1 nodes/batch",
+    "[default]   Model: claude-haiku-4-5",
+    "[default]   Total batches: 3",
     "[Gray][nn]   Batch 1/3 (1 nodes: r-1)...",
     "[Red]  no response",
     "[Gray][nn]   Batch 2/3 (1 nodes: r-2)...",
@@ -14,9 +14,9 @@
     "[Green]  done (1 nodes)",
     "[Green]   Saved accelerationist.json",
     "[Cyan] \n=== SUMMARY ===",
-    "[Gray]   Nodes updated: 1",
-    "[Gray]   Nodes failed: 2",
-    "[Gray]   POV files saved: accelerationist"
+    "[default]   Nodes updated: 1",
+    "[default]   Nodes failed: 2",
+    "[default]   POV files saved: accelerationist"
   ],
   "warnings": [],
   "verbose": [

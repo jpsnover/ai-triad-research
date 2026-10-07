@@ -37,7 +37,7 @@ $script:MigratedSites = @(
         @{ Path = 'Public/Test-ExtractionQuality.ps1';         Tier = 'basic';    Literal = 'gemini-3.5-flash-lite'; Count = 2 }
         @{ Path = 'Public/Find-PolicyAction.ps1';              Tier = 'basic';    Literal = 'gemini-3.5-flash-lite'; Count = 1 }
         @{ Path = 'Public/Find-PossibleFallacy.ps1';           Tier = 'basic';    Literal = 'gemini-3.5-flash-lite'; Count = 1 }
-        @{ Path = 'Public/Find-SituationCandidates.ps1';       Tier = 'basic';    Literal = 'gemini-3.5-flash-lite'; Count = 1 }
+        @{ Path = 'Private/FindSituationCandidatesSteps.ps1';  Tier = 'basic';    Literal = 'gemini-3.5-flash-lite'; Count = 1 }  # moved from Public/ by the t/3910 refactor (#3087)
         @{ Path = 'Public/Get-IngestionPriority.ps1';          Tier = 'basic';    Literal = 'gemini-3.5-flash-lite'; Count = 1 }
         @{ Path = 'Public/Get-TopicFrequency.ps1';             Tier = 'basic';    Literal = 'gemini-3.5-flash-lite'; Count = 1 }
         @{ Path = 'Public/Invoke-PolicyRefinement.ps1';        Tier = 'basic';    Literal = 'gemini-3.5-flash-lite'; Count = 1 }
