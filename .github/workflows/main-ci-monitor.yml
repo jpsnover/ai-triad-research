@@ -253,6 +253,7 @@ jobs:
               try {
                 const r = await github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: w.file, event: 'schedule', branch: 'main', per_page: 6 });
                 runs = r.data.workflow_runs.map(x => ({ conclusion: x.conclusion, createdAt: x.created_at }));
+                console.log(`  ${w.file}: total=${r.data.total_count} newest=${r.data.workflow_runs.slice(0,2).map(x => `#${x.id}@${x.created_at}/${x.event}/${x.head_branch}`).join(' ')}`);
               } catch (e) {
                 verdicts.push({ file: w.file, status: 'silent', streak: 0, lastRunAt: null, reason: `could not list runs: ${e.message}` });
                 continue;
