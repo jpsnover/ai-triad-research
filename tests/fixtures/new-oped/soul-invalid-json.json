@@ -1,0 +1,11 @@
+{
+  "scenario": "soul-invalid-json",
+  "calls": [],
+  "warnings": [],
+  "verbose": [],
+  "error": "\r\n  Goal:     Generate an op-ed in a POV voice\r\n  Error:    Soul document at <REPO>/lib/debate/soul-docs/skeptic.soul.json is not valid JSON: Conversion from JSON failed with error: Invalid character after parsing property name. Expected ':' but got: j. Path '', line 1, position 6.\r\n  Location: New-OpEd\r\n  Resolve:\r\n   1. Validate the Soul document JSON and retry.",
+  "output": null,
+  "prepBriefAfter": "(no SourceBrief property)",
+  "fileCount": 0,
+  "file": null
+}
