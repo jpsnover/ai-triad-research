@@ -178,7 +178,8 @@ function Format-OpEdBdiGrounding {
             Label = $n.Label; RelevanceScore = $n.Score; Reflection = ''
         })
     }
-    $sb.ToString().TrimEnd()
+    # AppendLine writes the platform newline; prompts are LF on every OS, as in lib/oped/generate.ts (t/4081).
+    $sb.ToString().Replace("`r`n", "`n").TrimEnd()
 }
 
 function Format-OpEdSituationGrounding {
@@ -194,7 +195,7 @@ function Format-OpEdSituationGrounding {
             Label = $s.Label; RelevanceScore = $s.Score; Reflection = ''
         })
     }
-    $sb2.ToString().TrimEnd()
+    $sb2.ToString().Replace("`r`n", "`n").TrimEnd()
 }
 
 function Get-OpEdSourceBrief {
@@ -617,7 +618,7 @@ function Add-OpEdGroundingReflection {
         }
         $ReflPrompt = Get-Prompt -Name 'op-ed-grounding-reflection' -PromptsDir $PromptsDir -Replacements @{
             OPED_BODY      = $FinalBody
-            GROUNDING_LIST = $glb.ToString().TrimEnd()
+            GROUNDING_LIST = $glb.ToString().Replace("`r`n", "`n").TrimEnd()
             # Mirror generate.ts:291-293 reflection pass: numbered key_claims list, "(none)" fallback
             # when absent. Without this the shared prompt's {{SOURCE_CLAIMS}} slot (t/2890) rendered
             # literally on the PS path (t/2911).
@@ -680,5 +681,6 @@ function Format-OpEdMarkdown {
             [void]$md.AppendLine("| $($g.Id) — $($g.Label) | $($g.Type) | $($g.Category) | $([Math]::Round([double]$g.RelevanceScore, 4)) | $refl |")
         }
     }
-    $md.ToString()
+    # The written .md is LF on every OS (repo convention: *.md eol=lf); AppendLine would emit CRLF on Windows (t/4081).
+    $md.ToString().Replace("`r`n", "`n")
 }

@@ -580,10 +580,6 @@
     "max": 31,
     "countOver": 1
   },
-  "AITriad/Public/Invoke-TaxonomyProposal.ps1": {
-    "max": 144,
-    "countOver": 1
-  },
   "AITriad/Public/Invoke-VernacularBatch.ps1": {
     "max": 28,
     "countOver": 1,
@@ -639,7 +635,7 @@
     "countOver": 1
   },
   "AITriad/Public/Repair-PovLineage.ps1": {
-    "max": 226,
+    "max": 148,
     "countOver": 1
   },
   "AITriad/Public/Repair-ResolvedBackfill.ps1": {

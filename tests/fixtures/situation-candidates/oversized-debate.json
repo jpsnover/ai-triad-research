@@ -271,16 +271,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o3",
-            "pov": "accelerationist",
-            "label": "Label acc-o3"
-          },
-          {
-            "id": "saf-o2",
-            "pov": "safetyist",
-            "label": "Label saf-o2"
-          }
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o3 / Label saf-o2  (member order canonicalized)"
       },
@@ -311,16 +315,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o3",
-            "pov": "accelerationist",
-            "label": "Label acc-o3"
-          },
-          {
-            "id": "saf-o6",
-            "pov": "safetyist",
-            "label": "Label saf-o6"
-          }
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o3 / Label saf-o6  (member order canonicalized)"
       },
@@ -351,16 +359,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o1",
-            "pov": "accelerationist",
-            "label": "Label acc-o1"
-          },
-          {
-            "id": "saf-o2",
-            "pov": "safetyist",
-            "label": "Label saf-o2"
-          }
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o1 / Label saf-o2  (member order canonicalized)"
       },
@@ -391,16 +403,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o1",
-            "pov": "accelerationist",
-            "label": "Label acc-o1"
-          },
-          {
-            "id": "saf-o6",
-            "pov": "safetyist",
-            "label": "Label saf-o6"
-          }
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o1 / Label saf-o6  (member order canonicalized)"
       },
@@ -431,16 +447,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o3",
-            "pov": "accelerationist",
-            "label": "Label acc-o3"
-          },
-          {
-            "id": "saf-o5",
-            "pov": "safetyist",
-            "label": "Label saf-o5"
-          }
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o3 / Label saf-o5  (member order canonicalized)"
       },
@@ -471,16 +491,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o1",
-            "pov": "accelerationist",
-            "label": "Label acc-o1"
-          },
-          {
-            "id": "saf-o5",
-            "pov": "safetyist",
-            "label": "Label saf-o5"
-          }
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o1 / Label saf-o5  (member order canonicalized)"
       },
@@ -511,16 +535,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o3",
-            "pov": "accelerationist",
-            "label": "Label acc-o3"
-          },
-          {
-            "id": "saf-o3",
-            "pov": "safetyist",
-            "label": "Label saf-o3"
-          }
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o3 / Label saf-o3  (member order canonicalized)"
       },
@@ -551,16 +579,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o1",
-            "pov": "accelerationist",
-            "label": "Label acc-o1"
-          },
-          {
-            "id": "saf-o3",
-            "pov": "safetyist",
-            "label": "Label saf-o3"
-          }
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o1 / Label saf-o3  (member order canonicalized)"
       },
@@ -591,16 +623,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o3",
-            "pov": "accelerationist",
-            "label": "Label acc-o3"
-          },
-          {
-            "id": "saf-o1",
-            "pov": "safetyist",
-            "label": "Label saf-o1"
-          }
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o1",
+              "pov": "safetyist",
+              "label": "Label saf-o1"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o3 / Label saf-o1  (member order canonicalized)"
       },
@@ -631,16 +667,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o1",
-            "pov": "accelerationist",
-            "label": "Label acc-o1"
-          },
-          {
-            "id": "saf-o1",
-            "pov": "safetyist",
-            "label": "Label saf-o1"
-          }
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o1",
+              "pov": "safetyist",
+              "label": "Label saf-o1"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o1 / Label saf-o1  (member order canonicalized)"
       },
@@ -671,16 +711,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o3",
-            "pov": "accelerationist",
-            "label": "Label acc-o3"
-          },
-          {
-            "id": "saf-o4",
-            "pov": "safetyist",
-            "label": "Label saf-o4"
-          }
+          [
+            {
+              "id": "acc-o3",
+              "pov": "accelerationist",
+              "label": "Label acc-o3"
+            }
+          ],
+          [
+            {
+              "id": "saf-o4",
+              "pov": "safetyist",
+              "label": "Label saf-o4"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o3 / Label saf-o4  (member order canonicalized)"
       },
@@ -711,16 +755,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o1",
-            "pov": "accelerationist",
-            "label": "Label acc-o1"
-          },
-          {
-            "id": "saf-o4",
-            "pov": "safetyist",
-            "label": "Label saf-o4"
-          }
+          [
+            {
+              "id": "acc-o1",
+              "pov": "accelerationist",
+              "label": "Label acc-o1"
+            }
+          ],
+          [
+            {
+              "id": "saf-o4",
+              "pov": "safetyist",
+              "label": "Label saf-o4"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o1 / Label saf-o4  (member order canonicalized)"
       },
@@ -751,16 +799,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o5",
-            "pov": "accelerationist",
-            "label": "Label acc-o5"
-          },
-          {
-            "id": "saf-o2",
-            "pov": "safetyist",
-            "label": "Label saf-o2"
-          }
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o5 / Label saf-o2  (member order canonicalized)"
       },
@@ -791,16 +843,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o5",
-            "pov": "accelerationist",
-            "label": "Label acc-o5"
-          },
-          {
-            "id": "saf-o6",
-            "pov": "safetyist",
-            "label": "Label saf-o6"
-          }
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o5 / Label saf-o6  (member order canonicalized)"
       },
@@ -831,16 +887,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o4",
-            "pov": "accelerationist",
-            "label": "Label acc-o4"
-          },
-          {
-            "id": "saf-o2",
-            "pov": "safetyist",
-            "label": "Label saf-o2"
-          }
+          [
+            {
+              "id": "acc-o4",
+              "pov": "accelerationist",
+              "label": "Label acc-o4"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o4 / Label saf-o2  (member order canonicalized)"
       },
@@ -871,16 +931,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o5",
-            "pov": "accelerationist",
-            "label": "Label acc-o5"
-          },
-          {
-            "id": "saf-o5",
-            "pov": "safetyist",
-            "label": "Label saf-o5"
-          }
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o5 / Label saf-o5  (member order canonicalized)"
       },
@@ -911,16 +975,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o2",
-            "pov": "accelerationist",
-            "label": "Label acc-o2"
-          },
-          {
-            "id": "saf-o2",
-            "pov": "safetyist",
-            "label": "Label saf-o2"
-          }
+          [
+            {
+              "id": "acc-o2",
+              "pov": "accelerationist",
+              "label": "Label acc-o2"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o2 / Label saf-o2  (member order canonicalized)"
       },
@@ -951,16 +1019,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o4",
-            "pov": "accelerationist",
-            "label": "Label acc-o4"
-          },
-          {
-            "id": "saf-o6",
-            "pov": "safetyist",
-            "label": "Label saf-o6"
-          }
+          [
+            {
+              "id": "acc-o4",
+              "pov": "accelerationist",
+              "label": "Label acc-o4"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o4 / Label saf-o6  (member order canonicalized)"
       },
@@ -991,16 +1063,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o2",
-            "pov": "accelerationist",
-            "label": "Label acc-o2"
-          },
-          {
-            "id": "saf-o6",
-            "pov": "safetyist",
-            "label": "Label saf-o6"
-          }
+          [
+            {
+              "id": "acc-o2",
+              "pov": "accelerationist",
+              "label": "Label acc-o2"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o2 / Label saf-o6  (member order canonicalized)"
       },
@@ -1031,16 +1107,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o6",
-            "pov": "accelerationist",
-            "label": "Label acc-o6"
-          },
-          {
-            "id": "saf-o2",
-            "pov": "safetyist",
-            "label": "Label saf-o2"
-          }
+          [
+            {
+              "id": "acc-o6",
+              "pov": "accelerationist",
+              "label": "Label acc-o6"
+            }
+          ],
+          [
+            {
+              "id": "saf-o2",
+              "pov": "safetyist",
+              "label": "Label saf-o2"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o6 / Label saf-o2  (member order canonicalized)"
       },
@@ -1071,16 +1151,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o6",
-            "pov": "accelerationist",
-            "label": "Label acc-o6"
-          },
-          {
-            "id": "saf-o6",
-            "pov": "safetyist",
-            "label": "Label saf-o6"
-          }
+          [
+            {
+              "id": "acc-o6",
+              "pov": "accelerationist",
+              "label": "Label acc-o6"
+            }
+          ],
+          [
+            {
+              "id": "saf-o6",
+              "pov": "safetyist",
+              "label": "Label saf-o6"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o6 / Label saf-o6  (member order canonicalized)"
       },
@@ -1111,16 +1195,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o4",
-            "pov": "accelerationist",
-            "label": "Label acc-o4"
-          },
-          {
-            "id": "saf-o5",
-            "pov": "safetyist",
-            "label": "Label saf-o5"
-          }
+          [
+            {
+              "id": "acc-o4",
+              "pov": "accelerationist",
+              "label": "Label acc-o4"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o4 / Label saf-o5  (member order canonicalized)"
       },
@@ -1151,16 +1239,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o2",
-            "pov": "accelerationist",
-            "label": "Label acc-o2"
-          },
-          {
-            "id": "saf-o5",
-            "pov": "safetyist",
-            "label": "Label saf-o5"
-          }
+          [
+            {
+              "id": "acc-o2",
+              "pov": "accelerationist",
+              "label": "Label acc-o2"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o2 / Label saf-o5  (member order canonicalized)"
       },
@@ -1191,16 +1283,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o6",
-            "pov": "accelerationist",
-            "label": "Label acc-o6"
-          },
-          {
-            "id": "saf-o5",
-            "pov": "safetyist",
-            "label": "Label saf-o5"
-          }
+          [
+            {
+              "id": "acc-o6",
+              "pov": "accelerationist",
+              "label": "Label acc-o6"
+            }
+          ],
+          [
+            {
+              "id": "saf-o5",
+              "pov": "safetyist",
+              "label": "Label saf-o5"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o6 / Label saf-o5  (member order canonicalized)"
       },
@@ -1231,16 +1327,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o5",
-            "pov": "accelerationist",
-            "label": "Label acc-o5"
-          },
-          {
-            "id": "saf-o3",
-            "pov": "safetyist",
-            "label": "Label saf-o3"
-          }
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o5 / Label saf-o3  (member order canonicalized)"
       },
@@ -1271,16 +1371,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o4",
-            "pov": "accelerationist",
-            "label": "Label acc-o4"
-          },
-          {
-            "id": "saf-o3",
-            "pov": "safetyist",
-            "label": "Label saf-o3"
-          }
+          [
+            {
+              "id": "acc-o4",
+              "pov": "accelerationist",
+              "label": "Label acc-o4"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o4 / Label saf-o3  (member order canonicalized)"
       },
@@ -1311,16 +1415,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o2",
-            "pov": "accelerationist",
-            "label": "Label acc-o2"
-          },
-          {
-            "id": "saf-o3",
-            "pov": "safetyist",
-            "label": "Label saf-o3"
-          }
+          [
+            {
+              "id": "acc-o2",
+              "pov": "accelerationist",
+              "label": "Label acc-o2"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o2 / Label saf-o3  (member order canonicalized)"
       },
@@ -1351,16 +1459,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o5",
-            "pov": "accelerationist",
-            "label": "Label acc-o5"
-          },
-          {
-            "id": "saf-o1",
-            "pov": "safetyist",
-            "label": "Label saf-o1"
-          }
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o1",
+              "pov": "safetyist",
+              "label": "Label saf-o1"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o5 / Label saf-o1  (member order canonicalized)"
       },
@@ -1391,16 +1503,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o6",
-            "pov": "accelerationist",
-            "label": "Label acc-o6"
-          },
-          {
-            "id": "saf-o3",
-            "pov": "safetyist",
-            "label": "Label saf-o3"
-          }
+          [
+            {
+              "id": "acc-o6",
+              "pov": "accelerationist",
+              "label": "Label acc-o6"
+            }
+          ],
+          [
+            {
+              "id": "saf-o3",
+              "pov": "safetyist",
+              "label": "Label saf-o3"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o6 / Label saf-o3  (member order canonicalized)"
       },
@@ -1431,16 +1547,20 @@
           "contradiction": 1
         },
         "sides": [
-          {
-            "id": "acc-o5",
-            "pov": "accelerationist",
-            "label": "Label acc-o5"
-          },
-          {
-            "id": "saf-o4",
-            "pov": "safetyist",
-            "label": "Label saf-o4"
-          }
+          [
+            {
+              "id": "acc-o5",
+              "pov": "accelerationist",
+              "label": "Label acc-o5"
+            }
+          ],
+          [
+            {
+              "id": "saf-o4",
+              "pov": "safetyist",
+              "label": "Label saf-o4"
+            }
+          ]
         ],
         "proposed_label": "Label acc-o5 / Label saf-o4  (member order canonicalized)"
       }

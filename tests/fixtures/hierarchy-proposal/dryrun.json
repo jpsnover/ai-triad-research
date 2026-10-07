@@ -14,9 +14,9 @@
     "[Cyan] \n▶  Bucket 1/2: accelerationist / Beliefs (2 nodes)",
     "[Green]    ✓  Clustering produced 2 clusters",
     "[Gray]    →  DryRun — showing prompt for first bucket only",
-    "[Gray] ",
-    "[Gray] <<hierarchy-proposal>>\n\nPOV: accelerationist\nCategory: Beliefs\nNode count: 2\n\n--- NODES ---\n[\n  {\n    \"id\": \"acc-b-1\",\n    \"label\": \"Label acc-b-1\",\n    \"description\": \"Description of acc-b-1.\"\n  },\n  {\n    \"id\": \"acc-b-2\",\n    \"label\": \"Label acc-b-2\",\n    \"description\": \"Description of acc-b-2.\"\n  }\n]\n\n--- PRE-COMPUTED CLUSTERS ---\n[\n  {\n    \"cluster_id\": 0,\n    \"node_ids\": [\n      \"acc-b-1\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  },\n  {\n    \"cluster_id\": 1,\n    \"node_ids\": [\n      \"acc-b-2\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  }\n]\n\n<<hierarchy-proposal-schema>>",
-    "[Gray] \n... (truncated, total <platform-dependent> chars)"
+    "[default] ",
+    "[default] <<hierarchy-proposal>>\n\nPOV: accelerationist\nCategory: Beliefs\nNode count: 2\n\n--- NODES ---\n[\n  {\n    \"id\": \"acc-b-1\",\n    \"label\": \"Label acc-b-1\",\n    \"description\": \"Description of acc-b-1.\"\n  },\n  {\n    \"id\": \"acc-b-2\",\n    \"label\": \"Label acc-b-2\",\n    \"description\": \"Description of acc-b-2.\"\n  }\n]\n\n--- PRE-COMPUTED CLUSTERS ---\n[\n  {\n    \"cluster_id\": 0,\n    \"node_ids\": [\n      \"acc-b-1\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  },\n  {\n    \"cluster_id\": 1,\n    \"node_ids\": [\n      \"acc-b-2\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  }\n]\n\n<<hierarchy-proposal-schema>>",
+    "[default] \n... (truncated, total <platform-dependent> chars)"
   ],
   "warnings": [],
   "verbose": [],

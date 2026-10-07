@@ -2,8 +2,8 @@
   "scenario": "fixurls-whatif",
   "host": [
     "[Cyan] === Fix Broken URLs ===",
-    "[Gray]   Entries to check: 3 / 4",
-    "[Gray] \nWhatIf: Would validate 3 URLs via GET with Wikipedia fallback",
+    "[default]   Entries to check: 3 / 4",
+    "[default] \nWhatIf: Would validate 3 URLs via GET with Wikipedia fallback",
     "[DarkGray]   Game Theory: https://gt.example/now-ok",
     "[DarkGray]   Longtermism: https://lt.example/dead",
     "[DarkGray]   Obscure (doctrine): "

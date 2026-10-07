@@ -21,7 +21,16 @@ function Find-SituationCandidates {
     .PARAMETER MinSimilarity
         Cosine similarity threshold (0.50-0.95, default 0.60).
     .PARAMETER OutputFile
-        Optional path to write results as JSON.
+        Optional path to write results as JSON: { generated_at, min_similarity, pairs_checked, pairs_above,
+        candidates }. Each candidate has cluster_id, members ([{ id, pov, label }], sorted by id),
+        avg_similarity, max_boosted, povs_represented and proposed_label, plus nli_relationship and
+        nli_counts when NLI ran. A contested cluster whose NLI labels split its members into two
+        consistent camps also has sides: [[sideA members], [sideB members]], two arrays of members, each
+        sorted by id, ordered by their first id. AI fields (proposed_description, interpretations,
+        confidence, rationale) are present when the model labelled the cluster.
+
+        Pairs whose two nodes are both listed in one situation node's linked_nodes are skipped: that
+        situation already interprets them. Output is deterministic: ties on score break by member id.
     .PARAMETER NoAI
         Skip LLM labeling; return raw clusters only.
     .PARAMETER NoNLI
@@ -86,7 +95,11 @@ function Find-SituationCandidates {
     $ErrorActionPreference = 'Stop'
 
     if ($ShowSharedOnly -and $ShowDebatesOnly) {
-        throw '-ShowSharedOnly and -ShowDebatesOnly are mutually exclusive.'
+        throw (New-ActionableError -PassThru `
+            -Goal 'Find situation candidates' `
+            -Problem '-ShowSharedOnly and -ShowDebatesOnly are mutually exclusive.' `
+            -Location 'Find-SituationCandidates' `
+            -NextSteps @('Pass at most one of -ShowSharedOnly or -ShowDebatesOnly', 'Pass neither to get shared and debate clusters together'))
     }
 
     $Model = Resolve-FscModel -Model $Model
@@ -103,7 +116,7 @@ function Find-SituationCandidates {
     Write-Step 'Loading edges'
     $EdgePairs = Get-FscApprovedEdgeMap -TaxDir (Get-TaxonomyDir)
     Write-OK "Loaded edge data for boost scoring"
-    $CcLinkedPairs = Get-FscSituationLinkedPairSet -EdgePairs $EdgePairs -NodeIndex $NodeIndex
+    $CcLinkedPairs = Get-FscSituationLinkedPairSet -NodeIndex $NodeIndex
 
     Write-Step 'Computing cross-POV pairwise cosine similarities'
     $Found = Find-FscSimilarPairSet -NodeIndex $NodeIndex -Embeddings $Embeddings -EdgePairs $EdgePairs -CcLinkedPairs $CcLinkedPairs -MinSimilarity $MinSimilarity

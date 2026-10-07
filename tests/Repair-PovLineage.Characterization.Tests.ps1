@@ -121,6 +121,7 @@ $script:Scenarios = @(
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'HostCapture.ps1')
     $script:GoldenDir = Join-Path $PSScriptRoot 'fixtures' 'pov-lineage'
     $script:Utf8 = [System.Text.UTF8Encoding]::new($false)
     $script:CacheRel = 'calibration/core/lineage-enrichments.json'
@@ -482,6 +483,7 @@ trailing words
         $records = [System.Collections.Generic.List[object]]::new()
         $err = $null
         $w = $null
+        Register-HostCaptureMock
         try {
             if ($S['Pipe']) {
                 @($S.Pipe | ForEach-Object { [pscustomobject]@{ Id = $_ } }) |
@@ -496,9 +498,10 @@ trailing words
         }
         $hostLines = @($records | Where-Object { $_ -is [System.Management.Automation.InformationRecord] } | ForEach-Object {
                 $m = $_.MessageData
-                if ($m -is [System.Management.Automation.HostInformationMessage]) {
-                    $nn = if ($m.NoNewLine) { '[nn]' } else { '' }
-                    "[$($m.ForegroundColor)]$nn $(script:Format-Masked $m.Message)"
+                $h = Get-HostCaptureParts $m
+                if ($h) {
+                    $nn = if ($h.NoNewLine) { '[nn]' } else { '' }
+                    "[$($h.Color)]$nn $(script:Format-Masked $h.Message)"
                 } else { "[info] $m" }
             })
         $hostLines = script:Sort-Runs $hostLines '^\[Green\] +Saved \w+\.json$'
