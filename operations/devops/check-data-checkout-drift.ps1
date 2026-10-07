@@ -167,14 +167,24 @@ function ConvertFrom-PorcelainZ {
 }
 
 function Get-FileMtimeLongPath {
-    # t/4005: always use the \\?\ prefix, not just when a path happens to look long — the one
-    # known offender (an ingested filename > 260 chars in ai-triad-sources) is exactly the file
-    # that would otherwise throw, and prefixing unconditionally removes any length-guessing bug
-    # as a class rather than special-casing "long enough to worry about."
+    # t/4005: always use the \\?\ prefix ON WINDOWS, not just when a path happens to look long
+    # -- the one known offender (an ingested filename > 260 chars in ai-triad-sources) is
+    # exactly the file that would otherwise throw, and prefixing unconditionally removes any
+    # length-guessing bug as a class rather than special-casing "long enough to worry about."
+    # t/4060: that prefix is WINDOWS-ONLY long-path syntax. On Linux CI (ubuntu-latest,
+    # test-powershell), prepending it to a real path makes GetLastWriteTimeUtc silently return
+    # the Win32 FILETIME epoch (1601-01-01, ~425 years before "now") instead of throwing --
+    # .NET documents that behavior for a path it can't resolve, so the try/catch below never
+    # fires and the bogus epoch value flows straight through as a real mtime. Caught by the
+    # t/4060 Pester case, the first test to run this function (not just the pure predicate) on
+    # Linux CI. Only Windows needs or understands the \\?\ prefix.
     param([string]$FullPath)
     try {
-        $p = $FullPath -replace '/', '\'
-        if (-not $p.StartsWith('\\?\')) { $p = "\\?\$p" }
+        $p = $FullPath
+        if ($IsWindows -or -not (Test-Path variable:IsWindows)) {
+            $p = $p -replace '/', '\'
+            if (-not $p.StartsWith('\\?\')) { $p = "\\?\$p" }
+        }
         return [System.IO.File]::GetLastWriteTimeUtc($p)
     } catch {
         return $null
