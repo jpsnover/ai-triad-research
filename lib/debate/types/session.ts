@@ -384,6 +384,12 @@ export interface DebateSession {
   model_api_id?: string;
   /** Whether failover tracking was available: 'tracked' = engine stamped (can observe failovers); 'unavailable' = renderer path (failover below bridge). Absent on pre-t/4040 and legacy rows. */
   failover_tracking?: 'tracked' | 'unavailable';
+  /** Internal latch for computing failover_tracking. Only the debate store branches on it;
+   *  the calibration gate reads failover_tracking, never this field (SO e/281#2 condition 3).
+   *  Set to true the first time a speaker turn returns without servedModel; never cleared.
+   *  NO consumer branches on it — SO-exempt from second-opinion loop. THE EXEMPTION LAPSES
+   *  the moment any consumer other than the debate store reads this field. */
+  failover_untracked?: boolean;
   /** Fully-resolved per-stage model map (9 keys: brief, plan, draft, cite, evaluator, scope, summary, moderator, crux). */
   stage_models?: Record<string, string>;
   model_tier?: ModelTier;
