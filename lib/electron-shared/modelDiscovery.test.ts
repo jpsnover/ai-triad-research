@@ -288,17 +288,21 @@ describe('refreshAIModels — repair + guard (t/2039)', () => {
     expect(saved.defaults.gemini).toBe('gemini-2.5-flash');
   });
 
-  it('repairs a dangling default by repointing to a surviving same-backend model that has a chain', async () => {
+  it('t/3553: a dangling default is NEVER silently repointed — refused as needs-human, file byte-unchanged', async () => {
+    // Pre-t/3553 this repointed defaults.gemini to gemini-2.5-flash on its own: exactly the silent re-point
+    // TL t/3553#1 and CL #2 forbid. `gemini-gone` was never a registry entry, so it has no family to succeed.
     const cfg = clone(VALID_CONFIG);
-    cfg.defaults.gemini = 'gemini-gone'; // dangling; gemini-2.5-flash survives WITH a chain
-    fileContent = JSON.stringify(cfg);
+    cfg.defaults.gemini = 'gemini-gone';
+    const original = JSON.stringify(cfg);
+    fileContent = original;
 
     const result = await refreshAIModels({ loadApiKey: () => null, repoRoot: '/fake' });
-    const saved = JSON.parse(fileContent);
 
-    expect(result.written).toBe(true);
-    expect(saved.defaults.gemini).toBe('gemini-2.5-flash'); // repointed to the chain-bearing model
-    expect(result.configWarning).toMatch(/repointed dangling default/);
+    expect(result.written).toBe(false);
+    expect(result.refusal?.reason).toBe('needs-human');
+    expect(result.proposal?.changes).toEqual([{ slot: 'defaults.gemini', from: 'gemini-gone', to: null }]);
+    expect(result.configWarning).toContain('gemini-gone');
+    expect(fileContent).toBe(original);
   });
 
   it('AC-b: REFUSES to write an unrepairable dangling default; on-disk file byte-unchanged', async () => {
