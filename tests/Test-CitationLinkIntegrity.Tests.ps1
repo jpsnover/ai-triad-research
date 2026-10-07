@@ -253,10 +253,10 @@ Describe 'Test-CitationLinkIntegrity (t/3598)' -Tag 'config' {
             Should -Not -Throw
     }
 
-    It 'is advisory: never throws on offenders, and reports the blocking toggle state' {
+    It 'never throws on offenders, and reports the blocking toggle state' {
         $f = script:New-CliFixture @{ DeadRefs = $true; DangleSource = $true }; $script:Fixtures.Add($f.Fx)
         { script:RunCli $f } | Should -Not -Throw
-        (script:RunCli $f).blocking | Should -BeFalse   # stays advisory until SO/TL-GV flip
+        (script:RunCli $f).blocking | Should -BeTrue   # leg-a promoted (t/4042); enforcement lives in the data workflow
     }
 }
 
