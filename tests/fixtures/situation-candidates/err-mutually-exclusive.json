@@ -2,7 +2,7 @@
   "scenario": "err-mutually-exclusive",
   "host": [],
   "warnings": [],
-  "error": "-ShowSharedOnly and -ShowDebatesOnly are mutually exclusive.",
+  "error": "\n  Goal:     Find situation candidates\n  Error:    -ShowSharedOnly and -ShowDebatesOnly are mutually exclusive.\n  Location: Find-SituationCandidates\n  Resolve:\n   1. Pass at most one of -ShowSharedOnly or -ShowDebatesOnly\n   2. Pass neither to get shared and debate clusters together",
   "result": null,
   "calls": [],
   "writes": [],

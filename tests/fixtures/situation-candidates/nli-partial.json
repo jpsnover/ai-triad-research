@@ -1,5 +1,5 @@
 {
-  "scenario": "nli-bad-json",
+  "scenario": "nli-partial",
   "host": [
     "[Cyan] ",
     "▶  Building node index",
@@ -15,36 +15,37 @@
     "[Green]    ✓  Checked 83 cross-POV pairs, found 14 above threshold",
     "[Cyan] ",
     "▶  Running NLI cross-encoder classification",
-    "[Yellow]    ⚠  NLI classification failed: Conversion from JSON failed with error: Unexpected character encountered while parsing value: T. Path '', line 0, position 0. — continuing without NLI labels",
+    "[Yellow]    ⚠  NLI returned 11 result(s) for 14 pair(s) — the unlabelled pairs are treated as unverified",
+    "[Yellow]    ⚠  NLI classification failed: The property 'NliLabel' cannot be found on this object. Verify that the property exists. — continuing without NLI labels",
     "[Cyan] ",
     "▶  Merging overlapping pairs into clusters",
-    "[Green]    ✓  Formed 6 agreement groups + 0 debate groups; selected 6 shared + 0 debate (top 10)",
+    "[Green]    ✓  Formed 5 agreement groups + 3 debate groups; selected 5 shared + 3 debate (top 10)",
     "[Cyan] ",
     "════════════════════════════════════════════════════════════════════════",
-    "[White]   CROSS-CUTTING CANDIDATES — 6 found (threshold: 0.6)",
+    "[White]   CROSS-CUTTING CANDIDATES — 8 found (threshold: 0.6)",
     "[Cyan] ════════════════════════════════════════════════════════════════════════",
     "[White] ",
     "  cluster-0: Label acc-1 / Label acc-7 / Label saf-1 / Label skp-1",
-    "[Gray]     Similarity: 0.8591 | POVs: accelerationist, safetyist, skeptic",
+    "[Gray]     Similarity: 0.8591 | POVs: accelerationist, safetyist, skeptic | shared",
+    "[Green]     [shared] + [DarkGray]  (shared=4 unclear=0 contested=0)",
     "[Blue]       [accelerationist] + [DarkGray]  acc-1 — Label acc-1",
     "[Blue]       [accelerationist] + [DarkGray]  acc-7 — Label acc-7",
     "[Green]       [safetyist] + [DarkGray]  saf-1 — Label saf-1",
     "[Yellow]       [skeptic] + [DarkGray]  skp-1 — Label skp-1",
     "[White] ",
-    "  cluster-1: Label acc-2 / Label saf-2 / Label skp-2",
-    "[Gray]     Similarity: 0.8099 | POVs: accelerationist, safetyist, skeptic",
-    "[Blue]       [accelerationist] + [DarkGray]  acc-2 — Label acc-2",
+    "  cluster-1: Label saf-2 / Label skp-2",
+    "[Gray]     Similarity: 0.792 | POVs: safetyist, skeptic",
     "[Green]       [safetyist] + [DarkGray]  saf-2 — Label saf-2",
     "[Yellow]       [skeptic] + [DarkGray]  skp-2 — Label skp-2",
     "[White] ",
-    "  cluster-2: Label acc-5 / Label saf-5 / Label skp-5",
-    "[Gray]     Similarity: 0.792 | POVs: accelerationist, safetyist, skeptic",
-    "[Blue]       [accelerationist] + [DarkGray]  acc-5 — Label acc-5",
+    "  cluster-2: Label saf-5 / Label skp-5",
+    "[Gray]     Similarity: 0.7743 | POVs: safetyist, skeptic",
     "[Green]       [safetyist] + [DarkGray]  saf-5 — Label saf-5",
     "[Yellow]       [skeptic] + [DarkGray]  skp-5 — Label skp-5",
     "[White] ",
     "  cluster-3: Label acc-8 / Label skp-8",
-    "[Gray]     Similarity: 0.714 | POVs: accelerationist, skeptic",
+    "[Gray]     Similarity: 0.714 | POVs: accelerationist, skeptic | shared",
+    "[Green]     [shared] + [DarkGray]  (shared=1 unclear=0 contested=0)",
     "[Blue]       [accelerationist] + [DarkGray]  acc-8 — Label acc-8",
     "[Yellow]       [skeptic] + [DarkGray]  skp-8 — Label skp-8",
     "[White] ",
@@ -54,10 +55,27 @@
     "[Blue]       [accelerationist] + [DarkGray]  acc-3 — Label acc-3",
     "[Green]       [safetyist] + [DarkGray]  saf-3 — Label saf-3",
     "[White] ",
-    "  cluster-5: Label acc-4 / Label skp-4",
-    "[Gray]     Similarity: 0.6399 | POVs: accelerationist, skeptic | unclear",
-    "[Yellow]     [unclear] + [DarkGray]  (shared=0 unclear=1 contested=0)",
+    "  cluster-5: Label acc-2 / Label saf-2 / Label skp-2",
+    "[Gray]     Similarity: 0.8188 | POVs: accelerationist, safetyist, skeptic | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=2)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-2 — Label acc-2",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-2 — Label saf-2",
+    "[Yellow]       [skeptic] + [DarkGray]  skp-2 — Label skp-2",
+    "[White] ",
+    "  cluster-6: Label acc-5 / Label saf-5 / Label skp-5",
+    "[Gray]     Similarity: 0.8008 | POVs: accelerationist, safetyist, skeptic | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=2)",
+    "[Blue]       [accelerationist] + [DarkGray]  acc-5 — Label acc-5",
+    "[DarkYellow]         vs.",
+    "[Green]       [safetyist] + [DarkGray]  saf-5 — Label saf-5",
+    "[Yellow]       [skeptic] + [DarkGray]  skp-5 — Label skp-5",
+    "[White] ",
+    "  cluster-7: Label acc-4 / Label skp-4",
+    "[Gray]     Similarity: 0.6399 | POVs: accelerationist, skeptic | contested",
+    "[Red]     [contested] + [DarkGray]  (shared=0 unclear=0 contested=1)",
     "[Blue]       [accelerationist] + [DarkGray]  acc-4 — Label acc-4",
+    "[DarkYellow]         vs.",
     "[Yellow]       [skeptic] + [DarkGray]  skp-4 — Label skp-4",
     "[Cyan] ",
     "════════════════════════════════════════════════════════════════════════"
@@ -101,16 +119,17 @@
           "safetyist",
           "skeptic"
         ],
+        "nli_relationship": "entailment",
+        "nli_counts": {
+          "entailment": 4,
+          "neutral": 0,
+          "contradiction": 0
+        },
         "proposed_label": "Label acc-1 / Label acc-7 / Label saf-1 / Label skp-1  (member order canonicalized)"
       },
       {
         "cluster_id": "cluster-1",
         "members": [
-          {
-            "id": "acc-2",
-            "pov": "accelerationist",
-            "label": "Label acc-2"
-          },
           {
             "id": "saf-2",
             "pov": "safetyist",
@@ -122,23 +141,17 @@
             "label": "Label skp-2"
           }
         ],
-        "avg_similarity": 0.8099,
-        "max_boosted": 0.828,
+        "avg_similarity": 0.792,
+        "max_boosted": 0.792,
         "povs_represented": [
-          "accelerationist",
           "safetyist",
           "skeptic"
         ],
-        "proposed_label": "Label acc-2 / Label saf-2 / Label skp-2  (member order canonicalized)"
+        "proposed_label": "Label saf-2 / Label skp-2  (member order canonicalized)"
       },
       {
         "cluster_id": "cluster-2",
         "members": [
-          {
-            "id": "acc-5",
-            "pov": "accelerationist",
-            "label": "Label acc-5"
-          },
           {
             "id": "saf-5",
             "pov": "safetyist",
@@ -150,14 +163,13 @@
             "label": "Label skp-5"
           }
         ],
-        "avg_similarity": 0.792,
-        "max_boosted": 0.8099,
+        "avg_similarity": 0.7743,
+        "max_boosted": 0.7743,
         "povs_represented": [
-          "accelerationist",
           "safetyist",
           "skeptic"
         ],
-        "proposed_label": "Label acc-5 / Label saf-5 / Label skp-5  (member order canonicalized)"
+        "proposed_label": "Label saf-5 / Label skp-5  (member order canonicalized)"
       },
       {
         "cluster_id": "cluster-3",
@@ -179,6 +191,12 @@
           "accelerationist",
           "skeptic"
         ],
+        "nli_relationship": "entailment",
+        "nli_counts": {
+          "entailment": 1,
+          "neutral": 0,
+          "contradiction": 0
+        },
         "proposed_label": "Label acc-8 / Label skp-8  (member order canonicalized)"
       },
       {
@@ -213,6 +231,116 @@
         "cluster_id": "cluster-5",
         "members": [
           {
+            "id": "acc-2",
+            "pov": "accelerationist",
+            "label": "Label acc-2"
+          },
+          {
+            "id": "saf-2",
+            "pov": "safetyist",
+            "label": "Label saf-2"
+          },
+          {
+            "id": "skp-2",
+            "pov": "skeptic",
+            "label": "Label skp-2"
+          }
+        ],
+        "avg_similarity": 0.8188,
+        "max_boosted": 0.828,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist",
+          "skeptic"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 2
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-2",
+              "pov": "accelerationist",
+              "label": "Label acc-2"
+            }
+          ],
+          [
+            {
+              "id": "saf-2",
+              "pov": "safetyist",
+              "label": "Label saf-2"
+            },
+            {
+              "id": "skp-2",
+              "pov": "skeptic",
+              "label": "Label skp-2"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-2 / Label saf-2 / Label skp-2  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-6",
+        "members": [
+          {
+            "id": "acc-5",
+            "pov": "accelerationist",
+            "label": "Label acc-5"
+          },
+          {
+            "id": "saf-5",
+            "pov": "safetyist",
+            "label": "Label saf-5"
+          },
+          {
+            "id": "skp-5",
+            "pov": "skeptic",
+            "label": "Label skp-5"
+          }
+        ],
+        "avg_similarity": 0.8008,
+        "max_boosted": 0.8099,
+        "povs_represented": [
+          "accelerationist",
+          "safetyist",
+          "skeptic"
+        ],
+        "nli_relationship": "contradiction",
+        "nli_counts": {
+          "entailment": 0,
+          "neutral": 0,
+          "contradiction": 2
+        },
+        "sides": [
+          [
+            {
+              "id": "acc-5",
+              "pov": "accelerationist",
+              "label": "Label acc-5"
+            }
+          ],
+          [
+            {
+              "id": "saf-5",
+              "pov": "safetyist",
+              "label": "Label saf-5"
+            },
+            {
+              "id": "skp-5",
+              "pov": "skeptic",
+              "label": "Label skp-5"
+            }
+          ]
+        ],
+        "proposed_label": "Label acc-5 / Label saf-5 / Label skp-5  (member order canonicalized)"
+      },
+      {
+        "cluster_id": "cluster-7",
+        "members": [
+          {
             "id": "acc-4",
             "pov": "accelerationist",
             "label": "Label acc-4"
@@ -229,12 +357,28 @@
           "accelerationist",
           "skeptic"
         ],
-        "nli_relationship": "neutral",
+        "nli_relationship": "contradiction",
         "nli_counts": {
           "entailment": 0,
-          "neutral": 1,
-          "contradiction": 0
+          "neutral": 0,
+          "contradiction": 1
         },
+        "sides": [
+          [
+            {
+              "id": "acc-4",
+              "pov": "accelerationist",
+              "label": "Label acc-4"
+            }
+          ],
+          [
+            {
+              "id": "skp-4",
+              "pov": "skeptic",
+              "label": "Label skp-4"
+            }
+          ]
+        ],
         "proposed_label": "Label acc-4 / Label skp-4  (member order canonicalized)"
       }
     ]
