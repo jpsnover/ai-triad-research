@@ -19,8 +19,16 @@
  * PURE: no I/O. The callers (Electron IPC t/4038, server route t/4039) own the read, the lock (t/4028) and the
  * write. They should write only when `changed` is true, and only with `serializePolicyRegistry`, which reproduces
  * the committed file byte for byte, so the editor and PowerShell never fight over formatting (PowerShell e/264#7).
+ *
+ * ALL FOUR POV FILES ARE REQUIRED (t/4034, #3048 review). A recount over a partial corpus is never correct: a POV
+ * that failed to load reads as "referenced nowhere", so every policy it references would be written back with
+ * `member_count: 0`, silently corrupting committed counts after one transient read error. So the type requires all
+ * four, and `recountPolicyMembers` throws an ActionableError if any is missing or has no `nodes` array. Callers must
+ * let that (or their own read failure) become an error response, never a write. PowerShell's
+ * `Update-PolicyMemberCounts` likewise reads all four or fails.
  */
 
+import { ActionableError } from '../debate/errors.js';
 import type { PolicyAction } from './types.js';
 
 /** The four files a recount scans, in PowerShell's `$script:PolicyPovFiles` order. */
@@ -91,11 +99,34 @@ function policyActionsOf(node: { graph_attributes?: { policy_actions?: unknown }
   return Array.isArray(pa) ? pa : [pa];
 }
 
+/** All four POV files, every one required: a partial corpus can't be represented (see the header). */
+export type PolicyPovFiles = Record<PolicyPovFile, PolicyPovFileData>;
+
+/** Throws unless all four POV files are present with a `nodes` array. The type requires them; this guards `as` casts and JSON. */
+function assertCompleteCorpus(povFiles: unknown): asserts povFiles is PolicyPovFiles {
+  const files = (povFiles && typeof povFiles === 'object' ? povFiles : {}) as Record<string, unknown>;
+  const bad = POLICY_POV_FILES.filter((pov) => {
+    const f = files[pov];
+    return !f || typeof f !== 'object' || !Array.isArray((f as PolicyPovFileData).nodes);
+  });
+  if (bad.length === 0) return;
+  throw new ActionableError({
+    goal: 'Recount policy member counts across all four POV files',
+    problem: `POV file(s) missing or without a nodes array: ${bad.join(', ')}. A partial recount would write member_count 0 for every policy they reference`,
+    location: 'lib/policy/registryRecount.ts recountPolicyMembers',
+    nextSteps: [
+      'Fail the request (error response); do not write policy_actions.json',
+      `Check that ${bad.join(', ')}.json loaded: a read or parse failure must not be treated as an empty file`,
+      'Retry the recount once all four files read cleanly',
+    ],
+  });
+}
+
 /** policy_id -> the POV key of every entry that references it (one element per entry). */
-function scanReferences(povFiles: Partial<Record<PolicyPovFile, PolicyPovFileData | undefined>>): Map<string, string[]> {
+function scanReferences(povFiles: PolicyPovFiles): Map<string, string[]> {
   const refs = new Map<string, string[]>();
   for (const pov of POLICY_POV_FILES) {
-    for (const node of povFiles[pov]?.nodes ?? []) {
+    for (const node of povFiles[pov].nodes ?? []) {
       for (const entry of policyActionsOf(node)) {
         const id = entry && typeof entry === 'object' ? (entry as { policy_id?: unknown }).policy_id : undefined;
         if (!id) continue; // null / undefined / '' are unregistered, not references
@@ -109,9 +140,10 @@ function scanReferences(povFiles: Partial<Record<PolicyPovFile, PolicyPovFileDat
 
 export function recountPolicyMembers(
   registry: PolicyRegistry,
-  povFiles: Partial<Record<PolicyPovFile, PolicyPovFileData | undefined>>,
+  povFiles: PolicyPovFiles,
   ids: readonly string[],
 ): RecountResult {
+  assertCompleteCorpus(povFiles);
   const refs = scanReferences(povFiles);
   const targets = new Set(ids);
   const updated: RecountUpdate[] = [];
