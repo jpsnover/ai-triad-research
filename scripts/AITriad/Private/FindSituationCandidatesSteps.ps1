@@ -477,21 +477,6 @@ function Select-FscTopCluster {
 
 # ── AI labelling ──────────────────────────────────────────────────────────────
 
-$script:FscBackendPrefixes = @(
-    @{ Pattern = '^gemini'; Backend = 'gemini' }
-    @{ Pattern = '^claude'; Backend = 'claude' }
-    @{ Pattern = '^groq';   Backend = 'groq' }
-    @{ Pattern = '^openai'; Backend = 'openai' }
-)
-
-function Get-FscBackend {
-    param([string]$Model)
-    foreach ($Entry in $script:FscBackendPrefixes) {
-        if ($Model -match $Entry.Pattern) { return $Entry.Backend }
-    }
-    'gemini'
-}
-
 function Format-FscClusterText {
     param($ScoredGroups, [hashtable]$NodeIndex)
     $ClusterText = [System.Text.StringBuilder]::new()
@@ -517,10 +502,10 @@ function Get-FscAiLabelSet {
     param($ScoredGroups, [hashtable]$NodeIndex, [string]$Model, [string]$ApiKey)
     Write-Step 'Generating situation proposals with AI'
     try {
-        $Backend = Get-FscBackend -Model $Model
-        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-        if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-            Write-Warn "No API key found for $Backend — falling back to -NoAI mode"
+        # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+        $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+        if (-not $KeyStatus.HasKey) {
+            Write-Warn "No API key found for $($KeyStatus.Backend) — falling back to -NoAI mode"
             return $null
         }
 
@@ -532,7 +517,7 @@ function Get-FscAiLabelSet {
         $AIResult = Invoke-AIApi `
             -Prompt     $FullPrompt `
             -Model      $Model `
-            -ApiKey     $ResolvedKey `
+            -ApiKey     $ApiKey `
             -Temperature 0.2 `
             -MaxTokens  8192 `
             -JsonMode `

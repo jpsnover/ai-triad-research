@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Shared pipeline worker for POV summary extraction.
@@ -58,7 +58,7 @@ function Invoke-SummaryPipeline {
         [Parameter(Mandatory)][string]$SnapshotText,
         [Parameter(Mandatory)][string]$DocId,
         [Parameter(Mandatory)][object]$Metadata,
-        [Parameter(Mandatory)][string]$ApiKey,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$ApiKey,
         [Parameter(Mandatory)][string]$Model,
         [double]$Temperature = 0.1,
         [Parameter(Mandatory)][string]$TaxonomyVersion,

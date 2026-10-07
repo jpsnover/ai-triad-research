@@ -176,7 +176,7 @@
     {
       "call": "resolveKey",
       "explicitKey": "",
-      "backend": "gemini"
+      "backend": "xai"
     },
     {
       "call": "prompt",
@@ -193,7 +193,7 @@
     {
       "call": "ai",
       "model": "xai-grok-4-6",
-      "apiKey": "resolved-gemini-key",
+      "apiKey": "",
       "temperature": 0.2,
       "maxTokens": 8192,
       "jsonMode": true,

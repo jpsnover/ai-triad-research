@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Extracted from Invoke-EdgeDiscovery's -BatchSize branch (t/3837, cyclomatic
@@ -35,7 +35,7 @@ function Invoke-BatchEdgeDiscovery {
         [Parameter(Mandatory)][bool]$DryRun,
         [Parameter(Mandatory)][string]$Model,
         [Parameter(Mandatory)][double]$Temperature,
-        [Parameter(Mandatory)][string]$ResolvedKey,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$ResolvedKey,
         [Parameter(Mandatory)][AllowEmptyCollection()][System.Collections.Generic.HashSet[string]]$ValidNodeIds,
         [Parameter(Mandatory)][int]$CheckpointEvery,
         [Parameter(Mandatory)][string]$EdgesPath,

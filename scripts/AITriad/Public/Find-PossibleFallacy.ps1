@@ -103,14 +103,10 @@ function Find-PossibleFallacy {
     }
 
     if (-not $DryRun) {
-        if     ($Model -match '^gemini') { $Backend = 'gemini' }
-        elseif ($Model -match '^claude') { $Backend = 'claude' }
-        elseif ($Model -match '^groq')   { $Backend = 'groq'   }
-        elseif ($Model -match '^openai') { $Backend = 'openai' }
-        else                             { $Backend = 'gemini'  }
-        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-        if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-            Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
+        # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+        $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+        if (-not $KeyStatus.HasKey) {
+            Write-Fail "No API key found for the $($KeyStatus.Backend) backend. Set $($KeyStatus.EnvHint) or AI_API_KEY, or pass -ApiKey."
             throw 'No API key configured'
         }
     }
@@ -279,7 +275,7 @@ $SchemaPrompt
                 $Result = Invoke-AIApi `
                     -Prompt $FullPrompt `
                     -Model $Model `
-                    -ApiKey $ResolvedKey `
+                    -ApiKey $ApiKey `
                     -Temperature $Temperature `
                     -MaxTokens 16384 `
                     -JsonMode

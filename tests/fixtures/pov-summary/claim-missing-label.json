@@ -69,7 +69,7 @@
       "call": "pipeline",
       "docId": "doc-1",
       "model": "gemini-3.5-flash-lite",
-      "apiKey": "resolved-gemini-key",
+      "apiKey": "",
       "temperature": 0.1,
       "taxonomyVersion": "2.4.0",
       "systemPromptTemplate": "<<pov-summary-system>>",

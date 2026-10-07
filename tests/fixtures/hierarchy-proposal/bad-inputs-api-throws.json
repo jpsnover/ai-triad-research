@@ -38,7 +38,7 @@
       "call": "ai",
       "bucket": "skeptic/Desires",
       "model": "claude-haiku-4-5",
-      "apiKey": "resolved-claude-key",
+      "apiKey": "",
       "temperature": 0.3,
       "maxTokens": 65536,
       "jsonMode": true,

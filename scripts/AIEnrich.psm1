@@ -249,6 +249,52 @@ function Protect-SensitiveText {
 
     Returns the explicit key, ignoring environment variables.
 #>
+$script:AIApiKeyEnvVarMap = @{
+    'gemini' = @('GEMINI_API_KEY')
+    'claude' = @('ANTHROPIC_API_KEY', 'CLAUDE_API_KEY')
+    'groq'   = @('GROQ_API_KEY')
+    'openai' = @('OPENAI_API_KEY')
+    'azure'  = @('AZURE_OPENAI_API_KEY')
+    'zai'    = @('ZAI_API_KEY')
+    'moonshot' = @('MOONSHOT_API_KEY')
+    'xai'    = @('XAI_API_KEY')
+    'deepseek' = @('DEEPSEEK_API_KEY')
+}
+$script:AIApiKeyFallbackWarned = @{}
+
+# The env var (of a backend OTHER than $Backend) that holds exactly $Key, or '' if none. A key equal to
+# another backend's named variable IS that backend's credential, whatever route it took to get here.
+function Get-AIApiKeyForeignOwner {
+    param([string]$Key, [string]$Backend)
+    $OwnVars = if ($script:AIApiKeyEnvVarMap.ContainsKey($Backend)) { @($script:AIApiKeyEnvVarMap[$Backend]) } else { @() }
+    foreach ($Var in $OwnVars) {
+        if ([System.Environment]::GetEnvironmentVariable($Var) -ceq $Key) { return '' }
+    }
+    foreach ($Other in ($script:AIApiKeyEnvVarMap.Keys | Sort-Object)) {
+        if ($Other -eq $Backend) { continue }
+        foreach ($Var in $script:AIApiKeyEnvVarMap[$Other]) {
+            $Value = [System.Environment]::GetEnvironmentVariable($Var)
+            if (-not [string]::IsNullOrWhiteSpace($Value) -and $Value -ceq $Key) { return $Var }
+        }
+    }
+    ''
+}
+
+# t/4087: an env-var key may only ever reach the backend it is named for. Refuse, before any send, a key
+# that is another backend's named credential. The message names variables, never key material.
+function Assert-AIApiKeyBackend {
+    param([string]$Key, [string]$Backend, [string]$Route)
+    $Owner = Get-AIApiKeyForeignOwner -Key $Key -Backend $Backend
+    if (-not $Owner) { return }
+    $script:LastApiKeySource = "(refused: $Route matches `$env:$Owner)"
+    throw (@(
+        "Goal:     Resolve an API key for the '$Backend' backend"
+        "Error:    the $Route key is the value of `$env:$Owner, another backend's credential; it will not be sent to '$Backend' (t/4087)"
+        'Location: Resolve-AIApiKey (AIEnrich.psm1)'
+        "Resolve:  set the '$Backend' backend's own key variable, or pass -ApiKey with a key issued for '$Backend'"
+    ) -join [Environment]::NewLine)
+}
+
 function Resolve-AIApiKey {
     [CmdletBinding()]
     param(
@@ -257,23 +303,12 @@ function Resolve-AIApiKey {
     )
 
     if (-not [string]::IsNullOrWhiteSpace($ExplicitKey)) {
+        Assert-AIApiKeyBackend -Key $ExplicitKey -Backend $Backend -Route 'explicit -ApiKey'
         $script:LastApiKeySource = 'explicit parameter'
         return $ExplicitKey
     }
 
-    $EnvVarMap = @{
-        'gemini' = @('GEMINI_API_KEY')
-        'claude' = @('ANTHROPIC_API_KEY', 'CLAUDE_API_KEY')
-        'groq'   = @('GROQ_API_KEY')
-        'openai' = @('OPENAI_API_KEY')
-        'azure'  = @('AZURE_OPENAI_API_KEY')
-        'zai'    = @('ZAI_API_KEY')
-        'moonshot' = @('MOONSHOT_API_KEY')
-        'xai'    = @('XAI_API_KEY')
-        'deepseek' = @('DEEPSEEK_API_KEY')
-    }
-
-    $BackendEnvVars = $EnvVarMap[$Backend]
+    $BackendEnvVars = $script:AIApiKeyEnvVarMap[$Backend]
     foreach ($BackendEnvVar in $BackendEnvVars) {
         $BackendKey = [System.Environment]::GetEnvironmentVariable($BackendEnvVar)
         if (-not [string]::IsNullOrWhiteSpace($BackendKey)) {
@@ -282,8 +317,15 @@ function Resolve-AIApiKey {
         }
     }
 
+    # AI_API_KEY is the documented generic fallback, so it may still reach any backend (TL decision
+    # pending, t/4087) -- but never when it is demonstrably another backend's key, and never silently.
     $Fallback = $env:AI_API_KEY
     if (-not [string]::IsNullOrWhiteSpace($Fallback)) {
+        Assert-AIApiKeyBackend -Key $Fallback -Backend $Backend -Route '$env:AI_API_KEY fallback'
+        if (-not $script:AIApiKeyFallbackWarned.ContainsKey($Backend)) {
+            $script:AIApiKeyFallbackWarned[$Backend] = $true
+            Write-Warning "No key variable for the '$Backend' backend is set; using the generic `$env:AI_API_KEY fallback for '$Backend' (warned once per backend per session)."
+        }
         $script:LastApiKeySource = '$env:AI_API_KEY (fallback)'
         return $Fallback
     }
@@ -344,7 +386,12 @@ function Measure-PromptTokens {
         [string]$ApiKey = ''
     )
 
-    $GeminiKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend 'gemini'
+    # countTokens is a Gemini endpoint, so this deliberately resolves the GEMINI key (t/4087: correct
+    # key -> backend pairing). A foreign explicit key is refused by Resolve-AIApiKey; degrade to the
+    # heuristic rather than fail a pre-flight estimate.
+    $GeminiKey = $null
+    try { $GeminiKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend 'gemini' }
+    catch { Write-Warning "Measure-PromptTokens: $($_.Exception.Message.Split([Environment]::NewLine)[1].Trim()) -- using the character heuristic (Accurate=`$false)" }
     if ($GeminiKey) {
         try {
             # Key travels in the x-goog-api-key header, not the URL — a ?key= query

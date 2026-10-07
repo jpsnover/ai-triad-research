@@ -60,7 +60,7 @@
     {
       "call": "ai",
       "model": "claude-haiku-4-5",
-      "apiKey": "resolved-claude-key",
+      "apiKey": "explicit-key",
       "temperature": 0.9,
       "maxTokens": 65536,
       "jsonMode": true,

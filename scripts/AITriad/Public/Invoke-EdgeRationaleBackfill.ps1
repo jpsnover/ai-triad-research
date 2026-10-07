@@ -100,16 +100,10 @@ function Invoke-EdgeRationaleBackfill {
     $ErrorActionPreference = 'Stop'
 
     # ── Resolve backend + key (fail fast with a clear message) ────────────
-    $Backend = if ($Model -match '^gemini') { 'gemini' }
-        elseif ($Model -match '^claude') { 'claude' }
-        elseif ($Model -match '^groq')   { 'groq' }
-        elseif ($Model -match '^openai') { 'openai' }
-        else                             { 'gemini' }
-    if (-not $DryRun) {
-        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-    } else {
-        $ResolvedKey = ''
-    }
+    # The backend comes from ai-models.json and an unknown model fails here, before any call (t/4087).
+    # Only the user's own -ApiKey is forwarded; Invoke-AIApi resolves the key for the registry backend.
+    $null = Get-AIModelBackend -Model $Model
+    $ResolvedKey = $ApiKey
 
     # ── Load edges.json ───────────────────────────────────────────────────
     $TaxDir    = if ($RepoRoot) { Join-Path $RepoRoot 'taxonomy/Origin' } else { Get-TaxonomyDir }

@@ -1,7 +1,7 @@
 {
   "scenario": "err-no-key-claude",
   "host": [
-    "[Red]    ✗  No API key found for backend 'claude'. Set the appropriate environment variable."
+    "[Red]    ✗  No API key found for backend 'claude'. Set ANTHROPIC_API_KEY or AI_API_KEY, or pass -ApiKey."
   ],
   "warnings": [],
   "verbose": [],

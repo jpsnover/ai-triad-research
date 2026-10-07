@@ -22,12 +22,7 @@ function Assert-BatchSummaryEnvironment {
     )
 
     if (-not $DryRun -and [string]::IsNullOrWhiteSpace($ApiKey)) {
-        $EnvHint = switch ($Backend) {
-            'gemini' { 'GEMINI_API_KEY' }
-            'claude' { 'ANTHROPIC_API_KEY' }
-            'groq'   { 'GROQ_API_KEY' }
-            default  { 'AI_API_KEY' }
-        }
+        $EnvHint = if ($script:AIBackendKeyEnvHint.ContainsKey($Backend)) { $script:AIBackendKeyEnvHint[$Backend] } else { 'AI_API_KEY' }
         Write-Fail "No API key found. Set $EnvHint or AI_API_KEY."
         throw "No API key found for $Backend backend."
     }

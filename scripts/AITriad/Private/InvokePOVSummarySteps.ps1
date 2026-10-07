@@ -7,10 +7,6 @@
 # tests/Invoke-POVSummary.Characterization.Tests.ps1. Strict mode and ErrorActionPreference are
 # inherited from Invoke-POVSummary's scope.
 
-# Backend inferred from the model id prefix (first match wins; anything else uses gemini), and the
-# environment variable named in the missing-key hint (anything not listed falls back to AI_API_KEY).
-$script:POVSummaryBackendPrefixes = @('gemini', 'claude', 'groq', 'openai')
-$script:POVSummaryKeyEnvHints = @{ gemini = 'GEMINI_API_KEY'; claude = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY' }
 
 # Node-id prefix -> POV bucket for the metadata reference counts.
 $script:POVSummaryNodePrefixes = [ordered]@{ 'acc-*' = 'accelerationist'; 'saf-*' = 'safetyist'; 'skp-*' = 'skeptic'; 'sit-*' = 'situations' }
@@ -100,20 +96,17 @@ function Test-POVSummaryAlreadyCurrent {
 }
 
 function Resolve-POVSummaryApiKey {
-    # The API key for the model's backend, or a thrown error naming the env var to set.
+    # Checks that a key exists for the model's REGISTRY backend (never a prefix guess), or throws naming
+    # the env var to set. Returns the key to FORWARD: only the user's own -ApiKey (or ''), never an env
+    # key resolved here; Invoke-AIApi resolves the key for the registry backend itself (t/4087).
     param([string]$Model, [string]$ApiKey)
-    $Backend = 'gemini'
-    foreach ($Prefix in $script:POVSummaryBackendPrefixes) {
-        if ($Model -match "^$Prefix") { $Backend = $Prefix; break }
+    $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+    if (-not $KeyStatus.HasKey) {
+        Write-Fail "No API key found for $($KeyStatus.Backend) backend."
+        Write-Info "Set $($KeyStatus.EnvHint) or AI_API_KEY, or pass -ApiKey."
+        throw "No API key found for $($KeyStatus.Backend) backend."
     }
-    $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-    if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-        $EnvHint = if ($script:POVSummaryKeyEnvHints.ContainsKey($Backend)) { $script:POVSummaryKeyEnvHints[$Backend] } else { 'AI_API_KEY' }
-        Write-Fail "No API key found for $Backend backend."
-        Write-Info "Set $EnvHint or AI_API_KEY, or pass -ApiKey."
-        throw "No API key found for $Backend backend."
-    }
-    $ResolvedKey
+    $ApiKey
 }
 
 # ── Steps 1-2: taxonomy version and snapshot ─────────────────────────────────

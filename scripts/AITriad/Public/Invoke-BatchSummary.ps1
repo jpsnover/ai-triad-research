@@ -156,7 +156,10 @@ function Invoke-BatchSummary {
     # -- STEP 0 — Validate environment ---------------------------------------
     Write-Step "Validating environment"
 
-    $Backend = Resolve-BatchSummaryBackend -Model $Model
+    # Backend from ai-models.json, never guessed (t/4087). The key is still resolved up front because
+    # Invoke-DocumentSummary declares -ApiKey Mandatory (TL-gated t/3910 #37 refactor); resolved for the
+    # REGISTRY backend it can only be that backend's own key or the guarded AI_API_KEY fallback.
+    $Backend = Get-AIModelBackend -Model $Model
     $ApiKey  = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
     Assert-BatchSummaryEnvironment -Backend $Backend -ApiKey $ApiKey -DryRun:$DryRun `
         -RequiredPath @($SourcesDir, $TaxonomyDir, $VersionFile) -EnsureDirectory @($SummariesDir, $ConflictsDir)
