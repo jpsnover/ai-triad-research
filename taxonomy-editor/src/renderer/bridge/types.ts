@@ -148,6 +148,7 @@ export interface ClaimAttributionResponse {
 
 import type { OpEdSet, OpEdSetSummary, PovKey } from '../../../../lib/oped/types';
 import type { BriefPreset, ExportJobState, ExportErrorCode, BriefArtifactName } from '../../../../lib/brief/types';
+import type { TagSelection as OpEdTagSelection } from '@lib/schema/povTags';
 
 /** Op-Ed generation params (PR#2) — maps to New-OpEd cmdlet params; topic + voices
  *  travel separately in the payload (one New-OpEd call per selected voice). */
@@ -163,6 +164,8 @@ export interface CreateOpEdParams {
   maxGroundingNodes?: number;
   maxSituations?: number;
   voiceOnly?: boolean;
+  /** POV tag for ONE member (t/3960, t/3992). Validated by parseOpEdRequest on both create paths. */
+  tagSelection?: OpEdTagSelection;
 }
 export interface CreateOpEdPayload { topic: string; url?: string; params: CreateOpEdParams; voices: PovKey[] }
 /** One 3-stage progress tick from the Electron generation IPC (t/2575 `oped-progress`). */

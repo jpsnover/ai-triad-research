@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { NewOpEdDialog } from './NewOpEdDialog';
 import outletsData from '@lib/oped/outlets.json';
+import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 
 // ── Bridge / hook mocks ───────────────────────────────────────────────────────
 
@@ -306,5 +307,59 @@ describe('NewOpEdDialog — draft + progress + cancel', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(screen.getByText('The generator could not be reached.')).toBeTruthy();
     expect(screen.getByText('Check that PowerShell is installed')).toBeTruthy();
+  });
+});
+
+// t/3992: one optional POV tag for one member, carried as params.tagSelection; refused at setup when
+// the tag is too thin (TL t/3957#7 B(a)). Uses the committed registry (skeptic "critical", t/3956).
+describe('NewOpEdDialog — POV tag (t/3992)', () => {
+  const setSkepticNodes = (n: number) => useTaxonomyStore.setState({
+    skeptic: { nodes: Array.from({ length: n }, (_, i) => ({ id: `skp-beliefs-${i}`, pov_tags: ['critical'] })) },
+  } as never);
+  const pickCritical = (mode: 'Scope' | 'Prioritize' = 'Scope') => {
+    fireEvent.change(screen.getByLabelText('POV wing (optional)'), { target: { value: 'skeptic' } });
+    fireEvent.change(screen.getByLabelText('Tag for skeptic'), { target: { value: 'critical' } });
+    if (mode === 'Prioritize') fireEvent.click(screen.getByLabelText('Prioritize'));
+  };
+
+  it('sends params.tagSelection for the tagged voice', async () => {
+    setSkepticNodes(6);
+    createOpEdSet.mockReturnValue(new Promise(() => { /* never resolves */ }));
+    open();
+    fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Licensing' } });
+    pickCritical();
+    fireEvent.click(screen.getByRole('button', { name: /Draft/ }));
+    await waitFor(() => expect(createOpEdSet).toHaveBeenCalledTimes(1));
+    expect(createOpEdSet.mock.calls[0][0].params.tagSelection).toEqual({ pov: 'skeptic', tag: 'critical', mode: 'scope' });
+  });
+
+  it('an untagged set sends no tagSelection', async () => {
+    createOpEdSet.mockReturnValue(new Promise(() => { /* never resolves */ }));
+    open();
+    fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Licensing' } });
+    fireEvent.click(screen.getByRole('button', { name: /Draft/ }));
+    await waitFor(() => expect(createOpEdSet).toHaveBeenCalledTimes(1));
+    expect(createOpEdSet.mock.calls[0][0].params).not.toHaveProperty('tagSelection');
+  });
+
+  it('Draft is disabled while a Scope tag is below the minimum', () => {
+    setSkepticNodes(3);
+    open();
+    fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Licensing' } });
+    pickCritical();
+    expect((screen.getByRole('button', { name: /Draft/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('alert').textContent).toMatch(/minimum 5/);
+  });
+
+  it('deselecting the tagged voice drops the tag from the request', async () => {
+    setSkepticNodes(6);
+    createOpEdSet.mockReturnValue(new Promise(() => { /* never resolves */ }));
+    open();
+    fireEvent.change(screen.getByLabelText(/Topic/), { target: { value: 'Licensing' } });
+    pickCritical();
+    fireEvent.click(screen.getByRole('button', { name: 'Skeptic' }));
+    fireEvent.click(screen.getByRole('button', { name: /Draft/ }));
+    await waitFor(() => expect(createOpEdSet).toHaveBeenCalledTimes(1));
+    expect(createOpEdSet.mock.calls[0][0].params).not.toHaveProperty('tagSelection');
   });
 });
