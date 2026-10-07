@@ -460,3 +460,44 @@ Describe 'Code-referenced model emitter shares the lint scan (t/3553, SO e/271)'
         $emit | Should -Not -Contain 'text-embedding-raw'
     }
 }
+
+Describe 'Code-referenced model emitter: output shape and lint-set equality (t/3553, TL e/271#12 item 5, SO e/271#15)' -Tag 'config' {
+
+    BeforeAll {
+        $script:Emitter = Join-Path $script:RepoRoot 'scripts' 'Get-CodeReferencedModels.ps1'
+        # A narrowed fixture tree: tests/ + scripts/AITriad/ only, so the emitter can find 0 or 1 ids.
+        function script:New-EmitterFixture([string[]]$TestLines) {
+            $root = Join-Path ([System.IO.Path]::GetTempPath()) "crm-$(Get-Random)"
+            New-Item -ItemType Directory -Path (Join-Path $root 'tests'), (Join-Path $root 'scripts' 'AITriad') -Force | Out-Null
+            Set-Content -Path (Join-Path $root 'tests' 'Fixture.Tests.ps1') -Value $TestLines
+            Set-Content -Path (Join-Path $root 'scripts' 'AITriad' 'Empty.ps1') -Value '# no model literals'
+            return $root
+        }
+    }
+
+    It 'emits a JSON ARRAY for zero ids: []' {
+        $root = script:New-EmitterFixture @('# nothing here')
+        try {
+            $raw = (pwsh -NoProfile -NonInteractive -File $script:Emitter -Scope All -Json -RepoRoot $root) -join ''
+            $raw.Trim() | Should -Be '[]'
+        } finally { Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'emits a JSON ARRAY for exactly one id: ["x"] (ConvertTo-Json would otherwise unroll it to "x")' {
+        $flag = '-Mo' + 'del'   # split so this source line never matches the tests/ scan itself
+        $one = @($script:ValidIds)[0]
+        $root = script:New-EmitterFixture @("Invoke-X $flag '$one'")
+        try {
+            $raw = (pwsh -NoProfile -NonInteractive -File $script:Emitter -Scope All -Json -RepoRoot $root) -join ''
+            $raw.Trim() | Should -Be ('["' + $one + '"]')
+        } finally { Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It "the lint's literal sets equal a fresh scope scan, per scope (same File:Line:Id records)" {
+        $key = { param($r) "$($r.File):$($r.Line):$($r.Id)" }
+        $freshTests = @(script:Get-ModelLiteralScopeScan -RepoRoot $script:RepoRoot -Scope Tests | ForEach-Object { & $key $_ } | Sort-Object)
+        $freshProd  = @(script:Get-ModelLiteralScopeScan -RepoRoot $script:RepoRoot -Scope Production | ForEach-Object { & $key $_ } | Sort-Object)
+        @($script:ModelLiterals | ForEach-Object { & $key $_ } | Sort-Object) | Should -Be $freshTests
+        @($script:ProdLiterals  | ForEach-Object { & $key $_ } | Sort-Object) | Should -Be $freshProd
+    }
+}
