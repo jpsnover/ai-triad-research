@@ -126,14 +126,18 @@ beforeEach(() => {
   h.promptArgs.length = 0;
   h.selectCalls.length = 0;
   adapter.generateText.mockClear();
+  const POV_LABELS: Record<string, string> = { accelerationist: 'Accelerationist', safetyist: 'Safetyist', skeptic: 'Skeptic' };
   h.resolvePoverInfo.mockReset();
-  h.resolvePoverInfo.mockReturnValue({
-    // The identity view (PovInfo-typed): op-ed must NOT build the voice from it (t/4002).
-    soul: { label: 'Skeptic', pov: 'skeptic' },
-    soulProvenance: { file: 'C:\\checkout\\lib\\debate\\soul-docs\\skeptic.critical.soul.json', hash: 'abcdef0123456789' },
-  });
+  // Tag-aware (t/4007): loadSoulDoc calls resolvePoverInfo(pov) for base-soul provenance; tagged path passes tagSelection.
+  h.resolvePoverInfo.mockImplementation((pov: string, tagSel?: object) => tagSel
+    ? { soul: { label: 'Skeptic', pov: 'skeptic' }, soulProvenance: { file: 'C:\\checkout\\lib\\debate\\soul-docs\\skeptic.critical.soul.json', hash: 'abcdef0123456789' } }
+    : { soul: { label: POV_LABELS[pov] ?? pov, pov }, soulProvenance: { file: `${pov}.soul.json`, hash: 'fnv1a64:1234567890abcdef' } },
+  );
   h.getSoulDocument.mockReset();
-  h.getSoulDocument.mockReturnValue(TAG_SOUL);
+  // Tag-aware: base calls (loadSoulDoc — t/4007) get the correct POV label; tagged calls get TAG_SOUL.
+  h.getSoulDocument.mockImplementation((pov: string, tag?: string) =>
+    tag ? TAG_SOUL : { ...TAG_SOUL, pov, label: POV_LABELS[pov] ?? pov, tag: undefined },
+  );
 });
 
 describe('op-ed tag selection: Scope', () => {
@@ -330,6 +334,7 @@ describe('op-ed tag selection: untagged runs', () => {
       expect(members.get(pov)!.soul).toMatchObject({ file: `${pov}.soul.json` });
       expect(members.get(pov)!.soul!.hash).toMatch(/^fnv1a64:[0-9a-f]{16}$/);
     }
-    expect(h.resolvePoverInfo).not.toHaveBeenCalled();
+    // t/4007: loadSoulDoc now calls resolvePoverInfo(pov) for base-soul provenance, but never with a tag selection.
+    expect(h.resolvePoverInfo).not.toHaveBeenCalledWith(expect.any(String), expect.any(Object));
   });
 });
