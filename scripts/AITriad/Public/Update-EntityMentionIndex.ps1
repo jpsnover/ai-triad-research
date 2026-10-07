@@ -118,351 +118,50 @@ function Update-EntityMentionIndex {
     $EntPath = if ($EntitiesPath) { $EntitiesPath } else { Get-EntitiesFilePath }
     $SeiPath = if ($SourceEvidenceIndexPath) { $SourceEvidenceIndexPath } else { Join-Path (Get-TaxonomyDir) 'source_evidence_index.json' }
     $OutPath = if ($OutputPath) { $OutputPath } else { Get-EntityMentionsFilePath }
-    if ($PSBoundParameters.ContainsKey('SummariesPath')) {
-        $SummaryFiles = @($SummariesPath)
-    }
-    else {
-        $SummDir = Get-SummariesDir
-        if (Test-Path -LiteralPath $SummDir) {
-            $SummaryFiles = @(Get-ChildItem -LiteralPath $SummDir -Filter '*.json' -File |
-                    Sort-Object -Property Name | ForEach-Object { $_.FullName })
-        }
-        else {
-            Write-Verbose "Summaries dir not found: $SummDir; skipping summary containers."
-            $SummaryFiles = @()
-        }
-    }
-
-    # Safe field read across both shapes we handle: [ordered] dicts (our freshly-built
-    # mentions) and PSCustomObject (parsed from a possibly hand-edited entity_mentions.json).
-    # Returns $null for an absent field instead of throwing under StrictMode.
-    $GetProp = {
-        param($o, $k)
-        if ($null -eq $o) { return $null }
-        if ($o -is [System.Collections.IDictionary]) { if ($o.Contains($k)) { return $o[$k] } else { return $null } }
-        if ($o.PSObject.Properties[$k]) { return $o.$k }
-        return $null
-    }
-
-    # By-value mention-list equality (avoids fragile JSON-string comparison across the
-    # ordered-dict vs parsed-PSCustomObject boundary).
-    $MentionsEqual = {
-        param($a, $b)
-        $aa = @($a); $bb = @($b)
-        if ($aa.Count -ne $bb.Count) { return $false }
-        for ($i = 0; $i -lt $aa.Count; $i++) {
-            if ([string](& $GetProp $aa[$i] 'entity_ref') -ne [string](& $GetProp $bb[$i] 'entity_ref')) { return $false }
-            if ([string](& $GetProp $aa[$i] 'quote') -ne [string](& $GetProp $bb[$i] 'quote')) { return $false }
-            if ([string](& $GetProp $aa[$i] 'offset') -ne [string](& $GetProp $bb[$i] 'offset')) { return $false }
-            if ([string](& $GetProp $aa[$i] 'discovered_by') -ne [string](& $GetProp $bb[$i] 'discovered_by')) { return $false }
-        }
-        return $true
-    }
+    $SummaryFiles = (Get-EmiSummaryFiles -Bound $PSBoundParameters.ContainsKey('SummariesPath') -SummariesPath $SummariesPath).Files
 
     # --- Alias table over in-scope entities (default: status 'approved'): normalized surface -> raw ent-* ref ------------
     $Store = Get-EntitiesStore -Path $EntPath -InitIfMissing
     $Entities = if ($Store.PSObject.Properties['entities']) { @($Store.entities) } else { @() }
-
     $AliasEntries = [System.Collections.Generic.List[object]]::new()
-    foreach ($e in $Entities) {
-        if (-not $e.PSObject.Properties['id']) { continue }
-        # Status gate (§5 curation contract): index only the requested statuses; default is
-        # approved-only. A record without a `status` field is treated as un-indexable.
-        $eStatus = if ($e.PSObject.Properties['status']) { [string]$e.status } else { '' }
-        if ($eStatus -notin $Status) { continue }
-        $ref = [string]$e.id
-        $surfaces = [System.Collections.Generic.List[string]]::new()
-        if ($e.PSObject.Properties['name'] -and $e.name) { $surfaces.Add([string]$e.name) }
-        # aliases is frequently `null` (not []) in live data — @($null) collapses safely.
-        if ($e.PSObject.Properties['aliases']) {
-            foreach ($a in @($e.aliases)) { if ($a) { $surfaces.Add([string]$a) } }
-        }
-        foreach ($s in $surfaces) {
-            # Normalize the alias per the D1 parity contract (Get-NormalizedName: NFC +
-            # ToLowerInvariant + collapse the pinned whitespace set + trim).
-            $norm = Get-NormalizedName -Name $s
-            if (-not $norm) { continue }
-            # Match the normalized (already-lowercased, single-space) alias against the NFC+
-            # lowercased container text, tolerating any run of the SAME pinned whitespace set
-            # between tokens. No IgnoreCase — the text is pre-lowercased with ToLowerInvariant,
-            # so casing mirrors D1 exactly (regex case-folding would NOT). Word boundaries
-            # delimit the in-text span (this span-delimiting extends beyond the pure equality
-            # contract — flagged to Shared Lib for concurrence).
-            $tokens = $norm -split ' '
-            $pattern = (($tokens | ForEach-Object { [regex]::Escape($_) }) -join "$script:PinnedWhitespaceClass+")
-            $rx = [regex]::new("(?<!\w)$pattern(?!\w)")
-            $AliasEntries.Add([PSCustomObject]@{ EntityRef = $ref; Regex = $rx })
-        }
-    }
+    Add-EmiAliasEntries -Entities $Entities -Status $Status -AliasEntries $AliasEntries
 
-    # --- Collect source containers: id -> exact analyzed text (READ-ONLY SCAN) -------------
-    # t/3163: this scan reads only source-of-record files (SEI facts + summary key-points/claims)
-    # and is INDEPENDENT of the shared entity_mentions.json, so it runs OUTSIDE the grounding lock.
-    # It measured ~288s over the real corpus; holding the lock across it was unsafe — >2x the 120s
-    # mtime-stale-break, so a concurrent reconciler could break the "stale" lock mid-scan → both
-    # write → lost update (TL t/3163). Only the existing-read + merge + write below is serialized.
-    $Containers = [ordered]@{}   # insertion order irrelevant; sorted before write
-
-    if (Test-Path -LiteralPath $SeiPath) {
-        $Sei = Get-Content -Raw -LiteralPath $SeiPath -Encoding utf8 | ConvertFrom-Json -AsHashtable
-        foreach ($key in ($Sei.Keys | Sort-Object)) {
-            $entry = $Sei[$key]
-            if (-not ($entry -is [System.Collections.IDictionary]) -or -not $entry.ContainsKey('facts')) { continue }
-            $claims = @($entry['facts'] | ForEach-Object {
-                    if ($_ -is [System.Collections.IDictionary] -and $_.ContainsKey('claim')) { [string]$_['claim'] }
-                })
-            $text = Get-MentionContainerText -Kind 'sei' -Fields $claims
-            if ($text -eq '') { continue }
-            $Containers["sei:$key"] = $text
-        }
-    }
-    else {
-        Write-Verbose "SEI not found at $SeiPath; skipping fact containers."
-    }
-
-    # node:* (POV/situation node grounding) is NO LONGER built here — it moved to CL's
-    # hash-gated Python reconciler (reconcile_grounding.py) under the t/3160 G7 disjoint-scope
-    # contract. This cmdlet owns {sei:*, summary:*} only; the disjoint-scope test asserts no
-    # node:* key is ever emitted.
-
-    # --- Summary key points + factual claims (t/3122, §4/R2.2 T2) -------------------------
-    foreach ($summaryFile in $SummaryFiles) {
-        if (-not (Test-Path -LiteralPath $summaryFile)) {
-            Write-Verbose "Summary file not found: $summaryFile; skipping."
-            continue
-        }
-        $summary = Get-Content -Raw -LiteralPath $summaryFile -Encoding utf8 | ConvertFrom-Json
-        if (-not $summary.PSObject.Properties['doc_id'] -or -not $summary.doc_id) { continue }
-        $docId = [string]$summary.doc_id
-
-        # key_points: POV-SCOPED 0-based index — `summary:<doc_id>#<pov>-kp-<n>` (<pov> ∈
-        # acc/saf/skp), `<n>` reset per POV array. CL ruling (p/23#220-221): a single running
-        # counter across the three arrays is positionally fragile — inserting/removing a
-        # key_point in one POV renumbers every later container id, churning unrelated refs and
-        # spuriously staling their text_sha256. No stable per-claim id exists on a key_point
-        # (taxonomy_node_id is a non-unique node reference), so POV-scoped positional is the
-        # pragmatic key; inserts WITHIN a POV array still churn that array's tail.
-        if ($summary.PSObject.Properties['pov_summaries'] -and $summary.pov_summaries) {
-            $povCode = @{ accelerationist = 'acc'; safetyist = 'saf'; skeptic = 'skp' }
-            foreach ($povName in @('accelerationist', 'safetyist', 'skeptic')) {
-                if (-not $summary.pov_summaries.PSObject.Properties[$povName]) { continue }
-                $povData = $summary.pov_summaries.$povName
-                if (-not $povData -or -not $povData.PSObject.Properties['key_points'] -or -not $povData.key_points) { continue }
-                $code = $povCode[$povName]
-                $kpIndex = 0
-                foreach ($kp in @($povData.key_points)) {
-                    $pointVal = if ($kp.PSObject.Properties['point']) { $kp.point } else { $null }
-                    $text = Get-MentionContainerText -Kind 'kp' -Fields @($pointVal)
-                    if ($text -ne '') { $Containers["summary:$docId#$code-kp-$kpIndex"] = $text }
-                    $kpIndex++
-                }
-            }
-        }
-
-        # factual_claims: 0-based index into the top-level array.
-        if ($summary.PSObject.Properties['factual_claims'] -and $summary.factual_claims) {
-            $claims = @($summary.factual_claims)
-            for ($i = 0; $i -lt $claims.Count; $i++) {
-                $claimVal = if ($claims[$i].PSObject.Properties['claim']) { $claims[$i].claim } else { $null }
-                $text = Get-MentionContainerText -Kind 'fc' -Fields @($claimVal)
-                if ($text -ne '') { $Containers["summary:$docId#fc-$i"] = $text }
-            }
-        }
-    }
-
-    # --- Per-container alias scan (READ-ONLY) — computed OUTSIDE the lock (t/3163) ----------
-    # The ~296s cost is HERE, not the collection I/O: for each container, its NFC text sha256 plus
-    # the fresh alias-candidate hits over the alias table. Both inputs ($Containers + $AliasEntries)
-    # are source-derived and independent of the shared entity_mentions.json, so this whole build runs
-    # OUTSIDE the grounding lock (TL t/3163 GV: read-only w.r.t. the lost-update surface). The
-    # ExistingById-dependent merge (human-mention preservation, extracted_at reuse) stays INSIDE the
-    # lock and merges these candidates against the FRESH in-lock read (GV guardrail 1).
-    $ScanByCid = [ordered]@{}
-    foreach ($cid in ($Containers.Keys | Sort-Object)) {
-        # $nfc IS the "exact analyzed text" — already NFC-canonical from Get-MentionContainerText.
-        # text_sha256 pins it; offset/quote index into it. $lower mirrors D1's ToLowerInvariant for
-        # matching; for the Latin corpus lowercasing is length-preserving, so match offsets align 1:1
-        # with $nfc and quote is sliced from $nfc to preserve original casing.
-        $nfc = [string]$Containers[$cid]
-        $lower = $nfc.ToLowerInvariant()
-        $sha = Get-TextSha256 -Text $nfc
-        $sliceable = ($nfc.Length -eq $lower.Length)
-        $candidates = [System.Collections.Generic.List[object]]::new()
-        foreach ($ae in $AliasEntries) {
-            foreach ($mt in $ae.Regex.Matches($lower)) {
-                $quote = if ($sliceable) { $nfc.Substring($mt.Index, $mt.Length) } else { $mt.Value }
-                $candidates.Add([PSCustomObject]@{
-                        Offset = $mt.Index; Length = $mt.Length; Quote = $quote
-                        EntityRef = $ae.EntityRef; By = 'alias'
-                    })
-            }
-        }
-        $ScanByCid[$cid] = [PSCustomObject]@{ Nfc = $nfc; Sha = $sha; Candidates = $candidates }
-    }
+    # --- Collect source containers + per-container alias scan (READ-ONLY) — OUTSIDE the lock (t/3163) ------------------
+    # Both read only source-of-record files (SEI facts + summary key-points/claims) and the alias table, so they are
+    # independent of the shared entity_mentions.json. The scan measured ~288-296s over the real corpus; holding the
+    # lock across it was unsafe (>2x the 120s mtime stale-break, so a peer could break the "stale" lock mid-scan and
+    # both would write -> lost update). node:* is NOT built here: it belongs to CL's reconciler (t/3160 G7).
+    $Containers = [ordered]@{}   # insertion order irrelevant; sorted before scan and write
+    Add-EmiSeiContainers -SeiPath $SeiPath -Containers $Containers
+    Add-EmiSummaryContainers -SummaryFiles $SummaryFiles -Containers $Containers
+    $ScanByCid = Get-EmiContainerScan -Containers $Containers -AliasEntries $AliasEntries
 
     # --- Grounding write-lock (t/3203 / t/3163) -------------------------------------------
-    # entity_mentions.json is a SHARED read-merge-write with CL's reconcile_grounding.py (which
-    # owns node:*). ONLY the existing-index read + merge + write below is serialized under the
-    # advisory lockfile + mtime-staleness rule (TL contract t/3163#1 / t/3194) — that read is the
-    # lost-update surface and MUST stay under the lock. The heavy entities.json alias load and the
-    # read-only source-container scan above both run OUTSIDE the lock (t/3163: the in-lock scan
-    # measured ~288s, >2x the 120s stale-break, and a peer breaking the "stale" lock mid-scan would
-    # corrupt the file). See GroundingLock (Enter/Exit-GroundingLock).
+    # entity_mentions.json is a SHARED read-merge-write with CL's reconcile_grounding.py (which owns node:*). ONLY the
+    # existing-index read + merge + write below is serialized under the advisory lockfile + mtime-staleness rule (TL
+    # contract t/3163#1 / t/3194): that read is the lost-update surface and MUST stay under the lock.
     $LockPath = Join-Path (Split-Path -Parent $OutPath) 'entity_mentions.lock'
     $LockHandle = Enter-GroundingLock -LockPath $LockPath
     # Lock-hold telemetry (t/3163): the released hold time must stay well under the 120s stale-break.
     $LockHeld = [System.Diagnostics.Stopwatch]::StartNew()
     try {
 
-    # --- Existing index (for human-mention preservation + idempotency) --------------------
-    # THE LOST-UPDATE SURFACE: this read of the shared entity_mentions.json must stay INSIDE the
-    # lock so no peer write lands between it and the merge+write below (t/3163 GV condition 1).
-    $ExistingById = @{}
-    $ExistingLastModified = $null
-    if (Test-Path -LiteralPath $OutPath) {
-        try {
-            $prior = Get-Content -Raw -LiteralPath $OutPath -Encoding utf8 | ConvertFrom-Json
-            if ($prior.PSObject.Properties['last_modified']) { $ExistingLastModified = [string]$prior.last_modified }
-            if ($prior.PSObject.Properties['containers'] -and $prior.containers) {
-                foreach ($p in $prior.containers.PSObject.Properties) { $ExistingById[$p.Name] = $p.Value }
-            }
-        }
-        catch {
-            Write-Verbose "Existing $OutPath unreadable ($($_.Exception.Message)); rebuilding from scratch."
-        }
-    }
+    # THE LOST-UPDATE SURFACE: this read of the shared file stays INSIDE the lock (t/3163 GV condition 1).
+    $Existing = Read-EmiExistingIndex -OutPath $OutPath
+    $ExistingById = $Existing.ById
 
-    # --- Scan each container; build canonical container records ---------------------------
-    $NewContainers = [ordered]@{}
-    $TotalMentions = 0
-    $AnyContentChanged = $false
+    # Merge the outside-lock scan against the FRESH in-lock read (GV guardrail 1), then guard scope and preserve
+    # every container this cmdlet does not own VERBATIM (t/3160 G7 no-orphan: never clobber reconciler node:*).
+    $Built = Build-EmiOwnContainers -ScanByCid $ScanByCid -ExistingById $ExistingById
+    $NewContainers = $Built.Containers
+    $TotalMentions = $Built.TotalMentions
+    Assert-EmiOwnedScope -NewContainers $NewContainers
+    $Merged = Merge-EmiContainers -ExistingById $ExistingById -NewContainers $NewContainers
+    $FinalContainers = $Merged.Containers
+    $PreservedForeign = $Merged.PreservedForeign
 
-    foreach ($cid in $ScanByCid.Keys) {   # already key-sorted at build time (outside the lock)
-        # Consume the OUTSIDE-lock scan: NFC text + sha256 + fresh alias candidates (t/3163). The
-        # merge below runs against the FRESH in-lock ExistingById read (GV guardrail 1), so a
-        # concurrent reconciler node:* write is still preserved and the sha unchanged-check (guardrail
-        # 2) compares this source-derived $sha against the current file's text_sha256.
-        $scan = $ScanByCid[$cid]
-        $sha = $scan.Sha
-
-        # Preserve human mentions only when the container text is unchanged (else supersede).
-        $accepted = [System.Collections.Generic.List[object]]::new()   # {Offset,Length,Quote,EntityRef,By}
-        if ($ExistingById.ContainsKey($cid)) {
-            $ex = $ExistingById[$cid]
-            if ($ex.PSObject.Properties['text_sha256'] -and [string]$ex.text_sha256 -eq $sha -and $ex.PSObject.Properties['mentions']) {
-                foreach ($m in @($ex.mentions)) {
-                    if ([string](& $GetProp $m 'discovered_by') -ne 'human') { continue }
-                    # Human mentions are hand-editable (§5) — read defensively and skip a
-                    # malformed entry (missing offset/quote/ref) rather than throwing.
-                    $q = & $GetProp $m 'quote'
-                    $off = & $GetProp $m 'offset'
-                    $eref = & $GetProp $m 'entity_ref'
-                    if ($null -eq $q -or $null -eq $off -or $null -eq $eref) {
-                        Write-Verbose "Skipping malformed human mention in container '$cid' (missing offset/quote/entity_ref)."
-                        continue
-                    }
-                    $qs = [string]$q
-                    $accepted.Add([PSCustomObject]@{
-                            Offset = [int]$off; Length = $qs.Length; Quote = $qs
-                            EntityRef = [string]$eref; By = 'human'
-                        })
-                }
-            }
-        }
-
-        # Candidate alias hits — precomputed OUTSIDE the lock (t/3163).
-        $candidates = $scan.Candidates
-
-        # Longest-most-specific overlap resolution; human intervals (seeded) win.
-        $ordered = @($candidates | Sort-Object -Property @{Expression = 'Length'; Descending = $true },
-            @{Expression = 'Offset'; Descending = $false },
-            @{Expression = 'EntityRef'; Descending = $false })
-        foreach ($c in $ordered) {
-            $cEnd = $c.Offset + $c.Length
-            $overlaps = $false
-            foreach ($a in $accepted) {
-                $aEnd = $a.Offset + $a.Length
-                if ($c.Offset -lt $aEnd -and $a.Offset -lt $cEnd) { $overlaps = $true; break }
-            }
-            if (-not $overlaps) { $accepted.Add($c) }
-        }
-
-        if (@($accepted).Count -eq 0) { continue }
-
-        $mentions = @($accepted |
-                Sort-Object -Property @{Expression = 'Offset'; Descending = $false }, @{Expression = 'EntityRef'; Descending = $false } |
-                ForEach-Object {
-                    [ordered]@{
-                        entity_ref    = $_.EntityRef
-                        quote         = $_.Quote
-                        offset        = [int]$_.Offset
-                        discovered_by = $_.By
-                    }
-                })
-        $TotalMentions += @($mentions).Count
-
-        # Reuse extracted_at when this container's text + mentions are unchanged; otherwise
-        # it is new/changed content and the file must be rewritten with a fresh timestamp.
-        $extractedAt = $null
-        if ($ExistingById.ContainsKey($cid)) {
-            $ex = $ExistingById[$cid]
-            $exMentions = if ($ex.PSObject.Properties['mentions']) { @($ex.mentions) } else { @() }
-            if ($ex.PSObject.Properties['text_sha256'] -and [string]$ex.text_sha256 -eq $sha -and
-                (& $MentionsEqual $exMentions $mentions) -and $ex.PSObject.Properties['extracted_at']) {
-                $extractedAt = [string]$ex.extracted_at
-            }
-        }
-        if (-not $extractedAt) {
-            $extractedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-            $AnyContentChanged = $true
-        }
-
-        $NewContainers[$cid] = [ordered]@{
-            text_sha256  = $sha
-            extracted_at = $extractedAt
-            mentions     = $mentions
-        }
-    }
-
-    # --- Disjoint-scope preservation (t/3160 G7) -----------------------------------------
-    # entity_mentions.json is a SHARED file. This cmdlet OWNS {sei:*, summary:*} and rewrites
-    # ONLY those. CL's Python reconciler owns node:* (node grounding) and read-merge-writes the
-    # SAME file, preserving our sei:*/summary:* (it asserts sei:* unchanged). We MUST symmetrically
-    # preserve THEIR containers: every existing container this cmdlet does NOT own is carried
-    # forward VERBATIM, so a mention-index rebuild never clobbers reconciler-owned node:* — the
-    # no-orphan half of the disjoint-scope contract. Without this, the full-file write below would
-    # DELETE node:* on every rebuild.
-    $IsOwnedKey = { param($k) ($k -like 'sei:*') -or ($k -like 'summary:*') }
-
-    # Defensive disjoint-scope guard: this cmdlet must never itself BUILD a non-owned key.
-    $ownBuiltForeign = @($NewContainers.Keys | Where-Object { -not (& $IsOwnedKey $_) })
-    if ($ownBuiltForeign.Count -gt 0) {
-        throw (New-ActionableError `
-                -Goal     'Rebuild the entity mention index within its {sei:*, summary:*} scope' `
-                -Problem  "Built container key(s) outside scope: $($ownBuiltForeign -join ', '). node:* grounding is owned by the CL reconciler (t/3160 G7)." `
-                -Location 'Update-EntityMentionIndex' `
-                -NextSteps @('Disjoint-scope regression — the cmdlet must only produce sei:*/summary:* keys. Check the container-collection blocks.'))
-    }
-
-    # Final map = preserved foreign (verbatim) + freshly-built own, key-sorted for a stable file.
-    $FinalContainers = [ordered]@{}
-    $PreservedForeign = 0
-    $mergedKeys = [System.Collections.Generic.List[string]]::new()
-    foreach ($k in $ExistingById.Keys) { if (-not (& $IsOwnedKey $k)) { $mergedKeys.Add([string]$k); $PreservedForeign++ } }
-    foreach ($k in $NewContainers.Keys) { $mergedKeys.Add([string]$k) }
-    foreach ($cid in ($mergedKeys | Sort-Object)) {
-        $FinalContainers[$cid] = if ($NewContainers.Contains($cid)) { $NewContainers[$cid] } else { $ExistingById[$cid] }
-    }
-
-    # --- Idempotency: unchanged iff same FINAL container key-set AND no OWN content changed.
-    # Preserved foreign containers are verbatim (never drive a rewrite); $AnyContentChanged tracks
-    # own-container content, and the key-set check catches own add/remove (a removed own container
-    # drops its key). Comparing the FINAL key-set (own + preserved) vs the existing file's keys.
-    $newKeys = @($FinalContainers.Keys | Sort-Object)
-    $oldKeys = @($ExistingById.Keys | Sort-Object)
-    $sameKeys = (($newKeys -join "`n") -eq ($oldKeys -join "`n"))
-    $unchanged = $sameKeys -and (-not $AnyContentChanged)
-    $lastModified = if ($unchanged -and $ExistingLastModified) { $ExistingLastModified } else { (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ") }
+    $unchanged = Test-EmiIndexUnchanged -FinalContainers $FinalContainers -ExistingById $ExistingById -AnyContentChanged $Built.AnyContentChanged
+    $lastModified = if ($unchanged -and $Existing.LastModified) { $Existing.LastModified } else { (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ") }
 
     $result = [PSCustomObject]@{
         OutputPath            = $OutPath
