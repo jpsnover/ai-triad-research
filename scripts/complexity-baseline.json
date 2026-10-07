@@ -870,10 +870,6 @@
     "max": 32,
     "countOver": 1
   },
-  "AITriad/Public/Update-EntityMentionIndex.ps1": {
-    "max": 102,
-    "countOver": 1
-  },
   "AITriad/Public/Update-NodeTestingRecord.ps1": {
     "max": 30,
     "countOver": 1
