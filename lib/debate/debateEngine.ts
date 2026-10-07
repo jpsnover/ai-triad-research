@@ -944,12 +944,7 @@ export class DebateEngine {
     return engine.session;
   }
 
-  // ── Initialization ───────────────────────────────────────
-
   private _computeModelFingerprint(): { model_pool?: string; model_api_id?: string } {
-    // model_pool only for multi-provider runs (speakerModels set). Every preset sets modelTier
-    // including single-model runs — gating on speakerModels prevents single-model runs from
-    // being keyed on a tier pool they never drew from (CL e/265#14).
     const isMultiProvider = Boolean(this.config.speakerModels);
     return computeModelFingerprint(
       this.adapter.registry,
@@ -994,6 +989,7 @@ export class DebateEngine {
       speaker_models: this.config.speakerModels ? { ...this.config.speakerModels } : undefined,
       initial_speaker_models: this.config.speakerModels ? { ...this.config.speakerModels } : undefined,
       ...this._computeModelFingerprint(),
+      failover_tracking: 'tracked' as const,
       stage_models: {
         brief: resolveStageModel(this._internal, 'brief'),
         plan: resolveStageModel(this._internal, 'plan'),

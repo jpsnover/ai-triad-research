@@ -74,6 +74,8 @@ export interface CalibrationDataPoint {
   model_pool?: string;
   /** Single-model run fingerprint: `"registryId:apiModelId"` resolved at run time. Absent on multi-provider rows. */
   model_api_id?: string;
+  /** Whether failover tracking was available for this run. 'tracked' = engine-path (failovers visible); 'unavailable' = renderer-path (failover below bridge, invisible). Absent on pre-t/4040 rows — treated as legacy (unchecked). */
+  failover_tracking?: 'tracked' | 'unavailable';
 
   // ── Parameter 1: Exploration exit threshold ──
   /** Saturation score from the last signal_telemetry entry at debate end (unconditional last-round value; null when no telemetry). Field name is historical — the extraction is not transition-gated. */

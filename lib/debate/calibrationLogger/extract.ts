@@ -444,6 +444,7 @@ export function extractCalibrationData(
     ...(session.speaker_model_failovers ? { speaker_model_failovers: session.speaker_model_failovers } : {}),
     ...(session.model_pool ? { model_pool: session.model_pool } : {}),
     ...(session.model_api_id ? { model_api_id: session.model_api_id } : {}),
+    ...(session.failover_tracking ? { failover_tracking: session.failover_tracking } : {}),
 
     argumentative_saturation_at_transition: argumentativeSaturationAtTransition,
     argumentation_exit_threshold: config.argumentationExitThreshold ?? 0.65,

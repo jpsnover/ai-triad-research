@@ -8,7 +8,16 @@
  * a single draw.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+const mockRecord = vi.fn();
+vi.mock('../flight-recorder/index.js', () => ({
+  getGlobalRecorder: () => ({ record: mockRecord }),
+}));
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
 import {
   REPLICATION_GATE_MIN_N,
   fixedConfigKey,
@@ -34,18 +43,22 @@ function makeEntry(opts: {
   model_pool?: string;
   model_api_id?: string;
   speaker_model_failovers?: Record<string, string>;
+  failover_tracking?: 'tracked' | 'unavailable';
   working_tree_state?: 'clean' | 'dirty' | 'unknown';
+  debate_id?: string;
   metric?: number | null;
 }): CalibrationDataPoint {
   return {
     config_revision: opts.config_revision ?? 'cfgA',
     prompt_version: opts.prompt_version ?? '2026-07-22.1',
     model: opts.model ?? 'modelX',
+    debate_id: opts.debate_id ?? 'test-debate',
     working_tree_state: opts.working_tree_state ?? 'clean',
     crux_addressed_ratio: opts.metric === undefined ? 0.5 : opts.metric,
     ...(opts.model_pool ? { model_pool: opts.model_pool } : {}),
     ...(opts.model_api_id ? { model_api_id: opts.model_api_id } : {}),
     ...(opts.speaker_model_failovers ? { speaker_model_failovers: opts.speaker_model_failovers } : {}),
+    ...(opts.failover_tracking !== undefined ? { failover_tracking: opts.failover_tracking } : {}),
   } as unknown as CalibrationDataPoint;
 }
 
@@ -181,6 +194,33 @@ describe('replicationSet', () => {
     const set = replicationSet(entries, key);
     expect(set.length).toBe(1);
     expect(set[0].speaker_model_failovers).toBeUndefined();
+  });
+
+  it('includes fingerprinted rows with failover_tracking: tracked (t/4040)', () => {
+    const key = 'cfgA|2026-07-22.1|modelX|modelX:apiId-v1';
+    const entry = makeEntry({ model_api_id: 'modelX:apiId-v1', failover_tracking: 'tracked' });
+    expect(replicationSet([entry], key).length).toBe(1);
+  });
+
+  it('excludes fingerprinted rows with failover_tracking: unavailable (t/4040)', () => {
+    const key = 'cfgA|2026-07-22.1|modelX|modelX:apiId-v1';
+    const entry = makeEntry({ model_api_id: 'modelX:apiId-v1', failover_tracking: 'unavailable' });
+    expect(replicationSet([entry], key).length).toBe(0);
+  });
+
+  it('WARNs and excludes fingerprinted rows with absent failover_tracking (t/4040)', () => {
+    const key = 'cfgA|2026-07-22.1|modelX|modelX:apiId-v1';
+    const entry = makeEntry({ model_api_id: 'modelX:apiId-v1' }); // no failover_tracking
+    expect(replicationSet([entry], key).length).toBe(0);
+    expect(mockRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ level: 'warn', component: 'replication-gate' }),
+    );
+  });
+
+  it('includes legacy rows (no fingerprint) even with absent failover_tracking (t/4040)', () => {
+    const key = 'cfgA|2026-07-22.1|modelX|'; // empty 4th segment = legacy
+    const entry = makeEntry({}); // no model_pool, no model_api_id, no failover_tracking
+    expect(replicationSet([entry], key).length).toBe(1);
   });
 });
 

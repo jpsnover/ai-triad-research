@@ -382,6 +382,8 @@ export interface DebateSession {
   model_pool?: string;
   /** Single-model run fingerprint: `"registryId:apiModelId"` resolved at run time (t/4040). Absent on multi-provider runs. */
   model_api_id?: string;
+  /** Whether failover tracking was available: 'tracked' = engine stamped (can observe failovers); 'unavailable' = renderer path (failover below bridge). Absent on pre-t/4040 and legacy rows. */
+  failover_tracking?: 'tracked' | 'unavailable';
   /** Fully-resolved per-stage model map (9 keys: brief, plan, draft, cite, evaluator, scope, summary, moderator, crux). */
   stage_models?: Record<string, string>;
   model_tier?: ModelTier;

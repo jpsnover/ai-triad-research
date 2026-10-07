@@ -10,6 +10,7 @@
  */
 
 import type { CalibrationDataPoint } from './schema.js';
+import { getGlobalRecorder } from '../../flight-recorder/index.js';
 
 // ── Replication gate + metric distributions (t/1668, R-1) ──────────────────
 //
@@ -109,11 +110,26 @@ export function computeDistribution(values: Array<number | null | undefined>): M
  * it must not count toward n (endorsed by CL, t/1668#2).
  */
 export function replicationSet(entries: CalibrationDataPoint[], key: string): CalibrationDataPoint[] {
-  return entries.filter(e =>
-    e.working_tree_state === 'clean' &&
-    fixedConfigKey(e) === key &&
-    !e.speaker_model_failovers,
-  );
+  return entries.filter(e => {
+    if (e.working_tree_state !== 'clean') return false;
+    if (fixedConfigKey(e) !== key) return false;
+    if (e.speaker_model_failovers) return false;
+    // Fingerprinted rows require explicit 'tracked' claim — absent means the
+    // recording layer didn't opt in, so failover visibility is unknown (t/4040).
+    const isFingerprinted = Boolean(e.model_pool ?? e.model_api_id);
+    if (isFingerprinted && e.failover_tracking !== 'tracked') {
+      if (e.failover_tracking === undefined) {
+        getGlobalRecorder()?.record({
+          type: 'system.info',
+          component: 'replication-gate',
+          level: 'warn',
+          message: `replication-gate: fingerprinted row missing failover_tracking — excluded from replication set (debate_id=${e.debate_id})`,
+        });
+      }
+      return false;
+    }
+    return true;
+  });
 }
 
 /**
