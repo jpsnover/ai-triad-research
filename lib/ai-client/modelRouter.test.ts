@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resolveMultiProviderModels, resolveModelForPurpose, probeOllama, TaskTier } from './modelRouter.js';
+import { resolveMultiProviderModels, eligibleDebateBackends, resolveModelForPurpose, probeOllama, TaskTier } from './modelRouter.js';
 import type { ModelRegistry } from './registry.js';
 import type { FetchFn } from './types.js';
 
@@ -35,6 +35,31 @@ const TEST_REGISTRY: ModelRegistry = {
 };
 
 const SPEAKERS = ['accelerationist', 'safetyist', 'skeptic'];
+
+describe('eligibleDebateBackends (t/4040)', () => {
+  it('is the intersection of the available backends and the tier, in input order', () => {
+    expect(eligibleDebateBackends('basic', ['groq', 'gemini', 'claude'], TEST_REGISTRY)).toEqual(['groq', 'gemini', 'claude']);
+  });
+
+  it('drops an available backend the tier has no model for', () => {
+    expect(eligibleDebateBackends('basic', ['openai', 'gemini'], TEST_REGISTRY)).toEqual(['gemini']);
+  });
+
+  it('returns [] (never throws) for no overlap, no backends, or an unknown tier', () => {
+    expect(eligibleDebateBackends('basic', ['openai', 'deepseek'], TEST_REGISTRY)).toEqual([]);
+    expect(eligibleDebateBackends('basic', [], TEST_REGISTRY)).toEqual([]);
+    expect(eligibleDebateBackends('ultra' as any, ['gemini'], TEST_REGISTRY)).toEqual([]);
+  });
+
+  it('resolveMultiProviderModels draws only from that set', () => {
+    const available = ['openai', 'gemini', 'claude'];
+    const allowed = new Set(eligibleDebateBackends('basic', available, TEST_REGISTRY).map(b => TEST_REGISTRY.debateTiers!.basic[b]));
+    for (let i = 0; i < 20; i++) {
+      const models = Object.values(resolveMultiProviderModels('basic', available, SPEAKERS, TEST_REGISTRY));
+      expect(models.every(m => allowed.has(m))).toBe(true);
+    }
+  });
+});
 
 describe('resolveMultiProviderModels', () => {
   it('assigns unique backends when 3+ are available', () => {
