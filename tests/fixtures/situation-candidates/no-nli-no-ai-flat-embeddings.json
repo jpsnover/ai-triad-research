@@ -1,0 +1,37 @@
+{
+  "scenario": "no-nli-no-ai-flat-embeddings",
+  "host": [
+    "[Cyan] ",
+    "▶  Building node index",
+    "[Green]    ✓  Indexed 18 nodes",
+    "[Cyan] ",
+    "▶  Loading embeddings",
+    "[Green]    ✓  Loaded 17 embeddings",
+    "[Cyan] ",
+    "▶  Loading edges",
+    "[Green]    ✓  Loaded edge data for boost scoring",
+    "[Cyan] ",
+    "▶  Computing cross-POV pairwise cosine similarities",
+    "[Green]    ✓  Checked 83 cross-POV pairs, found 14 above threshold",
+    "[Cyan] ",
+    "▶  Merging overlapping pairs into clusters",
+    "[Green]    ✓  Formed 6 agreement groups + 0 debate groups; selected 6 shared + 0 debate (top 10)",
+    "[Cyan] ",
+    "════════════════════════════════════════════════════════════════════════",
+    "[White]   CROSS-CUTTING CANDIDATES — 6 found (threshold: 0.6)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[White] ",
+    "  cluster-0: Label acc-1 / Label acc-7 / Label saf-1 / Label skp-1"
+  ],
+  "warnings": [],
+  "error": "The property 'nli_relationship' cannot be found on this object. Verify that the property exists.",
+  "result": null,
+  "calls": [
+    {
+      "call": "tierModel",
+      "tier": "basic"
+    }
+  ],
+  "writes": [],
+  "written": null
+}

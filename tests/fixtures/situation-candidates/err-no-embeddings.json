@@ -1,0 +1,22 @@
+{
+  "scenario": "err-no-embeddings",
+  "host": [
+    "[Cyan] ",
+    "▶  Building node index",
+    "[Green]    ✓  Indexed 18 nodes",
+    "[Cyan] ",
+    "▶  Loading embeddings",
+    "[Red]    ✗  embeddings.json not found — cannot compute similarities"
+  ],
+  "warnings": [],
+  "error": "embeddings.json required for situation candidate discovery",
+  "result": null,
+  "calls": [
+    {
+      "call": "tierModel",
+      "tier": "basic"
+    }
+  ],
+  "writes": [],
+  "written": null
+}
