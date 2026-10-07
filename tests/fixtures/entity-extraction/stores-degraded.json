@@ -4,11 +4,12 @@
     "",
     "Done. Nodes processed: 1 | Proposals: 1 | Minted: 1 | Linked: 0 | Possible dups (advisory): 0 | Dropped (below gate): 0 | Near-gate minted: 0 | Invalid: 0 | Failed: 0"
   ],
-  "warnings": [],
+  "warnings": [
+    "Invoke-EntityExtraction: organizations.json could not be loaded (\n  Goal:     Parse organizations registry\n  Error:    Failed to parse organizations.json: Conversion from JSON failed with error: Unexpected end when reading token. Path 'organizations'.\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Validate JSON with: Get-Content organizations.json | ConvertFrom-Json\n   2. Check for trailing commas or unbalanced brackets\n   3. Restore from git history if the file was recently modified); continuing without it, so proposals it would have linked may be minted as new entities.",
+    "Invoke-EntityExtraction: policy_actions.json could not be loaded (Conversion from JSON failed with error: Unexpected end when reading token. Path 'policies'.); continuing without it, so proposals it would have linked may be minted as new entities.",
+    "Invoke-EntityExtraction: entity_embeddings.json could not be loaded (Conversion from JSON failed with error: Unexpected end when deserializing object. Path 'vectors', line 1, position 13.); continuing without it, so proposals it would have linked may be minted as new entities."
+  ],
   "verbose": [
-    "Invoke-EntityExtraction: organizations.json unavailable — \n  Goal:     Parse organizations registry\n  Error:    Failed to parse organizations.json: Conversion from JSON failed with error: Unexpected end when reading token. Path 'organizations'.\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Validate JSON with: Get-Content organizations.json | ConvertFrom-Json\n   2. Check for trailing commas or unbalanced brackets\n   3. Restore from git history if the file was recently modified",
-    "Invoke-EntityExtraction: failed to parse policy_actions.json — Conversion from JSON failed with error: Unexpected end when reading token. Path 'policies'.",
-    "Invoke-EntityExtraction: failed to load entity_embeddings.json — Conversion from JSON failed with error: Unexpected end when deserializing object. Path 'vectors', line 1, position 13.",
     "Work items: 1 (skipped no-facts: 0, already-done: 0)",
     "Performing the operation \"Extract entity proposals via enrichment.entity-extraction\" on target \"1 node(s)\"."
   ],

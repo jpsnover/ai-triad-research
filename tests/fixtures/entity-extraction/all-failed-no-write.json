@@ -4,9 +4,10 @@
     "",
     "Done. Nodes processed: 1 | Proposals: 0 | Minted: 0 | Linked: 0 | Possible dups (advisory): 0 | Dropped (below gate): 0 | Near-gate minted: 0 | Invalid: 0 | Failed: 1"
   ],
-  "warnings": [],
+  "warnings": [
+    "Invoke-EntityExtraction: organizations.json could not be loaded (\n  Goal:     Load organizations registry\n  Error:    organizations.json not found at <ROOT>/taxonomy/organizations.json\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Verify the data repo is present at ../ai-triad-data/\n   2. Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for override\n   3. Confirm taxonomy/Origin/organizations.json exists in the data repo); continuing without it, so proposals it would have linked may be minted as new entities."
+  ],
   "verbose": [
-    "Invoke-EntityExtraction: organizations.json unavailable — \n  Goal:     Load organizations registry\n  Error:    organizations.json not found at <ROOT>/taxonomy/organizations.json\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Verify the data repo is present at ../ai-triad-data/\n   2. Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for override\n   3. Confirm taxonomy/Origin/organizations.json exists in the data repo",
     "Work items: 1 (skipped no-facts: 0, already-done: 0)",
     "Performing the operation \"Extract entity proposals via enrichment.entity-extraction\" on target \"1 node(s)\"."
   ],

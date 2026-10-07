@@ -4,10 +4,11 @@
     "",
     "Done. Nodes processed: 2 | Proposals: 15 | Minted: 11 | Linked: 3 | Possible dups (advisory): 1 | Dropped (below gate): 1 | Near-gate minted: 1 | Invalid: 5 | Failed: 0"
   ],
-  "warnings": [],
+  "warnings": [
+    "Invoke-EntityExtraction: organizations.json could not be loaded (\n  Goal:     Load organizations registry\n  Error:    organizations.json not found at <ROOT>/taxonomy/organizations.json\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Verify the data repo is present at ../ai-triad-data/\n   2. Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for override\n   3. Confirm taxonomy/Origin/organizations.json exists in the data repo); continuing without it, so proposals it would have linked may be minted as new entities.",
+    "Invoke-EntityExtraction: entity_embeddings.json could not be loaded (Cannot convert the \"@{name_vector=System.Object[]}\" value of type \"System.Management.Automation.PSCustomObject\" to type \"System.Double\".); continuing without it, so proposals it would have linked may be minted as new entities."
+  ],
   "verbose": [
-    "Invoke-EntityExtraction: organizations.json unavailable — \n  Goal:     Load organizations registry\n  Error:    organizations.json not found at <ROOT>/taxonomy/organizations.json\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Verify the data repo is present at ../ai-triad-data/\n   2. Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for override\n   3. Confirm taxonomy/Origin/organizations.json exists in the data repo",
-    "Invoke-EntityExtraction: failed to load entity_embeddings.json — Cannot convert the \"@{name_vector=System.Object[]}\" value of type \"System.Management.Automation.PSCustomObject\" to type \"System.Double\".",
     "Work items: 2 (skipped no-facts: 0, already-done: 0)",
     "Performing the operation \"Extract entity proposals via enrichment.entity-extraction\" on target \"2 node(s)\"."
   ],

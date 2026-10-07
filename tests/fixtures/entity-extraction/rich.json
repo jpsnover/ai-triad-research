@@ -2,15 +2,17 @@
   "scenario": "rich",
   "host": [
     "",
-    "Done. Nodes processed: 9 | Proposals: 18 | Minted: 7 | Linked: 10 | Possible dups (advisory): 1 | Dropped (below gate): 1 | Near-gate minted: 1 | Invalid: 6 | Failed: 6"
+    "Done. Nodes processed: 9 | Proposals: 18 | Minted: 7 | Linked: 10 | Possible dups (advisory): 1 | Dropped (below gate): 1 | Near-gate minted: 1 | Invalid: 6 | Failed: 4"
   ],
   "warnings": [
+    "Invoke-EntityExtraction: skeptic.json could not be loaded (Conversion from JSON failed with error: Unexpected end when reading token. Path 'nodes'.); continuing without it, so proposals it would have linked may be minted as new entities.",
+    "Invoke-EntityExtraction: dictionary/standardized/broken.json could not be loaded (Conversion from JSON failed with error: Unexpected character encountered while parsing value: n. Path '', line 0, position 0.); continuing without it, so proposals it would have linked may be minted as new entities.",
+    "Invoke-EntityExtraction: node-c: response has no 'org_mentions'; treating it as empty.",
     "ConvertFrom-TruncatableJson: node-k : response JSON was truncated (Conversion from JSON failed with error: Unterminated string. Expected delimiter: \". Path 'proposals[1].name', line 1, position 88.) — recovered the valid prefix via Repair-TruncatedJson; trailing partial item(s) dropped.",
+    "Invoke-EntityExtraction: node-k: response has no 'org_mentions'; treating it as empty.",
     "Invoke-EntityExtraction: within-run embedding batch failed for node node-h — cosine dedup skipped for its proposals (embedder offline)"
   ],
   "verbose": [
-    "Invoke-EntityExtraction: failed to load skeptic.json — Conversion from JSON failed with error: Unexpected end when reading token. Path 'nodes'.",
-    "Invoke-EntityExtraction: failed to parse broken.json — Conversion from JSON failed with error: Unexpected character encountered while parsing value: n. Path '', line 0, position 0.",
     "Work items: 9 (skipped no-facts: 3, already-done: 1)",
     "Performing the operation \"Extract entity proposals via enrichment.entity-extraction\" on target \"9 node(s)\".",
     "Invoke-EntityExtraction: embedding unavailable for 'Near Thing' — existing-entity cosine check skipped",
@@ -46,14 +48,12 @@
         "node-a: entity_type 'alien' not in {person, artifact, event, legislation, institution}",
         "node-a: missing name"
       ],
-      "Failed": 6,
+      "Failed": 4,
       "FailedItems": [
-        "node-k: The property 'org_mentions' cannot be found on this object. Verify that the property exists.",
         "node-j: Conversion from JSON failed with error: Unexpected character encountered while parsing value: d. Path '', line 0, position 0.",
         "node-i: empty AI response",
         "node-g: empty AI response",
-        "node-f: rate limited (429)",
-        "node-c: The property 'org_mentions' cannot be found on this object. Verify that the property exists."
+        "node-f: rate limited (429)"
       ],
       "SkippedNoFacts": 3,
       "SkippedAlreadyDone": 1,
