@@ -413,6 +413,7 @@ interface CritiqueViewProps {
   diffs: FieldDiff[];
   unmatchedRationale: string | null;
   acceptedFields: Set<string>;
+  acceptError: { diffKey: string; message: string } | null;
   onAccept: (diff: FieldDiff) => void;
 }
 
@@ -423,6 +424,7 @@ function CritiqueView({
   diffs,
   unmatchedRationale,
   acceptedFields,
+  acceptError,
   onAccept,
 }: CritiqueViewProps) {
   if (!analysisResult || !isCritique) return null;
@@ -448,6 +450,9 @@ function CritiqueView({
                   </div>
                 )}
                 <DiffValues diff={diff} />
+                {acceptError && acceptError.diffKey === diff.key && (
+                  <div className="analysis-diff-accept-error">{acceptError.message}</div>
+                )}
                 {isAccepted ? (
                   <span className="analysis-diff-accepted">Accepted</span>
                 ) : (
@@ -485,6 +490,7 @@ function CritiqueView({
 export function AnalysisPanel({ width }: AnalysisPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [acceptedFields, setAcceptedFields] = useState<Set<string>>(new Set());
+  const [acceptError, setAcceptError] = useState<{ diffKey: string; message: string } | null>(null);
   const {
     analysisResult,
     analysisLoading,
@@ -528,6 +534,7 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
   if (analysisResult !== prevResult) {
     setPrevResult(analysisResult);
     if (acceptedFields.size > 0) setAcceptedFields(new Set());
+    if (acceptError) setAcceptError(null);
   }
 
   if (!analysisResult && !analysisLoading && !analysisError) return null;
@@ -565,6 +572,7 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
       const pas = ga.policy_actions as Array<{ policy_id?: string; action: string; framing: string }> | undefined;
       if (pas && policyRegistry) {
         const registryIds = new Set(policyRegistry.map(p => p.id));
+        const unmatched: string[] = [];
         for (const pa of pas) {
           if (pa.policy_id && !registryIds.has(pa.policy_id)) {
             // AI proposed a non-existent policy_id — try to find a match by action text
@@ -572,16 +580,36 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
             if (match) {
               pa.policy_id = match.id;
             } else {
-              // Clear invalid ID — will need manual assignment via Update-PolicyRegistry
-              pa.policy_id = undefined;
+              unmatched.push(pa.action);
             }
           }
+        }
+        // Refuse to save an unregistered policy_id rather than silently clearing it —
+        // that's exactly the unattributed-action sweep t/3943/t/4004 removed from the
+        // PS pipeline (t/4004 surviving vector, t/4033). Block this accept and tell the
+        // user which action(s) need `Update-PolicyRegistry -Fix` first.
+        if (unmatched.length > 0) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'analysis-panel',
+            level: 'warn',
+            message: `Blocked critique accept: ${unmatched.length} policy action(s) reference an unregistered policy_id with no text match in the registry`,
+            error: { name: 'UnregisteredPolicyId', message: unmatched.join('; ') },
+          });
+          setAcceptError({
+            diffKey: diff.key,
+            message: `Can't accept — ${unmatched.length} policy action${unmatched.length !== 1 ? 's' : ''} reference`
+              + ` a policy_id that isn't registered and couldn't be matched by text: ${unmatched.map(a => `"${a}"`).join(', ')}.`
+              + ' Run Update-PolicyRegistry -Fix to register them, then retry.',
+          });
+          return;
         }
         ga.policy_actions = pas;
         value = ga;
       }
     }
 
+    setAcceptError(null);
     updatePovNode(analysisCritiquePov, analysisCritiqueNodeId, { [diff.key]: value } as Partial<PovNode>);
     await save();
     setAcceptedFields(prev => new Set(prev).add(diff.key));
@@ -637,6 +665,7 @@ export function AnalysisPanel({ width }: AnalysisPanelProps) {
         diffs={diffs}
         unmatchedRationale={unmatchedRationale}
         acceptedFields={acceptedFields}
+        acceptError={acceptError}
         onAccept={handleAccept}
       />
     </div>

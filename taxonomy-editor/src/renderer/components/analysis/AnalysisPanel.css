@@ -408,6 +408,12 @@
   color: var(--color-acc, #27AE60);
   padding: 2px 8px;
 }
+.analysis-diff-accept-error {
+  font-size: var(--text-xs);
+  color: var(--danger, #dc2626);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
 
 
 /* ─── Monolith-extracted .analysis-* base styles (Phase 3 co-location, t/2989) ─── */
