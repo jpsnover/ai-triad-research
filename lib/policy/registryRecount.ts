@@ -23,7 +23,7 @@
  * ALL FOUR POV FILES ARE REQUIRED (t/4034, #3048 review). A recount over a partial corpus is never correct: a POV
  * that failed to load reads as "referenced nowhere", so every policy it references would be written back with
  * `member_count: 0`, silently corrupting committed counts after one transient read error. So the type requires all
- * four, and `recountPolicyMembers` throws an ActionableError if any is missing or has no `nodes` array. Callers must
+ * four, and `recountPolicyMembers` throws an ActionableError if any is missing or has a missing or EMPTY `nodes` array. Callers must
  * let that (or their own read failure) become an error response, never a write. PowerShell's
  * `Update-PolicyMemberCounts` likewise reads all four or fails.
  */
@@ -102,17 +102,20 @@ function policyActionsOf(node: { graph_attributes?: { policy_actions?: unknown }
 /** All four POV files, every one required: a partial corpus can't be represented (see the header). */
 export type PolicyPovFiles = Record<PolicyPovFile, PolicyPovFileData>;
 
-/** Throws unless all four POV files are present with a `nodes` array. The type requires them; this guards `as` casts and JSON. */
+/** Throws unless all four POV files are present with a non-empty `nodes` array. The type requires them; this guards `as` casts and JSON. */
 function assertCompleteCorpus(povFiles: unknown): asserts povFiles is PolicyPovFiles {
   const files = (povFiles && typeof povFiles === 'object' ? povFiles : {}) as Record<string, unknown>;
   const bad = POLICY_POV_FILES.filter((pov) => {
     const f = files[pov];
-    return !f || typeof f !== 'object' || !Array.isArray((f as PolicyPovFileData).nodes);
+    const nodes = f && typeof f === 'object' ? (f as PolicyPovFileData).nodes : undefined;
+    // An EMPTY nodes array is refused too (SO e/274#2): no real POV file is empty (227-455 nodes each), and an empty
+    // one - a truncated write, a bad merge, a default-object fallback - would zero every count it should carry.
+    return !Array.isArray(nodes) || nodes.length === 0;
   });
   if (bad.length === 0) return;
   throw new ActionableError({
     goal: 'Recount policy member counts across all four POV files',
-    problem: `POV file(s) missing or without a nodes array: ${bad.join(', ')}. A partial recount would write member_count 0 for every policy they reference`,
+    problem: `POV file(s) missing, without a nodes array, or with no nodes: ${bad.join(', ')}. A partial recount would write member_count 0 for every policy they reference`,
     location: 'lib/policy/registryRecount.ts recountPolicyMembers',
     nextSteps: [
       'Fail the request (error response); do not write policy_actions.json',

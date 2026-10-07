@@ -13,8 +13,10 @@ const node = (id: string, ...policyIds: (string | null | undefined)[]) => ({
   graph_attributes: { policy_actions: policyIds.map((policy_id) => ({ action: `a-${id}`, framing: 'f', ...(policy_id === undefined ? {} : { policy_id }) })) },
 });
 const file = (...nodes: ReturnType<typeof node>[]): PolicyPovFileData => ({ nodes });
-/** All four POV files (the contract requires every one); any not given is an empty file. */
-const povs = (given: Partial<PolicyPovFiles> = {}): PolicyPovFiles => ({ accelerationist: file(), safetyist: file(), skeptic: file(), situations: file(), ...given });
+/** All four POV files (the contract requires every one, each non-empty); any not given holds one node with no references. */
+const povs = (given: Partial<PolicyPovFiles> = {}): PolicyPovFiles => ({
+  accelerationist: file(node('acc-x')), safetyist: file(node('saf-x')), skeptic: file(node('skp-x')), situations: file(node('sit-x')), ...given,
+});
 
 function registry(): PolicyRegistry {
   return {
@@ -162,12 +164,16 @@ describe('a partial corpus is refused, never recounted (t/4034, #3048 review)', 
     throwsNaming({ ...povs(), skeptic: { nodes: 'x' } }, 'skeptic');
   });
 
+  it('throws when a file has an EMPTY nodes array: no real POV is empty, and it would zero every count (SO e/274#2)', () => {
+    throwsNaming({ ...povs(), accelerationist: { nodes: [] } }, 'accelerationist');
+  });
+
   it('names every bad file at once, and the no-argument case', () => {
-    throwsNaming({ skeptic: file() }, 'accelerationist, safetyist, situations');
+    throwsNaming({ skeptic: file(node('skp-1')) }, 'accelerationist, safetyist, situations');
     throwsNaming(undefined, 'accelerationist, safetyist, skeptic, situations');
   });
 
-  it('a complete corpus of empty files is fine: zero references is a real answer when every file loaded', () => {
+  it('a complete corpus with no references to the target is fine: zero is a real answer when every file loaded', () => {
     expect(byId(recountPolicyMembers(registry(), povs(), ['pol-001']).registry, 'pol-001').member_count).toBe(0);
   });
 });
