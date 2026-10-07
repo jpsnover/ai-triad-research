@@ -85,6 +85,21 @@ Describe 'Update-PolicyRegistry -NodeId (t/4004 node-scoped registration)' -Tag 
         @($pols | Where-Object id -eq 'pol-003')[0].member_count | Should -Be 9   # unrelated: untouched
     }
 
+    It 'a policy action with no framing elsewhere in the corpus does not break the scan (StrictMode)' {
+        # Before t/4004 PR 2 the unregistered branch read $PA.framing unguarded, so ONE framing-less
+        # action anywhere threw the whole scan -- and every policy_actions writer now runs it.
+        $script:Dir = New-PolicyFixture -Nodes @(
+            (Node 'skp-other' @([ordered]@{ action = 'no framing here' }))
+            (Node 'skp-target' @((Act 'fresh' $null)))
+        ) -Policies @()
+        InModuleScope AITriad -Parameters @{ Dir = $script:Dir } {
+            param($Dir)
+            Mock Get-TaxonomyDir { $Dir }
+            { Update-PolicyRegistry -Fix -NodeId 'skp-target' *> $null } | Should -Not -Throw
+        }
+        @((Read-Skeptic $script:Dir).nodes | Where-Object id -eq 'skp-target')[0].graph_attributes.policy_actions[0].policy_id | Should -Be 'pol-001'
+    }
+
     It 'never removes an orphan in node-scoped mode' {
         $script:Dir = New-PolicyFixture -Nodes @(
             (Node 'skp-target' @((Act 'fresh' $null)))
@@ -114,6 +129,23 @@ Describe 'Update-PolicyRegistry -NodeId (t/4004 node-scoped registration)' -Tag 
         }
         $r.Unregistered | Should -Be 0
         @((Get-FileHash (Join-Path $script:Dir 'skeptic.json')).Hash, (Get-FileHash (Join-Path $script:Dir 'policy_actions.json')).Hash) | Should -Be $before
+    }
+
+    It 're-adds a missing registry entry only for ids the target nodes reference (TL p/360#561)' {
+        # pol-005 (on the target) and pol-006 (on another node) are both referenced but unregistered.
+        $script:Dir = New-PolicyFixture -Nodes @(
+            (Node 'skp-target' @((Act 'mine' 'pol-005')))
+            (Node 'skp-other' @((Act 'theirs' 'pol-006')))
+        ) -Policies @((Pol 'pol-001' 'kept' 0))
+        $r = InModuleScope AITriad -Parameters @{ Dir = $script:Dir } {
+            param($Dir)
+            Mock Get-TaxonomyDir { $Dir }
+            Update-PolicyRegistry -Fix -NodeId 'skp-target' -PassThru 6> $null
+        }
+        $r.Missing | Should -Be 1
+        $ids = @((Read-Registry $script:Dir).policies.id)
+        $ids | Should -Contain 'pol-005'
+        $ids | Should -Not -Contain 'pol-006'
     }
 
     It 'REFUSES a corrupt registry with an ActionableError and writes nothing' {

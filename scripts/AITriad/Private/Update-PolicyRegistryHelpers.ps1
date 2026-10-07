@@ -31,7 +31,8 @@ function Write-PolicyRegistryReport {
     if ($Unregistered.Count -gt 0) {
         Write-Warn 'Policy actions without policy_id:'
         foreach ($U in $Unregistered | Select-Object -First 5) {
-            Write-Host "    $($U.NodeId) [$($U.POV)]: $($U.Action.Substring(0, [Math]::Min(80, $U.Action.Length)))" -ForegroundColor Yellow
+            $Text = [string]$U.Action
+            Write-Host "    $($U.NodeId) [$($U.POV)]: $($Text.Substring(0, [Math]::Min(80, $Text.Length)))" -ForegroundColor Yellow
         }
         if ($Unregistered.Count -gt 5) { Write-Host "    ... +$($Unregistered.Count - 5) more" -ForegroundColor Yellow }
     }

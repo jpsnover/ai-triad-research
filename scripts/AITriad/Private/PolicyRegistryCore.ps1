@@ -18,6 +18,39 @@ function Get-NodePolicyActions {
     return @($Node.graph_attributes.policy_actions)
 }
 
+function Get-GraphAttributePolicyIds {
+    # The policy ids on one node's graph_attributes (prior-ids capture for -PriorPolicyIds), @() when none.
+    param($GraphAttributes)
+    if ($null -eq $GraphAttributes -or -not $GraphAttributes.PSObject.Properties['policy_actions']) { return @() }
+    return @(@($GraphAttributes.policy_actions) | Where-Object { $null -ne $_ -and $_.PSObject.Properties['policy_id'] -and $_.policy_id } |
+        ForEach-Object { [string]$_.policy_id })
+}
+
+function Invoke-NodePolicyRegistration {
+    <#
+    .SYNOPSIS
+        What every policy_actions writer calls after its own taxonomy write (t/4004): registers the
+        written nodes through Update-PolicyRegistry -Fix -NodeId. A registration failure never undoes
+        the taxonomy write (it stands, as before); it WARNs with the node ids left unregistered and
+        the remedy, so the gap is visible instead of persisting silently.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$NodeId,
+        [AllowEmptyCollection()][string[]]$PriorPolicyIds = @(),
+        [Parameter(Mandatory)][string]$Caller
+    )
+    if (@($NodeId).Count -eq 0) { return }
+    try {
+        $null = Update-PolicyRegistry -Fix -NodeId $NodeId -PriorPolicyIds @($PriorPolicyIds | Sort-Object -Unique)
+    }
+    catch {
+        # Fallback-path logging: the taxonomy write landed but its policy actions are unregistered.
+        Write-Warning ("{0}: policy registration failed for {1} node(s): {2} -- {3}. Their new policy_actions have no policy_id. Remedy: run Update-PolicyRegistry -Fix (t/4004)." -f
+            $Caller, @($NodeId).Count, ($NodeId -join ', '), $_.Exception.Message)
+    }
+}
+
 function Get-PolicyReferenceScan {
     <#
     .SYNOPSIS
@@ -49,20 +82,23 @@ function Add-PolicyReference {
     param($Referenced, $Unregistered, [string]$NodeId, [string]$PovKey, $PolicyAction)
     $PA = $PolicyAction
     $PolicyId = if ($PA.PSObject.Properties['policy_id']) { $PA.policy_id } else { $null }
+    # Guarded under StrictMode: one action without framing (or action) anywhere in the corpus must not
+    # throw the whole scan, which every policy_actions writer now runs (t/4004).
+    $Ref = [PSCustomObject]@{
+        NodeId  = $NodeId
+        POV     = $PovKey
+        Action  = if ($PA.PSObject.Properties['action']) { $PA.action } else { $null }
+        Framing = if ($PA.PSObject.Properties['framing']) { $PA.framing } else { $null }
+    }
     if (-not $PolicyId) {
-        $Unregistered.Add([PSCustomObject]@{ NodeId = $NodeId; POV = $PovKey; Action = $PA.action; Framing = $PA.framing })
+        $Unregistered.Add($Ref)
         return
     }
     if (-not $Referenced.ContainsKey($PolicyId)) {
         $Referenced[$PolicyId] = [System.Collections.Generic.List[object]]::new()
     }
     # Action/framing are kept so a referenced-but-unregistered id can be re-added to the registry (t/3435).
-    $Referenced[$PolicyId].Add([PSCustomObject]@{
-        NodeId  = $NodeId
-        POV     = $PovKey
-        Action  = if ($PA.PSObject.Properties['action']) { $PA.action } else { $null }
-        Framing = if ($PA.PSObject.Properties['framing']) { $PA.framing } else { $null }
-    })
+    $Referenced[$PolicyId].Add($Ref)
 }
 
 function New-PolicyRegistryEntry {
@@ -112,7 +148,8 @@ function New-PolicyRegistryAssignments {
         $NewId = 'pol-{0:D3}' -f $MaxId
         $Policies[$NewId] = New-PolicyRegistryEntry -Id $NewId -Action $U.Action -SourcePovs @($U.POV) -MemberCount 1
         $Assignments.Add([PSCustomObject]@{ POV = $U.POV; NodeId = $U.NodeId; Action = $U.Action; NewId = $NewId })
-        Write-Info "  Assigned $NewId to $($U.NodeId)`: $($U.Action.Substring(0, [Math]::Min(50, $U.Action.Length)))"
+        $Text = [string]$U.Action
+        Write-Info "  Assigned $NewId to $($U.NodeId)`: $($Text.Substring(0, [Math]::Min(50, $Text.Length)))"
     }
     return [pscustomobject]@{ Assignments = $Assignments }
 }

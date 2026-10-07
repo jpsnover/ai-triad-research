@@ -139,8 +139,13 @@ function Find-PolicyAction {
     $TotalSkipped   = 0
     $TotalFailed    = 0
     $TotalActions   = 0
+    # t/4004: nodes actually written, and the policy ids they held before, for registration.
+    $WrittenNodeIds = [System.Collections.Generic.List[string]]::new()
+    $PriorPolicyIds = [System.Collections.Generic.List[string]]::new()
 
     foreach ($PovKey in $PovFiles) {
+        $FileNodeIds  = [System.Collections.Generic.List[string]]::new()
+        $FilePriorIds = [System.Collections.Generic.List[string]]::new()
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) {
             Write-Warn "File not found, skipping: $FilePath"
@@ -339,8 +344,9 @@ $SchemaPrompt
                     }
                 }
 
-                # Gap 6.1: Validate reused policy_id references exist in registry
-                # Assign policy_ids for new actions (where policy_id is null or missing)
+                # Gap 6.1: Validate reused policy_id references exist in registry.
+                # New actions (policy_id null or missing) are left null here and get their ids from the
+                # shared primitive after the taxonomy write (t/4004) -- this cmdlet no longer mints.
                 foreach ($Act in $Actions) {
                     if ($Act.PSObject.Properties['policy_id'] -and $null -ne $Act.policy_id) {
                         if ($RegistryIdSet.Count -gt 0 -and -not $RegistryIdSet.Contains($Act.policy_id)) {
@@ -348,30 +354,12 @@ $SchemaPrompt
                             $Act.policy_id = $null
                         }
                     }
-                    if (-not $Act.PSObject.Properties['policy_id'] -or $null -eq $Act.policy_id) {
-                        if ($Registry) {
-                            # Find next available ID
-                            $MaxId = ($Registry.policies | ForEach-Object {
-                                if ($_.id -match 'pol-(\d+)') { [int]$Matches[1] } else { 0 }
-                            } | Measure-Object -Maximum).Maximum
-                            $NextId = 'pol-{0:D3}' -f ($MaxId + 1)
-
-                            # Add to registry
-                            $NewEntry = [PSCustomObject]@{
-                                id           = $NextId
-                                action       = $Act.action
-                                source_povs  = @($PovKey)
-                                member_count = 1
-                            }
-                            $Registry.policies += $NewEntry
-                            $Registry.policy_count = $Registry.policies.Count
-
-                            $Act | Add-Member -NotePropertyName 'policy_id' -NotePropertyValue $NextId -Force
-                            Write-Info "  New policy $NextId`: $($Act.action.Substring(0, [Math]::Min(60, $Act.action.Length)))"
-                        }
+                    if ($Act.PSObject.Properties['policy_id'] -and $null -ne $Act.policy_id) {
+                        Write-Info "  Reused $($Act.policy_id)"
                     }
                     else {
-                        Write-Info "  Reused $($Act.policy_id)"
+                        $Text = [string]$Act.action
+                        Write-Info "  New policy (id assigned at registration): $($Text.Substring(0, [Math]::Min(60, $Text.Length)))"
                     }
                 }
 
@@ -386,6 +374,9 @@ $SchemaPrompt
                 if (-not $OrigNode.PSObject.Properties['graph_attributes'] -or $null -eq $OrigNode.graph_attributes) {
                     $OrigNode | Add-Member -NotePropertyName 'graph_attributes' -NotePropertyValue ([PSCustomObject]@{})
                 }
+                # t/4004: ids this node held before the overwrite, so a dropped id's member_count goes down.
+                foreach ($PriorId in (Get-GraphAttributePolicyIds -GraphAttributes $OrigNode.graph_attributes)) { $FilePriorIds.Add($PriorId) }
+                $FileNodeIds.Add([string]$NodeId)
 
                 if ($OrigNode.graph_attributes.PSObject.Properties['policy_actions']) {
                     $OrigNode.graph_attributes.policy_actions = $Actions
@@ -413,8 +404,10 @@ $SchemaPrompt
                 $FileData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
                 $Json = $FileData | ConvertTo-Json -Depth 20
                 try {
-                    Write-Utf8NoBom -Path $FilePath -Value $Json 
+                    Write-Utf8NoBom -Path $FilePath -Value $Json
                     Write-OK "Saved $PovKey ($FilePath)"
+                    $WrittenNodeIds.AddRange($FileNodeIds)
+                    $PriorPolicyIds.AddRange($FilePriorIds)
                 }
                 catch {
                     Write-Fail "Failed to write $PovKey taxonomy file — $($_.Exception.Message)"
@@ -424,14 +417,10 @@ $SchemaPrompt
         }
     }
 
-    # ── Save updated policy registry ──
-    if ($Registry -and $TotalProcessed -gt 0 -and -not $DryRun) {
-        if ($PSCmdlet.ShouldProcess($RegistryPath, 'Write updated policy registry')) {
-            $RegistryJson = $Registry | ConvertTo-Json -Depth 10
-            Write-Utf8NoBom -Path $RegistryPath -Value $RegistryJson 
-            Write-OK "Policy registry updated: $($Registry.policies.Count) policies"
-        }
-    }
+    # ── Register the written nodes' policy actions (t/4004) ──
+    # The shared primitive mints new ids, re-adds missing entries and recounts member_count;
+    # it also writes the registry, so this cmdlet no longer does.
+    Invoke-NodePolicyRegistration -NodeId $WrittenNodeIds.ToArray() -PriorPolicyIds $PriorPolicyIds.ToArray() -Caller 'Find-PolicyAction'
 
     # ── Summary ──
     Write-Host ''

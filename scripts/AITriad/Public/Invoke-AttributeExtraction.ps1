@@ -116,8 +116,13 @@ function Invoke-AttributeExtraction {
     $TotalProcessed = 0
     $TotalSkipped   = 0
     $TotalFailed    = 0
+    # t/4004: nodes actually written, and the policy ids they held before the merge, for registration.
+    $WrittenNodeIds = [System.Collections.Generic.List[string]]::new()
+    $PriorPolicyIds = [System.Collections.Generic.List[string]]::new()
 
     foreach ($PovKey in $PovFiles) {
+        $FileNodeIds  = [System.Collections.Generic.List[string]]::new()
+        $FilePriorIds = [System.Collections.Generic.List[string]]::new()
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) {
             Write-Warn "File not found, skipping: $FilePath"
@@ -289,6 +294,8 @@ $SchemaPrompt
                         # anything the extraction prompt doesn't regenerate (registry
                         # policy_id's, debate-harvest fields under graph_attributes).
                         $ExistingAttrs = if ($OrigNode.PSObject.Properties['graph_attributes']) { $OrigNode.graph_attributes } else { $null }
+                        foreach ($PriorId in (Get-GraphAttributePolicyIds -GraphAttributes $ExistingAttrs)) { $FilePriorIds.Add($PriorId) }
+                        $FileNodeIds.Add([string]$NodeId)
                         $MergedAttrs = Merge-NodeGraphAttributes -Existing $ExistingAttrs -New $AttrObj -OwnedFields $OwnedFields -NodeId $NodeId
                         if ($OrigNode.PSObject.Properties['graph_attributes']) {
                             $OrigNode.graph_attributes = $MergedAttrs
@@ -314,6 +321,8 @@ $SchemaPrompt
                 try {
                     Write-Utf8NoBom -Path $FilePath -Value $Json 
                     Write-OK "Saved $PovKey ($FilePath)"
+                    $WrittenNodeIds.AddRange($FileNodeIds)
+                    $PriorPolicyIds.AddRange($FilePriorIds)
                 }
                 catch {
                     Write-Fail "Failed to write $PovKey taxonomy file — $($_.Exception.Message)"
@@ -323,6 +332,10 @@ $SchemaPrompt
             }
         }
     }
+
+    # ── Step 7: Register the written nodes' policy actions (t/4004) ──
+    # Without this, extracted actions kept a null policy_id until an unrelated corpus-wide -Fix.
+    Invoke-NodePolicyRegistration -NodeId $WrittenNodeIds.ToArray() -PriorPolicyIds $PriorPolicyIds.ToArray() -Caller 'Invoke-AttributeExtraction'
 
     # ── Summary ──
     Write-Host ''
