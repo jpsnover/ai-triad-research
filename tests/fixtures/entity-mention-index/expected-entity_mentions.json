@@ -1,0 +1,112 @@
+{
+  "_schema_version": "1.0.0",
+  "_doc": "Derived artifact — rebuildable via Update-EntityMentionIndex (re-index, epic t/1890 design §7). This tool owns {sei:*, summary:*}; node:* is owned by the CL grounding reconciler (t/3160 G7) and is preserved verbatim on rebuild. Absence of a container means \"no links yet\", never an error.",
+  "indexed_status": [
+    "approved"
+  ],
+  "last_modified": "2026-10-07T12:30:00Z",
+  "containers": {
+    "node:acc-beliefs-001": {
+      "text_sha256": "deadbeef",
+      "extracted_at": "2026-09-15T00:00:00Z",
+      "mentions": [
+        {
+          "entity_ref": "ent-001",
+          "quote": "Apollo Project",
+          "offset": 0,
+          "discovered_by": "alias"
+        }
+      ]
+    },
+    "sei:sei-a": {
+      "text_sha256": "77d471364dfadf24a1df12d0341df3d5bee6d393385ba609a2e9c9070db7221c",
+      "extracted_at": "2026-10-07T12:30:00Z",
+      "mentions": [
+        {
+          "entity_ref": "ent-999",
+          "quote": "Apollo Project",
+          "offset": 4,
+          "discovered_by": "human"
+        },
+        {
+          "entity_ref": "ent-003",
+          "quote": "GPT-4o",
+          "offset": 38,
+          "discovered_by": "alias"
+        },
+        {
+          "entity_ref": "ent-002",
+          "quote": "Apollo",
+          "offset": 49,
+          "discovered_by": "alias"
+        }
+      ]
+    },
+    "summary:doc1#acc-kp-0": {
+      "text_sha256": "368b0201a0ec191accf95b7a8706f721ab6a0f2ec45a69215a0a8f61e1baf178",
+      "extracted_at": "10/01/2026 09:00:00",
+      "mentions": [
+        {
+          "entity_ref": "ent-001",
+          "quote": "Apollo Program",
+          "offset": 0,
+          "discovered_by": "alias"
+        }
+      ]
+    },
+    "summary:doc1#acc-kp-2": {
+      "text_sha256": "a28340b58e81c2df95046ea7a91cd15f58ba3c5471cd20fd6c98e619679f76fe",
+      "extracted_at": "10/01/2026 09:00:00",
+      "mentions": [
+        {
+          "entity_ref": "ent-002",
+          "quote": "Apollo",
+          "offset": 24,
+          "discovered_by": "alias"
+        }
+      ]
+    },
+    "summary:doc1#fc-0": {
+      "text_sha256": "cea8e403508fa3991179d497a25768f94cfce7ee885b517fe4e0b497636f9c83",
+      "extracted_at": "2026-10-07T12:30:00Z",
+      "mentions": [
+        {
+          "entity_ref": "ent-002",
+          "quote": "Apollo",
+          "offset": 0,
+          "discovered_by": "alias"
+        }
+      ]
+    },
+    "summary:doc1#fc-2": {
+      "text_sha256": "9e05d08bcb77e0b03a2661ecfafb72e71c00710dd652b832d9048ad7b94bfe16",
+      "extracted_at": "10/01/2026 09:00:00",
+      "mentions": [
+        {
+          "entity_ref": "ent-003",
+          "quote": "GPT-4o",
+          "offset": 0,
+          "discovered_by": "alias"
+        },
+        {
+          "entity_ref": "ent-001",
+          "quote": "Apollo Project",
+          "offset": 13,
+          "discovered_by": "alias"
+        }
+      ]
+    },
+    "summary:doc1#saf-kp-0": {
+      "text_sha256": "deed03110191340f38ca2d511205e56fad294b474576c0a4402bb4dc5e8ee727",
+      "extracted_at": "10/01/2026 09:00:00",
+      "mentions": [
+        {
+          "entity_ref": "ent-003",
+          "quote": "GPT-4o",
+          "offset": 0,
+          "discovered_by": "alias"
+        }
+      ]
+    }
+  }
+}

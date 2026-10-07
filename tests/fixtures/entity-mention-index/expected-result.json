@@ -1,0 +1,12 @@
+{
+  "OutputPath": "<OUT>",
+  "ContainerCount": 6,
+  "PreservedForeignCount": 1,
+  "MentionCount": 9,
+  "AliasCount": 4,
+  "IndexedStatus": [
+    "approved"
+  ],
+  "Unchanged": false,
+  "Written": true
+}
