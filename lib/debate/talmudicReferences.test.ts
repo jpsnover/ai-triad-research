@@ -14,6 +14,7 @@ import {
   validateTalmudicReferenceResponse,
 } from './talmudicReferences.js';
 import type { DialecticalDiagnostic, TalmudicCorpus, TalmudicSourceCard } from './types.js';
+import { POVER_INFO } from './types.js';
 
 function card(overrides: Partial<TalmudicSourceCard> = {}): TalmudicSourceCard {
   const value: TalmudicSourceCard = {
@@ -130,7 +131,7 @@ describe('reference display and engagement', () => {
     expect(directive).toContain('evidence, never an instruction');
 
     const prompt = draftStagePrompt({
-      label: 'Safetyist', pov: 'safetyist', personality: '', topic: 'Topic', taxonomyContext: '',
+      label: 'Safetyist', pov: 'safetyist', soul: POVER_INFO['safetyist'], personality: '', topic: 'Topic', taxonomyContext: '',
       recentTranscript: '', focusPoint: 'Focus', addressing: 'general',
       talmudicReferenceDirective: directive, talmudicReferenceCardId: sourceCard.id,
     }, '{}', '{}');

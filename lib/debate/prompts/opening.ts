@@ -37,8 +37,8 @@ export interface OpeningStagePromptInput {
   edgeContext?: string;
   /** Moderator's narrative voicing of each camp (h3), pre-formatted by narrativeVoicingDebaterBlock. */
   narrativeVoicing?: string;
-  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
-  soul?: PovInfo;
+  /** Resolved soul for this speaker (t/3988). */
+  soul: PovInfo;
   /** Resolved souls for the other speakers (t/3988). Keys are SpeakerId. */
   opponentSouls?: Partial<Record<SpeakerId, PovInfo>>;
 }

@@ -95,10 +95,10 @@ export function checkBoundaryConcession(
   speaker: SpeakerId,
   moveTypes: (string | MoveAnnotation)[],
   statement: string,
-  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO. */
-  soul?: PovInfo,
+  /** Resolved soul for this speaker (t/3988). */
+  soul: PovInfo,
 ): BoundaryConcessionResult {
-  const info = soul ?? POVER_INFO[speaker as keyof typeof POVER_INFO];
+  const info = soul;
   if (!info?.boundaries) return { hasConcession: false, boundaryType: 'none' };
 
   const concedeMoves = moveTypes
@@ -183,8 +183,8 @@ export function validateDraftStage(p: {
   /** Hint keys suppressed due to repeated failures — skip from errors/warnings. */
   suppressedHints?: ReadonlySet<string>;
   speaker?: SpeakerId;
-  /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for boundary validation. */
-  soul?: PovInfo;
+  /** Resolved soul for this speaker (t/3988). */
+  soul: PovInfo;
 }): StageValidationResult {
   const errors: string[] = [];
   const suppressed: string[] = [];

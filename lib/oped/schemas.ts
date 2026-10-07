@@ -53,7 +53,13 @@ export const OpEdMemberSchema = z.object({
   // t/3960: what the tag did for this member, and which soul file voiced it. Declared against the strip
   // class; no registry check (read-tolerant). `soul` is internal: excluded from the public share.
   tag: AppliedTagSchema.passthrough().optional(),
-  soul: z.object({ file: z.string(), sha: z.string() }).optional(),
+  // t/4007: `hash` is the canonical field ("fnv1a64:" + 16 hex). Pre-t/4007 entries have `sha` (SHA-256, no prefix).
+  // Schema normalises both: strips "lib/debate/soul-docs/" prefix from file; maps sha→hash when hash absent.
+  soul: z.object({ file: z.string(), hash: z.string().optional(), sha: z.string().optional() })
+    .transform(v => ({
+      file: v.file.replace(/^lib\/debate\/soul-docs\//, ''),
+      hash: v.hash ?? v.sha,
+    })).optional(),
 });
 
 export const OpEdSetSchema = z.object({

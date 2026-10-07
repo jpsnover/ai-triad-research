@@ -58,7 +58,7 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
       continue;
     }
 
-    const info = POVER_INFO[poverId];
+    const info = engine.getSoulForSpeaker(poverId);
     engine.progress('opening', poverId, `${info.label} preparing opening statement`);
 
     const taxonomyContext = await getRelevantTaxonomyContext(engine, info.pov);
@@ -132,6 +132,10 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
       narrativeVoicing: engine.session.narrative_voicing
         ? narrativeBlockForDebater(engine.session.narrative_voicing.narratives, poverId)
         : undefined,
+      soul: info,
+      opponentSouls: Object.fromEntries(
+        order.filter(id => id !== poverId).map(id => [id, engine.getSoulForSpeaker(id)]),
+      ),
       ...(engine.config.temperature != null ? {
         stageTemperatures: {
           brief_temperature: engine.config.temperature,

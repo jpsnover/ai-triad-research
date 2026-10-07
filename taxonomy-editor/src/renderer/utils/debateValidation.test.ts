@@ -12,6 +12,7 @@ import {
   runTurnPipeline,
 } from '../../../../lib/debate/turnPipeline';
 import type { TurnPipelineResult, OpeningPipelineResult } from '../../../../lib/debate/types';
+import { POVER_INFO } from '../../../../lib/debate/types';
 import { validateTurn } from '../../../../lib/debate/turnValidator';
 import type { ValidateTurnParams } from '../../../../lib/debate/turnValidator';
 import { resolveTurnValidationConfig } from '../../../../lib/debate/turnValidator';
@@ -163,7 +164,7 @@ describe('runTurnPipeline — graceful degradation on parse exhaustion (gap 11.6
     const generate = async () => 'NOT JSON';
     const result = await runTurnPipeline(
       {
-        label: 'test', pov: 'safetyist', personality: 'test', topic: 'test',
+        label: 'test', pov: 'safetyist', personality: 'test', topic: 'test', soul: POVER_INFO.safetyist,
         taxonomyContext: '', commitmentContext: '', establishedPoints: '',
         edgeContext: '', concessionHint: '', recentTranscript: '',
         focusPoint: '', addressing: 'all', phase: 'argumentation',
@@ -195,7 +196,7 @@ describe('runTurnPipeline — graceful degradation on parse exhaustion (gap 11.6
     };
     const result = await runTurnPipeline(
       {
-        label: 'test', pov: 'safetyist', personality: 'test', topic: 'test',
+        label: 'test', pov: 'safetyist', personality: 'test', topic: 'test', soul: POVER_INFO.safetyist,
         taxonomyContext: '', commitmentContext: '', establishedPoints: '',
         edgeContext: '', concessionHint: '', recentTranscript: '',
         focusPoint: '', addressing: 'all', phase: 'argumentation',

@@ -52,7 +52,7 @@ vi.mock('../../../flight-recorder/index.js', () => ({
 import { runOpeningStatements } from './opening.js';
 import { runOpeningPipelineWithRepair } from '../../turnPipeline.js';
 import type { DebateEngineInternals } from '../internals.js';
-import type { TranscriptEntry } from '../../types.js';
+import { type TranscriptEntry, POVER_INFO } from '../../types.js';
 
 const POVER_ID_ACC = 'accelerationist';
 const POVER_ID_SAF = 'safetyist';
@@ -102,6 +102,7 @@ function fakeEngine(transcriptEntries: TranscriptEntry[] = []) {
     },
     _pendingClaimVerifications: [] as Promise<void>[],
     _lastInjectionManifest: undefined,
+    getSoulForSpeaker: vi.fn((poverId: string) => POVER_INFO[poverId as keyof typeof POVER_INFO]),
   };
   return engine as unknown as DebateEngineInternals;
 }

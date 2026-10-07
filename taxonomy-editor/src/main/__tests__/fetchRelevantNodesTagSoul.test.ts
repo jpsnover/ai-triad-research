@@ -59,9 +59,9 @@ const TAG_SOUL = {
 vi.mock('../../../../lib/debate/soulDocLoader.js', () => ({
   resolvePoverInfo: vi.fn((pov: string, tagSelection?: { tag: string; mode: string }) => {
     h.lastResolveArgs = { pov, tagSelection };
-    if (tagSelection) return { soul: TAG_SOUL, soulProvenance: { file: 'tag-fixture.json', sha: 'fixture' } };
+    if (tagSelection) return { soul: TAG_SOUL, soulProvenance: { file: 'tag-fixture.json', hash: 'fixture' } };
     // Falls through to the real POVER_INFO entry for the untagged path, same as production.
-    return { soul: POVER_INFO[pov as 'accelerationist'], soulProvenance: { file: '(static-import)', sha: '' } };
+    return { soul: POVER_INFO[pov as 'accelerationist'], soulProvenance: { file: '(static-import)', hash: '' } };
   }),
 }));
 

@@ -146,6 +146,13 @@ export interface DebateConfig {
   talmudicReferences?: import('../types.js').TalmudicReferencesConfig;
   /** Per-seat tag assignment for one POV (t/3965). Set by deriveDebateConfig from request.tagSelection; copied verbatim to session.seat_tags by initSession. */
   seat_tags?: Partial<Record<SpeakerId, SeatTag>>;
+  /**
+   * Runtime-injected soul resolver (t/3975/t/4007).
+   * - cli/server/Electron main: pass soulDocLoader.resolvePoverInfo
+   * - Electron renderer / web: pass tagSoulRegistry.resolvePoverInfo
+   * Shared lib/debate code must not import either loader directly.
+   */
+  soulResolver?: import('../soulDocSchema.js').SoulResolverFn;
 }
 
 export interface DebateProgress {
@@ -241,6 +248,8 @@ export interface DebateEngineInternals {
   getKnownNodeIds(): Set<string>;
   getPolicyIds(): Set<string>;
   getSuppressedHints(): Set<string>;
+  /** Returns the resolved soul for a speaker. For tagged seats, returns the wing soul; for untagged, returns POVER_INFO[poverId]. */
+  getSoulForSpeaker(poverId: string): import('../types.js').PovInfo;
   updateHintStreaks(speaker: string, firedHints: string[]): void;
   updateSituationCitations(currentRefs: import('../types.js').TaxonomyRef[]): void;
 }
