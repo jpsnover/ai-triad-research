@@ -37,9 +37,17 @@ function Test-OrphanedWorktreeSafeToDelete {
         }
     }
 
-    $NonNodeModulesFiles = @(Get-ChildItem -Path $Path -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
-        $_.FullName -notmatch '[\\/]node_modules[\\/]'
-    })
+    # Walk without descending into node_modules/ -- a full -Recurse enumerates every
+    # package file and takes minutes per directory on Windows.
+    $NonNodeModulesFiles = [System.Collections.Generic.List[string]]::new()
+    $Pending = [System.Collections.Generic.Stack[string]]::new()
+    $Pending.Push($Path)
+    while ($Pending.Count -gt 0) {
+        foreach ($Item in @(Get-ChildItem -LiteralPath $Pending.Pop() -Force -ErrorAction SilentlyContinue)) {
+            if (-not $Item.PSIsContainer) { $NonNodeModulesFiles.Add($Item.FullName) }
+            elseif ($Item.Name -ne 'node_modules') { $Pending.Push($Item.FullName) }
+        }
+    }
     if ($NonNodeModulesFiles.Count -gt 0) {
         return [PSCustomObject]@{
             SafeToDelete = $false
