@@ -41,6 +41,7 @@ import { registerSessionRoutes } from './session.js';
 import { registerPreferencesRoutes } from './preferences.js';
 import { registerCanaryRoutes } from './canary.js';
 import { registerNodeDeleteLogRoutes } from './nodeDeleteLog.js';
+import { registerPovTagProposalsRoutes } from './povTagProposals.js';
 
 export function registerAllRoutes(router: Router, ctx: ServerCtx): void {
   registerMetaRoutes(router, ctx);
@@ -74,6 +75,7 @@ export function registerAllRoutes(router: Router, ctx: ServerCtx): void {
   registerSessionRoutes(router, ctx);
   registerPreferencesRoutes(router, ctx);
   registerNodeDeleteLogRoutes(router, ctx); // t/3860 — POST /api/node-delete-log (node-deletion audit log)
+  registerPovTagProposalsRoutes(router, ctx); // t/4055 — GET /api/pov-tag-proposals + POST /api/pov-tag-proposals/review
   // t/3206: canary storm-window loop-sampler control routes (/internal/canary/*). Unique prefix →
   // no collision with any group above, so appended last (order-independent). Flag-gated (404 off).
   registerCanaryRoutes(router, ctx);
