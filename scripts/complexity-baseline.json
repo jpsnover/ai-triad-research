@@ -344,10 +344,6 @@
     "max": 63,
     "countOver": 1
   },
-  "AITriad/Public/Find-SituationCandidates.ps1": {
-    "max": 177,
-    "countOver": 1
-  },
   "AITriad/Public/Get-AICallLog.ps1": {
     "max": 29,
     "countOver": 1
