@@ -115,12 +115,9 @@ export function registerPolicyRegistryRoutes(router: Router, ctx: ServerCtx): vo
     const { timedOut, onDisk } = await acquirePolicyActionsLock(lockPath);
     try {
       if (timedOut) {
-        // Recount without writing to populate `updated` in the refused response (e/264#10)
-        const rawForRefused = await getBackend().readFile(registryPath);
-        const updatedItems = rawForRefused !== null
-          ? recountPolicyMembers(JSON.parse(rawForRefused) as PolicyRegistry, {}, ids).updated
-          : [];
-        const result: RecountPolicyMembersResult = { status: 'refused', reason: 'locked', updated: updatedItems };
+        // Renderer ignores `updated` on refused and uses ids directly (#3022).
+        // Returning [] avoids a lock-free read and fabricated zero-counts (p/528#119).
+        const result: RecountPolicyMembersResult = { status: 'refused', reason: 'locked', updated: [] };
         json(res, result);
         return;
       }
@@ -130,18 +127,12 @@ export function registerPolicyRegistryRoutes(router: Router, ctx: ServerCtx): vo
       if (registryRaw === null) { error(res, 'policy_actions.json not found', 404); return; }
       const registry = JSON.parse(registryRaw) as PolicyRegistry;
 
+      // Fail closed: any POV-read failure (transient network error, rate limit, missing file)
+      // must not be silently swallowed. A partial read would write zeroed member_counts,
+      // corrupting committed data. Let errors propagate to the outer catch → 500. (p/575#47)
       const povFiles: Partial<Record<PolicyPovFile, PolicyPovFileData | undefined>> = {};
       for (const pov of POLICY_POV_FILES) {
-        try {
-          povFiles[pov] = (await readTaxonomyFile(pov)) as PolicyPovFileData;
-        } catch {
-          // Missing POV file — recount with what's available (fallback-path log per ADR)
-          getGlobalRecorder()?.record({
-            type: 'lifecycle', component: COMPONENT, level: 'warn',
-            message: 'POV file missing during policy recount — treating as empty',
-            data: { pov },
-          });
-        }
+        povFiles[pov] = (await readTaxonomyFile(pov)) as PolicyPovFileData;
       }
 
       const { registry: updatedRegistry, updated: updatedItems, changed } =

@@ -225,13 +225,23 @@ describe('POST /api/policy-registry/recount (t/4039)', () => {
     expect(recordMock).toHaveBeenCalledWith(expect.objectContaining({ level: 'warn', message: expect.stringContaining('lock unavailable') }));
   });
 
-  it('returns { status: refused, reason: locked } when lock times out', async () => {
+  it('returns 500 (fail closed) when a POV file read throws', async () => {
+    // A transient error (GitHub 5xx, rate limit) must not silently produce zeroed counts (p/575#47)
+    readFileMock.mockResolvedValue(REGISTRY_RAW);
+    readTaxonomyFileMock.mockRejectedValue(new Error('GitHub 503'));
+    writeFileMock.mockResolvedValue(undefined);
+
+    const { status } = await invoke({ body: { ids: ['pol-001'] } });
+
+    expect(status).toBe(500);
+    expect(writeFileMock).not.toHaveBeenCalled();
+  });
+
+  it('returns { status: refused, reason: locked, updated: [] } when lock times out', async () => {
     // Simulate lock always held with a fresh mtime (not stale)
     const eexist = Object.assign(new Error('EEXIST'), { code: 'EEXIST' });
     fsOpenMock.mockRejectedValue(eexist);
     fsStatMock.mockResolvedValue({ mtimeMs: Date.now() }); // fresh — not stale
-
-    readFileMock.mockResolvedValue(REGISTRY_RAW); // for the refused-path recount
 
     // LOCK_TIMEOUT_MS is 60 000 ms. Fake timers advance it.
     vi.useFakeTimers();
@@ -242,8 +252,10 @@ describe('POST /api/policy-registry/recount (t/4039)', () => {
     vi.useRealTimers();
 
     expect(status).toBe(200);
-    const b = body as { status: string; reason: string };
+    const b = body as { status: string; reason: string; updated: unknown[] };
     expect(b.status).toBe('refused');
     expect(b.reason).toBe('locked');
+    expect(b.updated).toEqual([]);
+    expect(readFileMock).not.toHaveBeenCalled(); // no lock-free read
   });
 });
