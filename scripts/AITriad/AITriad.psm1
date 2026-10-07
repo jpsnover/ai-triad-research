@@ -1041,6 +1041,8 @@ Export-ModuleMember -Function @(
     # t/1806 — Entity ontology Phase 1: extraction + maintenance reports
     'Invoke-EntityExtraction'
     'Get-EntityReport'
+    # t/4075 — review surface for advisory existing-entity candidates (never links)
+    'Get-EntityExtractionCandidates'
     # t/1894 — Entity ontology Phase 2-B: batch mention indexer (entity_mentions.json)
     'Update-EntityMentionIndex'
     # t/3124 — Claim-side entity grounding: writes entity_refs[] onto summary claims

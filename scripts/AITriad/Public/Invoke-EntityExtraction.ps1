@@ -49,8 +49,18 @@ function Invoke-EntityExtraction {
              (name+short_name), taxonomy node labels (acc/saf/skp/situations), the
              dictionary (colloquial_term + standardized canonical_form), and policy
              actions (action text).
-          2. Cosine >= -LinkSimilarityThreshold (default 0.60) against EXISTING ENTITY
-             vectors only (entity_embeddings.json, approved-only per Import-Entity §3).
+          2. EXISTING-ENTITY CANDIDATES (ADVISORY, t/4075): cosine of the proposal's
+             name vector against existing entity name vectors (entity_embeddings.json, v1
+             flat or v2 name_vector). This stage NEVER links (TL ruling p/360#571): distinct
+             siblings score above any threshold (Claude 3.5 vs 3.7 Sonnet 0.987, GPT-4 vs
+             GPT-5 0.879). The proposal mints normally, and up to 3 non-sibling candidates
+             at or above -LinkSimilarityThreshold, plus every version sibling (flagged), are
+             written to the sidecar's existing_entity_candidates[] with the run's
+             embedding_model. version_sibling=false means only that no version difference
+             was detected (tier/variant siblings such as Sonnet vs Opus are not detected),
+             NOT that the pair is safe to merge. Review with Get-EntityExtractionCandidates;
+             record a confirmed match with Import-Entity merged_into. A WARN is written
+             when the stage is skipped or finds nothing.
           3. Within-run EXACT dedup: the proposal's normalized name OR any alias matches
              an already-minted within-run candidate's name OR alias (t/1880 bullet 1 —
              the pre-existing MatchIndex never sees freshly-minted siblings).
@@ -63,10 +73,10 @@ function Invoke-EntityExtraction {
              sidecar's possible_duplicates[] for a curator to review — a false positive
              costs a human glance, not an entity. WITHIN-RUN ONLY (fires with zero approved
              entities); cross-run near-variant surfacing is Phase 2.
-          Steps 1-3 record a `linked` disposition and mint nothing (links are Phase 2);
+          Steps 1 and 3 record a `linked` disposition and mint nothing (links are Phase 2);
           an unmatched proposal is queued for minting and every later within-run EXACT
-          occurrence is `linked` to the id just minted. Step 4 never links — it only
-          surfaces. Probe vectors are batch-encoded once per node (not per proposal).
+          occurrence is `linked` to the id just minted. Steps 2 and 4 never link — they only
+          surface. Probe vectors are batch-encoded once per node (not per proposal).
           Minting happens in sub-batches of <= 20 (Import-Entity's ValidateCount ceiling).
 
         IDEMPOTENCE: an entity_extraction_log.json sidecar (mirrors organization_stance_
@@ -95,8 +105,9 @@ function Invoke-EntityExtraction {
         Width of the near-gate review window above -ConfidenceThreshold. Default 0.1
         (so [0.6, 0.7) is flagged `near_gate` when using the defaults).
     .PARAMETER LinkSimilarityThreshold
-        Minimum cosine similarity against an existing entity vector to link instead
-        of mint. Default 0.60.
+        Minimum cosine similarity against an existing entity name vector for that entity
+        to be listed as an ADVISORY candidate in existing_entity_candidates[]. Default 0.60.
+        It never links (t/4075); the name is kept for interface stability.
     .PARAMETER WithinRunSimilarityThreshold
         Minimum cosine similarity between a proposal and an already-minted WITHIN-RUN
         candidate (both freshly proposed this run) at which the pair is SURFACED as a
@@ -269,10 +280,13 @@ function Invoke-EntityExtraction {
         }
     })
     $PossibleDuplicateRows = Get-EntityPossibleDuplicateRowSet -State $State
+    $ExistingCandidateRows = Get-EntityExistingCandidateRowSet -State $State
+    Write-ExistingCandidateStageStatus -State $State -CandidateRowCount @($ExistingCandidateRows).Count -Floor $LinkSimilarityThreshold
 
     # ── Persist the idempotence sidecar (only nodes whose AI call/parse succeeded are
     # marked processed — a failure is retried next run). ─────────────────────────────
-    $NewlyProcessed = Get-EntityExtractionLogNodeSet -SortedResults $SortedResults -State $State -PossibleDuplicateRows $PossibleDuplicateRows
+    $NewlyProcessed = Get-EntityExtractionLogNodeSet -SortedResults $SortedResults -State $State `
+        -PossibleDuplicateRows $PossibleDuplicateRows -ExistingCandidateRows $ExistingCandidateRows
     Write-EntityExtractionLog -Path $OutputPath -ExistingLogNodes $Log.ExistingLogNodes -NewlyProcessed $NewlyProcessed -Force $Force.IsPresent
 
     $FailCount = @($Failed).Count
@@ -280,9 +294,10 @@ function Invoke-EntityExtraction {
     $MintedCount = @($State.MintCandidates).Count
     $LinkedCount = @($State.LinkedDispositions).Count
     $PossibleDupCount = @($PossibleDuplicateRows).Count
+    $CandidateCount = @($ExistingCandidateRows).Count
 
     Write-Host ""
-    Write-Host "Done. Nodes processed: $Total | Proposals: $($State.ProposalsTotal) | Minted: $MintedCount | Linked: $LinkedCount | Possible dups (advisory): $PossibleDupCount | Dropped (below gate): $($State.DroppedBelowGate) | Near-gate minted: $($State.NearGateMinted) | Invalid: $InvalidCount | Failed: $FailCount"
+    Write-Host "Done. Nodes processed: $Total | Proposals: $($State.ProposalsTotal) | Minted: $MintedCount | Linked: $LinkedCount | Possible dups (advisory): $PossibleDupCount | Existing-entity candidates (advisory): $CandidateCount | Dropped (below gate): $($State.DroppedBelowGate) | Near-gate minted: $($State.NearGateMinted) | Invalid: $InvalidCount | Failed: $FailCount"
 
     [PSCustomObject]@{
         NodesProcessed     = $Total
@@ -301,6 +316,7 @@ function Invoke-EntityExtraction {
         MintedEntities     = $MintedEntities
         LinkedDispositions = @($State.LinkedDispositions)
         PossibleDuplicates = @($PossibleDuplicateRows)
+        ExistingEntityCandidates = @($ExistingCandidateRows)
         OutputPath         = $OutputPath
     }
 }

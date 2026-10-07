@@ -153,25 +153,39 @@ function Add-PolicyActionMatch {
     } catch { Write-EntityStoreFallback 'policy_actions.json' $_ }
 }
 
+function Get-EntityNameVector {
+    # The NAME vector of one stored value: v1 (schema 1.0.0) is a flat array, v2 (2.0.0) an object
+    # with name_vector. Same rule as nameVectorOf in lib/entities/entityVectors.ts. $null when absent.
+    param($Stored)
+    if ($null -eq $Stored) { return $null }
+    if ($Stored -is [System.Collections.IList]) { return ,[double[]]@($Stored) }
+    if ($Stored.PSObject.Properties['name_vector'] -and $null -ne $Stored.name_vector) { return ,[double[]]@($Stored.name_vector) }
+    return $null
+}
+
 function Get-EntityVectorIndex {
-    # Existing entity vectors (entity id -> vector). The cosine fallback is scoped to entities ONLY
-    # (design). Still reads only the schema-1.0.0 flat-array shape: a schema-2.0.0 record fails the
-    # [double[]] cast and the store is dropped, now with a WARN (t/4072 item 3). Reading v2 name_vector
-    # here is DELIBERATELY not done: on the real store, name-only vectors put distinct entities above
-    # the 0.60 link threshold (Claude 3.5 vs 3.7 Sonnet 0.987, GPT-4.1 vs GPT-4.5 0.932), so stage 2
-    # would auto-link proposals to the wrong entity. See t/4072 for the open design decision.
+    # Existing entity name vectors (entity id -> vector), v1 and v2 (t/4075), plus the store's
+    # embedding model for provenance (SO e/280#2 condition 3) and why the store is unusable, if it is.
+    # These vectors feed ADVISORY candidates only — never a link (TL p/360#571): name-only cosine puts
+    # distinct siblings above any threshold (Claude 3.5 vs 3.7 Sonnet 0.987).
     param([string]$Path)
-    $EntityVectors = @{}
-    if (-not (Test-Path $Path)) { return $EntityVectors }
+    $Index = [PSCustomObject]@{ Vectors = @{}; Model = $null; Problem = $null }
+    if (-not (Test-Path $Path)) { $Index.Problem = 'entity_embeddings.json not found'; return $Index }
     try {
         $EmbStore = Get-Content -Raw -Path $Path -Encoding utf8 | ConvertFrom-Json
-        if ($EmbStore.PSObject.Properties['vectors']) {
+        if ($EmbStore.PSObject.Properties['model'] -and $EmbStore.model) { $Index.Model = [string]$EmbStore.model }
+        if ($EmbStore.PSObject.Properties['vectors'] -and $null -ne $EmbStore.vectors) {
             foreach ($prop in $EmbStore.vectors.PSObject.Properties) {
-                $EntityVectors[$prop.Name] = [double[]]@($prop.Value)
+                $vec = Get-EntityNameVector -Stored $prop.Value
+                if ($null -ne $vec -and $vec.Length -gt 0) { $Index.Vectors[$prop.Name] = $vec }
             }
         }
-    } catch { Write-EntityStoreFallback 'entity_embeddings.json' $_ }
-    return $EntityVectors
+        if ($Index.Vectors.Count -eq 0) { $Index.Problem = 'entity_embeddings.json has no entity vectors' }
+    } catch {
+        Write-EntityStoreFallback 'entity_embeddings.json' $_
+        $Index.Problem = 'entity_embeddings.json could not be loaded'
+    }
+    return $Index
 }
 
 function Get-EntityResolutionState {
@@ -188,7 +202,7 @@ function Get-EntityResolutionState {
     Add-DictionaryMatch -Index $MatchIndex
     Add-PolicyActionMatch -Index $MatchIndex -TaxDir $TaxDir
 
-    $EntityVectors = Get-EntityVectorIndex -Path $EmbPath
+    $VectorIndex = Get-EntityVectorIndex -Path $EmbPath
     $EntityNameById = @{}
     foreach ($e in $ExistingEntities) {
         if ($e.PSObject.Properties['id']) { $EntityNameById[[string]$e.id] = [string]$e.name }
@@ -196,7 +210,9 @@ function Get-EntityResolutionState {
 
     [PSCustomObject]@{
         MatchIndex         = $MatchIndex
-        EntityVectors      = $EntityVectors
+        EntityVectors      = $VectorIndex.Vectors
+        EmbeddingModel     = $VectorIndex.Model
+        EntityVectorProblem = $VectorIndex.Problem
         EntityNameById     = $EntityNameById
         ProposalsTotal     = 0
         DroppedBelowGate   = 0
@@ -222,6 +238,9 @@ function Get-EntityResolutionState {
         # true dups (AI Action Plan 0.75) — the classes interleave, so no threshold separates them, and a
         # false merge DESTROYS a distinct entity. Hits are surfaced in the sidecar's possible_duplicates[].
         PossibleDuplicates = [System.Collections.Generic.List[PSObject]]::new()
+        # Advisory existing-entity candidates (t/4075): per new mint candidate, the ranked existing
+        # entities its name resembles. Never a link; a human confirms through Import-Entity merged_into.
+        ExistingCandidates = [System.Collections.Generic.List[PSObject]]::new()
     }
 }
 
@@ -490,24 +509,31 @@ function Find-EntityExactMatch {
     return $null
 }
 
-function Find-EntityCosineLink {
-    # Step 2: cosine against EXISTING ENTITY vectors only (approved-only store). Returns the
-    # disposition to record, or $null to continue resolving.
-    param($State, $Node, $Proposal, $ProbeVec, [double]$LinkSimilarityThreshold)
-    if ($State.EntityVectors.Count -eq 0) { return $null }
+function Add-ExistingEntityCandidate {
+    # Step 2 (ADVISORY, t/4075): the existing entities a new mint candidate's name resembles, ranked
+    # (up to K non-version-sibling candidates plus every flagged version sibling) and queued for the
+    # sidecar's existing_entity_candidates[]. It NEVER links: name-only cosine scores distinct siblings
+    # (Claude 3.5 vs 3.7 Sonnet 0.987) above true duplicates, so a human confirms any merge through
+    # Import-Entity merged_into (TL p/360#571, SO e/280#2, TL e/280#3).
+    param($State, $Node, $Proposal, [int]$NewIndex, $ProbeVec, [double]$Floor)
+    if ($State.EntityVectors.Count -eq 0) { return }
     if ($null -eq $ProbeVec) {
         Write-Verbose "Invoke-EntityExtraction: embedding unavailable for '$($Proposal.name)' — existing-entity cosine check skipped"
-        return $null
+        return
     }
-    $best = Find-BestCosineMatch -Probe $ProbeVec -Vectors $State.EntityVectors
-    if (-not $best -or -not $best.Key -or $best.Sim -lt $LinkSimilarityThreshold) { return $null }
-    [PSCustomObject]@{
-        node_id        = $Node.NodeId
-        proposal_name  = $Proposal.name
-        matched_kind   = 'entity'
-        matched_id     = $best.Key
-        matched_label  = $State.EntityNameById[$best.Key]
-        reason         = "cosine>=$LinkSimilarityThreshold (sim=$([math]::Round($best.Sim,4)))"
+    $scored = @(Get-EntityCandidateScoreSet -Probe $ProbeVec -Vectors $State.EntityVectors -NameById $State.EntityNameById `
+        -ProposalName ([string]$Proposal.name) -Floor $Floor)
+    foreach ($c in @(Select-EntityCandidateRanking -Scored $scored -K 3)) {
+        $State.ExistingCandidates.Add([PSCustomObject]@{
+            NodeId         = $Node.NodeId
+            NewIndex       = $NewIndex
+            ProposalName   = $Proposal.name
+            EntityId       = $c.EntityId
+            EntityName     = $c.EntityName
+            Similarity     = $c.Similarity
+            Rank           = $c.Rank
+            VersionSibling = [bool]$c.VersionSibling
+        })
     }
 }
 
@@ -529,7 +555,8 @@ function Add-EntityMintCandidate {
     # pair for curation, never linked (name-only cosine false-merges siblings — GPT-4/GPT-4o 0.90,
     # Gemini 3.5/3.6 Flash 0.97 — that score ABOVE true dups, so auto-linking would destroy a distinct
     # entity). The pair is resolved to minted ids after the mint pass.
-    param($State, $Node, $Proposal, [string[]]$Keys, $ProbeVec, [string]$Dolce, [bool]$NearGate, [double]$WithinRunSimilarityThreshold)
+    param($State, $Node, $Proposal, [string[]]$Keys, $ProbeVec, [string]$Dolce, [bool]$NearGate,
+        [double]$WithinRunSimilarityThreshold, [double]$LinkSimilarityThreshold)
     $surfaced = if ($null -ne $ProbeVec -and $State.CandidateVectors.Count -gt 0) { Find-BestCosineMatch -Probe $ProbeVec -Vectors $State.CandidateVectors } else { $null }
 
     $docIdSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -551,6 +578,7 @@ function Add-EntityMintCandidate {
     }
     $newIdx = $State.MintCandidates.Count
     $State.MintCandidates.Add($candidate)
+    Add-ExistingEntityCandidate -State $State -Node $Node -Proposal $Proposal -NewIndex $newIdx -ProbeVec $ProbeVec -Floor $LinkSimilarityThreshold
     foreach ($key in $Keys) {
         if (-not [string]::IsNullOrEmpty($key) -and -not $State.MintIndexByKey.ContainsKey($key)) { $State.MintIndexByKey[$key] = $newIdx }
     }
@@ -602,9 +630,8 @@ function Resolve-EntityProposal {
     }
 
     # Shared per-node probe vector, reused by BOTH cosine stages so a proposal is encoded at most once.
+    # Neither cosine stage links (t/1881, t/4075): both only surface candidates for a human.
     $probeVec = if ($ProbeVecByNorm.ContainsKey($normName)) { $ProbeVecByNorm[$normName] } else { $null }
-    $cosineLink = Find-EntityCosineLink -State $State -Node $Node -Proposal $Proposal -ProbeVec $probeVec -LinkSimilarityThreshold $LinkSimilarityThreshold
-    if ($cosineLink) { $State.LinkedDispositions.Add($cosineLink); return }
 
     $keys = @($normName) + $normAliases
     $wrIdx = Find-WithinRunDuplicate -MintIndexByKey $State.MintIndexByKey -Keys $keys
@@ -618,7 +645,8 @@ function Resolve-EntityProposal {
     }
 
     Add-EntityMintCandidate -State $State -Node $Node -Proposal $Proposal -Keys $keys -ProbeVec $probeVec `
-        -Dolce $DolceMap[$Proposal.entity_type] -NearGate $nearGate -WithinRunSimilarityThreshold $WithinRunSimilarityThreshold
+        -Dolce $DolceMap[$Proposal.entity_type] -NearGate $nearGate -WithinRunSimilarityThreshold $WithinRunSimilarityThreshold `
+        -LinkSimilarityThreshold $LinkSimilarityThreshold
 }
 
 # ── Minting and dispositions ────────────────────────────────────────────────────────────────────
@@ -687,6 +715,42 @@ function Get-EntityPossibleDuplicateRowSet {
     return , $Rows
 }
 
+function Get-EntityExistingCandidateRowSet {
+    # The advisory existing-entity candidates (t/4075) resolved to the newly minted ids. Advisory only:
+    # a confirmed match is recorded through Import-Entity merged_into, never in this log (TL e/280#3).
+    param($State)
+    $Rows = [System.Collections.Generic.List[PSObject]]::new()
+    foreach ($ec in $State.ExistingCandidates) {
+        $Rows.Add([PSCustomObject]@{
+            node_id         = $ec.NodeId
+            candidate_id    = $State.MintCandidates[$ec.NewIndex].MintedId
+            proposal_name   = $ec.ProposalName
+            entity_id       = $ec.EntityId
+            entity_name     = $ec.EntityName
+            similarity      = $ec.Similarity
+            rank            = $ec.Rank
+            version_sibling = $ec.VersionSibling
+        })
+    }
+    return , $Rows
+}
+
+function Write-ExistingCandidateStageStatus {
+    # Never silent (TL p/360#571): WARN when the existing-entity candidate stage could not run, or ran
+    # and found nothing at or above the floor. Says nothing when no proposal was minted.
+    param($State, [int]$CandidateRowCount, [double]$Floor)
+    $minted = @($State.MintCandidates).Count
+    if ($minted -eq 0) { return }
+    if ($State.EntityVectors.Count -eq 0) {
+        $why = if ($State.EntityVectorProblem) { $State.EntityVectorProblem } else { 'no entity vectors' }
+        Write-Warning "Invoke-EntityExtraction: existing-entity candidate stage skipped ($why); $minted minted proposal(s) were not compared with existing entities."
+        return
+    }
+    if ($CandidateRowCount -eq 0) {
+        Write-Warning "Invoke-EntityExtraction: existing-entity candidate stage found no candidate at or above $Floor for $minted minted proposal(s)."
+    }
+}
+
 # ── Sidecar log ──────────────────────────────────────────────────────────────────────────────────
 
 function Group-EntityRowsByNode {
@@ -706,12 +770,16 @@ function Get-EntityExtractionLogNodeSet {
     # carries the per-node audit rows, keyed by node_id so they ride the -Force remove/re-add path:
     #   evidence[]            — supporting quote per MINTED entity (curation's person-exception review, t/1830 #2);
     #   dropped[]             — below-gate proposals, so gate recall is auditable (t/1830 #3);
-    #   possible_duplicates[] — advisory near-variant pairs, grouped by the NEW proposal's node (t/1881).
-    param([object[]]$SortedResults, $State, $PossibleDuplicateRows)
+    #   possible_duplicates[] — advisory near-variant pairs, grouped by the NEW proposal's node (t/1881);
+    #   existing_entity_candidates[] — advisory ranked existing-entity matches per minted proposal (t/4075),
+    #     with embedding_model recording which model produced their similarities (SO e/280#2 condition 3).
+    #     Stamped on the node row because the log merges runs: the row IS the run-level record.
+    param([object[]]$SortedResults, $State, $PossibleDuplicateRows, $ExistingCandidateRows)
     $Evidence = @($State.MintCandidates | ForEach-Object { [PSCustomObject]@{ node_id = $_.NodeId; id = $_.MintedId; name = $_.Name; quote = $_.Quote } })
     $EvidenceByNode = Group-EntityRowsByNode -Rows $Evidence -KeyProperty 'node_id'
     $DroppedByNode = Group-EntityRowsByNode -Rows $State.DroppedProposals -KeyProperty 'node_id'
     $PossibleDupByNode = Group-EntityRowsByNode -Rows $PossibleDuplicateRows -KeyProperty 'node_id'
+    $CandidatesByNode = Group-EntityRowsByNode -Rows $ExistingCandidateRows -KeyProperty 'node_id'
 
     $NewlyProcessed = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($Node in $SortedResults) {
@@ -719,15 +787,18 @@ function Get-EntityExtractionLogNodeSet {
         $nodeEvidence = if ($EvidenceByNode.ContainsKey($Node.NodeId)) { @($EvidenceByNode[$Node.NodeId] | ForEach-Object { [PSCustomObject]@{ id = $_.id; name = $_.name; quote = $_.quote } }) } else { @() }
         $nodeDropped  = if ($DroppedByNode.ContainsKey($Node.NodeId)) { @($DroppedByNode[$Node.NodeId]) } else { @() }
         $nodePossibleDup = if ($PossibleDupByNode.ContainsKey($Node.NodeId)) { @($PossibleDupByNode[$Node.NodeId]) } else { @() }
+        $nodeCandidates = if ($CandidatesByNode.ContainsKey($Node.NodeId)) { @($CandidatesByNode[$Node.NodeId] | Select-Object -Property * -ExcludeProperty node_id) } else { @() }
         $NewlyProcessed.Add([PSCustomObject]@{
-            node_id             = $Node.NodeId
-            processed_at        = (Get-Date).ToString('o')
-            model               = $Node.Model
-            proposals_total     = @($Node.Proposals).Count
-            org_mentions        = @($Node.OrgMentions)
-            evidence            = @($nodeEvidence)
-            dropped             = @($nodeDropped)
-            possible_duplicates = @($nodePossibleDup)
+            node_id                    = $Node.NodeId
+            processed_at               = (Get-Date).ToString('o')
+            model                      = $Node.Model
+            proposals_total            = @($Node.Proposals).Count
+            org_mentions               = @($Node.OrgMentions)
+            evidence                   = @($nodeEvidence)
+            dropped                    = @($nodeDropped)
+            possible_duplicates        = @($nodePossibleDup)
+            embedding_model            = $State.EmbeddingModel
+            existing_entity_candidates = @($nodeCandidates)
         })
     }
     return , $NewlyProcessed
@@ -748,8 +819,8 @@ function Write-EntityExtractionLog {
     if ($NewlyProcessed.Count -eq 0) { return }
 
     $LogStore = [PSCustomObject]@{
-        _schema_version = '1.2.0'
-        _doc            = 'Entity extraction idempotence log (t/1806 Phase 1). Feeds -Force replay decisions; not a data-of-record store (entities.json is). Each node carries evidence[] (supporting quote per minted entity id, for curation) and dropped[] (below-gate proposals, for gate-recall audit) — added t/1830 — and possible_duplicates[] (advisory near-variant pairs {candidate_id, proposal_name, matched_id, matched_name, similarity}: both entities were minted, curation reviews via merge/redirect; name-only cosine cannot safely auto-link siblings) — added t/1881.'
+        _schema_version = '1.3.0'
+        _doc            = 'Entity extraction idempotence log (t/1806 Phase 1). Feeds -Force replay decisions; not a data-of-record store (entities.json is). Each node carries evidence[] (supporting quote per minted entity id, for curation) and dropped[] (below-gate proposals, for gate-recall audit) — added t/1830 — and possible_duplicates[] (advisory near-variant pairs {candidate_id, proposal_name, matched_id, matched_name, similarity}: both entities were minted, curation reviews via merge/redirect; name-only cosine cannot safely auto-link siblings) — added t/1881. 1.3.0 (t/4075) adds embedding_model and existing_entity_candidates[] (advisory, ranked existing entities each minted proposal resembles {candidate_id, proposal_name, entity_id, entity_name, similarity, rank, version_sibling}: never a link; up to 3 non-sibling candidates plus every version sibling at or above -LinkSimilarityThreshold; version_sibling=false means only that no version difference was detected, NOT that the pair is safe to merge; a confirmed match is recorded via Import-Entity merged_into, never here). Review with Get-EntityExtractionCandidates.'
         last_modified   = (Get-Date).ToString('yyyy-MM-dd')
         node_count      = @($ExistingLogNodes).Count
         nodes           = @($ExistingLogNodes)
