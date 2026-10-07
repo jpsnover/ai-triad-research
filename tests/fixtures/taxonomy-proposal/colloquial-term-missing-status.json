@@ -1,5 +1,5 @@
 {
-  "scenario": "bug-dictionary-term-missing-field",
+  "scenario": "colloquial-term-missing-status",
   "host": [
     "[Cyan] \n▶  Validating environment",
     "[Green]    ✓  Model       : gemini-2.5-flash",
@@ -12,8 +12,8 @@
     "[Green]    ✓  Unmapped for prompt : 2",
     "[Green]    ✓  Orphan nodes        : 50",
     "[Green]    ✓  High-variance nodes : 1",
-    "[Green]    ✓  Standardized terms  : 0",
-    "[Green]    ✓  Prompt assembled: 4215 chars (~1054 tokens est.)",
+    "[Green]    ✓  Colloquial terms    : 1",
+    "[Green]    ✓  Prompt assembled: 4279 chars (~1070 tokens est.)",
     "[DarkGray] \n────────────────────────────────────────────────────────────────────────",
     "[Yellow]   DRY RUN: PROMPT PREVIEW",
     "[DarkGray] ────────────────────────────────────────────────────────────────────────",
@@ -31,13 +31,21 @@
     "[DarkGray] ...",
     "[Cyan] \n[COVERAGE BALANCE]",
     "[Gray] JSON:{\"accelerationist\":{\"Beliefs\":2,\"Desires\":1},\"safetyist\":{\"Beliefs\":2}}",
-    "[Cyan] \n[VOCABULARY — standardized terms, first 400 chars]"
+    "[Cyan] \n[VOCABULARY — standardized terms, first 400 chars]",
+    "[Gray] JSON:[]",
+    "[DarkGray] ...",
+    "[Cyan] \n[VOCABULARY — colloquial terms]",
+    "[Gray] JSON:{\"colloquial_term\":\"safety\",\"resolves_to\":[],\"status\":\"retired\"}",
+    "[DarkGray] ...",
+    "[DarkGray] \n────────────────────────────────────────────────────────────────────────",
+    "[Yellow]   DRY RUN complete. No API call made. No files written.",
+    "[DarkGray] ────────────────────────────────────────────────────────────────────────\n"
   ],
   "warnings": [
-    "Dictionary term 'thin' skipped: missing display_form, primary_camp_origin (<ROOT>/dictionary/standardized/thin.json). Fix the term file to include it in the prompt vocabulary."
+    "Dictionary term 'risk' skipped: missing status (<ROOT>/dictionary/colloquial/risk.json). Fix the term file to include it in the prompt vocabulary."
   ],
   "verbose": [],
-  "error": "The property 'Length' cannot be found on this object. Verify that the property exists.",
+  "error": null,
   "output": [],
   "calls": [
     {
@@ -52,7 +60,8 @@
   "writes": [],
   "tree": {
     "dictionary/": "(dir)",
-    "dictionary/standardized/": "(dir)",
-    "dictionary/standardized/thin.json": "sha256:774c2ff7a839315833fa104ed9a233baab10011a7233af327f9af7ed42660d3e (89 chars)"
+    "dictionary/colloquial/": "(dir)",
+    "dictionary/colloquial/risk.json": "sha256:a204c3670689dfcdd80a125beea2e038f8bf769ee630e1aaabedac3f1c17f0c5 (31 chars)",
+    "dictionary/colloquial/safety.json": "sha256:8bd05db15642f2b4c06e63dcd6cbda52afe60d41e88e9f361f40bcbf81ff717d (56 chars)"
   }
 }
