@@ -29,6 +29,10 @@ export interface DebateConfig {
   evaluatorModel?: string;
   modelTier?: import('../types.js').ModelTier;
   speakerModels?: Record<string, string>;
+  /** Backend IDs eligible for this multi-provider run — the `availableBackends ∩ tierMap` set from
+   *  `resolveMultiProviderModels`. Must be provided alongside `speakerModels`; if absent on a
+   *  multi-provider run the fingerprint degrades to model-mixed with a WARN (t/4040). */
+  eligibleBackends?: string[];
   /** Fallback model chain for per-speaker failover. On hard failure (403, 500, empty), the engine tries each model in order, then falls back to the base `model`. Provided by the caller (server or Electron main). */
   fallbackChain?: string[];
   rounds: number;

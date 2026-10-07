@@ -90,6 +90,30 @@ describe('Per-speaker model routing', () => {
     }
   });
 
+  it('single-model run: modelTier set but speakerModels absent → model_api_id, no model_pool (t/4040)', () => {
+    // Every preset sets modelTier even for single-model runs.
+    // The gate in _computeModelFingerprint must check speakerModels, not modelTier,
+    // so that the debateTiers entry is not used as a pool fingerprint for single-model runs.
+    const adapter: ExtendedAIAdapter = {
+      async generateText() { return '{}'; },
+      registry: {
+        backends: [],
+        models: [{ id: 'claude-sonnet-5', apiModelId: 'claude-sonnet-5-20251101', backend: 'claude' }],
+        debateTiers: { basic: { claude: 'claude-sonnet-5' } },
+      },
+    } as unknown as ExtendedAIAdapter;
+    const config = createDefaultConfig({
+      model: 'claude-sonnet-5',
+      modelTier: 'basic',
+      // speakerModels intentionally absent — this is a single-model run
+    });
+    const engine = new DebateEngine(config, adapter, createMinimalTaxonomy());
+    (engine as any).initSession();
+    const session = (engine as any).session;
+    expect(session.model_api_id).toBe('claude-sonnet-5:claude-sonnet-5-20251101');
+    expect(session.model_pool).toBeUndefined();
+  });
+
   it('routes per-speaker model to adapter during openings', async () => {
     const callLog: Array<{ model: string }> = [];
     const adapter: ExtendedAIAdapter = {

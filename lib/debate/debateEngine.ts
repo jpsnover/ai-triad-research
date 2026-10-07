@@ -157,6 +157,7 @@ import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js'
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration.js';
 import { pruneSessionData, pruneModeratorState } from './sessionPruning.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { computeModelFingerprint } from './debateEngine/modelFingerprint.js';
 import { resolveBackground } from './debateEngine/backgroundIngestion.js';
 import { callByUsage } from '../ai-client/usageRegistry.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
@@ -943,7 +944,15 @@ export class DebateEngine {
     return engine.session;
   }
 
-  // ── Initialization ───────────────────────────────────────
+  private _computeModelFingerprint(): { model_pool?: string; model_api_id?: string } {
+    const isMultiProvider = Boolean(this.config.speakerModels);
+    return computeModelFingerprint(
+      this.adapter.registry,
+      isMultiProvider ? this.config.modelTier : undefined,
+      isMultiProvider ? this.config.eligibleBackends : undefined,
+      this.config.model,
+    );
+  }
 
   private initSession(): void {
     const id = generateId();
@@ -977,7 +986,10 @@ export class DebateEngine {
       generated_with_prompt_version: 'cli-l2',
       debate_model: this.config.model,
       evaluator_model: this.config.evaluatorModel,
-      speaker_models: this.config.speakerModels,
+      speaker_models: this.config.speakerModels ? { ...this.config.speakerModels } : undefined,
+      initial_speaker_models: this.config.speakerModels ? { ...this.config.speakerModels } : undefined,
+      ...this._computeModelFingerprint(),
+      failover_tracking: 'tracked' as const,
       stage_models: {
         brief: resolveStageModel(this._internal, 'brief'),
         plan: resolveStageModel(this._internal, 'plan'),
@@ -1192,6 +1204,8 @@ export class DebateEngine {
           if (this.session) {
             if (!this.session.speaker_models) this.session.speaker_models = {};
             this.session.speaker_models[speaker] = chain[i];
+            if (!this.session.speaker_model_failovers) this.session.speaker_model_failovers = {};
+            this.session.speaker_model_failovers[speaker] = chain[i];
           }
           getGlobalRecorder()?.record({
             type: 'ai.fallback',
