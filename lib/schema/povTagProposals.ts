@@ -16,6 +16,7 @@
  */
 
 import { validatePovTagsDetailed, loadPovTagRegistry, type PovTagRegistry } from './povTags.js';
+import type { SoulProvenance } from '../debate/soulDocSchema.js';
 
 export const PROPOSAL_STATUSES = ['pending', 'accepted', 'modified', 'rejected'] as const;
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
@@ -29,12 +30,67 @@ export interface PovTagProposal {
   reviewed_at: string | null;
   confidence?: number;
   rationale?: string;
+  /** Reviewer display only (see the value_basis section below). */
+  value_basis?: ValueBasis[];
+  value_basis_shared?: ValueBasisShared;
+  value_basis_nearest?: ValueBasisNearest;
   [key: string]: unknown;
 }
 
 export interface PovTagProposalsFile {
   version: number;
   proposals: PovTagProposal[];
+  /** Present once the t/4066 justify pass has been written; see {@link ValueBasisRun}. */
+  value_basis_run?: ValueBasisRun;
+  [key: string]: unknown;
+}
+
+// ── value_basis: why each proposed tag fits its soul doc's Value Hierarchy (t/4066, SO e/278) ──────────────────────
+//
+// EXEMPTION (SO e/278#2 cond. 2): value_basis* is REVIEWER DISPLAY ONLY. No consumer branches on it, which is why
+// adding these fields was not a mandatory-SO data-model change. THE EXEMPTION LAPSES the moment selection, the
+// frozen-list build, or any automated decision reads it.
+//
+// INDICES ARE 1-BASED: `vh_index: [1]` is the FIRST element of the matching `value_basis_run.value_hierarchies` array
+// (CL e/278#3). The text always comes from that snapshot, never from the live soul doc, so a later soul edit can't
+// silently change what a citation says. parsePovTagProposals refuses any index outside its array.
+// Firm = cited in both of two runs; uncertain = cited in exactly one; unsupported = neither run cited an element.
+
+/** One proposed tag's justification. `vh_index: null` means unsupported. */
+export interface ValueBasis {
+  tag: string;
+  vh_index: number[] | null;
+  vh_index_uncertain: number[];
+  why: string;
+  unsupported: boolean;
+}
+
+/** "both" items only: the base skeptic soul's shared-ground element(s), indexed into `value_hierarchies.shared`. */
+export interface ValueBasisShared {
+  vh_index: number[] | null;
+  vh_index_uncertain: number[];
+  why: string;
+  unsupported: boolean;
+}
+
+/** Untagged items only: the closest tag and element, if any. `tag: null` requires `vh_index: null`. */
+export interface ValueBasisNearest {
+  tag: string | null;
+  vh_index: number | null;
+  why: string;
+  agree: boolean;
+}
+
+/** The run block, stored once at the top level. `value_hierarchies` is the text snapshot every index resolves into. */
+export interface ValueBasisRun {
+  /** Always 1: indices are 1-based. Anything else is refused, since the bounds check assumes it. */
+  index_base?: 1;
+  value_hierarchies: Record<string, string[]>;
+  /**
+   * Per-soul fingerprint from the canonical `buildSoulProvenance` (fnv1a64), compared with `compareSoulProvenance`
+   * (SO e/278#5-#7). The queue's "soul doc changed since justification" note keys off this, never off a second hash.
+   */
+  soul_provenance?: Record<string, SoulProvenance>;
   [key: string]: unknown;
 }
 
@@ -66,9 +122,89 @@ function itemProblems(item: unknown, i: number): string[] {
   return problems;
 }
 
+const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** The run block's problems, plus the snapshot hierarchies (or null when there's no usable snapshot). */
+function runProblems(run: unknown): { problems: string[]; hierarchies: Record<string, string[]> | null } {
+  if (run === undefined) return { problems: [], hierarchies: null };
+  if (!isObject(run)) return { problems: ['value_basis_run must be an object'], hierarchies: null };
+  const problems: string[] = [];
+  const vh = run.value_hierarchies;
+  let hierarchies: Record<string, string[]> | null = null;
+  if (!isObject(vh) || !Object.values(vh).every(isStringArray)) {
+    problems.push('value_basis_run.value_hierarchies must be an object of string arrays');
+  } else {
+    hierarchies = vh as Record<string, string[]>;
+  }
+  if (run.index_base !== undefined && run.index_base !== 1) problems.push(`value_basis_run.index_base must be 1 (got ${JSON.stringify(run.index_base)}); indices are 1-based`);
+  if (run.soul_provenance !== undefined) {
+    const sp = run.soul_provenance;
+    const ok = isObject(sp) && Object.values(sp).every((p) => isObject(p) && typeof p.file === 'string' && typeof p.hash === 'string');
+    if (!ok) problems.push('value_basis_run.soul_provenance must map each soul to { file, hash } strings');
+  }
+  return { problems, hierarchies };
+}
+
+/** A 1-based index list into `hierarchy`; `allowNull` admits null (unsupported). */
+function indexProblems(v: unknown, where: string, hierarchy: string[] | undefined, allowNull: boolean): string[] {
+  if (v === null && allowNull) return [];
+  if (!Array.isArray(v)) return [`${where} must be ${allowNull ? 'null or ' : ''}an array of 1-based indices`];
+  if (!hierarchy) return v.length === 0 ? [] : [`${where}: no value_hierarchies snapshot to index into`];
+  const bad = v.filter((x) => !Number.isInteger(x) || (x as number) < 1 || (x as number) > hierarchy.length);
+  return bad.length === 0 ? [] : [`${where}: ${bad.map(String).join(', ')} out of range 1..${hierarchy.length} (indices are 1-based)`];
+}
+
+/** Untagged items: a null tag needs a null index; a tagged index must land inside that tag's snapshot. */
+function nearestProblems(n: unknown, where: string, hierarchies: Record<string, string[]>): string[] {
+  if (!isObject(n)) return [`${where} must be an object`];
+  const problems: string[] = [];
+  if (n.tag === null) {
+    if (n.vh_index !== null) problems.push(`${where}: vh_index must be null when tag is null`);
+  } else if (typeof n.tag !== 'string') problems.push(`${where}.tag must be a string or null`);
+  else if (n.vh_index !== null) problems.push(...indexProblems([n.vh_index], `${where}.vh_index`, hierarchies[n.tag], false));
+  if (typeof n.why !== 'string') problems.push(`${where}.why must be a string`);
+  if (typeof n.agree !== 'boolean') problems.push(`${where}.agree must be a boolean`);
+  return problems;
+}
+
+/**
+ * value_basis* on one item: absent is fine; present must be well formed, with every index inside its snapshot array
+ * (SO e/278#2 cond. 1: an out-of-range index would otherwise render the wrong text, or none, with nothing failing).
+ */
+function valueBasisProblems(p: Record<string, unknown>, at: string, hierarchies: Record<string, string[]> | null): string[] {
+  const has = p.value_basis !== undefined || p.value_basis_shared !== undefined || p.value_basis_nearest !== undefined;
+  if (!has) return [];
+  if (!hierarchies) return [`${at}: has value_basis but the file has no usable value_basis_run.value_hierarchies snapshot`];
+  const problems: string[] = [];
+  const entryShape = (e: unknown, where: string, hierarchy: string[] | undefined) => {
+    if (!isObject(e)) return [`${where} must be an object`];
+    const out = [
+      ...indexProblems(e.vh_index, `${where}.vh_index`, hierarchy, true),
+      ...indexProblems(e.vh_index_uncertain, `${where}.vh_index_uncertain`, hierarchy, false),
+    ];
+    if (typeof e.why !== 'string') out.push(`${where}.why must be a string`);
+    if (typeof e.unsupported !== 'boolean') out.push(`${where}.unsupported must be a boolean`);
+    return out;
+  };
+  if (p.value_basis !== undefined) {
+    if (!Array.isArray(p.value_basis)) problems.push(`${at}: value_basis must be an array`);
+    else p.value_basis.forEach((e, k) => {
+      const where = `${at}: value_basis[${k}]`;
+      const tag = isObject(e) ? e.tag : undefined;
+      if (typeof tag !== 'string') problems.push(`${where}.tag must be a string`);
+      else if (!hierarchies[tag]) problems.push(`${where}: no value_hierarchies snapshot for tag "${tag}"`);
+      problems.push(...entryShape(e, where, typeof tag === 'string' ? hierarchies[tag] : undefined));
+    });
+  }
+  if (p.value_basis_shared !== undefined) problems.push(...entryShape(p.value_basis_shared, `${at}: value_basis_shared`, hierarchies.shared));
+  if (p.value_basis_nearest !== undefined) problems.push(...nearestProblems(p.value_basis_nearest, `${at}: value_basis_nearest`, hierarchies));
+  return problems;
+}
+
 /**
  * Shape-check a parsed side file. On success returns the SAME object (not a rebuilt copy), so unknown keys and key
- * order survive. Duplicate node_ids are a problem: a decision must address exactly one item.
+ * order survive. Duplicate node_ids are a problem: a decision must address exactly one item. Optional value_basis*
+ * fields are checked when present, including that every index lands inside the run's snapshot (t/4066).
  */
 export function parsePovTagProposals(raw: unknown): { ok: true; file: PovTagProposalsFile } | { ok: false; problems: string[] } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, problems: ['the file is not a JSON object'] };
@@ -79,9 +215,15 @@ export function parsePovTagProposals(raw: unknown): { ok: true; file: PovTagProp
     problems.push('proposals must be an array');
     return { ok: false, problems };
   }
+  const run = runProblems(f.value_basis_run);
+  problems.push(...run.problems);
   const seen = new Set<string>();
   f.proposals.forEach((item, i) => {
     problems.push(...itemProblems(item, i));
+    if (isObject(item)) {
+      const at = typeof item.node_id === 'string' ? `proposals[${i}] (${item.node_id})` : `proposals[${i}]`;
+      problems.push(...valueBasisProblems(item, at, run.hierarchies));
+    }
     const id = (item as { node_id?: unknown })?.node_id;
     if (typeof id === 'string') {
       if (seen.has(id)) problems.push(`duplicate node_id ${id}`);

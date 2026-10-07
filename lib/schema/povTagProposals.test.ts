@@ -191,3 +191,88 @@ describe('byte preservation (Rosetta e/269)', () => {
     expect(text).not.toContain('\r');
   });
 });
+
+// ── value_basis* (t/4066, SO e/278#2 conditions 1 and 3) ─────────────────────────────────────────────────────────
+/** realShaped plus the justify-pass fields: a run snapshot (critical/institutional 4 elements, shared 3) and per-item bases. */
+function withValueBasis(): PovTagProposalsFile {
+  const f = realShaped() as unknown as Record<string, unknown> & { proposals: Record<string, unknown>[] };
+  f.value_basis_run = {
+    model: 'm', prompt_version: 'justify-v3', index_base: 1,
+    value_hierarchies: { critical: ['c1', 'c2', 'c3', 'c4'], institutional: ['i1', 'i2', 'i3', 'i4'], shared: ['s1', 's2', 's3'] },
+    soul_provenance: { critical: { file: 'skeptic.critical.soul.json', hash: 'fnv1a64:0123456789abcdef' } },
+  };
+  f.proposals[0].value_basis = [{ tag: 'critical', vh_index: [1, 4], vh_index_uncertain: [2], why: 'w', unsupported: false }];
+  f.proposals[1].value_basis = [
+    { tag: 'critical', vh_index: null, vh_index_uncertain: [], why: 'w', unsupported: true },
+    { tag: 'institutional', vh_index: [], vh_index_uncertain: [4], why: 'w', unsupported: false },
+  ];
+  f.proposals[1].value_basis_shared = { vh_index: [3], vh_index_uncertain: [], why: 'w', unsupported: false };
+  f.proposals[2].value_basis_nearest = { tag: 'institutional', vh_index: 1, why: 'w', agree: true };
+  return f as unknown as PovTagProposalsFile;
+}
+type Mutable = { value_basis_run: Record<string, unknown>; proposals: Record<string, Record<string, unknown> & { value_basis?: Record<string, unknown>[] }>[] };
+const problemsOf = (mutate: (f: Mutable) => void) => {
+  const f = withValueBasis() as unknown as Mutable;
+  mutate(f);
+  const r = parsePovTagProposals(f);
+  return r.ok ? [] : r.problems;
+};
+
+describe('value_basis*: shape and 1-based bounds (SO e/278#2 cond. 1)', () => {
+  it('accepts a well-formed justify pass and returns the same object; null and [] indices are fine', () => {
+    const raw = withValueBasis();
+    const r = parsePovTagProposals(raw);
+    expect(r).toEqual({ ok: true, file: raw });
+  });
+
+  it('refuses an out-of-range index, and index 0 (1-based), in firm and uncertain lists', () => {
+    expect(problemsOf((f) => { f.proposals[0].value_basis![0].vh_index = [5]; })).toEqual([expect.stringMatching(/vh_index: 5 out of range 1\.\.4 \(indices are 1-based\)/)]);
+    expect(problemsOf((f) => { f.proposals[0].value_basis![0].vh_index = [0]; })).toEqual([expect.stringMatching(/0 out of range/)]);
+    expect(problemsOf((f) => { f.proposals[0].value_basis![0].vh_index_uncertain = [9]; })).toEqual([expect.stringMatching(/vh_index_uncertain: 9 out of range/)]);
+    expect(problemsOf((f) => { f.proposals[0].value_basis![0].vh_index = [1.5]; })).toEqual([expect.stringMatching(/1\.5 out of range/)]);
+  });
+
+  it('bounds come from the MATCHING array: shared has 3 elements, so 4 is refused there though valid for a wing tag', () => {
+    expect(problemsOf((f) => { f.proposals[1].value_basis_shared = { vh_index: [4], vh_index_uncertain: [], why: 'w', unsupported: false }; }))
+      .toEqual([expect.stringMatching(/value_basis_shared\.vh_index: 4 out of range 1\.\.3/)]);
+  });
+
+  it('value_basis_nearest: a null tag needs a null index; a tagged index is bounds-checked', () => {
+    expect(problemsOf((f) => { f.proposals[2].value_basis_nearest = { tag: null, vh_index: null, why: 'w', agree: false }; })).toEqual([]);
+    expect(problemsOf((f) => { f.proposals[2].value_basis_nearest = { tag: null, vh_index: 1, why: 'w', agree: false }; }))
+      .toEqual([expect.stringMatching(/vh_index must be null when tag is null/)]);
+    expect(problemsOf((f) => { f.proposals[2].value_basis_nearest = { tag: 'critical', vh_index: 7, why: 'w', agree: true }; }))
+      .toEqual([expect.stringMatching(/value_basis_nearest\.vh_index: 7 out of range/)]);
+  });
+
+  it('refuses value_basis without a run snapshot, a tag with no snapshot, and a malformed soul_provenance', () => {
+    expect(problemsOf((f) => { delete (f as Partial<Mutable>).value_basis_run; })[0]).toMatch(/no usable value_basis_run/);
+    expect(problemsOf((f) => { f.proposals[0].value_basis![0].tag = 'nope'; })[0]).toMatch(/no value_hierarchies snapshot for tag "nope"/);
+    expect(problemsOf((f) => { f.value_basis_run.soul_provenance = { critical: { file: 'x' } }; })[0]).toMatch(/soul_provenance must map/);
+    expect(problemsOf((f) => { f.value_basis_run.index_base = 0; })[0]).toMatch(/index_base must be 1/);
+  });
+
+  it('refuses missing why / unsupported / vh_index_uncertain', () => {
+    const p = problemsOf((f) => { f.proposals[0].value_basis = [{ tag: 'critical', vh_index: [1] }]; });
+    expect(p).toEqual(expect.arrayContaining([
+      expect.stringMatching(/vh_index_uncertain must be an array/), expect.stringMatching(/why must be a string/), expect.stringMatching(/unsupported must be a boolean/),
+    ]));
+  });
+});
+
+describe('value_basis*: a reviewer decision never rewrites the justification (SO e/278#2 cond. 3)', () => {
+  const vbBytes = (item: Record<string, unknown>) =>
+    JSON.stringify([item.value_basis, item.value_basis_shared, item.value_basis_nearest]);
+
+  it.each([
+    ['accepted', 'skp-desires-009', { status: 'accepted' as const }],
+    ['modified', 'skp-desires-009', { status: 'modified' as const, final: ['critical'] }],
+    ['rejected', 'skp-desires-009', { status: 'rejected' as const }],
+  ])('%s keeps value_basis* byte-identical, and the run block too', (_n, id, decision) => {
+    const before = withValueBasis();
+    const original = before.proposals.find((p) => p.node_id === id)!;
+    const r = ok(applyProposalDecision(before, id, decision, 'ed', AT, 'pending', REGISTRY));
+    expect(vbBytes(r.item)).toBe(vbBytes(original));
+    expect(JSON.stringify(r.file.value_basis_run)).toBe(JSON.stringify(before.value_basis_run));
+  });
+});
