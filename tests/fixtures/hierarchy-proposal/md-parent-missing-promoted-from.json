@@ -59,7 +59,7 @@
     "taxonomy/hierarchy-proposals/hierarchy-proposal-2026-01-02-030405.json": "{\n  \"generated_at\": \"2026-01-02T03:04:05.0000000Z\",\n  \"model\": \"gemini-2.5-flash\",\n  \"buckets\": [\n    {\n      \"pov\": \"accelerationist\",\n      \"category\": \"Beliefs\",\n      \"parents\": [\n        {\n          \"label\": \"New parent\",\n          \"description\": \"No promoted_from key.\",\n          \"children\": [\n            {\n              \"node_id\": \"acc-b-1\",\n              \"relationship\": \"is_a\",\n              \"rationale\": \"r1\"\n            },\n            {\n              \"node_id\": \"acc-b-2\",\n              \"relationship\": \"is_a\",\n              \"rationale\": \"r2\"\n            }\n          ]\n        }\n      ],\n      \"outliers\": [],\n      \"_metadata\": {\n        \"generated_at\": \"2026-01-02T03:04:05.0000000Z\",\n        \"model\": \"gemini-2.5-flash\",\n        \"temperature\": 0.3,\n        \"min_similarity\": 0.4,\n        \"node_count\": 2,\n        \"cluster_count\": 2,\n        \"missing_nodes\": []\n      }\n    }\n  ]\n}\n",
     "taxonomy/Origin/": "(dir)",
     "taxonomy/Origin/accelerationist.json": "sha256:866fc0e82c48027fd05179b0e09ae64b96b75f42699ae0eca4047b962030a282 (307 chars)",
-    "taxonomy/Origin/embeddings.json": "sha256:7f3237fc7c95ff4fd3e7e17ca3d7f6a5d811bc68a2613e47e67baffca11de39a (350 chars)",
+    "taxonomy/Origin/embeddings.json": "sha256:c30331756b20ec6ba8b8fd6a06e4464f6524d1646e09246d34a255ca3198c644 (350 chars)",
     "taxonomy/Origin/safetyist.json": "sha256:60797bf3b2a8d3a767a94e1c2e3af5df29b05d9d084770a2f399baab68d16715 (307 chars)"
   }
 }

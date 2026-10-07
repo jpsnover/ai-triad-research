@@ -189,8 +189,9 @@ BeforeAll {
             }
             'invalid' { return '{ "nodes": { "broken": ' }
             default {
+                # $TaxFiles is a plain hashtable (random key order per process); walk it in sorted order.
                 $v = [ordered]@{}
-                foreach ($f in $TaxFiles.Values) { foreach ($n in $f.nodes) { $v[$n.id] = @(1.0, 0.0) } }
+                foreach ($name in @($TaxFiles.Keys | Sort-Object)) { foreach ($n in $TaxFiles[$name].nodes) { $v[$n.id] = @(1.0, 0.0) } }
             }
         }
         $nodes = [ordered]@{}
@@ -218,7 +219,7 @@ BeforeAll {
         $tax = Join-Path $root 'taxonomy' 'Origin'
         New-Item -ItemType Directory -Path $tax -Force | Out-Null
         $files = script:Get-TaxonomyFiles $S['Tax']
-        foreach ($name in $files.Keys) { script:Write-FixtureFile (Join-Path $tax $name) (script:ConvertTo-FixtureJson $files[$name]) }
+        foreach ($name in @($files.Keys | Sort-Object)) { script:Write-FixtureFile (Join-Path $tax $name) (script:ConvertTo-FixtureJson $files[$name]) }
         if ($S['Embeddings']) { script:Write-FixtureFile (Join-Path $tax 'embeddings.json') (script:Get-EmbeddingsText $S.Embeddings $files) }
         if ($S['Edges']) { script:Write-FixtureFile (Join-Path $tax 'edges.json') (script:Get-EdgesText $S.Edges) }
         $root
