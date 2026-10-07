@@ -1,11 +1,15 @@
 {
   "scenario": "current-no-version",
   "host": [
-    "[Cyan] \n▶  Validating inputs"
+    "[Cyan] \n▶  Validating inputs",
+    "[Yellow]    ⚠  Summary is already current (taxonomy version not recorded).",
+    "[Gray]    →  Use -Force to re-process anyway."
   ],
-  "warnings": [],
+  "warnings": [
+    "Invoke-POVSummary: metadata.json says summary_status=current but has no summary_version; skipping it as current with the taxonomy version unknown."
+  ],
   "verbose": [],
-  "error": "The property 'summary_version' cannot be found on this object. Verify that the property exists.",
+  "error": null,
   "output": [],
   "calls": [],
   "writes": [],

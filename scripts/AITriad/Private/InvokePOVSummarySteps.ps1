@@ -1,9 +1,9 @@
 ﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# The steps of Invoke-POVSummary, extracted for t/3910 (cyclomatic complexity under 20). Pure refactor:
-# every message, thrown error, pipeline argument, written byte and write order is unchanged, including
-# the StrictMode crashes on schema-optional fields that t/4070 tracks. Pinned by
+# The steps of Invoke-POVSummary, extracted for t/3910 (cyclomatic complexity under 20), then fixed for
+# t/4070: fields the model omits degrade with a fallback WARN instead of a StrictMode throw, and the
+# persisted factual_claims/unmapped_concepts are always arrays. Pinned by
 # tests/Invoke-POVSummary.Characterization.Tests.ps1. Strict mode and ErrorActionPreference are
 # inherited from Invoke-POVSummary's scope.
 
@@ -85,7 +85,14 @@ function Test-POVSummaryAlreadyCurrent {
     # True (after telling the user) when the summary is current and neither -Force nor -DryRun was given.
     param($Metadata, [switch]$Force, [switch]$DryRun)
     if ((-not $Force) -and (-not $DryRun) -and ($Metadata.summary_status -eq "current")) {
-        Write-Warn "Summary is already current (taxonomy v$($Metadata.summary_version))."
+        if ($Metadata.PSObject.Properties['summary_version']) {
+            Write-Warn "Summary is already current (taxonomy v$($Metadata.summary_version))."
+        }
+        else {
+            # Fallback (t/4070): skip as current with the version unknown, rather than throw.
+            Write-Warning "Invoke-POVSummary: metadata.json says summary_status=current but has no summary_version; skipping it as current with the taxonomy version unknown."
+            Write-Warn "Summary is already current (taxonomy version not recorded)."
+        }
         Write-Info "Use -Force to re-process anyway."
         return $true
     }
@@ -200,11 +207,30 @@ function Get-POVSummaryContextRot {
     @{ Stages = $Stages; Obj = $Obj }
 }
 
+function Test-POVSummaryCampPresent {
+    # True when pov_summaries carries the camp at all (its value may still be null or empty).
+    param($SummaryObject, [string]$Camp)
+    if (-not $SummaryObject.PSObject.Properties['pov_summaries']) { return $false }
+    $Povs = $SummaryObject.pov_summaries
+    ($null -ne $Povs) -and [bool]$Povs.PSObject.Properties[$Camp]
+}
+
+function Get-POVSummaryCampData {
+    # One camp's block from pov_summaries, or $null when the model omitted the camp (t/4070).
+    param($SummaryObject, [string]$Camp)
+    if (-not (Test-POVSummaryCampPresent -SummaryObject $SummaryObject -Camp $Camp)) { return $null }
+    $SummaryObject.pov_summaries.$Camp
+}
+
 function Write-POVSummaryExtractionReport {
     param($PipelineResult, $SummaryObject, $FactualClaimCount, $UnmappedConceptCount, $UsedFire, $FireStats)
     Write-OK "Pipeline complete in $($PipelineResult.ElapsedSeconds)s ($($PipelineResult.Backend))"
     foreach ($Camp in @('accelerationist', 'safetyist', 'skeptic')) {
-        $CampData = $SummaryObject.pov_summaries.$Camp
+        if (-not (Test-POVSummaryCampPresent -SummaryObject $SummaryObject -Camp $Camp)) {
+            # Fallback (t/4070): the camp counts as empty everywhere below instead of throwing.
+            Write-Warning "Invoke-POVSummary: the model's pov_summaries has no '$Camp' camp; treating it as empty (no key points)."
+        }
+        $CampData = Get-POVSummaryCampData -SummaryObject $SummaryObject -Camp $Camp
         if ($CampData -and $CampData.PSObject.Properties['key_points'] -and $CampData.key_points) {
             $PointCount = @($CampData.key_points).Count
             $NullNodes  = @($CampData.key_points | Where-Object { -not $_.PSObject.Properties['taxonomy_node_id'] -or $null -eq $_.taxonomy_node_id }).Count
@@ -259,9 +285,10 @@ function Get-POVSummaryModelInfo {
 }
 
 function Get-POVSummaryOptionalArray {
-    # A summary's LLM-optional array field, or @() when the model omitted it (t/1726). Callers wrap in @().
+    # A summary's LLM-optional array field, or @() when the model omitted it (t/1726) or sent null
+    # (@($null) would be a one-element array holding null; t/4070). Callers wrap in @().
     param($SummaryObject, [string]$Name)
-    if ($SummaryObject.PSObject.Properties[$Name]) { return @($SummaryObject.$Name) }
+    if ($SummaryObject.PSObject.Properties[$Name] -and $null -ne $SummaryObject.$Name) { return @($SummaryObject.$Name) }
     @()
 }
 
@@ -273,13 +300,12 @@ function Write-POVSummaryFile {
         generated_at      = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
         model_info        = $ModelInfo
         pov_summaries     = $SummaryObject.pov_summaries
-        # t/1726 — coerce LLM-optional fields to arrays so the persisted summary
-        # always carries them; protects every downstream consumer from the same
-        # strict-mode missing-property throw when the model omits the field.
-        # Kept in this exact if-expression form: it unrolls, so 0 items persist as null and 1 item as a
-        # bare object, not an array (pre-existing, t/4070). Pure refactor; do not "fix" it here.
-        factual_claims    = if ($SummaryObject.PSObject.Properties['factual_claims']) { @($SummaryObject.factual_claims) } else { @() }
-        unmapped_concepts = if ($SummaryObject.PSObject.Properties['unmapped_concepts']) { @($SummaryObject.unmapped_concepts) } else { @() }
+        # t/1726: coerce LLM-optional fields to arrays so the persisted summary always carries them,
+        # which protects every downstream consumer from a strict-mode missing-property throw when the
+        # model omits the field. The outer @() is load-bearing: a bare if-expression unrolls, so 0 items
+        # persisted as null and 1 item as a bare object (t/4070).
+        factual_claims    = @(Get-POVSummaryOptionalArray -SummaryObject $SummaryObject -Name 'factual_claims')
+        unmapped_concepts = @(Get-POVSummaryOptionalArray -SummaryObject $SummaryObject -Name 'unmapped_concepts')
         context_rot       = $ContextRotObj
     }
     $SummaryJson = $FinalSummary | ConvertTo-Json -Depth 20
@@ -305,7 +331,9 @@ function Get-POVSummaryNodeRefStat {
     foreach ($Claim in @(Get-POVSummaryOptionalArray -SummaryObject $SummaryObject -Name 'factual_claims')) {
         if ($null -eq $Claim) { continue }
         $PrimaryAssigned = $false
-        foreach ($NodeId in @($Claim.linked_taxonomy_nodes)) {
+        # An omitted linked_taxonomy_nodes counts as no links (t/4070); the conflict step WARNs for it.
+        $Linked = if ($Claim.PSObject.Properties['linked_taxonomy_nodes']) { $Claim.linked_taxonomy_nodes } else { $null }
+        foreach ($NodeId in @($Linked)) {
             if ($null -eq $NodeId) { continue }
             $Pov = Get-POVSummaryNodePov -NodeId $NodeId
             if (-not $Pov) { continue }
@@ -329,7 +357,7 @@ function Get-POVSummaryKeyPointTotal {
     param($SummaryObject)
     $Total = 0
     foreach ($Camp in @('accelerationist', 'safetyist', 'skeptic')) {
-        $CampData = $SummaryObject.pov_summaries.$Camp
+        $CampData = Get-POVSummaryCampData -SummaryObject $SummaryObject -Camp $Camp
         if ($CampData -and $CampData.PSObject.Properties['key_points'] -and $CampData.key_points) {
             $Total += @($CampData.key_points).Count
         }
@@ -430,11 +458,13 @@ function Add-POVSummaryClaimConflict {
     # Logs one claim as a conflict instance: into its hinted conflict file if it names one, else into a
     # fuzzy-matched file, else into a new file.
     param($Claim, [string]$DocId, [string]$ConflictsDir, [string]$Today)
-    $ClaimText   = $Claim.claim
-    $ClaimLabel  = $Claim.claim_label
-    $DocPosition = $Claim.doc_position
-    $HintId      = $Claim.potential_conflict_id
-    $LinkedNodes = ConvertTo-LinkedNodesArray -Value $Claim.linked_taxonomy_nodes
+    $Read = Get-POVSummaryClaimField -Claim $Claim
+    if ($null -eq $Read) { return }
+    $ClaimText   = $Read.claim
+    $ClaimLabel  = $Read.claim_label
+    $DocPosition = $Read.doc_position
+    $HintId      = $Read.potential_conflict_id
+    $LinkedNodes = ConvertTo-LinkedNodesArray -Value $Read.linked_taxonomy_nodes
 
     # Normalize stance value
     if ($DocPosition -in @('supports','disputes','neutral','qualifies')) { $Stance = $DocPosition } else { $Stance = 'neutral' }
@@ -449,6 +479,31 @@ function Add-POVSummaryClaimConflict {
     $Context = @{ DocId = $DocId; ConflictsDir = $ConflictsDir; ClaimText = $ClaimText; ClaimLabel = $ClaimLabel; Instance = $NewInstance; LinkedNodes = $LinkedNodes }
     if ($HintId) { Add-POVSummaryHintedConflict -HintId $HintId -Context $Context }
     else         { Add-POVSummaryUnhintedConflict -Context $Context }
+}
+
+function Get-POVSummaryClaimField {
+    # The claim's conflict-logging fields as a hashtable, or $null (claim skipped, with a WARN) when
+    # there is no claim text to log. Optional fields the model omitted read as $null, the same as an
+    # explicit null, with one fallback WARN per claim naming them; they used to throw (t/4070).
+    param($Claim)
+    $Names = @('claim', 'claim_label', 'doc_position', 'potential_conflict_id', 'linked_taxonomy_nodes')
+    $Fields = @{}
+    $Missing = [System.Collections.Generic.List[string]]::new()
+    foreach ($Name in $Names) {
+        if ($null -ne $Claim -and $Claim.PSObject.Properties[$Name]) { $Fields[$Name] = $Claim.$Name; continue }
+        $Fields[$Name] = $null
+        $Missing.Add($Name)
+    }
+    if ($null -eq $Fields.claim) {
+        Write-Warning "Invoke-POVSummary: a factual claim has no claim text; it is not logged as a conflict."
+        return $null
+    }
+    if ($Missing.Count -gt 0) {
+        $Text = [string]$Fields.claim
+        $Short = $Text.Substring(0, [Math]::Min(60, $Text.Length))
+        Write-Warning "Invoke-POVSummary: factual claim '$Short' is missing $($Missing -join ', '); logging it as a conflict with each treated as null."
+    }
+    $Fields
 }
 
 function Add-POVSummaryHintedConflict {
@@ -535,14 +590,14 @@ function ConvertTo-POVSummaryConflictRecord {
 
 function Write-POVSummaryConsole {
     param([string]$DocId, [string]$TaxonomyVersion, [string]$Model, $SummaryObject, $UnmappedConceptCount,
-          $FactualClaimCount, [string]$SnapshotFile)
+          $FactualClaimCount, [string]$SnapshotFile, [switch]$FilesWritten)
     Write-Host "`n$('═' * 72)" -ForegroundColor Cyan
     Write-Host "  POV SUMMARY: $DocId" -ForegroundColor White
     Write-Host "  Taxonomy v$TaxonomyVersion  |  Model: $Model" -ForegroundColor Gray
     Write-Host "$('═' * 72)" -ForegroundColor Cyan
 
     foreach ($Camp in @('accelerationist', 'safetyist', 'skeptic')) {
-        $CampData = $SummaryObject.pov_summaries.$Camp
+        $CampData = Get-POVSummaryCampData -SummaryObject $SummaryObject -Camp $Camp
         if (-not $CampData) { continue }
         Write-POVSummaryCampKeyPoint -Camp $Camp -CampData $CampData
     }
@@ -552,12 +607,23 @@ function Write-POVSummaryConsole {
     }
 
     Write-Host "`n$('═' * 72)" -ForegroundColor Cyan
+    if ($FilesWritten) {
+        Write-POVSummaryWrittenFileList -DocId $DocId -FactualClaimCount $FactualClaimCount -SnapshotFile $SnapshotFile
+    }
+    else {
+        # -WhatIf, or -Confirm declined: nothing was written, so say so (t/4070).
+        Write-Host "  No files written." -ForegroundColor Yellow
+    }
+    Write-Host "$('═' * 72)`n" -ForegroundColor Cyan
+}
+
+function Write-POVSummaryWrittenFileList {
+    param([string]$DocId, $FactualClaimCount, [string]$SnapshotFile)
     Write-Host "  Files written:" -ForegroundColor White
     Write-Host "    summaries/$DocId.json" -ForegroundColor Green
     $FinalStatus = if ($FactualClaimCount -lt 3 -and ([Math]::Round((Get-Item $SnapshotFile).Length / 1024, 1)) -gt 30) { 'needs_reextraction' } else { 'current' }
     $StatusColor = if ($FinalStatus -eq 'current') { 'Green' } else { 'Yellow' }
     Write-Host "    sources/$DocId/metadata.json  (summary_status=$FinalStatus)" -ForegroundColor $StatusColor
-    Write-Host "$('═' * 72)`n" -ForegroundColor Cyan
 }
 
 function Write-POVSummaryCampKeyPoint {
@@ -577,9 +643,19 @@ function Write-POVSummaryCampKeyPoint {
 
 function Write-POVSummaryKeyPoint {
     param($Point)
-    if ($Point.taxonomy_node_id) { $NodeTag = "[$($Point.taxonomy_node_id)]" } else { $NodeTag = "[UNMAPPED]" }
-    if ($Point.stance) { $PtStance = $Point.stance } else { $PtStance = 'neutral' }
-    Write-Host "      $NodeTag ($PtStance) $($Point.point)" -ForegroundColor Gray
+    $Props = $Point.PSObject.Properties
+    $Missing = @(foreach ($Name in 'taxonomy_node_id', 'stance', 'point') { if (-not $Props[$Name]) { $Name } })
+    if ($Missing.Count -gt 0) {
+        # Fallback (t/4070): show the same defaults as for a null value, instead of throwing after
+        # every file has already been written.
+        Write-Warning "Invoke-POVSummary: a key point is missing $($Missing -join ', '); the console summary shows it as unmapped/neutral."
+    }
+    $NodeId = if ($Props['taxonomy_node_id']) { $Point.taxonomy_node_id } else { $null }
+    $Stance = if ($Props['stance']) { $Point.stance } else { $null }
+    $Text   = if ($Props['point']) { $Point.point } else { '' }
+    if ($NodeId) { $NodeTag = "[$NodeId]" } else { $NodeTag = "[UNMAPPED]" }
+    if ($Stance) { $PtStance = $Stance } else { $PtStance = 'neutral' }
+    Write-Host "      $NodeTag ($PtStance) $Text" -ForegroundColor Gray
     if (-not ($Point.PSObject.Properties['verbatim'] -and $Point.verbatim)) { return }
     if ($Point.verbatim -is [array]) {
         foreach ($Span in $Point.verbatim) {

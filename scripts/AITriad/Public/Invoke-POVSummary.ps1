@@ -122,10 +122,6 @@ function Invoke-POVSummary {
     $metadata = Get-Content $paths.MetadataFile -Raw | ConvertFrom-Json
     if (Test-POVSummaryAlreadyCurrent -Metadata $metadata -Force:$Force -DryRun:$DryRun) { return }
 
-    foreach ($dir in @($paths.SummariesDir, $paths.ConflictsDir)) {
-        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    }
-
     if (-not $DryRun) {
         $ApiKey = Resolve-POVSummaryApiKey -Model $Model -ApiKey $ApiKey
     }
@@ -148,6 +144,12 @@ function Invoke-POVSummary {
     if ($DryRun) {
         Show-POVSummaryDryRun -TaxonomyDir $paths.TaxonomyDir -SnapshotText $snapshotText
         return
+    }
+
+    # Created after the dry-run return, so -DryRun creates nothing (t/4070). Before the pipeline,
+    # because it saves a debug-raw file into summaries/ when the model returns invalid JSON.
+    foreach ($dir in @($paths.SummariesDir, $paths.ConflictsDir)) {
+        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     }
 
     # -- STEP 3 — Run extraction pipeline --------------------------------------
@@ -190,27 +192,35 @@ function Invoke-POVSummary {
     Write-POVSummaryExtractionReport -PipelineResult $pipelineResult -SummaryObject $summaryObject `
         -FactualClaimCount $factualClaimCount -UnmappedConceptCount $unmappedConceptCount -UsedFire $usedFire -FireStats $fireStats
 
-    # -- STEP 4 — Write summary file ------------------------------------------
-    Write-Step "Writing summary file"
+    # -WhatIf / -Confirm: one decision covers every write in steps 4-6 (summary, metadata, source
+    # index, conflicts), so a declined run reports none of them as done and can never leave
+    # metadata.json marked current for a summary that was not written (t/4070).
+    $writeTarget = "summaries/$DocId.json, sources/$DocId/metadata.json and conflicts/"
+    $filesWritten = $PSCmdlet.ShouldProcess($writeTarget, 'Write POV summary, update metadata and log conflicts')
+    if ($filesWritten) {
+        # -- STEP 4 — Write summary file --------------------------------------
+        Write-Step "Writing summary file"
 
-    $nodeCount = Get-POVSummaryTaxonomyNodeCount -TaxonomyJson $pipelineResult.TaxonomyJson
-    $modelInfo = Get-POVSummaryModelInfo -Model $Model -Temperature $Temperature -UsedFire $usedFire -FireStats $fireStats `
-        -FullTaxonomy:$FullTaxonomy -TaxonomyNodeCount $nodeCount
-    Write-POVSummaryFile -Path $paths.SummaryFile -DocId $DocId -TaxonomyVersion $taxonomyVersion -ModelInfo $modelInfo `
-        -SummaryObject $summaryObject -ContextRotObj $contextRot.Obj
+        $nodeCount = Get-POVSummaryTaxonomyNodeCount -TaxonomyJson $pipelineResult.TaxonomyJson
+        $modelInfo = Get-POVSummaryModelInfo -Model $Model -Temperature $Temperature -UsedFire $usedFire -FireStats $fireStats `
+            -FullTaxonomy:$FullTaxonomy -TaxonomyNodeCount $nodeCount
+        Write-POVSummaryFile -Path $paths.SummaryFile -DocId $DocId -TaxonomyVersion $taxonomyVersion -ModelInfo $modelInfo `
+            -SummaryObject $summaryObject -ContextRotObj $contextRot.Obj
 
-    # -- STEP 5 — Update metadata.json ----------------------------------------
-    Write-Step "Updating metadata"
-    Write-POVSummaryMetadataFile -Paths $paths -DocId $DocId -TaxonomyVersion $taxonomyVersion -SummaryObject $summaryObject `
-        -FactualClaimCount $factualClaimCount -UnmappedConceptCount $unmappedConceptCount `
-        -ContextRotStages $contextRot.Stages -ContextRotObj $contextRot.Obj
+        # -- STEP 5 — Update metadata.json ------------------------------------
+        Write-Step "Updating metadata"
+        Write-POVSummaryMetadataFile -Paths $paths -DocId $DocId -TaxonomyVersion $taxonomyVersion -SummaryObject $summaryObject `
+            -FactualClaimCount $factualClaimCount -UnmappedConceptCount $unmappedConceptCount `
+            -ContextRotStages $contextRot.Stages -ContextRotObj $contextRot.Obj
 
-    # -- STEP 6 — Conflict detection ------------------------------------------
-    Write-Step "Running conflict detection"
-    Invoke-POVSummaryConflictDetection -SummaryObject $summaryObject -FactualClaimCount $factualClaimCount `
-        -DocId $DocId -ConflictsDir $paths.ConflictsDir
+        # -- STEP 6 — Conflict detection --------------------------------------
+        Write-Step "Running conflict detection"
+        Invoke-POVSummaryConflictDetection -SummaryObject $summaryObject -FactualClaimCount $factualClaimCount `
+            -DocId $DocId -ConflictsDir $paths.ConflictsDir
+    }
 
     # -- STEP 7 — Print human-readable summary to console --------------------
     Write-POVSummaryConsole -DocId $DocId -TaxonomyVersion $taxonomyVersion -Model $Model -SummaryObject $summaryObject `
-        -UnmappedConceptCount $unmappedConceptCount -FactualClaimCount $factualClaimCount -SnapshotFile $paths.SnapshotFile
+        -UnmappedConceptCount $unmappedConceptCount -FactualClaimCount $factualClaimCount -SnapshotFile $paths.SnapshotFile `
+        -FilesWritten:$filesWritten
 }

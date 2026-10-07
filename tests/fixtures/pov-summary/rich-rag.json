@@ -66,7 +66,9 @@
     "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
   ],
   "warnings": [],
-  "verbose": [],
+  "verbose": [
+    "Performing the operation \"Write POV summary, update metadata and log conflicts\" on target \"summaries/altman-2024-agi-path.json, sources/altman-2024-agi-path/metadata.json and conflicts/\"."
+  ],
   "error": null,
   "output": [],
   "calls": [

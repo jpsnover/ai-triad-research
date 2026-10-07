@@ -30,11 +30,25 @@
     "[Gray]   Taxonomy v2.4.0  |  Model: gemini-3.5-flash-lite",
     "[Cyan] ════════════════════════════════════════════════════════════════════════",
     "[Green] \n  [ACCELERATIONIST]",
-    "[White]     Beliefs:"
+    "[White]     Beliefs:",
+    "[Gray]       [acc-beliefs-001] (neutral) No stance property.",
+    "[Red] \n  [SAFETYIST]",
+    "[DarkGray]     (no key points extracted)",
+    "[Yellow] \n  [SKEPTIC]",
+    "[DarkGray]     (no key points extracted)",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   Files written:",
+    "[Green]     summaries/doc-1.json",
+    "[Green]     sources/doc-1/metadata.json  (summary_status=current)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
   ],
-  "warnings": [],
-  "verbose": [],
-  "error": "The property 'stance' cannot be found on this object. Verify that the property exists.",
+  "warnings": [
+    "Invoke-POVSummary: a key point is missing stance; the console summary shows it as unmapped/neutral."
+  ],
+  "verbose": [
+    "Performing the operation \"Write POV summary, update metadata and log conflicts\" on target \"summaries/doc-1.json, sources/doc-1/metadata.json and conflicts/\"."
+  ],
+  "error": null,
   "output": [],
   "calls": [
     {
@@ -96,7 +110,7 @@
     "sources/doc-1/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"current\",\n  \"summary_version\": \"2.4.0\",\n  \"summary_updated\": \"2026-01-02T03:04:05Z\",\n  \"total_claims\": 0,\n  \"node_references_by_pov\": {\n    \"accelerationist\": 0,\n    \"safetyist\": 0,\n    \"situations\": 0,\n    \"skeptic\": 0\n  },\n  \"primary_pov_distribution\": {\n    \"accelerationist\": 0,\n    \"safetyist\": 0,\n    \"situations\": 0,\n    \"skeptic\": 0\n  },\n  \"total_facts\": 1,\n  \"unmapped_concepts\": 0\n}\n",
     "sources/doc-1/snapshot.md": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
     "summaries/": "(dir)",
-    "summaries/doc-1.json": "{\n  \"doc_id\": \"doc-1\",\n  \"taxonomy_version\": \"2.4.0\",\n  \"generated_at\": \"2026-01-02T03:04:05Z\",\n  \"model_info\": {\n    \"model\": \"gemini-3.5-flash-lite\",\n    \"temperature\": 0.1,\n    \"max_tokens\": 32768,\n    \"extraction_mode\": \"single_shot\",\n    \"taxonomy_filter\": \"rag\",\n    \"taxonomy_nodes\": 3\n  },\n  \"pov_summaries\": {\n    \"accelerationist\": {\n      \"key_points\": [\n        {\n          \"taxonomy_node_id\": \"acc-beliefs-001\",\n          \"category\": \"Beliefs\",\n          \"point\": \"No stance property.\"\n        }\n      ]\n    },\n    \"safetyist\": {\n      \"key_points\": []\n    },\n    \"skeptic\": {\n      \"key_points\": []\n    }\n  },\n  \"factual_claims\": null,\n  \"unmapped_concepts\": null,\n  \"context_rot\": null\n}\n",
+    "summaries/doc-1.json": "{\n  \"doc_id\": \"doc-1\",\n  \"taxonomy_version\": \"2.4.0\",\n  \"generated_at\": \"2026-01-02T03:04:05Z\",\n  \"model_info\": {\n    \"model\": \"gemini-3.5-flash-lite\",\n    \"temperature\": 0.1,\n    \"max_tokens\": 32768,\n    \"extraction_mode\": \"single_shot\",\n    \"taxonomy_filter\": \"rag\",\n    \"taxonomy_nodes\": 3\n  },\n  \"pov_summaries\": {\n    \"accelerationist\": {\n      \"key_points\": [\n        {\n          \"taxonomy_node_id\": \"acc-beliefs-001\",\n          \"category\": \"Beliefs\",\n          \"point\": \"No stance property.\"\n        }\n      ]\n    },\n    \"safetyist\": {\n      \"key_points\": []\n    },\n    \"skeptic\": {\n      \"key_points\": []\n    }\n  },\n  \"factual_claims\": [],\n  \"unmapped_concepts\": [],\n  \"context_rot\": null\n}\n",
     "taxonomy/": "(dir)",
     "TAXONOMY_VERSION": "2.4.0\n"
   }

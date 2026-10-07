@@ -24,7 +24,9 @@
     "[Gray]    →  AI response was valid but could not be saved. Check disk space and permissions."
   ],
   "warnings": [],
-  "verbose": [],
+  "verbose": [
+    "Performing the operation \"Write POV summary, update metadata and log conflicts\" on target \"summaries/doc-1.json, sources/doc-1/metadata.json and conflicts/\"."
+  ],
   "error": "disk full writing summaries/doc-1.json",
   "output": [],
   "calls": [
