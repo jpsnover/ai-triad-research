@@ -10,6 +10,7 @@
 
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..' 'scripts' 'AITriad' 'AITriad.psm1') -Force -WarningAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'PolicyPovFixture.ps1')
 
     # Writes skeptic.json + policy_actions.json into a fresh temp dir and returns the dir.
     function New-PolicyFixture([object[]]$Nodes, [object[]]$Policies) {
@@ -18,6 +19,7 @@ BeforeAll {
         [ordered]@{ _schema_version = '1.0.0'; nodes = @($Nodes) } | ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $Dir 'skeptic.json')
         [ordered]@{ _schema_version = '1.0.0'; _doc = 'x'; policy_count = @($Policies).Count; policies = @($Policies) } |
             ConvertTo-Json -Depth 20 | Set-Content -Path (Join-Path $Dir 'policy_actions.json')
+        Add-PolicyPovFillers -Dir $Dir
         return $Dir
     }
     function Node([string]$Id, [object[]]$Actions) {
