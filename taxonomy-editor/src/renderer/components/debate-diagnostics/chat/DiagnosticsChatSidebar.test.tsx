@@ -2,9 +2,10 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DiagnosticsChatSidebar } from './DiagnosticsChatSidebar';
+import { api } from '@bridge';
 import type { DebateSession } from '../../../types/debate';
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
@@ -42,8 +43,11 @@ vi.mock('@lib/ai-client/defaults', () => ({
 
 // getModel() now reads the validated model via getStoredModel (t/2486). Mock the store module
 // so the header assertion still sees 'test-model' and the real store isn't loaded into this suite.
+const mockGetStoredModel = vi.fn(() => 'test-model');
+const mockBackendForModel = vi.fn((model: string) => (model === 'test-model' ? 'gemini' : undefined));
 vi.mock('../../../hooks/useTaxonomyStore', () => ({
-  getStoredModel: () => 'test-model',
+  getStoredModel: (...args: unknown[]) => mockGetStoredModel(...(args as [])),
+  backendForModel: (...args: Parameters<typeof mockBackendForModel>) => mockBackendForModel(...args),
 }));
 
 // Soul docs are imported transitively by @lib/debate/types → poverInfo.ts.
@@ -409,6 +413,41 @@ describe('DiagnosticsChatSidebar', () => {
     it('shows the context token count in the input footer', () => {
       render(<DiagnosticsChatSidebar {...defaultProps} embedded />);
       expect(screen.getByText(/tokens in context/)).toBeInTheDocument();
+    });
+  });
+
+  // ── 9b. Backend resolution for the API-key precheck (t/4101) ────────────
+
+  describe('backend resolution for the API-key precheck', () => {
+    // getModel() is read once for the header display and again inside the send flow, so the
+    // stubs must hold a persistent value (not mockReturnValueOnce) across both calls.
+    afterEach(() => {
+      mockGetStoredModel.mockReturnValue('test-model');
+      mockBackendForModel.mockReturnValue('gemini');
+    });
+
+    it('resolves a non-default backend (xai) from the model registry, not an id-prefix guess', async () => {
+      mockGetStoredModel.mockReturnValue('xai-grok-4');
+      mockBackendForModel.mockImplementation((model: string) => (model === 'xai-grok-4' ? 'xai' : undefined));
+      vi.mocked(api.hasApiKey).mockResolvedValueOnce(true);
+
+      render(<DiagnosticsChatSidebar {...defaultProps} debate={makeDebate()} embedded />);
+      await userEvent.type(screen.getByPlaceholderText(/ask about the debate/i), 'hello');
+      await userEvent.click(screen.getByText('Send'));
+
+      await waitFor(() => expect(api.hasApiKey).toHaveBeenCalledWith('xai'));
+    });
+
+    it('fails loudly for an unrecognized model instead of silently defaulting to gemini', async () => {
+      mockGetStoredModel.mockReturnValue('totally-unknown-model');
+      mockBackendForModel.mockImplementation(() => undefined);
+
+      render(<DiagnosticsChatSidebar {...defaultProps} debate={makeDebate()} embedded />);
+      await userEvent.type(screen.getByPlaceholderText(/ask about the debate/i), 'hello');
+      await userEvent.click(screen.getByText('Send'));
+
+      await waitFor(() => expect(screen.getByText(/Unknown model "totally-unknown-model"/)).toBeInTheDocument());
+      expect(api.hasApiKey).not.toHaveBeenCalled();
     });
   });
 

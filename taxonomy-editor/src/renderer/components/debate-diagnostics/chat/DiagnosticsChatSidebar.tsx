@@ -8,7 +8,7 @@ import { POVER_INFO } from '../../../types/debate';
 import { POV_META, type PovMetaKey } from '@lib/electron-shared/povMeta';
 import { POV_KEYS } from '@lib/debate/types';
 import { api, isElectronMode } from '@bridge';
-import { getStoredModel } from '../../../hooks/useTaxonomyStore';
+import { backendForModel, getStoredModel } from '../../../hooks/useTaxonomyStore';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -507,11 +507,17 @@ function handleCompareCommand(debate: DebateSession, args: string): string | nul
   ].join('\n');
 }
 
+// t/4101: resolve the backend from the model registry (backendForModel), not an id-prefix
+// guess — the old prefix check missed xai/deepseek/azure/zai/moonshot and silently defaulted
+// them to gemini, so the ensureApiKey precheck below prompted for (or passed) the wrong key.
+// backendForModel returns undefined rather than a default for an unknown id, so unknown
+// models fail loudly here instead of silently resolving to gemini.
 function pickBackend(model: string): string {
-  return model.startsWith('claude') ? 'claude'
-    : model.startsWith('groq') ? 'groq'
-    : model.startsWith('openai') ? 'openai'
-    : 'gemini';
+  const backend = backendForModel(model);
+  if (!backend) {
+    throw new Error(`Unknown model "${model}" — cannot determine its API backend.`);
+  }
+  return backend;
 }
 
 async function ensureApiKey(backend: string): Promise<void> {
