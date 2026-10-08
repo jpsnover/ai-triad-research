@@ -2065,6 +2065,16 @@ jobs:
           node --test operations/devops/flake-heal-tripwire.test.mjs
           node --test operations/devops/collect-flake-heal-runs.test.mjs
 
+      - name: Stuck-PR classifier unit suite (WARN-FIRST — t/4115)
+        # Same t/3871 wiring discipline: pr-triage.yml's own "Self-health — classifier unit
+        # suite" step (inside the stuck-pr-alert job) already re-runs this every scheduled
+        # triage, but that only proves the WORKFLOW'S invocation stays wired -- this step
+        # additionally covers it on every PR, so a regression is caught before merge, not
+        # just at the next 2h cron. WARN-FIRST: flip by removing continue-on-error after
+        # >=1 green cycle (SO + TL GV), same discipline as its neighbors.
+        continue-on-error: true
+        run: node --test operations/devops/stuck-pr-classifier.test.mjs
+
   # ── complexity-tickets: refactor issues for over-budget files (advisory) ─────
   # Collects the complexity-violations-* artifacts that test-electron (ESLint
   # local/complexity-budget) and complexity-budget (PS Test-ComplexityBudget) upload
