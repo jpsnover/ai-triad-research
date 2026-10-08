@@ -97,7 +97,7 @@ Four POV camps with BDI categories. Node IDs: `{pov}-{category}-{NNN}` (pov ∈ 
 
 ### AI Backends
 
-`ai-models.json` is the single source of truth for both PowerShell and Electron. A model's backend comes from the registry, never from its id prefix (t/4087). Keys come via `Register-AIBackend` or per-backend env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, …), with an `AI_API_KEY` fallback. **Run `npm run verify:config` before landing any edit.** Adding a backend? Follow `/add-ai-backend`.
+`ai-models.json` is the single source of truth for both PowerShell and Electron. A model's backend comes from the registry, never from its id prefix (t/4087). Keys come via `Register-AIBackend` or per-backend env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, …), with an `AI_API_KEY` fallback **for gemini models only** (other backends refuse it as a primary key, t/4102). **Run `npm run verify:config` before landing any edit.** Adding a backend? Follow `/add-ai-backend`.
 
 ### Dependency Security Bumps
 
