@@ -66,6 +66,28 @@ function Get-BranchStrandVerdict {
     return [PSCustomObject]@{ Verdict = 'DIVERGED-UNLANDED'; Ahead = 0 }
 }
 
+# t/3652 false positive (p/648#99): a branch NAME can be reused. #3020 merged
+# feat/t3553-code-referenced-models; a later, unrelated, still-OPEN PR (#3046, draft/consult-hold)
+# reused that same branch name. The live tip then belongs to #3046's in-flight work, not to
+# #3020's merged head, and diffing it against #3020's merged SHA misreports as
+# "DIVERGED, N unlanded" -- a false stranded-branch alarm on a branch that is not stranded, just
+# mid-review under a NEW PR. Pure (takes the already-fetched `gh pr list --state all` array, no
+# gh/git call of its own) so it is unit-testable like the two functions below. Mirrors the
+# MERGED/CLOSED `$latestByBranch` map the caller already builds, parameterized so it is callable
+# and testable standalone -- most-recent OPEN PR per branch (ties broken by highest PR number,
+# same tie-break as the merged map, even though GitHub does not normally allow two open PRs from
+# one branch into the same base).
+function Get-OpenPrByBranch {
+    [CmdletBinding()]
+    param([AllowEmptyCollection()][object[]]$Prs = @())
+    $map = @{}
+    foreach ($p in @($Prs | Where-Object { $_.state -eq 'OPEN' })) {
+        $b = $p.headRefName
+        if (-not $map.ContainsKey($b) -or $p.number -gt $map[$b].number) { $map[$b] = $p }
+    }
+    return $map
+}
+
 # t/3652: classify a gh failure into a REASON so the degraded state names its own cause — a
 # gh-unauth/gh-absent is a host-config fix, a rate-limit/timeout is transient (TL t/3652#3 cond 2:
 # "log WHY too"). Pure (no gh call) so it is unit-testable. Empty string => not a failure.

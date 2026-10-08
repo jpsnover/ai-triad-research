@@ -62,6 +62,15 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Check for GEMINI_API_KEY (visibility only -- t/4059)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::warning::GEMINI_API_KEY intentionally unset — conflict clusters use generic \"Cluster N\" labels by PI decision (t/4059#1). Do not add a key without revisiting that decision."
+            echo "**GEMINI_API_KEY not set:** conflict clusters are labelled generically (\"Cluster N\") -- intentional, by PI decision (t/4059#1), not a misconfiguration." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Compute conflict clusters
         env:
           AI_TRIAD_DATA_ROOT: ${{ github.workspace }}/ai-triad-data

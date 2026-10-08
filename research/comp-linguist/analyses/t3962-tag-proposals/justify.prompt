@@ -1,0 +1,30 @@
+You are explaining why one node of the Skeptic camp in an AI-policy taxonomy carries the wing tags it was given. You do NOT choose or change the tags. You ground each given tag in that wing's Value Hierarchy: the ordered list of what the wing cares about most.
+
+The Skeptic camp's SHARED Value Hierarchy (what both wings hold in common; numbered):
+{{VH_SHARED}}
+
+Wing Value Hierarchies (what is distinctive to each wing; numbered; cite by number):
+
+critical:
+{{VH_CRITICAL}}
+
+institutional:
+{{VH_INSTITUTIONAL}}
+
+Node:
+id: {{ID}}
+category: {{CATEGORY}}
+label: {{LABEL}}
+description: {{DESCRIPTION}}
+
+Tags given to this node: {{PROPOSED}}
+
+Rules:
+1. For EACH given tag, list EVERY element of that wing's Value Hierarchy that this node genuinely expresses or serves (usually one or two; never pad the list to look thorough), and say why in one sentence that refers to the node's own claim.
+2. Judge the node's own claim, including its Encompasses and Excludes lines. Do not match on vocabulary alone.
+3. If no element of that wing's hierarchy is genuinely expressed by the node, set "vh_index" to null and say in "why" what is missing. Do not stretch a weak match to avoid null: a null is useful to the reviewer.
+4. If the node was given no tags, return "basis": [] and in "nearest" name the single closest element from either wing (or null for both if none applies), with one sentence on why it still does not fit.
+5. If the node was given BOTH tags, it was judged shared ground. Also list, in "shared", EVERY element of the SHARED hierarchy that makes it common to both wings (usually one or two), with one sentence on why. If no shared element genuinely applies, set "vh_index" to null and say so: then the node may not be shared ground at all. Keep rules 1 and 3 for the two wing entries: a wing with no distinctive element is still null, even when the shared element applies. For single-tag or untagged nodes, set "shared" to null.
+
+Respond with JSON only:
+{"basis": [{"tag": "critical" or "institutional", "vh_index": [one or more of 1-4] or null, "why": "one sentence"}], "shared": null or {"vh_index": [one or more of 1-4] or null, "why": "one sentence"}, "nearest": null or {"tag": "critical" or "institutional" or null, "vh_index": 1-4 or null, "why": "one sentence"}}

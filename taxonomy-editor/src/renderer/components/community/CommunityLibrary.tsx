@@ -4,6 +4,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useCommunityStore, type CommunityChat, type CommunityDebate, type CommunityInquiry } from '../../hooks/useCommunityStore';
 import type { OpEdCommunityEntry } from '../../../../../lib/oped/types';
+import { opedCommunityTagText } from '../opeds/opedTagScopeText';
+import { resolvePovMeta } from '../opeds/povResolve';
 import { useFlag } from '../../hooks/useFeatureFlags';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { TOAST_DURATION_INFO, TOAST_DURATION_ERROR } from '../../constants';
@@ -124,6 +126,10 @@ export function CommunityCard({ item, isAdmin, onCopy, onRemove }: {
         <span>{formatDate(item.updated_at || item.created_at)}</span>
         {'phase' in item && item.phase && <span className="community-card-badge">{item.phase}</span>}
         {'mode' in item && item.mode && <span className="community-card-badge">{item.mode}</span>}
+        {/* t/3992: an op-ed scoped to one wing says so in the list (TL t/3960#3 cond 2). */}
+        {'voice_count' in item && item.tag && (
+          <span className="community-card-badge">{opedCommunityTagText(resolvePovMeta(item.tag.pov).label, item.tag)}</span>
+        )}
       </div>
       <button
         className="btn btn-sm btn-primary community-card-copy"

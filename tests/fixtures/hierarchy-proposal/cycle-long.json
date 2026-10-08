@@ -1,0 +1,80 @@
+{
+  "scenario": "cycle-long",
+  "host": [
+    "[Cyan] \n▶  Loading taxonomy data",
+    "[Green]    ✓  accelerationist: 2 nodes",
+    "[Green]    ✓  safetyist: 2 nodes",
+    "[Cyan] \n▶  Loading embeddings",
+    "[Green]    ✓  Loaded embeddings for 4 nodes",
+    "[Cyan] \n▶  Loading edges",
+    "[Cyan] \n▶  Building processing buckets",
+    "[Green]    ✓  1 buckets to process",
+    "[Gray]    →  accelerationist / Beliefs: 2 nodes",
+    "[Cyan] \n▶  Bucket 1/1: accelerationist / Beliefs (2 nodes)",
+    "[Green]    ✓  Clustering produced 2 clusters",
+    "[Gray]    →  Calling gemini-2.5-flash ...",
+    "[Green]    ✓  Response in <elapsed>s",
+    "[Yellow]    ⚠  Duplicate assignment: cyc-a",
+    "[Yellow]    ⚠  Cycle detected in hierarchy: cyc-c -> cyc-a",
+    "[Yellow]    ⚠  1 nodes not assigned: acc-b-2",
+    "[Green]    ✓  Proposed 3 parents, 3 children, 1 outliers",
+    "[Cyan] \n▶  Done",
+    "[Green]    ✓  Proposal saved to <ROOT>/taxonomy/hierarchy-proposals/hierarchy-proposal-2026-01-02-030405.json",
+    "[Yellow]    ⚠  Review Markdown: outlier acc-b-1 in accelerationist / Beliefs has no 'reason' field (off-schema model response); rendering it without one",
+    "[Green]    ✓  Review document saved to <ROOT>/taxonomy/hierarchy-proposals/hierarchy-review-2026-01-02-030405.md"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Performing the operation \"Write hierarchy proposal\" on target \"<ROOT>/taxonomy/hierarchy-proposals/hierarchy-proposal-2026-01-02-030405.json\".",
+    "Performing the operation \"Write review Markdown\" on target \"<ROOT>/taxonomy/hierarchy-proposals/hierarchy-review-2026-01-02-030405.md\"."
+  ],
+  "error": null,
+  "output": [
+    {
+      "ProposalFile": "<ROOT>/taxonomy/hierarchy-proposals/hierarchy-proposal-2026-01-02-030405.json",
+      "ReviewFile": "<ROOT>/taxonomy/hierarchy-proposals/hierarchy-review-2026-01-02-030405.md",
+      "BucketCount": 1,
+      "TotalParents": 3.0
+    }
+  ],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal-schema"
+    },
+    {
+      "call": "ai",
+      "bucket": "accelerationist/Beliefs",
+      "model": "gemini-2.5-flash",
+      "apiKey": "",
+      "temperature": 0.3,
+      "maxTokens": 65536,
+      "jsonMode": true,
+      "timeoutSec": 600,
+      "prompt": "<<hierarchy-proposal>>\n\nPOV: accelerationist\nCategory: Beliefs\nNode count: 2\n\n--- NODES ---\n[\n  {\n    \"id\": \"acc-b-1\",\n    \"label\": \"Label acc-b-1\",\n    \"description\": \"Description of acc-b-1.\"\n  },\n  {\n    \"id\": \"acc-b-2\",\n    \"label\": \"Label acc-b-2\",\n    \"description\": \"Description of acc-b-2.\"\n  }\n]\n\n--- PRE-COMPUTED CLUSTERS ---\n[\n  {\n    \"cluster_id\": 0,\n    \"node_ids\": [\n      \"acc-b-1\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  },\n  {\n    \"cluster_id\": 1,\n    \"node_ids\": [\n      \"acc-b-2\"\n    ],\n    \"size\": 1,\n    \"cohesion_score\": 0.0,\n    \"intra_edges\": {},\n    \"shared_epistemic_type\": null,\n    \"attribute_coherence\": 0.0\n  }\n]\n\n<<hierarchy-proposal-schema>>"
+    }
+  ],
+  "writes": [
+    "taxonomy/hierarchy-proposals/hierarchy-proposal-2026-01-02-030405.json",
+    "taxonomy/hierarchy-proposals/hierarchy-review-2026-01-02-030405.md"
+  ],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/hierarchy-proposals/": "(dir)",
+    "taxonomy/hierarchy-proposals/hierarchy-proposal-2026-01-02-030405.json": "{\n  \"generated_at\": \"2026-01-02T03:04:05.0000000Z\",\n  \"model\": \"gemini-2.5-flash\",\n  \"buckets\": [\n    {\n      \"pov\": \"accelerationist\",\n      \"category\": \"Beliefs\",\n      \"parents\": [\n        {\n          \"promoted_from\": \"cyc-a\",\n          \"label\": null,\n          \"description\": null,\n          \"children\": [\n            {\n              \"node_id\": \"cyc-b\",\n              \"relationship\": \"is_a\",\n              \"rationale\": \"a-b\"\n            }\n          ]\n        },\n        {\n          \"promoted_from\": \"cyc-b\",\n          \"label\": null,\n          \"description\": null,\n          \"children\": [\n            {\n              \"node_id\": \"cyc-c\",\n              \"relationship\": \"is_a\",\n              \"rationale\": \"b-c\"\n            }\n          ]\n        },\n        {\n          \"promoted_from\": \"cyc-c\",\n          \"label\": null,\n          \"description\": null,\n          \"children\": [\n            {\n              \"node_id\": \"cyc-a\",\n              \"relationship\": \"is_a\",\n              \"rationale\": \"c-a\"\n            }\n          ]\n        }\n      ],\n      \"outliers\": [\n        {\n          \"node_id\": \"acc-b-1\"\n        }\n      ],\n      \"_metadata\": {\n        \"generated_at\": \"2026-01-02T03:04:05.0000000Z\",\n        \"model\": \"gemini-2.5-flash\",\n        \"temperature\": 0.3,\n        \"min_similarity\": 0.4,\n        \"node_count\": 2,\n        \"cluster_count\": 2,\n        \"missing_nodes\": [\n          \"acc-b-2\"\n        ]\n      }\n    }\n  ]\n}\n",
+    "taxonomy/hierarchy-proposals/hierarchy-review-2026-01-02-030405.md": "# Hierarchy Proposal Review — 2026-01-02-030405\n\n**Model:** gemini-2.5-flash | **Generated:** 2026-01-02 03:04\n\n---\n\n## accelerationist / Beliefs\n\n### Parent 1: cyc-a [PROMOTED]\n\n| Child ID | Label | Relationship | Rationale |\n|----------|-------|-------------|-----------|\n| cyc-b | cyc-b | is_a | a-b |\n\n**Verdict:** [ ] Accept  [ ] Modify  [ ] Reject\n\n### Parent 2: cyc-b [PROMOTED]\n\n| Child ID | Label | Relationship | Rationale |\n|----------|-------|-------------|-----------|\n| cyc-c | cyc-c | is_a | b-c |\n\n**Verdict:** [ ] Accept  [ ] Modify  [ ] Reject\n\n### Parent 3: cyc-c [PROMOTED]\n\n| Child ID | Label | Relationship | Rationale |\n|----------|-------|-------------|-----------|\n| cyc-a | cyc-a | is_a | c-a |\n\n**Verdict:** [ ] Accept  [ ] Modify  [ ] Reject\n\n### Outliers (no parent assigned)\n\n| Node ID | Label | Reason |\n|---------|-------|--------|\n| acc-b-1 | Label acc-b-1 |  |\n\n**Warning:** 1 nodes not assigned by AI: `acc-b-2`\n\n",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "sha256:866fc0e82c48027fd05179b0e09ae64b96b75f42699ae0eca4047b962030a282 (307 chars)",
+    "taxonomy/Origin/embeddings.json": "sha256:c30331756b20ec6ba8b8fd6a06e4464f6524d1646e09246d34a255ca3198c644 (350 chars)",
+    "taxonomy/Origin/safetyist.json": "sha256:60797bf3b2a8d3a767a94e1c2e3af5df29b05d9d084770a2f399baab68d16715 (307 chars)"
+  }
+}

@@ -28,12 +28,22 @@ vi.mock('../../hooks/useChatStore', () => ({
   useChatStore: () => ({ createChat: mockCreateChat, loadChat: vi.fn() }),
 }));
 
-const { useTaxonomyStoreMock } = vi.hoisted(() => ({
-  useTaxonomyStoreMock: Object.assign(
-    () => ({ aiBackend: 'gemini' as const, geminiModel: 'gemini-flash' }),
-    { getState: () => ({ accelerationist: { nodes: [] }, safetyist: { nodes: [] }, skeptic: { nodes: [] } }) },
-  ),
-}));
+const { useTaxonomyStoreMock, mockPovNodes } = vi.hoisted(() => {
+  const nodes: Record<string, { id: string; pov_tags?: string[] }[]> = {
+    accelerationist: [], safetyist: [], skeptic: [],
+  };
+  return {
+    mockPovNodes: nodes,
+    useTaxonomyStoreMock: Object.assign(
+      () => ({ aiBackend: 'gemini' as const, geminiModel: 'gemini-flash' }),
+      { getState: () => ({
+        accelerationist: { nodes: nodes.accelerationist },
+        safetyist: { nodes: nodes.safetyist },
+        skeptic: { nodes: nodes.skeptic },
+      }) },
+    ),
+  };
+});
 vi.mock('../../hooks/useTaxonomyStore', () => ({
   useTaxonomyStore: useTaxonomyStoreMock,
   AI_BACKENDS: [
@@ -111,6 +121,8 @@ describe('NewChatDialog POV tag wiring (t/3959)', () => {
     mockIsFree = false;
     mockApi.hasApiKey.mockResolvedValue(false);
     mockCreateChat.mockResolvedValue('chat-1');
+    mockPovNodes.accelerationist = [];
+    mockPovNodes.safetyist = [];
   });
 
   it('passes undefined tag to createChat when no POV tag is selected', async () => {
@@ -122,16 +134,30 @@ describe('NewChatDialog POV tag wiring (t/3959)', () => {
     expect(mockCreateChat).toHaveBeenCalledWith('brainstorm', 'accelerationist', 'topic', undefined, undefined);
   });
 
-  it('passes the selected tag to createChat and disables Start when Scope is below the minimum', async () => {
+  it('disables Start for Scope below the minimum, and for Prioritize at zero tagged nodes (TL t/3957#7, t/3959#5)', async () => {
     mockRegistry.povs = { accelerationist: [{ id: 'critical', label: 'Critical' }] };
+    mockPovNodes.accelerationist = []; // zero nodes carry the tag
     const user = userEvent.setup();
     render(<NewChatDialog onClose={vi.fn()} />);
     await user.type(screen.getByPlaceholderText(/explore/i), 'topic');
     await user.selectOptions(screen.getByLabelText('accelerationist tag'), 'critical');
 
-    // Default mode is scope; mocked taxonomy store has zero nodes, so it's below the minimum.
+    // Scope: below the 5-node minimum.
     expect(screen.getByRole('button', { name: /start chat/i })).toBeDisabled();
 
+    // Prioritize: still blocked, because zero nodes carry the tag (no floor above zero otherwise).
+    await user.click(screen.getByLabelText('Prioritize'));
+    expect(screen.getByRole('button', { name: /start chat/i })).toBeDisabled();
+    expect(mockCreateChat).not.toHaveBeenCalled();
+  });
+
+  it('passes the selected tag to createChat once Prioritize has at least one tagged node', async () => {
+    mockRegistry.povs = { accelerationist: [{ id: 'critical', label: 'Critical' }] };
+    mockPovNodes.accelerationist = [{ id: 'a1', pov_tags: ['critical'] }];
+    const user = userEvent.setup();
+    render(<NewChatDialog onClose={vi.fn()} />);
+    await user.type(screen.getByPlaceholderText(/explore/i), 'topic');
+    await user.selectOptions(screen.getByLabelText('accelerationist tag'), 'critical');
     await user.click(screen.getByLabelText('Prioritize'));
     expect(screen.getByRole('button', { name: /start chat/i })).not.toBeDisabled();
     await user.click(screen.getByRole('button', { name: /start chat/i }));

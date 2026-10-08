@@ -6,6 +6,7 @@ import type { FetchFn, GenerateOptions, ProviderResult, BackendId } from './type
 import type { ModelRegistry } from './registry.js';
 import { resolveModel, resolveTimeout, estimateCost } from './registry.js';
 import { withRetry, type RetryConfig, CLI_RETRY_CONFIG } from './retry.js';
+import { assertKeyForBackend } from './apiKeyFallback.js';
 import { generateViaGemini } from './providers/gemini.js';
 import { generateViaClaude } from './providers/claude.js';
 import { generateViaGroq } from './providers/groq.js';
@@ -79,6 +80,8 @@ export async function callProvider(
   apiKey: string,
   opts: GenerateOptions,
 ): Promise<ProviderResult> {
+  // t/4105 C5: the one chokepoint every provider send passes; refuse another backend's credential before any request.
+  assertKeyForBackend(apiKey, backend, 'provided');
   const result = await dispatchProvider(fetchFn, backend, prompt, apiModelId, apiKey, opts);
   const served = result.providerReportedModel;
   const identity = classifyServedIdentity({ registry: opts.identityRegistry, backend, sent: apiModelId, served });

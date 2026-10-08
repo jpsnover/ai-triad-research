@@ -49,8 +49,18 @@ function Invoke-EntityExtraction {
              (name+short_name), taxonomy node labels (acc/saf/skp/situations), the
              dictionary (colloquial_term + standardized canonical_form), and policy
              actions (action text).
-          2. Cosine >= -LinkSimilarityThreshold (default 0.60) against EXISTING ENTITY
-             vectors only (entity_embeddings.json, approved-only per Import-Entity §3).
+          2. EXISTING-ENTITY CANDIDATES (ADVISORY, t/4075): cosine of the proposal's
+             name vector against existing entity name vectors (entity_embeddings.json, v1
+             flat or v2 name_vector). This stage NEVER links (TL ruling p/360#571): distinct
+             siblings score above any threshold (Claude 3.5 vs 3.7 Sonnet 0.987, GPT-4 vs
+             GPT-5 0.879). The proposal mints normally, and up to 3 non-sibling candidates
+             at or above -LinkSimilarityThreshold, plus every version sibling (flagged), are
+             written to the sidecar's existing_entity_candidates[] with the run's
+             embedding_model. version_sibling=false means only that no version difference
+             was detected (tier/variant siblings such as Sonnet vs Opus are not detected),
+             NOT that the pair is safe to merge. Review with Get-EntityExtractionCandidates;
+             record a confirmed match with Import-Entity merged_into. A WARN is written
+             when the stage is skipped or finds nothing.
           3. Within-run EXACT dedup: the proposal's normalized name OR any alias matches
              an already-minted within-run candidate's name OR alias (t/1880 bullet 1 —
              the pre-existing MatchIndex never sees freshly-minted siblings).
@@ -63,10 +73,10 @@ function Invoke-EntityExtraction {
              sidecar's possible_duplicates[] for a curator to review — a false positive
              costs a human glance, not an entity. WITHIN-RUN ONLY (fires with zero approved
              entities); cross-run near-variant surfacing is Phase 2.
-          Steps 1-3 record a `linked` disposition and mint nothing (links are Phase 2);
+          Steps 1 and 3 record a `linked` disposition and mint nothing (links are Phase 2);
           an unmatched proposal is queued for minting and every later within-run EXACT
-          occurrence is `linked` to the id just minted. Step 4 never links — it only
-          surfaces. Probe vectors are batch-encoded once per node (not per proposal).
+          occurrence is `linked` to the id just minted. Steps 2 and 4 never link — they only
+          surface. Probe vectors are batch-encoded once per node (not per proposal).
           Minting happens in sub-batches of <= 20 (Import-Entity's ValidateCount ceiling).
 
         IDEMPOTENCE: an entity_extraction_log.json sidecar (mirrors organization_stance_
@@ -95,8 +105,9 @@ function Invoke-EntityExtraction {
         Width of the near-gate review window above -ConfidenceThreshold. Default 0.1
         (so [0.6, 0.7) is flagged `near_gate` when using the defaults).
     .PARAMETER LinkSimilarityThreshold
-        Minimum cosine similarity against an existing entity vector to link instead
-        of mint. Default 0.60.
+        Minimum cosine similarity against an existing entity name vector for that entity
+        to be listed as an ADVISORY candidate in existing_entity_candidates[]. Default 0.60.
+        It never links (t/4075); the name is kept for interface stability.
     .PARAMETER WithinRunSimilarityThreshold
         Minimum cosine similarity between a proposal and an already-minted WITHIN-RUN
         candidate (both freshly proposed this run) at which the pair is SURFACED as a
@@ -184,43 +195,11 @@ function Invoke-EntityExtraction {
     $ErrorActionPreference = 'Stop'
 
     $UsageId = 'enrichment.entity-extraction'
-
-    # ── Runtime guard (t/1806): the UsageID is local-only until t/1819 lands it in
-    # ai-usages.json. Get-UsageConfig's generic "not found" error is accurate but
-    # unhelpful here — a premature live run should fail pointing at the real cause. ──
-    $UsageResolves = $false
-    try {
-        $Registry = Get-UsageRegistry
-        $UsageResolves = [bool]$Registry.PSObject.Properties[$UsageId]
-    } catch {
-        $UsageResolves = $false
-    }
-    if (-not $UsageResolves) {
-        throw (New-ActionableError -PassThru `
-            -Goal 'Extract entity proposals from source evidence' `
-            -Problem "UsageID '$UsageId' is not registered in ai-usages.json" `
-            -Location 'Invoke-EntityExtraction' `
-            -NextSteps @(
-                'Land t/1819 (enrichment.entity-extraction go-live) to register the UsageID',
-                "Verify with: (Get-UsageRegistry).PSObject.Properties.Name | Where-Object { `$_ -eq '$UsageId' }",
-                'Do not hand-add the UsageID outside t/1819 — its responseSchema/model choice is that ticket''s design surface'
-            ))
-    }
+    Assert-EntityExtractionUsage -UsageId $UsageId
 
     # ── Resolve paths ─────────────────────────────────────────────────────────────
     $TaxDir = Get-TaxonomyDir
-    $SeiPath = if ($SourceEvidenceIndexPath) { $SourceEvidenceIndexPath } else { Join-Path $TaxDir 'source_evidence_index.json' }
-    if (-not (Test-Path $SeiPath)) {
-        throw (New-ActionableError -PassThru `
-            -Goal 'Extract entity proposals from source evidence' `
-            -Problem "source_evidence_index.json not found at $SeiPath" `
-            -Location 'Invoke-EntityExtraction' `
-            -NextSteps @(
-                'Run the summary pipeline first — source_evidence_index.json is a pipeline output',
-                'Verify .aitriad.json or $env:AI_TRIAD_DATA_ROOT for a data-root override'
-            ))
-    }
-
+    $SeiPath = Resolve-EntityExtractionSeiPath -TaxDir $TaxDir -Override $SourceEvidenceIndexPath
     $EntPath = if ($EntitiesPath) { $EntitiesPath } else { Get-EntitiesFilePath }
     $EmbPath = if ($EmbeddingsPath) { $EmbeddingsPath } else { Get-EntityEmbeddingsFilePath }
     if (-not $OutputPath) { $OutputPath = Join-Path $TaxDir 'entity_extraction_log.json' }
@@ -233,150 +212,16 @@ function Invoke-EntityExtraction {
         institution  = 'non-agentive-social-object'
     }
 
-    $Normalize = { param($s) (([string]$s).Trim().ToLowerInvariant() -replace '\s+', ' ') }
+    # Exact/alias match index, existing entity vectors, and the within-run accumulators.
+    $State = Get-EntityResolutionState -TaxDir $TaxDir -EntPath $EntPath -EmbPath $EmbPath
 
-    # ── Build the exact/alias match index (entities, orgs, taxonomy labels, dictionary,
-    # policy actions). First-writer-wins on a normalized-string collision (rare, and
-    # any hit is a legitimate reason to link-not-mint). ─────────────────────────────
-    $MatchIndex = @{}   # normalized string -> PSCustomObject{ Kind; Id; Label }
-    $AddMatch = {
-        param($Text, $Kind, $Id, $Label)
-        if ([string]::IsNullOrWhiteSpace($Text)) { return }
-        $n = & $Normalize $Text
-        if ([string]::IsNullOrEmpty($n)) { return }
-        if (-not $MatchIndex.ContainsKey($n)) {
-            $MatchIndex[$n] = [PSCustomObject]@{ Kind = $Kind; Id = $Id; Label = $Label }
-        }
-    }.GetNewClosure()
-
-    $EntitiesStore = Get-EntitiesStore -Path $EntPath -InitIfMissing
-    $ExistingEntities = if ($EntitiesStore.PSObject.Properties['entities']) { @($EntitiesStore.entities) } else { @() }
-    foreach ($e in $ExistingEntities) {
-        if (-not $e.PSObject.Properties['id']) { continue }
-        & $AddMatch ([string]$e.name) 'entity' ([string]$e.id) ([string]$e.name)
-        if ($e.PSObject.Properties['aliases']) {
-            foreach ($a in @($e.aliases)) { & $AddMatch ([string]$a) 'entity' ([string]$e.id) ([string]$e.name) }
-        }
-    }
-
-    try {
-        $OrgStore = Get-OrganizationsStore
-        $Orgs = if ($OrgStore.PSObject.Properties['organizations']) { @($OrgStore.organizations) } else { @() }
-        foreach ($o in $Orgs) {
-            if (-not $o.PSObject.Properties['id']) { continue }
-            & $AddMatch ([string]$o.name) 'organization' ([string]$o.id) ([string]$o.name)
-            if ($o.PSObject.Properties['short_name']) { & $AddMatch ([string]$o.short_name) 'organization' ([string]$o.id) ([string]$o.name) }
-        }
-    } catch { Write-Verbose "Invoke-EntityExtraction: organizations.json unavailable — $($_.Exception.Message)" }
-
-    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
-        $FilePath = Join-Path $TaxDir "$PovKey.json"
-        if (-not (Test-Path $FilePath)) { continue }
-        try {
-            $FileData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
-            foreach ($n in @($FileData.nodes)) {
-                if (-not $n.PSObject.Properties['id']) { continue }
-                $lbl = if ($n.PSObject.Properties['label']) { [string]$n.label } else { '' }
-                & $AddMatch $lbl 'node' ([string]$n.id) $lbl
-            }
-        } catch { Write-Verbose "Invoke-EntityExtraction: failed to load $PovKey.json — $($_.Exception.Message)" }
-    }
-
-    $DictRoot = Join-Path (Get-DataRoot) 'dictionary'
-    foreach ($SubDir in @('standardized', 'colloquial')) {
-        $D = Join-Path $DictRoot $SubDir
-        if (-not (Test-Path $D)) { continue }
-        foreach ($F in Get-ChildItem -Path $D -Filter '*.json' -ErrorAction SilentlyContinue) {
-            try {
-                $Term = Get-Content -Raw -Path $F.FullName | ConvertFrom-Json
-                if ($SubDir -eq 'standardized' -and $Term.PSObject.Properties['canonical_form']) {
-                    & $AddMatch ([string]$Term.canonical_form) 'term' ([string]$Term.canonical_form) ([string]$Term.canonical_form)
-                } elseif ($SubDir -eq 'colloquial' -and $Term.PSObject.Properties['colloquial_term']) {
-                    & $AddMatch ([string]$Term.colloquial_term) 'term' ([string]$Term.colloquial_term) ([string]$Term.colloquial_term)
-                }
-            } catch { Write-Verbose "Invoke-EntityExtraction: failed to parse $($F.Name) — $($_.Exception.Message)" }
-        }
-    }
-
-    $PolicyPath = Join-Path $TaxDir 'policy_actions.json'
-    if (Test-Path $PolicyPath) {
-        try {
-            $PolicyReg = Get-Content -Raw -Path $PolicyPath | ConvertFrom-Json
-            foreach ($p in @($PolicyReg.policies)) {
-                if (-not $p.PSObject.Properties['id']) { continue }
-                & $AddMatch ([string]$p.action) 'policy' ([string]$p.id) ([string]$p.action)
-            }
-        } catch { Write-Verbose "Invoke-EntityExtraction: failed to parse policy_actions.json — $($_.Exception.Message)" }
-    }
-
-    # Existing entity vectors — cosine fallback is scoped to entities ONLY (design).
-    $EntityVectors = @{}
-    if (Test-Path $EmbPath) {
-        try {
-            $EmbStore = Get-Content -Raw -Path $EmbPath -Encoding utf8 | ConvertFrom-Json
-            if ($EmbStore.PSObject.Properties['vectors']) {
-                foreach ($prop in $EmbStore.vectors.PSObject.Properties) {
-                    $EntityVectors[$prop.Name] = [double[]]@($prop.Value)
-                }
-            }
-        } catch { Write-Verbose "Invoke-EntityExtraction: failed to load entity_embeddings.json — $($_.Exception.Message)" }
-    }
-    $EntityNameById = @{}
-    foreach ($e in $ExistingEntities) {
-        if ($e.PSObject.Properties['id']) { $EntityNameById[[string]$e.id] = [string]$e.name }
-    }
-
-    # ── Load source evidence index ──────────────────────────────────────────────────
     $Sei = Get-Content -Raw -Path $SeiPath | ConvertFrom-Json -AsHashtable
-
-    # ── Idempotence log ──────────────────────────────────────────────────────────────
-    $ProcessedNodeIds = @{}
-    $ExistingLogNodes = [System.Collections.Generic.List[PSObject]]::new()
-    if (Test-Path $OutputPath) {
-        $PrevLog = Get-Content -Raw -Path $OutputPath | ConvertFrom-Json
-        if ($PrevLog.PSObject.Properties['nodes']) {
-            foreach ($n in @($PrevLog.nodes)) {
-                $ExistingLogNodes.Add($n)
-                if ($n.PSObject.Properties['node_id']) { $ProcessedNodeIds[[string]$n.node_id] = 1 }
-            }
-        }
-    }
-
-    # ── Build work list ──────────────────────────────────────────────────────────────
-    $WantedNodes = if ($NodeId) { [System.Collections.Generic.HashSet[string]]::new([string[]]$NodeId) } else { $null }
-    $WorkItems = [System.Collections.Generic.List[PSObject]]::new()
-    $SkippedNoFacts = 0
-    $SkippedAlreadyDone = 0
-
-    foreach ($Nid in ($Sei.Keys | Sort-Object)) {
-        if ($WantedNodes -and -not $WantedNodes.Contains($Nid)) { continue }
-        if (-not $Force -and $ProcessedNodeIds.ContainsKey($Nid)) { $SkippedAlreadyDone++; continue }
-
-        $Entry = $Sei[$Nid]
-        $Facts = if ($Entry -is [hashtable] -and $Entry.ContainsKey('facts') -and $Entry['facts']) { @($Entry['facts']) } else { @() }
-        $Claims = [System.Collections.Generic.List[string]]::new()
-        $DocIds = [System.Collections.Generic.List[string]]::new()
-        foreach ($f in $Facts) {
-            if ($f -isnot [hashtable]) { continue }
-            if ($f.ContainsKey('claim') -and $f['claim']) { $Claims.Add([string]$f['claim']) }
-            if ($f.ContainsKey('doc_id') -and $f['doc_id']) { $DocIds.Add([string]$f['doc_id']) }
-        }
-        if ($Claims.Count -eq 0) { $SkippedNoFacts++; continue }
-
-        $FactsText = ($Claims | ForEach-Object { "- $_" }) -join "`n"
-        $WorkItems.Add([PSCustomObject]@{
-            NodeId    = $Nid
-            FactsText = $FactsText
-            DocIds    = @($DocIds | Select-Object -Unique)
-        })
-    }
-
-    if ($MaxNodes -and $WorkItems.Count -gt $MaxNodes) {
-        $WorkItems = [System.Collections.Generic.List[PSObject]]($WorkItems | Select-Object -First $MaxNodes)
-    }
+    $Log = Read-EntityExtractionLog -Path $OutputPath
+    $Work = Get-EntityExtractionWorkList -Sei $Sei -NodeId $NodeId -Force $Force.IsPresent -ProcessedNodeIds $Log.ProcessedNodeIds -MaxNodes $MaxNodes
+    $WorkItems = $Work.Items
 
     $Total = @($WorkItems).Count
-    Write-Verbose "Work items: $Total (skipped no-facts: $SkippedNoFacts, already-done: $SkippedAlreadyDone)"
+    Write-Verbose "Work items: $Total (skipped no-facts: $($Work.SkippedNoFacts), already-done: $($Work.SkippedAlreadyDone))"
 
     if ($Total -eq 0) {
         Write-Host 'Nothing to extract — no nodes with facts match the filter, or all are already done.'
@@ -389,8 +234,8 @@ function Invoke-EntityExtraction {
             NearGateMinted     = 0
             InvalidDropped     = 0
             Failed             = 0
-            SkippedNoFacts     = $SkippedNoFacts
-            SkippedAlreadyDone = $SkippedAlreadyDone
+            SkippedNoFacts     = $Work.SkippedNoFacts
+            SkippedAlreadyDone = $Work.SkippedAlreadyDone
             MintedEntities     = @()
             LinkedDispositions = @()
             OutputPath         = $OutputPath
@@ -404,410 +249,26 @@ function Invoke-EntityExtraction {
         }
     }
 
-    # ── Extract (parallel or sequential) — AI call + shape validation ONLY. Resolution/
-    # minting is sequential, after this loop (Private helpers aren't visible inside
-    # -Parallel worker runspaces — same class of bug as t/1550/t/1553). ────────────────
-    $RawResults = [System.Collections.Concurrent.ConcurrentBag[PSObject]]::new()
-    $Failed     = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
-    $Invalid    = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
-
-    $ModulePath = Join-Path $script:ModuleRoot 'AITriad.psm1'
-    $EnrichPath = Join-Path $script:ModuleRoot '..' 'AIEnrich.psm1'
-    if (-not (Test-Path $EnrichPath)) { $EnrichPath = Join-Path $script:ModuleRoot 'AIEnrich.psm1' }
-    $KnownTypes = @('person', 'artifact', 'event', 'legislation', 'institution')
-    $ProgressId = 2
-    $Completed  = [ref]0
-
-    Write-Progress -Id $ProgressId -Activity 'Extracting entity proposals' -Status "0 / $Total" -PercentComplete 0
-
-    $ProcessOne = {
-        param($Item, $UsageId, $KnownTypes, $InvBag, $FailBag, $Model)
-        $Node = [PSCustomObject]@{ NodeId = $Item.NodeId; DocIds = $Item.DocIds; Proposals = @(); OrgMentions = @(); Model = $null; ParseOk = $false }
-        try {
-            # t/3123: only override the usage's configured model when -Model was explicitly passed
-            # ($Model is '' by default). Otherwise the usage's model (claude-sonnet-4-6) wins — a
-            # gemini-flash default here sent the Claude-shaped schema to Gemini → HTTP 400.
-            $ModelOverride = if ($Model) { @{ model = $Model } } else { @{} }
-            $ai = Invoke-AIByUsage -UsageId $UsageId -Values @{ node_id = $Item.NodeId; facts = $Item.FactsText } -Override $ModelOverride
-            if ($null -ne $ai -and $ai.Text) {
-                $body = [string]$ai.Text
-                $body = $body -replace '^\s*```(json)?\s*', ''
-                $body = $body -replace '\s*```\s*$', ''
-                # t/3195: recover the valid prefix when a dense node's structured output truncates
-                # mid-JSON, instead of failing the whole node.
-                $parsed = ConvertFrom-TruncatableJson -Text $body.Trim() -Context $Item.NodeId
-                $Node.Model = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { $Model }
-                $Node.ParseOk = $true
-
-                $validProps = [System.Collections.Generic.List[object]]::new()
-                foreach ($p in @($parsed.proposals)) {
-                    if ($null -eq $p) { continue }
-                    $ok = $true; $reason = ''
-                    $name = if ($p.PSObject.Properties['name']) { [string]$p.name } else { '' }
-                    $etype = if ($p.PSObject.Properties['entity_type']) { [string]$p.entity_type } else { '' }
-                    $conf = 0.0
-                    if ([string]::IsNullOrWhiteSpace($name)) { $ok = $false; $reason = 'missing name' }
-                    elseif ($etype -notin $KnownTypes) { $ok = $false; $reason = "entity_type '$etype' not in {$($KnownTypes -join ', ')}" }
-                    elseif (-not $p.PSObject.Properties['confidence']) { $ok = $false; $reason = 'missing confidence' }
-                    else {
-                        try { $conf = [double]$p.confidence } catch { $ok = $false; $reason = 'confidence not numeric' }
-                        if ($ok -and ($conf -lt 0.0 -or $conf -gt 1.0)) { $ok = $false; $reason = "confidence $conf out of [0,1]" }
-                    }
-                    if (-not $ok) {
-                        $InvBag.Add("$($Item.NodeId): $reason")
-                        continue
-                    }
-                    $aliases = if ($p.PSObject.Properties['aliases'] -and $p.aliases) { @($p.aliases | ForEach-Object { [string]$_ }) } else { @() }
-                    $quote   = if ($p.PSObject.Properties['quote']) { [string]$p.quote } else { '' }
-                    $validProps.Add([PSCustomObject]@{
-                        name        = $name
-                        entity_type = $etype
-                        aliases     = $aliases
-                        quote       = $quote
-                        confidence  = $conf
-                    })
-                }
-                $Node.Proposals = @($validProps)
-                $Node.OrgMentions = @(
-                    @($parsed.org_mentions) | Where-Object { $_ -and $_.PSObject.Properties['name'] -and $_.name } | ForEach-Object { [string]$_.name }
-                )
-            } else {
-                $FailBag.Add("$($Item.NodeId): empty AI response")
-            }
-        } catch {
-            $FailBag.Add("$($Item.NodeId): $($_.Exception.Message)")
-        }
-        return $Node
-    }
-
-    if ($Concurrency -eq 1) {
-        foreach ($Item in $WorkItems) {
-            $Node = & $ProcessOne $Item $UsageId $KnownTypes $Invalid $Failed $Model
-            $RawResults.Add($Node)
-            $Done = [System.Threading.Interlocked]::Increment($Completed)
-            $Pct  = [math]::Min(100, [math]::Round(($Done / $Total) * 100))
-            Write-Progress -Id $ProgressId -Activity 'Extracting entity proposals' -Status "$Done / $Total" -PercentComplete $Pct
-        }
-    } else {
-        $WorkItems | ForEach-Object -Parallel {
-            Import-Module $using:ModulePath -Force -WarningAction SilentlyContinue
-            Import-Module $using:EnrichPath -Force -WarningAction SilentlyContinue
-            $Item       = $_
-            $UsageIdVal = $using:UsageId
-            $ModelVal   = $using:Model
-            $KnownTypesVal = $using:KnownTypes
-            $RawBag     = $using:RawResults
-            $FailBag    = $using:Failed
-            $InvBag     = $using:Invalid
-            $CompRef    = $using:Completed
-            $TotalCnt   = $using:Total
-            $ProgId     = $using:ProgressId
-
-            $Node = [PSCustomObject]@{ NodeId = $Item.NodeId; DocIds = $Item.DocIds; Proposals = @(); OrgMentions = @(); Model = $null; ParseOk = $false }
-            try {
-                # t/3123: override only when -Model was explicitly passed (see sequential path).
-                $ModelOverride = if ($ModelVal) { @{ model = $ModelVal } } else { @{} }
-                $ai = Invoke-AIByUsage -UsageId $UsageIdVal -Values @{ node_id = $Item.NodeId; facts = $Item.FactsText } -Override $ModelOverride
-                if ($null -ne $ai -and $ai.Text) {
-                    $body = [string]$ai.Text
-                    $body = $body -replace '^\s*```(json)?\s*', ''
-                    $body = $body -replace '\s*```\s*$', ''
-                    # t/3195: recover the valid prefix on a truncated dense-node response.
-                    $parsed = ConvertFrom-TruncatableJson -Text $body.Trim() -Context $Item.NodeId
-                    $Node.Model = if ($ai.PSObject.Properties['Model']) { $ai.Model } else { $ModelVal }
-                    $Node.ParseOk = $true
-
-                    $validProps = [System.Collections.Generic.List[object]]::new()
-                    foreach ($p in @($parsed.proposals)) {
-                        if ($null -eq $p) { continue }
-                        $ok = $true; $reason = ''
-                        $name = if ($p.PSObject.Properties['name']) { [string]$p.name } else { '' }
-                        $etype = if ($p.PSObject.Properties['entity_type']) { [string]$p.entity_type } else { '' }
-                        $conf = 0.0
-                        if ([string]::IsNullOrWhiteSpace($name)) { $ok = $false; $reason = 'missing name' }
-                        elseif ($etype -notin $KnownTypesVal) { $ok = $false; $reason = "entity_type '$etype' not in {$($KnownTypesVal -join ', ')}" }
-                        elseif (-not $p.PSObject.Properties['confidence']) { $ok = $false; $reason = 'missing confidence' }
-                        else {
-                            try { $conf = [double]$p.confidence } catch { $ok = $false; $reason = 'confidence not numeric' }
-                            if ($ok -and ($conf -lt 0.0 -or $conf -gt 1.0)) { $ok = $false; $reason = "confidence $conf out of [0,1]" }
-                        }
-                        if (-not $ok) {
-                            $InvBag.Add("$($Item.NodeId): $reason")
-                            continue
-                        }
-                        $aliases = if ($p.PSObject.Properties['aliases'] -and $p.aliases) { @($p.aliases | ForEach-Object { [string]$_ }) } else { @() }
-                        $quote   = if ($p.PSObject.Properties['quote']) { [string]$p.quote } else { '' }
-                        $validProps.Add([PSCustomObject]@{
-                            name        = $name
-                            entity_type = $etype
-                            aliases     = $aliases
-                            quote       = $quote
-                            confidence  = $conf
-                        })
-                    }
-                    $Node.Proposals = @($validProps)
-                    $Node.OrgMentions = @(
-                        @($parsed.org_mentions) | Where-Object { $_ -and $_.PSObject.Properties['name'] -and $_.name } | ForEach-Object { [string]$_.name }
-                    )
-                } else {
-                    $FailBag.Add("$($Item.NodeId): empty AI response")
-                }
-            } catch {
-                $FailBag.Add("$($Item.NodeId): $($_.Exception.Message)")
-            }
-            $RawBag.Add($Node)
-
-            $Done = [System.Threading.Interlocked]::Increment($CompRef)
-            $Pct  = [math]::Min(100, [math]::Round(($Done / $TotalCnt) * 100))
-            Write-Progress -Id $ProgId -Activity 'Extracting entity proposals' -Status "$Done / $TotalCnt" -PercentComplete $Pct
-        } -ThrottleLimit $Concurrency
-    }
-
-    Write-Progress -Id $ProgressId -Activity 'Extracting entity proposals' -Completed
+    # ── Extract (parallel or sequential) — AI call + shape validation ONLY. ─────────
+    $Extracted = Invoke-EntityProposalExtraction -WorkItems $WorkItems -UsageId $UsageId -Model $Model -Concurrency $Concurrency
+    $Failed = $Extracted.Failed
+    $Invalid = $Extracted.Invalid
 
     # ── Sequential resolution + minting ──────────────────────────────────────────────
-    $SortedResults = @($RawResults | Sort-Object -Property NodeId)
-
-    $ProposalsTotal   = 0
-    $DroppedBelowGate = 0
-    $NearGateMinted   = 0
-    $LinkedDispositions = [System.Collections.Generic.List[PSObject]]::new()
-    # Below-gate drops captured (not just counted) so gate recall is auditable — did the
-    # gate drop anything good? Persisted to the sidecar log per node (t/1830 #3).
-    $DroppedProposals = [System.Collections.Generic.List[PSObject]]::new()
-
-    # Mint candidates, deduped WITHIN this run.
-    $MintCandidates = [System.Collections.Generic.List[PSObject]]::new()
-    # Within-run dedup index: normalized name OR alias -> index into $MintCandidates.
-    # (t/1880 bullet 1: was name-only, so a proposal whose name equalled an earlier
-    # within-run mint's ALIAS — or vice-versa — slipped through. MatchIndex holds only
-    # PRE-existing records, so freshly-minted siblings need their own index.)
-    $MintIndexByKey = @{}
-    # Within-run candidate probe vectors for the near-variant surfacing stage (t/1880#3
-    # Option A): candidate index -> probe vector. Compared candidate<->candidate, so it
-    # fires with ZERO approved entities — unlike the existing-entity cosine (step 2),
-    # which is inert until an approval writes the first vector into entity_embeddings.json.
-    $CandidateVectors = @{}
-    # Advisory near-variant pairs (t/1881): within-run cosine hits do NOT link. Name-only
-    # cosine false-merges sibling entities (GPT-4/GPT-4o 0.90, Gemini 3.5/3.6 Flash 0.97)
-    # that score ABOVE true dups (AI Action Plan 0.75) — the classes interleave, so no
-    # threshold separates them, and a false merge DESTROYS a distinct entity. Hits are
-    # recorded here and surfaced in the sidecar's possible_duplicates[] for curation.
-    $PossibleDuplicates = [System.Collections.Generic.List[PSObject]]::new()
-
+    $SortedResults = @($Extracted.RawResults | Sort-Object -Property NodeId)
     foreach ($Node in $SortedResults) {
-        # Batch-encode this node's above-gate proposal names in ONE embedding call
-        # (t/1880#3 req: per-node batch encode, not per-proposal cold-starts). Feeds
-        # BOTH the existing-entity cosine (step 2) and the within-run cosine (step 4).
-        # Best-effort: if the embedder is unavailable the map stays empty and both
-        # cosine stages no-op (surfaced via Write-Warning, not silent) — exact/alias
-        # dedup still runs. Keyed by normalized name (intra-node same-name collapses).
-        $NodeProbeVecByNorm = @{}
-        $NodeEncodeNames = @{}
-        foreach ($pp in @($Node.Proposals)) {
-            if ($pp.confidence -ge $ConfidenceThreshold) {
-                $ppNorm = & $Normalize $pp.name
-                if (-not [string]::IsNullOrEmpty($ppNorm)) { $NodeEncodeNames[$ppNorm] = [string]$pp.name }
-            }
-        }
-        if ($NodeEncodeNames.Count -gt 0) {
-            try {
-                $encIds   = @($NodeEncodeNames.Keys)
-                $encTexts = @($encIds | ForEach-Object { $NodeEncodeNames[$_] })
-                $encMap = Get-TextEmbedding -Texts $encTexts -Ids $encIds
-                if ($encMap) {
-                    foreach ($k in $encIds) {
-                        if ($encMap.ContainsKey($k) -and @($encMap[$k]).Count -gt 0) {
-                            $NodeProbeVecByNorm[$k] = [double[]]@($encMap[$k])
-                        }
-                    }
-                }
-            } catch {
-                Write-Warning "Invoke-EntityExtraction: within-run embedding batch failed for node $($Node.NodeId) — cosine dedup skipped for its proposals ($($_.Exception.Message))"
-            }
-        }
-
+        $ProbeVecByNorm = Get-NodeProbeVectorMap -Node $Node -ConfidenceThreshold $ConfidenceThreshold
         foreach ($p in @($Node.Proposals)) {
-            $ProposalsTotal++
-            if ($p.confidence -lt $ConfidenceThreshold) {
-                $DroppedBelowGate++
-                $DroppedProposals.Add([PSCustomObject]@{
-                    node_id     = $Node.NodeId
-                    name        = $p.name
-                    entity_type = $p.entity_type
-                    confidence  = $p.confidence
-                })
-                continue
-            }
-            $nearGate = ($p.confidence -lt ($ConfidenceThreshold + $NearGateBand))
-            $dolce = $DolceMap[$p.entity_type]
-
-            $normName = & $Normalize $p.name
-            $normAliases = @($p.aliases | ForEach-Object { & $Normalize $_ })
-
-            # 1) Exact/alias match against existing stores.
-            $hit = $null
-            if ($MatchIndex.ContainsKey($normName)) { $hit = $MatchIndex[$normName] }
-            if (-not $hit) {
-                foreach ($na in $normAliases) {
-                    if ($MatchIndex.ContainsKey($na)) { $hit = $MatchIndex[$na]; break }
-                }
-            }
-            if ($hit) {
-                $LinkedDispositions.Add([PSCustomObject]@{
-                    node_id        = $Node.NodeId
-                    proposal_name  = $p.name
-                    matched_kind   = $hit.Kind
-                    matched_id     = $hit.Id
-                    matched_label  = $hit.Label
-                    reason         = 'exact-or-alias-match'
-                })
-                continue
-            }
-
-            # Shared per-node probe vector (batch-encoded at the top of this node) —
-            # reused by BOTH cosine stages so a proposal is encoded at most once.
-            $probeVec = if ($NodeProbeVecByNorm.ContainsKey($normName)) { $NodeProbeVecByNorm[$normName] } else { $null }
-
-            # 2) Cosine against EXISTING ENTITY vectors only (approved-only store).
-            if ($EntityVectors.Count -gt 0 -and $null -ne $probeVec) {
-                $bestSim = -1.0; $bestId = $null
-                foreach ($eid in $EntityVectors.Keys) {
-                    $sim = Get-CosineSimilarity -A $probeVec -B $EntityVectors[$eid]
-                    if ($sim -gt $bestSim) { $bestSim = $sim; $bestId = $eid }
-                }
-                if ($bestId -and $bestSim -ge $LinkSimilarityThreshold) {
-                    $LinkedDispositions.Add([PSCustomObject]@{
-                        node_id        = $Node.NodeId
-                        proposal_name  = $p.name
-                        matched_kind   = 'entity'
-                        matched_id     = $bestId
-                        matched_label  = $EntityNameById[$bestId]
-                        reason         = "cosine>=$LinkSimilarityThreshold (sim=$([math]::Round($bestSim,4)))"
-                    })
-                    continue
-                }
-            } elseif ($EntityVectors.Count -gt 0 -and $null -eq $probeVec) {
-                Write-Verbose "Invoke-EntityExtraction: embedding unavailable for '$($p.name)' — existing-entity cosine check skipped"
-            }
-
-            # 3) Within-run EXACT dedup — the proposal's normalized name OR any alias
-            #    collides with an already-minted within-run candidate's name/alias
-            #    (t/1880 bullet 1). First matching key wins (name before aliases).
-            $wrIdx = $null
-            foreach ($key in (@($normName) + $normAliases)) {
-                if (-not [string]::IsNullOrEmpty($key) -and $MintIndexByKey.ContainsKey($key)) { $wrIdx = $MintIndexByKey[$key]; break }
-            }
-            if ($null -ne $wrIdx) {
-                $existingCandidate = $MintCandidates[$wrIdx]
-                $existingCandidate.OtherOccurrences.Add([PSCustomObject]@{ NodeId = $Node.NodeId; ProposalName = $p.name; Reason = 'within-run-dedup' })
-                foreach ($d in $Node.DocIds) { [void]$existingCandidate.DocIdSet.Add($d) }
-                # NearGateMinted counts distinct MINTED entities, not raw occurrences —
-                # a dedup'd duplicate is linked, not minted, so it is not counted again here.
-                continue
-            }
-
-            # 4) Within-run NEAR-VARIANT surfacing (ADVISORY, t/1881) — cosine of this
-            #    proposal's probe vector against already-minted within-run candidates.
-            #    A hit does NOT link: name-only cosine false-merges siblings (GPT-4/GPT-4o
-            #    0.90, Gemini 3.5/3.6 Flash 0.97) that score ABOVE true dups, so auto-link
-            #    would destroy a distinct entity. Instead the proposal MINTS normally and
-            #    the pair is surfaced in the sidecar's possible_duplicates[] for curation.
-            #    (Recorded after minting below, once both candidate ids exist.)
-            $surfacedMatchIdx = $null; $surfacedSim = $null
-            if ($null -ne $probeVec -and $CandidateVectors.Count -gt 0) {
-                $bestSim = -1.0; $bestIdx = $null
-                foreach ($ci in $CandidateVectors.Keys) {
-                    $sim = Get-CosineSimilarity -A $probeVec -B $CandidateVectors[$ci]
-                    if ($sim -gt $bestSim) { $bestSim = $sim; $bestIdx = $ci }
-                }
-                if ($null -ne $bestIdx -and $bestSim -ge $WithinRunSimilarityThreshold) {
-                    $surfacedMatchIdx = $bestIdx; $surfacedSim = $bestSim
-                }
-            }
-
-            $docIdSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-            foreach ($d in $Node.DocIds) { [void]$docIdSet.Add($d) }
-
-            $candidate = [PSCustomObject]@{
-                NodeId            = $Node.NodeId
-                Name              = $p.name
-                EntityType        = $p.entity_type
-                Dolce             = $dolce
-                Aliases           = @($p.aliases)
-                Confidence        = $p.confidence
-                NearGate          = $nearGate
-                Quote             = $p.quote
-                Model             = $Node.Model
-                DocIdSet          = $docIdSet
-                OtherOccurrences  = [System.Collections.Generic.List[object]]::new()
-                MintedId          = $null
-            }
-            $newIdx = $MintCandidates.Count
-            $MintCandidates.Add($candidate)
-            # Register this candidate's name + aliases for within-run EXACT dedup
-            # (first-writer-wins), and its probe vector for within-run cosine dedup.
-            foreach ($key in (@($normName) + $normAliases)) {
-                if (-not [string]::IsNullOrEmpty($key) -and -not $MintIndexByKey.ContainsKey($key)) { $MintIndexByKey[$key] = $newIdx }
-            }
-            if ($null -ne $probeVec) { $CandidateVectors[$newIdx] = $probeVec }
-            # Advisory surfacing (t/1881): this proposal minted normally; if it resembled
-            # an earlier within-run candidate above the surfacing threshold, record the
-            # pair (resolved to minted ids after the mint pass below). NOT a link.
-            if ($null -ne $surfacedMatchIdx) {
-                $PossibleDuplicates.Add([PSCustomObject]@{
-                    NodeId       = $Node.NodeId
-                    NewIndex     = $newIdx
-                    MatchedIndex = $surfacedMatchIdx
-                    ProposalName = $p.name
-                    MatchedName  = $MintCandidates[$surfacedMatchIdx].Name
-                    Similarity   = [math]::Round($surfacedSim, 4)
-                })
-            }
-            if ($nearGate) { $NearGateMinted++ }
+            Resolve-EntityProposal -State $State -Node $Node -Proposal $p -ProbeVecByNorm $ProbeVecByNorm -DolceMap $DolceMap `
+                -ConfidenceThreshold $ConfidenceThreshold -NearGateBand $NearGateBand `
+                -LinkSimilarityThreshold $LinkSimilarityThreshold -WithinRunSimilarityThreshold $WithinRunSimilarityThreshold
         }
     }
 
-    # ── Mint in sub-batches of <= 20 (Import-Entity's ValidateCount ceiling). ───────
-    $BatchSize = 20
-    for ($i = 0; $i -lt $MintCandidates.Count; $i += $BatchSize) {
-        $Slice = @($MintCandidates | Select-Object -Skip $i -First $BatchSize)
-        $Proposals = @($Slice | ForEach-Object {
-            # PERSON EXCEPTION (and, per design, every entity_type in Phase 1): NO
-            # `description` key is ever passed — the LLM never authors one.
-            @{
-                name           = $_.Name
-                entity_type    = $_.EntityType
-                dolce_category = $_.Dolce
-                aliases        = @($_.Aliases)
-                source_refs    = @($_.DocIdSet)
-                confidence     = $_.Confidence
-                discovered_by  = @{ usage_id = $UsageId; model = $_.Model }
-                status         = 'proposed'
-            }
-        })
-        $MintResults = @(Import-Entity -Proposal $Proposals -Path $EntPath -EmbeddingsPath $EmbPath -Confirm:$false)
-        for ($j = 0; $j -lt $Slice.Count; $j++) {
-            $Slice[$j].MintedId = $MintResults[$j].Id
-        }
-    }
+    Invoke-EntityCandidateMint -MintCandidates $State.MintCandidates -UsageId $UsageId -EntPath $EntPath -EmbPath $EmbPath
+    Add-WithinRunOccurrenceLink -State $State
 
-    # Occurrences beyond the first (within-run dedup) link to the freshly minted id.
-    foreach ($candidate in $MintCandidates) {
-        foreach ($occ in $candidate.OtherOccurrences) {
-            $occReason = if ($occ.PSObject.Properties['Reason'] -and $occ.Reason) { [string]$occ.Reason } else { 'within-run-dedup' }
-            $LinkedDispositions.Add([PSCustomObject]@{
-                node_id        = $occ.NodeId
-                proposal_name  = $occ.ProposalName
-                matched_kind   = 'entity'
-                matched_id     = $candidate.MintedId
-                matched_label  = $candidate.Name
-                reason         = $occReason
-            })
-        }
-    }
-
-    $MintedEntities = @($MintCandidates | ForEach-Object {
+    $MintedEntities = @($State.MintCandidates | ForEach-Object {
         [PSCustomObject]@{
             node_id        = $_.NodeId
             id             = $_.MintedId
@@ -818,112 +279,44 @@ function Invoke-EntityExtraction {
             near_gate      = $_.NearGate
         }
     })
-
-    # Group the per-node audit rows the sidecar carries, keyed by node_id so they ride the
-    # existing -Force remove/re-add path (below) and stay consistent with nodes[]:
-    #   evidence[] — supporting quote per MINTED entity (id/name/quote), the artifact
-    #                curation reads for the person-exception review (t/1830 #2).
-    #   dropped[]  — below-gate proposals so gate recall is auditable (t/1830 #3).
-    $EvidenceByNode = @{}
-    foreach ($c in $MintCandidates) {
-        if (-not $EvidenceByNode.ContainsKey($c.NodeId)) { $EvidenceByNode[$c.NodeId] = [System.Collections.Generic.List[PSObject]]::new() }
-        $EvidenceByNode[$c.NodeId].Add([PSCustomObject]@{ id = $c.MintedId; name = $c.Name; quote = $c.Quote })
-    }
-    $DroppedByNode = @{}
-    foreach ($d in $DroppedProposals) {
-        if (-not $DroppedByNode.ContainsKey($d.node_id)) { $DroppedByNode[$d.node_id] = [System.Collections.Generic.List[PSObject]]::new() }
-        $DroppedByNode[$d.node_id].Add($d)
-    }
-    #   possible_duplicates[] — advisory near-variant pairs (t/1881): both entities minted;
-    #     curation reviews via the merge/redirect path. Resolved to minted ids post-mint and
-    #     grouped by the NEW proposal's node_id so they ride the same per-node sidecar path.
-    $PossibleDuplicateRows = [System.Collections.Generic.List[PSObject]]::new()
-    foreach ($pd in $PossibleDuplicates) {
-        $PossibleDuplicateRows.Add([PSCustomObject]@{
-            node_id       = $pd.NodeId
-            candidate_id  = $MintCandidates[$pd.NewIndex].MintedId
-            proposal_name = $pd.ProposalName
-            matched_id    = $MintCandidates[$pd.MatchedIndex].MintedId
-            matched_name  = $pd.MatchedName
-            similarity    = $pd.Similarity
-        })
-    }
-    $PossibleDupByNode = @{}
-    foreach ($pd in $PossibleDuplicateRows) {
-        if (-not $PossibleDupByNode.ContainsKey($pd.node_id)) { $PossibleDupByNode[$pd.node_id] = [System.Collections.Generic.List[PSObject]]::new() }
-        $PossibleDupByNode[$pd.node_id].Add($pd)
-    }
+    $PossibleDuplicateRows = Get-EntityPossibleDuplicateRowSet -State $State
+    $ExistingCandidateRows = Get-EntityExistingCandidateRowSet -State $State
+    Write-ExistingCandidateStageStatus -State $State -CandidateRowCount @($ExistingCandidateRows).Count -Floor $LinkSimilarityThreshold
 
     # ── Persist the idempotence sidecar (only nodes whose AI call/parse succeeded are
     # marked processed — a failure is retried next run). ─────────────────────────────
-    $NewlyProcessed = [System.Collections.Generic.List[PSObject]]::new()
-    foreach ($Node in $SortedResults) {
-        if (-not $Node.ParseOk) { continue }
-        $nodeEvidence = if ($EvidenceByNode.ContainsKey($Node.NodeId)) { @($EvidenceByNode[$Node.NodeId]) } else { @() }
-        $nodeDropped  = if ($DroppedByNode.ContainsKey($Node.NodeId)) { @($DroppedByNode[$Node.NodeId]) } else { @() }
-        $nodePossibleDup = if ($PossibleDupByNode.ContainsKey($Node.NodeId)) { @($PossibleDupByNode[$Node.NodeId]) } else { @() }
-        $NewlyProcessed.Add([PSCustomObject]@{
-            node_id             = $Node.NodeId
-            processed_at        = (Get-Date).ToString('o')
-            model               = $Node.Model
-            proposals_total     = @($Node.Proposals).Count
-            org_mentions        = @($Node.OrgMentions)
-            evidence            = @($nodeEvidence)
-            dropped             = @($nodeDropped)
-            possible_duplicates = @($nodePossibleDup)
-        })
-    }
-
-    if ($Force) {
-        $refreshedIdList = @($NewlyProcessed | ForEach-Object { [string]$_.node_id })
-        $refreshedIds = [System.Collections.Generic.HashSet[string]]::new([string[]]$refreshedIdList)
-        $ExistingLogNodes = [System.Collections.Generic.List[PSObject]](
-            @($ExistingLogNodes | Where-Object { -not $refreshedIds.Contains([string]$_.node_id) })
-        )
-    }
-    foreach ($n in $NewlyProcessed) { $ExistingLogNodes.Add($n) }
-
-    if ($NewlyProcessed.Count -gt 0) {
-        $LogStore = [PSCustomObject]@{
-            _schema_version = '1.2.0'
-            _doc            = 'Entity extraction idempotence log (t/1806 Phase 1). Feeds -Force replay decisions; not a data-of-record store (entities.json is). Each node carries evidence[] (supporting quote per minted entity id, for curation) and dropped[] (below-gate proposals, for gate-recall audit) — added t/1830 — and possible_duplicates[] (advisory near-variant pairs {candidate_id, proposal_name, matched_id, matched_name, similarity}: both entities were minted, curation reviews via merge/redirect; name-only cosine cannot safely auto-link siblings) — added t/1881.'
-            last_modified   = (Get-Date).ToString('yyyy-MM-dd')
-            node_count      = @($ExistingLogNodes).Count
-            nodes           = @($ExistingLogNodes)
-        }
-        Assert-DataWriteAllowed -Path $OutputPath  # t/2902
-        $Temp = "$OutputPath.tmp"
-        $Json = $LogStore | ConvertTo-Json -Depth 8
-        Set-Content -Path $Temp -Value $Json -Encoding utf8NoBOM
-        [System.IO.File]::Move($Temp, $OutputPath, $true)
-    }
+    $NewlyProcessed = Get-EntityExtractionLogNodeSet -SortedResults $SortedResults -State $State `
+        -PossibleDuplicateRows $PossibleDuplicateRows -ExistingCandidateRows $ExistingCandidateRows
+    Write-EntityExtractionLog -Path $OutputPath -ExistingLogNodes $Log.ExistingLogNodes -NewlyProcessed $NewlyProcessed -Force $Force.IsPresent
 
     $FailCount = @($Failed).Count
     $InvalidCount = @($Invalid).Count
-    $MintedCount = @($MintCandidates).Count
-    $LinkedCount = @($LinkedDispositions).Count
+    $MintedCount = @($State.MintCandidates).Count
+    $LinkedCount = @($State.LinkedDispositions).Count
     $PossibleDupCount = @($PossibleDuplicateRows).Count
+    $CandidateCount = @($ExistingCandidateRows).Count
 
     Write-Host ""
-    Write-Host "Done. Nodes processed: $Total | Proposals: $ProposalsTotal | Minted: $MintedCount | Linked: $LinkedCount | Possible dups (advisory): $PossibleDupCount | Dropped (below gate): $DroppedBelowGate | Near-gate minted: $NearGateMinted | Invalid: $InvalidCount | Failed: $FailCount"
+    Write-Host "Done. Nodes processed: $Total | Proposals: $($State.ProposalsTotal) | Minted: $MintedCount | Linked: $LinkedCount | Possible dups (advisory): $PossibleDupCount | Existing-entity candidates (advisory): $CandidateCount | Dropped (below gate): $($State.DroppedBelowGate) | Near-gate minted: $($State.NearGateMinted) | Invalid: $InvalidCount | Failed: $FailCount"
 
     [PSCustomObject]@{
         NodesProcessed     = $Total
-        ProposalsTotal     = $ProposalsTotal
+        ProposalsTotal     = $State.ProposalsTotal
         Minted             = $MintedCount
         Linked             = $LinkedCount
-        DroppedBelowGate   = $DroppedBelowGate
-        DroppedItems       = @($DroppedProposals)
-        NearGateMinted     = $NearGateMinted
+        DroppedBelowGate   = $State.DroppedBelowGate
+        DroppedItems       = @($State.DroppedProposals)
+        NearGateMinted     = $State.NearGateMinted
         InvalidDropped     = $InvalidCount
         InvalidItems       = @($Invalid)
         Failed             = $FailCount
         FailedItems        = @($Failed)
-        SkippedNoFacts     = $SkippedNoFacts
-        SkippedAlreadyDone = $SkippedAlreadyDone
+        SkippedNoFacts     = $Work.SkippedNoFacts
+        SkippedAlreadyDone = $Work.SkippedAlreadyDone
         MintedEntities     = $MintedEntities
-        LinkedDispositions = @($LinkedDispositions)
+        LinkedDispositions = @($State.LinkedDispositions)
         PossibleDuplicates = @($PossibleDuplicateRows)
+        ExistingEntityCandidates = @($ExistingCandidateRows)
         OutputPath         = $OutputPath
     }
 }

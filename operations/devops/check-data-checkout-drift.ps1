@@ -35,7 +35,20 @@
 .PARAMETER AgeThresholdHours
     Passed through to Get-DataCheckoutDriftVerdict. Default 24.
 .PARAMETER Now
-    Wall-clock reference for age computation. Defaults to the real Get-Date; override in tests.
+    Wall-clock reference for age computation, in UTC. Defaults to the real UTC now; override in
+    tests. MUST be UTC: the mtime side (GetLastWriteTimeUtc above) is already UTC, and comparing
+    a local-time $Now against it produces a timezone-offset-sized error in AgeHours -- e.g. EDT
+    (UTC-4) read AgeHours as -3.49 on a file modified moments ago, because local-time "now" is
+    ~4h behind UTC "now" while the mtime it's diffed against is already in UTC (t/4060, p/648#98).
+.PARAMETER ProtectedPaths
+    Passed through to Get-DataCheckoutDriftVerdict (t/4056). Hashtable of repo-relative-path
+    -> owner name, data rather than code so more entries can be added without touching either
+    script. Default: the one entry known today, `taxonomy/Origin/pov-tag-proposals.json` ->
+    'Computational Linguist' (t/4052 reviews land as an uncommitted edit until CL's step-4
+    run, t/3962#15, SO e/270#2). A hit forces Alarm=$true and sync-blocked regardless of the
+    ordinary intersection/staleness/divergence result -- the sync procedure
+    (docs/shared-tree-divergence.md) must refuse to sync/restore/reset while any
+    ProtectedWip entry is present, even when that path's diff against origin/main is empty.
 #>
 
 param(
@@ -44,7 +57,8 @@ param(
         'ai-triad-sources' = 'C:\Users\jsnov\repos\ai-triad-sources'
     },
     [double]$AgeThresholdHours = 24,
-    [datetime]$Now = (Get-Date)
+    [datetime]$Now = (Get-Date).ToUniversalTime(),
+    [hashtable]$ProtectedPaths = @{ 'taxonomy/Origin/pov-tag-proposals.json' = 'Computational Linguist' }
 )
 
 Set-StrictMode -Version Latest
@@ -153,14 +167,24 @@ function ConvertFrom-PorcelainZ {
 }
 
 function Get-FileMtimeLongPath {
-    # t/4005: always use the \\?\ prefix, not just when a path happens to look long — the one
-    # known offender (an ingested filename > 260 chars in ai-triad-sources) is exactly the file
-    # that would otherwise throw, and prefixing unconditionally removes any length-guessing bug
-    # as a class rather than special-casing "long enough to worry about."
+    # t/4005: always use the \\?\ prefix ON WINDOWS, not just when a path happens to look long
+    # -- the one known offender (an ingested filename > 260 chars in ai-triad-sources) is
+    # exactly the file that would otherwise throw, and prefixing unconditionally removes any
+    # length-guessing bug as a class rather than special-casing "long enough to worry about."
+    # t/4060: that prefix is WINDOWS-ONLY long-path syntax. On Linux CI (ubuntu-latest,
+    # test-powershell), prepending it to a real path makes GetLastWriteTimeUtc silently return
+    # the Win32 FILETIME epoch (1601-01-01, ~425 years before "now") instead of throwing --
+    # .NET documents that behavior for a path it can't resolve, so the try/catch below never
+    # fires and the bogus epoch value flows straight through as a real mtime. Caught by the
+    # t/4060 Pester case, the first test to run this function (not just the pure predicate) on
+    # Linux CI. Only Windows needs or understands the \\?\ prefix.
     param([string]$FullPath)
     try {
-        $p = $FullPath -replace '/', '\'
-        if (-not $p.StartsWith('\\?\')) { $p = "\\?\$p" }
+        $p = $FullPath
+        if ($IsWindows -or -not (Test-Path variable:IsWindows)) {
+            $p = $p -replace '/', '\'
+            if (-not $p.StartsWith('\\?\')) { $p = "\\?\$p" }
+        }
         return [System.IO.File]::GetLastWriteTimeUtc($p)
     } catch {
         return $null
@@ -185,6 +209,8 @@ foreach ($name in $Checkouts.Keys) {
         TrackedModified = @()
         Untracked       = @()
         QueryError      = $null
+        ProtectedWip    = @()
+        SyncReason      = $null
     }
     try {
         if (-not (Test-Path -LiteralPath $root)) {
@@ -265,15 +291,31 @@ foreach ($name in $Checkouts.Keys) {
         if (Get-Command Get-DataCheckoutDriftVerdict -ErrorAction SilentlyContinue) {
             $v = Get-DataCheckoutDriftVerdict -Name $name -TrackedModified $tracked -Untracked $untracked `
                 -OldestUncommittedMtime $oldestMtime -Ahead $ahead -Behind $behind -IncomingPaths $incomingPaths `
-                -Now $Now -AgeThresholdHours $AgeThresholdHours
+                -Now $Now -AgeThresholdHours $AgeThresholdHours -ProtectedPaths $ProtectedPaths
             $checkoutResult.Alarm = $v.Alarm
             $checkoutResult.Reasons = $v.Reasons
             $checkoutResult.AgeHours = $v.AgeHours
             $checkoutResult.Intersects = $v.Intersects
             $checkoutResult.Diverged = $v.Diverged
+            $checkoutResult.ProtectedWip = $v.ProtectedWip
+            $checkoutResult.SyncReason = $v.SyncReason
         } else {
             # Fail-safe if the verdict file is missing: alarm whenever there's any uncommitted
             # work or any ahead/behind at all (conservative fallback, never silently clean).
+            # t/4056: protected-WIP still checked even on this fallback path -- a missing
+            # verdict file must never silently drop the one check that exists to prevent data
+            # loss, so this path alone replicates it rather than skipping it.
+            $protectedHits = [System.Collections.Generic.List[object]]::new()
+            foreach ($p in @($tracked + $untracked)) {
+                if ($ProtectedPaths.ContainsKey($p)) {
+                    $protectedHits.Add([PSCustomObject]@{ Path = $p; Owner = $ProtectedPaths[$p] })
+                }
+            }
+            if ($protectedHits.Count -gt 0) {
+                $owners = @($protectedHits | ForEach-Object { $_.Owner } | Select-Object -Unique)
+                $checkoutResult.ProtectedWip = @($protectedHits)
+                $checkoutResult.SyncReason = "protected WIP (pov-tag review in progress) — route to $([string]::Join(', ', $owners)), do not sync/restore"
+            }
             $hasWork = (($tracked.Count + $untracked.Count) -gt 0)
             $checkoutResult.Alarm = $hasWork -or $ahead -gt 0 -or $behind -gt 0
             $checkoutResult.Reasons = @('DataCheckoutDriftVerdict.ps1 missing — conservative fallback')

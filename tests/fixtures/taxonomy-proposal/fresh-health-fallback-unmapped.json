@@ -1,0 +1,79 @@
+{
+  "scenario": "fresh-health-fallback-unmapped",
+  "host": [
+    "[Cyan] \n▶  Validating environment",
+    "[Green]    ✓  Model       : claude-haiku-4-5",
+    "[Green]    ✓  Temperature : 0.9",
+    "[Cyan] \n▶  Preparing health data",
+    "[Green]    ✓  Computed fresh health data (7 summaries)",
+    "[Cyan] \n▶  Building prompt context",
+    "[Green]    ✓  Compact nodes       : 6",
+    "[Green]    ✓  Unmapped for prompt : 30",
+    "[Green]    ✓  Orphan nodes        : 0",
+    "[Green]    ✓  High-variance nodes : 0",
+    "[Yellow]    ⚠  Dictionary not found at <ROOT>/dictionary — vocabulary constraints will be omitted",
+    "[Green]    ✓  Prompt assembled: 4653 chars (~1163 tokens est.)",
+    "[Cyan] \n▶  Calling AI API (claude-haiku-4-5)",
+    "[Gray]    →  Sending request...",
+    "[Green]    ✓  Response received from mock-backend in 0s",
+    "[Cyan] \n▶  Parsing AI response",
+    "[Green]    ✓  Valid JSON received",
+    "[Green]    ✓  1 proposal(s) after validation",
+    "[Cyan] \n▶  Writing proposal file",
+    "[Green]    ✓  Proposal written to: <ROOT>/taxonomy/proposals/proposal-20260102-030405.json",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   TAXONOMY PROPOSALS",
+    "[Gray]   Model: claude-haiku-4-5  |  Taxonomy v1.0.0  |  1 proposal(s)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[Green] \n  [NEW] (1)",
+    "[White]     [acc-intentions-901] Open Weights",
+    "[Gray]       POV: accelerationist  |  Category: Intentions",
+    "[DarkGray]       Rationale: r",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[Green]   Output: <ROOT>/taxonomy/proposals/proposal-20260102-030405.json",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Performing the operation \"Write taxonomy proposal file\" on target \"<ROOT>/taxonomy/proposals/proposal-20260102-030405.json\"."
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "explicit-key",
+      "backend": "claude"
+    },
+    {
+      "call": "healthData",
+      "repoRoot": "<ROOT>"
+    },
+    {
+      "call": "prompt",
+      "name": "taxonomy-proposal",
+      "replacements": {
+        "SUMMARY_COUNT": "7",
+        "TAXONOMY_VERSION": "1.0.0"
+      }
+    },
+    {
+      "call": "ai",
+      "model": "claude-haiku-4-5",
+      "apiKey": "explicit-key",
+      "temperature": 0.9,
+      "maxTokens": 65536,
+      "jsonMode": true,
+      "timeoutSec": 600,
+      "prompt": "<<taxonomy-proposal v=1.0.0 n=7>>\n\n=== HEALTH DATA ===\n\n--- EXISTING TAXONOMY NODES ---\nJSON:[{\"description\":\"Compute keeps getting cheaper.\",\"id\":\"acc-b-1\",\"label\":\"Label acc-b-1\"},{\"description\":\"\",\"id\":\"acc-b-2\",\"label\":\"Label acc-b-2\"},{\"description\":\"Growth.\",\"id\":\"acc-d-1\",\"label\":\"Label acc-d-1\"},{\"description\":\"Alignment is hard.\",\"id\":\"saf-b-1\",\"label\":\"Label saf-b-1\"},{\"description\":\"Oversight.\",\"id\":\"saf-b-2\",\"label\":\"Label saf-b-2\"},{\"description\":\"A frontier lab release.\",\"id\":\"sit-1\",\"label\":\"Label sit-1\"}]\n\n--- UNMAPPED CONCEPTS (sorted by frequency) ---\nJSON:[{\"concept\":\"Rare 1\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 2\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 3\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 4\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 5\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 6\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 7\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 8\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 9\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 10\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 11\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 12\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 13\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 14\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 15\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 16\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 17\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 18\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 19\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 20\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 21\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 22\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 23\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 24\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 25\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 26\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 27\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 28\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 29\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Rare 30\",\"doc_count\":1,\"frequency\":1,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"}]\n\n--- CITATION STATISTICS (orphans, most-cited, high-variance) ---\nJSON:{\"high_variance\":[],\"most_cited\":[],\"orphan_count\":0,\"orphan_nodes\":[]}\n\n--- COVERAGE BALANCE (nodes per POV per category) ---\nJSON:{}\n\n--- VOCABULARY (STANDARDIZED TERMS) ---\nThese are the project's controlled vocabulary terms. Each has a canonical_form (machine ID used in node vocabulary_terms arrays), a display_form (human-readable), a definition, and the primary camp that coined it. Proposals MUST use these terms instead of bare colloquial forms.\nJSON:[]\n\n--- VOCABULARY (COLLOQUIAL TERMS — DO NOT USE BARE) ---\nThese colloquial terms are ambiguous across camps. Each resolves to different standardized terms depending on context. Never use these bare in descriptions or labels — always use the camp-appropriate standardized form.\nJSON:[]"
+    }
+  ],
+  "writes": [
+    "taxonomy/proposals/proposal-20260102-030405.json"
+  ],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/proposals/": "(dir)",
+    "taxonomy/proposals/proposal-20260102-030405.json": "{\n  \"generated_at\": \"2026-01-02T03:04:05Z\",\n  \"model\": \"claude-haiku-4-5\",\n  \"taxonomy_version\": \"1.0.0\",\n  \"summary_count\": 7,\n  \"proposals\": [\n    {\n      \"action\": \"NEW\",\n      \"suggested_id\": \"acc-intentions-901\",\n      \"label\": \"Open Weights\",\n      \"pov\": \"accelerationist\",\n      \"category\": \"Intentions\",\n      \"target_node_id\": null,\n      \"rationale\": \"r\"\n    }\n  ]\n}\n"
+  }
+}

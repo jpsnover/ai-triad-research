@@ -17,7 +17,7 @@ function Invoke-PolicyRefinement {
     .PARAMETER Model
         AI model to use. Defaults to AI_MODEL env var, then "gemini-3.5-flash-lite".
     .PARAMETER ApiKey
-        AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
+        AI API key. If omitted, resolved via the backend-specific env var (AI_API_KEY is a fallback for gemini models only).
     .PARAMETER DryRun
         Show prompts and current text without calling the API.
     .PARAMETER PassThru
@@ -71,14 +71,10 @@ function Invoke-PolicyRefinement {
     }
 
     if (-not $DryRun) {
-        if     ($Model -match '^gemini') { $Backend = 'gemini' }
-        elseif ($Model -match '^claude') { $Backend = 'claude' }
-        elseif ($Model -match '^groq')   { $Backend = 'groq'   }
-        elseif ($Model -match '^openai') { $Backend = 'openai' }
-        else                             { $Backend = 'gemini'  }
-        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-        if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-            Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
+        # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+        $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+        if (-not $KeyStatus.HasKey) {
+            Write-Fail "No API key found for the $($KeyStatus.Backend) backend. Set $($KeyStatus.EnvHint), or pass -ApiKey."
             throw 'No API key configured'
         }
     }
@@ -226,7 +222,7 @@ INSTRUCTIONS:
             $AIResult = Invoke-AIApi `
                 -Prompt    $Prompt `
                 -Model     $Model `
-                -ApiKey    $ResolvedKey `
+                -ApiKey    $ApiKey `
                 -Temperature 0.1 `
                 -MaxTokens 2048 `
                 -ResponseSchema $RefinementSchema

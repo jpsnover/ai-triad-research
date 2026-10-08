@@ -341,6 +341,51 @@ else {
     }
 }
 
+# ── Calibration-epoch register (t/4037) ─────────────────────────────────────
+# A changed `defaults` / `debateTiers` model starts a calibration epoch and needs a row in register §17
+# (research/comp-linguist/docs/metric-provenance-register.md). Compared against the MERGE-BASE with
+# origin/main, not its tip, so a branch that is behind main never reports main's own changes (in reverse)
+# as its own. WARN ONLY and FAIL CLOSED like the lanes above: kept out of $Results until TL Gate
+# Verification + Second Opinion (t/3361); "could not be evaluated" is never reported as clean.
+Write-Section 'Calibration-epoch register (t/4037)'
+$epochLabel = 'calibration-epochs'
+$epochProblem = $null
+$epochGaps = @()
+try {
+    . (Join-Path $PSScriptRoot 'CalibrationEpochCheck.ps1')
+    $base = (git -C $RepoRoot merge-base HEAD origin/main 2>$null)
+    if ($LASTEXITCODE -ne 0 -or -not $base) {
+        $epochProblem = 'no merge-base with origin/main (run `git fetch origin main`)'
+    }
+    else {
+        $baseJson = (git -C $RepoRoot show "$($base.Trim()):ai-models.json" 2>$null) -join "`n"
+        if ($LASTEXITCODE -ne 0 -or -not $baseJson) { $epochProblem = "ai-models.json not readable at merge-base $($base.Trim().Substring(0, 8))" }
+        else {
+            $registerPath = Join-Path $RepoRoot 'research/comp-linguist/docs/metric-provenance-register.md'
+            $headConfig = Get-Content -Raw (Join-Path $RepoRoot 'ai-models.json') | ConvertFrom-Json
+            $rows = @(Get-EpochRegisterRows -Markdown (Get-Content -Raw $registerPath))
+            $epochGaps = @(Find-UnrecordedEpochChanges -BaseConfig ($baseJson | ConvertFrom-Json) -HeadConfig $headConfig -RegisterRows $rows)
+        }
+    }
+}
+catch { $epochProblem = "check threw: $($_.Exception.Message)" }
+if ($epochProblem) {
+    Write-Host "  WARN $epochLabel — could not be evaluated: $epochProblem" -ForegroundColor Yellow
+    $Warnings["$epochLabel (not evaluated)"] = $epochProblem
+}
+elseif ($epochGaps.Count -gt 0) {
+    Write-Host "  WARN $epochLabel — $($epochGaps.Count) changed model slot(s) with no register §17 row:" -ForegroundColor Yellow
+    foreach ($g in $epochGaps) {
+        $old = if ($g.Old) { $g.Old } else { '(none)' }; $new = if ($g.New) { $g.New } else { '(none)' }
+        Write-Host "        $($g.Slot): $old → $new" -ForegroundColor Yellow
+    }
+    Write-Host '        Fix: add one row per slot to metric-provenance-register.md §17 (Slot = the dotted slot above, Old → new as shown) in this PR.' -ForegroundColor DarkYellow
+    $Warnings["$epochLabel ($($epochGaps.Count) unrecorded)"] = "$($epochGaps.Count) model slot change(s) without a §17 epoch row"
+}
+else {
+    Write-Host "  OK   $epochLabel — every changed defaults/debateTiers model since the merge-base has a §17 row (warn-only lane; not counted in the gate total)" -ForegroundColor Green
+}
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 # PASS/FAIL gates live in $Results; WARN and N/A are reported on their own lines and counts and are
 # NEVER folded into the PASSED total (t/3869#2 — "all N green" must not include a check that warned

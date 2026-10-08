@@ -27,8 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lineage panel deduplicates casing variants
 
 ### Changed
+- **PowerShell module: `AI_API_KEY` now applies only to Gemini models.** For other providers, set the provider's own key variable (e.g. `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY`); a set `AI_API_KEY` with no provider variable is refused with an error naming the variable to set (t/4102)
 - Community chat detail metadata section collapsed by default
 - Retired `USER_CONTENT_STORAGE` env var and migration workflow
+- Debate CLI, taxonomy-editor server and desktop, and summary viewer: `AI_API_KEY` now applies only to Gemini models. If you relied on it for Claude, Groq, OpenAI, xAI, Z.AI, Moonshot, DeepSeek or Azure, set that provider's own variable (e.g. `ANTHROPIC_API_KEY`, `GROQ_API_KEY`). Until then, calls to that provider are refused with an error naming the variable, and key-status and model-discovery views show it as not configured. A key equal to another provider's variable is now refused before it is sent. Unknown model ids that are neither in `ai-models.json` nor carry a provider prefix now fail instead of defaulting to Gemini (t/4105, t/4101)
 
 ## [0.13.6] - 2026-06-19
 

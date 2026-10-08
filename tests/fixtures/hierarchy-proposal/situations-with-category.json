@@ -1,0 +1,42 @@
+{
+  "scenario": "situations-with-category",
+  "host": [
+    "[Cyan] \n▶  Loading taxonomy data",
+    "[Green]    ✓  accelerationist: 5 nodes",
+    "[Green]    ✓  safetyist: 2 nodes",
+    "[Green]    ✓  situations: 3 nodes",
+    "[Cyan] \n▶  Loading embeddings",
+    "[Yellow]    ⚠  embeddings.json not found — clustering will be skipped",
+    "[Cyan] \n▶  Loading edges",
+    "[Cyan] \n▶  Building processing buckets",
+    "[Green]    ✓  0 buckets to process",
+    "[Yellow]    ⚠  No proposals generated"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal"
+    },
+    {
+      "call": "prompt",
+      "name": "hierarchy-proposal-schema"
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "sha256:afb46ba2a5d530e6605e9b1563dd35f8a01c781817da6dbd2ee9434626608bd2 (1251 chars)",
+    "taxonomy/Origin/safetyist.json": "sha256:60797bf3b2a8d3a767a94e1c2e3af5df29b05d9d084770a2f399baab68d16715 (307 chars)",
+    "taxonomy/Origin/situations.json": "sha256:60084ee9c2fd8ed1e3a5e85e6e4649312c7f509f0cf4e184c83f3b2ee4755e02 (527 chars)"
+  }
+}

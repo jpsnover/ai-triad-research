@@ -12,6 +12,7 @@ const base = {
   argumentationRounds: 3,
   concludingRounds: 1,
   speakerModels: undefined,
+  eligibleBackends: undefined,
   multiProvider: false,
   modelTier: 'basic' as const,
   stepMode: false,

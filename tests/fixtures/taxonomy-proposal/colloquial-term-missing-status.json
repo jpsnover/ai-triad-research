@@ -1,0 +1,67 @@
+{
+  "scenario": "colloquial-term-missing-status",
+  "host": [
+    "[Cyan] \n▶  Validating environment",
+    "[Green]    ✓  Model       : gemini-2.5-flash",
+    "[Green]    ✓  Temperature : 0.3",
+    "[Yellow]    ⚠  DRY RUN — no API call, no file writes",
+    "[Cyan] \n▶  Preparing health data",
+    "[Green]    ✓  Using pre-computed health data (42 summaries)",
+    "[Cyan] \n▶  Building prompt context",
+    "[Green]    ✓  Compact nodes       : 6",
+    "[Green]    ✓  Unmapped for prompt : 2",
+    "[Green]    ✓  Orphan nodes        : 50",
+    "[Green]    ✓  High-variance nodes : 1",
+    "[Green]    ✓  Colloquial terms    : 1",
+    "[Green]    ✓  Prompt assembled: 4279 chars (~1070 tokens est.)",
+    "[DarkGray] \n────────────────────────────────────────────────────────────────────────",
+    "[Yellow]   DRY RUN: PROMPT PREVIEW",
+    "[DarkGray] ────────────────────────────────────────────────────────────────────────",
+    "[Cyan] \n[SYSTEM PROMPT — first 800 chars]",
+    "[Gray] <<taxonomy-proposal v=9.9.9 n=42>>",
+    "[DarkGray] ... (truncated for display)",
+    "[Cyan] \n[TAXONOMY NODES — 6 nodes, first 400 chars]",
+    "[Gray] <truncated JSON preview: 400 chars>",
+    "[DarkGray] ...",
+    "[Cyan] \n[UNMAPPED CONCEPTS — 2 entries]",
+    "[Gray] JSON:[{\"concept\":\"Compute overhang\",\"doc_count\":2,\"frequency\":3,\"nearest_nodes\":[{\"id\":\"acc-b-1\",\"label\":\"Label acc-b-1\",\"similarity\":0.81},{\"id\":\"acc-unknown\",\"label\":\"\",\"similarity\":0.55}],\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"},{\"concept\":\"Model welfare\",\"doc_count\":1,\"frequency\":2,\"suggested_category\":\"Beliefs\",\"suggested_pov\":\"safetyist\"}]",
+    "[DarkGray] ...",
+    "[Cyan] \n[CITATION STATISTICS]",
+    "[Gray] <truncated JSON preview: 400 chars>",
+    "[DarkGray] ...",
+    "[Cyan] \n[COVERAGE BALANCE]",
+    "[Gray] JSON:{\"accelerationist\":{\"Beliefs\":2,\"Desires\":1},\"safetyist\":{\"Beliefs\":2}}",
+    "[Cyan] \n[VOCABULARY — standardized terms, first 400 chars]",
+    "[Gray] JSON:[]",
+    "[DarkGray] ...",
+    "[Cyan] \n[VOCABULARY — colloquial terms]",
+    "[Gray] JSON:{\"colloquial_term\":\"safety\",\"resolves_to\":[],\"status\":\"retired\"}",
+    "[DarkGray] ...",
+    "[DarkGray] \n────────────────────────────────────────────────────────────────────────",
+    "[Yellow]   DRY RUN complete. No API call made. No files written.",
+    "[DarkGray] ────────────────────────────────────────────────────────────────────────\n"
+  ],
+  "warnings": [
+    "Dictionary term 'risk' skipped: missing status (<ROOT>/dictionary/colloquial/risk.json). Fix the term file to include it in the prompt vocabulary."
+  ],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "prompt",
+      "name": "taxonomy-proposal",
+      "replacements": {
+        "SUMMARY_COUNT": "42",
+        "TAXONOMY_VERSION": "9.9.9"
+      }
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "dictionary/": "(dir)",
+    "dictionary/colloquial/": "(dir)",
+    "dictionary/colloquial/risk.json": "sha256:a204c3670689dfcdd80a125beea2e038f8bf769ee630e1aaabedac3f1c17f0c5 (31 chars)",
+    "dictionary/colloquial/safety.json": "sha256:8bd05db15642f2b4c06e63dcd6cbda52afe60d41e88e9f361f40bcbf81ff717d (56 chars)"
+  }
+}

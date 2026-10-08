@@ -21,7 +21,7 @@ function Invoke-POVSummary {
         Path to the root of the ai-triad-research repository.
         Defaults to the module-resolved repo root.
     .PARAMETER ApiKey
-        AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
+        AI API key. If omitted, resolved via the backend-specific env var (AI_API_KEY is a fallback for gemini models only).
     .PARAMETER Model
         AI model to use. Defaults to "gemini-3.5-flash-lite".
         Supports Gemini, Claude, and Groq backends.
@@ -103,102 +103,27 @@ function Invoke-POVSummary {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
+    # The steps live in Private/InvokePOVSummarySteps.ps1 (t/3910).
+
     # -- ReExtract dispatch: find all needs_reextraction docs and recurse -----
     if ($ReExtract) {
-        $SourcesDir = Get-SourcesDir
-        $Flagged = @()
-        foreach ($DocDir in (Get-ChildItem -Path $SourcesDir -Directory)) {
-            $MetaPath = Join-Path $DocDir.FullName 'metadata.json'
-            if (-not (Test-Path $MetaPath)) { continue }
-            $Meta = Get-Content $MetaPath -Raw | ConvertFrom-Json
-            if ($Meta.PSObject.Properties['summary_status'] -and $Meta.summary_status -eq 'needs_reextraction') {
-                $Flagged += $DocDir.Name
-            }
-        }
-        if ($Flagged.Count -eq 0) {
-            Write-OK "No documents flagged for re-extraction."
-            return
-        }
-        Write-Host "`n  RE-EXTRACTION: $($Flagged.Count) document(s) flagged" -ForegroundColor Yellow
-        foreach ($FlaggedId in $Flagged) {
-            Write-Host "    - $FlaggedId" -ForegroundColor Gray
-        }
-        Write-Host ''
-        foreach ($FlaggedId in $Flagged) {
-            Invoke-POVSummary -DocId $FlaggedId -Model $ModelEscalation -Force -ApiKey $ApiKey -RepoRoot $RepoRoot -AutoFire:$AutoFire
-        }
+        Invoke-POVSummaryReExtract -ModelEscalation $ModelEscalation -ApiKey $ApiKey -RepoRoot $RepoRoot -AutoFire:$AutoFire
         return
     }
 
     # -- STEP 0 — Validate inputs and resolve paths ---------------------------
     Write-Step "Validating inputs"
 
-    $paths = @{
-        Root         = $RepoRoot
-        TaxonomyDir  = Get-TaxonomyDir
-        SourcesDir   = Get-SourcesDir
-        SummariesDir = Get-SummariesDir
-        ConflictsDir = Get-ConflictsDir
-        VersionFile  = Get-VersionFile
-        DocDir       = Join-Path (Get-SourcesDir) $DocId
-        SnapshotFile = Join-Path (Join-Path (Get-SourcesDir) $DocId) "snapshot.md"
-        MetadataFile = Join-Path (Join-Path (Get-SourcesDir) $DocId) "metadata.json"
-        SummaryFile  = Join-Path (Get-SummariesDir) "$DocId.json"
-    }
-
-    if (-not (Test-Path $paths.Root)) {
-        Write-Fail "Repo root not found: $($paths.Root)"
-        throw "Repo root not found: $($paths.Root)"
-    }
-
-    if (-not (Test-Path $paths.DocDir)) {
-        Write-Fail "Document folder not found: $($paths.DocDir)"
-        Write-Info "Expected: sources/$DocId/"
-        throw "Document folder not found: sources/$DocId/"
-    }
-
-    if (-not (Test-Path $paths.SnapshotFile)) {
-        Write-Fail "snapshot.md not found: $($paths.SnapshotFile)"
-        throw "snapshot.md not found for $DocId"
-    }
-
-    if (-not (Test-Path $paths.MetadataFile)) {
-        Write-Fail "metadata.json not found: $($paths.MetadataFile)"
-        throw "metadata.json not found for $DocId"
-    }
+    $paths = Get-POVSummaryPathSet -RepoRoot $RepoRoot -DocId $DocId
+    Assert-POVSummaryInput -Paths $paths -DocId $DocId
 
     $script:ContextRotStages = @()
 
     $metadata = Get-Content $paths.MetadataFile -Raw | ConvertFrom-Json
-    if ((-not $Force) -and (-not $DryRun) -and ($metadata.summary_status -eq "current")) {
-        Write-Warn "Summary is already current (taxonomy v$($metadata.summary_version))."
-        Write-Info "Use -Force to re-process anyway."
-        return
-    }
-
-    foreach ($dir in @($paths.SummariesDir, $paths.ConflictsDir)) {
-        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    }
+    if (Test-POVSummaryAlreadyCurrent -Metadata $metadata -Force:$Force -DryRun:$DryRun) { return }
 
     if (-not $DryRun) {
-        if     ($Model -match '^gemini') { $Backend = 'gemini' }
-        elseif ($Model -match '^claude') { $Backend = 'claude' }
-        elseif ($Model -match '^groq')   { $Backend = 'groq'   }
-        elseif ($Model -match '^openai') { $Backend = 'openai' }
-        else                             { $Backend = 'gemini'  }
-        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-        if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-            $EnvHint = switch ($Backend) {
-                'gemini' { 'GEMINI_API_KEY' }
-                'claude' { 'ANTHROPIC_API_KEY' }
-                'groq'   { 'GROQ_API_KEY' }
-                default  { 'AI_API_KEY' }
-            }
-            Write-Fail "No API key found for $Backend backend."
-            Write-Info "Set $EnvHint or AI_API_KEY, or pass -ApiKey."
-            throw "No API key found for $Backend backend."
-        }
-        $ApiKey = $ResolvedKey
+        $ApiKey = Resolve-POVSummaryApiKey -Model $Model -ApiKey $ApiKey
     }
 
     Write-OK "Doc ID      : $DocId"
@@ -209,76 +134,22 @@ function Invoke-POVSummary {
 
     # -- STEP 1 — Load taxonomy version ---------------------------------------
     Write-Step "Loading taxonomy"
-
-    if (-not (Test-Path $paths.VersionFile)) {
-        Write-Fail "TAXONOMY_VERSION file not found at: $($paths.VersionFile)"
-        throw "TAXONOMY_VERSION not found"
-    }
-    $taxonomyVersion = (Get-Content $paths.VersionFile -Raw).Trim()
-    Write-OK "Taxonomy version: $taxonomyVersion"
+    $taxonomyVersion = Get-POVSummaryTaxonomyVersion -VersionFile $paths.VersionFile
 
     # -- STEP 2 — Load snapshot ------------------------------------------------
     Write-Step "Loading document snapshot"
-
-    $snapshotText    = Get-Content $paths.SnapshotFile -Raw
-    $snapshotLength  = $snapshotText.Length
-    $estimatedTokens = [int]($snapshotLength / 4)
-
-    Write-OK "Snapshot loaded: $snapshotLength chars (~$estimatedTokens tokens estimated)"
-    Write-Info "Title from metadata: $($metadata.title)"
-    Write-Info "POV tags in metadata: $($metadata.pov_tags -join ', ')"
-
-    if ($estimatedTokens -gt 100000) {
-        Write-Warn "Document is very long (~$estimatedTokens tokens). Consider chunking if the API call fails."
-    }
+    $snapshotText = Read-POVSummarySnapshot -SnapshotFile $paths.SnapshotFile -Metadata $metadata
 
     # -- DRY RUN — build prompt locally and display ----------------------------
     if ($DryRun) {
-        # Load full taxonomy for display (DryRun has no API key for CHESS/RAG)
-        $taxonomyFiles   = @("accelerationist.json", "safetyist.json", "skeptic.json", "situations.json")
-        $taxonomyContext = [ordered]@{}
-        foreach ($file in $taxonomyFiles) {
-            $filePath = Join-Path $paths.TaxonomyDir $file
-            if (Test-Path $filePath) {
-                $taxonomyContext[$file] = Get-Content $filePath -Raw | ConvertFrom-Json
-            }
-        }
-        $taxonomyJson = $taxonomyContext | ConvertTo-Json -Depth 20 -Compress:$false
-
-        $wordCount = ($snapshotText -split '\s+').Count
-        $outputSchema = Get-Prompt -Name 'pov-summary-schema'
-        $kpMin = [Math]::Max(3,  [int]($wordCount / 500))
-        $systemPrompt = Get-Prompt -Name 'pov-summary-system' -Replacements @{
-            WORD_COUNT   = $wordCount
-            KP_MIN       = $kpMin
-            KP_MAX       = [Math]::Max(8,  [int]($wordCount / 200))
-            UC_MIN       = [Math]::Max(2,  [int]($wordCount / 2000))
-            UC_MAX       = [Math]::Max(5,  [int]($wordCount / 800))
-            TOTAL_FLOOR  = [Math]::Max(6,  $kpMin * 2)
-        }
-
-        Write-Host "`n$('─' * 72)" -ForegroundColor DarkGray
-        Write-Host "  DRY RUN: FULL PROMPT PREVIEW" -ForegroundColor Yellow
-        Write-Host "$('─' * 72)" -ForegroundColor DarkGray
-
-        Write-Host "`n[SYSTEM PROMPT]" -ForegroundColor Cyan
-        Write-Host $systemPrompt -ForegroundColor Gray
-
-        Write-Host "`n[TAXONOMY CONTEXT — first 500 chars]" -ForegroundColor Cyan
-        Write-Host $taxonomyJson.Substring(0, [Math]::Min(500, $taxonomyJson.Length)) -ForegroundColor Gray
-        Write-Host "... (truncated for display)" -ForegroundColor DarkGray
-
-        Write-Host "`n[DOCUMENT CONTENT — first 500 chars]" -ForegroundColor Cyan
-        Write-Host $snapshotText.Substring(0, [Math]::Min(500, $snapshotText.Length)) -ForegroundColor Gray
-        Write-Host "... (truncated for display)" -ForegroundColor DarkGray
-
-        Write-Host "`n[OUTPUT SCHEMA]" -ForegroundColor Cyan
-        Write-Host $outputSchema -ForegroundColor Gray
-
-        Write-Host "`n$('─' * 72)" -ForegroundColor DarkGray
-        Write-Host "  DRY RUN complete. No API call made. No files written." -ForegroundColor Yellow
-        Write-Host "$('─' * 72)`n" -ForegroundColor DarkGray
+        Show-POVSummaryDryRun -TaxonomyDir $paths.TaxonomyDir -SnapshotText $snapshotText
         return
+    }
+
+    # Created after the dry-run return, so -DryRun creates nothing (t/4070). Before the pipeline,
+    # because it saves a debug-raw file into summaries/ when the model returns invalid JSON.
+    foreach ($dir in @($paths.SummariesDir, $paths.ConflictsDir)) {
+        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     }
 
     # -- STEP 3 — Run extraction pipeline --------------------------------------
@@ -312,337 +183,44 @@ function Invoke-POVSummary {
     $summaryObject        = $pipelineResult.Summary
     $factualClaimCount    = $pipelineResult.FactualCount
     $unmappedConceptCount = $pipelineResult.UnmappedCount
-    $taxonomyJson         = $pipelineResult.TaxonomyJson
     $fireStats            = $pipelineResult.FireStats
     $usedFire             = $pipelineResult.UsedFire
 
     # Collect context-rot stages from pipeline
-    $ContextRotStages = @($script:ContextRotStages)
-    $ContextRotObj = if ($ContextRotStages.Count -gt 0) {
-        New-ContextRotMetrics -Pipeline 'summary' -DocId $DocId -Stages $ContextRotStages
-    } else { $null }
-    $elapsed              = [TimeSpan]::FromSeconds($pipelineResult.ElapsedSeconds)
-    $camps                = @('accelerationist', 'safetyist', 'skeptic')
+    $contextRot = Get-POVSummaryContextRot -DocId $DocId
 
-    # Report extraction results
-    Write-OK "Pipeline complete in $($pipelineResult.ElapsedSeconds)s ($($pipelineResult.Backend))"
-    foreach ($camp in $camps) {
-        $campData = $summaryObject.pov_summaries.$camp
-        if ($campData -and $campData.PSObject.Properties['key_points'] -and $campData.key_points) {
-            $pointCount = @($campData.key_points).Count
-            $nullNodes  = @($campData.key_points | Where-Object { -not $_.PSObject.Properties['taxonomy_node_id'] -or $null -eq $_.taxonomy_node_id }).Count
-            Write-OK "  $camp : $pointCount key points ($nullNodes unmapped)"
-        }
-        else {
-            Write-Warn "  $camp : no data returned"
-        }
-    }
-    Write-OK "  factual_claims    : $factualClaimCount"
-    Write-OK "  unmapped_concepts : $unmappedConceptCount"
+    Write-POVSummaryExtractionReport -PipelineResult $pipelineResult -SummaryObject $summaryObject `
+        -FactualClaimCount $factualClaimCount -UnmappedConceptCount $unmappedConceptCount -UsedFire $usedFire -FireStats $fireStats
 
-    if ($usedFire -and $fireStats) {
-        Write-Info "  FIRE: $($fireStats.total_api_calls) API calls, $($fireStats.total_iterations) iterations, $($fireStats.termination_reason)"
-    }
+    # -WhatIf / -Confirm: one decision covers every write in steps 4-6 (summary, metadata, source
+    # index, conflicts), so a declined run reports none of them as done and can never leave
+    # metadata.json marked current for a summary that was not written (t/4070).
+    $writeTarget = "summaries/$DocId.json, sources/$DocId/metadata.json and conflicts/"
+    $filesWritten = $PSCmdlet.ShouldProcess($writeTarget, 'Write POV summary, update metadata and log conflicts')
+    if ($filesWritten) {
+        # -- STEP 4 — Write summary file --------------------------------------
+        Write-Step "Writing summary file"
 
-    # -- STEP 4 — Write summary file ------------------------------------------
-    Write-Step "Writing summary file"
+        $nodeCount = Get-POVSummaryTaxonomyNodeCount -TaxonomyJson $pipelineResult.TaxonomyJson
+        $modelInfo = Get-POVSummaryModelInfo -Model $Model -Temperature $Temperature -UsedFire $usedFire -FireStats $fireStats `
+            -FullTaxonomy:$FullTaxonomy -TaxonomyNodeCount $nodeCount
+        Write-POVSummaryFile -Path $paths.SummaryFile -DocId $DocId -TaxonomyVersion $taxonomyVersion -ModelInfo $modelInfo `
+            -SummaryObject $summaryObject -ContextRotObj $contextRot.Obj
 
-    # Detect RAG vs full taxonomy from the context format
-    $IsRagFiltered = $taxonomyJson -match '^\s*=== RELEVANT TAXONOMY NODES'
-    if ($IsRagFiltered) {
-        $taxonomyNodeCount = ([regex]::Matches($taxonomyJson, '^\s{2}\w', [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count
-    }
-    else {
-        $taxonomyNodeCount = ([regex]::Matches($taxonomyJson, '"id"\s*:')).Count
-    }
+        # -- STEP 5 — Update metadata.json ------------------------------------
+        Write-Step "Updating metadata"
+        Write-POVSummaryMetadataFile -Paths $paths -DocId $DocId -TaxonomyVersion $taxonomyVersion -SummaryObject $summaryObject `
+            -FactualClaimCount $factualClaimCount -UnmappedConceptCount $unmappedConceptCount `
+            -ContextRotStages $contextRot.Stages -ContextRotObj $contextRot.Obj
 
-    $modelInfo = [ordered]@{
-        model             = $Model
-        temperature       = $Temperature
-        max_tokens        = 32768
-        extraction_mode   = if ($usedFire) { 'fire' } else { 'single_shot' }
-        taxonomy_filter   = if ($FullTaxonomy) { 'full' } else { 'rag' }
-        taxonomy_nodes    = $taxonomyNodeCount
-    }
-
-    if ($usedFire -and $fireStats) {
-        $modelInfo['fire_confidence_threshold'] = 0.7
-        $modelInfo['fire_stats'] = [ordered]@{
-            api_calls          = $fireStats.total_api_calls
-            iterations         = $fireStats.total_iterations
-            claims_total       = $fireStats.claims_total
-            claims_confident   = $fireStats.claims_confident
-            claims_iterated    = $fireStats.claims_iterated
-            elapsed_seconds    = $fireStats.elapsed_seconds
-            termination_reason = $fireStats.termination_reason
-        }
-    }
-
-    $finalSummary = [ordered]@{
-        doc_id            = $DocId
-        taxonomy_version  = $taxonomyVersion
-        generated_at      = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-        model_info        = $modelInfo
-        pov_summaries     = $summaryObject.pov_summaries
-        # t/1726 — coerce LLM-optional fields to arrays so the persisted summary
-        # always carries them; protects every downstream consumer from the same
-        # strict-mode missing-property throw when the model omits the field.
-        factual_claims    = if ($summaryObject.PSObject.Properties['factual_claims']) { @($summaryObject.factual_claims) } else { @() }
-        unmapped_concepts = if ($summaryObject.PSObject.Properties['unmapped_concepts']) { @($summaryObject.unmapped_concepts) } else { @() }
-        context_rot       = $ContextRotObj
-    }
-
-    $summaryJson = $finalSummary | ConvertTo-Json -Depth 20
-    try {
-        Write-Utf8NoBom -Path $paths.SummaryFile -Value $summaryJson 
-        Write-OK "Summary written to: summaries/$DocId.json"
-    }
-    catch {
-        Write-Fail "Failed to write summary file — $($_.Exception.Message)"
-        Write-Info "AI response was valid but could not be saved. Check disk space and permissions."
-        throw
-    }
-
-    # -- STEP 5 — Update metadata.json ----------------------------------------
-    Write-Step "Updating metadata"
-
-    try {
-        $metaRaw     = Get-Content $paths.MetadataFile -Raw
-        $metaUpdated = $metaRaw | ConvertFrom-Json -AsHashtable
-
-        $metaUpdated["summary_version"] = $taxonomyVersion
-        $metaUpdated["summary_status"]  = "current"
-        $metaUpdated["summary_updated"] = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-
-        # Summary statistics — node reference counts (sum may exceed total_claims for multi-mapped claims)
-        $nodeRefsByPov = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
-        $primaryPovDist = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
-        $mdClaims = if ($summaryObject.PSObject.Properties['factual_claims']) { @($summaryObject.factual_claims) } else { @() }
-        foreach ($claim in $mdClaims) {
-            if ($null -eq $claim) { continue }
-            $PrimaryAssigned = $false
-            foreach ($nodeId in @($claim.linked_taxonomy_nodes)) {
-                if ($null -eq $nodeId) { continue }
-                if     ($nodeId -like 'acc-*') { $nodeRefsByPov['accelerationist']++; if (-not $PrimaryAssigned) { $primaryPovDist['accelerationist']++; $PrimaryAssigned = $true } }
-                elseif ($nodeId -like 'saf-*') { $nodeRefsByPov['safetyist']++;       if (-not $PrimaryAssigned) { $primaryPovDist['safetyist']++;       $PrimaryAssigned = $true } }
-                elseif ($nodeId -like 'skp-*') { $nodeRefsByPov['skeptic']++;         if (-not $PrimaryAssigned) { $primaryPovDist['skeptic']++;         $PrimaryAssigned = $true } }
-                elseif ($nodeId -like 'sit-*') { $nodeRefsByPov['situations']++;      if (-not $PrimaryAssigned) { $primaryPovDist['situations']++;      $PrimaryAssigned = $true } }
-            }
-        }
-        $totalFacts = 0
-        foreach ($camp in @('accelerationist', 'safetyist', 'skeptic')) {
-            $campData = $summaryObject.pov_summaries.$camp
-            if ($campData -and $campData.PSObject.Properties['key_points'] -and $campData.key_points) {
-                $totalFacts += @($campData.key_points).Count
-            }
-        }
-
-        # Quality gate: flag under-extracted large documents
-        $snapshotSizeKB = [Math]::Round((Get-Item $paths.SnapshotFile).Length / 1024, 1)
-        if ($factualClaimCount -lt 3 -and $snapshotSizeKB -gt 30) {
-            $metaUpdated["summary_status"] = "needs_reextraction"
-            Write-Warn "Under-extraction detected: $factualClaimCount claims from ${snapshotSizeKB}KB snapshot. Queued for re-extraction with stronger model."
-            Write-Info "Run Invoke-POVSummary -ReExtract to re-process flagged documents."
-        }
-
-        $metaUpdated["total_claims"]              = $factualClaimCount
-        $metaUpdated["node_references_by_pov"]   = $nodeRefsByPov
-        $metaUpdated["primary_pov_distribution"] = $primaryPovDist
-        $metaUpdated.Remove("claims_by_pov")
-        $metaUpdated["total_facts"]        = $totalFacts
-        $metaUpdated["unmapped_concepts"]  = $unmappedConceptCount
-
-        if ($ContextRotObj) {
-            $SameUnitStages = @($ContextRotStages | Where-Object { $_.in_units -eq $_.out_units })
-            $WorstStage = $SameUnitStages | Sort-Object { $_.ratio } | Select-Object -First 1
-
-            $ExtractionStage = @($ContextRotStages | Where-Object { $_.stage -eq 'extraction' }) | Select-Object -First 1
-            $ExtractionDensity = if ($ExtractionStage -and $ExtractionStage.in_count -gt 0) {
-                [Math]::Round(($ExtractionStage.out_count / $ExtractionStage.in_count) * 1000, 4)
-            } else { $null }
-
-            $metaUpdated['context_rot'] = [ordered]@{
-                cumulative_retention = $ContextRotObj.cumulative_retention
-                worst_stage          = if ($WorstStage) { $WorstStage.stage } else { $null }
-                worst_ratio          = if ($WorstStage) { $WorstStage.ratio } else { $null }
-                extraction_density   = $ExtractionDensity
-            }
-        }
-
-        Write-Utf8NoBom -Path $paths.MetadataFile -Value ($metaUpdated | ConvertTo-Json -Depth 10)
-        $WrittenStatus = $metaUpdated["summary_status"]
-        Write-OK "metadata.json updated: summary_status=$WrittenStatus, summary_version=$taxonomyVersion"
-
-        # Rebuild source index so Get-AITSource picks up updated stats
-        try { Update-AITSourceIndex -Quiet } catch { Write-Verbose "Index rebuild skipped: $_" }
-    }
-    catch {
-        Write-Warn "Summary written but metadata update failed — $($_.Exception.Message)"
-        Write-Info "Run Invoke-POVSummary -Force -DocId '$DocId' to retry."
-    }
-
-    # -- STEP 6 — Conflict detection ------------------------------------------
-    Write-Step "Running conflict detection"
-
-    $today = Get-Date -Format "yyyy-MM-dd"
-
-    if ($factualClaimCount -eq 0) {
-        Write-Info "No factual claims to process."
-    } else {
-        $claimsToProcess = if ($summaryObject.PSObject.Properties['factual_claims']) { @($summaryObject.factual_claims) } else { @() }
-        foreach ($claim in $claimsToProcess) {
-
-            $claimText   = $claim.claim
-            $claimLabel  = $claim.claim_label
-            $docPosition = $claim.doc_position
-            $hintId      = $claim.potential_conflict_id
-            $linkedNodes = ConvertTo-LinkedNodesArray -Value $claim.linked_taxonomy_nodes
-
-            # Normalize stance value
-            if ($docPosition -in @('supports','disputes','neutral','qualifies')) { $stance = $docPosition } else { $stance = 'neutral' }
-
-            $newInstance = [ordered]@{
-                doc_id       = $DocId
-                stance       = $stance
-                assertion    = $claimText
-                date_flagged = $today
-            }
-
-            if ($hintId) {
-                $existingPath = Join-Path $paths.ConflictsDir "$hintId.json"
-
-                if (Test-Path $existingPath) {
-                    $conflictData = Get-Content $existingPath -Raw | ConvertFrom-Json -AsHashtable
-                    $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
-                    if ($alreadyLogged) {
-                        Write-Info "  SKIP duplicate conflict instance: $hintId (doc already logged)"
-                    } else {
-                        $conflictData["instances"] += $newInstance
-                        if ($linkedNodes.Count -gt 0) {
-                            $existing = @($conflictData["linked_taxonomy_nodes"])
-                            $merged   = @(($existing + $linkedNodes) | Select-Object -Unique)
-                            $conflictData["linked_taxonomy_nodes"] = $merged
-                        }
-                        Write-Utf8NoBom -Path $existingPath -Value ($conflictData | ConvertTo-Json -Depth 10) 
-                        Write-OK "  Appended to existing conflict: $hintId"
-                    }
-                } else {
-                    Write-Warn "  Suggested conflict '$hintId' not found — creating new file"
-                    $newConflict = [ordered]@{
-                        claim_id               = $hintId
-                        claim_label            = if ($claimLabel) { $claimLabel } else { $claimText.Substring(0, [Math]::Min(80, $claimText.Length)) }
-                        description            = $claimText
-                        status                 = "open"
-                        linked_taxonomy_nodes  = $linkedNodes
-                        instances              = @($newInstance)
-                        human_notes            = @()
-                    }
-                    Write-Utf8NoBom -Path $existingPath -Value ($newConflict | ConvertTo-Json -Depth 10) 
-                    Write-OK "  Created new conflict file: $hintId.json"
-                }
-            } else {
-                $slug = $claimText.ToLower() -replace '[^\w\s]', '' -replace '\s+', '-'
-                $slug = $slug.Substring(0, [Math]::Min(40, $slug.Length)).TrimEnd('-')
-                $newId = "conflict-$slug-$($DocId.Substring(0,[Math]::Min(8,$DocId.Length)))"
-
-                $existingMatch = Get-ChildItem $paths.ConflictsDir -Filter "*.json" |
-                    Where-Object { $_.BaseName -like "*$($slug.Substring(0,[Math]::Min(20,$slug.Length)))*" } |
-                    Select-Object -First 1
-
-                if ($existingMatch) {
-                    $conflictData = Get-Content $existingMatch.FullName -Raw | ConvertFrom-Json -AsHashtable
-                    $alreadyLogged = $conflictData["instances"] | Where-Object { $_["doc_id"] -eq $DocId }
-                    if (-not $alreadyLogged) {
-                        $conflictData["instances"] += $newInstance
-                        if ($linkedNodes.Count -gt 0) {
-                            $existing = @($conflictData["linked_taxonomy_nodes"])
-                            $merged   = @(($existing + $linkedNodes) | Select-Object -Unique)
-                            $conflictData["linked_taxonomy_nodes"] = $merged
-                        }
-                        Write-Utf8NoBom -Path $existingMatch.FullName -Value ($conflictData | ConvertTo-Json -Depth 10) 
-                        Write-OK "  Appended to fuzzy-matched conflict: $($existingMatch.BaseName)"
-                    }
-                } else {
-                    $newConflictPath = Join-Path $paths.ConflictsDir "$newId.json"
-                    $newConflict = [ordered]@{
-                        claim_id               = $newId
-                        claim_label            = if ($claimLabel) { $claimLabel } else { $claimText.Substring(0, [Math]::Min(80, $claimText.Length)) }
-                        description            = $claimText
-                        status                 = "open"
-                        linked_taxonomy_nodes  = $linkedNodes
-                        instances              = @($newInstance)
-                        human_notes            = @()
-                    }
-                    Write-Utf8NoBom -Path $newConflictPath -Value ($newConflict | ConvertTo-Json -Depth 10) 
-                    Write-OK "  Created new conflict file: $newId.json"
-                }
-            }
-        }
+        # -- STEP 6 — Conflict detection --------------------------------------
+        Write-Step "Running conflict detection"
+        Invoke-POVSummaryConflictDetection -SummaryObject $summaryObject -FactualClaimCount $factualClaimCount `
+            -DocId $DocId -ConflictsDir $paths.ConflictsDir
     }
 
     # -- STEP 7 — Print human-readable summary to console --------------------
-    Write-Host "`n$('═' * 72)" -ForegroundColor Cyan
-    Write-Host "  POV SUMMARY: $DocId" -ForegroundColor White
-    Write-Host "  Taxonomy v$taxonomyVersion  |  Model: $Model" -ForegroundColor Gray
-    Write-Host "$('═' * 72)" -ForegroundColor Cyan
-
-    foreach ($camp in $camps) {
-        $campData = $summaryObject.pov_summaries.$camp
-        if (-not $campData) { continue }
-
-        $campColor = switch ($camp) {
-            "accelerationist" { "Green"  }
-            "safetyist"       { "Red"    }
-            "skeptic"         { "Yellow" }
-        }
-        $campLabel = $camp.ToUpper()
-
-        Write-Host "`n  [$campLabel]" -ForegroundColor $campColor
-
-        if ($campData.PSObject.Properties['key_points'] -and $campData.key_points) {
-            $byCategory = $campData.key_points | Group-Object category
-            foreach ($group in $byCategory) {
-                Write-Host "    $($group.Name):" -ForegroundColor White
-                foreach ($pt in $group.Group) {
-                    if ($pt.taxonomy_node_id) { $nodeTag = "[$($pt.taxonomy_node_id)]" } else { $nodeTag = "[UNMAPPED]" }
-                    if ($pt.stance) { $ptStance = $pt.stance } else { $ptStance = 'neutral' }
-                    Write-Host "      $nodeTag ($ptStance) $($pt.point)" -ForegroundColor Gray
-                    if ($pt.PSObject.Properties['verbatim'] -and $pt.verbatim) {
-                        if ($pt.verbatim -is [array]) {
-                            foreach ($span in $pt.verbatim) {
-                                Write-Host "        `"$span`"" -ForegroundColor DarkGray
-                            }
-                        } else {
-                            Write-Host "        `"$($pt.verbatim)`"" -ForegroundColor DarkGray
-                        }
-                    }
-                }
-            }
-        } else {
-            Write-Host "    (no key points extracted)" -ForegroundColor DarkGray
-        }
-    }
-
-    if ($unmappedConceptCount -gt 0) {
-        Write-Host "`n  UNMAPPED CONCEPTS (potential new taxonomy nodes):" -ForegroundColor Magenta
-        $unmappedList = if ($summaryObject.PSObject.Properties['unmapped_concepts']) { @($summaryObject.unmapped_concepts) } else { @() }
-        foreach ($concept in $unmappedList) {
-            $cProps = $concept.PSObject.Properties
-            $povCat  = "[$( if ($cProps['suggested_pov']) { $concept.suggested_pov } else { '?' } ) / $( if ($cProps['suggested_category']) { $concept.suggested_category } else { '?' } )]"
-            if ($cProps['suggested_label']) { $label = $concept.suggested_label } elseif ($cProps['concept']) { $label = $concept.concept } else { $label = '(no label)' }
-            if ($cProps['concept']) { $desc = $concept.concept } elseif ($cProps['suggested_description']) { $desc = $concept.suggested_description } else { $desc = '' }
-            if ($cProps['reason']) { $reason = $concept.reason } else { $reason = '' }
-            Write-Host "    $povCat" -ForegroundColor Magenta
-            if ($desc) { Write-Host "    $desc" -ForegroundColor Gray }
-            if ($reason) { Write-Host "    Reason: $reason" -ForegroundColor DarkGray }
-        }
-    }
-
-    Write-Host "`n$('═' * 72)" -ForegroundColor Cyan
-    Write-Host "  Files written:" -ForegroundColor White
-    Write-Host "    summaries/$DocId.json" -ForegroundColor Green
-    $FinalStatus = if ($factualClaimCount -lt 3 -and ([Math]::Round((Get-Item $paths.SnapshotFile).Length / 1024, 1)) -gt 30) { 'needs_reextraction' } else { 'current' }
-    $StatusColor = if ($FinalStatus -eq 'current') { 'Green' } else { 'Yellow' }
-    Write-Host "    sources/$DocId/metadata.json  (summary_status=$FinalStatus)" -ForegroundColor $StatusColor
-    Write-Host "$('═' * 72)`n" -ForegroundColor Cyan
+    Write-POVSummaryConsole -DocId $DocId -TaxonomyVersion $taxonomyVersion -Model $Model -SummaryObject $summaryObject `
+        -UnmappedConceptCount $unmappedConceptCount -FactualClaimCount $factualClaimCount -SnapshotFile $paths.SnapshotFile `
+        -FilesWritten:$filesWritten
 }

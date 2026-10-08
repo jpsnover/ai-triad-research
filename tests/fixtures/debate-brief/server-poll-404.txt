@@ -1,0 +1,6 @@
+VERBOSE: Server mode: exporting debate 'deb-123' via https://srv.example (auth: none — anonymous).
+VERBOSE: Performing the operation "export brief (preset=policymaker, model=(none — narration skipped)) via https://srv.example" on target "debate 'deb-123'".
+VERBOSE: Created async export job 'job-1' (preset=policymaker, model=(none — narration skipped)). Polling every 2s (timeout 300s).
+ERROR: DebateNotFound,Export-TriadDebateBrief | ObjectNotFound | Poll export job failed (HTTP 404). | deb-123
+CALL: POST https://srv.example/api/debates/deb-123/exports body={"preset":"policymaker","skipNarration":true} headers= auth= ok=202 timeout=300 json=True
+CALL: GET https://srv.example/api/export-jobs/job-1 headers= ok=200 timeout=300 json=True

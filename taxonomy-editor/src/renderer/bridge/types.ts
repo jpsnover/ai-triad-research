@@ -12,6 +12,8 @@
  */
 
 import type { StopReason, ProviderCallDiagnostics } from '@lib/ai-client/types';
+import type { PovTagProposalsFile, ProposalDecision, ProposalStatus, ApplyProposalDecisionResult } from '@lib/schema/povTagProposals';
+import type { RecountPolicyMembersResult } from '@lib/policy/registryRecount';
 
 export interface GroundingSegment {
   startIndex: number;
@@ -148,6 +150,7 @@ export interface ClaimAttributionResponse {
 
 import type { OpEdSet, OpEdSetSummary, PovKey } from '../../../../lib/oped/types';
 import type { BriefPreset, ExportJobState, ExportErrorCode, BriefArtifactName } from '../../../../lib/brief/types';
+import type { TagSelection as OpEdTagSelection } from '@lib/schema/povTags';
 
 /** Op-Ed generation params (PR#2) — maps to New-OpEd cmdlet params; topic + voices
  *  travel separately in the payload (one New-OpEd call per selected voice). */
@@ -163,6 +166,8 @@ export interface CreateOpEdParams {
   maxGroundingNodes?: number;
   maxSituations?: number;
   voiceOnly?: boolean;
+  /** POV tag for ONE member (t/3960, t/3992). Validated by parseOpEdRequest on both create paths. */
+  tagSelection?: OpEdTagSelection;
 }
 export interface CreateOpEdPayload { topic: string; url?: string; params: CreateOpEdParams; voices: PovKey[] }
 /** One 3-stage progress tick from the Electron generation IPC (t/2575 `oped-progress`). */
@@ -360,6 +365,9 @@ export interface AppAPI {
   loadTaxonomyFile: (pov: string) => Promise<unknown>;
   saveTaxonomyFile: (pov: string, data: unknown) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
+  /** t/4034: recount member_count / source_povs in policy_actions.json for these policy ids, from the POV
+   *  files on disk (lib/policy/registryRecount.ts). Returns written / unchanged / refused. */
+  recountPolicyMembers: (ids: string[]) => Promise<RecountPolicyMembersResult>;
   loadLineageCategories: () => Promise<unknown>;
 
   /** t/3852: durable audit record for a node deletion — appended to node-delete-log.jsonl
@@ -406,6 +414,11 @@ export interface AppAPI {
   checkDataUpdates: () => Promise<unknown>;
   pullDataUpdates: () => Promise<unknown>;
   getChangedFiles: () => Promise<{ path: string; status: string }[]>;
+  /** t/4052: taxonomy/Origin/pov-tag-proposals.json, or null when absent. Read-only everywhere. */
+  loadPovTagProposals: () => Promise<PovTagProposalsFile | null>;
+  /** t/4052: record one review decision in the side file (never pov_tags). Desktop only: hosted web answers 405.
+   *  A refusal (`conflict`: someone reviewed it first; `invalid`: final fails the registry) comes back as a value. */
+  reviewPovTagProposal: (nodeId: string, decision: ProposalDecision, expectedStatus: ProposalStatus) => Promise<ApplyProposalDecisionResult>;
   getFileDiff: (filePath: string) => Promise<string>;
 
   // --- AI models & keys ---
@@ -439,7 +452,20 @@ export interface AppAPI {
   /** `diagnostics` (t/3568 item 2) rides the resolved value on the SUCCESS path only — providers
    *  throw before returning a ProviderResult on a non-2xx/timeout, so there is nothing to attach
    *  on a rejected generateText call yet (see instrumentBridge.ts's extractResultMeta). */
-  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, opts?: GenerateTextOptions) => Promise<{ text: string; stopReason?: StopReason; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number }; diagnostics?: ProviderCallDiagnostics }>;
+  /** `servedModel` (t/4048, e/268#6 condition 3) is the registry id that actually answered, set
+   *  only on success and never echoed from the request — absent means untracked (older backend
+   *  or an error path), never filled in from the requested model. Desktop always equals the
+   *  requested/defaulted model (no fallback chain there, e/275); web is unset until ServerAPI's
+   *  own `servedModel` lands (its chain in `aiBackends.ts` is where failover is real).
+   *
+   *  WHAT IT DOES NOT CLAIM: "answered" means which link of OUR model routing answered (failover
+   *  tracking). It does NOT verify that the PROVIDER served that model. Provider-side substitution
+   *  (sent X, provider reports Y) is detected separately by the `ai.model_identity` flight-recorder
+   *  event (t/3677, t/3731), not here. `ProviderResult.providerReportedModel` is deliberately NOT
+   *  the source: it is a raw provider string (a different namespace from registry ids), and it is
+   *  forensics-only. Reading it here would lapse its no-consumer exemption. So a run marked
+   *  'tracked' on this field is failover-tracked, NOT identity-verified (TL review, #3061). */
+  generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number, opts?: GenerateTextOptions) => Promise<{ text: string; stopReason?: StopReason; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number }; diagnostics?: ProviderCallDiagnostics; servedModel?: string }>;
   generateTextWithSearch: (prompt: string, model?: string) => Promise<{
     text: string;
     searchQueries?: string[];

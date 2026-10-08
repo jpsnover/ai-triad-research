@@ -9,7 +9,6 @@ import type {
   ChatEntry,
 } from '../types/chat';
 import type { SpeakerId, TaxonomyRef } from '../types/debate';
-import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
 import { useTaxonomyStore, getStoredModel } from './useTaxonomyStore';
 import { extractHttpUrls } from '../../../../lib/url-fetch/extractHttpUrls';
@@ -19,8 +18,10 @@ import { api } from '@bridge';
 import type { UrlContextMetadata } from '@lib/ai-client/index';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext, FormatContextConfig } from '../utils/taxonomyContext';
-import { checkTagScope } from '@lib/debate/relevanceSelection';
+import { applyTagSelection, checkTagScope } from '@lib/debate/relevanceSelection';
 import type { SeatTag, TagSelection } from '@lib/debate/types/session';
+import { resolvePoverInfo } from '@lib/debate/tagSoulRegistry';
+import type { PovInfo } from '@lib/debate/types';
 import {
   chatSystemPrompt,
   chatOpeningPrompt,
@@ -101,14 +102,21 @@ function stripCodeFences(text: string): string {
 
 const CHAT_CONTEXT_CONFIG: FormatContextConfig = { maxNodes: 9999, maxDesires: 9999 };
 
+/** The soul the chat's POVer speaks as: the tag soul when the chat is tagged (spec §1: it replaces the POV
+ *  soul), else the base soul. Browser-safe tagSoulRegistry, never soulDocLoader. Throws if the tag has no
+ *  soul, so a tagged chat never silently speaks in the base voice (t/3995). */
+export function chatSoul(chat: Pick<ChatSession, 'pover' | 'pov_tag' | 'tag_mode'>): PovInfo {
+  return resolvePoverInfo(chat.pover, chatTagSelection(chat)).soul;
+}
+
 /** The chat's tag selection, or undefined when untagged (t/3995). */
 export function chatTagSelection(chat: Pick<ChatSession, 'pov_tag' | 'tag_mode'>): TagSelection | undefined {
   return chat.pov_tag && chat.tag_mode ? { tag: chat.pov_tag, mode: chat.tag_mode } : undefined;
 }
 
 /** The taxonomy a chat is given. Chat has no relevance ranking: every POV node is sent, except that a
- *  Scope-tagged chat is given only its tagged nodes (t/3995). Prioritize ordering belongs to
- *  formatTaxonomyContext (t/3996); until it lands a Prioritize chat gets every node, in the usual order. */
+ *  Scope-tagged chat is given only its tagged nodes (t/3995). Prioritize keeps every node; its ordering is
+ *  applied by chatTaxonomyBlock through formatTaxonomyContext (t/3996). */
 function getTaxonomyContext(pov: string, chat: Pick<ChatSession, 'id' | 'pov_tag' | 'tag_mode'>): TaxonomyContext {
   const state = useTaxonomyStore.getState();
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
@@ -128,14 +136,29 @@ function getTaxonomyContext(pov: string, chat: Pick<ChatSession, 'id' | 'pov_tag
     }
     return { povNodes: inScope, situationNodes };
   }
-  if (tagSelection?.mode === 'prioritize') {
+  return { povNodes, situationNodes };
+}
+
+/** The formatted taxonomy block for a chat turn. A Prioritize chat passes its tagged ids (the shared
+ *  applyTagSelection boost set) to formatTaxonomyContext, which sorts them first within each BDI category
+ *  and marks them ▲ (t/3996). Scope was already narrowed by getTaxonomyContext. */
+function chatTaxonomyBlock(pov: string, chat: Pick<ChatSession, 'id' | 'pov_tag' | 'tag_mode'>): string {
+  const ctx = getTaxonomyContext(pov, chat);
+  const tagSelection = chatTagSelection(chat);
+  if (tagSelection?.mode !== 'prioritize') return formatTaxonomyContext(ctx, pov, undefined, CHAT_CONTEXT_CONFIG);
+  const { boostIds } = applyTagSelection(ctx.povNodes, tagSelection);
+  // Setup refuses a Prioritize tag with no tagged nodes (t/3959), but tags can change after a chat starts.
+  if (boostIds.length === 0) {
     getGlobalRecorder()?.record({
       type: 'state.change', component: 'chat-store', level: 'warn',
-      message: 'Prioritize-tagged chat: tagged-first ordering not applied yet (t/3996); sending every node unordered',
+      message: 'Prioritize-tagged chat has no tagged nodes left; nothing is ordered first',
       data: { chat_session_id: chat.id, pov, tag: tagSelection.tag },
     });
   }
-  return { povNodes, situationNodes };
+  return formatTaxonomyContext(ctx, pov, undefined, {
+    ...CHAT_CONTEXT_CONFIG,
+    tagSelection: { taggedIds: new Set(boostIds), mode: 'prioritize' },
+  });
 }
 
 /** Remove reasoning-model `<think>…</think>` / `<thinking>…</thinking>` blocks that
@@ -364,9 +387,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ chatGenerating: true, chatError: null, chatStreamingText: null });
 
     try {
-      const info = POVER_INFO[activeChat.pover];
-      const ctx = getTaxonomyContext(info.pov, activeChat);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
+      const info = chatSoul(activeChat);
+      const taxonomyBlock = chatTaxonomyBlock(info.pov, activeChat);
       const model = getConfiguredModel();
       const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
 
@@ -466,9 +488,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
 
     try {
-      const info = POVER_INFO[activeChat.pover];
-      const ctx = getTaxonomyContext(info.pov, activeChat);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
+      const info = chatSoul(activeChat);
+      const taxonomyBlock = chatTaxonomyBlock(info.pov, activeChat);
       const model = getConfiguredModel();
       const temperature = CHAT_MODE_TEMPERATURE[activeChat.mode];
 

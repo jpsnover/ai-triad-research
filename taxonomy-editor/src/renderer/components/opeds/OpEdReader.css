@@ -369,3 +369,10 @@
 @media (prefers-reduced-motion: reduce) {
   .oped-tab { transition: none; }
 }
+
+/* t/3992: the wing scope of a tagged member. */
+.oped-tag-scope {
+  margin: -0.75rem 0 1.25rem;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

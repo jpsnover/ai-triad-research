@@ -16,6 +16,10 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   mergeGuardVerdict,
+  mergeClauses,
+  mergeClauseVerdict,
+  stripHeredocBodies,
+  parseMergeClause,
   jointGvAutoMergeVerdict,
   isAutoMergeCommand,
   parsePrRef,
@@ -24,6 +28,7 @@ import {
   parseBaseRefRecords,
   classifyGhError,
 } from './merge-guard-predicate.mjs';
+import { reconcileMergeGuardCoverage, parsePrRefKey } from './merge-guard-reconcile.mjs';
 
 // ── t/3687: classifyGhError — shim fail-policy (fast-fail 4xx; retry 5xx/408/429/network) ──
 test('t/3687 classifyGhError: 4xx auth/perm/not-found → NOT retryable (fast-fail)', () => {
@@ -408,4 +413,215 @@ test('sink record: command is truncated to 300 chars; empty args never throw', (
   assert.equal(empty.decision, 'allow');
   assert.equal(empty.command, null);
   assert.equal(empty.gate, 'merge-guard');
+  assert.deepEqual(empty.clauses, []);
+});
+
+// ── t/3695#26-27: --disable-auto never merges; the verdict is per merge clause ──
+
+test('t/3695 ALLOW arm: --disable-auto only disarms auto-merge → allow (the first window\'s 9 FPs)', () => {
+  for (const c of ['gh pr merge 2830 --disable-auto', 'gh pr merge 2830 --disable-auto 2>&1', 'gh -R x/y pr merge 22 --disable-auto']) {
+    const v = mergeGuardVerdict(c);
+    assert.equal(v.block, false, `should not fire on: ${c}`);
+    assert.equal(v.reason, 'disable-auto');
+  }
+});
+
+test('t/3695 BLOCK arm: a disarm followed by a REAL bare merge is still judged → block', () => {
+  for (const c of [
+    'gh pr merge 1 --disable-auto; gh pr merge 1 --squash',
+    'gh pr merge 1 --disable-auto && gh pr merge 1 --squash',
+    'gh pr merge 1 --disable-auto\ngh pr merge 1 --squash',
+  ]) {
+    const v = mergeGuardVerdict(c);
+    assert.equal(v.block, true, `should fire on: ${JSON.stringify(c)}`);
+    assert.equal(v.reason, 'missing-match-head-commit');
+  }
+});
+
+test('t/3695 ALLOW arm: a disarm followed by a head-pinned merge → allow', () => {
+  const v = mergeGuardVerdict('gh pr merge 1 --disable-auto && gh pr merge 1 --squash --match-head-commit abc1234');
+  assert.equal(v.block, false);
+});
+
+test('t/3695 BLOCK arm: an exemption on one clause no longer covers another clause on the line', () => {
+  for (const c of [
+    'gh pr merge 1 --auto --squash; gh pr merge 2 --squash',
+    'gh pr merge 1 --squash --match-head-commit abc1234; gh pr merge 2 --squash',
+  ]) {
+    assert.equal(mergeGuardVerdict(c).block, true, `should fire on: ${c}`);
+  }
+});
+
+test('t/3695 clause split: redirects (2>&1, &>) are not separators; a value after them still counts', () => {
+  assert.deepEqual(mergeClauses('gh pr merge 5 --squash 2>&1 --match-head-commit abc; echo done'), [
+    'gh pr merge 5 --squash 2>&1 --match-head-commit abc',
+  ]);
+  assert.equal(mergeGuardVerdict('gh pr merge 5 --squash 2>&1 --match-head-commit abc').block, false);
+});
+
+test('t/3695 clause split: the $(gh pr view …) head lookup is not a merge clause', () => {
+  const c = 'gh pr merge 5 --squash --match-head-commit $(gh pr view 5 --json headRefOid -q .headRefOid)';
+  assert.equal(mergeClauses(c).length, 1);
+  assert.equal(mergeClauseVerdict(mergeClauses(c)[0]).reason, 'guarded');
+});
+
+test('t/3695 heredoc bodies are data: a merge MENTIONED in a commit message / PR body is not judged', () => {
+  const commit = "git commit -q -F - <<'EOF'\nfix: 9 blocks were gh pr merge N --disable-auto; also gh pr merge 5 --squash\nEOF\ngit push";
+  assert.equal(mergeGuardVerdict(commit).reason, 'not-a-merge');
+  const body = 'gh pr create --body-file - <<EOF\nThen run gh pr merge 7 --squash\nEOF';
+  assert.equal(mergeGuardVerdict(body).reason, 'not-a-merge');
+});
+
+test('t/3695 heredoc bodies: a REAL bare merge after the heredoc terminator is still judged → block', () => {
+  const c = "cat > f <<'EOF'\nnotes\nEOF\ngh pr merge 7 --squash";
+  assert.equal(mergeGuardVerdict(c).block, true);
+  // <<- with an indented terminator: stripped for a data sink, kept verbatim for anything else.
+  assert.equal(stripHeredocBodies('cat > f <<-X\nbody\n  X\nb'), 'cat > f <<-X\nb');
+  assert.equal(stripHeredocBodies('a <<-X\nbody\n  X\nb'), 'a <<-X\nbody\n  X\nb');
+});
+
+// TL review of #2966 (t/3695#29): a heredoc fed to an INTERPRETER runs its body, so only an allowlist
+// of data sinks may be stripped. One arm per shell, per sink, and an unknown consumer.
+const BODY = 'gh pr merge 7 --squash';
+
+test('t/3695 heredoc → interpreter (bash, sh -s, zsh, pwsh -Command -, powershell -Command -) is JUDGED → block', () => {
+  for (const opener of ["bash <<'EOF'", 'sh -s <<EOF', 'zsh <<EOF', 'pwsh -Command - <<EOF', 'powershell -NoProfile -Command - <<EOF', 'cd /x && bash <<-EOF']) {
+    const c = `${opener}\n${BODY}\nEOF`;
+    assert.equal(mergeGuardVerdict(c).block, true, `should fire on: ${opener}`);
+  }
+});
+
+test('t/3695 heredoc → data sink (git commit -F -, gh --body-file -, cat > f, cat <<EOF > f, tee f, -m "$(cat <<EOF") is stripped → not-a-merge', () => {
+  for (const opener of [
+    "git commit -q -F - <<'EOF'",
+    'git commit --file=- <<EOF',
+    'gh pr create --title t --body-file - <<EOF',
+    'gh pr comment 5 -F - <<EOF',
+    'cat > notes.md <<EOF',
+    "cat <<'EOF' > notes.md",
+    'tee notes.md <<EOF',
+    'git commit -m "$(cat <<\'EOF\'',
+    'gh pr create --title t --body "$(cat <<EOF',
+  ]) {
+    const c = `${opener}\n${BODY}\nEOF`;
+    assert.equal(mergeGuardVerdict(c).reason, 'not-a-merge', `should strip for: ${opener}`);
+  }
+});
+
+test('t/3695 heredoc → unknown consumer (python -, node, bare cat piped to bash, any other command) is JUDGED → block', () => {
+  for (const opener of ['python3 - <<EOF', 'node <<EOF', 'cat <<EOF | bash', 'xargs -I{} sh -c {} <<EOF', 'mytool <<EOF']) {
+    const c = `${opener}\n${BODY}\nEOF`;
+    assert.equal(mergeGuardVerdict(c).block, true, `should fire on: ${opener}`);
+  }
+});
+
+test('t/3695 sink piped onward to a non-sink (tee f | sh, cat > f … | bash) is JUDGED → block', () => {
+  for (const opener of ["tee notes.md <<'EOF' | sh", 'gh pr create --body-file - <<EOF | bash', 'tee a.md <<EOF | tee b.md | sh']) {
+    const c = `${opener}\n${BODY}\nEOF`;
+    assert.equal(mergeGuardVerdict(c).block, true, `should fire on: ${opener}`);
+  }
+});
+
+test('t/3695 sink piped only into other sinks (tee a | tee b) is still data → not-a-merge', () => {
+  const c = `tee a.md <<EOF | tee b.md\n${BODY}\nEOF`;
+  assert.equal(mergeGuardVerdict(c).reason, 'not-a-merge');
+});
+
+test('t/3695 parseMergeClause: prRef (number / pull URL / none) and repo (-R / --repo / --repo= / none)', () => {
+  assert.deepEqual(parseMergeClause('gh pr merge 22 -R jpsnover/ai-triad-data --squash'), { prRef: '22', repo: 'jpsnover/ai-triad-data' });
+  assert.deepEqual(parseMergeClause('gh --repo=x/y pr merge 7 --squash'), { prRef: '7', repo: 'x/y' });
+  assert.deepEqual(parseMergeClause('gh pr merge https://github.com/x/y/pull/9 --squash'), { prRef: 'https://github.com/x/y/pull/9', repo: null });
+  assert.deepEqual(parseMergeClause('gh pr merge --squash'), { prRef: null, repo: null });
+});
+
+test('t/3695 sink record: each merge clause is recorded with its own verdict and join keys', () => {
+  const long = `cd /some/where && ${'x'.repeat(400)}; gh pr merge 2907 -R x/y --squash --match-head-commit abc1234`;
+  const r = buildMergeGuardSinkRecord({ nowIso: 'x', mode: 'head-guard', command: long, verdict: mergeGuardVerdict(long) });
+  assert.equal(r.command.length, 300); // shell-line prefix: the merge clause is not in it
+  assert.deepEqual(r.clauses, [{
+    clause: 'gh pr merge 2907 -R x/y --squash --match-head-commit abc1234',
+    reason: 'guarded',
+    prRef: '2907',
+    repo: 'x/y',
+  }]);
+});
+
+// ── t/3695#27: advisory-cycle coverage reconciler (pure core) ──
+
+const R = 'o/code';
+const D = 'o/data';
+const grec = (ts, clauses) => ({ ts, mode: 'head-guard', clauses });
+const cl = (reason, prRef, repo = null) => ({ clause: 'gh pr merge …', reason, prRef, repo });
+
+test('t/3695 reconcile parsePrRefKey: number (+repo), pull URL, unparseable', () => {
+  assert.deepEqual(parsePrRefKey('22', D), { repo: D, number: 22 });
+  assert.deepEqual(parsePrRefKey('22', null), { repo: null, number: 22 });
+  assert.deepEqual(parsePrRefKey('https://github.com/o/data/pull/9'), { repo: D, number: 9 });
+  assert.equal(parsePrRefKey(null), null);
+  assert.equal(parsePrRefKey('feature-branch'), null);
+});
+
+test('t/3695 reconcile COVERED: every manual merge has a judged clause → missing empty; auto-merged PRs are not owed a record', () => {
+  const r = reconcileMergeGuardCoverage({
+    since: '2026-10-07T00:00:00Z',
+    records: [grec('2026-10-07T01:00:00Z', [cl('guarded', '22', D)]), grec('2026-10-07T02:00:00Z', [cl('guarded', '2950')])],
+    mergedPrs: [
+      { repo: D, number: 22, mergedAt: '2026-10-07T01:00:05Z', autoMerge: false },
+      { repo: R, number: 2950, mergedAt: '2026-10-07T02:00:05Z', autoMerge: false },
+      { repo: R, number: 2951, mergedAt: '2026-10-07T03:00:00Z', autoMerge: true },
+    ],
+  });
+  assert.equal(r.manual, 2);
+  assert.equal(r.covered, 2);
+  assert.deepEqual(r.missing, []);
+});
+
+test('t/3695 reconcile MISSING: a manual merge with no judged clause is reported (the coverage failure arm)', () => {
+  const r = reconcileMergeGuardCoverage({
+    since: '2026-10-07T00:00:00Z',
+    records: [grec('2026-10-07T01:00:00Z', [cl('disable-auto', '5'), cl('auto-exempt', '6')])],
+    mergedPrs: [{ repo: R, number: 5, mergedAt: '2026-10-07T01:10:00Z', autoMerge: false }],
+  });
+  assert.equal(r.covered, 0);
+  assert.deepEqual(r.missing.map((p) => p.number), [5]);
+});
+
+test('t/3695 reconcile: unparseable PR refs are their own count, never silently dropped (TL condition 2)', () => {
+  const r = reconcileMergeGuardCoverage({
+    since: '2026-10-07T00:00:00Z',
+    records: [grec('2026-10-07T01:00:00Z', [cl('guarded', null), cl('missing-match-head-commit', null)])],
+  });
+  assert.equal(r.judged, 2);
+  assert.equal(r.unparseableRefs.length, 2);
+  assert.equal(r.blocks.length, 1);
+});
+
+test('t/3695 reconcile: a bare number with no -R matching PRs in two repos is ambiguous, not covered', () => {
+  const r = reconcileMergeGuardCoverage({
+    since: '2026-10-07T00:00:00Z',
+    records: [grec('2026-10-07T01:00:00Z', [cl('guarded', '22')])],
+    mergedPrs: [
+      { repo: R, number: 22, mergedAt: '2026-10-07T01:00:05Z', autoMerge: false },
+      { repo: D, number: 22, mergedAt: '2026-10-07T01:00:05Z', autoMerge: false },
+    ],
+  });
+  assert.equal(r.ambiguous.length, 1);
+  assert.equal(r.covered, 0);
+  assert.equal(r.missing.length, 2);
+});
+
+test('t/3695 reconcile: in-window records without per-clause fields count as legacy; out-of-window ignored', () => {
+  const r = reconcileMergeGuardCoverage({
+    since: '2026-10-07T00:00:00Z',
+    until: '2026-10-08T00:00:00Z',
+    records: [
+      { ts: '2026-10-07T01:00:00Z', mode: 'head-guard', reason: 'guarded' },
+      grec('2026-10-06T23:00:00Z', [cl('missing-match-head-commit', '1')]),
+      grec('2026-10-08T01:00:00Z', [cl('missing-match-head-commit', '2')]),
+      { ts: '2026-10-07T02:00:00Z', mode: 'jointgv', clauses: [cl('missing-match-head-commit', '3')] },
+    ],
+  });
+  assert.equal(r.legacyRecords, 1);
+  assert.equal(r.judged, 0);
+  assert.equal(r.blocks.length, 0);
 });

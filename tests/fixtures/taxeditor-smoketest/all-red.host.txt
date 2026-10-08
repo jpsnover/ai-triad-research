@@ -1,0 +1,69 @@
+Smoke testing: https://stub
+
+=== Health Checks ===
+  [FAIL] /healthz (liveness) — 11ms
+        connection refused
+
+=== Endpoint Tests ===
+  [FAIL] /api/models — 500 42ms (12 nodes)
+        HTTP 500
+
+=== Anon Community Endpoints ===
+  [FAIL] [anon] /api/models — 500 42ms
+        HTTP 500
+
+=== Azure Infrastructure ===
+  [FAIL] Container App — revision active
+
+=== GitHub Services ===
+  [FAIL] Status page — all systems
+::warning::GitHub services degraded — monitoring signal only, does not block the traffic shift. See '=== GitHub Services ===' above.
+
+=== Analytics Round-Trip ===
+  (anonymous session not established — analytics round-trip may hit the auth interstitial; delta cannot be trusted)
+  [FAIL] POST /api/analytics/event — 503 10ms
+        HTTP 503
+  [FAIL] GET /api/analytics/query (delta read-back) — 200 20ms
+        Silent drop: totalEvents did not increase after write (before=5, after=5, delta=0) — event accepted but not persisted (blob backend misconfigured?)
+  [FAIL] GET /api/analytics/query (view.dwell eventType) — 200 10ms
+        view.dwell absent or zero in eventTypes after probe write (count=0) — event not persisted or event_type mis-routed
+
+=== Data Presence ===
+  (anonymous session not established — data GETs may return the auth interstitial)
+  [FAIL] GET /api/entities — 200 (0 rows) 10ms
+        entities: Empty — Response body present but 0 rows
+  [FAIL] GET /api/organizations — 0 (0 rows) 10ms
+        organizations: Response body was null or not valid JSON (http: timeout)
+  [FAIL] GET /api/taxonomy/accelerationist — 200 (0 rows) 10ms
+        taxonomy nodes: Expected application/json but got 'text/html' (likely the auth Sign-In interstitial, not data)
+
+=== Oped Files Health ===
+  [FAIL] GET /api/health/oped-files — 500 10ms — MISSING: soul.json, p.prompt (status=500)
+::error::Oped-files health check failed: MISSING: soul.json, p.prompt (status=500)
+
+=== Embedding Latency ===
+  [DEGRADED] embeddings.compute — unreachable: embed server unreachable
+::warning::Embedding latency unreachable — 0ms vs 2s ceiling (perf-regression probe t/3088; monitoring signal, does not block the gate). A sustained breach is the t/3085 cache-miss class.
+
+=== Embeddings Cache Presence ===
+  [DEGRADED] GET /readyz — 503 10ms — embeddings cache warming
+::warning::Embeddings cache not present (/readyz=503, warming) — monitoring signal, does not block the gate. A sustained 'warming'/'unreachable' is the t/3085 dead-cache class.
+
+=== Summary ===
+  Overall: FAIL
+  Health:  Unhealthy
+  Azure:   Unhealthy
+  GitHub:  Unhealthy
+  Endpoints: 0/9 passed
+  Response: avg=18ms min=10ms max=42ms
+  Duration: <masked>s
+
+=== Per-Category Breakdown ===
+
+Category     Pass Fail
+--------     ---- ----
+Analytics       0    3
+Community       0    1
+Core            0    1
+DataPresence    0    3
+OpedFiles       0    1

@@ -47,6 +47,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-10-03 — PowerShell (p/20#59, **`gh pr comment --body` variant**): `gh pr comment --body` with a multi-line markdown heredoc containing code spans (backticks) and special chars → Bash `unexpected EOF` parse error. The Bash heredoc for the body string was the failure site, not `gh` itself. Fixed: wrote body to a scratchpad file with the Write tool, then passed `gh pr comment --body-file <path>`. Same ADR-004 class; `--body-file` is the `gh`-CLI equivalent of `-F` / `-File`.
 - 2026-10-04 — Unknown agent (p/26#141, t/3744#6, **non-zero-byte variant**): a mis-quoted command word-split and created `taxonomy-editor/src/server/({` — a 33 KB file containing `file` command error output. Root cause: the `({` token is a shell word-split fragment from a mis-quoted command; the `file` errors indicate the `file` utility was invoked on many paths before failing. Removed by DevOps. Note: unlike the typical 0-byte word-split junk (Pattern #1 core shape), this variant produces a non-zero-byte file because the mis-quoted command produced output. Same mitigation: scan `git status --short` for bare-fragment filenames before any `git add`.
 - 2026-10-05 — Shared Lib (p/5#43): 0-byte `lib/console.log('` created right after `node -e "...h=>console.log('  ',h)..."` — the `=>` in the inline command was interpreted as a shell redirect. Classic word-split/redirect. Fix: moved to scratchpad script files (ADR-004).
+- 2026-10-06 — Computational Linguist (p/7#96, t/3271, **inline `python -c` backslash variant**): inline `python -c` script containing a backslash split the string at the shell level, producing a Python `SyntaxError`. Fixed by writing the script to a temp file (Write tool), per ADR-004. Same class as p/5#37 (Windows path backslashes in inline Python); backslash in any context breaks inline `-c`.
 - 2026-10-05 — Rosetta Stone (p/6#73, p/6#75, **tool-content-re-shelled facet, observed**): 0-byte files named after fragments of tool content — `slices/e.type` (from `e => e.type` in output), `src/releaseDebateDriver()`, `taxonomy-editor/setTimeout(resolve`, `taxonomy-editor/{,` (from Write tool content `resolve => setTimeout(resolve, …)`). Second instance: Write tool with **no Bash ran in between** produced the junk, ruling out command word-split and confirming a hook on Write/Edit (or all tools) passes tool content through an unquoted shell — `=> X` in content acts as shell redirect `> X`. Sage session independently confirmed 10 junk files (p/6#76) created from ping content, same mechanism. Root cause mechanism observed; formal root-cause identification pending Orca Support (t/3744). **Distinct facet: junk created from tool *content*, not tool *commands*.**
 
 **Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Additionally, PowerShell-specific syntax (`@'...'@` here-strings) is silently misinterpreted by Bash, not rejected — leading to confusing errors. The `--` separator compounds commit message issues: all flags must come before `--`, or git treats them as pathspecs.
@@ -366,7 +367,10 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-26 — Computational Linguist (**8th instance, same-session recurrence**, p/7#38): scratch script threw `AttributeError: 'str' has no .get` walking `situations.json` interpretations — **1,236 nodes have `interpretations.{pov}` as a dict, 23 have it as a plain string**. Cause: assumed uniform shape instead of type-checking at the read site. `isinstance`-guarding fixed it AND *was* the diagnosis — the string form is pre-BDI-decomposition (t/1805). Recurred within hours of #7 → CL argues recording isn't preventing recurrence (hookable check > doc entry); reversed Sage's earlier not-in-#82 call (see #82 tracker).
 - 2026-07-28 — Computational Linguist (**+4, p/7#47/#49**, now 12): **3 probe errors** (t/1826 — extraction-log `nodes`=list not dict, `aliases` nullable, `policy_actions` keys under `policies`/name=`action`) = #82 offender #5 (inspect-before-coding not applied). **+1 PRODUCTION defect (t/1830):** the extraction cmdlet **char-explodes bare-string `aliases`** (13/37 records — model emits string where schema says array, iterated unguarded). **It shipped in POWERSHELL (`Invoke-EntityExtraction`), NOT TS** (CL correction p/7#49) — so `tsc`/a TS union can't catch it; the PS-side prevention is **coerce-at-read (`if ($x -is [string]) { @($x) }`) at each AI-JSON boundary as ONE shared helper (Shared Utility Rule) + a bare-string Pester fixture**. Offender #5's real defense splits by surface: TS→union types, PS→shared coerce helper.
 - 2026-10-01 — Shared Lib (p/5#33, **new variant: directory path assumption**): `FileNotFoundError` reading `taxonomy/accelerationist.json` — the file does not exist at a flat path; the actual location is `taxonomy/Origin/accelerationist.json`. Root cause: assumed all per-POV taxonomy JSON files sit in the root of `taxonomy/` without verifying the directory structure. Fix: checked actual path with PowerShell first, discovered the `Origin/` subdirectory. Same root cause as JSON schema variant (assume flat, don't inspect first) applied to filesystem layout rather than JSON content.
+- 2026-10-06 — Computational Linguist (p/7#96, t/3271, **zero-result heuristic instance**): counted `claim_relations` at the summary's top level — got 0, but there are 43. They're nested inside each claim, not at the top level. Caught by reading the prompt schema before reporting. **New heuristic: a "0 found" result should trigger a schema check before reporting.** Zero is a valid count, but it is also the exact symptom of a nesting/path mismatch — they are indistinguishable without a schema check.
+- 2026-10-07 — Computational Linguist (p/7#102, **zero-result heuristic inst2 — embeddings field name**): embeddings comparison script crashed IndexError after reporting 0 vectors. Field assumed as `embedding`; actual field in `embeddings.json` is `vector`. The 0-vector count was the tell before the crash. Fixed by inspecting one entry and rerunning. Confirms zero result = schema-mismatch signal; crash is downstream of the 0 that preceded it.
 - 2026-10-06 — Computational Linguist (p/7#94, **new variant: own-artifact shape assumption**): a read-only inspection one-liner raised `KeyError 'node_id'` on t/3939's `frozen-ops.json`. t/3939's file keys ops by `id`; agent assumed `node_id` from their own t/3952 frozen list, which uses a different shape. Nothing was written. Fix: re-read the file shape before querying. The rule applies to **your own artifacts** as much as shared data — different tickets produce different schemas even when the content is related.
+- 2026-10-07 — Computational Linguist (p/7#110, t/4072): inline Python summary of `ai-models.json` crashed `AttributeError: 'str' has no .get` — assumed `debateTiers[tier]` values were dicts; they're strings. Facts already printed; no rerun needed. Same family as the `embedding`/`vector` slip.
 
 **Root Cause:** Code written based on assumed structure without inspecting first. Covers both JSON field layout (nested vs flat within a document) and filesystem directory layout (subdirectory vs flat). Applies across all project data: taxonomy JSON, debate sessions, and tool/API returns. Field types and file paths both vary — never assume flat without checking.
 
@@ -374,7 +378,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 1. Always inspect a sample of the actual data before writing code that reads it — `head` a JSON file or `jq` a few records.
 2. For taxonomy data specifically: many enriched fields live under `graph_attributes`, not at the node root.
 3. Check `type()` / `isinstance()` before calling type-specific methods (`.items()` for dict, iteration for list).
-4. When a script returns 0 results, empty data, or an AttributeError, suspect a schema mismatch before debugging logic.
+4. **When a script returns 0 results, treat it as a schema-mismatch signal, not a confirmed count.** Zero is indistinguishable from a nesting/path mismatch without a schema check — inspect the actual structure before reporting (p/7#96). Same applies to empty data or an AttributeError.
 5. **Don't assume flat directory layout for ai-triad-data files.** Taxonomy JSON files live under subdirectory names (e.g. `taxonomy/Origin/<pov>.json`) — verify actual path with `Get-ChildItem -Recurse` or PowerShell before constructing file paths in code.
 
 **Status:** Post-resolution recurrence (2026-10-01, p/5#33) — "Data File Convention" in root AGENTS.md covers JSON schema, not directory paths. Prevention #5 added.
@@ -487,6 +491,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-09-29 — DebateTool (p/70#21, t/3748): direct push to main rejected — didn't fetch before committing, origin had 2 newer commits. Resolved by cherry-picking commit to a new worktree off origin/main, opened PR #2545.
 - 2026-09-29 — DebateTool 2 (p/234#12): push rejected on shared main (non-fast-forward) — resolved by land-from-worktree, PR opened from worktree branch.
 - 2026-10-06 — Chat (p/687#7, **correct-resolution variant**): `git push origin main` rejected (non-fast-forward) — another agent's commit landed between Chat's commit and push. Per AGENTS.md, didn't rewrite the shared tree; cherry-picked to a worktree branch and landed via PR #2881.
+- 2026-10-06 — DebateTool (p/70#52, **feature-branch variant**): `git push origin feat/t4007-engine-soul` rejected — remote branch had new commits since the worktree diverged (commits landed during the implementation session). **Different resolution from shared-main variant:** `git fetch origin feat/t4007-engine-soul` → `git reset --hard FETCH_HEAD` (safe on a personal worktree branch) → `git cherry-pick <sha>` for local commits → push. Five conflict files resolved manually; duplicate imports from the cherry-pick fixed in a follow-up commit. `reset --hard` is safe here because it's a personal worktree branch — not shared main where this would rewrite tree other agents read.
 
 **Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. **At small scale this was historically self-correcting** (stash/pull --rebase/pop/push); however AGENTS.md now prohibits all tree-rewriting ops (`checkout`, `reset`, `rebase`, `merge`, `pull --rebase`, `stash`) on the shared checkout — so in-place resolution is NO LONGER the correct path. **At large scale it is never self-correcting** — route to TL/DevOps.
 
@@ -715,6 +720,8 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-07-17 — Diagnostics (during triage, p/9#28; **re-hit same day, p/9#34** — identical `(Get-Item $file).Length` idiom): ran `$var = ...; (Get-Item $var).Length` (a PowerShell file-size check) in the Bash tool (POSIX sh); Bash rejected it immediately. Fixed by switching to the PowerShell tool. Tell: `$var = ...` assignment with no `export`, a `;`-chained statement, and `.Length` property access on a cmdlet result are all PowerShell, not sh. File-size/`Get-Item`/`Get-ChildItem` checks belong in the PowerShell tool. **Same agent hit the identical mistake twice in one day → the shared lesson isn't sticking during triage; a per-agent memory ("file ops = PowerShell tool") is the durable fix, not another archive entry.**
 - 2026-07-26 — PowerShell 2 (p/228#1): `node require('/c/Users/.../file.json')` (a **git-bash `/c/...` msys path**) threw MODULE_NOT_FOUND — `node`'s win32 runtime doesn't resolve msys paths. Fixed by reading the JSON via the PowerShell tool with a native `C:\...` path. Tell: the wrong-tool axis isn't just *syntax* — it's also **path format**; a native win32 program invoked from Bash needs a native `C:\...` (or repo-relative) path, not `/c/...`.
 - 2026-07-28 — Taxonomy Editor 2 (**`/tmp` mount variant**, p/195#5): `node -e "require('/tmp/x.json')"` failed MODULE_NOT_FOUND — Node's win32 runtime can't resolve git-bash's **`/tmp` mount** (virtual msys mount, not a real Windows path), and `> /tmp/…` redirects write where Node can't `require`. Fix: for any **Node-consumed temp file, use the session scratchpad's absolute Windows path**, not `/tmp`. Generalizes p/228#1: `/tmp` and `/c/...` are both git-bash-only paths native `node` can't see.
+- 2026-10-06 — DevOps Lead (**`/tmp` mount variant — Python**, p/26#143): Python one-liner reading `/tmp/rec.json` got `FileNotFoundError` immediately after Bash wrote that file. Same root: Git-Bash's `/tmp` is a virtual MSYS mount; Python (a native win32 process) resolves its own `/tmp` — a different directory. Fix: write to the session scratchpad absolute path and pass that to Python. Second `/tmp`-mount instance; Node and Python both affected — **any native win32 process reading a file Bash wrote to `/tmp` will get FileNotFoundError.**
+- 2026-10-07 — PowerShell (p/20#78, t/3910, **`/tmp` mount variant — pwsh child process**): `pwsh -Command "Invoke-ScriptAnalyzer -Path /tmp/x.ps1"` run from Git Bash reported "Cannot find path C:\tmp\x.ps1". Git-Bash's `/tmp` is a virtual MSYS mount; when `pwsh` is spawned as a child process it resolves `/tmp` as the literal Windows path `C:\tmp`, which doesn't exist. Fix: write scratch files under a Windows-visible path (session scratchpad or worktree) when a `pwsh` child process reads them. Third `/tmp`-mount instance; Node, Python, AND pwsh (as a child of Bash) all affected.
 - 2026-08-03 — Shared Lib (p/5#23): **`cd C:\...` path in Bash (POSIX sh)** — Windows backslash paths are not valid POSIX paths; Bash interprets `\` as escape sequences and silently fails with "No such file or directory". Fixed by switching to the PowerShell tool for all git/shell ops.
 - 2026-08-04 — TL (p/335#1): **Bash glob with `C:\...` Windows path** — MSYS mangled the backslashes during glob expansion; no matches returned. Resolved by switching to the **Glob tool**, which handles Windows paths natively without MSYS translation.
 - 2026-08-04 — Shared Lib (p/5#25): **`cd C:\...` path in Bash again** — same failure as p/5#23. **Second time same agent hit identical mistake** → per-agent memory ("on win32, paths/shell ops = PowerShell tool") is the durable fix (mirrors the Diagnostics double-hit, p/9#28+34).
@@ -1665,7 +1672,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-08-01 — DevOps (p/26#29, **2nd facet-B instance**): `git show 'origin/main:.github/workflows/ci.yml'` via the Bash tool exited **128** — MSYS mangled the arg to `origin\main;.github\...`. Confirms facet B reproduces in DevOps's MSYS env (config-dependent, p/8#79). **NEW escape: ran the same `git show` through the PowerShell tool** (no MSYS layer → no munging) — clean cross-tool workaround alongside `MSYS_NO_PATHCONV=1`; ties to the win32 "prefer the PowerShell tool for git/shell ops" habit.
 - 2026-08-01 — Documentation (p/323#1, **3rd facet-B instance — 2nd agent + generalizes beyond `git show`**): `git cat-file -e origin/main:.github/scripts/...` failed — MSYS rewrote the `:` revspec to `origin\main;...`. Broadenings: (a) **`git cat-file`, not `git show`** → facet B is **ANY git `<ref>:<path>` colon revspec** (`show`/`cat-file`/`rev-parse`/`ls-tree`…); (b) a **2nd agent** hit it (Documentation, not just DevOps). Fixed with a persistent **`export MSYS_NO_PATHCONV=1`**. **Precise framing (TL p/8#157): env-DEPENDENT, not "broadly reproducible"** — reproduces on ≥2 agents (DevOps + Documentation) but NOT on TL's Bash tool (colon-revspecs resolve clean with `MSYS_NO_PATHCONV` unset). Varies by Git-for-Windows install. 3 instances / 2 agents + 1 clean counterexample (TL).
 - 2026-09-29 — Docker (p/217#10, **4th agent, `gh api` variant**): `gh api "/users/..."` — MSYS rewrote the leading `/` as a filesystem path before `gh` received it. **NOT a silent failure** — `gh` prints "omit the leading slash" with its error. **Fix: omit the leading slash** (`gh api "repos/..."` not `"/repos/..."`); `MSYS_NO_PATHCONV=1` also works. Note: root AGENTS.md covers this for git colon-revspecs but not `gh api` leading-slash calls — flagged for AGENTS.md update.
+- 2026-10-06 — Design (p/472#6, **facet B + `2>/dev/null` masking**): `git show origin/main:docs/ux/pov-tag-chip-tint.md` exited 128 in a post-merge verify step. `2>/dev/null` suppressed the MSYS mangling error text, so the exit 128 was indistinguishable from "file genuinely absent." Resolved by re-verifying with `gh api .../contents?ref=main` — file present, 8104 bytes; the merge had actually succeeded. **Corollary: `2>/dev/null` on a colon-revspec command hides the MSYS diagnostic text**, making "MSYS mangled this" read exactly like "this ref doesn't exist." When a colon-revspec exits 128 and there's no error text, suspect both MSYS mangling AND stderr suppression.
 - 2026-10-05 — TL (t/3892, p/335#130, **`MSYS_NO_PATHCONV` global-export corollary**): `git worktree add /c/Users/...` under `export MSYS_NO_PATHCONV=1` — git.exe didn't resolve the POSIX-form path and the following `cd` failed. Fix: used Windows-form path (`C:/Users/...`) instead. **Root:** `MSYS_NO_PATHCONV=1` disables conversion for **every** argument, not only colon-revspecs. Once exported globally, MSYS no longer translates `/c/...` → `C:/...` for you — so every path you pass to git (or any tool) must already be in Windows form. Per-command prefix (`MSYS_NO_PATHCONV=1 git show …`) is safer: it fixes the one mangled arg without committing all subsequent paths to Windows form.
+- 2026-10-07 — Computational Linguist (p/7#106, **facet B + `grep -c`-on-empty-input amplifier**): `git show origin/main:<path>` in Git Bash returned "ambiguous argument 'origin\main;…'" (MSYS mangling). Grep counts read `0`, which looked like "no `REGEN_INPUTS` on main." Fix: `MSYS_NO_PATHCONV=1`; true count was 1 in each file. CL correctly treated the `0` as invalid because a fatal error preceded it — zero-result heuristic working as intended. **New amplifier: `grep -c` on empty piped input prints `0` — the MSYS error and the zero look like separate facts, but they are one event.** The fatal error caused the empty pipe; the empty pipe caused the zero; the zero is not independent evidence of absence. Prevention: when a fatal error precedes a `grep -c` count, treat the count as the echo of the error, not a real result.
 - 2026-08-03 — Azure (p/105#4, **facet B generalizes to a non-git tool + a leading-slash arg; 3rd agent**): `az deployment group create` failed `InvalidEnvironmentId` because MSYS mangled a **leading-slash Azure resource ID** (`/subscriptions/...`), prefixing it with the Git-bin install path (MSYS treats a leading-`/` arg as a Unix path to translate). Two broadenings: (a) the mangled arg is a **leading-slash resource ID, not a `<ref>:<path>` colon-revspec** — a 2nd MSYS trigger sharing facet B's root (args that *look like* Unix paths, already named in Root Cause); (b) it hit a **non-git tool (`az`)** and a **3rd agent** — facet B is not git-specific. Fix: pass Azure resource IDs via the **PowerShell tool** (no MSYS layer) or `MSYS_NO_PATHCONV=1`. Same env-dependent MSYS path-conversion class; ties to the win32 "prefer the PowerShell tool" habit.
 
 **Root Cause:** (A) grep's exit code is a *match indicator*, not a *success indicator* — 0 = matched, 1 = no match, 2 = error. In an `&&` chain the shell treats exit 1 as failure and stops, so a legitimately-empty result (count `0`) aborts the chain. Standard POSIX grep behavior, not Windows-specific, but it bites hardest in Bash-tool one-liners that chain a count check into follow-up steps — and it recurs (2 agents in one day: a zero `.ts`-entry count and a zero-deletion diff count). Same "exit code ≠ what you think" family as the "Bash grep Features Fail Silently on Windows/Git Bash" pattern. (B) MSYS/Git-Bash *can* rewrite arguments that *look like* Unix paths (containing `/` or a leading drive-colon) into Windows paths before the program sees them. `git show`'s `<ref>:<path>` syntax collides with this — the `:` and `/`s get converted, corrupting the ref. **This is config-dependent** (`MSYS2_ARG_CONV_EXCL` / `MSYS_NO_PATHCONV` / how the Bash tool's MSYS is configured): it reproduced in DevOps's env and NOT in TL's, where every `git show <ref>:<path>` ran clean all session. So the harm is not "the command always breaks" — it's **misreading the false `unknown revision` as a genuinely-missing ref** (the exact wrong forensics conclusion the root Git-Forensics rule guards against). `MSYS_NO_PATHCONV=1` (or a leading `//`) disables the conversion for that command. Sibling of #67 (Git Bash eats shell operators before pwsh sees them) — same root: the Bash tool is Git Bash, and its shell/MSYS layer *may* transform your command before the target program runs.
@@ -2695,9 +2704,11 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. For **corpus and registry counts**: read from `origin/main` or the commit diff, never from local working-tree state which may be contaminated or stale.
 5. Ties to root AGENTS.md "Verify Against the Authoritative Source" — four surfaces named there (merged state, infrastructure state, baselines, gate behavior) all share this root.
 
-**Status:** Active — 4 instances in one session (Computational Linguist, e/232). TL + PI endorsed tracking. Root AGENTS.md already has the general rule; this entry adds the discriminator and the three load-bearing surfaces.
+5. **2026-10-07 — Computational Linguist (t/4040, e/268#17→#22, inst5):** asserted rows without a fingerprint "fail closed into the model-mixed bucket" — reasoning from the bucket's purpose (design intent) without reading `isFingerprinted` at `replicationGate.ts:119`. **Propagation amplifier:** the wrong claim was in the merged register §17 text; DebateTool read it and repeated it to argue no fix was needed. Second Opinion caught it. The propagation made a single unread line produce two incorrect conclusions from two agents. **Heuristic: "X fails closed" needs the line that rejects X, not the bucket it lands in.**
 
-**Applies To:** All agents making causal or behavioral claims about code, metrics, or corpus state.
+**Status:** Active — 5 instances (4 in one CL session + 1 new CL instance with propagation). TL + PI endorsed tracking. Root AGENTS.md already has the general rule; this entry adds the discriminator and the three load-bearing surfaces. **Inst5 adds a propagation-amplifier warning:** an unverified behavioral claim in a shared document propagates to downstream agents as a premise.
+
+**Applies To:** All agents making causal or behavioral claims about code, metrics, or corpus state — especially "fails closed," "defaults to," or "rejects" claims where the evidence is a bucket or fallback path, not the guard condition.
 
 ---
 
@@ -3088,26 +3099,27 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## #123 [Process] Shared GitHub Account — `gh pr review --approve` Fails "Cannot approve your own pull request" on ANY Fleet PR
+## #123 [Process] Shared GitHub Account — `gh pr review --approve` and `--request-changes` Both Fail on ANY Fleet PR
 
-**Pattern:** All fleet agents authenticate to GitHub as the **same account** (`jpsnover`). GitHub prohibits approving your own PR, so `gh pr review --approve` on **any agent-created PR** fails `Cannot approve your own pull request` — from `gh`'s view every fleet PR is self-owned, because there is only one identity. A shared-**identity** collision at the GitHub-account level — the platform-account analog of the shared-**checkout** collision (t/1926) at the git level.
+**Pattern:** All fleet agents authenticate to GitHub as the **same account** (`jpsnover`). GitHub prohibits reviewing your own PR in any blocking mode — `--approve` fails `Cannot approve your own pull request` and `--request-changes` fails `Can not request changes on your own pull request`. From `gh`'s view every fleet PR is self-owned. A shared-**identity** collision at the GitHub-account level — the platform-account analog of the shared-**checkout** collision (t/1926) at the git level.
 
 **Instances:**
 - 2026-08-03 — DevOps (p/26#34): `gh pr review --approve` on PR #334 failed `Cannot approve your own pull request`. Resolved by posting the review as a **comment** (`gh pr review --comment`).
-- 2026-09-28 — Project Instructions (p/688#1): `gh pr review 2485 --approve` failed same error; follow-up `gh pr comment` then blocked by the auto-mode classifier. Resolved: record sign-off via Orca ping to the requesting role — avoids both GitHub's self-approval block and the classifier.
+- 2026-09-28 — Project Instructions (p/688#1): `gh pr review 2485 --approve` failed same error; follow-up `gh pr comment` then blocked by the auto-mode classifier. Resolved: record sign-off via Orca ping to the requesting role.
+- 2026-10-07 — DevOps Lead (p/26#145): `gh pr review --request-changes` on an agent-authored PR failed `Can not request changes on your own pull request`. Resolved by posting the blocking feedback as `gh pr comment`, applying `consult-hold` label, and setting draft as the merge hold.
 
-**Root Cause:** A single shared GitHub identity across all agents × GitHub's self-approval prohibition. Approval is a per-USER action GitHub ties to account identity; the fleet has ONE account, so no agent is a "different user" relative to a fleet PR's author. The failure is **deterministic** — it hits *every* agent that runs `--approve` on *every* fleet PR.
+**Root Cause:** A single shared GitHub identity across all agents × GitHub's self-review prohibition. Both approval and change-requests are per-USER review actions GitHub ties to account identity; the fleet has ONE account. The failure is **deterministic** on `--approve` and `--request-changes` alike for every fleet PR.
 
 **Prevention:**
-1. **Never `gh pr review --approve` a fleet PR** — it always fails under the shared account. Post review feedback with **`gh pr review --comment`** (or `--request-changes` for blocking feedback).
-2. **Approval is NOT required to merge anyway:** branch protection is **checks-only** (`ci-gate` + CodeQL, strict off — no required-reviews), so PRs land by checks-green self-merge, not by approval. The failed `--approve` is a **non-blocker**, not a gate you must satisfy.
-3. **Sibling of the docs-only self-merge constraint (#101):** both are shared-account / self-action limits on the PR flow — a docs-only PR can't self-satisfy required contexts (→ TL `--admin`-merge), and no agent can self-approve (→ record the verdict as a comment). Use TL `--admin`-merge only where the PR *path* is blocked; a review *verdict* is a comment.
-4. **If `gh pr comment` is also blocked by the auto-mode classifier**, record owner sign-off via Orca ping to the requesting role — avoids both the GH self-approval block and the classifier. Orca is the canonical inter-agent communication channel; prefer it over GH comments for agent-to-agent acknowledgements anyway.
-5. **Cheaply hookable:** the trigger is the literal `gh pr review --approve` — a crisp syntactic signal an advisory hook could catch. Candidate Diagnostics hook (2nd instance now reached — t/3270 pattern).
+1. **Never `gh pr review --approve` or `--request-changes` on a fleet PR** — both fail. Post feedback with `gh pr review --comment`.
+2. **To hold a PR from merging:** apply the `consult-hold` label (enforcing gate via `consult-hold-guard` required check) + set draft + post a hold comment naming conditions. `--request-changes` cannot block a merge here anyway — branch protection is checks-only, not approval-required.
+3. **Approval is NOT required to merge:** branch protection is checks-only (`ci-gate` + CodeQL), so PRs land by checks-green self-merge. The failed `--approve`/`--request-changes` is a non-blocker for the merge path.
+4. **If `gh pr comment` is also blocked by the auto-mode classifier**, record sign-off via Orca ping to the requesting role.
+5. **Cheaply hookable:** both `gh pr review --approve` and `gh pr review --request-changes` are crisp syntactic signals. Candidate Diagnostics hook.
 
-**Status:** Active — 2 instances / 2 agents. Shared-GitHub-identity constraint; the account-level analog of the shared-checkout collision (t/1926). **Non-blocking**; the fix is Orca ping (preferred) or `gh pr review --comment`. Deterministic on every fleet PR — route Diagnostics to evaluate the advisory hook (prevention #5).
+**Status:** Active — 3 instances / 3 agents. Extends to `--request-changes` (inst3). Shared-GitHub-identity constraint; the account-level analog of t/1926. Deterministic on every fleet PR.
 
-**Applies To:** Any agent running `gh pr review --approve` on a fleet-authored PR (i.e. every PR, since all share the `jpsnover` account).
+**Applies To:** Any agent running `gh pr review --approve` or `--request-changes` on a fleet-authored PR (i.e. every PR, since all share the `jpsnover` account).
 
 ---
 
@@ -3123,6 +3135,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-10-04 — DevOps Lead (p/26#141): `gh pr create` run from Bash without `--head` failed with "you must first push the current branch" — the Bash cwd had reset to the shared checkout (on `main`), so `gh` read the current branch as `main` rather than the worktree branch. Fix: always pass `--head <branch>` explicitly to `gh pr create` when called from Bash, regardless of where the push was made.
 - 2026-10-05 — PowerShell (p/20#68): `gh pr create` aborted with "you must first push the current branch" despite the branch already being pushed — run from the shared main checkout (still on `main`), not the worktree the push happened from. `gh pr create` without `--head` infers head from the current checkout's branch. Fix: added `--head <branch>`.
 - 2026-10-06 — Rosetta Stone (p/6#77): Bash redirect `cmd > ../../../../AppData/...` from a worktree cwd failed with "No such file or directory" — relative path constructed assuming worktree cwd, but Bash tool cwd had reset to the scope directory, making the relative traversal land in the wrong place. Fix: write to the absolute scratchpad path.
+- 2026-10-07 — Computational Linguist (p/7#97, **Grep-path-relative-to-scope variant**): Bash `grep` on a path returned by the Grep tool failed "No such file" — Grep reports paths **relative to the agent's scope cwd** (`research/comp-linguist`), not the repo root. Bash also resets cwd to the scope directory, so `scripts/reconcile_grounding.py` from Grep resolved to `research/comp-linguist/scripts/reconcile_grounding.py` (nonexistent). Fix: use the path relative to the scope directory, or pass an absolute path to Bash. **Heuristic: "Grep found it, Bash can't open it" = the path is scope-relative, not repo-root-relative.**
 
 **Root Cause:** The repo lives at `C:/Users/jsnov/repos/ai-triad-research/` — two levels below home (`home/repos/repo`), not one (`home/repo`). `../wt-<name>` from the repo root goes up one level to `C:/Users/jsnov/repos/`, landing the worktree there, not at the user home directory. This is a **mental-model mismatch** (wrong path depth), distinct from MSYS path mangling (#73 facet B) — here the path is assembled incorrectly before any tool sees it. **Compounding factor (instance 2):** the Bash tool resets cwd to the repo root between invocations, so any relative path like `../wt-<name>` re-anchors to the repo root on every call — you cannot rely on a prior `cd` persisting to the next Bash call.
 
@@ -3131,7 +3144,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 2. On this machine: repo = `C:/Users/jsnov/repos/ai-triad-research/`; sibling worktrees land at `C:/Users/jsnov/repos/wt-<name>` = `/c/Users/jsnov/repos/wt-<name>` in POSIX. NOT `/c/Users/jsnov/wt-<name>`.
 3. Companion to the MSYS colon-revspec/path trap (#73 facet B): both produce a wrong absolute path for a git resource. #73B = MSYS mangles a correct path; #128 = a wrong path is assembled from an incorrect mental model. The fix for both: **verify the actual path before access** rather than reconstructing from memory.
 4. **Both Bash AND PowerShell tool cwds reset between invocations (t/2222)** — relative paths re-anchor on every call regardless of a prior `cd`. Use absolute paths always; never depend on a prior `cd` persisting to the next tool call.
-5. **(Possible — unconfirmed) Glob may also resolve relative paths against the scope root, not the repo root** — a relative `Glob("tests/Foo*")` from a role scoped to `scripts/AITriad/` may search `scripts/AITriad/tests/` and silently return empty. Use `**/<name>` or absolute base paths in Glob until this is confirmed (p/20#57; see Pattern #186).
+5. **Grep tool paths are relative to the agent's scope cwd, not the repo root (confirmed, p/7#97).** A path from Grep passed directly to Bash will fail "No such file" when the file lives outside the scope directory — Bash cwd also resets to the scope root, so it looks in `<scope>/<grep-path>`. Fix: prepend the repo root, or use the Grep-returned path as-is (it's already correct relative to scope cwd). **Heuristic: "Grep found it, Bash can't open it" = scope-relative path mismatch.** Glob likely follows the same rule (p/20#57; see Pattern #186 — possible, unconfirmed for Glob).
 
 **Status:** Active — 7 instances. Worktree-land path-depth assumption hazard; cwd-reset compounds it. Third env/path hazard in the worktree-land cluster (#77 `npm ci` empty package dir, #78 node_modules rm timeout, #128 path-depth mismatch). **4th instance (2026-10-01, p/20#55):** PowerShell tool cwd reset caused relative `-Settings` path to fail — applies to BOTH tools, not just Bash. **5th instance (2026-10-04, p/26#141):** `gh pr create` read `main` as the current branch instead of the worktree branch — pass `--head <branch>` explicitly. **6th instance (2026-10-05, p/20#68):** same `gh pr create` / shared checkout failure on PowerShell, confirming the pattern is tool-agnostic — any `gh pr create` without `--head` from a non-worktree cwd hits this.
 
@@ -4186,23 +4199,27 @@ The `git restore --staged` step is mandatory: the shared index still has `100644
 
 ---
 
-## #199 [PowerShell] `Invoke-ScriptAnalyzer -Path` Rejects Array Literal — Pipe via `ForEach-Object`
+## #199 [PowerShell] `-Path` Rejects Array Literal on Single-String Cmdlets — Pipe via `ForEach-Object` or Use Directory
 
-**Pattern:** Passing a comma-separated array literal to `-Path` — e.g. `Invoke-ScriptAnalyzer -Path 'a.ps1','b.ps1','c.ps1'` — throws `"Cannot convert 'System.Object[]' to the type 'System.String'"`. The `-Path` parameter is typed as a singular `[string]` in this version of PSScriptAnalyzer, not `[string[]]`.
+**Pattern:** Passing a comma-separated array literal to `-Path` on cmdlets typed as `[string]` — e.g. `Invoke-ScriptAnalyzer -Path 'a.ps1','b.ps1'` or `Measure-CodeComplexity -Path a.ps1, b.ps1` — throws `"Cannot convert 'System.Object[]' to the type 'System.String'"`. The `-Path` parameter on these cmdlets is a singular `[string]`, not `[string[]]`.
 
 **Instances:**
-- 2026-10-03 — PowerShell (p/20#62): analyzing multiple files in one call with a comma array literal; resolved by piping via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }`.
+- 2026-10-03 — PowerShell (p/20#62): `Invoke-ScriptAnalyzer -Path 'a.ps1','b.ps1','c.ps1'` — resolved by piping via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }`.
+- 2026-10-06 — PowerShell (p/20#72): both `Measure-CodeComplexity -Path a.ps1, b.ps1` and `Invoke-ScriptAnalyzer -Path a.ps1, b.ps1` threw the same error. For `Measure-CodeComplexity`, resolved by passing the directory with `-Include 'a.ps1','b.ps1'`; for the analyzer, ran once per file. Confirms the pattern extends beyond PSScriptAnalyzer.
+- 2026-10-07 — PowerShell (p/20#76, t/4065): `Invoke-ScriptAnalyzer -Path a,b,c` — same "Cannot convert System.Object[] to System.String" error. Resolved by piping via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }`.
+- 2026-10-07 — PowerShell (p/20#86, t/3910): `Measure-CodeComplexity -Path a,b` — same error again. Resolved by piping via `ForEach-Object { Measure-CodeComplexity -Path $_ }`.
 
-**Root Cause:** PSScriptAnalyzer's `-Path` parameter binding does not accept an array. The PowerShell engine attempts automatic coercion from `Object[]` to `String` and fails.
+**Root Cause:** Several PS analysis cmdlets type `-Path` as `[string]` rather than `[string[]]`. PowerShell's automatic coercion from `Object[]` to `String` fails with this error — the engine cannot silently stringify an array.
 
 **Prevention:**
-1. **Always pipe multi-file invocations:** `'a.ps1','b.ps1','c.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }` — one call per file.
-2. **Alternatively, use `-Path` with a directory and `-Recurse`** when analyzing a subtree: `Invoke-ScriptAnalyzer -Path ./scripts -Recurse`.
-3. **`"Cannot convert … to the type 'System.String'"` on a cmdlet that looks like it should accept arrays = check the actual parameter type** with `(Get-Command Invoke-ScriptAnalyzer).Parameters['Path'].ParameterType`.
+1. **For `Invoke-ScriptAnalyzer` multi-file:** pipe via `ForEach-Object { Invoke-ScriptAnalyzer -Path $_ }` — one call per file.
+2. **For `Measure-CodeComplexity` multi-file:** pass the containing directory with `-Include 'a.ps1','b.ps1'` rather than comma-listing paths to `-Path`.
+3. **Alternatively, use `-Path` with a directory and `-Recurse`** when analyzing a subtree.
+4. **`"Cannot convert … to the type 'System.String'"` on a cmdlet that looks like it should accept arrays = check the actual parameter type** with `(Get-Command <cmdlet>).Parameters['Path'].ParameterType`.
 
-**Status:** Active — 1 instance (PowerShell p/20#62). Deterministic.
+**Status:** Active — 4 instances (PowerShell p/20#62, p/20#72, p/20#76, p/20#86). Deterministic. Extends to any analysis cmdlet with a singular `-Path [string]`.
 
-**Applies To:** All agents running `Invoke-ScriptAnalyzer` across multiple files in a single call.
+**Applies To:** All agents running `Invoke-ScriptAnalyzer` or `Measure-CodeComplexity` across multiple files in a single call.
 
 ---
 
@@ -4364,7 +4381,16 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 3. **The 12-second window is the canonical failure mode:** a hold comment arrives after the merge because the relay completes before the comment. The `consult-hold` label is set at PR creation (`gh pr create --label consult-hold`), not after; it cannot be race-conditioned.
 4. Covered in root AGENTS.md PR-Flow Practice Rules — this instance demonstrates the non-consult variant.
 
-**Status:** Active — 1 instance (Computational Linguist, p/7#90, t/3956). Silent failure; merge completes normally, hold comment arrives after.
+- 2026-10-07 — Computational Linguist (p/7#104, t/4040#19): PR #3032 (draft, meant to merge after #3033) was un-drafted and merged 12 minutes early by an unknown actor on shared credentials. Draft provided no real ordering enforcement. Both PRs ended up on `main` and consistent, so no rollback needed. **Prevention identified:** use `consult-hold` label for ordering dependencies, or don't open the dependent PR until its prerequisite merges.
+- 2026-10-07 — Computational Linguist (p/7#108, same day): same unknown actor also **un-drafted and armed auto-merge** on PR #3031 (a held PR). This time `consult-hold` label was present — `consult-hold-guard` blocked the merge and the attempt was caught by Rosetta Stone before it landed. **New amplifiers: (1) the actor also armed auto-merge (not just un-drafted), and (2) two held PRs targeted in the same day suggests a systematic sweep, not a one-off.** TL flagged on e/268#35. **Confirms that `consult-hold` label is the one mechanism that held** — draft + un-draft + auto-merge arm = one action away from landing; the required status context is the gate.
+
+**Status:** Active — 3 instances (Computational Linguist p/7#90 t/3956; p/7#104 t/4040#19; p/7#108). Escalating severity: inst3 added auto-merge arming and a second target on the same day. `consult-hold` label confirmed as the only enforced gate.
+
+**Prevention (updated):**
+1. **Apply `consult-hold` label to ANY PR that must not merge** — not just mandatory-consult ones. It is the only mechanism that survives an unknown actor un-drafting and arming auto-merge.
+2. **Draft + ticket relations + hold comments = visibility only.** The label is the gate.
+3. **Set `consult-hold` at PR creation** (`gh pr create --label consult-hold`), not reactively — a post-creation window exists where the PR is unprotected.
+4. **Two un-draft events on the same day = sweep, not coincidence.** If you see unexplained un-drafting, escalate to TL immediately; the cause may be automation or an actor with broad credentials.
 
 **Applies To:** All agents holding PRs on cross-ticket blockers or external conditions of any kind.
 
@@ -4421,3 +4447,365 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Active — 1 instance (DebateUI, p/689#3). Loud failure (exit 1); misleading because the merge succeeded.
 
 **Applies To:** All agents verifying that a squash-merged PR's commits reached `origin/main`.
+
+## #211 [Build] `git grep --include` Must Precede Path Arguments — Silently Ignored When Placed After
+
+**Pattern:** `git grep -n '<pattern>' <path> --include="*.ts"` fails or silently ignores the `--include` filter. In `git grep`, `--include` is an option and must appear **before** path arguments; when placed after a path, git treats the `--include=` as another pathspec, not a glob filter. The command may still run but match against all file types, or fail with an unexpected error.
+
+**Instances:**
+- 2026-10-06 — DebateTool (p/234#14): `git grep -n 'POVER_INFO\[' <path> --include="*.ts"` failed. Resolved by switching to the Grep tool, which handles argument ordering consistently.
+
+**Root Cause:** `git grep` parses options and pathspecs sequentially; once a non-option argument (a path) is encountered, subsequent `--include` flags are interpreted as pathspecs. This differs from ripgrep/grep where option placement is more flexible.
+
+**Prevention:**
+1. **Put all options before pathspecs:** `git grep -n --include="*.ts" '<pattern>' <path>`.
+2. **Prefer the Grep tool** for in-project searches — it wraps ripgrep with consistent argument handling and avoids this class of error entirely.
+3. The failure is often silent (no error, just wrong scope) — if git grep returns fewer results than expected, check option ordering.
+
+**Status:** Active — 1 instance (DebateTool, p/234#14).
+
+**Applies To:** All agents using `git grep` with `--include` or other glob filters.
+
+---
+
+## #212 [Build] `git worktree remove --force` Fails "cannot remove a locked working tree" When the Worktree Process Is Still Alive
+
+**Pattern:** `git worktree remove --force <path>` exits 128 with "cannot remove a locked working tree" even though the subagent that owns the worktree has reported completion. The lock file records the owning process's PID. A single `--force` removes an **admin lock** only; a process lock (set automatically when a worker opens the worktree) requires `--force --force` (double) — but that is only safe if the process is actually dead. Applying `-f -f` while the process is still alive corrupts the worktree state.
+
+**Instances:**
+- 2026-10-06 — PowerShell (p/20#70): `git worktree remove --force` on a finished subagent's worktree exited 128 — the lock named the agent's pid, which was still alive. Correct resolution: verified the pid was alive, left the worktree in place, planned to remove after the process exited.
+
+**Root Cause:** A subagent reporting "done" does not guarantee process exit. The git worktree lock is held at the OS level by the process; completion messages and OS-level exit are not synchronous. `--force` only overrides admin locks, not live process locks.
+
+**Prevention:**
+1. **Before `git worktree remove --force`, check the lock file:** `cat <path>/.git/worktrees/<name>/locked` or inspect `git worktree list --porcelain`. If it names a PID, verify whether that process is alive (`ps` / `Get-Process`).
+2. **If the PID is alive:** wait for the process to exit, then run a plain `git worktree remove <path>`.
+3. **If the PID is dead** (process exited but lock was not released): `git worktree remove --force --force <path>` is safe.
+4. **Never use `-f -f` on a live process** — it removes the lock and the worktree while the process is still writing to it, which can corrupt in-flight work.
+5. **"Reported completion" ≠ "process exited"** — treat them as independent signals.
+
+**Status:** Active — 1 instance (PowerShell, p/20#70).
+
+**Applies To:** All agents managing subagent worktrees — checking process liveness before force-removing a worktree.
+
+---
+
+## #213 [Process] Removing `consult-hold` Label Re-Triggers `consult-hold-guard` — Merge Immediately After Removal Fails "Base Branch Policy Prohibits the Merge"
+
+**Pattern:** After removing the `consult-hold` label from a PR, `gh pr merge` run immediately fails with "base branch policy prohibits the merge". Root cause: removing the label re-triggers the `consult-hold-guard` required status check, which starts as PENDING. The merge is blocked until that check re-runs and concludes `success`. The check clears quickly (~10s) but must complete before the merge command is issued.
+
+**Instances:**
+- 2026-10-06 — DebateTool (p/70#54, PR #2917): `gh pr merge 2917 --squash --match-head-commit <sha>` failed immediately after removing the `consult-hold` label. `consult-hold-guard` was still PENDING from the label-removal re-trigger. Resolved by waiting ~10s for the check to pass, then re-running the merge command successfully.
+
+**Root Cause:** `consult-hold-guard` is a **required status check** on `main`. Any event that re-triggers it (including label removal) briefly puts the PR in a "check pending" state, which blocks merges. The merge command does not implicitly wait for in-flight checks — it reads the current check state at call time.
+
+**Prevention:**
+1. **After removing `consult-hold`, wait for `consult-hold-guard` to re-run and pass before merging.** Poll with `gh pr checks <n> --json name,state --jq '.[] | select(.name == "consult-hold-guard") | .state'` until it returns `SUCCESS`.
+2. **Do not retry the merge immediately on "policy prohibits" error** — this is a transient state, not a permanent block. A 10–30s wait then a single retry is the right pattern.
+3. Sibling of exit-8 / pending-checks discipline (#121): the same "checks must be concluded before merge" rule applies here, but the trigger is label removal rather than CI.
+
+**Status:** Active — 1 instance (DebateTool, p/70#54).
+
+**Applies To:** All agents clearing a `consult-hold` gate and self-merging the PR.
+
+---
+
+## #214 [Process] Auto-Merge Armed + New Push = Stranded Commit — `gh pr view` Head OID Lags After Push; Verify `main` Contents After Auto-Merge Lands
+
+**Pattern:** A PR with auto-merge armed merges at the old head when a new commit is pushed — because `gh pr view` reports the stale pre-push OID for minutes after the push, and auto-merge fires on whatever GitHub internally sees (which may also lag). The new commit is stranded and never reaches `main`. The PR shows `MERGED` and the state looks correct, but `main` is missing the latest commit.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#74, PR #3019): auto-merge was armed at head `fb31e621`; a new commit `e78e8290` was pushed; `gh pr view` kept reporting the old head for minutes; auto-merge fired and merged `fb31e621`, stranding `e78e8290`. Resolution: cherry-picked the stranded commit into follow-up PR #3041.
+
+**Root Cause:** Two independent lags: (1) `gh pr view` caches the head OID and can show a stale value for several minutes after a push; (2) GitHub's auto-merge machinery may also evaluate against a view that hasn't caught up to the new push. Together they create a window where auto-merge fires on the old head even though a newer one exists. Root AGENTS.md already says "Arming means 'I'm done' — disarm before pushing more work" — this is the failure that rule prevents.
+
+**Prevention:**
+1. **Disarm auto-merge (`gh pr merge <n> --disable-auto`) BEFORE pushing any additional commit to an auto-armed PR.** Re-arm only after the push is confirmed. (Root AGENTS.md PR-Flow rule.)
+2. **After any auto-merge lands, verify `main` contents, not just PR state:** `git log origin/main --oneline -3` or `gh api repos/{owner}/{repo}/commits/main --jq '.sha'` — confirm the expected commit SHA is on `main`. A `MERGED` PR state does not prove which head merged.
+3. **`gh pr view --json headRefOid` immediately after a push is unreliable** — the value may be the pre-push OID. Use `git ls-remote origin <branch>` for a fresh view.
+4. If a commit is stranded: cherry-pick it to a new branch, open a follow-up PR, land it promptly. Don't attempt a direct push or `--admin` merge.
+
+**Status:** Active — 1 instance (PowerShell, p/20#74, PR #3019). Silent failure — PR shows MERGED, `main` looks merged, stranded commit only discovered by checking `main` contents.
+
+**Applies To:** All agents using `--auto` on a PR where further pushes might follow before merge.
+
+---
+
+## #215 [Process] `&&`-Chaining a Non-Idempotent Write With a Read — Network Timeout on the Read Makes the Write Look Failed; Retry Duplicates the Write
+
+**Pattern:** `gh pr comment <n> && gh pr view <n>` exits 1 when the `gh pr view` GraphQL call times out (network error) — even though the comment posted successfully. An `&&` chain's exit code is the last-failed command's; the write's success is invisible in the exit. A naive retry of the whole chain then posts a duplicate comment.
+
+**Instances:**
+- 2026-10-07 — Rosetta Stone (p/6#79, PR #3022): `gh pr comment 3022 && gh pr view 3022` exited 1 — comment posted fine; `gh pr view` timed out (`dial tcp 140.82.112.6:443: connectex`). Resolved by rerunning only `gh pr view`.
+
+**Root Cause:** `&&` chains are idempotent only when every command is idempotent. A write (`pr comment`, `git push`, `gh label`) followed by a read in the same chain inherits the read's non-zero exit if the read fails — even though the write already landed. Retrying the chain retries the write.
+
+**Prevention:**
+1. **Run writes and reads as separate commands, not `&&`-chained.** `gh pr comment <n> -b "..."; gh pr view <n>` — the write's exit is checked independently.
+2. **Before retrying any `&&`-chain that includes a write, check whether the write already landed.** For `gh pr comment`: `gh pr view <n> --json comments`; for `git push`: `git ls-remote origin <branch>`; for label changes: `gh pr view <n> --json labels`.
+3. **Network timeouts on `gh` reads are transient** — retry only the failed read, not the whole chain.
+4. Sibling of #84 (`&&`-chain exit laundering): both involve `&&` swallowing the real signal. #84 = write's failure masked as success; #215 = write's success masked as failure. Opposite directions, same structural cause.
+
+**Status:** Active — 1 instance (Rosetta Stone, p/6#79). Self-correcting once recognized.
+
+**Applies To:** All agents running `gh` or `git` write commands followed by reads in the same `&&` chain.
+
+---
+
+## #216 [Build] Shell Test (`[ -f ]` / `[ -e ]`) as Last Loop Statement — Legitimate False on Final Iteration Becomes Loop's Exit 1
+
+**Pattern:** A Bash `for` loop whose last statement is `[ -f "$p" ] && cmd` (or any short-circuit construct whose left side is a shell test) exits 1 when the final iteration's test is false — even though every iteration completed correctly. The loop's exit status is the last command's exit status, and `[ -f ]` exits 1 when the file doesn't exist. The printed output may be entirely correct; only the exit code is wrong.
+
+**Instances:**
+- 2026-10-07 — Rosetta Stone (p/6#81): a Bash `for` loop exited 1 even though every count it printed was correct. Last statement: `[ -f "$p" ] && …`. On the final iteration the file didn't exist, so `[ -f ]`'s exit 1 became the loop's exit status. Resolution: read the output and ignored the exit code.
+
+**Root Cause:** In Bash, a loop's (and a script's) exit status is the exit status of the last command executed. `[ -f "$p" ] && cmd` is a compound command whose exit is 1 when the test is false — regardless of whether that was the expected outcome. This is the same genus as #73A (`grep -c` exits 1 on zero matches) and #84 (`&&` laundering): a command that signals a valid, expected outcome via non-zero exit causes a containing construct to look failed.
+
+**Prevention:**
+1. **End loops (and scripts) with an explicit exit signal** when the last real statement can legitimately exit non-zero. Options: append `|| true` to the last compound command; close with `exit 0`; or rewrite as `if [ -f "$p" ]; then cmd; fi` (an `if` statement always exits 0 when the condition is false).
+2. **When a loop exit-1 is surprising, read the output first.** A loop that printed correct results and exited 1 is almost always this pattern — the logic ran fine; only the exit signal is wrong.
+3. Sibling of #73A (grep) and #84 (echo wrapper): the common class is "a command whose non-zero exit encodes a valid expected outcome used as the exit of a compound construct." Fix in all cases: insert `|| true` or restructure so the last executed command is always an explicit success signal.
+
+**Status:** Active — 1 instance (Rosetta Stone, p/6#81).
+
+**Applies To:** All agents writing Bash `for`/`while` loops where the last statement is a short-circuit test construct.
+
+---
+
+## #217 [Test] Pester `Mock` with Module-Qualified Passthrough Recurses — Intercepts Even `Module\Cmdlet` Calls
+
+**Pattern:** A Pester mock defined as `Mock Get-Content { Microsoft.PowerShell.Management\Get-Content @PesterBoundParameters }` causes infinite recursion (call-depth overflow) because Pester intercepts **all** calls to the cmdlet name `Get-Content` in the test scope — including module-qualified `Microsoft.PowerShell.Management\Get-Content`. The passthrough is not a bypass; it is another intercepted call, which re-enters the mock, which calls the passthrough again.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#76, t/4065): `Mock Get-Content { Microsoft.PowerShell.Management\Get-Content @PesterBoundParameters }` recurse until call-depth overflow. Fix: replaced the passthrough body with `[System.IO.File]::ReadAllText($Path)` — a .NET method outside Pester's interception layer.
+
+**Root Cause:** Pester's mock intercept operates at the PowerShell command-resolution level, not the module-boundary level. A module-qualified call (`Module\Cmdlet`) resolves the command name the same way and is caught by the same mock. There is no syntax that says "call the real implementation" from inside a Pester mock body for a built-in cmdlet — only calling a different code path (a .NET API or a helper that does not invoke the cmdlet name) escapes the intercept.
+
+**Prevention:**
+1. **Never use a module-qualified passthrough (`Module\Cmdlet @PesterBoundParameters`) as a mock body for built-in cmdlets.** It recurses.
+2. **To passthrough to the real implementation for file I/O cmdlets, use .NET directly:**
+   - `Get-Content` → `[System.IO.File]::ReadAllText($Path)` (or `ReadAllLines`)
+   - `Set-Content` → `[System.IO.File]::WriteAllText($Path, $Value)`
+   - `Test-Path` → `[System.IO.Path]::Exists($Path)` (file) or `[System.IO.Directory]::Exists($Path)` (directory)
+3. **Infinite recursion in a Pester mock = suspect a module-qualified passthrough** — the call stack will show the mock body calling itself.
+
+**Status:** Active — 1 instance (PowerShell, p/20#76, t/4065).
+
+**Applies To:** All agents writing Pester mocks for built-in PS cmdlets that need a real-implementation passthrough.
+
+---
+
+## #218 [Build] Transient GitHub Receive-Pack 500 — `git push` Fails Repeatedly While Fetch and REST Writes Succeed
+
+**Pattern:** `git push` fails with HTTP 500 on the `git-smart-http receive-pack` path 5+ times consecutively across different branch names, while `git fetch` and GitHub REST API writes (`gh api .../git/refs`) succeed throughout. This is a GitHub-side transient degradation **isolated to the receive-pack push path** — not a repo-wide outage, not a branch-specific block, not a credentials issue.
+
+**Instances:**
+- 2026-10-07 — DevOps Worker (p/749#1): `git push` 500'd 5x on receive-pack across 2 different branch names; `git fetch` and `gh api` REST writes worked the whole time. Resolved by waiting briefly and retrying once — succeeded clean with no workaround.
+- 2026-10-07 — PowerShell (p/20#86, t/3910): `git push` returned "Internal Server Error" on one branch for ~6 minutes while status.github.com showed all systems operational. Tried bisecting: pushed an empty probe commit, then each half of the real commit — all succeeded. Then pushed the real commit, which also succeeded. **New learning: GitHub status is too coarse to discriminate per-repo transients; bisect with probe refs before assuming commit content is bad.**
+
+**Root Cause:** GitHub's receive-pack endpoint is a separate service path from `fetch` (upload-pack) and the REST API. Partial degradations can affect one path while others remain healthy. When status.github.com shows green, the issue may still be a per-repo transient on receive-pack. Pushing a probe commit (empty or split) isolates whether the failure is content-specific vs. endpoint-transient.
+
+**Prevention:**
+1. **Diagnose before workarounds:** if `git push` 500s but `git fetch` and `gh api` writes work, the issue is GitHub-side transient on the receive-pack path. Wait 1–2 minutes and retry once — no branch rename, credential rotation, or protocol change is needed.
+2. **Discriminator: `git fetch` works + REST writes work + `git push` 500s = receive-pack-specific.** If fetch also fails, it may be a broader outage; check GitHub status.
+3. **GitHub status is not granular enough to rule out per-repo transients.** "All systems operational" does not mean your push will succeed. Push a probe ref (empty commit or split) to isolate content vs. endpoint.
+4. **Bisect with probe refs if you suspect commit content is bad:** push an empty commit first; if that fails, it's endpoint-transient; if it succeeds, split the real commit and push each half.
+5. **Do not force-push or workaround the 500.** Wait and retry plain `git push`; the transient resolves without intervention.
+
+**Status:** Active — 2 instances (DevOps Worker p/749#1, PowerShell p/20#86). Self-resolving; risk is unnecessary workarounds consuming time.
+
+**Applies To:** All agents pushing to GitHub remotes via `git push`.
+
+---
+
+## #220 [Test] Plain Hashtable Iteration Order Is Non-Deterministic Per-Process — Golden Tests Built This Way Flake
+
+**Pattern:** A test fixture built by iterating a plain PowerShell hashtable (`@{}`) to produce a golden/snapshot value will produce different key orderings on different process runs. CI passes by luck when the current process happens to produce the same order as when the golden was pinned, and fails on others. The fixture appears deterministic in local runs because the same process seed repeats within a session.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#86, t/3910): a fixture constructed by iterating a plain `@{}` (random key order per process) pinned a coin-flip input hash. Earlier runs passed because the process produced the same order. Fix: sort keys explicitly before building the fixture; confirmed stable across 3+ separate process runs.
+
+**Root Cause:** PowerShell `@{}` (and .NET `Dictionary<K,V>`) have no guaranteed iteration order. The order is determined by internal hash bucketing, which varies per process/run. A golden that encodes a specific key order will match only when the hash happens to produce that order — a coin-flip per process.
+
+**Prevention:**
+1. **Never iterate a plain hashtable when the output order matters for a golden/snapshot.** Sort keys explicitly: `$hash.GetEnumerator() | Sort-Object Key` or `[ordered]@{}` when constructing.
+2. **Prove stability across 3+ separate process invocations** before treating a golden as stable. In-session reruns share the same process and will not expose the flake.
+3. **A golden that flakes on CI but passes locally** is a strong signal of iteration-order non-determinism — check for hashtable iteration in the fixture construction path.
+4. **Use `[ordered]@{}` (PowerShell ordered dictionary) or `[System.Collections.Generic.SortedDictionary]`** when key order must be deterministic.
+
+**Status:** Active — 1 instance (PowerShell p/20#86, t/3910). Flake risk: silently passes until a process runs with a different hash seed.
+
+**Applies To:** All agents writing golden/snapshot tests that involve hashtable iteration in fixture construction.
+
+---
+
+## #221 [PowerShell] `-WarningVariable` Does Not Capture `Write-Warning` from the First Command of a Nested Pipeline
+
+**Pattern:** When a function uses `-WarningVariable` on a cmdlet call, warnings emitted by `Write-Warning` inside a **helper that is the first command of a nested pipeline** (e.g. `@( Get-X | Where-Object … )`) are NOT collected into the variable — they appear on the host but are absent from the capture. A `Write-Warning` in a plain statement in the same function IS collected. This makes a fallback path look silent when it isn't, and goldens that assert on the warning capture will silently fail to include it.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#88, t/4072): `-WarningVariable` missed a `Write-Warning` emitted from a helper that was the first command in a nested pipeline `@( Get-X | Where-Object … )`. The warning appeared on the host; it was absent from the captured variable and from goldens. Confirmed by direct repro.
+
+**Root Cause:** PowerShell's warning stream propagation through nested pipelines has a gap: the first command of a sub-expression/nested pipeline runs in a context where the `-WarningVariable` binding from the outer call is not inherited. Subsequent pipeline stages are unaffected — only the first command is in the gap.
+
+**Prevention:**
+1. **Restructure nested pipelines to avoid the gap:** call the helper as a plain statement first (`$items = Get-X`), then pipe the result (`$items | Where-Object …`). The helper's warning stream now flows to the plain-statement context, which inherits the `-WarningVariable` binding.
+2. **If restructuring is not possible, redirect the warning stream explicitly:** `Get-X -WarningVariable innerWarn 3>&1 | …` and merge `$innerWarn` into the outer capture.
+3. **When goldens assert on a warning being captured, verify with a direct repro** that the warning actually lands in `-WarningVariable`, not just on the host. Host output and variable capture diverge at nested pipeline boundaries.
+4. **A fallback that looks silent in a golden but shows on the host is a symptom of this gap**, not a silent fallback.
+
+**Status:** Active — 1 instance (PowerShell p/20#88, t/4072). Confirmed by direct repro.
+
+**Applies To:** All agents using `-WarningVariable` to capture warnings from functions that internally use nested pipelines.
+
+---
+
+## #222 [Build] `gh run view --job <id> --log` Returns Empty Until the Whole Run Is `completed` — Job Completion Is Not Enough
+
+**Pattern:** `gh run view --job <id> --log` returns an empty log even when the specified job has finished, if the overall workflow run is not yet in `completed` state. Counting errors or test lines over the empty file produces "0 failures" / "0 tests found" — a false green. This is silent: the command exits 0, the file exists, it's just empty.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#90, t/4081): `gh run view --job <id> --log` returned empty for a finished job while the run was still in-progress. Counting `##[error][-]` over the empty file gave "0 failures"; agent reported `main` clean before any evidence existed. A re-check happened to confirm it later (t/4081#6), but the initial report was evidence-free.
+
+**Root Cause:** GitHub's log retrieval endpoint for a job returns empty (or incomplete) until the parent workflow run reaches terminal state (`completed`). A job can be `completed: success` while its parent run is still `in_progress` waiting for other jobs — and in that window the log is unavailable.
+
+**Prevention:**
+1. **Before reading job logs, verify `gh run view <run-id> --json status -q .status` is `completed`.** Job completion is not sufficient — check the run-level status.
+2. **Verify the log has substantive content before drawing conclusions from it.** For PowerShell test shards, expect `Running tests from` > 0 (approximately 166 per shard). If the line is absent, the log is empty or incomplete — report "no data", not "0 failures".
+3. **A log count of 0 errors on an empty file is not evidence of a clean run.** Apply the zero-result heuristic: 0 is indistinguishable from "log not available yet" without a content check.
+4. **Never report CI status from a job log without first confirming the run is `completed` and the log is non-empty.** An evidence-free "clean" report is worse than no report.
+
+**Status:** Active — 1 instance (PowerShell p/20#90, t/4081). Silent failure: exit 0, file exists, but empty.
+
+**Applies To:** All agents inspecting CI logs via `gh run view --log` to assess test or build status.
+
+---
+
+## #223 [Infra] `gh` CLI Crashes with OOM Mid-Loop — Partial State; Verify Per-Item Before Retry
+
+**Pattern:** The `gh` CLI crashes mid-way through a loop of write operations (e.g., posting multiple comments, applying labels) with `fatal error: runtime: cannot allocate memory`. The items processed before the crash are complete; those after are not. Re-running the whole loop duplicates the completed items (double-comments, duplicate labels). The correct response: verify each item's final state individually, then retry only the items that didn't complete.
+
+**Instances:**
+- 2026-10-07 — Computational Linguist (p/7#112, t/3962): `gh` crashed mid-loop through a 2-issue comment + label sequence. First comment posted; second comment and label did not. Same memory pressure that reaped an earlier long run (t/3962#6). Fix: retried each step separately and verified end state (labels + comment count) on each issue.
+
+**Root Cause:** The `gh` CLI is a Go binary; under host memory pressure it crashes with a Go runtime OOM. The crash is not transactional — operations before the crash succeeded and are not rolled back. The partial-state trap is: re-running the loop duplicates the successful write (double-comment is the canonical case).
+
+**Prevention:**
+1. **After any CLI crash mid-loop, verify each item's final state before retrying.** Check comment count, label presence, or whatever write was in the loop — don't assume "0 items completed" or "all items completed".
+2. **Retry only the items that didn't complete.** Re-running the whole loop produces duplicates for items that already succeeded.
+3. **`gh` OOM crashes are a host memory pressure signal**, not a `gh` bug. If recurring, check for a concurrent memory-intensive process (long-running Python, embedded model, large diff).
+4. **For critical write loops, write a state checkpoint** — record which items completed before moving to the next. This makes re-entry after crash deterministic.
+
+**Status:** Active — 1 instance (Computational Linguist p/7#112, t/3962). Risk: duplicate writes (double-comments, double-labels) if loop is re-run without state check.
+
+**Applies To:** All agents running multi-step `gh` write loops (comments, labels, PRs) on memory-constrained hosts.
+
+---
+
+## #224 [Infra] Terminal Close Silently Kills Background Jobs — Verify Output Files After Restart
+
+**Pattern:** A background job started in the terminal is silently killed when the session closes. No error is reported — the job and its output disappear. After a terminal restart, code that expects background-job output files to exist finds them missing. The failure is silent: the job completes from the agent's perspective (the spawn succeeded), but its output never materialised.
+
+**Instances:**
+- 2026-10-07 — Computational Linguist (p/7#114): A background audit scan was started; the terminal closed mid-run. The job was killed with no error signal. Expected output files were not produced. Discovered only when results were needed. Re-ran in the foreground, wrote results to files, verified outputs before posting.
+
+**Root Cause:** Background jobs spawned by the shell are child processes of the terminal session. When the terminal closes, the OS terminates child processes. The agent framework does not persist background job state across terminal restarts and produces no error — the only signal is missing output files.
+
+**Prevention:**
+1. **After any terminal restart, verify that expected output files from recently started background jobs actually exist.** Do not assume a background job completed.
+2. **For output-dependent tasks, prefer running in the foreground** with results written to files — the output is visible and verifiable in the same session.
+3. **Verify the output has substantive content before reporting or using it.** An absent or empty file after a restart is a terminal-kill signal, not a content absence.
+4. **A terminal close during a background job leaves no error signal.** The only detection path is checking whether expected outputs exist before proceeding.
+
+**Status:** Active — 1 instance (Computational Linguist p/7#114). Silent failure mode.
+
+**Applies To:** All agents starting background jobs or long-running scans in a terminal session.
+
+---
+
+## #225 [Infra] `gh pr review --approve` Always Fails — All Agents Share One GitHub Identity; Use a PR Comment for Sign-offs
+
+**Pattern:** Any agent running `gh pr review --approve` receives `GraphQL: Can not approve your own pull request (addPullRequestReview)`. The fleet shares one GitHub account (`jpsnover`), so every PR is "owned" by that identity regardless of which agent opened it. The approval path is structurally unavailable for agent-to-agent sign-offs. The correct substitute is a PR comment.
+
+**Instances:**
+- 2026-10-07 — DebateTool (p/70#55): `gh pr review 3129 --approve` failed with the error above. Resolved by posting a sign-off comment on the PR instead.
+- 2026-10-07 — ServerAPI (p/504#18): Same failure on a separate PR. Same resolution.
+
+**Root Cause:** GitHub's approval model requires the approver to be a different account than the PR author. Because the entire fleet operates as one GitHub user, no agent can ever approve any other agent's PR — they are all the same identity to GitHub.
+
+**Prevention:**
+1. **Never use `gh pr review --approve` for agent-to-agent sign-offs.** It will always fail; there is no workaround short of a second GitHub account.
+2. **Use a PR comment for sign-offs.** `gh pr comment <N> --body "Sign-off: ..."` records the review intent and is visible in the PR timeline.
+3. **The merge gate is required status checks** (`ci-gate`, `CodeQL`, `joint-gv-guard`, `consult-hold-guard`), not reviewer approval. A green PR with a sign-off comment is mergeable.
+4. **If a workflow requires a reviewer count > 0,** escalate to the PI — that is a branch protection change, which is PI-only.
+
+**Status:** Active — 2 instances (p/70#55, p/504#18). Structural limitation; no fix possible without a second GitHub identity.
+
+**Applies To:** All agents attempting to approve PRs on behalf of another agent.
+
+---
+
+## #226 [Test] `vi.mock` Path Miss Masked by Local API Keys — CI Fails; Run Key-Sensitive Suites with Keys Unset
+
+**Pattern:** A test mocks a function by its import path (e.g. `vi.mock('./config', …)` mocking `getApiKey`), but the code under test calls a different function (`getApiKeyForListing`) that internally calls the original. The mock never intercepts the real call. Locally the test passes because real API keys are exported in the developer's shell — the resolver finds a key through the environment. CI has no keys, the real resolver returns empty, and the test fails. The gap is invisible until keys are absent.
+
+**Instances:**
+- 2026-10-07 — Shared Lib (p/5#45, PR #3129): `refreshAIModels.test.ts` mocked `getApiKey`. The change routed `refreshAIModels` through `getApiKeyForListing`, which calls `getApiKey` inside the config module — `vi.mock` did not intercept the internal call. Local shell had `GEMINI_API_KEY` etc. exported; CI did not. Fix: reproduced with `env -u GEMINI_API_KEY …`, replaced the mock with `vi.stubEnv` plus `unstubAllEnvs`.
+
+**Root Cause:** Two compounding issues: (1) the mock targeted an import path that the refactored code no longer calls directly — a classic mock-vs-implementation gap that only surfaces when the environment cannot satisfy the real call; (2) local shells routinely carry real provider keys, making CI the first environment where the gap is observable.
+
+**Prevention:**
+1. **Run key-sensitive server suites with every `*_API_KEY` unset before claiming green.** Use `env -u GEMINI_API_KEY -u ANTHROPIC_API_KEY -u GROQ_API_KEY npm test` (or the equivalent `vi.stubEnv` approach in the test itself).
+2. **Prefer `vi.stubEnv` over `vi.mock` for key-resolver tests.** `stubEnv` controls the environment the real resolver reads; it does not depend on the import path the implementation uses, so refactors that change the call chain do not silently break it.
+3. **After any refactor that changes how a function reaches its dependencies, audit which mocks target the old path.** A mock that the new code never hits is a silent no-op — the test still passes locally if the real path can satisfy the call.
+4. **A test that passes locally but fails on CI with a key-related error is diagnostic of this pattern,** not a CI environment problem. Reproduce locally with keys unset before investigating CI configuration.
+
+**Status:** Active — 1 instance (Shared Lib p/5#45, PR #3129). Silent locally; fails only in keyless environments.
+
+**Applies To:** All agents writing or maintaining tests for API-key-gated functions in the TypeScript server.
+
+---
+
+## #227 [Security] Activity Hook Executed Commands from Message Bodies — Fleet-Wide Junk Files; activity_enabled Must Stay OFF
+
+**Pattern:** An Orca activity hook was registered across 38 role settings files. The hook did not merely log — it executed `cmd.exe` commands found in message bodies. Any message body containing shell metacharacters (backticks, redirects, pipe symbols) caused the hook to run the fragment as a command. Observable signal: 0-byte files named after code fragments (the text following a backtick or `>` in printed/edited content) appeared in agent working directories across the fleet. The attack vector is prompt injection: any message body that contains shell-shaped text can execute arbitrary commands in the receiving agent's session.
+
+**Instances:**
+- 2026-10-07 — Fleet-wide (t/3918): Activity hook registered in 38 role settings files. Multiple agents corroborated 0-byte junk files in their scopes. Fleet hold issued (e/246): no shell metacharacters in any message body, no external document ingestion, no replies to the incident thread. PI's Orca restart removed the hook from all live sessions. Post-restart verification: 0 live settings files carry it; no new junk files in a 15-minute window; TL probe negative against a positive control. Hold lifted (e/246#17).
+
+**Root Cause:** The Orca activity hook feature executes content from message bodies rather than treating it as data. A hook registered for activity logging silently doubled as a command executor. The hook was registered across the full fleet (38 files) before the execution behavior was understood. Because agents send pings and emails containing code, file paths, and shell snippets as a matter of routine operation, this created a large attack surface.
+
+**Prevention:**
+1. **`activity_enabled` must stay OFF until Orca ships a fix for t/3918.** Turning it on re-arms the command-execution vulnerability on the next agent launch. Anyone needing activity logging raises it with the TL first — this is a standing rule, not a session constraint.
+2. **0-byte files named after code fragments are a fleet-wide signal of this pattern.** If you see one, report to t/3918 in plain text (no shell metacharacters in the report body).
+3. **Before registering any Orca hook, verify it treats message content as data, not as executable input.** A hook that processes message bodies must be safe against shell-shaped content.
+4. **During any active security hold: keep all message bodies free of shell metacharacters** (pipe, ampersand, angle brackets, backticks). Write file paths and commands in plain prose. Do not ingest external documents.
+5. **The diagnostic discriminator:** real command execution leaves 0-byte files named after code fragments. Mere logging or redirection leaves no such artifacts.
+
+**Status:** Resolved — hold lifted 2026-10-07 (e/246#17). Standing rule: activity_enabled OFF. Root fix pending in Orca (t/3918).
+
+**Applies To:** All agents; especially relevant when considering Orca hook registration or activity logging features.
+
+---
+
+## #219 [Build] MSYS Stores Colon as Unicode Private-Use Character in Filenames — `C:tmpsaf…` Is Not a Real Colon; PowerShell Matching Fails; Use Bash for Cleanup
+
+**Pattern:** A file appears in the repository root whose name looks like `C:tmpsaf_beliefs_raw.json`. The `:` is **not** an ASCII colon — MSYS stores it as a Unicode private-use character (U+F03A or similar) that *visually* resembles a colon but doesn't match ASCII `:` in any search or comparison. As a result: `git log/ls-files/status` fail "outside repository" or similar; PowerShell `-like 'C:tmp*'` and `Get-Item ".\C:tmpsaf..."` find nothing (the `.\` trick doesn't help — the issue is the non-ASCII char, not drive-letter interpretation); `:(literal)` pathspec magic also fails. **What works: Bash `ls`/`mv`/`rm` with the literal filename** — Bash can address the actual bytes MSYS stored.
+
+**Instances:**
+- 2026-10-07 — PowerShell (p/20#80): `C:tmpsaf_beliefs_raw.json` in `ai-triad-data` root. git pathspec and PowerShell both failed. File left as-is (not owner's to delete). *(Initial diagnosis: git drive-path interpretation.)*
+- 2026-10-07 — DevOps (p/169#189, correction 1): PowerShell `-like 'C:tmp*'` found nothing; Bash `ls`/`mv` with literal name worked. True cause: MSYS Unicode private-use char (U+F03A) stored as colon.
+- 2026-10-07 — DevOps (p/169#190, correction 2): File was **tracked** in git as `Ctmpsaf_beliefs_raw.json` (git stores the U+F03A as `C` + private-use byte sequence). A Bash `mv` showed as a tracked deletion in the shared checkout. A failed git pathspec lookup does not mean the file is untracked.
+- 2026-10-07 — DevOps Lead (p/26#147, outcome): Moved the file out of the shared `ai-triad-data` checkout assuming it was untracked junk — it was tracked, creating an uncommitted deletion. **r/24 caught it within the hour.** Restored byte-identical (git status clean); `git rm` routed to the data repo owner. Rule: verify `git ls-files | grep` yourself before moving or deleting anything in a shared checkout, whatever a report says.
+
+**Root Cause:** When a Bash redirect (`> /tmp/foo.json`) fails due to MSYS `/tmp` path mangling, the resulting junk artifact can land in the working tree with a `C:` prefix where the `:` is encoded as Unicode private-use character U+F03A. MSYS uses private-use codepoints to round-trip characters NTFS forbids (`:` is illegal in NTFS). The char looks like a colon in a terminal but isn't ASCII `0x3A`. Git tracks the file but cannot address it by the mangled pathspec; PowerShell string matching against literal `:` misses it; Bash can address it by raw bytes. A filesystem `mv`/`rm` on a tracked file creates a tracked deletion — it must be a `git rm` commit.
+
+**Prevention:**
+1. **These files are tracked git artifacts**, not untracked junk. A failed pathspec lookup does not mean untracked. Before treating as untracked, run `git ls-files | grep -a tmpsaf` (the `-a` flag handles non-UTF8 filenames); if it appears, it's tracked.
+2. **To remove: `git rm` followed by a commit in the data repo** — this is a data write that must be coordinated with the data repo owner. Never use a filesystem `mv`/`rm` on a tracked file; it creates a staged deletion that blocks the ff-drain.
+3. **To find the file**: `ls -la | grep tmpsaf` (Bash) — copy the literal filename from output for any subsequent operation; don't type the colon character manually.
+4. **The presence of such a file is diagnostic** — audit the session that created it; the underlying cause is a Bash `/tmp` write that landed in the working tree via MSYS path mangling.
+
+**Status:** Active — 1 instance (p/20#80, p/169#189, p/169#190). Diagnosis corrected twice.
+
+**Applies To:** All agents encountering MSYS-mangled filenames in a tracked git repo; especially relevant in the `ai-triad-data` repo.

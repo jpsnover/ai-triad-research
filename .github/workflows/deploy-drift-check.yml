@@ -55,6 +55,9 @@ jobs:
           PROD_URL: ${{ github.event.inputs.prod_url || env.DEFAULT_PROD_URL }}
         run: |
           set -uo pipefail
+          # Never die silently (t/3905): this step died with a bare `exit code 141` and NO output on
+          # every scheduled run for >1 day, so #2771 could neither update nor auto-close.
+          trap 'echo "::error::deploy-drift inputs failed at line ${LINENO} (exit $?) — drift CANNOT BE EVALUATED this run (t/3905)"' ERR
 
           # --- running build SHA from prod /health (non-admin branch exposes buildSha) ---
           HEALTH_JSON=$(curl -fsS --max-time 30 "${PROD_URL}/health" 2>/dev/null || echo '')
@@ -76,7 +79,10 @@ jobs:
             if [ "$RUNNING_SHA" = "$MAIN_SHA" ]; then
               AGE_HOURS='0'   # prod == main HEAD → nothing un-deployed
             elif git merge-base --is-ancestor "$RUNNING_SHA" "$MAIN_SHA" 2>/dev/null; then
-              OLDEST=$(git rev-list --reverse "${RUNNING_SHA}..${MAIN_SHA}" | head -1)
+              # NOT `| head -1`: on Linux, rev-list flushes per commit into a pipe, so head's early
+              # exit SIGPIPEs it (141) and -e + pipefail kills the step (t/3905). awk drains the
+              # whole stream and keeps line 1.
+              OLDEST=$(git rev-list --reverse "${RUNNING_SHA}..${MAIN_SHA}" | awk 'NR==1')
               if [ -n "$OLDEST" ]; then
                 CDATE=$(git show -s --format=%ct "$OLDEST")
                 NOW=$(date -u +%s)

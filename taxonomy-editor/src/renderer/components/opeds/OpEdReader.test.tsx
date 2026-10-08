@@ -215,3 +215,30 @@ describe('OpEdReader — new member fields (t/2849)', () => {
     expect(screen.queryByText('What this op-ed did')).toBeNull();
   });
 });
+
+// t/3992: a tagged member shows its wing scope. Uses the committed registry's skeptic "critical" tag
+// (t/3956), so the label is the real registry label.
+describe('OpEdReader — wing scope (t/3992)', () => {
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+  const tagged = (mode: 'scope' | 'prioritize', excludedUntagged: number) =>
+    member({ pov: 'skeptic', tag: { pov: 'skeptic', tag: 'critical', mode, included: 12, excludedUntagged } });
+
+  it('Scope shows the wing and how many untagged nodes were excluded', () => {
+    render(<OpEdReader set={makeSet([tagged('scope', 31)])} />);
+    expect(screen.getByRole('note', { name: '' }).textContent).toBe('Skeptic · Critical wing (scope; 31 untagged excluded)');
+  });
+
+  it('Prioritize shows no exclusion count (0 by construction would read as full coverage)', () => {
+    render(<OpEdReader set={makeSet([tagged('prioritize', 0)])} />);
+    const line = screen.getByText(/Critical wing/);
+    expect(line.textContent).toBe('Skeptic · Critical wing (prioritized)');
+    expect(line.textContent).not.toMatch(/excluded/);
+  });
+
+  it('an untagged member shows no scope line', () => {
+    render(<OpEdReader set={makeSet([member()])} />);
+    expect(screen.queryByText(/ wing \(/)).toBeNull();
+  });
+});

@@ -3,7 +3,7 @@
 
 import type { DebateEngineInternals } from './internals.js';
 import { type ExtendedAIAdapter } from '../aiAdapter.js';
-import { POVER_INFO, type PovKey } from '../types.js';
+import { type PovKey } from '../types.js';
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from '../doctrinalAnchoring.js';
 import { getGlobalRecorder } from '../../flight-recorder/index.js';
 import { DOCTRINAL_HARDCODED_BOUNDARY_WEIGHT, DOCTRINAL_SOFTCODED_BOUNDARY_WEIGHT } from '../debateConfig.js';
@@ -18,7 +18,7 @@ export async function setupDoctrinalAnchoring(engine: DebateEngineInternals): Pr
   const boundaries: Record<string, string[]> = {};
   const boundaryWeights: Record<string, number[]> = {};
   for (const pover of engine.config.activePovers) {
-    const info = POVER_INFO[pover];
+    const info = engine.getSoulForSpeaker(pover);
     if (!info?.boundaries) continue;
     const { hardcoded, softcoded } = info.boundaries;
     const allBoundaries = [...hardcoded, ...softcoded];

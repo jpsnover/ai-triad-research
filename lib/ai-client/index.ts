@@ -19,7 +19,7 @@ export { generateViaZai } from './providers/zai.js';
 export { generateViaMoonshot } from './providers/moonshot.js';
 export { generateViaXai } from './providers/xai.js';
 export { normalizeStopReason } from './providers/stopReason.js';
-export { TaskTier, resolveModelForPurpose, probeOllama, configureRouter, getRouterConfig, getTierForPurpose, PURPOSE_TIER_MAP, resolveMultiProviderModels } from './modelRouter.js';
+export { TaskTier, resolveModelForPurpose, probeOllama, configureRouter, getRouterConfig, getTierForPurpose, PURPOSE_TIER_MAP, resolveMultiProviderModels, eligibleDebateBackends } from './modelRouter.js';
 export type { TaskPurpose, RouterConfig, RoutedModel, ModelTier } from './modelRouter.js';
 export { callGeminiBatchEmbed } from './providers/gemini-embeddings.js';
 export { geminiGroundedSearch } from './providers/gemini-search.js';

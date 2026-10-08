@@ -1,0 +1,22 @@
+{
+  "scenario": "err-no-embeddings",
+  "host": [
+    "[Cyan] ",
+    "▶  Building node index",
+    "[Green]    ✓  Indexed 18 nodes",
+    "[Cyan] ",
+    "▶  Loading embeddings",
+    "[Red]    ✗  embeddings.json not found — cannot compute similarities"
+  ],
+  "warnings": [],
+  "error": "\n  Goal:     Find situation candidates\n  Error:    embeddings.json required for situation candidate discovery\n  Location: Get-FscEmbeddingIndex (<ROOT>/taxonomy/Origin/embeddings.json)\n  Resolve:\n   1. Generate node embeddings (embed_taxonomy.py), then re-run\n   2. Nothing was written",
+  "result": null,
+  "calls": [
+    {
+      "call": "tierModel",
+      "tier": "basic"
+    }
+  ],
+  "writes": [],
+  "written": null
+}

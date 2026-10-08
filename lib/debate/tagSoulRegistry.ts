@@ -8,7 +8,7 @@
 import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { POVER_INFO } from './poverInfo.js';
-import { SoulDocumentSchema } from './soulDocSchema.js';
+import { SoulDocumentSchema, buildSoulProvenance } from './soulDocSchema.js';
 import type { SoulProvenance } from './soulDocSchema.js';
 import { tagSoulFileName } from '../schema/povTags.js';
 
@@ -17,32 +17,18 @@ export type SoulProvenanceBrowser = SoulProvenance & { readonly __runtime: 'brow
 import type { TagSelection } from './types/session.js';
 import type { PovInfo, SpeakerId } from './types.js';
 
-// import.meta.glob is resolved at Vite/vitest build time. Pattern covers all tag soul files.
-// Key format: "./soul-docs/<pov>.<tag>.soul.json" (spec §3; t/3989). *.*.soul.json matches only
-// two-segment names, so it never captures base souls like accelerationist.soul.json.
-const TAG_SOUL_MODULES = import.meta.glob<{ default: unknown }>(
-  './soul-docs/*.*.soul.json',
-  { eager: true },
+// import.meta.glob with ?raw loads raw file text at Vite/vitest build time.
+// *.soul.json matches both base souls (accelerationist.soul.json) and tag souls (skeptic.critical.soul.json).
+// Raw strings are used for hashing (parity with soulDocLoader — t/4007 condition #3).
+const ALL_SOUL_RAW = import.meta.glob<string>(
+  './soul-docs/*.soul.json',
+  { eager: true, as: 'raw' },
 );
 
-/** FNV-1a 32-bit × 2 = 16 hex chars (browser-safe, deterministic). */
-function fnv1aHex16(str: string): string {
-  let h1 = 0x811c9dc5;
-  let h2 = 0x04c11db7;
-  for (let i = 0; i < str.length; i++) {
-    const c = str.charCodeAt(i);
-    h1 ^= c;
-    h1 = Math.imul(h1, 0x01000193) >>> 0;
-    h2 ^= c;
-    h2 = Math.imul(h2, 0x04c11db7) >>> 0;
-  }
-  return h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
-}
-
-function getTagSoulFromRegistry(pov: string, tag: string): PovInfo {
+function getTagSoulFromRegistry(pov: string, tag: string): { soul: PovInfo; raw: string } {
   const key = `./soul-docs/${tagSoulFileName(pov, tag)}`;
-  const mod = TAG_SOUL_MODULES[key];
-  if (!mod) {
+  const raw = ALL_SOUL_RAW[key];
+  if (raw === undefined) {
     throw new ActionableError({
       goal: `Load tag soul for ${pov}:${tag}`,
       problem: `Tag soul not found in registry: ${key}`,
@@ -51,7 +37,8 @@ function getTagSoulFromRegistry(pov: string, tag: string): PovInfo {
     });
   }
   try {
-    return SoulDocumentSchema.parse(mod.default) as unknown as PovInfo;
+    const soul = SoulDocumentSchema.parse(JSON.parse(raw)) as unknown as PovInfo;
+    return { soul, raw };
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
@@ -77,26 +64,31 @@ function getTagSoulFromRegistry(pov: string, tag: string): PovInfo {
 export function resolvePoverInfo(
   speaker: Exclude<SpeakerId, 'user'>,
   tagSelection?: TagSelection,
-): { soul: PovInfo; soulProvenance: SoulProvenanceBrowser } {
+): { soul: PovInfo; soulProvenance: SoulProvenanceBrowser | undefined } {
   if (!tagSelection) {
     const soul = POVER_INFO[speaker];
+    const baseKey = `./soul-docs/${speaker}.soul.json`;
+    const raw = ALL_SOUL_RAW[baseKey];
+    if (raw === undefined) {
+      getGlobalRecorder()?.record({
+        type: 'system.info',
+        component: 'tagSoulRegistry',
+        level: 'warn',
+        message: `Soul provenance unavailable for ${speaker} — raw soul file not in Vite glob bundle. soul_provenance will be absent for this seat.`,
+      });
+      return { soul, soulProvenance: undefined };
+    }
     return {
       soul,
-      soulProvenance: {
-        file: `soul-docs/${speaker}.soul.json`,
-        sha: fnv1aHex16(JSON.stringify(soul)),
-      } as SoulProvenanceBrowser,
+      soulProvenance: buildSoulProvenance(`${speaker}.soul.json`, raw) as SoulProvenanceBrowser,
     };
   }
-  const tagSoul = getTagSoulFromRegistry(speaker, tagSelection.tag);
+  const { soul: tagSoul, raw } = getTagSoulFromRegistry(speaker, tagSelection.tag);
   const baseSoul = POVER_INFO[speaker];
   // Enforce base identity fields — tag souls override personality/voice but not label or pov (t/3988).
   const soul: PovInfo = { ...tagSoul, label: baseSoul.label, pov: baseSoul.pov };
   return {
     soul,
-    soulProvenance: {
-      file: `soul-docs/${tagSoulFileName(speaker, tagSelection.tag)}`,
-      sha: fnv1aHex16(JSON.stringify(tagSoul)),
-    } as SoulProvenanceBrowser,
+    soulProvenance: buildSoulProvenance(tagSoulFileName(speaker, tagSelection.tag), raw) as SoulProvenanceBrowser,
   };
 }

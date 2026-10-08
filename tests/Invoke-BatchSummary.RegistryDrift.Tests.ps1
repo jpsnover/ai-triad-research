@@ -66,7 +66,7 @@ Describe 'Invoke-BatchSummary -- post-batch policy registry step is read-only' -
         Set-Content -Path $skepticPath -Value $skepticContent -Encoding utf8
 
         foreach ($f in 'accelerationist', 'safetyist', 'situations') {
-            Set-Content -Path (Join-Path $taxonomyDir "$f.json") -Value '{"nodes":[]}' -Encoding utf8
+            Set-Content -Path (Join-Path $taxonomyDir "$f.json") -Value ('{"nodes":[{"id":"' + $f + '-fixture-filler"}]}') -Encoding utf8
         }
         Set-Content -Path (Join-Path $taxonomyDir 'policy_actions.json') -Value '{"_schema_version":"1.0.0","policy_count":0,"policies":[]}' -Encoding utf8
 

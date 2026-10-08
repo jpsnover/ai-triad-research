@@ -12,6 +12,7 @@ import { useAppRoute } from './routing/useAppRoute';
 import { Toolbar } from './components/shared/Toolbar';
 import { TabBar } from './components/shared/TabBar';
 import { SaveBar } from './components/sync/SaveBar';
+import { PolicyRecountNotice } from './components/PolicyRecountNotice';
 import { PovTab } from './components/taxonomy/PovTab';
 import { FirstRunDialog } from './components/settings/FirstRunDialog';
 import { WhatsNewToast } from './components/settings/WhatsNewToast';
@@ -36,6 +37,7 @@ import { ResilienceBanner } from './components/shared/ResilienceBanner';
 import { QuotaBanner } from './components/shared/QuotaBanner';
 import { EmbeddingsStaleBanner } from './components/shared/EmbeddingsStaleBanner';
 import { OrphanedTagsBanner } from './components/shared/OrphanedTagsBanner';
+import { RetiredModelBanner } from './components/shared/RetiredModelBanner';
 import { pullDataTracked } from './utils/syncApi';
 import { useFeatureFlagStore, useFlag } from './hooks/useFeatureFlags';
 import { useTheoryLinkHotkey } from './hooks/useTheoryLinkHotkey';
@@ -652,6 +654,7 @@ function MainApp() {
       <QuotaBanner />
       <EmbeddingsStaleBanner />
       <OrphanedTagsBanner />
+      <RetiredModelBanner />
       {/* Data update banner */}
       {dataUpdate && (
         <div
@@ -761,6 +764,7 @@ function MainApp() {
         <GlobalDetailPaneHost />
       </div>
       <SaveBar />
+      <PolicyRecountNotice />
       <BottomNav onOpenMore={() => setHamburgerOpen(true)} />
       {isMobile && <HamburgerMenu isOpen={hamburgerOpen} onClose={() => setHamburgerOpen(false)} />}
       {UpdatePrompt && !loading && <Suspense fallback={null}><UpdatePrompt /></Suspense>}

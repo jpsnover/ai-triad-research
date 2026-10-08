@@ -1,0 +1,21 @@
+{
+  "scenario": "err-no-key-groq",
+  "host": [
+    "[Cyan] \n▶  Validating environment",
+    "[Red]    ✗  No API key found for groq backend.",
+    "[Gray]    →  Set GROQ_API_KEY, or pass -ApiKey."
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": "No API key found for groq backend.",
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "groq"
+    }
+  ],
+  "writes": [],
+  "tree": {}
+}

@@ -138,10 +138,10 @@ function Invoke-EdgeWeightEvaluation {
     }
 
     # ── Resolve API key ──
-    $Backend = if ($Model -match '^gemini') { 'gemini' } elseif ($Model -match '^claude') { 'claude' } else { 'groq' }
-    $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-    if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-        Write-Fail "No API key found for $Backend. Set `$env:$($Backend.ToUpper())_API_KEY."
+    # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+    $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+    if (-not $KeyStatus.HasKey) {
+        Write-Fail "No API key found for $($KeyStatus.Backend). Set `$env:$($KeyStatus.EnvHint)."
         return
     }
 
@@ -185,7 +185,7 @@ function Invoke-EdgeWeightEvaluation {
             $Response = Invoke-AIApi `
                 -Prompt     $FullPrompt `
                 -Model      $Model `
-                -ApiKey     $ResolvedKey `
+                -ApiKey     $ApiKey `
                 -Temperature 0.2 `
                 -MaxTokens  4096
 

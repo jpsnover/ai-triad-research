@@ -16,7 +16,7 @@ vi.mock('../../../embeddings/onnxEmbedding.js', () => ({
 import { runNarrativeVoicing, finalizeNarrativeReference, updateNarrativeSimilarity } from './narrativeVoicing.js';
 import { NARRATIVE_VOICING_KIND } from '../../narrativeVoicing.js';
 import type { DebateEngineInternals } from '../internals.js';
-import type { TranscriptEntry } from '../../types.js';
+import { type TranscriptEntry, POVER_INFO } from '../../types.js';
 
 const GOOD = JSON.stringify({
   narratives: ['accelerationist', 'safetyist'].map(p => ({
@@ -41,6 +41,7 @@ function fakeEngine(opts: { enabled: boolean; response?: string; throws?: boolea
       transcript.push(full);
       return full;
     }),
+    getSoulForSpeaker: vi.fn((poverId: string) => POVER_INFO[poverId as keyof typeof POVER_INFO]),
   };
   return engine as unknown as DebateEngineInternals & typeof engine;
 }

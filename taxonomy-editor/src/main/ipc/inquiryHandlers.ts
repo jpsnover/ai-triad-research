@@ -34,6 +34,7 @@ import { assembleNodeEmbeddings, type NodeEmbeddingMap } from '../../../../lib/d
 import type { GroundingTaxonomy } from '../../../../lib/debate/inquiryGrounding.js';
 import { runInquiryPipeline, type InquiryPipelineDeps, type InquiryStage } from '../../../../lib/debate/inquiryPipeline.js';
 import { runHeadlessDebate } from '../../../../lib/debate/headlessRunner.js';
+import { resolvePoverInfo } from '../../../../lib/debate/soulDocLoader.js';
 import { loadTaxonomy, type LoadedTaxonomy } from '../../../../lib/debate/taxonomyLoader.js';
 import { loadModelRegistry } from '../../../../lib/ai-client/registry.js';
 import {
@@ -228,7 +229,10 @@ async function runJob(job: InquiryJob, request: InquiryRequest): Promise<void> {
       registry: loadModelRegistry(PROJECT_ROOT),
       taxonomy: await buildGroundingTaxonomy(),
       embed: (texts: string[]) => computeEmbeddings(texts),
-      runDebate: (config, _question) => runHeadlessDebate(config, adapter, getLoadedTaxonomy())
+      // t/4025/t/4050: deriveDebateConfig runs inside runInquiryPipeline without a soulResolver
+      // (InquiryPipelineDeps has no passthrough for it), so the config this lambda receives
+      // lacks one. Add it here so Electron-run debates record soul_provenance like cli.ts does.
+      runDebate: (config, _question) => runHeadlessDebate({ ...config, soulResolver: resolvePoverInfo }, adapter, getLoadedTaxonomy())
         .then(r => ({ session: r.session, terminationReason: r.terminationReason })),
       adapter,
       onStage: (stage: InquiryStage) => setStatus(job, mapStage(stage)),

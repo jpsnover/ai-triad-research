@@ -77,7 +77,7 @@ import type { GenerateOptions } from './aiAdapter.js';
 import { validateTurn, resolveTurnValidationConfig } from './turnValidator.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { applyEngineFloor, checkModeratorDormancy, recordEnginePin } from './moderatorEngineTriggers.js';
-import { resolveBackend } from '../ai-client/registry.js';
+import { inferBackend } from '../ai-client/registry.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
 import { runPropositionalGate } from './revoiceGate.js';
 
@@ -85,7 +85,8 @@ const SLOW_BACKEND_TIMEOUT_MS = 180_000;
 const DEFAULT_TIMEOUT_MS = 60_000;
 
 function moderatorTimeoutMs(model: string): number {
-  const backend = resolveBackend(model);
+  // An estimate, so an unknown id gets the default timeout rather than throwing (t/4101).
+  const backend = inferBackend(model);
   return backend === 'deepseek' ? SLOW_BACKEND_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
 }
 

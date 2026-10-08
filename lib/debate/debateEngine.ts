@@ -41,7 +41,7 @@ import type {
   EntailmentRepairEvent,
   TalmudicCorpus,
 } from './types.js';
-import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
+import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey, type PovInfo } from './types.js';
 import {
   loadProvisionalWeights,
   buildSignalRegistry,
@@ -84,6 +84,8 @@ import { DEFAULT_ATTACK_WEIGHTS } from './qbaf.js';
 import { DEFAULT_AI_TIMEOUT_MS, DEFAULT_RELEVANCE_THRESHOLD } from './constants.js';
 import { CLAIM_VERIFY_SETTLE_TIMEOUT_MS, EVALUATOR_TEMPERATURE, SUMMARIZATION_TEMPERATURE, SUMMARIZATION_MAX_TOKENS, SUMMARIZATION_TIMEOUT_MS } from './debateConfig.js';
 import { computeStrategicHints } from './strategicHints.js';
+import { resolveSouls } from './debateEngine/soulResolution.js';
+import { computeSituationCitations } from './debateEngine/diagnostics.js';
 import { evaluateLookahead, type LookaheadDiagnostics } from './lookaheadGate.js';
 import { runOvergenPipeline, type OvergenDiagnostics } from './overgenPipeline.js';
 import { classifyTopicComplexity, extractTopicStructure } from './topicStructure.js';
@@ -155,6 +157,7 @@ import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js'
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration.js';
 import { pruneSessionData, pruneModeratorState } from './sessionPruning.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { computeModelFingerprint } from './debateEngine/modelFingerprint.js';
 import { resolveBackground } from './debateEngine/backgroundIngestion.js';
 import { callByUsage } from '../ai-client/usageRegistry.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
@@ -276,9 +279,13 @@ export class DebateEngine {
   private _claimPipeline!: ClaimExtractionPipeline;
   private _synthesisPipeline!: SynthesisPipeline;
   private _talmudicCorpus: TalmudicCorpus | null = null;
+  private _resolvedSouls: Partial<Record<string, PovInfo>> = {};
+  private _soulProvenance: Partial<Record<string, { file: string; hash: string }>> = {};
 
   /** t/1781: fire-and-forget claim verifications; settled before calibration extract to make source_authority deterministic. */
   private _pendingClaimVerifications: Promise<void>[] = [];
+
+  getSoulForSpeaker = (poverId: string): PovInfo => this._resolvedSouls[poverId] ?? POVER_INFO[poverId as keyof typeof POVER_INFO];
 
   /** Get the set of hint keys currently suppressed for this debate. */
   private getSuppressedHints(): Set<string> {
@@ -420,6 +427,12 @@ export class DebateEngine {
     }
 
     this.config.background = await resolveBackground(this.config.background);
+
+    // Soul resolution: resolve once per seat before initSession() (t/4007). See debateEngine/soulResolution.ts.
+    const { resolvedSouls, soulProv } = resolveSouls(this.config, this.taxonomy);
+    this._resolvedSouls = resolvedSouls;
+    this._soulProvenance = soulProv;
+
     this.initSession();
 
     // Route prompt directives based on model capability (t/331)
@@ -931,7 +944,15 @@ export class DebateEngine {
     return engine.session;
   }
 
-  // ── Initialization ───────────────────────────────────────
+  private _computeModelFingerprint(): { model_pool?: string; model_api_id?: string } {
+    const isMultiProvider = Boolean(this.config.speakerModels);
+    return computeModelFingerprint(
+      this.adapter.registry,
+      isMultiProvider ? this.config.modelTier : undefined,
+      isMultiProvider ? this.config.eligibleBackends : undefined,
+      this.config.model,
+    );
+  }
 
   private initSession(): void {
     const id = generateId();
@@ -965,7 +986,10 @@ export class DebateEngine {
       generated_with_prompt_version: 'cli-l2',
       debate_model: this.config.model,
       evaluator_model: this.config.evaluatorModel,
-      speaker_models: this.config.speakerModels,
+      speaker_models: this.config.speakerModels ? { ...this.config.speakerModels } : undefined,
+      initial_speaker_models: this.config.speakerModels ? { ...this.config.speakerModels } : undefined,
+      ...this._computeModelFingerprint(),
+      failover_tracking: 'tracked' as const,
       stage_models: {
         brief: resolveStageModel(this._internal, 'brief'),
         plan: resolveStageModel(this._internal, 'plan'),
@@ -995,6 +1019,7 @@ export class DebateEngine {
       argument_network: { nodes: [], edges: [] },
       commitments: {},
       ...(this.config.seat_tags ? { seat_tags: this.config.seat_tags } : {}),
+      ...(Object.keys(this._soulProvenance).length > 0 ? { soul_provenance: { ...this._soulProvenance } } : {}),
     };
 
     // Initialize commitment stores
@@ -1179,6 +1204,8 @@ export class DebateEngine {
           if (this.session) {
             if (!this.session.speaker_models) this.session.speaker_models = {};
             this.session.speaker_models[speaker] = chain[i];
+            if (!this.session.speaker_model_failovers) this.session.speaker_model_failovers = {};
+            this.session.speaker_model_failovers[speaker] = chain[i];
           }
           getGlobalRecorder()?.record({
             type: 'ai.fallback',
@@ -1456,33 +1483,8 @@ export class DebateEngine {
   }
 
   /** Update situation citation tracking (t/192). Recomputes from full transcript each turn. */
-  private updateSituationCitations(currentRefs: TaxonomyRef[]): void {
-    const overview = this.session.diagnostics?.overview;
-    if (!overview) return;
-
-    // Recompute from transcript for accuracy (cheap — just string prefix checks)
-    const uniqueSitIds = new Set<string>();
-    let turnsWithSit = 0;
-    let totalDebateTurns = 0;
-
-    for (const entry of this.session.transcript) {
-      if (entry.type !== 'statement' && entry.type !== 'opening') continue;
-      totalDebateTurns++;
-      const hasSit = entry.taxonomy_refs.some(r => r.node_id.startsWith('sit-'));
-      if (hasSit) {
-        turnsWithSit++;
-        for (const r of entry.taxonomy_refs) {
-          if (r.node_id.startsWith('sit-')) uniqueSitIds.add(r.node_id);
-        }
-      }
-    }
-
-    overview.situation_citations = {
-      turns_with_sit_refs: turnsWithSit,
-      total_debate_turns: totalDebateTurns,
-      citation_rate: totalDebateTurns > 0 ? turnsWithSit / totalDebateTurns : 0,
-      unique_sit_ids_cited: [...uniqueSitIds].sort(),
-    };
+  private updateSituationCitations(_currentRefs: TaxonomyRef[]): void {
+    computeSituationCitations(this.session);
   }
 
   // ── Early return (stopAfterStage) ──────────────────────────

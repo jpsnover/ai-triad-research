@@ -16,8 +16,10 @@ import type { ANClaimInput, RelevantTaxonomyResult } from '../../../lib/debate/r
 import type { ClaimAttributionResult } from '../../../lib/debate/argumentNetwork/attribution.js';
 import type { ClaimTaxonomyAttribution } from '../../../lib/debate/types.js';
 import type { UserPreferences } from '../../../lib/userPreferencesSchema.js';
+import type { PovTagProposalsFile, ApplyProposalDecisionResult } from '../../../lib/schema/povTagProposals.js';
 import type { InquiryRequest, InquiryResult } from '../../../lib/inquiry/index.js';
 import type { NodeDeleteLogEntry } from './nodeDeleteLog.js';
+import type { RecountPolicyMembersResult } from '../../../lib/policy/registryRecount.js';
 
 // t/3532: mirrors bridge/types.ts's FetchRelevantNodesPayload/FetchClaimAttributionPayload/
 // ClaimAttributionResponse structurally (those are defined directly in bridge/types.ts, not
@@ -146,6 +148,15 @@ function buildElectronApi() {
 
   loadPolicyRegistry: (): Promise<unknown> =>
     ipcRenderer.invoke('load-policy-registry'),
+
+  recountPolicyMembers: (ids: string[]): Promise<RecountPolicyMembersResult> =>
+    ipcRenderer.invoke('recount-policy-members', ids),
+
+  loadPovTagProposals: (): Promise<PovTagProposalsFile | null> =>
+    ipcRenderer.invoke('load-pov-tag-proposals'),
+
+  reviewPovTagProposal: (nodeId: string, decision: unknown, expectedStatus: string): Promise<ApplyProposalDecisionResult> =>
+    ipcRenderer.invoke('review-pov-tag-proposal', nodeId, decision, expectedStatus),
 
   loadLineageCategories: (): Promise<unknown> =>
     ipcRenderer.invoke('load-lineage-categories'),
@@ -285,7 +296,10 @@ function buildElectronApi() {
   // t/3569: return type also carries ProviderCallDiagnostics (t/3566) — FR forensics
   // only, forwarded verbatim so instrumentBridge.ts can attach it to ai.response/ai.error
   // (the desktop half of t/3568; renderer FR-event wiring is Rosetta's).
-  generateText: (payload: { prompt: string; model?: string; timeoutMs?: number; temperature?: number; requestId?: string; maxTokens?: number }): Promise<{ text: string; stopReason?: StopReason; diagnostics?: ProviderCallDiagnostics }> =>
+  // t/4048: servedModel is the registry id the call actually resolved to (after defaulting) —
+  // desktop has no fallback chain, so it always equals the requested/defaulted model; present so
+  // the debate store can mark the run 'tracked' (e/268#6 condition 3; see embeddings.ts).
+  generateText: (payload: { prompt: string; model?: string; timeoutMs?: number; temperature?: number; requestId?: string; maxTokens?: number }): Promise<{ text: string; stopReason?: StopReason; diagnostics?: ProviderCallDiagnostics; servedModel?: string }> =>
     ipcRenderer.invoke('generate-text', payload),
 
   cancelGenerate: (requestId: string): void =>

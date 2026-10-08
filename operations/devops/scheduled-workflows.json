@@ -1,0 +1,25 @@
+{
+  "_comment": "t/4058: every workflow with a `schedule:` trigger MUST be listed (lint: scheduled-workflow-health.test.mjs). maxSilentHours ~= 2x cron interval + 12h headroom for GitHub cron throttling (observed: */15 workflows going 6h between runs), floor 12h.",
+  "workflows": [
+    { "file": "base-image.yml",               "maxSilentHours": 348 },
+    { "file": "cache-cleanup.yml",            "maxSilentHours": 348 },
+    { "file": "ci.yml",                       "maxSilentHours": 60  },
+    { "file": "cleanup-session-branches.yml", "maxSilentHours": 60  },
+    { "file": "cluster-conflicts.yml",        "maxSilentHours": 348 },
+    { "file": "codeql.yml",                   "maxSilentHours": 348 },
+    { "file": "complexity-report.yml",        "maxSilentHours": 348 },
+    { "file": "compliance-live.yml",          "maxSilentHours": 60  },
+    { "file": "debate-tested-sweep.yml",      "maxSilentHours": 60  },
+    { "file": "dependabot-weekly.yml",        "maxSilentHours": 348 },
+    { "file": "deploy-drift-check.yml",       "maxSilentHours": 18  },
+    { "file": "deployed-image-scan.yml",      "maxSilentHours": 348 },
+    { "file": "doc-platform-drift.yml",       "maxSilentHours": 60  },
+    { "file": "embed-drift-weekly.yml",       "maxSilentHours": 348 },
+    { "file": "ghcr-cleanup.yml",             "maxSilentHours": 348 },
+    { "file": "health-monitor.yml",           "maxSilentHours": 12  },
+    { "file": "key-pool-health.yml",          "maxSilentHours": 60  },
+    { "file": "main-ci-monitor.yml",          "maxSilentHours": 12  },
+    { "file": "pr-triage.yml",                "maxSilentHours": 12  },
+    { "file": "required-contexts-drift.yml",  "maxSilentHours": 60  }
+  ]
+}

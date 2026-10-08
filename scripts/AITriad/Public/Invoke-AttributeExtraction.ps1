@@ -23,7 +23,7 @@ function Invoke-AttributeExtraction {
     .PARAMETER Model
         AI model to use. Defaults to 'gemini-3.5-flash-lite'.
     .PARAMETER ApiKey
-        AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
+        AI API key. If omitted, resolved via the backend-specific env var (AI_API_KEY is a fallback for gemini models only).
     .PARAMETER Temperature
         Sampling temperature (0.0-1.0). Default: 0.2 (precise analytical output).
     .PARAMETER DryRun
@@ -89,13 +89,10 @@ function Invoke-AttributeExtraction {
     }
 
     if (-not $DryRun) {
-        $Backend = if     ($Model -match '^gemini') { 'gemini' }
-                   elseif ($Model -match '^claude') { 'claude' }
-                   elseif ($Model -match '^groq')   { 'groq'   }
-                   else                             { 'gemini'  }
-        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-        if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-            Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
+        # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+        $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+        if (-not $KeyStatus.HasKey) {
+            Write-Fail "No API key found for the $($KeyStatus.Backend) backend. Set $($KeyStatus.EnvHint), or pass -ApiKey."
             throw 'No API key configured'
         }
     }
@@ -116,8 +113,13 @@ function Invoke-AttributeExtraction {
     $TotalProcessed = 0
     $TotalSkipped   = 0
     $TotalFailed    = 0
+    # t/4004: nodes actually written, and the policy ids they held before the merge, for registration.
+    $WrittenNodeIds = [System.Collections.Generic.List[string]]::new()
+    $PriorPolicyIds = [System.Collections.Generic.List[string]]::new()
 
     foreach ($PovKey in $PovFiles) {
+        $FileNodeIds  = [System.Collections.Generic.List[string]]::new()
+        $FilePriorIds = [System.Collections.Generic.List[string]]::new()
         $FilePath = Join-Path $TaxDir "$PovKey.json"
         if (-not (Test-Path $FilePath)) {
             Write-Warn "File not found, skipping: $FilePath"
@@ -238,7 +240,7 @@ $SchemaPrompt
                 $Result = Invoke-AIApi `
                     -Prompt $FullPrompt `
                     -Model $Model `
-                    -ApiKey $ResolvedKey `
+                    -ApiKey $ApiKey `
                     -Temperature $Temperature `
                     -MaxTokens 16384 `
                     -JsonMode
@@ -289,6 +291,8 @@ $SchemaPrompt
                         # anything the extraction prompt doesn't regenerate (registry
                         # policy_id's, debate-harvest fields under graph_attributes).
                         $ExistingAttrs = if ($OrigNode.PSObject.Properties['graph_attributes']) { $OrigNode.graph_attributes } else { $null }
+                        foreach ($PriorId in (Get-GraphAttributePolicyIds -GraphAttributes $ExistingAttrs)) { $FilePriorIds.Add($PriorId) }
+                        $FileNodeIds.Add([string]$NodeId)
                         $MergedAttrs = Merge-NodeGraphAttributes -Existing $ExistingAttrs -New $AttrObj -OwnedFields $OwnedFields -NodeId $NodeId
                         if ($OrigNode.PSObject.Properties['graph_attributes']) {
                             $OrigNode.graph_attributes = $MergedAttrs
@@ -314,6 +318,8 @@ $SchemaPrompt
                 try {
                     Write-Utf8NoBom -Path $FilePath -Value $Json 
                     Write-OK "Saved $PovKey ($FilePath)"
+                    $WrittenNodeIds.AddRange($FileNodeIds)
+                    $PriorPolicyIds.AddRange($FilePriorIds)
                 }
                 catch {
                     Write-Fail "Failed to write $PovKey taxonomy file — $($_.Exception.Message)"
@@ -323,6 +329,10 @@ $SchemaPrompt
             }
         }
     }
+
+    # ── Step 7: Register the written nodes' policy actions (t/4004) ──
+    # Without this, extracted actions kept a null policy_id until an unrelated corpus-wide -Fix.
+    Invoke-NodePolicyRegistration -NodeId $WrittenNodeIds.ToArray() -PriorPolicyIds $PriorPolicyIds.ToArray() -Caller 'Invoke-AttributeExtraction'
 
     # ── Summary ──
     Write-Host ''

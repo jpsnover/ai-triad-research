@@ -263,3 +263,10 @@
   color: var(--text-muted);
   text-transform: uppercase;
 }
+
+/* t/3992: the wing scope of a tagged member. */
+.pov-oped-tag-scope {
+  margin: -0.5rem 0 1rem;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

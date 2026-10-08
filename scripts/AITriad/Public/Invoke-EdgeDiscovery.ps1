@@ -36,7 +36,7 @@ function Invoke-EdgeDiscovery {
     .PARAMETER Model
         AI model to use. Defaults to 'gemini-3.5-flash-lite'.
     .PARAMETER ApiKey
-        AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
+        AI API key. If omitted, resolved via the backend-specific env var (AI_API_KEY is a fallback for gemini models only).
     .PARAMETER Temperature
         Sampling temperature (0.0-1.0). Default: 0.3.
     .PARAMETER DryRun
@@ -216,19 +216,16 @@ function Invoke-EdgeDiscovery {
         throw 'Taxonomy directory not found'
     }
 
+    # Backend from ai-models.json, never guessed (t/4087). $ResolvedKey is the key FORWARDED to
+    # Invoke-AIApi: only the user's own -ApiKey (or ''), never an env key resolved here, so
+    # Invoke-AIApi resolves the key for the registry backend itself.
+    $ResolvedKey = $ApiKey
     if (-not $DryRun) {
-        if     ($Model -match '^gemini') { $Backend = 'gemini' }
-        elseif ($Model -match '^claude') { $Backend = 'claude' }
-        elseif ($Model -match '^groq')   { $Backend = 'groq'   }
-        elseif ($Model -match '^openai') { $Backend = 'openai' }
-        else                             { $Backend = 'gemini'  }
-        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-        if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-            Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
+        $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+        if (-not $KeyStatus.HasKey) {
+            Write-Fail "No API key found for the $($KeyStatus.Backend) backend. Set $($KeyStatus.EnvHint), or pass -ApiKey."
             throw 'No API key configured'
         }
-    } else {
-        $ResolvedKey = ''
     }
 
     # ── Step 2: Load all taxonomy nodes ──
@@ -393,12 +390,10 @@ function Invoke-EdgeDiscovery {
     if ($TwoPhase) {
         $ScreenPrompt = Get-Prompt -Name 'edge-screen'
         if ([string]::IsNullOrWhiteSpace($ScreenModel)) { $ScreenModel = (Get-AITierModel -Tier basic) }
-        # Resolve screen model API key (may differ from main model)
-        if     ($ScreenModel -match '^gemini') { $ScreenBackend = 'gemini' }
-        elseif ($ScreenModel -match '^claude') { $ScreenBackend = 'claude' }
-        elseif ($ScreenModel -match '^groq')   { $ScreenBackend = 'groq'   }
-        else                                   { $ScreenBackend = 'gemini'  }
-        $ScreenKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $ScreenBackend
+        # The user's -ApiKey is for -Model. Forward it to the screen model only when both share a
+        # backend; otherwise forward '' so the screen backend resolves its own key (t/4087).
+        $ScreenKey = ''
+        if ((Get-AIModelBackend -Model $ScreenModel) -eq (Get-AIModelBackend -Model $Model)) { $ScreenKey = $ApiKey }
         Write-Info "Two-phase mode: screen=$ScreenModel, classify=$Model"
 
         $ScreenSchema = @{

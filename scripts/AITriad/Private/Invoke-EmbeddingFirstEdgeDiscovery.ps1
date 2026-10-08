@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # Extracted from Invoke-EdgeDiscovery's -EmbeddingFirst branch (t/3837,
@@ -36,7 +36,7 @@ function Invoke-EmbeddingFirstEdgeDiscovery {
         [Parameter(Mandatory)][AllowEmptyCollection()][hashtable]$Descriptions,
         [Parameter(Mandatory)][string]$Model,
         [Parameter(Mandatory)][double]$Temperature,
-        [Parameter(Mandatory)][string]$ResolvedKey,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$ResolvedKey,
         [Parameter(Mandatory)][int]$ClassifyBatchSize,
         [Parameter(Mandatory)][bool]$DryRun,
         [Parameter(Mandatory)][int]$CheckpointEvery,

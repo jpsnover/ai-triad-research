@@ -65,8 +65,8 @@ describe('tagged op-ed voice through the real Node soul loader (t/4002)', () => 
     expect(voiceBlock).toContain(REAL_SOUL.voice.signature);
     expect(voiceBlock).toContain(REAL_SOUL.anti_patterns[0]);
     // Provenance comes from the real loader at the t/3989 spec path, stored repo-relative.
-    expect(member!.soul).toMatchObject({ file: 'lib/debate/soul-docs/skeptic.critical.soul.json' });
-    expect(member!.soul!.sha).toMatch(/^[0-9a-f]{16}$/);
+    expect(member!.soul).toMatchObject({ file: 'skeptic.critical.soul.json' });
+    expect(member!.soul!.hash).toMatch(/^fnv1a64:[0-9a-f]{16}$/);
     // Identity stays the camp's (CL t/3960#5).
     expect(member!.byline).toBe('By the Skeptic Camp (Critical wing), as modeled in AI Rosetta Stone');
   });

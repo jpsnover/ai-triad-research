@@ -1,0 +1,17 @@
+VERBOSE: Local mode: debate '<ROOT>/debate-1.json'
+VERBOSE:   Preset=policymaker, model=deterministic. Output → <ROOT>/out-skip
+VERBOSE: Performing the operation "export brief (preset=policymaker, model=deterministic) → <ROOT>/out-skip" on target "<ROOT>/debate-1.json".
+VERBOSE:   CLI: <PWSH> -NoProfile -File <ROOT>/stub-ok-sparse.ps1
+VERBOSE:   Pipeline finished (exit code 0).
+VERBOSE: ──────── Brief export complete (local) ────────
+VERBOSE:   Debate:         deb-S
+VERBOSE:   Title:          Sparse
+VERBOSE:   Preset:         
+VERBOSE:   Model:          
+VERBOSE:   Trace coverage: 0.0%
+VERBOSE:   Warnings:       0
+VERBOSE:   Deck (.pptx):   
+VERBOSE:   Deck spec:      
+VERBOSE:   Audit manifest: 
+OUTPUT: {"CheckerModel":"","DebateId":"deb-S","ManifestPath":"","Model":"","ModelSource":"","Path":"","Preset":"","SpecPath":"","Title":"Sparse","TraceCoveragePct":0.0,"Verdicts":{},"Warnings":[]}
+ARGS: --path <ROOT>/debate-1.json --preset policymaker --out <ROOT>/out-skip --model deterministic --skip-narration

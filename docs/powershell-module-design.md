@@ -337,7 +337,7 @@ Console output uses themed helpers: `Write-Step` (cyan, major pipeline steps), `
 | Risk | Impact | Mitigation |
 |---|---|---|
 | **PSGallery distribution** | Module must work without companion files | Fallback paths + graceful degradation |
-| **API key management** | Users must configure keys for each backend | `Register-AIBackend` provides guided setup; `$AI_API_KEY` fallback works for single-backend users |
+| **API key management** | Users must configure keys for each backend | `Register-AIBackend` provides guided setup; `$AI_API_KEY` fallback works for gemini-only users (other backends need their own variable, t/4102) |
 | **Prompt template drift** | Templates may not match current model capabilities | Templates are model-agnostic; temperature/schema controls handle model differences |
 | **Document conversion quality** | pdftotext and markitdown produce imperfect Markdown | `Optimize-PdfText` post-processing; fallback chain tries multiple tools |
 | **Taxonomy lock during import** | Re-importing module resets in-memory state | By design — module is session-scoped; changes persist to disk via cmdlets |

@@ -61,13 +61,10 @@ function Repair-PovDescriptions {
     $TaxDir = Get-TaxonomyDir
 
     # Resolve API key for AI fixes
-    $ResolvedKey = $null
+    # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+    $HasAIKey = $false
     if (-not $WhatIfPreference) {
-        if ($Model -match '^gemini') { $Backend = 'gemini' }
-        elseif ($Model -match '^claude') { $Backend = 'claude' }
-        elseif ($Model -match '^openai') { $Backend = 'openai' }
-        else { $Backend = 'gemini' }
-        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
+        $HasAIKey = (Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey).HasKey
     }
 
     $PovFiles = @('accelerationist', 'safetyist', 'skeptic')
@@ -153,7 +150,7 @@ function Repair-PovDescriptions {
             # ── Show before ───────────────────────────────────────────────
             $BeforeTail = if ($Desc.Length -gt 60) { "...$($Desc.Substring($Desc.Length - 60))" } else { $Desc }
 
-            if ($NeedsAI -and -not $WhatIfPreference -and $ResolvedKey) {
+            if ($NeedsAI -and -not $WhatIfPreference -and $HasAIKey) {
                 # AI-assisted repair
                 $Prompt = @"
 You are repairing a taxonomy node description. Do NOT rewrite — only fix the specific issues listed.
@@ -182,7 +179,7 @@ Rules:
 "@
 
                 try {
-                    $Result = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ResolvedKey `
+                    $Result = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey `
                         -Temperature 0.2 -MaxTokens 1024 -TimeoutSec 30
                     if ($Result -and $Result.Text) {
                         $NewDesc = $Result.Text.Trim() -replace '^\s*```\s*', '' -replace '\s*```\s*$', ''

@@ -163,7 +163,9 @@ jobs:
               - 'ai-models.json'
               - 'deploy/azure/main.bicep'
               - 'taxonomy-editor/src/server/briefExportJobs.ts'
-              - '.github/workflows/ci.yml'
+              # .github/workflows/** (t/4058) — the scheduled-workflow list lint reads every workflow
+              # file; a PR that only ADDS a scheduled workflow must still run it (skip-reads-as-pass).
+              - '.github/workflows/**'
             electron:
               - 'taxonomy-editor/**'
               - 'poviewer/**'
@@ -225,6 +227,11 @@ jobs:
               # research/comp-linguist/tools/** — formalizer / golden scorer / Option C parity
               # tests (t/3940). Previously matched no filter, so they never ran in CI.
               - 'research/comp-linguist/tools/**'
+              # lib/debate/soul-docs/** — the ONLY input of tools/test_render_soul_md.py (its
+              # _SOUL_DIR). Without it a soul-JSON-only PR skipped test-python, ci-gate counted the
+              # skip as a pass, and #2938 left main's .soul.md views stale unobserved (t/4029, the
+              # t/3189 shape). Rule: every path a test-python test READS must be in this list.
+              - 'lib/debate/soul-docs/**'
               - '.github/workflows/ci.yml'
             # 'container' gates test-container (t/2094). SOUNDNESS: ci-gate treats
             # a SKIPPED gated job as satisfied, so this list must cover EVERYTHING
@@ -315,14 +322,21 @@ jobs:
     runs-on: ubuntu-latest
     # t/3668: shard the Pester suite across parallel matrix jobs, KEEPING -Force per-file isolation
     # (each shard runs a DISJOINT slice — no import-once, no state bleed; t/3665 close-out chose
-    # shard-with-Force over the 84-var reset re-architecture). Halves wall-clock off the 25-min-cap
-    # edge that reds main on slow runners. ci-gate aggregates the shards via needs.test-powershell
-    # .result (all must pass); test-powershell is NOT itself a required context (only ci-gate is),
-    # so this is a ci.yml-only change — no branch-protection edit.
+    # shard-with-Force over the 84-var reset re-architecture). ci-gate aggregates the shards via
+    # needs.test-powershell.result (all must pass); test-powershell is NOT itself a required
+    # context (only ci-gate is), so this is a ci.yml-only change — no branch-protection edit.
+    # t/4095: 2 -> 6 shards, modulo slicing -> duration-balanced LPT bin-pack (ShardBalancer.ps1),
+    # to bring the critical path (slowest shard) under 8 min -- 2 EQUAL-COUNT shards still let an
+    # imbalanced split of SLOW vs fast files set the ceiling regardless of shard count. 4 shards
+    # balanced the measured Pester-only time perfectly (187s/shard) but observed 7-8m20s wall
+    # clock per shard on real CI; 5 shards (125s/shard measured) still swung 6m30s-8m25s across
+    # 3 runs on the same head -- fixed per-job overhead dominates and CI runner variance alone
+    # spans close to a minute, so shrinking the variable part further buys margin against that
+    # variance rather than hitting a precise number.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
@@ -377,20 +391,36 @@ jobs:
         shell: pwsh
         env:
           SHARD: ${{ matrix.shard }}
-          SHARD_TOTAL: '2'
+          SHARD_TOTAL: '6'
         run: |
           . ./operations/devops/Get-PesterExcludePaths.ps1  # single source of truth (t/3010)
           . ./operations/devops/FlakeVerdict.ps1            # t/3546 verdict message (content regression-guarded by tests/FlakeVerdict.Tests.ps1)
+          . ./operations/devops/ShardBalancer.ps1           # t/4095: duration-balanced LPT bin-pack, replaces the t/3668 modulo slice
           $config = New-PesterConfiguration
-          # t/3668: run only THIS shard's disjoint slice of the test files. Deterministic partition
-          # (sort by path, file j -> shard j % SHARD_TOTAL) so every file runs in exactly one shard
-          # and the split is stable. -Force per-file isolation is untouched (each file still imports
-          # the module fresh), so splitting across shards cannot bleed state. ExcludePath (below)
-          # still drops the decoupled data-compliance tests within the slice.
+          # t/4095: duration-balanced assignment, not round-robin-by-index (t/3668's `file-index %
+          # shardTotal` ignored duration entirely, so the slowest shard set the critical path
+          # regardless of shard count). Every shard job computes the FULL assignment (not just its
+          # own slice) and validates union-equals-all BEFORE selecting its slice -- a slicing bug
+          # is then caught by whichever shard would otherwise silently run a wrong/incomplete set,
+          # not discovered later from a missing test nobody ran.
           $shard = [int]$env:SHARD; $shardTotal = [int]$env:SHARD_TOTAL
           $allTests = @(Get-ChildItem ./tests -Recurse -Filter *.Tests.ps1 | Sort-Object FullName)
-          $mine = @(for ($j = 0; $j -lt $allTests.Count; $j++) { if (($j % $shardTotal) -eq ($shard - 1)) { $allTests[$j].FullName } })
-          Write-Host "::notice::test-powershell shard $shard/$shardTotal — running $($mine.Count) of $($allTests.Count) test files"
+          $repoRoot = (Get-Location).Path
+          $allPaths = @($allTests | ForEach-Object { $_.FullName.Substring($repoRoot.Length + 1) -replace '\\', '/' })
+          $durationsRaw = Get-Content -Raw -LiteralPath './operations/devops/test-powershell-shard-durations.json' | ConvertFrom-Json
+          $durations = @{}
+          foreach ($prop in $durationsRaw.PSObject.Properties) { $durations[$prop.Name] = [double]$prop.Value }
+          $assignment = Get-ShardAssignment -Files $allPaths -Durations $durations -ShardTotal $shardTotal
+          $coverage = Test-ShardAssignmentCoverage -Files $allPaths -Shards $assignment.Shards
+          if (-not $coverage.IsValid) {
+            Write-Host "::error::shard assignment coverage check FAILED -- Missing=$($coverage.Missing.Count) Duplicated=$($coverage.Duplicated.Count) Extra=$($coverage.Extra.Count). Missing: $($coverage.Missing -join '; '). Duplicated: $($coverage.Duplicated -join '; '). Extra: $($coverage.Extra -join '; ')"
+            exit 1
+          }
+          $myRelPaths = @($assignment.Shards[$shard - 1])
+          $pathToFull = @{}
+          foreach ($t in $allTests) { $pathToFull[$t.FullName.Substring($repoRoot.Length + 1) -replace '\\', '/'] = $t.FullName }
+          $mine = @($myRelPaths | ForEach-Object { $pathToFull[$_] })
+          Write-Host "::notice::test-powershell shard $shard/$shardTotal — running $($mine.Count) of $($allTests.Count) test files (duration-balanced, t/4095)"
           if ($mine.Count -eq 0) { Write-Host "::error::shard $shard matched 0 test files (slicing bug) — failing safe."; exit 1 }
           $config.Run.Path = $mine
           # Live-data SituationBDI compliance decoupled to compliance-live.yml
@@ -441,15 +471,21 @@ jobs:
             exit 1
           }
           # Pure test failure(s) — eligible for ONE flake rerun of only those tests (R3), no coverage.
-          $failedNames = @($r.Tests | Where-Object { $_.Result -eq 'Failed' } | ForEach-Object { $_.ExpandedPath })
-          Write-Host "::warning::test-powershell: $($failedNames.Count) test(s) failed on run 1 — rerunning only those once to distinguish flake from real failure."
+          $failedTests = @($r.Tests | Where-Object { $_.Result -eq 'Failed' })
+          $failedNames = @($failedTests | ForEach-Object { $_.ExpandedPath })
+          # t/4080: rerun the failing test FILES, not a Filter.FullName name filter. A name filter cannot
+          # match data-driven `It '... <Name>' -ForEach` tests (it matched NOTHING -> every test NotRun ->
+          # the old Result/TotalCount check read that as healed and laundered real failures to green:
+          # main 696ea125, run 37668037103, 12 hidden failures). Rerunning whole files costs a little more,
+          # only on the (rare) failure path; the verdict below then checks each failed test BY NAME.
+          $failedFiles = @($failedTests | ForEach-Object { $_.ScriptBlock.File } | Where-Object { $_ } | Sort-Object -Unique)
+          Write-Host "::warning::test-powershell: $($failedNames.Count) test(s) failed on run 1 — rerunning their $($failedFiles.Count) file(s) once to distinguish flake from real failure."
+          if ($failedFiles.Count -eq 0) { Write-Host "::error::test-powershell: could not resolve the failing tests' files — failing safe (t/4080)."; exit 1 }
           $rc = New-PesterConfiguration
-          $rc.Run.Path = './tests/'
-          $rc.Run.ExcludePath = Get-PesterExcludePaths
+          $rc.Run.Path = $failedFiles
           $rc.Run.Exit = $false
           $rc.Run.PassThru = $true
           $rc.Output.Verbosity = 'Detailed'
-          $rc.Filter.FullName = $failedNames
           # t/3546: best-effort delay before the in-job rerun. Lets TRANSIENT-releasing contention
           # clear — a subprocess mid-teardown still releasing its port, a temp-file / advisory-lock
           # race. Honest limit: it does NOT clear a fixed-port TIME_WAIT (~60s on Linux) or a live
@@ -457,12 +493,44 @@ jobs:
           # (t/3547, PowerShell). Cheap — only paid on the (rare) failure path.
           Start-Sleep -Seconds 5
           $r2 = Invoke-Pester -Configuration $rc
-          # R4: a rerun that discovers FEWER tests than failed (Filter.FullName metachar [ * ? matching
-          # nothing, or discovery no longer finding them) must NOT count as healed — require every
-          # failed test to have re-run AND the rerun to be fully green.
-          if ($null -ne $r2 -and $r2.Result -eq 'Passed' -and $r2.TotalCount -ge $failedNames.Count) {
-            Write-Host "::warning::test-powershell: all $($failedNames.Count) failing test(s) PASSED on rerun — treated as flake (self-healed): $($failedNames -join '; ')"
+          # t/4080 (replaces R4): healed ONLY if every run-1 failed test RE-RAN and PASSED, matched by name.
+          # NotRun / Skipped / absent all count as NOT healed — the old Result/TotalCount check counted
+          # NotRun tests toward "covered" and read zero-failures-because-nothing-ran as Passed.
+          # Identity = File + ExpandedPath, aggregated (SO e/279#6): ExpandedPath alone omits the file, so
+          # co-named tests in two files (or two -ForEach rows) would collide and a Passed copy could erase a Failed one.
+          $asId = { param($t) [pscustomobject]@{ File = [string]$t.ScriptBlock.File; ExpandedPath = [string]$t.ExpandedPath; Result = [string]$t.Result } }
+          $verdict = Get-FlakeRerunVerdict -FailedTests @($failedTests | ForEach-Object { & $asId $_ }) -RerunTests @(if ($null -ne $r2) { $r2.Tests | ForEach-Object { & $asId $_ } })
+          if ($verdict.Healed) {
+            Write-Host "::warning::test-powershell: all $($failedNames.Count) failing test(s) RE-RAN and PASSED — treated as flake (self-healed): $($failedNames -join '; ')"
+            # t/4085: hand the healed identities to the isolated recording step below via a
+            # plain file -- Get-FlakeRerunVerdict's Healed branch is all-or-nothing (it only
+            # reaches here when EVERY run-1 failed test healed), so $failedTests IS the full
+            # healed set; no partial-heal reconstruction needed.
+            # MUST-fix (Lead review, t/4085 PR #3134): this write sits INSIDE the verdict step,
+            # which runs under pwsh's default $ErrorActionPreference='Stop' -- an unhandled
+            # ConvertTo-Json/Out-File failure here would throw and turn a HEALED, green shard
+            # red. The recording step is supposed to be the only thing that can fail on this
+            # path; this try/catch keeps that true by construction, not by hoping the write
+            # never fails. The verdict's own exit code is unconditional either way.
+            try {
+              $failedTests | ForEach-Object { [pscustomobject]@{ File = $_.ScriptBlock.File; ExpandedPath = $_.ExpandedPath } } |
+                ConvertTo-Json -AsArray | Out-File -FilePath "$env:RUNNER_TEMP/flake-heals-input.json" -Encoding utf8
+            } catch {
+              Write-Host "::warning::test-powershell: t/4085 hand-off write failed ($($_.Exception.Message)) -- the self-heal record for this shard will be lost, but the verdict (healed) is unaffected."
+            }
             exit 0
+          }
+          # Real failure (or NotRerun) path -- nothing healed this shard; record an empty list
+          # so the isolated step below always runs against a well-formed file (never "missing").
+          # Same MUST-fix as above: a write failure here must not turn an otherwise-correct
+          # "real failure" verdict into something else, nor abort before the exit 1 below.
+          try {
+            @() | ConvertTo-Json -AsArray | Out-File -FilePath "$env:RUNNER_TEMP/flake-heals-input.json" -Encoding utf8
+          } catch {
+            Write-Host "::warning::test-powershell: t/4085 hand-off write failed ($($_.Exception.Message)) -- the self-heal record for this shard will be lost, but the verdict (not healed) is unaffected."
+          }
+          if (@($verdict.NotRerun).Count -gt 0) {
+            Write-Host "::error::test-powershell: $(@($verdict.NotRerun).Count) failed test(s) did NOT re-run (not found in the rerun of their own files) — NOT treated as flake (fail safe): $($verdict.NotRerun -join '; ')"
           }
           # Real failure (still red, or rerun didn't cover all). t/3546: the verdict claims only
           # what an IN-JOB rerun can prove. An immediate same-job rerun cannot clear resource
@@ -479,10 +547,51 @@ jobs:
             @($r.Tests | Where-Object { $_.Result -eq 'Failed' } | ForEach-Object { @{ Name = $_.ExpandedPath; DurationMs = $_.Duration.TotalMilliseconds } })
           }
           Format-FlakeVerdictMessage -FailedTest $stillFailedTests | ForEach-Object { Write-Host $_ }
-          if ($null -ne $r2 -and $r2.TotalCount -lt $failedNames.Count) {
-            Write-Host "::error::test-powershell: rerun discovered $($r2.TotalCount) of $($failedNames.Count) failed test(s) — NOT treated as flake (fail safe)."
-          }
           exit 1
+
+      - name: Record test-powershell self-heals (t/4085, isolated sink)
+        # #2070 sink pattern: this step is ISOLATED from the Pester step's verdict by construction.
+        # if: always() runs it whether the Pester step passed, healed-and-exited-0, or failed;
+        # continue-on-error: true means a bug in the builder, the write, or the upload here can
+        # NEVER retroactively change that step's already-decided outcome. The non-negotiable
+        # (t/4085#1 AC1) is one-directional: this step reads what the Pester step decided, never
+        # the other way around.
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          . ./operations/devops/FlakeVerdict.ps1
+          $inputPath = "$env:RUNNER_TEMP/flake-heals-input.json"
+          # Absent file = a path that never reached the verdict's healed/still-failing branches
+          # (a clean pass, a container/discovery error, a null-result fail-safe) -- all of those
+          # have zero heals to record, same as an explicit empty array. Never an error.
+          $healedRaw = if (Test-Path $inputPath) { @(Get-Content -Raw -LiteralPath $inputPath | ConvertFrom-Json) } else { @() }
+          $healedTest = @($healedRaw | ForEach-Object { [pscustomobject]@{ File = [string]$_.File; ExpandedPath = [string]$_.ExpandedPath } })
+          $records = New-FlakeHealRecord -HealedTest $healedTest -RunId "$env:GITHUB_RUN_ID" -HeadSha "$env:GITHUB_SHA" -Branch "$env:GITHUB_REF_NAME" -Shard "$env:SHARD"
+          $outDir = "$env:RUNNER_TEMP/flake-heals"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          $outFile = "$outDir/flake-heals-shard-$env:SHARD.jsonl"
+          if (@($records).Count -eq 0) {
+            New-Item -ItemType File -Force -Path $outFile | Out-Null
+          } else {
+            $records | ForEach-Object { $_ | ConvertTo-Json -Compress } | Out-File -FilePath $outFile -Encoding utf8
+          }
+          # NOTE: "$env:SHARD:" (variable immediately followed by a colon) silently interpolates
+          # empty in a double-quoted string -- PowerShell reads "SHARD:" as part of the drive/scope
+          # name. ${env:SHARD} with braces is the safe form (confirmed empty on real CI before this fix).
+          Write-Host "::notice::test-powershell shard ${env:SHARD}: recorded $(@($records).Count) self-heal(s) (t/4085)"
+
+      - name: Upload test-powershell self-heal records (t/4085)
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: flake-heals-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/flake-heals/flake-heals-shard-${{ matrix.shard }}.jsonl
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Explain a test-powershell mid-run kill
         # t/3665 observability (prevention-per-incident, observability half): a mid-run kill reds
@@ -1933,6 +2042,28 @@ jobs:
         # WARN-FIRST: flip by removing continue-on-error after >=1 green cycle (SO + TL GV).
         continue-on-error: true
         run: node --test operations/devops/precommit-hint-guard-parity.test.mjs
+
+      - name: Scheduled-workflow health verdict + list lint (WARN-FIRST — t/4058)
+        # Pure verdict for main-ci-monitor's scheduled-workflow check, plus the LINT that every workflow
+        # with `schedule:` is in operations/devops/scheduled-workflows.json (an unlisted one would be
+        # silently unmonitored — the class behind 4 workflows failing unnoticed for up to 6 weeks).
+        # The suite carries a population floor (>=15 scheduled workflows) so a broken detector cannot
+        # pass it vacuously. WARN-FIRST: flip by removing continue-on-error (SO + TL GV).
+        continue-on-error: true
+        run: node --test operations/devops/scheduled-workflow-health.test.mjs
+
+      - name: Flake-heal tripwire unit suites (WARN-FIRST — t/4085)
+        # Same t/3871 lesson as the merge-guard-predicate step above, applied proactively: a .test.mjs
+        # authored but never wired into a workflow is tested-code/running-code drift waiting to happen
+        # (evidence only at authoring time, never re-checked on the next edit). Covers BOTH the pure
+        # tripwire counter (countRepeatHealers — flagged/not-flagged boundaries, CANNOT-EVALUATE arms)
+        # and the artifact-classification predicate added for the t/4085 PR review (classifyRunArtifacts
+        # — partial-upload-is-unknown, malformed-line-is-unknown). WARN-FIRST: flip by removing
+        # continue-on-error after >=1 green cycle (SO + TL GV), same discipline as its neighbors.
+        continue-on-error: true
+        run: |
+          node --test operations/devops/flake-heal-tripwire.test.mjs
+          node --test operations/devops/collect-flake-heal-runs.test.mjs
 
   # ── complexity-tickets: refactor issues for over-budget files (advisory) ─────
   # Collects the complexity-violations-* artifacts that test-electron (ESLint

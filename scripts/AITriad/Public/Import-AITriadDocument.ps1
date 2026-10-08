@@ -48,8 +48,9 @@ function Import-AITriadDocument {
     .EXAMPLE
         Import-AITriadDocument -File 'path/to/file.pdf' -Pov skeptic
     .NOTES
-        Set backend-specific env vars (GEMINI_API_KEY, ANTHROPIC_API_KEY,
-        GROQ_API_KEY) or AI_API_KEY for metadata enrichment.
+        Set the backend-specific env var for the model (GEMINI_API_KEY,
+        ANTHROPIC_API_KEY, GROQ_API_KEY, ...) for metadata enrichment.
+        AI_API_KEY is a fallback for gemini models only.
     .LINK
         Show-AITriadHelp
     .LINK
@@ -113,12 +114,9 @@ function Import-AITriadDocument {
     $InboxDir   = Join-Path $SourcesDir '_inbox'
 
     # -- AI API key (read once; absence is non-fatal) -------------------------
-    if     ($Model -match '^gemini') { $Backend = 'gemini' }
-    elseif ($Model -match '^claude') { $Backend = 'claude' }
-    elseif ($Model -match '^groq')   { $Backend = 'groq'   }
-        elseif ($Model -match '^openai') { $Backend = 'openai' }
-    else                             { $Backend = 'gemini'  }
-    $AIApiKey  = Resolve-AIApiKey -ExplicitKey '' -Backend $Backend
+    # Backend from ai-models.json, never guessed. Only presence is checked here: Get-AIMetadata gets no
+    # key, so Invoke-AIApi resolves it for the registry backend (t/4087).
+    $AIKeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey ''
 
     # =========================================================================
     # Inner function — called once per document
@@ -305,14 +303,13 @@ function Import-AITriadDocument {
         # -- Gemini metadata enrichment ---------------------------------------
         $AiMeta = $null
 
-        if (-not $SkipAiMeta -and -not [string]::IsNullOrWhiteSpace($AIApiKey)) {
+        if (-not $SkipAiMeta -and $AIKeyStatus.HasKey) {
             try {
                 $AiMeta = Get-AIMetadata `
                     -MarkdownText  $MarkdownText `
                     -SourceUrl     $SourceUrl `
                     -FallbackTitle $Title `
-                    -Model         $Model `
-                    -ApiKey        $AIApiKey
+                    -Model         $Model
             } catch {
                 Write-Warn "AI enrichment threw an exception — continuing with heuristics: $_"
                 $AiMeta = $null
@@ -320,7 +317,7 @@ function Import-AITriadDocument {
         } elseif ($SkipAiMeta) {
             Write-Info "Skipping AI enrichment (-SkipAiMeta)"
         } else {
-            Write-Warn "No API key found — metadata enrichment skipped. Set backend env var or AI_API_KEY."
+            Write-Warn "No API key found for the $($AIKeyStatus.Backend) backend — metadata enrichment skipped. Set $($AIKeyStatus.EnvHint)."
         }
 
         # Merge AI results with heuristic values and user-supplied flags

@@ -1,0 +1,37 @@
+{
+  "scenario": "nothing-to-do",
+  "host": [
+    "Nothing to extract — no nodes with facts match the filter, or all are already done."
+  ],
+  "warnings": [
+    "Invoke-EntityExtraction: organizations.json could not be loaded (\n  Goal:     Load organizations registry\n  Error:    organizations.json not found at <ROOT>/taxonomy/organizations.json\n  Location: Get-OrganizationsStore\n  Resolve:\n   1. Verify the data repo is present at ../ai-triad-data/\n   2. Check .aitriad.json or $env:AI_TRIAD_DATA_ROOT for override\n   3. Confirm taxonomy/Origin/organizations.json exists in the data repo); continuing without it, so proposals it would have linked may be minted as new entities."
+  ],
+  "verbose": [
+    "Work items: 0 (skipped no-facts: 1, already-done: 1)"
+  ],
+  "error": null,
+  "output": [
+    {
+      "NodesProcessed": 0,
+      "ProposalsTotal": 0,
+      "Minted": 0,
+      "Linked": 0,
+      "DroppedBelowGate": 0,
+      "NearGateMinted": 0,
+      "InvalidDropped": 0,
+      "Failed": 0,
+      "SkippedNoFacts": 1,
+      "SkippedAlreadyDone": 1,
+      "MintedEntities": [],
+      "LinkedDispositions": [],
+      "OutputPath": "<ROOT>/taxonomy/entity_extraction_log.json"
+    }
+  ],
+  "calls": [],
+  "writes": [],
+  "tree": {
+    "taxonomy/": "(dir)",
+    "taxonomy/entity_extraction_log.json": "{\n  \"_schema_version\": \"1.2.0\",\n  \"_doc\": \"seed\",\n  \"last_modified\": \"2025-12-01\",\n  \"node_count\": 1,\n  \"nodes\": [\n    {\n      \"node_id\": \"node-x\",\n      \"processed_at\": \"2025-12-01T00:00:00.0000000Z\",\n      \"model\": \"old-model\",\n      \"proposals_total\": 1,\n      \"org_mentions\": [],\n      \"evidence\": [],\n      \"dropped\": [],\n      \"possible_duplicates\": []\n    }\n  ]\n}",
+    "taxonomy/source_evidence_index.json": "{\n  \"node-d\": {\n    \"facts\": []\n  },\n  \"node-x\": {\n    \"facts\": [\n      {\n        \"claim\": \"X\"\n      }\n    ]\n  }\n}"
+  }
+}

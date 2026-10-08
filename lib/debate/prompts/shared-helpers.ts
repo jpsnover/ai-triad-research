@@ -44,9 +44,9 @@ function formatValueHierarchy(hierarchy: string[]): string {
   return `\nVALUE HIERARCHY (resolve internal conflicts top-down):\n${tiers}\nWhen your values conflict, higher tiers override lower tiers. Tier 1 is non-negotiable.\n`;
 }
 
-export function getCharacterBlock(pov: string, soul?: PovInfo): string {
-  const info = soul ?? POVER_INFO[pov as keyof typeof POVER_INFO];
-  if (!info?.voice) return '';
+export function getCharacterBlock(pov: string, soul: PovInfo): string {
+  const info = soul;
+  if (!info.voice) return '';
   const scope = getTopicScope();
   const scopeBlock = hasMeaningfulScope(scope) ? `\n${formatDebateScopeBlock(scope)}\n` : '';
   const valueBlock = formatValueHierarchy(info.value_hierarchy);
@@ -164,9 +164,8 @@ export function otherDebaters(currentLabel: string, opponentSouls?: Partial<Reco
 
 /** Format hardcoded/softcoded boundaries as a prompt injection block.
  *  Uses the resolved soul when provided; falls back to POVER_INFO by pov key. */
-export function formatDoctrinalBoundaries(pov?: string, soul?: PovInfo): string {
-  if (!pov && !soul) return '';
-  const info = soul ?? (pov ? POVER_INFO[pov as keyof typeof POVER_INFO] : undefined);
+export function formatDoctrinalBoundaries(pov: string, soul: PovInfo): string {
+  const info = soul;
   if (!info?.boundaries) return '';
   const { hardcoded, softcoded } = info.boundaries;
   const sections: string[] = [];
@@ -294,9 +293,9 @@ function extractStarredNodes(taxonomyContext: string): string[] {
   return results;
 }
 
-export function buildRecapSection(taxonomyContext: string, phase?: DebatePhase, pov?: string, soul?: PovInfo, pendingInterventionField?: string): string {
+export function buildRecapSection(taxonomyContext: string, phase: DebatePhase | undefined, pov: string | undefined, soul: PovInfo, pendingInterventionField?: string): string {
   const starred = extractStarredNodes(taxonomyContext);
-  if (starred.length === 0 && !phase && !pov && !soul) return '';
+  if (starred.length === 0 && !phase && !pov) return '';
 
   const lines: string[] = ['', '=== RECALL ==='];
 
@@ -314,19 +313,14 @@ export function buildRecapSection(taxonomyContext: string, phase?: DebatePhase, 
     lines.push(`Phase priority: ${priorities[phase]}`);
   }
 
-  if (pov || soul) {
-    const info = soul ?? (pov ? POVER_INFO[pov as keyof typeof POVER_INFO] : undefined);
-    if (info) {
-      if (info.boundaries?.hardcoded && info.boundaries.hardcoded.length > 0) {
-        lines.push(`Hardcoded boundaries (NEVER concede): ${info.boundaries.hardcoded.join('; ')}`);
-      }
-      if (info.value_hierarchy && info.value_hierarchy.length > 0) {
-        lines.push(`Value hierarchy: ${info.value_hierarchy.map((v, i) => `(${i + 1}) ${v}`).join(' > ')}`);
-      }
-      if (info.epistemic_stance && info.epistemic_stance.length > 0) {
-        lines.push(`Epistemic stance: ${info.epistemic_stance[0]}. Falsification: ${info.epistemic_stance[info.epistemic_stance.length - 1].replace(/^Falsification challenge: /, '')}`);
-      }
-    }
+  if (soul.boundaries?.hardcoded && soul.boundaries.hardcoded.length > 0) {
+    lines.push(`Hardcoded boundaries (NEVER concede): ${soul.boundaries.hardcoded.join('; ')}`);
+  }
+  if (soul.value_hierarchy && soul.value_hierarchy.length > 0) {
+    lines.push(`Value hierarchy: ${soul.value_hierarchy.map((v, i) => `(${i + 1}) ${v}`).join(' > ')}`);
+  }
+  if (soul.epistemic_stance && soul.epistemic_stance.length > 0) {
+    lines.push(`Epistemic stance: ${soul.epistemic_stance[0]}. Falsification: ${soul.epistemic_stance[soul.epistemic_stance.length - 1].replace(/^Falsification challenge: /, '')}`);
   }
 
   lines.push('Write as a human — no academic transitions, no meta-announcements, no shared jargon.');

@@ -1,0 +1,102 @@
+{
+  "scenario": "whatif",
+  "host": [
+    "[Cyan] \n▶  Validating inputs",
+    "[Green]    ✓  Doc ID      : doc-1",
+    "[Green]    ✓  Repo root   : <ROOT>",
+    "[Green]    ✓  Model       : gemini-3.5-flash-lite",
+    "[Green]    ✓  Temperature : 0.1",
+    "[Cyan] \n▶  Loading taxonomy",
+    "[Green]    ✓  Taxonomy version: 2.4.0",
+    "[Cyan] \n▶  Loading document snapshot",
+    "[Green]    ✓  Snapshot loaded: 68 chars (~17 tokens estimated)",
+    "[Gray]    →  Title from metadata: Doc Title",
+    "[Gray]    →  POV tags in metadata: accelerationist, safetyist",
+    "[Cyan] \n▶  Running extraction pipeline",
+    "[Green]    ✓  Pipeline complete in 12.5s (mock-backend)",
+    "[Yellow]    ⚠    accelerationist : no data returned",
+    "[Green]    ✓    safetyist : 1 key points (0 unmapped)",
+    "[Yellow]    ⚠    skeptic : no data returned",
+    "[Green]    ✓    factual_claims    : 2",
+    "[Green]    ✓    unmapped_concepts : 0",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   POV SUMMARY: doc-1",
+    "[Gray]   Taxonomy v2.4.0  |  Model: gemini-3.5-flash-lite",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[Green] \n  [ACCELERATIONIST]",
+    "[DarkGray]     (no key points extracted)",
+    "[Red] \n  [SAFETYIST]",
+    "[White]     Beliefs:",
+    "[Gray]       [saf-beliefs-001] (supports) One.",
+    "[Yellow] \n  [SKEPTIC]",
+    "[DarkGray]     (no key points extracted)",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[Yellow]   No files written.",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
+  ],
+  "warnings": [],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-system",
+      "replacements": null
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-schema",
+      "replacements": null
+    },
+    {
+      "call": "pipeline",
+      "docId": "doc-1",
+      "model": "gemini-3.5-flash-lite",
+      "apiKey": "",
+      "temperature": 0.1,
+      "taxonomyVersion": "2.4.0",
+      "systemPromptTemplate": "<<pov-summary-system>>",
+      "outputSchema": "<<pov-summary-schema>>",
+      "fullTaxonomy": false,
+      "iterativeExtraction": false,
+      "autoFire": false,
+      "ragMaxTotal": 300,
+      "crossEncoderRerank": false,
+      "snapshotText": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+      "metadata": {
+        "title": "Doc Title",
+        "pov_tags": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "source_type": "blog",
+        "summary_status": "pending",
+        "claims_by_pov": {
+          "accelerationist": 9
+        }
+      }
+    }
+  ],
+  "writes": [],
+  "tree": {
+    "conflicts/": "(dir)",
+    "conflicts/conflict-compute-doubles-every-x.json": "{\n  \"claim_id\": \"conflict-compute-doubles-every-x\",\n  \"claim_label\": \"conflict-compute-doubles-every-x label\",\n  \"description\": \"conflict-compute-doubles-every-x description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [],\n  \"instances\": [\n    {\n      \"doc_id\": \"someone-else\",\n      \"stance\": \"disputes\",\n      \"assertion\": \"other\",\n      \"date_flagged\": \"2025-11-01\"\n    }\n  ],\n  \"human_notes\": []\n}",
+    "conflicts/conflict-existing.json": "{\n  \"claim_id\": \"conflict-existing\",\n  \"claim_label\": \"conflict-existing label\",\n  \"description\": \"conflict-existing description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"acc-beliefs-001\",\n    \"skp-beliefs-009\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"someone-else\",\n      \"stance\": \"disputes\",\n      \"assertion\": \"other\",\n      \"date_flagged\": \"2025-11-01\"\n    }\n  ],\n  \"human_notes\": []\n}",
+    "conflicts/conflict-logged.json": "{\n  \"claim_id\": \"conflict-logged\",\n  \"claim_label\": \"conflict-logged label\",\n  \"description\": \"conflict-logged description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"skp-beliefs-004\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"doc-1\",\n      \"stance\": \"supports\",\n      \"assertion\": \"earlier\",\n      \"date_flagged\": \"2025-12-01\"\n    }\n  ],\n  \"human_notes\": []\n}",
+    "conflicts/conflict-open-weights-reduce-power.json": "{\n  \"claim_id\": \"conflict-open-weights-reduce-power\",\n  \"claim_label\": \"conflict-open-weights-reduce-power label\",\n  \"description\": \"conflict-open-weights-reduce-power description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"sit-009\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"doc-1\",\n      \"stance\": \"supports\",\n      \"assertion\": \"earlier\",\n      \"date_flagged\": \"2025-12-01\"\n    }\n  ],\n  \"human_notes\": []\n}",
+    "conflicts/conflict-small.json": "{\n  \"claim_id\": \"conflict-small\",\n  \"claim_label\": \"conflict-small label\",\n  \"description\": \"conflict-small description\",\n  \"status\": \"open\",\n  \"linked_taxonomy_nodes\": [\n    \"skp-beliefs-001\"\n  ],\n  \"instances\": [\n    {\n      \"doc_id\": \"someone-else\",\n      \"stance\": \"disputes\",\n      \"assertion\": \"other\",\n      \"date_flagged\": \"2025-11-01\"\n    }\n  ],\n  \"human_notes\": []\n}",
+    "sources/": "(dir)",
+    "sources/doc-1/": "(dir)",
+    "sources/doc-1/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"pending\",\n  \"claims_by_pov\": {\n    \"accelerationist\": 9\n  }\n}",
+    "sources/doc-1/snapshot.md": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+    "summaries/": "(dir)",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}

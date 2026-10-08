@@ -16,7 +16,7 @@ import { generateDebateTitlePrompt } from '../../prompts/newDebateDialog';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
-import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
+import { resolveMultiProviderModels, eligibleDebateBackends } from '@lib/ai-client/modelRouter';
 import { useTierInfo, isFreeTier, type TierInfo } from '../../hooks/useTierInfo';
 import { useGeminiOnboarding } from '../../hooks/useGeminiOnboarding';
 import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
@@ -24,7 +24,7 @@ import { useSettingsDialog } from '../../hooks/useSettingsDialog';
 import { GeminiOnboardingModal } from '../settings/GeminiOnboardingModal';
 import { buildDebateOptions } from './newDebateOptions';
 import { SettingsToggleRow } from './SettingsToggleRow';
-import { SeatTagPicker, seatTagLabel, seatTagRefusal, registryOrNull } from './SeatTagPicker';
+import { SeatTagPicker, seatTagLabel, seatTagRefusal, seatTagIssueMessage, registryOrNull } from './SeatTagPicker';
 
 const DEBATE_EXCLUDED_BACKENDS = new Set(['ollama']); // can't reliably produce structured JSON for debates — capability gap, not an oversight
 
@@ -66,15 +66,17 @@ async function fetchDebateUrlContent(sourceRef: string): Promise<string> {
   }
 }
 
+// t/4046: eligibleBackends is the same (tier, availableBackends, registry) triple resolveMultiProviderModels draws from — computed from the one registry built here so the two never disagree (SO e/267#3); threaded into CreateDebateOptions for sessionSlice's model_pool fingerprint.
 function resolveDebateSpeakerModels(
   modelTier: 'basic' | 'advanced',
   activeBackends: string[],
   povers: SpeakerId[],
-): Record<string, string> | undefined | typeof RESOLVE_FAILED {
+): { speakerModels: Record<string, string>; eligibleBackends: string[] } | typeof RESOLVE_FAILED {
   try {
     const aiSpeakers = povers.filter(p => p !== 'user');
     const registry = { backends: AI_BACKENDS.map(b => ({ id: b.value, label: b.label })), models: [], debateTiers: DEBATE_TIERS };
-    return resolveMultiProviderModels(modelTier, activeBackends, aiSpeakers, registry);
+    const speakerModels = resolveMultiProviderModels(modelTier, activeBackends, aiSpeakers, registry);
+    return { speakerModels, eligibleBackends: eligibleDebateBackends(modelTier, activeBackends, registry) };
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'new-debate-dialog', level: 'error', message: 'Failed to resolve multi-provider models', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return RESOLVE_FAILED;
@@ -86,7 +88,7 @@ function buildCreationWeights(confrontationRounds: number, argumentationRounds: 
 }
 // t/3958: extracted out of NewDebateDialog/DebateSettingsDialog so their own branch count (ESLint complexity-budget, t/3821) doesn't absorb the seat-tag refusal logic.
 function computeCanStart(hasSource: boolean, selectedSize: number, multiProvider: boolean, activeBackendsLen: number, activeModelHasKey: boolean, seatTagIssue: unknown): boolean { return hasSource && selectedSize >= 1 && (multiProvider ? activeBackendsLen >= 2 : activeModelHasKey) && !seatTagIssue; }
-function renderSeatTagIssueBanner(startError: string | null, seatTagIssue: ReturnType<typeof seatTagRefusal>, className: string) { return !startError && seatTagIssue ? <div className={className} role="alert">{seatTagIssue.minimum ? `Only ${seatTagIssue.inScope} node${seatTagIssue.inScope === 1 ? '' : 's'} carry the selected tag (minimum ${seatTagIssue.minimum})` : 'No nodes carry the selected tag'} — change the tag or mode for that seat.</div> : null; }
+function renderSeatTagIssueBanner(startError: string | null, seatTagIssue: ReturnType<typeof seatTagRefusal>, className: string) { return !startError && seatTagIssue ? <div className={className} role="alert">{seatTagIssueMessage(seatTagIssue)} — change the tag or mode for that seat.</div> : null; }
 
 function buildDebateSourceArgs(sourceType: DebateSourceType, sourceRef: string, finalContent: string): { sourceTypeArg: DebateSourceType; sourceRefArg: string; contentArg: string } {
   return {
@@ -1154,14 +1156,13 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
       const povers = Array.from(selected);
       if (userIsPover && !povers.includes('user')) povers.push('user');
       const effectiveModel = useCustomModel ? customModel : globalModel;
-      localStorage.setItem('taxonomy-editor-last-debate-model', effectiveModel);
       const debateModelOverride = computeDebateModelOverride(multiProvider, useCustomModel, customModel);
 
-      let speakerModels: Record<string, string> | undefined;
+      let speakerModels: Record<string, string> | undefined; let eligibleBackends: string[] | undefined;
       if (multiProvider) {
         const resolved = resolveDebateSpeakerModels(modelTier, activeBackends, povers);
         if (resolved === RESOLVE_FAILED) { setCreating(false); return; }
-        speakerModels = resolved;
+        speakerModels = resolved.speakerModels; eligibleBackends = resolved.eligibleBackends;
       }
 
       const { sourceTypeArg, sourceRefArg, contentArg } = buildDebateSourceArgs(
@@ -1171,7 +1172,7 @@ export function NewDebateDialog({ onClose, onAtCap }: NewDebateDialogProps) {
       const id = await createDebate(
         finalTopic, povers, userIsPover, sourceTypeArg, sourceRefArg, contentArg,
         debateModelOverride, protocolId, temperature, audience,
-        buildDebateOptions({ debateTitle: titleOverride, background, evaluatorModel, confrontationRounds, argumentationRounds, concludingRounds, speakerModels, multiProvider, modelTier, stepMode, excludeGreatestHits, narrativeVoicing, stageModels, seatTags }),
+        buildDebateOptions({ debateTitle: titleOverride, background, evaluatorModel, confrontationRounds, argumentationRounds, concludingRounds, speakerModels, eligibleBackends, multiProvider, modelTier, stepMode, excludeGreatestHits, narrativeVoicing, stageModels, seatTags }),
       );
       await loadDebate(id);
       const creationWeights = buildCreationWeights(confrontationRounds, argumentationRounds, concludingRounds);

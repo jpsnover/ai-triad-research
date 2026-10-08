@@ -219,7 +219,7 @@ function Protect-SensitiveText {
 # ─────────────────────────────────────────────────────────────────────────────
 # Resolve-AIApiKey
 # Resolves the API key for a given backend using the priority:
-#   explicit -ApiKey > backend-specific env var > AI_API_KEY fallback
+#   explicit -ApiKey > backend-specific env var > AI_API_KEY fallback (gemini only, t/4102)
 # ─────────────────────────────────────────────────────────────────────────────
 <#
 .SYNOPSIS
@@ -231,7 +231,9 @@ function Protect-SensitiveText {
     1. Explicit key passed via -ExplicitKey parameter.
     2. Backend-specific environment variable (GEMINI_API_KEY, ANTHROPIC_API_KEY
        or CLAUDE_API_KEY, GROQ_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_API_KEY).
-    3. Universal fallback: $env:AI_API_KEY.
+    3. Gemini only: the generic fallback $env:AI_API_KEY. For any other
+       backend, a set AI_API_KEY with no backend variable is refused with an
+       error naming that backend's own variable (t/4102).
 
     Returns $null if no key is found at any level.  The resolved source is
     tracked in $script:LastApiKeySource for diagnostic logging.
@@ -249,6 +251,76 @@ function Protect-SensitiveText {
 
     Returns the explicit key, ignoring environment variables.
 #>
+$script:AIApiKeyEnvVarMap = @{
+    'gemini' = @('GEMINI_API_KEY')
+    'claude' = @('ANTHROPIC_API_KEY', 'CLAUDE_API_KEY')
+    'groq'   = @('GROQ_API_KEY')
+    'openai' = @('OPENAI_API_KEY')
+    'azure'  = @('AZURE_OPENAI_API_KEY')
+    'zai'    = @('ZAI_API_KEY')
+    'moonshot' = @('MOONSHOT_API_KEY')
+    'xai'    = @('XAI_API_KEY')
+    'deepseek' = @('DEEPSEEK_API_KEY')
+}
+$script:AIApiKeyFallbackWarned = @{}
+# FullyQualifiedErrorId of the gemini-only AI_API_KEY refusal (t/4102). Match it with Test-AIApiKeyGeminiOnlyRefusal.
+$script:GeminiOnlyRefusalErrorId = 'AIApiKeyGeminiOnlyRefused'
+# FullyQualifiedErrorId of the refusal of a key that is another backend's named credential (t/4087). Named in
+# parallel with the TS KeyRefusalKind (lib/ai-client/apiKeyFallback.ts) so logs read the same from both tools.
+# NO consumer branches on this id: every path surfaces the refusal, nothing softens it. That is why it shipped
+# T0 (t/4110). THE EXEMPTION LAPSES the moment a consumer branches on it; that change is T1 or higher.
+$script:ForeignCredentialRefusalErrorId = 'AIApiKeyForeignCredentialRefused'
+
+function Test-AIApiKeyGeminiOnlyRefusal {
+    <#
+    .SYNOPSIS
+        True when an ErrorRecord is Resolve-AIApiKey's gemini-only AI_API_KEY refusal (t/4102). Classifies by
+        error kind (FullyQualifiedErrorId), so a listing path can soften exactly this refusal and nothing else.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory)][System.Management.Automation.ErrorRecord]$ErrorRecord)
+    return ($ErrorRecord.FullyQualifiedErrorId -like "$script:GeminiOnlyRefusalErrorId*")
+}
+
+# The env var (of a backend OTHER than $Backend) that holds exactly $Key, or '' if none. A key equal to
+# another backend's named variable IS that backend's credential, whatever route it took to get here.
+function Get-AIApiKeyForeignOwner {
+    param([string]$Key, [string]$Backend)
+    $OwnVars = if ($script:AIApiKeyEnvVarMap.ContainsKey($Backend)) { @($script:AIApiKeyEnvVarMap[$Backend]) } else { @() }
+    foreach ($Var in $OwnVars) {
+        if ([System.Environment]::GetEnvironmentVariable($Var) -ceq $Key) { return '' }
+    }
+    foreach ($Other in ($script:AIApiKeyEnvVarMap.Keys | Sort-Object)) {
+        if ($Other -eq $Backend) { continue }
+        foreach ($Var in $script:AIApiKeyEnvVarMap[$Other]) {
+            $Value = [System.Environment]::GetEnvironmentVariable($Var)
+            if (-not [string]::IsNullOrWhiteSpace($Value) -and $Value -ceq $Key) { return $Var }
+        }
+    }
+    ''
+}
+
+# t/4087: an env-var key may only ever reach the backend it is named for. Refuse, before any send, a key
+# that is another backend's named credential. The message names variables, never key material.
+function Assert-AIApiKeyBackend {
+    param([string]$Key, [string]$Backend, [string]$Route)
+    $Owner = Get-AIApiKeyForeignOwner -Key $Key -Backend $Backend
+    if (-not $Owner) { return }
+    $script:LastApiKeySource = "(refused: $Route matches `$env:$Owner)"
+    $Message = @(
+        "Goal:     Resolve an API key for the '$Backend' backend"
+        "Error:    the $Route key is the value of `$env:$Owner, another backend's credential; it will not be sent to '$Backend' (t/4087)"
+        'Location: Resolve-AIApiKey (AIEnrich.psm1)'
+        "Resolve:  set the '$Backend' backend's own key variable, or pass -ApiKey with a key issued for '$Backend'"
+    ) -join [Environment]::NewLine
+    # Typed kind, named in parallel with AIApiKeyGeminiOnlyRefused and identical in the TS client (TL e/284#14).
+    # Never softened anywhere: every path surfaces it.
+    throw [System.Management.Automation.ErrorRecord]::new(
+        [System.InvalidOperationException]::new($Message), $script:ForeignCredentialRefusalErrorId,
+        [System.Management.Automation.ErrorCategory]::PermissionDenied, $Backend)
+}
+
 function Resolve-AIApiKey {
     [CmdletBinding()]
     param(
@@ -257,23 +329,12 @@ function Resolve-AIApiKey {
     )
 
     if (-not [string]::IsNullOrWhiteSpace($ExplicitKey)) {
+        Assert-AIApiKeyBackend -Key $ExplicitKey -Backend $Backend -Route 'explicit -ApiKey'
         $script:LastApiKeySource = 'explicit parameter'
         return $ExplicitKey
     }
 
-    $EnvVarMap = @{
-        'gemini' = @('GEMINI_API_KEY')
-        'claude' = @('ANTHROPIC_API_KEY', 'CLAUDE_API_KEY')
-        'groq'   = @('GROQ_API_KEY')
-        'openai' = @('OPENAI_API_KEY')
-        'azure'  = @('AZURE_OPENAI_API_KEY')
-        'zai'    = @('ZAI_API_KEY')
-        'moonshot' = @('MOONSHOT_API_KEY')
-        'xai'    = @('XAI_API_KEY')
-        'deepseek' = @('DEEPSEEK_API_KEY')
-    }
-
-    $BackendEnvVars = $EnvVarMap[$Backend]
+    $BackendEnvVars = $script:AIApiKeyEnvVarMap[$Backend]
     foreach ($BackendEnvVar in $BackendEnvVars) {
         $BackendKey = [System.Environment]::GetEnvironmentVariable($BackendEnvVar)
         if (-not [string]::IsNullOrWhiteSpace($BackendKey)) {
@@ -282,8 +343,33 @@ function Resolve-AIApiKey {
         }
     }
 
+    # AI_API_KEY is the generic fallback for the gemini backend ONLY (PI decision, t/4102). The fallback
+    # can't say which provider's key it holds, so offering it elsewhere sends an unknown credential to that
+    # provider. For any other backend a set AI_API_KEY is refused actionably, naming the variable the
+    # backend actually reads. The message names variables, never key material.
     $Fallback = $env:AI_API_KEY
+    if ($Backend -ne 'gemini' -and -not [string]::IsNullOrWhiteSpace($Fallback)) {
+        $OwnVars = if ($script:AIApiKeyEnvVarMap.ContainsKey($Backend)) { @($script:AIApiKeyEnvVarMap[$Backend]) -join ' or ' } else { "the '$Backend' backend's key variable" }
+        $script:LastApiKeySource = '(refused: $env:AI_API_KEY is gemini-only)'
+        $Message = @(
+            "Goal:     Resolve an API key for the '$Backend' backend"
+            "Error:    no key for backend '$Backend': `$env:AI_API_KEY is set, but it is the fallback for the gemini backend only and is never sent to '$Backend' (t/4102)"
+            'Location: Resolve-AIApiKey (AIEnrich.psm1)'
+            "Resolve:  set $OwnVars, or pass -ApiKey with a key issued for '$Backend'"
+        ) -join [Environment]::NewLine
+        # A typed error kind, so callers classify this refusal by kind, never by message text or check order
+        # (SO e/284#12). Only listing/status paths and SECONDARY cascade links may treat it as "not configured";
+        # a call's primary backend always surfaces it, and it is never a reason to fail over.
+        throw [System.Management.Automation.ErrorRecord]::new(
+            [System.InvalidOperationException]::new($Message), $script:GeminiOnlyRefusalErrorId,
+            [System.Management.Automation.ErrorCategory]::PermissionDenied, $Backend)
+    }
     if (-not [string]::IsNullOrWhiteSpace($Fallback)) {
+        Assert-AIApiKeyBackend -Key $Fallback -Backend $Backend -Route '$env:AI_API_KEY fallback'
+        if (-not $script:AIApiKeyFallbackWarned.ContainsKey($Backend)) {
+            $script:AIApiKeyFallbackWarned[$Backend] = $true
+            Write-Warning "No key variable for the '$Backend' backend is set; using the generic `$env:AI_API_KEY fallback for '$Backend' (warned once per backend per session)."
+        }
         $script:LastApiKeySource = '$env:AI_API_KEY (fallback)'
         return $Fallback
     }
@@ -344,7 +430,12 @@ function Measure-PromptTokens {
         [string]$ApiKey = ''
     )
 
-    $GeminiKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend 'gemini'
+    # countTokens is a Gemini endpoint, so this deliberately resolves the GEMINI key (t/4087: correct
+    # key -> backend pairing). A foreign explicit key is refused by Resolve-AIApiKey; degrade to the
+    # heuristic rather than fail a pre-flight estimate.
+    $GeminiKey = $null
+    try { $GeminiKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend 'gemini' }
+    catch { Write-Warning "Measure-PromptTokens: $($_.Exception.Message.Split([Environment]::NewLine)[1].Trim()) -- using the character heuristic (Accurate=`$false)" }
     if ($GeminiKey) {
         try {
             # Key travels in the x-goog-api-key header, not the URL — a ?key= query
@@ -573,7 +664,7 @@ function Invoke-AIApi {
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
             $EnvHint = switch ($Backend) {
-                'gemini' { 'GEMINI_API_KEY' }
+                'gemini' { 'GEMINI_API_KEY or AI_API_KEY' }   # the AI_API_KEY fallback is gemini-only (t/4102)
                 'claude' { 'ANTHROPIC_API_KEY / CLAUDE_API_KEY' }
                 'groq'   { 'GROQ_API_KEY' }
                 'openai' { 'OPENAI_API_KEY' }
@@ -585,7 +676,7 @@ function Invoke-AIApi {
                 'deepseek' { 'DEEPSEEK_API_KEY' }
                 default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama/zai/moonshot/xai/deepseek)" }
             }
-            Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
+            Write-Warning "No API key found for $Backend backend. Set $EnvHint."
             return $null
         }
     }
@@ -1114,7 +1205,16 @@ function Invoke-AIApi {
                 $FbInfo = $script:ModelRegistry[$FbModel]
                 if (-not $FbInfo) { continue }
                 if ($StatusCode -in @(401, 403) -and $FbInfo.Backend -eq $Backend) { continue }
-                $FbKey = Resolve-AIApiKey -ExplicitKey '' -Backend $FbInfo.Backend
+                # A SECONDARY link whose only key is the gemini-only $env:AI_API_KEY is "not configured" here,
+                # not an error: skip it and say why (t/4102, SO e/284#2 cond. 1). Other refusals propagate. The
+                # primary backend's refusal never reaches this cascade: it is thrown at key resolution, before
+                # any request, so it can never be served by a link further down the chain (SO e/284#10).
+                try { $FbKey = Resolve-AIApiKey -ExplicitKey '' -Backend $FbInfo.Backend }
+                catch {
+                    if (-not (Test-AIApiKeyGeminiOnlyRefusal -ErrorRecord $_)) { throw }
+                    Write-Warning "Cascade: skipping $FbModel ($($FbInfo.Backend)): `$env:AI_API_KEY applies to gemini only and no key for '$($FbInfo.Backend)' is set"
+                    continue
+                }
                 if ([string]::IsNullOrWhiteSpace($FbKey)) { continue }
 
                 Write-Warning "Cascade: falling back to $FbModel ($($FbInfo.Backend))"
@@ -1779,5 +1879,5 @@ function Repair-TruncatedJson {
 Set-Alias -Name 'Invoke-GeminiApi'   -Value 'Invoke-AIApi'
 Set-Alias -Name 'Get-GeminiMetadata' -Value 'Get-AIMetadata'
 
-Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Get-AIApiKeySource, Repair-TruncatedJson, Measure-PromptTokens, Set-AIApiCorrelationId, Protect-SensitiveText `
+Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Get-AIApiKeySource, Test-AIApiKeyGeminiOnlyRefusal, Repair-TruncatedJson, Measure-PromptTokens, Set-AIApiCorrelationId, Protect-SensitiveText `
                     -Alias    Invoke-GeminiApi, Get-GeminiMetadata

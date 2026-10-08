@@ -1,0 +1,3153 @@
+{
+  "ticket": "t/3962 step 4",
+  "authorization": "PI p/314#192 (recorded t/3962#18)",
+  "base_data_commit": "b70afaeea10cfcf8b21f30e016f0914688bdb7d3",
+  "base_side_file_sha256": "f2b433b999b20ee158eebadeea915e92ea9c3e2da24f8c395b65b9ba201b31f9",
+  "base_skeptic_sha256": "d8f4e61472251a41ef0576279ed89584c26c715dafb64acffed1df000150a2d1",
+  "count": 377,
+  "tagged_count": 371,
+  "untagged_ids": [
+    "skp-intentions-013",
+    "skp-beliefs-074",
+    "skp-intentions-105",
+    "skp-beliefs-175",
+    "skp-beliefs-192",
+    "skp-beliefs-283"
+  ],
+  "assignments": [
+    {
+      "node_id": "skp-desires-003",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-001",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-002",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-129",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-146",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-004",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-005",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-006",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-007",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-004",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-005",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-008",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-007",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-008",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-009",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-122",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-011",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-013",
+      "tags": [],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-014",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-017",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-123",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-desires-006",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-124",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-014",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-125",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-023",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-017",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-131",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-018",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-019",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-132",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-133",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-021",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-029",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-022",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-118",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-135",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-024",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-119",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-127",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-136",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-034",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-035",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-009",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-026",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-027",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-137",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-143",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-028",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-120",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-138",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-029",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-040",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-030",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-031",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-139",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-069",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-032",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-011",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-044",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-034",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-035",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-140",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-141",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-036",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-037",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-038",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-070",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-121",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-142",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-143",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-144",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-040",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-145",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-014",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-041",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-042",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-043",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-044",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-045",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-046",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-047",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-055",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-146",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-147",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-059",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-148",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-149",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-150",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-051",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-052",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-053",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-054",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-152",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-154",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-065",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-056",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-desires-073",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-068",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-069",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-057",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-156",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-157",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-158",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-059",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-desires-061",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-062",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-074",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-074",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-075",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-159",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-060",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-061",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-144",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-160",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-063",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-079",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-064",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-080",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-161",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-082",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-065",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-083",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-076",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-068",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-163",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-087",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-069",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-066",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-070",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-094",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-095",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-164",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-096",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-145",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-165",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-094",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-074",
+      "tags": [],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-075",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-076",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-095",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-098",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-099",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-166",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-101",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-097",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-167",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-168",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-169",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-102",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-170",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-104",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-105",
+      "tags": [],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-102",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-107",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-108",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-171",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-184",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-185",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-110",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-111",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-067",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-103",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-104",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-121",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-106",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-107",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-108",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-109",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-110",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-112",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-111",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-172",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-112",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-113",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-115",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-116",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-117",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-077",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-078",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-124",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-173",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-174",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-127",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-128",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-175",
+      "tags": [],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-129",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-176",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-177",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-178",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-179",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-131",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-132",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-133",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-180",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-181",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-135",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-136",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-137",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-182",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-183",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-186",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-187",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-138",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-139",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-188",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-189",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-190",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-140",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-191",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-192",
+      "tags": [],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-193",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-194",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-195",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-196",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-197",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-desires-079",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-080",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-081",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-082",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-141",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-142",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-198",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-199",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-200",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-201",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-202",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-203",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-204",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-205",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-083",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-147",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-210",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-211",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-212",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-213",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-214",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-215",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-148",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-216",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-217",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-218",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-219",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-149",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-220",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-desires-084",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-221",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-222",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-223",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-224",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-225",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-226",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-150",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-227",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-228",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-229",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-151",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-152",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-230",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-231",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-153",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-232",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-233",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-154",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-234",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-235",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-236",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-155",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-237",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-156",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-238",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-239",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-157",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-240",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-241",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-158",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-242",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-243",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-244",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-159",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-160",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-245",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-246",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-247",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-248",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-desires-085",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-161",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-249",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-250",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-251",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-086",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-252",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-253",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-254",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-255",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-256",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-257",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-162",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-258",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-259",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-163",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-260",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-261",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-262",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-263",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-264",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-265",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-266",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-267",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-268",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-269",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-270",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-271",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-272",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-273",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-274",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-275",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-087",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-164",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-276",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-165",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-277",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-278",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-279",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-280",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-088",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-166",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-281",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-282",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-283",
+      "tags": [],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-284",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-285",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-286",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-287",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-288",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-289",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-089",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-290",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-291",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-292",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-293",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-desires-090",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-294",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-295",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-296",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-167",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-297",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-298",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-168",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-169",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-299",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-300",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-301",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-302",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-303",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-304",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-305",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-170",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-desires-091",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-171",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-intentions-172",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-306",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-307",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-308",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-intentions-173",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-309",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-310",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-311",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-312",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-desires-092",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-313",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-314",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-beliefs-315",
+      "tags": [
+        "critical",
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-316",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-317",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    },
+    {
+      "node_id": "skp-desires-093",
+      "tags": [
+        "critical"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov (bulk: confidence >= 0.85)"
+    },
+    {
+      "node_id": "skp-beliefs-318",
+      "tags": [
+        "institutional"
+      ],
+      "status": "accepted",
+      "reviewed_by": "jsnov"
+    }
+  ]
+}

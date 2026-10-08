@@ -107,14 +107,10 @@ function Show-TriadDialogue {
     # ── Step 1: Validate environment ──────────────────────────────────────────
     Write-Step 'Validating environment'
 
-    if     ($Model -match '^gemini') { $Backend = 'gemini' }
-    elseif ($Model -match '^claude') { $Backend = 'claude' }
-    elseif ($Model -match '^groq')   { $Backend = 'groq'   }
-        elseif ($Model -match '^openai') { $Backend = 'openai' }
-    else                             { $Backend = 'gemini'  }
-    $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-    if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-        Write-Fail 'No API key found. Set GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY.'
+    # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+    $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+    if (-not $KeyStatus.HasKey) {
+        Write-Fail "No API key found for the $($KeyStatus.Backend) backend. Set $($KeyStatus.EnvHint), or pass -ApiKey."
         throw 'No API key configured'
     }
 
@@ -310,7 +306,7 @@ DETAIL: $($AudDir.DetailInstruction)
         $TurnResult = Invoke-AIApi `
             -Prompt     $TurnPrompt `
             -Model      $Model `
-            -ApiKey     $ResolvedKey `
+            -ApiKey     $ApiKey `
             -Temperature 0.7 `
             -MaxTokens  2048 `
             -JsonMode `
@@ -507,7 +503,7 @@ DETAIL: $($AudDir.DetailInstruction)
         $SynthResult = Invoke-AIApi `
             -Prompt     $SynthesisPrompt `
             -Model      $Model `
-            -ApiKey     $ResolvedKey `
+            -ApiKey     $ApiKey `
             -Temperature 0.3 `
             -MaxTokens  4096 `
             -JsonMode `

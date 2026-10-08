@@ -112,452 +112,29 @@ function Invoke-TaxEditorSmokeTest {
     Write-Host "Smoke testing: $BaseUrl" -ForegroundColor Cyan
     Write-Host ''
 
-    # ── Phase 1: Health checks ───────────────────────────────────────────
-    # t/1696 — tolerate a scale-from-zero cold start: retry the health probe so a
-    # healthy-but-cold container (whose first request exceeds TimeoutSec) is not
-    # false-red'd. Mirrors the deploy workflow's cold-start-tolerant health gate
-    # (deploy-azure.yml: Test-TaxEditorHealth -MaxAttempts 42 -RetryIntervalSec 10).
-    Write-Host '=== Health Checks ===' -ForegroundColor Cyan
-    $Health = Test-TaxEditorHealth -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec `
+    # Each phase prints its own section and returns its results (Private/TaxEditorSmokeTestPhases.ps1).
+    $Health        = Invoke-SmokeHealthPhase -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec `
         -MaxAttempts $HealthMaxAttempts -RetryIntervalSec $HealthRetryIntervalSec
-
-    foreach ($Check in $Health.Checks) {
-        $Icon = if ($Check.Healthy) { '[PASS]' } else { '[FAIL]' }
-        $Color = if ($Check.Healthy) { 'Green' } else { 'Red' }
-        Write-Host "  $Icon $($Check.Endpoint) ($($Check.Purpose)) — $($Check.Ms)ms" -ForegroundColor $Color
-        if (-not $Check.Healthy) {
-            Write-Host "        $($Check.Detail)" -ForegroundColor DarkRed
-        }
-    }
-    Write-Host ''
-
-    # ── Phase 2: Endpoint smoke tests ────────────────────────────────────
-    Write-Host '=== Endpoint Tests ===' -ForegroundColor Cyan
-    $Endpoints = @(Test-TaxEditorEndpoints -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec)
-
-    foreach ($Ep in $Endpoints) {
-        $Icon = if ($Ep.Pass) { '[PASS]' } else { '[FAIL]' }
-        $Color = if ($Ep.Pass) { 'Green' } else { 'Red' }
-        $Extra = if ($Ep.NodeCount) { " ($($Ep.NodeCount) nodes)" } else { '' }
-        Write-Host "  $Icon $($Ep.Endpoint) — $($Ep.Status) $($Ep.Ms)ms$Extra" -ForegroundColor $Color
-        if (-not $Ep.Pass -and $Ep.Error) {
-            Write-Host "        $($Ep.Error)" -ForegroundColor DarkRed
-        }
-    }
-    Write-Host ''
-
-    # t/2374 — anonymous community pass: re-runs Community endpoints as an anon user
-    # to catch auth-scope contract bugs (t/2368: listed items must be loadable by the
-    # listing user). Included in the default run so staging always exercises anon paths.
-    Write-Host '=== Anon Community Endpoints ===' -ForegroundColor Cyan
-    $AnonEndpoints = @(Test-TaxEditorEndpoints -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec `
-        -Category Community -UserType Anonymous)
-
-    foreach ($Ep in $AnonEndpoints) {
-        $Icon = if ($Ep.Pass) { '[PASS]' } else { '[FAIL]' }
-        $Color = if ($Ep.Pass) { 'Green' } else { 'Red' }
-        Write-Host "  $Icon [anon] $($Ep.Endpoint) — $($Ep.Status) $($Ep.Ms)ms" -ForegroundColor $Color
-        if (-not $Ep.Pass -and $Ep.Error) {
-            Write-Host "        $($Ep.Error)" -ForegroundColor DarkRed
-        }
-    }
-    Write-Host ''
-
-    # ── Phase 3: Azure infrastructure ───────────────────────────────────
-    Write-Host '=== Azure Infrastructure ===' -ForegroundColor Cyan
-    $Azure = Test-AzureHealth -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
-
-    foreach ($Check in $Azure.Checks) {
-        $Icon = if ($Check.Pass) { '[PASS]' } else { '[FAIL]' }
-        $Color = if ($Check.Pass) { 'Green' } else { 'Red' }
-        Write-Host "  $Icon $($Check.Check) — $($Check.Detail)" -ForegroundColor $Color
-    }
-    Write-Host ''
-
-    # ── Phase 4: GitHub services ─────────────────────────────────────────
-    Write-Host '=== GitHub Services ===' -ForegroundColor Cyan
-    $GitHubSplatArgs = @{ TimeoutSec = $TimeoutSec }
-    if ($DeployedSha) { $GitHubSplatArgs['DeployedSha'] = $DeployedSha }
-    $GitHub = Test-GitHubHealth @GitHubSplatArgs
-
-    foreach ($Check in $GitHub.Checks) {
-        $Icon = if ($Check.Pass) { '[PASS]' } else { '[FAIL]' }
-        $Color = if ($Check.Pass) { 'Green' } else { 'Red' }
-        Write-Host "  $Icon $($Check.Check) — $($Check.Detail)" -ForegroundColor $Color
-    }
-    # t/2673 — GitHub health (status page, rate limits, GHCR) is a monitoring
-    # signal, not app health. A transient GitHub API flap must NOT sink the gate
-    # when the app itself is fully healthy — it caused a false-negative rollback on
-    # the step-1 staging isolation deploy (run 31890116255, 2026-08-15). Surface a
-    # degraded GitHub check as a CI warning; OverallPass gates only on
-    # Health/Endpoints/Azure (see the $OverallPass computation below).
-    if (-not $GitHub.Healthy) {
-        Write-Host "::warning::GitHub services degraded — monitoring signal only, does not block the traffic shift. See '=== GitHub Services ===' above."
-    }
-    Write-Host ''
-
-    # ── Phase 5: Analytics write/read round-trip (t/2667) ────────────────
-    # Q3b prevention (failure Class 3): the blob analytics backend silently drops
-    # events when misconfigured while the server still returns 200. The POST
-    # response's `count` reflects sanitized REQUEST events (session.ts:179), and the
-    # blob append is fire-and-forget (session.ts:172) — so the write alone can NEVER
-    # confirm persistence. The authoritative detector is a DELTA READ-BACK: read the
-    # aggregated totalEvents (read straight from blob storage — analytics.ts:301),
-    # POST a synthetic event, wait for the async append, read again, and require the
-    # count to increase. A silent drop leaves the count flat. (Design option A,
-    # approved t/2667#6. GET /api/analytics/query is anon-allowed — accessControl.ts:335
-    # — so this runs without a session token. Concurrent staging traffic between the
-    # two reads is an accepted low-risk masking window on quiet staging.)
-    Write-Host '=== Analytics Round-Trip ===' -ForegroundColor Cyan
-    $Analytics = @()
-
-    # Guarded extractor: pull summary.totalEvents from an Invoke-RemoteCheck result,
-    # or $null when the read failed / the field is absent (StrictMode-safe).
-    $GetTotalEvents = {
-        param($Check)
-        if ($Check.Success -and $Check.Body -and
-            $Check.Body.PSObject.Properties['summary'] -and $Check.Body.summary -and
-            $Check.Body.summary.PSObject.Properties['totalEvents']) {
-            return [int]$Check.Body.summary.totalEvents
-        }
-        return $null
-    }
-
-    # Establish an anonymous session first. Both /api/analytics/event (POST) and
-    # /api/analytics/query (GET) are anon-allowed, BUT in AUTH_OPTIONAL a cookie-less
-    # request receives a 200 text/html Sign-In interstitial (see Phase 6 note below,
-    # and lines 302-303) — so a session-less round-trip POSTs into the interstitial
-    # (event never reaches the handler) and reads the interstitial back as delta 0,
-    # a false "silent drop" that blocked prod+staging deploys (t/2683 → t/2684).
-    # Mirror the t/2671 data-presence phase: get the anon cookies, thread them
-    # through all three calls. If the session can't be established, warn explicitly
-    # so a resulting read failure is not mistaken for a persistence drop.
-    $AnalyticsSession = New-AnonymousWebSession -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
-    if (-not $AnalyticsSession) {
-        Write-Host '  (anonymous session not established — analytics round-trip may hit the auth interstitial; delta cannot be trusted)' -ForegroundColor DarkYellow
-    }
-
-    # Baseline read BEFORE the write.
-    $BaselineParams = @{ BaseUrl = $BaseUrl; Path = '/api/analytics/query'; Method = 'GET'; TimeoutSec = $TimeoutSec; AcceptableStatusCodes = @(200) }
-    if ($AnalyticsSession) { $BaselineParams.Session = $AnalyticsSession }
-    $BaselineCheck = Invoke-RemoteCheck @BaselineParams
-    $Before = & $GetTotalEvents $BaselineCheck
-
-    # Write probe — reachability only (200 + ok:true). NOT a drop detector.
-    # Build the body as an explicit JSON string so the single-element `events`
-    # array is never unwrapped to an object (the server requires an array — 400 otherwise).
-    # Two events in one batch: smoke-probe (system category) + view.dwell (engagement)
-    # so the after-read can assert eventTypes['view.dwell'] >= 1 (t/2706 AC).
-    $ProbeStamp   = [DateTimeOffset]::UtcNow.ToString('o')
-    $ProbeSession = "smoke-$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
-    $ProbeEvent   = @{
-        user       = 'smoke-probe'
-        session_id = $ProbeSession
-        timestamp  = $ProbeStamp
-        event_type = 'smoke-probe'
-        category   = 'system'
-        detail     = @{}
-    }
-    $DwellEvent   = @{
-        user       = 'smoke-probe'
-        session_id = $ProbeSession
-        timestamp  = $ProbeStamp
-        event_type = 'view.dwell'
-        category   = 'engagement'
-        detail     = @{ duration_ms = 100 }
-    }
-    $EventJson = '{"events":[' + ($ProbeEvent | ConvertTo-Json -Depth 6 -Compress) + ',' + ($DwellEvent | ConvertTo-Json -Depth 6 -Compress) + ']}'
-
-    $WriteParams = @{ BaseUrl = $BaseUrl; Path = '/api/analytics/event'; Method = 'POST'; Body = $EventJson; TimeoutSec = $TimeoutSec; AcceptableStatusCodes = @(200) }
-    if ($AnalyticsSession) { $WriteParams.Session = $AnalyticsSession }
-    $WriteCheck = Invoke-RemoteCheck @WriteParams
-    $WriteOk = $false
-    if ($WriteCheck.Success -and $WriteCheck.Body -and $WriteCheck.Body.PSObject.Properties['ok']) {
-        $WriteOk = [bool]$WriteCheck.Body.ok
-    }
-    $WritePass = $WriteCheck.Success -and $WriteOk
-
-    $WriteResult = [EndpointTestResult]::new()
-    $WriteResult.Endpoint    = 'POST /api/analytics/event'
-    $WriteResult.Category    = 'Analytics'
-    $WriteResult.Description = 'Analytics write reachability (200 + ok:true)'
-    $WriteResult.Status      = $WriteCheck.StatusCode
-    $WriteResult.Pass        = $WritePass
-    $WriteResult.Ms          = $WriteCheck.ResponseMs
-    $WriteResult.NodeCount   = $null
-    if (-not $WritePass) {
-        $WriteResult.Error = if ($WriteCheck.Error) {
-            $WriteCheck.Error
-        } else {
-            "Unexpected write response (status=$($WriteCheck.StatusCode), ok=$WriteOk)"
-        }
-    }
-    $Analytics += $WriteResult
-
-    # Async blob append — give the write time to land before the read-back.
-    Start-Sleep -Seconds 2
-
-    # Read-back AFTER the write — the delta is the detector.
-    $AfterParams = @{ BaseUrl = $BaseUrl; Path = '/api/analytics/query'; Method = 'GET'; TimeoutSec = $TimeoutSec; AcceptableStatusCodes = @(200) }
-    if ($AnalyticsSession) { $AfterParams.Session = $AnalyticsSession }
-    $AfterCheck = Invoke-RemoteCheck @AfterParams
-    $After = & $GetTotalEvents $AfterCheck
-
-    $DeltaPass = $false
-    $DeltaErr  = $null
-    if ($null -eq $Before) {
-        $DeltaErr = "Baseline read failed (status=$($BaselineCheck.StatusCode)) — cannot compute delta$(if ($BaselineCheck.Error) { ": $($BaselineCheck.Error)" })"
-    } elseif ($null -eq $After) {
-        $DeltaErr = "Read-back failed (status=$($AfterCheck.StatusCode)) — cannot confirm write landed$(if ($AfterCheck.Error) { ": $($AfterCheck.Error)" })"
-    } else {
-        $Delta = $After - $Before
-        $DeltaPass = ($Delta -ge 1)
-        if (-not $DeltaPass) {
-            $DeltaErr = "Silent drop: totalEvents did not increase after write (before=$Before, after=$After, delta=$Delta) — event accepted but not persisted (blob backend misconfigured?)"
-        }
-    }
-
-    $DeltaResult = [EndpointTestResult]::new()
-    $DeltaResult.Endpoint    = 'GET /api/analytics/query (delta read-back)'
-    $DeltaResult.Category    = 'Analytics'
-    $DeltaResult.Description = 'Analytics storage round-trip (totalEvents increased)'
-    $DeltaResult.Status      = $AfterCheck.StatusCode
-    $DeltaResult.Pass        = $DeltaPass
-    $DeltaResult.Ms          = $BaselineCheck.ResponseMs + $AfterCheck.ResponseMs
-    $DeltaResult.NodeCount   = $After
-    $DeltaResult.Error       = $DeltaErr
-    $Analytics += $DeltaResult
-
-    # t/2706 — assert view.dwell event_type is recorded in eventTypes.
-    # The write batch above includes a view.dwell event; the after-read's
-    # eventTypes map (QueryResult.eventTypes: Record<string,number>) must
-    # contain 'view.dwell' >= 1. This catches a class of routing bug where
-    # the event is accepted (200 ok) but silently discarded or mis-typed.
-    $DwellPass = $false
-    $DwellErr  = $null
-    if (-not $AfterCheck.Success) {
-        $DwellErr = "after-read failed (status=$($AfterCheck.StatusCode)) — cannot check eventTypes"
-    } elseif (-not $AfterCheck.Body -or -not $AfterCheck.Body.PSObject.Properties['eventTypes']) {
-        $DwellErr = "eventTypes field missing from /api/analytics/query response"
-    } else {
-        $EventTypes  = $AfterCheck.Body.eventTypes
-        $DwellProp   = $EventTypes.PSObject.Properties['view.dwell']
-        $DwellCount  = if ($DwellProp) { [int]$DwellProp.Value } else { 0 }
-        $DwellPass   = ($DwellCount -ge 1)
-        if (-not $DwellPass) {
-            $DwellErr = "view.dwell absent or zero in eventTypes after probe write (count=$DwellCount) — event not persisted or event_type mis-routed"
-        }
-    }
-
-    $DwellResult = [EndpointTestResult]::new()
-    $DwellResult.Endpoint    = 'GET /api/analytics/query (view.dwell eventType)'
-    $DwellResult.Category    = 'Analytics'
-    $DwellResult.Description = 'view.dwell event_type present in analytics after write (t/2706)'
-    $DwellResult.Status      = $AfterCheck.StatusCode
-    $DwellResult.Pass        = $DwellPass
-    $DwellResult.Ms          = $AfterCheck.ResponseMs
-    $DwellResult.NodeCount   = $null
-    $DwellResult.Error       = $DwellErr
-    $Analytics += $DwellResult
-
-    foreach ($Ep in $Analytics) {
-        $Icon = if ($Ep.Pass) { '[PASS]' } else { '[FAIL]' }
-        $Color = if ($Ep.Pass) { 'Green' } else { 'Red' }
-        Write-Host "  $Icon $($Ep.Endpoint) — $($Ep.Status) $($Ep.Ms)ms" -ForegroundColor $Color
-        if (-not $Ep.Pass -and $Ep.Error) {
-            Write-Host "        $($Ep.Error)" -ForegroundColor DarkRed
-        }
-    }
-    Write-Host ''
-
-    # ── Phase 6: Data presence (t/2671) — opt-in via -AssertDataPresence ──
-    # The endpoint smoke passed 26/26 green while Entities/Organizations were empty
-    # on web (t/2648/t/2661): it asserts endpoints RESPOND, not that data POPULATES.
-    # Worse, in AUTH_OPTIONAL a cookie-less GET returns a 200 text/html Sign-In
-    # interstitial that a status-only check reads as PASS. This phase establishes an
-    # anonymous session (so the app serves real JSON, not the interstitial —
-    # accessControl.ts:335 anon-allows GETs; no admin token needed) and asserts each
-    # data route returns application/json with > 0 rows. Failures flow into
-    # FailedEndpoints → OverallPass. Off by default; the deploy workflow passes the switch.
-    $DataPresence = @()
+    $Endpoints     = @(Invoke-SmokeEndpointPhase -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec)
+    $AnonEndpoints = @(Invoke-SmokeAnonEndpointPhase -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec)
+    $Azure         = Invoke-SmokeAzurePhase -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
+    $GitHub        = Invoke-SmokeGitHubPhase -TimeoutSec $TimeoutSec -DeployedSha $DeployedSha
+    $Analytics     = @(Invoke-SmokeAnalyticsPhase -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec)
+    $DataPresence  = @()
     if ($AssertDataPresence) {
-        Write-Host '=== Data Presence ===' -ForegroundColor Cyan
-        $DataSession = New-AnonymousWebSession -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
-        if (-not $DataSession) {
-            Write-Host '  (anonymous session not established — data GETs may return the auth interstitial)' -ForegroundColor DarkYellow
-        }
-
-        $DataRoutes = @(
-            @{ Path = '/api/entities';                 Field = '';      Label = 'entities' }
-            @{ Path = '/api/organizations';            Field = '';      Label = 'organizations' }
-            @{ Path = '/api/taxonomy/accelerationist'; Field = 'nodes'; Label = 'taxonomy nodes' }
-        )
-        foreach ($R in $DataRoutes) {
-            $Params = @{ BaseUrl = $BaseUrl; Path = $R.Path; Method = 'GET'; TimeoutSec = $TimeoutSec; ExpectJson = $true }
-            if ($DataSession) { $Params.Session = $DataSession }
-            $Check  = Invoke-RemoteCheck @Params
-            $Assert = Test-DataPresenceAssertion -Body $Check.Body -ContentType $Check.ContentType `
-                -CountField $R.Field -Label $R.Label
-
-            $Res = [EndpointTestResult]::new()
-            $Res.Endpoint    = "GET $($R.Path)"
-            $Res.Category    = 'DataPresence'
-            $Res.Description = "Data presence: $($R.Label) > 0"
-            $Res.Status      = $Check.StatusCode
-            $Res.Pass        = $Assert.Pass
-            $Res.Ms          = $Check.ResponseMs
-            $Res.NodeCount   = $Assert.Count
-            if (-not $Assert.Pass) {
-                $Res.Error = "$($R.Label): $($Assert.Reason)$(if ($Check.Error) { " (http: $($Check.Error))" })"
-            }
-            $DataPresence += $Res
-        }
-
-        foreach ($Ep in $DataPresence) {
-            $Icon = if ($Ep.Pass) { '[PASS]' } else { '[FAIL]' }
-            $Color = if ($Ep.Pass) { 'Green' } else { 'Red' }
-            Write-Host "  $Icon $($Ep.Endpoint) — $($Ep.Status) ($($Ep.NodeCount) rows) $($Ep.Ms)ms" -ForegroundColor $Color
-            if (-not $Ep.Pass -and $Ep.Error) {
-                Write-Host "        $($Ep.Error)" -ForegroundColor DarkRed
-            }
-        }
-        Write-Host ''
+        $DataPresence = @(Invoke-SmokeDataPresencePhase -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec)
     }
-
-    # ── Phase 7: Oped-files runtime asset health (t/2689 AC3) ──────────────────
-    # Asserts soul-docs + lib/oped/prompts are present in the container image.
-    # Both-arms gate verified (#1124) + clean real-env cycle (#1122) — now blocking.
-    Write-Host '=== Oped Files Health ===' -ForegroundColor Cyan
-    # Accept both 200 (ok) and 500 (missing files) so Invoke-WebRequest doesn't throw on the
-    # failure arm; we discriminate via ok:true/false in the body, not the HTTP status.
-    $OpedFilesCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/api/health/oped-files' `
-        -Method 'GET' -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200, 500)
-    # Parse body explicitly — Invoke-RemoteCheck.Body may arrive as a raw string or as a
-    # PSCustomObject depending on how ConvertFrom-Json behaved for this response. Parse
-    # defensively so the ok/missing checks always operate on a structured object.
-    # (t/2689: smoke false-warned on a valid {ok:true} response — body not parsed as object)
-    $OpedFilesJson = if ($OpedFilesCheck.Body -is [string]) {
-        try { $OpedFilesCheck.Body | ConvertFrom-Json -ErrorAction SilentlyContinue } catch { $null }
-    } else { $OpedFilesCheck.Body }
-    # Require JSON content-type + ok:true — a 200 text/html response is the Sign-In
-    # interstitial (any unknown GET before the endpoint is in PUBLIC_EXACT_PATHS).
-    $OpedFilesJsonOk  = $OpedFilesCheck.ContentType -and ($OpedFilesCheck.ContentType -like '*json*')
-    $OpedFilesBodyOk  = $OpedFilesJson -and
-        $OpedFilesJson.PSObject.Properties['ok'] -and [bool]$OpedFilesJson.ok
-    $OpedFilesPass = $OpedFilesCheck.Success -and $OpedFilesJsonOk -and $OpedFilesBodyOk
-    $OpedFilesDetail = if ($OpedFilesPass) {
-        $count = if ($OpedFilesJson -and $OpedFilesJson.PSObject.Properties['assets']) {
-            @($OpedFilesJson.assets).Count
-        } else { 0 }
-        "all assets present ($count files)"
-    } elseif (-not $OpedFilesJsonOk) {
-        "non-JSON response (content-type=$($OpedFilesCheck.ContentType), status=$($OpedFilesCheck.StatusCode)) — endpoint unreachable or returned interstitial"
-    } elseif (-not $OpedFilesBodyOk) {
-        $missing = if ($OpedFilesJson -and $OpedFilesJson.PSObject.Properties['missing']) {
-            ($OpedFilesJson.missing -join ', ')
-        } else { 'ok:false (no missing list)' }
-        "MISSING: $missing (status=$($OpedFilesCheck.StatusCode))"
-    } else {
-        "failed (status=$($OpedFilesCheck.StatusCode))"
-    }
-    $OFIcon  = if ($OpedFilesPass) { '[PASS]' } else { '[FAIL]' }
-    $OFColor = if ($OpedFilesPass) { 'Green' } else { 'Red' }
-    Write-Host "  $OFIcon GET /api/health/oped-files — $($OpedFilesCheck.StatusCode) $($OpedFilesCheck.ResponseMs)ms — $OpedFilesDetail" -ForegroundColor $OFColor
-    if (-not $OpedFilesPass) {
-        Write-Host "::error::Oped-files health check failed: $OpedFilesDetail"
-    }
-    Write-Host ''
-
-    $OpedFilesResult = [EndpointTestResult]::new()
-    $OpedFilesResult.Endpoint    = 'GET /api/health/oped-files'
-    $OpedFilesResult.Category    = 'OpedFiles'
-    $OpedFilesResult.Description = 'Soul-docs + oped prompts present in container image'
-    $OpedFilesResult.Status      = $OpedFilesCheck.StatusCode
-    $OpedFilesResult.Pass        = $OpedFilesPass
-    $OpedFilesResult.Ms          = $OpedFilesCheck.ResponseMs
-    $OpedFilesResult.NodeCount   = $null
-    if (-not $OpedFilesPass) {
-        $OpedFilesResult.Error = $OpedFilesDetail
-    }
-
-    # ── Phase 8: Embedding latency (t/3088) — perf-regression probe, its OWN category ──
-    # embeddings.json was unreachable in prod for 3.5 months (t/3085): every debate
-    # re-embedded ~3,600 static texts in-process at 25-48s/chunk where a cache hit is
-    # milliseconds — invisible to error-rate gates because nothing FAILED. This probe
-    # POSTs a small batch of known cached node ids and times the round-trip. Like the
-    # GitHub check (t/2673), a breach is a monitoring signal surfaced as a ::warning::,
-    # NOT a hard failure: it is EXCLUDED from $OverallPass (below) so a slow embed can't
-    # false-red Health/Endpoints/Azure. Warn-first — promote to gating only after the
-    # ceiling is calibrated against real post-t/3085 prod timings.
-    Write-Host '=== Embedding Latency ===' -ForegroundColor Cyan
-    $EmbeddingStatus = 'ok'
-    $EmbeddingMs     = 0
-    try {
-        $Perf = Measure-EmbeddingLatency -BaseUrl $BaseUrl -CeilingSec $EmbeddingCeilingSec -TimeoutSec $TimeoutSec
-        $EmbeddingStatus = $Perf.Status
-        $EmbeddingMs     = $Perf.DurationMs
-        $PerfIcon  = if ($Perf.Status -eq 'ok') { '[PASS]' } else { '[DEGRADED]' }
-        $PerfColor = if ($Perf.Status -eq 'ok') { 'Green' } else { 'Yellow' }
-        Write-Host "  $PerfIcon embeddings.compute — $($Perf.DurationMs)ms (ceiling $($EmbeddingCeilingSec)s, $($Perf.Count) vectors, http $($Perf.HttpStatus))" -ForegroundColor $PerfColor
-    } catch {
-        # New-ActionableError from an unreachable server — report degraded, do NOT crash the smoke.
-        $EmbeddingStatus = 'unreachable'
-        Write-Host "  [DEGRADED] embeddings.compute — unreachable: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
-    if ($EmbeddingStatus -ne 'ok') {
-        Write-Host "::warning::Embedding latency $EmbeddingStatus — ${EmbeddingMs}ms vs ${EmbeddingCeilingSec}s ceiling (perf-regression probe t/3088; monitoring signal, does not block the gate). A sustained breach is the t/3085 cache-miss class."
-    }
-    Write-Host ''
-
-    # ── Phase 9: Embeddings cache presence (t/3088 follow-up #1) ────────────────
-    # t/3085/t/3086: the precomputed embeddings.json cache was silently dead for 3.5 months.
-    # /health exposes embeddings.cachePresent but ONLY to admins (meta.ts anon branch returns
-    # status+ai and early-returns), so an anon smoke can't read it. The anon /readyz (t/3112,
-    # PUBLIC_EXACT_PATHS) returns 200 IFF the precomputed-vector cache is loaded (present AND
-    # nodeCount>0) — the anon-accessible "cache present" signal this probe asserts, no creds.
-    # WARN-FIRST like Phase 8 (embedding latency): a fresh revision can be /healthz-ready but
-    # /readyz-503 during fire-and-forget prewarm, so a 503 surfaces as ::warning:: (a real but
-    # often transient signal), NOT a hard failure — EXCLUDED from $OverallPass so a cold-revision
-    # warmup can't false-red Health/Endpoints/Azure.
-    Write-Host '=== Embeddings Cache Presence ===' -ForegroundColor Cyan
-    $CacheCheck = Invoke-RemoteCheck -BaseUrl $BaseUrl -Path '/readyz' `
-        -Method 'GET' -TimeoutSec $TimeoutSec -AcceptableStatusCodes @(200, 503)
-    $EmbeddingCachePresent = ($CacheCheck.StatusCode -eq 200)
-    $EmbeddingCacheStatus  = if ($EmbeddingCachePresent) { 'present' }
-        elseif ($CacheCheck.StatusCode -eq 503) { 'warming' }
-        else { 'unreachable' }
-    $CCIcon  = if ($EmbeddingCachePresent) { '[PASS]' } else { '[DEGRADED]' }
-    $CCColor = if ($EmbeddingCachePresent) { 'Green' } else { 'Yellow' }
-    Write-Host "  $CCIcon GET /readyz — $($CacheCheck.StatusCode) $($CacheCheck.ResponseMs)ms — embeddings cache $EmbeddingCacheStatus" -ForegroundColor $CCColor
-    if (-not $EmbeddingCachePresent) {
-        Write-Host "::warning::Embeddings cache not present (/readyz=$($CacheCheck.StatusCode), $EmbeddingCacheStatus) — monitoring signal, does not block the gate. A sustained 'warming'/'unreachable' is the t/3085 dead-cache class."
-    }
-    Write-Host ''
+    $OpedFiles = Invoke-SmokeOpedFilesPhase -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
+    $Embedding = Invoke-SmokeEmbeddingLatencyPhase -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec -CeilingSec $EmbeddingCeilingSec
+    $Cache     = Invoke-SmokeCachePresencePhase -BaseUrl $BaseUrl -TimeoutSec $TimeoutSec
 
     # ── Summary ──────────────────────────────────────────────────────────
-    $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics) + @($DataPresence) + @($OpedFilesResult)
+    $AllResults = @($Endpoints) + @($AnonEndpoints) + @($Analytics) + @($DataPresence) + @($OpedFiles.Result)
     $Passed = @($AllResults | Where-Object { $_.Pass }).Count
     $Failed = @($AllResults | Where-Object { -not $_.Pass }).Count
     $Total = $AllResults.Count
-
-    $ResponseTimes = @($AllResults | Where-Object { $_.Ms -gt 0 } |
-        Measure-Object -Property Ms -Average -Maximum -Minimum)
-
-    $ByCategory = @{}
-    foreach ($R in $AllResults) {
-        if (-not $ByCategory.ContainsKey($R.Category)) {
-            $ByCategory[$R.Category] = @{ Pass = 0; Fail = 0 }
-        }
-        if ($R.Pass) { $ByCategory[$R.Category].Pass++ }
-        else { $ByCategory[$R.Category].Fail++ }
-    }
-    $CategorySummary = foreach ($Cat in ($ByCategory.Keys | Sort-Object)) {
-        [PSCustomObject]@{
-            Category = $Cat
-            Pass     = $ByCategory[$Cat].Pass
-            Fail     = $ByCategory[$Cat].Fail
-        }
-    }
+    $Stats = Get-SmokeResponseStatistic -AllResults $AllResults
+    $CategorySummary = Get-SmokeCategorySummary -AllResults $AllResults
 
     $Duration = (Get-Date) - $StartTime
     # t/2673 — gate on app health only (Health + Endpoints + Azure). GitHubOk is
@@ -565,25 +142,8 @@ function Invoke-TaxEditorSmokeTest {
     # excluded here so a transient GitHub API flap cannot false-red the deploy gate.
     $OverallPass = $Health.Healthy -and $Failed -eq 0 -and $Azure.Healthy
 
-    Write-Host '=== Summary ===' -ForegroundColor Cyan
-    $SummaryColor = if ($OverallPass) { 'Green' } else { 'Red' }
-    Write-Host "  Overall: $(if ($OverallPass) { 'PASS' } else { 'FAIL' })" -ForegroundColor $SummaryColor
-    Write-Host "  Health:  $(if ($Health.Healthy) { 'Healthy' } else { 'Unhealthy' })"
-    Write-Host "  Azure:   $(if ($Azure.Healthy) { 'Healthy' } else { 'Unhealthy' })"
-    Write-Host "  GitHub:  $(if ($GitHub.Healthy) { 'Healthy' } else { 'Unhealthy' })"
-    Write-Host "  Endpoints: $Passed/$Total passed"
-    if ($ResponseTimes.Count -gt 0) {
-        Write-Host "  Response: avg=$([math]::Round($ResponseTimes.Average, 0))ms min=$($ResponseTimes.Minimum)ms max=$($ResponseTimes.Maximum)ms"
-    }
-    Write-Host "  Duration: $([math]::Round($Duration.TotalSeconds, 1))s"
-    Write-Host ''
-
-    if ($Detailed) {
-        Write-Host '=== Per-Category Breakdown ===' -ForegroundColor Cyan
-        $CategorySummary | Format-Table -AutoSize | Out-String | Write-Host
-    }
-
-    $FailedEndpoints = @($AllResults | Where-Object { -not $_.Pass })
+    Write-SmokeSummary -OverallPass $OverallPass -HealthOk $Health.Healthy -AzureOk $Azure.Healthy -GitHubOk $GitHub.Healthy `
+        -Passed $Passed -Total $Total -Stats $Stats -Duration $Duration -Detailed $Detailed -CategorySummary $CategorySummary
 
     [PSCustomObject]@{
         BaseUrl         = $BaseUrl
@@ -591,21 +151,21 @@ function Invoke-TaxEditorSmokeTest {
         HealthOk        = $Health.Healthy
         AzureOk         = $Azure.Healthy
         GitHubOk        = $GitHub.Healthy
-        OpedFilesOk     = $OpedFilesPass
-        EmbeddingStatus     = $EmbeddingStatus
-        EmbeddingLatencyMs  = $EmbeddingMs
+        OpedFilesOk     = $OpedFiles.Pass
+        EmbeddingStatus     = $Embedding.Status
+        EmbeddingLatencyMs  = $Embedding.Ms
         EmbeddingCeilingSec = $EmbeddingCeilingSec
-        EmbeddingCachePresent = $EmbeddingCachePresent
-        EmbeddingCacheStatus  = $EmbeddingCacheStatus
+        EmbeddingCachePresent = $Cache.Present
+        EmbeddingCacheStatus  = $Cache.Status
         EndpointsPassed = $Passed
         EndpointsFailed = $Failed
         EndpointsTotal  = $Total
-        AvgResponseMs   = if ($ResponseTimes.Count -gt 0) { [math]::Round($ResponseTimes.Average, 0) } else { 0 }
-        MaxResponseMs   = if ($ResponseTimes.Count -gt 0) { $ResponseTimes.Maximum } else { 0 }
-        MinResponseMs   = if ($ResponseTimes.Count -gt 0) { $ResponseTimes.Minimum } else { 0 }
+        AvgResponseMs   = $Stats.Avg
+        MaxResponseMs   = $Stats.Max
+        MinResponseMs   = $Stats.Min
         DurationSec     = [math]::Round($Duration.TotalSeconds, 1)
         Categories      = @($CategorySummary)
-        FailedEndpoints = $FailedEndpoints
+        FailedEndpoints = @($AllResults | Where-Object { -not $_.Pass })
         Timestamp       = (Get-Date).ToString('o')
     }
 }

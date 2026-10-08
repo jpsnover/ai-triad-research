@@ -476,15 +476,18 @@ function Start-LegacyElectronMode {
     # t/3846: Get-OrphanedWorktree finds directories present on disk but NOT
     # registered in `git worktree list` -- the inverse of what `git worktree prune`
     # cleans up (registered-but-missing directories). `prune` is a no-op here;
-    # the correct remedy is manual deletion, gated on the safety check below.
+    # the remedy is deletion, gated on the safety check below. Worktree removal on
+    # Windows routinely leaves node_modules/ behind (Sage #78), so confirmed residue
+    # is deleted automatically in the background rather than reported for hand cleanup.
     $Orphaned = @(Get-OrphanedWorktree -RepoRoot $CodeRoot)
     if ($Orphaned.Count -gt 0) {
         foreach ($OrphanPath in $Orphaned) {
             $OrphanRel = [System.IO.Path]::GetRelativePath($CodeRoot, $OrphanPath)
             $Safety = Test-OrphanedWorktreeSafeToDelete -Path $OrphanPath
             if ($Safety.SafeToDelete) {
-                Write-Warn "Orphaned worktree directory (not registered in git worktree list): $OrphanRel"
-                Write-Info "   Safe to delete ($($Safety.Reason)). Run: Remove-Item -Recurse -Force '$OrphanPath'"
+                if (Remove-OrphanedWorktree -Path $OrphanPath) {
+                    Write-Info "Removing orphaned worktree residue in background: $OrphanRel ($($Safety.Reason))"
+                }
             } else {
                 Write-Warn "Orphaned worktree directory (not registered in git worktree list): $OrphanRel"
                 Write-Warn "   NOT auto-removable: $($Safety.Reason)"

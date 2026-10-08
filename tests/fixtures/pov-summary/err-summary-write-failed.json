@@ -1,0 +1,90 @@
+{
+  "scenario": "err-summary-write-failed",
+  "host": [
+    "[Cyan] \n▶  Validating inputs",
+    "[Green]    ✓  Doc ID      : doc-1",
+    "[Green]    ✓  Repo root   : <ROOT>",
+    "[Green]    ✓  Model       : gemini-3.5-flash-lite",
+    "[Green]    ✓  Temperature : 0.1",
+    "[Cyan] \n▶  Loading taxonomy",
+    "[Green]    ✓  Taxonomy version: 2.4.0",
+    "[Cyan] \n▶  Loading document snapshot",
+    "[Green]    ✓  Snapshot loaded: 68 chars (~17 tokens estimated)",
+    "[Gray]    →  Title from metadata: Doc Title",
+    "[Gray]    →  POV tags in metadata: accelerationist, safetyist",
+    "[Cyan] \n▶  Running extraction pipeline",
+    "[Green]    ✓  Pipeline complete in 12.5s (mock-backend)",
+    "[Yellow]    ⚠    accelerationist : no data returned",
+    "[Green]    ✓    safetyist : 1 key points (0 unmapped)",
+    "[Yellow]    ⚠    skeptic : no data returned",
+    "[Green]    ✓    factual_claims    : 2",
+    "[Green]    ✓    unmapped_concepts : 0",
+    "[Cyan] \n▶  Writing summary file",
+    "[Red]    ✗  Failed to write summary file — disk full writing summaries/doc-1.json",
+    "[Gray]    →  AI response was valid but could not be saved. Check disk space and permissions."
+  ],
+  "warnings": [],
+  "verbose": [
+    "Performing the operation \"Write POV summary, update metadata and log conflicts\" on target \"summaries/doc-1.json, sources/doc-1/metadata.json and conflicts/\"."
+  ],
+  "error": "disk full writing summaries/doc-1.json",
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-system",
+      "replacements": null
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-schema",
+      "replacements": null
+    },
+    {
+      "call": "pipeline",
+      "docId": "doc-1",
+      "model": "gemini-3.5-flash-lite",
+      "apiKey": "",
+      "temperature": 0.1,
+      "taxonomyVersion": "2.4.0",
+      "systemPromptTemplate": "<<pov-summary-system>>",
+      "outputSchema": "<<pov-summary-schema>>",
+      "fullTaxonomy": false,
+      "iterativeExtraction": false,
+      "autoFire": false,
+      "ragMaxTotal": 300,
+      "crossEncoderRerank": false,
+      "snapshotText": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+      "metadata": {
+        "title": "Doc Title",
+        "pov_tags": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "source_type": "blog",
+        "summary_status": "pending",
+        "claims_by_pov": {
+          "accelerationist": 9
+        }
+      }
+    }
+  ],
+  "writes": [
+    "summaries/doc-1.json"
+  ],
+  "tree": {
+    "conflicts/": "(dir)",
+    "sources/": "(dir)",
+    "sources/doc-1/": "(dir)",
+    "sources/doc-1/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"pending\",\n  \"claims_by_pov\": {\n    \"accelerationist\": 9\n  }\n}",
+    "sources/doc-1/snapshot.md": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+    "summaries/": "(dir)",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}

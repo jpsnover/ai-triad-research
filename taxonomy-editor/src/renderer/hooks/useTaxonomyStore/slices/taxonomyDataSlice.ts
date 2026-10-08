@@ -24,6 +24,8 @@ import { interpretationText } from '../../../types/taxonomy';
 import { buildPovTagBaseline, povTagMembership } from '../../../utils/povTagGate';
 import { buildSituationBaseline, checkSituationBdi, type SituationBdiRefusal } from '../../../utils/situationBdiGate';
 import { coerceSituationDivergence } from '../../../bridge/coerceSituationDivergence';
+import { baselineAfterSave, savedPolicyNodes, allPolicyNodes } from './saveBaselines';
+import { buildPolicyIdBaseline, affectedPolicyIds, runPolicyRecount, mergePolicyCounts, type PolicyRecountNotice } from '../../../utils/policyRecount';
 import {
   povTaxonomyFileSchema,
   crossCuttingFileSchema as situationsFileSchema,
@@ -243,15 +245,6 @@ function stripPovTagsForMove(node: PovNode, toId: string, sourcePov: Pov, target
   return { node: rest as PovNode, strippedTags };
 }
 
-/** After a successful save, the saved files become the gates' new baselines (t/3888 situations, t/3973 tags). */
-function baselineAfterSave(dirtyKeys: Set<string>, state: TaxonomyDataSlice): { situationsBaseline?: Record<string, string>; povTagsBaseline?: Record<string, string> } {
-  const out: { situationsBaseline?: Record<string, string>; povTagsBaseline?: Record<string, string> } = {};
-  if (dirtyKeys.has('situations') && state.situations) out.situationsBaseline = buildSituationBaseline(state.situations.nodes);
-  const savedPovNodes = POV_KEYS.filter(k => dirtyKeys.has(k)).flatMap(k => state[k]?.nodes ?? []);
-  if (savedPovNodes.length > 0) out.povTagsBaseline = { ...state.povTagsBaseline, ...buildPovTagBaseline(savedPovNodes) };
-  return out;
-}
-
 export interface TaxonomyDataSlice {
   accelerationist: PovTaxonomyFile | null;
   safetyist: PovTaxonomyFile | null;
@@ -262,6 +255,8 @@ export interface TaxonomyDataSlice {
   situationsBaseline: Record<string, string>;
   /** t/3973: pov_tags as last loaded/saved (node id → fingerprint); gates registry membership per node. */
   povTagsBaseline: Record<string, string>;
+  /** t/4034: each node's policy ids as last loaded/saved; decides which registry counts a save recounts. */
+  policyIdsBaseline: Record<string, string>;
   policyRegistry: PolicyRegistryEntry[] | null;
   conflicts: ConflictFile[];
   aggregatedCruxes: AggregatedCrux[] | null;
@@ -279,6 +274,8 @@ export interface TaxonomyDataSlice {
   staleEmbeddingNodeIds: string[];
   /** t/3984: untouched nodes the last successful save carried with POV tags no longer in the registry. */
   orphanedTagNodeIds: string[];
+  /** t/4034: the post-save registry recount could not update these policies' counts. */
+  policyRecountNotice: PolicyRecountNotice | null;
   integrityIssues: ValidationIssue[];
   fixIntegrityErrors: () => void;
   loading: boolean;
@@ -300,6 +297,7 @@ export interface TaxonomyDataSlice {
   dismissSaveError: () => void;
   dismissEmbeddingsStale: () => void;
   dismissOrphanedTagNotice: () => void;
+  dismissPolicyRecountNotice: () => void;
 
   updatePovNode: (pov: Pov, nodeId: string, updates: Partial<PovNode>, editSource?: { source: TextEditSource; debateId?: string; reason?: string }) => void;
   createPovNode: (pov: Pov, category: Category) => string;
@@ -360,6 +358,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   situations: null,
   situationsBaseline: {},
   povTagsBaseline: {},
+  policyIdsBaseline: {},
   policyRegistry: null,
   conflicts: [],
   aggregatedCruxes: null,
@@ -374,6 +373,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   embeddingsStale: false,
   staleEmbeddingNodeIds: [],
   orphanedTagNodeIds: [],
+  policyRecountNotice: null,
   integrityIssues: [],
   loading: false,
   backgroundLoading: false,
@@ -451,6 +451,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       set({
         accelerationist: accFile,
         povTagsBaseline: buildPovTagBaseline((accFile as PovTaxonomyFile | null)?.nodes ?? []),
+        policyIdsBaseline: buildPolicyIdBaseline((accFile as PovTaxonomyFile | null)?.nodes ?? []),
         loading: false,
         backgroundLoading: true,
         dirty: new Set(),
@@ -512,6 +513,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         situations: situationsFile,
         situationsBaseline: buildSituationBaseline(situationsFile?.nodes ?? []),
         povTagsBaseline: { ...get().povTagsBaseline, ...buildPovTagBaseline([...((saf as PovTaxonomyFile | null)?.nodes ?? []), ...((skp as PovTaxonomyFile | null)?.nodes ?? [])]) },
+        policyIdsBaseline: { ...get().policyIdsBaseline, ...buildPolicyIdBaseline([...((saf as PovTaxonomyFile | null)?.nodes ?? []), ...((skp as PovTaxonomyFile | null)?.nodes ?? []), ...(situationsFile?.nodes ?? [])]) },
         policyRegistry: regData?.policies ?? null,
         backgroundLoading: false,
         embeddingDirty: true,
@@ -526,6 +528,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   dismissSaveError: () => set({ saveError: null, integrityIssues: [] }),
   dismissEmbeddingsStale: () => set({ embeddingsStale: false, staleEmbeddingNodeIds: [] }),
   dismissOrphanedTagNotice: () => set({ orphanedTagNodeIds: [] }),
+  dismissPolicyRecountNotice: () => set({ policyRecountNotice: null }),
 
   fixIntegrityErrors: () => {
     const state = get();
@@ -721,6 +724,8 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       }
 
       await Promise.all(promises);
+      // t/4034: recount the registry for policy ids this save changed, BEFORE the commit so it lands with the edit.
+      const policyRecount = await runPolicyRecount(affectedPolicyIds(savedPolicyNodes(dirtyKeys, state), allPolicyNodes(state), state.policyIdsBaseline), api.recountPolicyMembers, { leavesRegistryUncommitted: import.meta.env.VITE_TARGET !== 'web' });
 
       const commitResult = await api.syncCommit();
       // save.completed = file write + git commit done — the durable save point (`dirty` is
@@ -731,7 +736,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.completed', data: { files_written: promises.length, duration_ms: Math.round(performance.now() - saveStart), commitSha: commitResult.commitSha, filesCommitted: commitResult.filesCommitted } });
       api.trackEvent('taxonomy_save', 'taxonomy', { files: promises.length });
       // t/3888: the saved snapshot is now what's on disk, so it becomes the gate's baseline.
-      set({ dirty: new Set(), orphanedTagNodeIds, ...baselineAfterSave(dirtyKeys, state) });
+      set({ dirty: new Set(), orphanedTagNodeIds, ...baselineAfterSave(dirtyKeys, state), policyRegistry: mergePolicyCounts(get().policyRegistry, policyRecount.updates), policyRecountNotice: policyRecount.notice });
 
       // Post-save embedding refresh — NON-FATAL, own boundary (t/1707).
       // The file write, commit, and `dirty` clear above have already succeeded. A throw

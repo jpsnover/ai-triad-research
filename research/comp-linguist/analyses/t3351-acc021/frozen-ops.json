@@ -1,0 +1,64 @@
+{
+  "ticket": "t/3351",
+  "pin_function": "sha256(json.dumps(logical_form, sort_keys=True, ensure_ascii=False).encode())[:16]",
+  "authorization": {
+    "by": "PI",
+    "when": "2026-10-06",
+    "where": "in session",
+    "text": "t/3351 approve",
+    "note": "Recorded here because the Orca server was restarting; mirrored to t/3351 when it is back."
+  },
+  "expected_ops": 1,
+  "ops": [
+    {
+      "op": "replace_frame",
+      "file": "accelerationist.json",
+      "id": "acc-desires-021",
+      "before_sha16": "f7ed1a6b2b482e5b",
+      "live_predicate": "prioritize",
+      "new_frame": {
+        "predicate": "develop",
+        "event_ref": "e1",
+        "args": [
+          {
+            "role": "theme",
+            "ref": "lit:\"full-stack AI infrastructure\"",
+            "sort": "non-agentive-functional-artifact",
+            "match_level": "exact"
+          },
+          {
+            "role": "location",
+            "ref": "lit:\"domestically\"",
+            "sort": "non-agentive-social-object",
+            "match_level": "exact"
+          }
+        ],
+        "polarity": "positive",
+        "modality": {
+          "holder": "camp:acc",
+          "attitude": "desire"
+        },
+        "temporal": {
+          "type": "unspecified",
+          "value": null
+        },
+        "formalization_confidence": 0.8,
+        "status": "accepted",
+        "about": [],
+        "topical_candidates": {
+          "validated": false,
+          "generator": "formalize_node_lf.py",
+          "golden_ref": "t/3381",
+          "blind_golden_precision": 0.54,
+          "refs": [
+            {
+              "ref": "term:governance_adaptive",
+              "match_level": "exact"
+            }
+          ]
+        }
+      },
+      "review": "CL (t/3351): predicate 'develop' is gold (t/3884 ok: develop|control), stable 5/5 under the production prompt (a67a0afc). The model's agent lit:\"domestic\" (an adjective typed agentive) is replaced by location lit:\"domestically\"; the claim names no developer. Accepted on this review."
+    }
+  ]
+}

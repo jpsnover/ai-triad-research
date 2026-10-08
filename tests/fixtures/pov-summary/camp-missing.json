@@ -1,0 +1,115 @@
+{
+  "scenario": "camp-missing",
+  "host": [
+    "[Cyan] \n▶  Validating inputs",
+    "[Green]    ✓  Doc ID      : doc-1",
+    "[Green]    ✓  Repo root   : <ROOT>",
+    "[Green]    ✓  Model       : gemini-3.5-flash-lite",
+    "[Green]    ✓  Temperature : 0.1",
+    "[Cyan] \n▶  Loading taxonomy",
+    "[Green]    ✓  Taxonomy version: 2.4.0",
+    "[Cyan] \n▶  Loading document snapshot",
+    "[Green]    ✓  Snapshot loaded: 68 chars (~17 tokens estimated)",
+    "[Gray]    →  Title from metadata: Doc Title",
+    "[Gray]    →  POV tags in metadata: accelerationist, safetyist",
+    "[Cyan] \n▶  Running extraction pipeline",
+    "[Green]    ✓  Pipeline complete in 12.5s (mock-backend)",
+    "[Green]    ✓    accelerationist : 1 key points (0 unmapped)",
+    "[Yellow]    ⚠    safetyist : no data returned",
+    "[Yellow]    ⚠    skeptic : no data returned",
+    "[Green]    ✓    factual_claims    : 0",
+    "[Green]    ✓    unmapped_concepts : 0",
+    "[Cyan] \n▶  Writing summary file",
+    "[Green]    ✓  Summary written to: summaries/doc-1.json",
+    "[Cyan] \n▶  Updating metadata",
+    "[Green]    ✓  metadata.json updated: summary_status=current, summary_version=2.4.0",
+    "[Cyan] \n▶  Running conflict detection",
+    "[Gray]    →  No factual claims to process.",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   POV SUMMARY: doc-1",
+    "[Gray]   Taxonomy v2.4.0  |  Model: gemini-3.5-flash-lite",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════",
+    "[Green] \n  [ACCELERATIONIST]",
+    "[White]     Beliefs:",
+    "[Gray]       [acc-beliefs-001] (aligned) One.",
+    "[Red] \n  [SAFETYIST]",
+    "[DarkGray]     (no key points extracted)",
+    "[Cyan] \n════════════════════════════════════════════════════════════════════════",
+    "[White]   Files written:",
+    "[Green]     summaries/doc-1.json",
+    "[Green]     sources/doc-1/metadata.json  (summary_status=current)",
+    "[Cyan] ════════════════════════════════════════════════════════════════════════\n"
+  ],
+  "warnings": [
+    "Invoke-POVSummary: the model's pov_summaries has no 'skeptic' camp; treating it as empty (no key points)."
+  ],
+  "verbose": [
+    "Performing the operation \"Write POV summary, update metadata and log conflicts\" on target \"summaries/doc-1.json, sources/doc-1/metadata.json and conflicts/\"."
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-system",
+      "replacements": null
+    },
+    {
+      "call": "prompt",
+      "name": "pov-summary-schema",
+      "replacements": null
+    },
+    {
+      "call": "pipeline",
+      "docId": "doc-1",
+      "model": "gemini-3.5-flash-lite",
+      "apiKey": "",
+      "temperature": 0.1,
+      "taxonomyVersion": "2.4.0",
+      "systemPromptTemplate": "<<pov-summary-system>>",
+      "outputSchema": "<<pov-summary-schema>>",
+      "fullTaxonomy": false,
+      "iterativeExtraction": false,
+      "autoFire": false,
+      "ragMaxTotal": 300,
+      "crossEncoderRerank": false,
+      "snapshotText": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+      "metadata": {
+        "title": "Doc Title",
+        "pov_tags": [
+          "accelerationist",
+          "safetyist"
+        ],
+        "source_type": "blog",
+        "summary_status": "pending",
+        "claims_by_pov": {
+          "accelerationist": 9
+        }
+      }
+    },
+    {
+      "call": "indexRebuild",
+      "quiet": true
+    }
+  ],
+  "writes": [
+    "summaries/doc-1.json",
+    "sources/doc-1/metadata.json"
+  ],
+  "tree": {
+    "conflicts/": "(dir)",
+    "sources/": "(dir)",
+    "sources/doc-1/": "(dir)",
+    "sources/doc-1/metadata.json": "{\n  \"title\": \"Doc Title\",\n  \"pov_tags\": [\n    \"accelerationist\",\n    \"safetyist\"\n  ],\n  \"source_type\": \"blog\",\n  \"summary_status\": \"current\",\n  \"summary_version\": \"2.4.0\",\n  \"summary_updated\": \"2026-01-02T03:04:05Z\",\n  \"total_claims\": 0,\n  \"node_references_by_pov\": {\n    \"accelerationist\": 0,\n    \"safetyist\": 0,\n    \"situations\": 0,\n    \"skeptic\": 0\n  },\n  \"primary_pov_distribution\": {\n    \"accelerationist\": 0,\n    \"safetyist\": 0,\n    \"situations\": 0,\n    \"skeptic\": 0\n  },\n  \"total_facts\": 1,\n  \"unmapped_concepts\": 0\n}\n",
+    "sources/doc-1/snapshot.md": "# Doc\n\nThe snapshot body. It has a few sentences.\nAnd a second line.",
+    "summaries/": "(dir)",
+    "summaries/doc-1.json": "{\n  \"doc_id\": \"doc-1\",\n  \"taxonomy_version\": \"2.4.0\",\n  \"generated_at\": \"2026-01-02T03:04:05Z\",\n  \"model_info\": {\n    \"model\": \"gemini-3.5-flash-lite\",\n    \"temperature\": 0.1,\n    \"max_tokens\": 32768,\n    \"extraction_mode\": \"single_shot\",\n    \"taxonomy_filter\": \"rag\",\n    \"taxonomy_nodes\": 3\n  },\n  \"pov_summaries\": {\n    \"accelerationist\": {\n      \"key_points\": [\n        {\n          \"taxonomy_node_id\": \"acc-beliefs-001\",\n          \"category\": \"Beliefs\",\n          \"point\": \"One.\",\n          \"stance\": \"aligned\"\n        }\n      ]\n    },\n    \"safetyist\": {\n      \"key_points\": []\n    }\n  },\n  \"factual_claims\": [],\n  \"unmapped_concepts\": [],\n  \"context_rot\": null\n}\n",
+    "taxonomy/": "(dir)",
+    "TAXONOMY_VERSION": "2.4.0\n"
+  }
+}

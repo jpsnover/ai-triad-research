@@ -60,6 +60,27 @@ Describe 'Test-OrphanedWorktreeSafeToDelete (t/3846)' -Tag 'health' {
         }
     }
 
+    It 'is safe to delete when node_modules residue is nested under app subdirs' {
+        New-Item -ItemType Directory -Path (Join-Path $script:Dir 'taxonomy-editor\node_modules\pkg') -Force | Out-Null
+        'x' | Set-Content -Path (Join-Path $script:Dir 'taxonomy-editor\node_modules\pkg\index.js')
+        New-Item -ItemType Directory -Path (Join-Path $script:Dir 'lib\debate') -Force | Out-Null
+
+        InModuleScope AITriad -Parameters @{ Dir = $script:Dir } {
+            param($Dir)
+            (Test-OrphanedWorktreeSafeToDelete -Path $Dir).SafeToDelete | Should -Be $true
+        }
+    }
+
+    It 'is NOT safe to delete when a nested subdir holds a file outside node_modules/' {
+        New-Item -ItemType Directory -Path (Join-Path $script:Dir 'taxonomy-editor\src') -Force | Out-Null
+        'x' | Set-Content -Path (Join-Path $script:Dir 'taxonomy-editor\src\App.tsx')
+
+        InModuleScope AITriad -Parameters @{ Dir = $script:Dir } {
+            param($Dir)
+            (Test-OrphanedWorktreeSafeToDelete -Path $Dir).SafeToDelete | Should -Be $false
+        }
+    }
+
     It 'is NOT safe to delete when files exist outside node_modules/' {
         'x' | Set-Content -Path (Join-Path $script:Dir 'README.md')
 

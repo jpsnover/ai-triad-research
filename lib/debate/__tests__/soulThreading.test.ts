@@ -43,9 +43,9 @@ const TAGGED_SAF: PovInfo = {
 };
 
 describe('soul threading — getCharacterBlock', () => {
-  it('without soul: output is byte-identical to baseline', () => {
-    const base = getCharacterBlock('accelerationist');
-    expect(getCharacterBlock('accelerationist', undefined)).toBe(base);
+  it('with POVER_INFO soul: produces character block', () => {
+    const result = getCharacterBlock('accelerationist', ACC_BASE);
+    expect(result).toContain(ACC_BASE.voice.disposition);
   });
 
   it('with soul: uses soul voice, not POVER_INFO voice', () => {
@@ -70,9 +70,9 @@ describe('soul threading — otherDebaters', () => {
 });
 
 describe('soul threading — formatDoctrinalBoundaries', () => {
-  it('without soul: output is byte-identical to baseline', () => {
-    const base = formatDoctrinalBoundaries('accelerationist');
-    expect(formatDoctrinalBoundaries('accelerationist', undefined)).toBe(base);
+  it('with POVER_INFO soul: produces boundaries block', () => {
+    const result = formatDoctrinalBoundaries('accelerationist', ACC_BASE);
+    expect(typeof result).toBe('string');
   });
 
   it('with soul: uses soul boundaries, not POVER_INFO boundaries', () => {

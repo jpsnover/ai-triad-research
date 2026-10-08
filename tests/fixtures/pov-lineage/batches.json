@@ -1,0 +1,140 @@
+{
+  "scenario": "batches",
+  "host": [
+    "[Cyan] Unique lineage values: 12",
+    "[Gray] Computing embeddings for dedup...",
+    "[Yellow]   Embedding unavailable — skipping dedup",
+    "[default] Post-dedup unique: 12",
+    "[default] Already cached: 1",
+    "[default] Need enrichment: 11",
+    "[Gray][nn]   Batch 1/3 (5 values)...",
+    "[Green]  5 enriched",
+    "[Gray][nn]   Batch 2/3 (5 values)...",
+    "[Red]  no response",
+    "[Gray][nn]   Batch 3/3 (1 values)...",
+    "[Red]  failed: 429 Too Many Requests",
+    "[Green] Cache saved: 6 entries → <ROOT>/calibration/core/lineage-enrichments.json",
+    "[Cyan] \nApplying enrichments to taxonomy files...",
+    "[Green]   Saved accelerationist.json",
+    "[Cyan] \n=== SUMMARY ===",
+    "[default]   Unique values: 12",
+    "[default]   Enriched (new): 11",
+    "[default]   From cache: 1",
+    "[default]   Nodes updated: 1"
+  ],
+  "warnings": [],
+  "verbose": [
+    "Loaded 2 cached enrichments",
+    "UniqueValues type: HashSet`1, count: 12",
+    "Batch 1/3: Stale Thing, Doctrine 1, Doctrine 2, Doctrine 3, Doctrine 4",
+    "  Refreshed stale cache entry: 'Stale Thing'",
+    "  Enriched: 'Doctrine 1' [other] → Enriched Doctrine 1 with a description that runs past sixty ...",
+    "  Enriched: 'Doctrine 2' [other] → Enriched Doctrine 2 with a description that runs past sixty ...",
+    "  Enriched: 'Doctrine 3' [other] → Enriched Doctrine 3 with a description that runs past sixty ...",
+    "  Enriched: 'Doctrine 4' [other] → Enriched Doctrine 4 with a description that runs past sixty ...",
+    "Batch 2/3: Doctrine 5, Doctrine 6, Doctrine 7, Doctrine 8, Doctrine 9",
+    "Batch 3/3: Doctrine 10",
+    "  acc-1 [accelerationist]: 6 bare → enriched, 0 already rich",
+    "Performing the operation \"Enrich lineage\" on target \"acc-1 (6 lineage entries)\"."
+  ],
+  "error": null,
+  "output": [],
+  "calls": [
+    {
+      "call": "embed",
+      "texts": [
+        "Stale Thing",
+        "Cached Thing",
+        "Doctrine 1",
+        "Doctrine 2",
+        "Doctrine 3",
+        "Doctrine 4",
+        "Doctrine 5",
+        "Doctrine 6",
+        "Doctrine 7",
+        "Doctrine 8",
+        "Doctrine 9",
+        "Doctrine 10"
+      ],
+      "ids": [
+        "Stale Thing",
+        "Cached Thing",
+        "Doctrine 1",
+        "Doctrine 2",
+        "Doctrine 3",
+        "Doctrine 4",
+        "Doctrine 5",
+        "Doctrine 6",
+        "Doctrine 7",
+        "Doctrine 8",
+        "Doctrine 9",
+        "Doctrine 10"
+      ]
+    },
+    {
+      "call": "resolveKey",
+      "explicitKey": "explicit-key",
+      "backend": "claude"
+    },
+    {
+      "call": "ai",
+      "index": 1,
+      "model": "claude-haiku-4-5",
+      "apiKey": "explicit-key",
+      "temperature": 0.2,
+      "maxTokens": 8192,
+      "jsonMode": true,
+      "timeoutSec": 60,
+      "system": null,
+      "prompt": "Enrich each intellectual lineage entry with a description, URL, and category.\n\nFor each entry, provide:\n- name: the original name (verbatim)\n- description: 1-3 paragraphs about the topic, accessible to a policy audience. Cover what it is, its historical origins and key proponents, and why it matters for AI governance discourse. Go beyond a dictionary definition — provide enough context that a reader unfamiliar with the topic can understand its significance and how it connects to AI policy debates.\n- url: Wikipedia or authoritative URL (prefer Wikipedia when available)\n- category: one of: philosophical_movement, economic_theory, political_philosophy, social_theory, scientific_paradigm, legal_framework, technology_movement, ethical_framework, academic_discipline, cultural_movement, other\n\nEntries to enrich:\n- Stale Thing\n- Doctrine 1\n- Doctrine 2\n- Doctrine 3\n- Doctrine 4\n\nReturn a JSON array of objects. No markdown fences, no explanation.\nExample: [{\"name\":\"Effective Altruism\",\"description\":\"A philosophical movement...\",\"url\":\"https://en.wikipedia.org/wiki/Effective_altruism\",\"category\":\"philosophical_movement\"}]"
+    },
+    {
+      "call": "sleep",
+      "seconds": 2.0
+    },
+    {
+      "call": "ai",
+      "index": 2,
+      "model": "claude-haiku-4-5",
+      "apiKey": "explicit-key",
+      "temperature": 0.2,
+      "maxTokens": 8192,
+      "jsonMode": true,
+      "timeoutSec": 60,
+      "system": null,
+      "prompt": "Enrich each intellectual lineage entry with a description, URL, and category.\n\nFor each entry, provide:\n- name: the original name (verbatim)\n- description: 1-3 paragraphs about the topic, accessible to a policy audience. Cover what it is, its historical origins and key proponents, and why it matters for AI governance discourse. Go beyond a dictionary definition — provide enough context that a reader unfamiliar with the topic can understand its significance and how it connects to AI policy debates.\n- url: Wikipedia or authoritative URL (prefer Wikipedia when available)\n- category: one of: philosophical_movement, economic_theory, political_philosophy, social_theory, scientific_paradigm, legal_framework, technology_movement, ethical_framework, academic_discipline, cultural_movement, other\n\nEntries to enrich:\n- Doctrine 5\n- Doctrine 6\n- Doctrine 7\n- Doctrine 8\n- Doctrine 9\n\nReturn a JSON array of objects. No markdown fences, no explanation.\nExample: [{\"name\":\"Effective Altruism\",\"description\":\"A philosophical movement...\",\"url\":\"https://en.wikipedia.org/wiki/Effective_altruism\",\"category\":\"philosophical_movement\"}]"
+    },
+    {
+      "call": "sleep",
+      "seconds": 2.0
+    },
+    {
+      "call": "ai",
+      "index": 3,
+      "model": "claude-haiku-4-5",
+      "apiKey": "explicit-key",
+      "temperature": 0.2,
+      "maxTokens": 8192,
+      "jsonMode": true,
+      "timeoutSec": 60,
+      "system": null,
+      "prompt": "Enrich each intellectual lineage entry with a description, URL, and category.\n\nFor each entry, provide:\n- name: the original name (verbatim)\n- description: 1-3 paragraphs about the topic, accessible to a policy audience. Cover what it is, its historical origins and key proponents, and why it matters for AI governance discourse. Go beyond a dictionary definition — provide enough context that a reader unfamiliar with the topic can understand its significance and how it connects to AI policy debates.\n- url: Wikipedia or authoritative URL (prefer Wikipedia when available)\n- category: one of: philosophical_movement, economic_theory, political_philosophy, social_theory, scientific_paradigm, legal_framework, technology_movement, ethical_framework, academic_discipline, cultural_movement, other\n\nEntries to enrich:\n- Doctrine 10\n\nReturn a JSON array of objects. No markdown fences, no explanation.\nExample: [{\"name\":\"Effective Altruism\",\"description\":\"A philosophical movement...\",\"url\":\"https://en.wikipedia.org/wiki/Effective_altruism\",\"category\":\"philosophical_movement\"}]"
+    }
+  ],
+  "guards": [
+    "calibration/core/lineage-enrichments.json",
+    "taxonomy/Origin/accelerationist.json"
+  ],
+  "writes": [
+    "calibration/core/lineage-enrichments.json (encoding=utf-8, bom=False)",
+    "taxonomy/Origin/accelerationist.json (encoding=utf-8, bom=False)"
+  ],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "calibration/core/lineage-enrichments.json": "canonical: {\"Cached Thing\":{\"category\":\"social_theory\",\"description\":\"Already enriched.\",\"url\":\"https://cached.example\",\"url_status\":200},\"Doctrine 1\":{\"category\":\"other\",\"description\":\"Enriched Doctrine 1 with a description that runs past sixty characters easily.\",\"url\":\"https://w.example/Doctrine_1\",\"url_status\":200},\"Doctrine 2\":{\"category\":\"other\",\"description\":\"Enriched Doctrine 2 with a description that runs past sixty characters easily.\",\"url\":\"https://w.example/Doctrine_2\",\"url_status\":200},\"Doctrine 3\":{\"category\":\"other\",\"description\":\"Enriched Doctrine 3 with a description that runs past sixty characters easily.\",\"url\":\"https://w.example/Doctrine_3\",\"url_status\":200},\"Doctrine 4\":{\"category\":\"other\",\"description\":\"Enriched Doctrine 4 with a description that runs past sixty characters easily.\",\"url\":\"https://w.example/Doctrine_4\",\"url_status\":200},\"Stale Thing\":{\"category\":\"other\",\"description\":\"Enriched Stale Thing with a description that runs past sixty characters easily.\",\"url\":\"https://w.example/Stale_Thing\",\"url_status\":200}}",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"acc-1\",\n      \"label\": \"Label acc-1\",\n      \"description\": \"Description of acc-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Stale Thing\",\n            \"description\": \"Enriched Stale Thing with a description that runs past sixty characters easily.\",\n            \"url\": \"https://w.example/Stale_Thing\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Cached Thing\",\n            \"description\": \"Already enriched.\",\n            \"url\": \"https://cached.example\",\n            \"category\": \"social_theory\"\n          },\n          {\n            \"name\": \"Doctrine 1\",\n            \"description\": \"Enriched Doctrine 1 with a description that runs past sixty characters easily.\",\n            \"url\": \"https://w.example/Doctrine_1\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Doctrine 2\",\n            \"description\": \"Enriched Doctrine 2 with a description that runs past sixty characters easily.\",\n            \"url\": \"https://w.example/Doctrine_2\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Doctrine 3\",\n            \"description\": \"Enriched Doctrine 3 with a description that runs past sixty characters easily.\",\n            \"url\": \"https://w.example/Doctrine_3\",\n            \"category\": \"other\"\n          },\n          {\n            \"name\": \"Doctrine 4\",\n            \"description\": \"Enriched Doctrine 4 with a description that runs past sixty characters easily.\",\n            \"url\": \"https://w.example/Doctrine_4\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-2\",\n      \"label\": \"Label acc-2\",\n      \"description\": \"Description of acc-2.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          \"Doctrine 5\",\n          \"Doctrine 6\",\n          \"Doctrine 7\",\n          \"Doctrine 8\",\n          \"Doctrine 9\",\n          \"Doctrine 10\"\n        ]\n      }\n    }\n  ]\n}\n"
+  }
+}

@@ -23,6 +23,9 @@ import {
 } from '../../hooks/useTaxonomyStore';
 import { useTierInfo, isFreeTier, type TierInfo } from '../../hooks/useTierInfo';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
+import { OpEdTagPicker, opEdTagBlocksStart, opEdTagSelection, type OpEdTagChoice } from './OpEdTagPicker';
+import { registryOrNull } from '../debate/SeatTagPicker';
+import type { PovNode } from '@lib/debate/taxonomyTypes';
 import './NewOpEdDialog.css';
 
 // ── Outlets (t/3864) ───────────────────────────────────────────────────────────
@@ -510,6 +513,8 @@ interface CreateFormProps {
   onClose: () => void;
   onDraft: () => void;
   canStart: boolean;
+  /** The optional one-voice POV tag picker (t/3992), rendered by the dialog. */
+  tagPicker: React.ReactNode;
   hasSource: boolean;
   modelHasKey: boolean;
   submitLabel: string;
@@ -601,6 +606,8 @@ function OpEdCreateForm(p: CreateFormProps) {
           <p className="oped-voice-count" aria-live="polite">{voiceCountLine(p.orderedVoices)}</p>
         </div>
 
+        {p.tagPicker}
+
         {/* Outlet */}
         <div>
           <label className="oped-field-label" htmlFor="oped-outlet">Outlet</label>
@@ -680,6 +687,9 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
   const [url, setUrl] = useState('');
   // Default to all three camps selected (t/2849) — a study is normally the full triad.
   const [voices, setVoices] = useState<Set<PovKey>>(new Set(['accelerationist', 'safetyist', 'skeptic']));
+  const [tagChoice, setTagChoice] = useState<OpEdTagChoice | undefined>(undefined);
+  const tagRegistry = useMemo(() => registryOrNull(), []);
+  const nodesFor = (pov: PovKey): PovNode[] => useTaxonomyStore.getState()[pov]?.nodes ?? [];
   const [outlet, setOutlet] = useState(DEFAULTS.outlet);
   const [newsHook, setNewsHook] = useState('');
 
@@ -755,7 +765,8 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
   const orderedVoices = useMemo(() => POV_KEYS.filter(v => voices.has(v)), [voices]);
 
   const hasSource = fromWebPage ? url.trim().length > 0 : topic.trim().length > 0;
-  const canStart = hasSource && orderedVoices.length >= 1 && modelHasKey;
+  // t/3992: a tag below its minimum refuses at setup (TL t/3957#7 B(a)), never mid-generation.
+  const canStart = hasSource && orderedVoices.length >= 1 && modelHasKey && !opEdTagBlocksStart(tagChoice, orderedVoices, nodesFor);
 
   // A URL pasted into the topic box → FromTopic → no source brief → no claims, silently (t/2899).
   // Detect it so we can steer the user to the web-page path (desktop only; web has no URL path).
@@ -805,6 +816,8 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
     if (!ground) params.voiceOnly = true;
     else { params.maxGroundingNodes = maxGroundingNodes; params.maxSituations = maxSituations; }
     const sourceUrl = fromWebPage && url.trim() ? url.trim() : undefined;
+    const tagSelection = opEdTagSelection(tagChoice, orderedVoices); // t/3992
+    if (tagSelection) params.tagSelection = tagSelection;
     return { topic: topic.trim(), url: sourceUrl, params, voices: orderedVoices };
   };
 
@@ -897,6 +910,7 @@ export function NewOpEdDialog({ open, onClose, onCreated, allowUrlSource = true 
             onClose={onClose}
             onDraft={handleDraft}
             canStart={canStart}
+            tagPicker={<OpEdTagPicker voices={orderedVoices} registry={tagRegistry} choice={tagChoice} onChange={setTagChoice} nodesFor={nodesFor} />}
             hasSource={hasSource}
             modelHasKey={modelHasKey}
             submitLabel={submitLabel}

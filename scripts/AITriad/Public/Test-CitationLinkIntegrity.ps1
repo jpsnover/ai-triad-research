@@ -1,10 +1,12 @@
 # Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
-# Advisory→blocking flip point (t/3598, SO + TL Gate-Verification). Stays $false until the
-# Computational Linguist obtains the mandatory Second Opinion and Main (TL) Gate-Verification
-# for the blocking-gate promotion. Flipping to $true makes any leg's offenders fail the gate.
-$script:CitationIntegrityBlocking = $false
+# Blocking state, reported as the result's `.blocking` field (t/3598). $true since the LEG-A
+# promotion (t/4042: SO e/266, TL Gate-Verification, data PR #29 -> ceffc431). Blocking is LEG-A
+# ONLY: ai-triad-data's citation-link-integrity.yml fails the run on a leg-a offender (or on leg-a
+# absent / below its coverage floor); legs b and c stay advisory there. This flag is informational:
+# NO consumer branches on it, and the cmdlet itself never throws on offenders either way.
+$script:CitationIntegrityBlocking = $true
 
 # Leg-b accepted-baseline allowlist (t/3743, CL disposition t/3598#8). These 3 source_ids are
 # genuine cross-repo orphans — the summary exists with real content, but the source dir is
@@ -58,8 +60,9 @@ function Test-CitationLinkIntegrity {
               `missing-key`).
 
         Advisory: failing legs emit a WARN with offender detail and set the returned .pass to
-        $false, but the cmdlet NEVER throws on offenders. When $script:CitationIntegrityBlocking
-        is $true (the future SO/TL-GV flip), callers treat .pass -eq $false as a gate failure.
+        $false, but the cmdlet NEVER throws on offenders. $script:CitationIntegrityBlocking is
+        $true since the leg-a promotion (t/4042): the data CI workflow treats a leg-a .pass -eq
+        $false as a gate failure. Legs b and c remain advisory.
     .PARAMETER SummariesDir
         Summary JSON directory. Default: Get-SummariesDir.
     .PARAMETER TaxonomyDir
@@ -78,6 +81,8 @@ function Test-CitationLinkIntegrity {
         SourcesRoot default-resolution call entirely, so it cannot throw when no sources checkout exists.
     .OUTPUTS
         [pscustomobject] { pass; results = @({leg; pass; offenders[]}) ; blocking }
+        leg 'a' additionally carries `summariesScanned` (summary files read) and `refsChecked`
+        (non-blank refs resolved) — statistic-provenance for the t/4042 floor (SO e/266#10).
         leg 'b' additionally carries `checked` (N distinct source_ids), `accepted[]` (t/3743
         accepted-baseline hits — {source_id; reason} — PASS, not counted as offenders), and
         `skipped` ($true when -SkipSourceResolution was used — pass is $true, not a real check).
@@ -145,7 +150,13 @@ function Test-CitationLinkIntegrity {
             $out.Add([pscustomobject]@{ docId = $docId; ref = $ref; class = 'unknown-prefix' })
         }
     }
+    # Statistic-provenance for leg-a, mirroring leg-b's `checked` (t/4042, SO e/266#10): DevOps sets a
+    # floor on these and fails closed when they are absent, so a leg-a that scanned nothing can never
+    # pass as clean. refsChecked counts exactly the refs Resolve-Ref evaluates (non-blank).
+    $aSummaries = 0
+    $aRefs = 0
     foreach ($file in (Get-ChildItem -LiteralPath $SummariesDir -Filter '*.json' -File | Sort-Object Name)) {
+        $aSummaries++
         $s = Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json
         $docId = if ($s.PSObject.Properties['doc_id']) { [string]$s.doc_id } else { $file.BaseName }
         if ($s.PSObject.Properties['pov_summaries'] -and $s.pov_summaries) {
@@ -154,6 +165,7 @@ function Test-CitationLinkIntegrity {
                 if (-not ($block.PSObject.Properties['key_points'])) { continue }
                 foreach ($kp in @($block.key_points)) {
                     if ($kp.PSObject.Properties['taxonomy_node_id'] -and $null -ne $kp.taxonomy_node_id) {
+                        if (-not [string]::IsNullOrWhiteSpace([string]$kp.taxonomy_node_id)) { $aRefs++ }
                         script:Resolve-Ref ([string]$kp.taxonomy_node_id) $docId $beliefLive $sitLive $aOff
                     }
                 }
@@ -163,6 +175,7 @@ function Test-CitationLinkIntegrity {
             foreach ($fc in @($s.factual_claims)) {
                 if (-not $fc.PSObject.Properties['linked_taxonomy_nodes']) { continue }
                 foreach ($ref in @($fc.linked_taxonomy_nodes)) {
+                    if (-not [string]::IsNullOrWhiteSpace([string]$ref)) { $aRefs++ }
                     script:Resolve-Ref ([string]$ref) $docId $beliefLive $sitLive $aOff
                 }
             }
@@ -231,7 +244,7 @@ function Test-CitationLinkIntegrity {
     }
 
     $results = @(
-        [pscustomobject]@{ leg = 'a'; name = 'link-resolution';   pass = ($aOff.Count -eq 0); offenders = @($aOff) }
+        [pscustomobject]@{ leg = 'a'; name = 'link-resolution';   pass = ($aOff.Count -eq 0); offenders = @($aOff); summariesScanned = $aSummaries; refsChecked = $aRefs }
         [pscustomobject]@{ leg = 'b'; name = 'source-resolution'; pass = ($bOff.Count -eq 0); offenders = @($bOff); checked = $bChecked; accepted = @($bAccepted); skipped = $bSkipped }
         [pscustomobject]@{ leg = 'c'; name = 'staleness';         pass = ($cOff.Count -eq 0); offenders = @($cOff) }
     )

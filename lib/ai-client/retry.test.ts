@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { withRetry, parseRateLimitHeaders, parseRateLimitType, retryableFetch, makeFetchSignal, CLI_RETRY_CONFIG } from './retry.js';
 import type { RetryConfig } from './retry.js';
+import { KeyRoutingRefusal } from './apiKeyFallback.js';
 
 const FAST_CONFIG: RetryConfig = {
   maxRetries: 3,
@@ -116,6 +117,24 @@ describe('withRetry — auth error fast-fail', () => {
       throw new Error('JSON parse error: unexpected token');
     }, FAST_CONFIG, 'test')).rejects.toThrow('JSON parse');
     expect(calls).toBe(1);
+  });
+});
+
+describe('withRetry — a key-routing refusal is never retried, by kind (t/4105 SO cond 6)', () => {
+  it('rethrows on the first attempt even when the wording looks transient', async () => {
+    let calls = 0;
+    // The wording carries retryable tokens on purpose: only the KIND check stops the retry.
+    const refusal = new KeyRoutingRefusal('AIApiKeyGeminiOnlyRefused', {
+      goal: 'g', problem: 'network unavailable 503', location: 'test', nextSteps: [],
+    });
+    await expect(withRetry(async () => { calls++; throw refusal; }, FAST_CONFIG, 'test')).rejects.toBe(refusal);
+    expect(calls).toBe(1);
+  });
+
+  it('CONTROL: the same wording on an ordinary error is retried', async () => {
+    let calls = 0;
+    await expect(withRetry(async () => { calls++; throw new Error('network unavailable 503'); }, FAST_CONFIG, 'test')).rejects.toThrow();
+    expect(calls).toBeGreaterThan(1);
   });
 });
 

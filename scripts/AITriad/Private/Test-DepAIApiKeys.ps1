@@ -69,7 +69,8 @@ function Test-DepAIApiKeys {
     }
 
     if (-not $HasAnyKey -and $env:AI_API_KEY) {
-        Write-DepWarn -Ctx $Ctx -Message 'AI_API_KEY (fallback) set but cannot verify which backend it targets'
+        # AI_API_KEY is the fallback for gemini models only (t/4102); other backends never receive it.
+        Write-DepWarn -Ctx $Ctx -Message 'AI_API_KEY (fallback) set: it applies to gemini models only; other backends need their own key variable'
         $HasAnyKey = $true
     }
     if (-not $HasAnyKey) {

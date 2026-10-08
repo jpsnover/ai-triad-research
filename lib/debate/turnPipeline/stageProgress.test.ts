@@ -13,6 +13,7 @@ import { runOpeningPipelineWithRepair, OPENING_TOTAL_STAGES } from './opening.js
 import type { OpeningPipelineInput } from './opening.js';
 import { runTurnPipeline } from './runTurn.js';
 import type { TurnPipelineInput } from './types.js';
+import { POVER_INFO } from '../types.js';
 import type { StageProgressFn } from './types.js';
 
 // ── Opening stubs ────────────────────────────────────────────────────────────
@@ -33,7 +34,7 @@ const CITE_REPAIR_TRIGGER = JSON.stringify({
 });
 
 function makeOpeningInput(overrides: Partial<OpeningPipelineInput> = {}): OpeningPipelineInput {
-  return { label: 'TestAgent', pov: 'acc', personality: 'test', topic: 'test topic', taxonomyContext: '', priorStatements: '', isFirst: true, model: 'test-model', ...overrides };
+  return { label: 'TestAgent', pov: 'acc', soul: POVER_INFO['accelerationist'], personality: 'test', topic: 'test topic', taxonomyContext: '', priorStatements: '', isFirst: true, model: 'test-model', ...overrides };
 }
 
 // ── Turn stubs ───────────────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ const TURN_STUB = JSON.stringify({
 
 function makeTurnInput(overrides: Partial<TurnPipelineInput> = {}): TurnPipelineInput {
   return {
-    label: 'TestAgent', pov: 'acc', personality: 'test', topic: 'test topic',
+    label: 'TestAgent', pov: 'acc', soul: POVER_INFO['accelerationist'], personality: 'test', topic: 'test topic',
     taxonomyContext: '', commitmentContext: '', establishedPoints: '', edgeContext: '',
     concessionHint: '', recentTranscript: '', focusPoint: '', addressing: '',
     phase: 'exploration', priorMoves: [], turnsSinceLastConcession: 0,

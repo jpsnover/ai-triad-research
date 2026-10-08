@@ -382,7 +382,7 @@ After a summary is written, the system examines its `factual_claims` for cross-P
 | `GEMINI_API_KEY` | Google Gemini |
 | `ANTHROPIC_API_KEY` | Anthropic Claude |
 | `GROQ_API_KEY` | Groq |
-| `AI_API_KEY` | Universal fallback |
+| `AI_API_KEY` | Fallback for gemini models only (t/4102) |
 | `AI_MODEL` | Override default model |
 
 ---

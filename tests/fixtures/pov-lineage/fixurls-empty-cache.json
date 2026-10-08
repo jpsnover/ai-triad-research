@@ -1,0 +1,21 @@
+{
+  "scenario": "fixurls-empty-cache",
+  "host": [],
+  "warnings": [
+    "Cache is empty — run Repair-PovLineage first to populate it"
+  ],
+  "verbose": [],
+  "error": null,
+  "output": [],
+  "calls": [],
+  "guards": [],
+  "writes": [],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"acc-1\",\n      \"label\": \"Label acc-1\",\n      \"description\": \"Description of acc-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          \"Effective Altruism\",\n          \"Utilitarianism\",\n          \"Longtermism\"\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-2\",\n      \"label\": \"Label acc-2\",\n      \"description\": \"Description of acc-2.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          \"effective altruism\",\n          {\n            \"name\": \"Cybernetics\",\n            \"description\": \"Old description of Cybernetics.\",\n            \"url\": \"https://old.example/cyb\",\n            \"category\": \"scientific_paradigm\"\n          },\n          \"  \",\n          \"Accelerationism\"\n        ]\n      }\n    },\n    {\n      \"id\": \"acc-3\",\n      \"label\": \"No attributes\"\n    },\n    {\n      \"id\": \"acc-4\",\n      \"label\": \"Null attributes\",\n      \"graph_attributes\": null\n    },\n    {\n      \"id\": \"acc-5\",\n      \"label\": \"No lineage\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"empirical\"\n      }\n    }\n  ]\n}",
+    "taxonomy/Origin/safetyist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"saf-1\",\n      \"label\": \"Label saf-1\",\n      \"description\": \"Description of saf-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": []\n      }\n    },\n    {\n      \"id\": \"saf-2\",\n      \"label\": \"No attributes\"\n    }\n  ]\n}"
+  }
+}

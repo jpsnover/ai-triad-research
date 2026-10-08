@@ -6,7 +6,7 @@ import type { EntityDetail, EntitySummary, EntityListQuery } from '@lib/entities
 import type { ContainerMentions } from '@lib/entities/mentionTypes';
 import type { EdgesFile } from '@lib/debate/taxonomyTypes';
 import type { UserPreferences, BriefExportRequest, BriefExportJobView, BriefExportRecord, FetchRelevantNodesPayload, RelevantTaxonomyResult, FetchClaimAttributionPayload, ClaimAttributionResponse, GenerateTextIpcPayload, StartInquiryRequest, InquiryStatusResponse, InquiryResult, InquiryResultSummary, NodeDeleteLogEntry } from '../bridge/types';
-import type { BriefArtifactName } from '@lib/brief/types';
+import type { BriefArtifactName } from '../../../../lib/brief/types';
 import type { StopReason } from '@lib/ai-client/types';
 import type { OpEdSet, OpEdSetSummary } from '@lib/oped/types';
 
@@ -68,6 +68,11 @@ export interface ElectronAPI {
   // verified t/3532.
   saveEdges: (data: EdgesFile) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
+  // t/4034/t/4038: typed from the shared contract (lib/policy/registryRecount.ts).
+  recountPolicyMembers: (ids: string[]) => Promise<import('@lib/policy/registryRecount').RecountPolicyMembersResult>;
+  // t/4052/t/4054: typed from the shared contract (lib/schema/povTagProposals.ts).
+  loadPovTagProposals: () => Promise<import('@lib/schema/povTagProposals').PovTagProposalsFile | null>;
+  reviewPovTagProposal: (nodeId: string, decision: import('@lib/schema/povTagProposals').ProposalDecision, expectedStatus: import('@lib/schema/povTagProposals').ProposalStatus) => Promise<import('@lib/schema/povTagProposals').ApplyProposalDecisionResult>;
   loadLineageCategories: () => Promise<unknown>;
   // t/3852/t/3859: durable delete-audit log. Optional until the IPC handler lands
   // (ElectronMain) — the bridge graceful-degrades (WARN + resolve) while absent.
@@ -145,7 +150,11 @@ export interface ElectronAPI {
   // AI generation
   // Single-payload signature (t/3528) — see GenerateTextIpcPayload. `requestId` (t/2508)
   // correlates the request so `cancelGenerate` can abort the exact in-flight provider call.
-  generateText: (payload: GenerateTextIpcPayload) => Promise<{ text: string; stopReason?: StopReason }>;
+  // t/4048: servedModel is the registry id the call actually resolved to (after defaulting) —
+  // present so the debate store can mark a renderer run 'tracked' (e/268#6 condition 3).
+  // 'tracked' = failover-tracked, NOT provider-identity-verified; provider-side substitution
+  // is the ai.model_identity FR event's job (t/3731). See bridge/types.ts generateText doc.
+  generateText: (payload: GenerateTextIpcPayload) => Promise<{ text: string; stopReason?: StopReason; servedModel?: string }>;
   // Fire-and-forget cancel for an in-flight generateText (t/2508, wired t/2509) —
   // unconditionally implemented since; required-ness verified t/3532. electron-bridge.ts's
   // `?.()` call site is harmless on a required function and left as-is.

@@ -136,6 +136,10 @@
     "max": 53,
     "countOver": 1
   },
+  "AITriad/Private/Invoke-PolicyRegistryUpdate.ps1": {
+    "max": 16,
+    "countOver": 1
+  },
   "AITriad/Private/Invoke-ProposalApply.ps1": {
     "max": 65,
     "countOver": 1
@@ -320,10 +324,6 @@
     "max": 44,
     "countOver": 1
   },
-  "AITriad/Public/Export-TriadDebateBrief.ps1": {
-    "max": 101,
-    "countOver": 1
-  },
   "AITriad/Public/Find-AITSource.ps1": {
     "max": 17,
     "countOver": 1
@@ -337,15 +337,11 @@
     "countOver": 1
   },
   "AITriad/Public/Find-PolicyAction.ps1": {
-    "max": 71,
+    "max": 66,
     "countOver": 1
   },
   "AITriad/Public/Find-PossibleFallacy.ps1": {
     "max": 63,
-    "countOver": 1
-  },
-  "AITriad/Public/Find-SituationCandidates.ps1": {
-    "max": 177,
     "countOver": 1
   },
   "AITriad/Public/Get-AICallLog.ps1": {
@@ -520,10 +516,6 @@
     "max": 37,
     "countOver": 1
   },
-  "AITriad/Public/Invoke-BDIWeightAssignment.ps1": {
-    "max": 101,
-    "countOver": 1
-  },
   "AITriad/Public/Invoke-CcToSitMigration.ps1": {
     "max": 49,
     "countOver": 1
@@ -552,16 +544,8 @@
     "max": 77,
     "countOver": 1
   },
-  "AITriad/Public/Invoke-EntityExtraction.ps1": {
-    "max": 182,
-    "countOver": 1
-  },
   "AITriad/Public/Invoke-GraphQuery.ps1": {
     "max": 88,
-    "countOver": 1
-  },
-  "AITriad/Public/Invoke-HierarchyProposal.ps1": {
-    "max": 135,
     "countOver": 1
   },
   "AITriad/Public/Invoke-LogicalFormPass.ps1": {
@@ -588,24 +572,12 @@
     "max": 62,
     "countOver": 1
   },
-  "AITriad/Public/Invoke-POVSummary.ps1": {
-    "max": 119,
-    "countOver": 1
-  },
   "AITriad/Public/Invoke-QbafConflictAnalysis.ps1": {
     "max": 79,
     "countOver": 2
   },
   "AITriad/Public/Invoke-SchemaMigration.ps1": {
     "max": 31,
-    "countOver": 1
-  },
-  "AITriad/Public/Invoke-TaxEditorSmokeTest.ps1": {
-    "max": 108,
-    "countOver": 1
-  },
-  "AITriad/Public/Invoke-TaxonomyProposal.ps1": {
-    "max": 144,
     "countOver": 1
   },
   "AITriad/Public/Invoke-VernacularBatch.ps1": {
@@ -624,10 +596,6 @@
   },
   "AITriad/Public/Merge-FlightRecorderDumps.ps1": {
     "max": 53,
-    "countOver": 1
-  },
-  "AITriad/Public/New-OpEd.ps1": {
-    "max": 130,
     "countOver": 1
   },
   "AITriad/Public/New-SyntheticCorpus.ps1": {
@@ -664,10 +632,6 @@
   },
   "AITriad/Public/Repair-PovDescriptions.ps1": {
     "max": 41,
-    "countOver": 1
-  },
-  "AITriad/Public/Repair-PovLineage.ps1": {
-    "max": 226,
     "countOver": 1
   },
   "AITriad/Public/Repair-ResolvedBackfill.ps1": {
@@ -878,16 +842,8 @@
     "max": 32,
     "countOver": 1
   },
-  "AITriad/Public/Update-EntityMentionIndex.ps1": {
-    "max": 102,
-    "countOver": 1
-  },
   "AITriad/Public/Update-NodeTestingRecord.ps1": {
     "max": 30,
-    "countOver": 1
-  },
-  "AITriad/Public/Update-PolicyRegistry.ps1": {
-    "max": 73,
     "countOver": 1
   },
   "AITriad/Public/Update-Snapshot.ps1": {

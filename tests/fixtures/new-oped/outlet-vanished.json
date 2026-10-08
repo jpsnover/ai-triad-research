@@ -1,0 +1,11 @@
+{
+  "scenario": "outlet-vanished",
+  "calls": [],
+  "warnings": [],
+  "verbose": [],
+  "error": "\r\n  Goal:     Generate an op-ed in a POV voice\r\n  Error:    Outlet 'WashingtonPost' passed binding but is no longer present in outlets.json — the SSOT changed between binding and this read.\r\n  Location: New-OpEd\r\n  Resolve:\r\n   1. Re-run the command.",
+  "output": null,
+  "prepBriefAfter": "(no SourceBrief property)",
+  "fileCount": 0,
+  "file": null
+}

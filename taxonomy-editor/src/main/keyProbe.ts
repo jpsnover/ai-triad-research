@@ -17,6 +17,7 @@ import { net } from 'electron';
 import path from 'path';
 import { PROJECT_ROOT } from './fileIO.js';
 import { resolveModelEntry, resolveDebateTierModel } from './modelConfigCache.js';
+import { assertKeyForBackend } from '../../../lib/ai-client/apiKeyFallback.js';
 
 // t/3600: this list previously stopped at 6 entries while ai-models.json registered 8
 // hosted backends (moonshot, xai missing) — a comment claiming "kept in sync" is not a
@@ -57,6 +58,7 @@ function resolveGeminiProbeModel(): string {
  * gate with isSupportedProbeBackend() first to surface the right "Unsupported backend" error.
  */
 export async function probeApiKey(backend: string, key: string): Promise<boolean> {
+  assertKeyForBackend(key, backend, 'probe'); // t/4105 C5: a direct send that bypasses callProvider, so the foreign-key guard runs here
   switch (backend) {
     case 'gemini': {
       // generateContent (not list-models) — the list endpoint 200s for non-generating keys.

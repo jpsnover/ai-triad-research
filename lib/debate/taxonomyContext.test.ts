@@ -361,3 +361,74 @@ describe('formatTaxonomyContext — classification default-drop (t/3269)', () =>
     expect(output).toContain('[acc-bel-023]');
   });
 });
+
+function makeTagNode(id: string, label: string, category: 'Beliefs' | 'Desires' | 'Intentions' = 'Beliefs'): PovNode {
+  return { id, label, category, description: `desc for ${id}`, parent_id: null, children: [], situation_refs: [] };
+}
+
+describe('formatTaxonomyContext — tagSelection (t/3996)', () => {
+  it('tagged nodes receive ▲ prefix and appear before untagged nodes', () => {
+    const tagged = makeTagNode('acc-bel-100', 'Tagged Node');
+    const untagged = makeTagNode('acc-bel-101', 'Untagged Node');
+    const ctx = { povNodes: [untagged, tagged], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, {
+      tagSelection: { taggedIds: new Set(['acc-bel-100']), mode: 'prioritize' },
+    });
+    expect(output).toContain('▲ [acc-bel-100]');
+    expect(output).not.toContain('▲ [acc-bel-101]');
+    const taggedIdx = output.indexOf('▲ [acc-bel-100]');
+    const untaggedIdx = output.indexOf('acc-bel-101');
+    expect(taggedIdx).toBeLessThan(untaggedIdx);
+  });
+
+  it('legend shows ▲ = tagged for this seat when tagSelection is set', () => {
+    const ctx = { povNodes: [makeTagNode('acc-bel-102', 'A Node')], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, {
+      tagSelection: { taggedIds: new Set(['acc-bel-102']), mode: 'prioritize' },
+    });
+    expect(output).toContain('▲ = tagged for this seat');
+  });
+
+  it('tagged node gets full detail (isPrimary behavior)', () => {
+    const nodes = Array.from({ length: 5 }, (_, i) =>
+      makeTagNode(`acc-bel-11${i}`, `Node ${i}`)
+    );
+    const ctx = { povNodes: nodes, situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, {
+      tagSelection: { taggedIds: new Set(['acc-bel-114']), mode: 'prioritize' },
+      primaryCount: 1,
+    });
+    // acc-bel-114 is tagged — must show full label/description line
+    expect(output).toMatch(/▲ \[acc-bel-114\]/);
+    expect(output).toContain('"Node 4"');
+  });
+
+  it('without tagSelection: output is unchanged (no ▲, no legend)', () => {
+    const ctx = { povNodes: [makeTagNode('acc-bel-120', 'Plain Node')], situationNodes: [] };
+    const output = formatTaxonomyContext(ctx, 'accelerationist');
+    expect(output).not.toContain('▲');
+    expect(output).not.toContain('tagged for this seat');
+  });
+
+  it('tagSelection and nodeScores coexist: tagged sort first, both legends shown', () => {
+    const tagged = makeTagNode('acc-bel-130', 'Tagged');
+    const highScore = makeTagNode('acc-bel-131', 'High Score');
+    const lowScore = makeTagNode('acc-bel-132', 'Low Score');
+    const ctx = {
+      povNodes: [highScore, lowScore, tagged],
+      situationNodes: [],
+      nodeScores: new Map([['acc-bel-130', 0.1], ['acc-bel-131', 0.9], ['acc-bel-132', 0.2]]),
+    };
+    const output = formatTaxonomyContext(ctx, 'accelerationist', undefined, {
+      tagSelection: { taggedIds: new Set(['acc-bel-130']), mode: 'prioritize' },
+      primaryCount: 1,
+    });
+    expect(output).toContain('▲ [acc-bel-130]');
+    expect(output).toContain('▲ = tagged for this seat');
+    expect(output).toContain('★ = most relevant to current topic');
+    // tagged comes before highScore
+    const taggedIdx = output.indexOf('[acc-bel-130]');
+    const highIdx = output.indexOf('[acc-bel-131]');
+    expect(taggedIdx).toBeLessThan(highIdx);
+  });
+});

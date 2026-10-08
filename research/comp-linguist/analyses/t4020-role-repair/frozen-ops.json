@@ -1,6 +1,12 @@
 {
   "ticket": "t/4020",
-  "authorization": "PENDING",
+  "authorization": {
+    "by": "PI",
+    "when": "2026-10-06",
+    "where": "in session",
+    "text": "auth to write the repair  and tax editor is closed",
+    "note": "Recorded here because the Orca server was down; mirrored to t/4020 when it is back."
+  },
   "expected_ops": 10,
   "ops": [
     {

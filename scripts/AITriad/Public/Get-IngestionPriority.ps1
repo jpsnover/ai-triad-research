@@ -235,15 +235,10 @@ function Get-IngestionPriority {
         Write-Step 'Generating search queries with AI'
 
         try {
-            if     ($Model -match '^gemini') { $Backend = 'gemini' }
-            elseif ($Model -match '^claude') { $Backend = 'claude' }
-            elseif ($Model -match '^groq')   { $Backend = 'groq'   }
-        elseif ($Model -match '^openai') { $Backend = 'openai' }
-            else                             { $Backend = 'gemini'  }
-
-            $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-            if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-                Write-Warn "No API key found for $Backend — falling back to -NoAI mode"
+            # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
+            $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+            if (-not $KeyStatus.HasKey) {
+                Write-Warn "No API key found for $($KeyStatus.Backend) — falling back to -NoAI mode"
                 $NoAI = $true
             }
             else {
@@ -256,7 +251,7 @@ function Get-IngestionPriority {
                 $AIResult = Invoke-AIApi `
                     -Prompt     $PromptBody `
                     -Model      $Model `
-                    -ApiKey     $ResolvedKey `
+                    -ApiKey     $ApiKey `
                     -Temperature 0.2 `
                     -MaxTokens  4096 `
                     -JsonMode `

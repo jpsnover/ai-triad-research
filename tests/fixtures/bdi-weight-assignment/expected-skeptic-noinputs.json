@@ -1,0 +1,500 @@
+{
+  "last_modified": "2026-01-01",
+  "nodes": [
+    {
+      "id": "skp-beliefs-001",
+      "category": "Beliefs",
+      "label": "emp high, all boosts capped",
+      "graph_attributes": {
+        "epistemic_type": "empirical_claim",
+        "falsifiability": "high"
+      },
+      "debate_refs": [
+        "d1",
+        "d2",
+        "d3",
+        "d4",
+        "d5"
+      ],
+      "confidence": 0.9,
+      "confidence_history": [
+        {
+          "date": "2026-03-04",
+          "value": 0.9,
+          "delta": 0,
+          "reason": "Initial multi-signal assignment"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "confidence",
+            "confidence_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-002",
+      "category": "Beliefs",
+      "label": "emp medium",
+      "graph_attributes": {
+        "epistemic_type": "empirical_claim",
+        "falsifiability": "medium"
+      },
+      "confidence": 0.7,
+      "confidence_history": [
+        {
+          "date": "2026-03-04",
+          "value": 0.7,
+          "delta": 0,
+          "reason": "Initial multi-signal assignment"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "confidence",
+            "confidence_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-003",
+      "category": "Beliefs",
+      "label": "emp low, attacked",
+      "graph_attributes": {
+        "epistemic_type": "empirical_claim",
+        "falsifiability": "low"
+      },
+      "confidence": 0.6,
+      "confidence_history": [
+        {
+          "date": "2026-03-04",
+          "value": 0.6,
+          "delta": 0,
+          "reason": "Initial multi-signal assignment"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "confidence",
+            "confidence_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-004",
+      "category": "Beliefs",
+      "label": "emp no falsifiability",
+      "graph_attributes": {
+        "epistemic_type": "empirical_claim"
+      },
+      "confidence": 0.7,
+      "confidence_history": [
+        {
+          "date": "2026-03-04",
+          "value": 0.7,
+          "delta": 0,
+          "reason": "Initial multi-signal assignment"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "confidence",
+            "confidence_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-005",
+      "category": "Beliefs",
+      "label": "predictive, bidirectional attack",
+      "graph_attributes": {
+        "epistemic_type": "predictive"
+      },
+      "debate_refs": [
+        "d1"
+      ],
+      "confidence": 0.43,
+      "confidence_history": [
+        {
+          "date": "2026-03-04",
+          "value": 0.43,
+          "delta": 0,
+          "reason": "Initial multi-signal assignment"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "confidence",
+            "confidence_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-006",
+      "category": "Beliefs",
+      "label": "interpretive_lens",
+      "graph_attributes": {
+        "epistemic_type": "interpretive_lens"
+      },
+      "confidence": 0.5,
+      "confidence_history": [
+        {
+          "date": "2026-03-04",
+          "value": 0.5,
+          "delta": 0,
+          "reason": "Initial multi-signal assignment"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "confidence",
+            "confidence_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-007",
+      "category": "Beliefs",
+      "label": "definitional, has history",
+      "graph_attributes": {
+        "epistemic_type": "definitional"
+      },
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "confidence",
+            "confidence_history"
+          ]
+        },
+        {
+          "date": "2025-01-01T00:00:00",
+          "action": "created",
+          "fields": [
+            "label"
+          ]
+        }
+      ],
+      "confidence": 0.5,
+      "confidence_history": [
+        {
+          "date": "2026-03-04",
+          "value": 0.5,
+          "delta": 0,
+          "reason": "Initial multi-signal assignment"
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-008",
+      "category": "Beliefs",
+      "label": "no graph_attributes",
+      "confidence": 0.5,
+      "confidence_history": [
+        {
+          "date": "2026-03-04",
+          "value": 0.5,
+          "delta": 0,
+          "reason": "Initial multi-signal assignment"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "confidence",
+            "confidence_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-beliefs-009",
+      "category": "Beliefs",
+      "label": "unknown epistemic type",
+      "graph_attributes": {
+        "epistemic_type": "speculative"
+      },
+      "confidence": 0.5,
+      "confidence_history": [
+        {
+          "date": "2026-03-04",
+          "value": 0.5,
+          "delta": 0,
+          "reason": "Initial multi-signal assignment"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "confidence",
+            "confidence_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-desires-001",
+      "category": "Desires",
+      "label": "doctrinal",
+      "parent_id": "skp-desires-002",
+      "children": [],
+      "priority": 2,
+      "priority_history": [
+        {
+          "date": "2026-03-04",
+          "value": 2,
+          "delta": 0,
+          "reason": "Initial assignment: leaf Desire"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "priority",
+            "priority_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-desires-002",
+      "category": "Desires",
+      "label": "root",
+      "parent_id": null,
+      "children": [
+        "skp-desires-001"
+      ],
+      "priority": 4,
+      "priority_history": [
+        {
+          "date": "2026-03-04",
+          "value": 4,
+          "delta": 0,
+          "reason": "Initial assignment: root-level Desire"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "priority",
+            "priority_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-desires-003",
+      "category": "Desires",
+      "label": "mid",
+      "parent_id": "skp-desires-002",
+      "children": [
+        "skp-desires-004"
+      ],
+      "priority": 3,
+      "priority_history": [
+        {
+          "date": "2026-03-04",
+          "value": 3,
+          "delta": 0,
+          "reason": "Initial assignment: mid-tree Desire"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "priority",
+            "priority_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-desires-004",
+      "category": "Desires",
+      "label": "leaf",
+      "parent_id": "skp-desires-003",
+      "children": [],
+      "priority": 2,
+      "priority_history": [
+        {
+          "date": "2026-03-04",
+          "value": 2,
+          "delta": 0,
+          "reason": "Initial assignment: leaf Desire"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "priority",
+            "priority_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-intentions-001",
+      "category": "Intentions",
+      "label": "leaf high sit",
+      "parent_id": "skp-intentions-003",
+      "children": [],
+      "situation_refs": [
+        "sit-001"
+      ],
+      "graph_attributes": {
+        "falsifiability": "high"
+      },
+      "operationality": 5,
+      "operationality_history": [
+        {
+          "date": "2026-03-04",
+          "value": 5,
+          "delta": 0,
+          "reason": "Initial assignment: leaf Intention (falsifiability +1) (situation grounded)"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "operationality",
+            "operationality_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-intentions-002",
+      "category": "Intentions",
+      "label": "mid low",
+      "parent_id": "skp-intentions-003",
+      "children": [
+        "skp-intentions-004"
+      ],
+      "graph_attributes": {
+        "falsifiability": "low"
+      },
+      "operationality": 2,
+      "operationality_history": [
+        {
+          "date": "2026-03-04",
+          "value": 2,
+          "delta": 0,
+          "reason": "Initial assignment: mid-tree Intention (falsifiability -1)"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "operationality",
+            "operationality_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-intentions-003",
+      "category": "Intentions",
+      "label": "root",
+      "parent_id": null,
+      "children": [
+        "skp-intentions-001",
+        "skp-intentions-002"
+      ],
+      "operationality": 2,
+      "operationality_history": [
+        {
+          "date": "2026-03-04",
+          "value": 2,
+          "delta": 0,
+          "reason": "Initial assignment: root Intention"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "operationality",
+            "operationality_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-intentions-004",
+      "category": "Intentions",
+      "label": "leaf plain",
+      "parent_id": "skp-intentions-002",
+      "situation_refs": [],
+      "operationality": 4,
+      "operationality_history": [
+        {
+          "date": "2026-03-04",
+          "value": 4,
+          "delta": 0,
+          "reason": "Initial assignment: leaf Intention"
+        }
+      ],
+      "change_history": [
+        {
+          "date": "2026-03-04T05:06:07.0000000Z",
+          "action": "modified",
+          "fields": [
+            "operationality",
+            "operationality_history"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skp-misc-001",
+      "label": "no category"
+    },
+    {
+      "id": "skp-misc-002",
+      "category": "Situations",
+      "label": "other category"
+    }
+  ]
+}

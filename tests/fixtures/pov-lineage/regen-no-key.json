@@ -1,0 +1,28 @@
+{
+  "scenario": "regen-no-key",
+  "host": [],
+  "warnings": [],
+  "verbose": [],
+  "error": "\n  Goal:     Regenerate lineage content\n  Error:    No API key available for the gemini backend\n  Location: Repair-PovLineage -RegenerateContent\n  Resolve:\n   1. Set the GEMINI_API_KEY environment variable\n   2. Pass -ApiKey parameter",
+  "output": [],
+  "calls": [
+    {
+      "call": "prompt",
+      "name": "lineage-regenerate"
+    },
+    {
+      "call": "resolveKey",
+      "explicitKey": "",
+      "backend": "gemini"
+    }
+  ],
+  "guards": [],
+  "writes": [],
+  "tree": {
+    "calibration/": "(dir)",
+    "calibration/core/": "(dir)",
+    "taxonomy/": "(dir)",
+    "taxonomy/Origin/": "(dir)",
+    "taxonomy/Origin/accelerationist.json": "{\n  \"nodes\": [\n    {\n      \"id\": \"r-1\",\n      \"label\": \"Label r-1\",\n      \"description\": \"Description of r-1.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Alpha\",\n            \"description\": \"Old description of Alpha.\",\n            \"url\": \"https://a.example\",\n            \"category\": \"social_theory\"\n          },\n          {\n            \"name\": \"Beta\",\n            \"description\": \"Old description of Beta.\",\n            \"url\": \"https://b.example\",\n            \"category\": \"other\"\n          },\n          \"bare Gamma\"\n        ]\n      },\n      \"category\": \"Beliefs\"\n    },\n    {\n      \"id\": \"r-2\",\n      \"label\": \"Label r-2\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Delta\",\n            \"description\": \"Old description of Delta.\",\n            \"url\": \"\",\n            \"category\": \"other\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"r-3\",\n      \"label\": \"Label r-3\",\n      \"description\": \"Description of r-3.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          \"bare only\"\n        ]\n      }\n    },\n    {\n      \"id\": \"r-4\",\n      \"label\": \"Label r-4\",\n      \"description\": \"Description of r-4.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": []\n      }\n    },\n    {\n      \"id\": \"r-5\",\n      \"label\": \"Label r-5\",\n      \"description\": \"Description of r-5.\",\n      \"graph_attributes\": {\n        \"epistemic_type\": \"normative\",\n        \"intellectual_lineage\": [\n          {\n            \"name\": \"Epsilon\",\n            \"description\": \"Old description of Epsilon.\",\n            \"url\": \"https://e.example\",\n            \"category\": \"other\"\n          }\n        ]\n      },\n      \"category\": \"Desires\"\n    }\n  ]\n}"
+  }
+}

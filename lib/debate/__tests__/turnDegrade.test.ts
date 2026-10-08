@@ -5,6 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runTurnPipeline } from '../turnPipeline.js';
 import type { TurnPipelineInput, StageGenerateFn } from '../turnPipeline.js';
+import { POVER_INFO } from '../types.js';
 
 // ── Shared fixtures ──────────────────────────────────────
 
@@ -38,7 +39,9 @@ function makeBaseInput(overrides?: Partial<TurnPipelineInput>): TurnPipelineInpu
   return {
     label: 'Accelerationist',
     pov: 'accelerationist',
+    soul: POVER_INFO['accelerationist'],
     personality: 'Bold',
+    soul: POVER_INFO.accelerationist,
     topic: 'AI governance',
     taxonomyContext: '',
     commitmentContext: '',

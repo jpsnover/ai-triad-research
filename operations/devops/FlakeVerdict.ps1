@@ -61,3 +61,105 @@ function Format-FlakeVerdictMessage {
     $lines.Add("::error::test-powershell: NOTE — the rerun ran immediately in the SAME job, so it cannot clear resource contention held by the first attempt: a fixed/held port in TIME_WAIT, a parallel-shard bind of the same port, a lock, or a temp file. A sub-100ms fast-fail on a port-binding test is the contention signature, not proof of a real defect. Before treating this as definitively broken, verify with a FRESH run on the same head (t/3546).")
     return $lines.ToArray()
 }
+
+function Get-FlakeRerunVerdict {
+    <#
+    .SYNOPSIS
+        t/4080: decide whether run-1 failures "self-healed" on the in-job rerun.
+    .DESCRIPTION
+        The old verdict (ci.yml, t/3530 R4) was `rerun.Result -eq 'Passed' -and rerun.TotalCount -ge
+        failed.Count`. Both halves are blind to NotRun: a rerun whose Filter.FullName matched NOTHING
+        (data-driven `It '... <Name>' -ForEach` tests) reports Result=Passed and TotalCount=<every test,
+        all NotRun>. Real failures were laundered to green (main 696ea125, run 37668037103: 12 hidden).
+
+        IDENTITY = File + ExpandedPath (SO e/279#6). ExpandedPath alone omits the file, so the same
+        Describe/It names in two files, or two -ForEach rows expanding to the same string, would collide;
+        a last-write-wins map then lets a co-named Passed entry erase a Failed one. Entries are therefore
+        AGGREGATED per key, never overwritten.
+
+        A key is HEALED iff the rerun has at least as many entries under it as run 1 had failures, and
+        EVERY rerun entry under it is 'Passed'. Absent / NotRun / Skipped / Failed => not healed.
+        PURE: takes plain objects with File, ExpandedPath (and Result for the rerun); no Pester call.
+    .OUTPUTS
+        [pscustomobject] Healed [bool]; NotRerun [string[]]; StillFailing [string[]]  (keys "<file> :: <path>")
+    #>
+    [CmdletBinding()]
+    param(
+        # Run-1 failed tests: objects with File and ExpandedPath.
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]] $FailedTests,
+        # Rerun tests: objects with File, ExpandedPath and Result.
+        [AllowNull()][object[]] $RerunTests
+    )
+    $key = { param($t) '{0} :: {1}' -f [string]$t.File, [string]$t.ExpandedPath }
+    $need = @{}
+    foreach ($f in @($FailedTests)) { if ($null -ne $f) { $k = & $key $f; $need[$k] = 1 + [int]$need[$k] } }
+    $got = @{}
+    foreach ($t in @($RerunTests)) {
+        if ($null -eq $t) { continue }
+        $k = & $key $t
+        if (-not $got.ContainsKey($k)) { $got[$k] = [System.Collections.Generic.List[string]]::new() }
+        $got[$k].Add([string]$t.Result)
+    }
+    $notRerun = [System.Collections.Generic.List[string]]::new()
+    $stillFailing = [System.Collections.Generic.List[string]]::new()
+    foreach ($k in $need.Keys) {
+        if (-not $got.ContainsKey($k) -or $got[$k].Count -lt $need[$k]) { $notRerun.Add($k); continue }
+        if (@($got[$k] | Where-Object { $_ -ne 'Passed' }).Count -gt 0) { $stillFailing.Add($k) }
+    }
+    [pscustomobject]@{
+        Healed       = ($need.Count -gt 0 -and $notRerun.Count -eq 0 -and $stillFailing.Count -eq 0)
+        NotRerun     = @($notRerun | Sort-Object)
+        StillFailing = @($stillFailing | Sort-Object)
+    }
+}
+
+function New-FlakeHealRecord {
+    <#
+    .SYNOPSIS
+        t/4085: builds one self-heal record per healed test, for an isolated recording
+        step to persist (the #2070 sink pattern) -- this function does no I/O, so a
+        caller can never have its exit code affected by what happens to the records.
+    .DESCRIPTION
+        Get-FlakeRerunVerdict's exit-code branch in ci.yml is all-or-nothing: it only
+        reaches the "::warning:: ... treated as flake (self-healed)" line when EVERY
+        run-1 failed test healed (Healed -eq $true), so at the call site $HealedTest is
+        simply the full failed-test list from that branch -- there is no partial-heal
+        case to reconstruct here. This function stays independent of Get-FlakeRerunVerdict's
+        internals on purpose: it takes the already-healed identities as input rather than
+        recomputing them from FailedTests/RerunTests, so a future change to the verdict's
+        matching logic can't silently change what gets recorded without a caller update.
+
+        IDENTITY mirrors Get-FlakeRerunVerdict's key (File + ExpandedPath, SO e/279#6):
+        each -HealedTest entry must carry File and ExpandedPath.
+    .OUTPUTS
+        One [pscustomobject] per healed test: TestId, File, RunId, HeadSha, Branch, Shard, TimestampUtc.
+        An empty -HealedTest returns an empty array (the "empty list" case in the design,
+        t/4085#1) -- the caller writes that as an empty JSON array / no artifact, never null.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]] $HealedTest,
+        [Parameter(Mandatory)][string] $RunId,
+        [Parameter(Mandatory)][string] $HeadSha,
+        [Parameter(Mandatory)][string] $Branch,
+        [Parameter(Mandatory)][string] $Shard
+    )
+    $nowUtc = (Get-Date).ToUniversalTime().ToString('o')
+    $records = [System.Collections.Generic.List[object]]::new()
+    foreach ($t in @($HealedTest)) {
+        if ($null -eq $t) { continue }
+        $records.Add([pscustomobject]@{
+            TestId       = [string]$t.ExpandedPath
+            File         = [string]$t.File
+            RunId        = $RunId
+            HeadSha      = $HeadSha
+            Branch       = $Branch
+            Shard        = $Shard
+            TimestampUtc = $nowUtc
+        })
+    }
+    # `return $records.ToArray()` on a zero-element array unrolls to $null at the
+    # caller (PowerShell's pipeline-enumeration gotcha) -- -NoEnumerate keeps the
+    # empty array an empty array, per the design's "never null" requirement.
+    Write-Output -NoEnumerate $records.ToArray()
+}

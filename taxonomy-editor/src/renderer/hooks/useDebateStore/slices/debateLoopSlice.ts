@@ -3,7 +3,7 @@
 
 import type { StateCreator } from 'zustand';
 import type { DebateStore } from '../types';
-import { buildDebateResponsePrompt, buildCrossRespondPrompt, formatGapHint } from '../shared/prompts';
+import { buildDebateResponsePrompt, formatGapHint } from '../shared/prompts';
 import { seatSouls } from '../shared/seatSouls';
 import type { ReflectionEdit, ReflectionResult } from '../types';
 import type {
@@ -168,7 +168,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
 
       const drDocAnalysis = activeDebate.document_analysis;
       const prompt = buildDebateResponsePrompt(
-        poverId,
+        souls,
         topic,
         taxonomyBlock,
         currentTranscript,
@@ -179,7 +179,6 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         drDocAnalysis,
         activeDebate.audience,
         buildLineageContext(),
-        souls,
       );
 
       try {

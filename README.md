@@ -167,7 +167,7 @@ Show-AITriadHelp
 | `GEMINI_API_KEY` | Yes (primary) | Google Gemini API key |
 | `ANTHROPIC_API_KEY` | No | Anthropic Claude API key |
 | `GROQ_API_KEY` | No | Groq API key |
-| `AI_API_KEY` | No | Universal fallback key |
+| `AI_API_KEY` | No | Fallback key. PowerShell uses it for gemini models only; other backends need their own variable (t/4102) |
 | `AI_MODEL` | No | Default model override |
 | `AI_TRIAD_DATA_ROOT` | No | Override data directory path |
 | `NEO4J_PASSWORD` | No | Neo4j password (default: aitriad2026) |

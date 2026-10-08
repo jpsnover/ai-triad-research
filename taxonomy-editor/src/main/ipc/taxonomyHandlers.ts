@@ -8,6 +8,7 @@
 
 import { ipcMain, BrowserWindow } from 'electron';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import {
   readTaxonomyFile,
@@ -25,6 +26,11 @@ import {
   buildNodeSourceIndex,
   buildPolicySourceIndex,
   readPolicyRegistry,
+  acquirePolicyRegistryLock,
+  releasePolicyRegistryLock,
+  writePolicyRegistryRaw,
+  readPovTagProposals,
+  writePovTagProposals,
   readAggregatedCruxes,
   readLineageCategories,
   readLineageEnrichments,
@@ -34,6 +40,7 @@ import {
   getDataRootPath,
   loadDataConfig,
 } from '../fileIO.js';
+import { parsePovTagProposals, applyProposalDecision, type ProposalDecision, type ProposalStatus } from '../../../../lib/schema/povTagProposals.js';
 import { ActionableError, errorMessage } from '../../../../lib/debate/errors.js';
 import { findSituationBdiViolations, validateBdiFields, type SituationNode } from '../../../../lib/debate/taxonomyTypes.js';
 import { mergeEdgesPreservingRationale, ABSENT_BASELINE, type EdgesData, type EdgeMergeWarn } from '../../../../lib/edges/mergeEdgesPreservingRationale.js';
@@ -56,6 +63,15 @@ import { computeEmbeddings, computeQueryEmbedding } from '../embeddings.js';
 import { computeClaimTaxonomyAttribution } from '../../../../lib/debate/argumentNetwork/attribution.js';
 import type { ArgumentNetworkNode, ClaimTaxonomyAttribution } from '../../../../lib/debate/types.js';
 import { writeNodeDeleteLogEntry } from '../nodeDeleteLog.js';
+import {
+  recountPolicyMembers,
+  serializePolicyRegistry,
+  POLICY_POV_FILES,
+  type PolicyRegistry,
+  type PolicyPovFile,
+  type PolicyPovFileData,
+  type RecountPolicyMembersResult,
+} from '../../../../lib/policy/registryRecount.js';
 
 // Recorder-backed sink for the rationale re-merge's "baseline twin matched no incoming edge"
 // case: a real rationale isn't written, logged so a systematic tie-break mismatch is
@@ -290,6 +306,92 @@ export function registerTaxonomyHandlers(): void {
 
   ipcMain.handle('load-policy-registry', () => {
     return readPolicyRegistry();
+  });
+
+  // t/4052/t/4054: review queue for pov-tag-proposals.json. Returns the FILE itself (or null when
+  // absent) — never parsePovTagProposals's { ok, file } wrapper (Rosetta Stone, p/546#62). A parse
+  // failure is a genuine error (the file exists and is broken), so it throws rather than returning
+  // null, which is reserved for "no file yet".
+  ipcMain.handle('load-pov-tag-proposals', () => {
+    const raw = readPovTagProposals();
+    if (raw === null) return null;
+    const parsed = parsePovTagProposals(raw);
+    if (!parsed.ok) {
+      throw new ActionableError({
+        goal: 'Load the POV-tag proposal review queue',
+        problem: `pov-tag-proposals.json is malformed: ${parsed.problems.join('; ')}`,
+        location: 'ipc/taxonomyHandlers.ts → load-pov-tag-proposals',
+        nextSteps: ['Inspect pov-tag-proposals.json for corruption', 'Restore the file from git history'],
+      });
+    }
+    return parsed.file;
+  });
+
+  // Review one decision. A refusal (conflict/invalid) is returned as a VALUE — never thrown — per
+  // the p/546#62 contract; nothing is written on refusal. reviewedBy is the local desktop user
+  // (os.userInfo, mirrors nodeDeleteLog.ts's local-identity fallback) — there is no server-side
+  // authenticated identity on Electron.
+  ipcMain.handle('review-pov-tag-proposal', (_event, nodeId: string, decision: ProposalDecision, expectedStatus: ProposalStatus) => {
+    const raw = readPovTagProposals();
+    if (raw === null) {
+      throw new ActionableError({
+        goal: 'Review a POV-tag proposal',
+        problem: 'pov-tag-proposals.json does not exist — there is nothing to review',
+        location: 'ipc/taxonomyHandlers.ts → review-pov-tag-proposal',
+        nextSteps: ['Run the proposal-generation step (t/3962) before opening the review queue'],
+      });
+    }
+    const parsed = parsePovTagProposals(raw);
+    if (!parsed.ok) {
+      throw new ActionableError({
+        goal: 'Review a POV-tag proposal',
+        problem: `pov-tag-proposals.json is malformed: ${parsed.problems.join('; ')}`,
+        location: 'ipc/taxonomyHandlers.ts → review-pov-tag-proposal',
+        nextSteps: ['Inspect pov-tag-proposals.json for corruption', 'Restore the file from git history'],
+      });
+    }
+    const reviewedBy = os.userInfo().username;
+    const reviewedAt = new Date().toISOString();
+    const result = applyProposalDecision(parsed.file, nodeId, decision, reviewedBy, reviewedAt, expectedStatus);
+    if ('refused' in result) return result;
+    writePovTagProposals(result.file);
+    return result;
+  });
+
+  // t/4034/t/4038: recount member_count/source_povs for the given policy ids after an editor
+  // edit adds/removes a node's policy action from the registry picker (t/4034 description).
+  // PI ruling e/264#29 (option a): the editor's recount never refuses on an uncommitted registry
+  // — only the lock can refuse. Flow (t/4038#4, minus the dropped dirty-tree step): acquire
+  // policy_actions.lock -> read registry + 4 POV files -> recountPolicyMembers -> `unchanged`
+  // before any write -> write via the one serializer -> release the lock in `finally`.
+  ipcMain.handle('recount-policy-members', async (_event, ids: string[]): Promise<RecountPolicyMembersResult> => {
+    const handle = await acquirePolicyRegistryLock();
+    if (!handle) {
+      return { status: 'refused', reason: 'locked', updated: [] };
+    }
+    try {
+      const rawRegistry = readPolicyRegistry();
+      if (rawRegistry === null) {
+        throw new ActionableError({
+          goal: 'Recount policy registry member counts',
+          problem: 'policy_actions.json does not exist — there is nothing to recount',
+          location: 'ipc/taxonomyHandlers.ts → recount-policy-members',
+          nextSteps: ['Create policy_actions.json before adding policy actions to a node'],
+        });
+      }
+      const povFiles: Partial<Record<PolicyPovFile, PolicyPovFileData>> = {};
+      for (const pov of POLICY_POV_FILES) {
+        povFiles[pov] = readTaxonomyFile(pov) as PolicyPovFileData;
+      }
+      const { registry, updated, changed } = recountPolicyMembers(rawRegistry as PolicyRegistry, povFiles, ids);
+      if (!changed) {
+        return { status: 'unchanged', updated: [] };
+      }
+      writePolicyRegistryRaw(serializePolicyRegistry(registry));
+      return { status: 'written', updated };
+    } finally {
+      releasePolicyRegistryLock(handle);
+    }
   });
 
   ipcMain.handle('load-lineage-categories', () => {

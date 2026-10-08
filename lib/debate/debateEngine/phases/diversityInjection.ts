@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type { DebateEngineInternals } from '../internals.js';
-import { type DebatePhase, POVER_INFO } from '../../types.js';
+import { type DebatePhase } from '../../types.js';
 import { formatRecentTranscript, getMoveName } from '../../helpers.js';
 import { resolveTurnValidationConfig } from '../../turnValidator.js';
 import { executeTurnWithRetry, type TurnRetryCallbacks, type TurnRetryInput } from '../../orchestration.js';
@@ -73,7 +73,7 @@ export async function runDiversityRound(engine: DebateEngineInternals, round: nu
     if ((pov as string) === 'user') continue;
     engine.checkAborted();
 
-    const info = POVER_INFO[pov];
+    const info = engine.getSoulForSpeaker(pov);
     engine.progress('debate', pov, `${info.label} — independent exploration (diversity round)`);
 
     const priorRefs = engine.session.transcript
@@ -117,7 +117,13 @@ export async function runDiversityRound(engine: DebateEngineInternals, round: nu
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
+      soul: info,
       personality: info.personality,
+      opponentSouls: Object.fromEntries(
+        engine.config.activePovers
+          .filter(id => id !== pov && (id as string) !== 'user')
+          .map(id => [id, engine.getSoulForSpeaker(id)]),
+      ),
       topic: engine.session.topic.final,
       background: engine.session.topic.background || undefined,
       taxonomyContext,

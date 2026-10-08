@@ -4,6 +4,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { filterByPovTag, povTagFilterOptions, type PovTagFilter } from '../../utils/povTagFilter';
 import { PovTagFilterSelect } from './PovTagFilterSelect';
+import { PovTagProposalButton } from './PovTagProposalQueue';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useMobileNav } from '../../hooks/useMobileNav';
@@ -837,6 +838,7 @@ export function PovTab({ pov }: PovTabProps) {
                 <option value="debate_tested_desc">Sort: Debate-Tested (most)</option>
               </select>
               <PovTagFilterSelect options={tagFilterOptions} value={tagFilter} onChange={setTagFilter} />
+              <PovTagProposalButton pov={pov} />
               <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
             </div>
           </div>

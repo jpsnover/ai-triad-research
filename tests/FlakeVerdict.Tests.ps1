@@ -81,3 +81,90 @@ Describe 'Format-FlakeVerdictMessage — t/3546 verdict honesty' {
         }
     }
 }
+
+Describe 'Get-FlakeRerunVerdict — t/4080 NotRun must never count as healed' {
+    BeforeAll {
+        . (Join-Path $PSScriptRoot '..' 'operations' 'devops' 'FlakeVerdict.ps1')
+        function script:F([string]$p, [string]$file = 'a.Tests.ps1') { [pscustomobject]@{ File = $file; ExpandedPath = $p } }
+        function script:T([string]$p, [string]$r, [string]$file = 'a.Tests.ps1') { [pscustomobject]@{ File = $file; ExpandedPath = $p; Result = $r } }
+    }
+
+    It 'LAUNDERING ARM (the t/4080 bug): failed test rerun as NotRun -> NOT healed' {
+        $v = Get-FlakeRerunVerdict -FailedTests @((F 'S.data-driven beta')) -RerunTests @(
+            (T 'S.plain' 'NotRun'), (T 'S.data-driven alpha' 'NotRun'), (T 'S.data-driven beta' 'NotRun'))
+        $v.Healed | Should -BeFalse
+        @($v.StillFailing).Count | Should -Be 1
+    }
+    It 'failed test absent from the rerun -> NOT healed, listed as NotRerun' {
+        $v = Get-FlakeRerunVerdict -FailedTests @((F 'S.gone')) -RerunTests @((T 'S.other' 'Passed'))
+        $v.Healed | Should -BeFalse
+        @($v.NotRerun).Count | Should -Be 1
+    }
+    It 'zero rerun tests -> NOT healed' {
+        (Get-FlakeRerunVerdict -FailedTests @((F 'S.a'), (F 'S.b')) -RerunTests @()).Healed | Should -BeFalse
+    }
+    It 'null rerun result -> NOT healed' {
+        (Get-FlakeRerunVerdict -FailedTests @((F 'S.a')) -RerunTests $null).Healed | Should -BeFalse
+    }
+    It 'genuine flake: every failed test re-ran and PASSED -> healed' {
+        $v = Get-FlakeRerunVerdict -FailedTests @((F 'S.a'), (F 'S.b')) -RerunTests @((T 'S.a' 'Passed'), (T 'S.b' 'Passed'), (T 'S.c' 'Passed'))
+        $v.Healed | Should -BeTrue
+    }
+    It 'one of two failed tests still failing -> NOT healed' {
+        $v = Get-FlakeRerunVerdict -FailedTests @((F 'S.a'), (F 'S.b')) -RerunTests @((T 'S.a' 'Passed'), (T 'S.b' 'Failed'))
+        $v.Healed | Should -BeFalse
+        @($v.StillFailing).Count | Should -Be 1
+    }
+    It 'skipped on rerun is not a pass -> NOT healed' {
+        (Get-FlakeRerunVerdict -FailedTests @((F 'S.a')) -RerunTests @((T 'S.a' 'Skipped'))).Healed | Should -BeFalse
+    }
+    It 'no failed tests -> not "healed" (nothing to heal)' {
+        (Get-FlakeRerunVerdict -FailedTests @() -RerunTests @((T 'S.a' 'Passed'))).Healed | Should -BeFalse
+    }
+    # SO e/279#6: ExpandedPath collisions must not let a Passed copy erase a Failed one.
+    It 'DUPLICATE NAME (Passed then Failed, same file) -> NOT healed' {
+        (Get-FlakeRerunVerdict -FailedTests @((F 'S.dup')) -RerunTests @((T 'S.dup' 'Passed'), (T 'S.dup' 'Failed'))).Healed | Should -BeFalse
+    }
+    It 'DUPLICATE NAME (Failed then Passed, same file) -> NOT healed' {
+        (Get-FlakeRerunVerdict -FailedTests @((F 'S.dup')) -RerunTests @((T 'S.dup' 'Failed'), (T 'S.dup' 'Passed'))).Healed | Should -BeFalse
+    }
+    It 'same ExpandedPath in a DIFFERENT file passing does not heal the failed one' {
+        $v = Get-FlakeRerunVerdict -FailedTests @((F 'S.x' 'one.Tests.ps1')) -RerunTests @((T 'S.x' 'Passed' 'two.Tests.ps1'))
+        $v.Healed | Should -BeFalse
+        @($v.NotRerun).Count | Should -Be 1
+    }
+    It 'two run-1 failures under one key need two passing rerun entries' {
+        $v = Get-FlakeRerunVerdict -FailedTests @((F 'S.dup'), (F 'S.dup')) -RerunTests @((T 'S.dup' 'Passed'))
+        $v.Healed | Should -BeFalse
+        (Get-FlakeRerunVerdict -FailedTests @((F 'S.dup'), (F 'S.dup')) -RerunTests @((T 'S.dup' 'Passed'), (T 'S.dup' 'Passed'))).Healed | Should -BeTrue
+    }
+}
+
+Describe 'New-FlakeHealRecord — t/4085 self-heal recording (AC1: pure, no I/O)' {
+    BeforeAll {
+        . (Join-Path $PSScriptRoot '..' 'operations' 'devops' 'FlakeVerdict.ps1')
+        function script:F([string]$p, [string]$file = 'a.Tests.ps1') { [pscustomobject]@{ File = $file; ExpandedPath = $p } }
+    }
+
+    It 'returns one record per healed test, with the full field set' {
+        $r = New-FlakeHealRecord -HealedTest @((F 'S.a'), (F 'S.b' 'b.Tests.ps1')) -RunId '123' -HeadSha 'deadbeef' -Branch 'main' -Shard '2'
+        @($r).Count | Should -Be 2
+        $r[0].TestId | Should -Be 'S.a'
+        $r[0].File | Should -Be 'a.Tests.ps1'
+        $r[0].RunId | Should -Be '123'
+        $r[0].HeadSha | Should -Be 'deadbeef'
+        $r[0].Branch | Should -Be 'main'
+        $r[0].Shard | Should -Be '2'
+        $r[1].TestId | Should -Be 'S.b'
+        $r[1].File | Should -Be 'b.Tests.ps1'
+    }
+    It 'a not-healed (empty) verdict returns an empty array, never null' {
+        $r = New-FlakeHealRecord -HealedTest @() -RunId '1' -HeadSha 'x' -Branch 'main' -Shard '1'
+        ($null -eq $r) | Should -BeFalse -Because 'the array itself must exist (empty), not be $null'
+        @($r).Count | Should -Be 0
+    }
+    It 'stamps every record with a parseable UTC timestamp' {
+        $r = New-FlakeHealRecord -HealedTest @((F 'S.a')) -RunId '1' -HeadSha 'x' -Branch 'main' -Shard '1'
+        { [datetime]::Parse($r[0].TimestampUtc, $null, [System.Globalization.DateTimeStyles]::RoundtripKind) } | Should -Not -Throw
+    }
+}
