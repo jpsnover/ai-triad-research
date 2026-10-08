@@ -19,7 +19,7 @@
     "zod": "^4.6.5"
   },
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint . && node eslint-rules/check-complexity-budget-disables.mjs",
     "typecheck": "tsc --noEmit",
     "typecheck:brief-nodenext": "tsc -p brief/tsconfig.nodenext.json"
   }
