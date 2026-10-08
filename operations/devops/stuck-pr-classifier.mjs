@@ -16,8 +16,42 @@
  */
 export const REQUIRED_CONTEXTS = ['ci-gate', 'CodeQL', 'joint-gv-guard', 'consult-hold-guard'];
 
+// MUST-fix (Lead review, PR #3141): `actions/runs`' `name` field is the WORKFLOW name
+// ('CI', 'CodeQL SAST'), not the required-context/job name ('ci-gate', 'CodeQL') -- matching
+// REQUIRED_CONTEXTS against run.name silently matched NOTHING for ci-gate or CodeQL, so
+// stuck-required-run/required-check-failed never saw them and armed-but-blocked could never
+// fire (its allGreen check needs all four). Match on the WORKFLOW FILE PATH instead, which is
+// stable across a workflow's `name:` edits. Gate Co-Location: this map MUST change whenever
+// branch protection's required contexts change (verify live via `gh api .../branches/main/protection`).
+export const REQUIRED_CONTEXT_PATHS = {
+  'ci-gate': '.github/workflows/ci.yml',
+  CodeQL: '.github/workflows/codeql.yml',
+  'joint-gv-guard': '.github/workflows/joint-gv-guard.yml',
+  'consult-hold-guard': '.github/workflows/consult-hold-guard.yml',
+};
+
 // Gate Co-Location: thresholds at their point of use, with rationale.
-export const STUCK_RUN_MINUTES = 30;   // t/4096#2: a required-context run queued/in-progress this long is a named blocker.
+// A QUEUED required run past this is the #3062 signature -- GitHub treats it as "expected"
+// even though it's doing nothing (t/4096#2).
+export const QUEUED_STUCK_MINUTES = 30;
+
+// MUST-fix (Lead review): an IN_PROGRESS run isn't stuck just because it's slow -- `ci.yml`
+// legitimately runs long (PowerShell shards). Threshold is each workflow's own measured p95
+// successful-run duration (updated_at - run_started_at, last 50 successful runs, measured
+// 2026-10-08) * 1.5, floored at 10 min so a fast workflow (joint-gv-guard, consult-hold-guard)
+// isn't flagged on ordinary runner-scheduling jitter:
+//   ci-gate (ci.yml):             p95 1397s (23.3min) -> 35min
+//   CodeQL (codeql.yml):          p95  426s ( 7.1min) -> 11min
+//   joint-gv-guard:               p95  132s ( 2.2min) -> floor 10min
+//   consult-hold-guard:           p95  117s ( 2.0min) -> floor 10min
+// Re-measure if a workflow's steps change materially; these are observed-not-bounded.
+export const IN_PROGRESS_STUCK_MINUTES = {
+  'ci-gate': 35,
+  CodeQL: 11,
+  'joint-gv-guard': 10,
+  'consult-hold-guard': 10,
+};
+
 export const IDLE_DETECT_HOURS = 1;    // no PR activity for this long, with no other named blocker, names "idle".
 export const OWNER_SLA_HOURS = 2;      // blocker episode age at which the owning role is pinged.
 export const TL_SLA_HOURS = 6;         // blocker episode age at which the TL is pinged (never the PI).
@@ -32,18 +66,27 @@ export const SWEEP_BURST_SECONDS = 120;  // 2+ PRs showing the signature within 
  * @param {boolean} pr.isConflicting - true iff mergeable === false / mergeable_state === 'dirty' (GitHub's CONFLICTING).
  * @param {boolean} pr.autoMergeEnabled
  * @param {string[]} pr.labels
- * @param {Array<{name:string, status:string, conclusion:string|null, createdAt:string}>} pr.runs
- *   The NEWEST run per workflow name touching this head SHA (actions/runs?head_sha), for
- *   every name in REQUIRED_CONTEXTS that has at least one run. Absent names mean no run yet.
+ * @param {Array<{path:string, status:string, conclusion:string|null, createdAt:string, startedAt:string|null, runAttempt:number, id:number}>} pr.runs
+ *   The NEWEST run per workflow FILE PATH touching this head SHA (actions/runs?head_sha).
+ *   `path` is matched against REQUIRED_CONTEXT_PATHS, never `name` (MUST-fix, PR #3141 review:
+ *   `name` is the workflow's display name, e.g. 'CI', not the required-context/job name).
+ *   `startedAt` is `run_started_at`; on a re-run (runAttempt > 1) `createdAt` keeps the
+ *   ORIGINAL run's timestamp, so stuck-duration math must use startedAt (falling back to
+ *   createdAt only when startedAt is unset, e.g. a run still queued and never started).
  * @param {string|null} pr.mergeRefusalText - the REST merge attempt's refusal message, if tried.
- * @param {string|null} pr.lastActivityAt - ISO timestamp of the PR's last commit/comment/review.
+ * @param {string|null} pr.lastActivityAt - ISO timestamp of the PR's last commit or non-bot
+ *   comment/review (MUST exclude the alert's OWN comments and label writes, and other bot
+ *   activity — PR #3141 review: using raw `updated_at` let the alert's own writes reset the
+ *   idle/held-age clock every time it ran).
  * @param {number} nowMs
  * @returns {{class:string, detail:object}|null}
  */
 export function classifyBlocker(pr, nowMs) {
   const labels = pr.labels ?? [];
   const runs = pr.runs ?? [];
-  const byName = new Map(runs.map((r) => [r.name, r]));
+  const byPath = new Map(runs.map((r) => [r.path, r]));
+  const runFor = (contextName) => byPath.get(REQUIRED_CONTEXT_PATHS[contextName]);
+  const stuckBasisMs = (run) => Date.parse(run.startedAt || run.createdAt);
 
   // 1. held — checked FIRST and reported alone: a hold is deliberate, so a PR carrying one
   //    is never escalated even if it also matches another class underneath.
@@ -59,19 +102,32 @@ export function classifyBlocker(pr, nowMs) {
 
   // 3. stuck-required-run — the #3062 blind spot. Checked before required-check-failed:
   //    a run that is still queued/in_progress has no conclusion yet, so it can't be "failed".
+  //    QUEUED and IN_PROGRESS use DIFFERENT thresholds (MUST-fix): a queued run past 30min is
+  //    the #3062 signature regardless of workflow; an in_progress run is only stuck past that
+  //    WORKFLOW's own measured p95 duration -- ci.yml legitimately runs ~20min.
   for (const name of REQUIRED_CONTEXTS) {
-    const run = byName.get(name);
+    const run = runFor(name);
     if (!run) continue;
-    if (run.status === 'queued' || run.status === 'in_progress') {
-      const stuckMinutes = (nowMs - Date.parse(run.createdAt)) / 60000;
-      if (stuckMinutes > STUCK_RUN_MINUTES) {
+    if (run.status === 'queued') {
+      const stuckMinutes = (nowMs - stuckBasisMs(run)) / 60000;
+      if (stuckMinutes > QUEUED_STUCK_MINUTES) {
         return {
           class: 'stuck-required-run',
           detail: {
-            context: name,
-            runId: run.id,
-            stuckMinutes: Math.round(stuckMinutes),
+            context: name, runId: run.id, stuckMinutes: Math.round(stuckMinutes), stuckKind: 'queued',
             remedy: `Re-trigger first (toggle auto-merge or a label); if that doesn't clear it, cancel and re-run run ${run.id}.`,
+          },
+        };
+      }
+    } else if (run.status === 'in_progress') {
+      const stuckMinutes = (nowMs - stuckBasisMs(run)) / 60000;
+      const threshold = IN_PROGRESS_STUCK_MINUTES[name];
+      if (stuckMinutes > threshold) {
+        return {
+          class: 'stuck-required-run',
+          detail: {
+            context: name, runId: run.id, stuckMinutes: Math.round(stuckMinutes), stuckKind: 'in_progress',
+            remedy: `Running ${Math.round(stuckMinutes)}min, past this workflow's ${threshold}min threshold — check run ${run.id} for a hang before re-triggering.`,
           },
         };
       }
@@ -80,7 +136,7 @@ export function classifyBlocker(pr, nowMs) {
 
   // 4. required-check-failed
   for (const name of REQUIRED_CONTEXTS) {
-    const run = byName.get(name);
+    const run = runFor(name);
     if (run && run.status === 'completed' && run.conclusion !== 'success') {
       return { class: 'required-check-failed', detail: { context: name, conclusion: run.conclusion, runId: run.id } };
     }
@@ -89,7 +145,7 @@ export function classifyBlocker(pr, nowMs) {
   // 5. armed-but-blocked
   if (pr.autoMergeEnabled) {
     const allGreen = REQUIRED_CONTEXTS.every((name) => {
-      const run = byName.get(name);
+      const run = runFor(name);
       return run && run.status === 'completed' && run.conclusion === 'success';
     });
     if (allGreen && pr.mergeableState === 'blocked') {

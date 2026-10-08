@@ -425,7 +425,7 @@ jobs:
             const { pathToFileURL } = require('url');
             const {
               classifyBlocker, escalationLevel, detectSweepSignature, classifySweepHits,
-              REQUIRED_CONTEXTS,
+              REQUIRED_CONTEXTS, REQUIRED_CONTEXT_PATHS,
             } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/operations/devops/stuck-pr-classifier.mjs`).href);
 
             const owner = context.repo.owner, repo = context.repo.repo;
@@ -436,13 +436,34 @@ jobs:
             const allPRs = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 });
             const openPRs = allPRs.filter((pr) => !pr.draft);
 
-            // t/4096#1: derive the owner-ticket from the branch name (t/NNNN), the same
-            // convention used fleet-wide for claim-before-implement. resolve_owner on changed
-            // files is an Orca MCP tool, not callable from a GitHub Actions step -- falling
-            // back to "unresolved" here is a known, flagged gap (t/4115#1), not a silent one.
-            function ticketFromBranch(ref) {
+            // t/4096#1: derive a branch-hint ticket (t/NNNN) for the bridge to try FIRST, per
+            // the Lead's review (#4): resolution itself happens in the bridge (Get-StuckPRAlerts.ps1
+            // -- ticket assignee via get_ticket, then resolve_owners_batch on changed files), not
+            // here. This is a hint only -- the workflow never claims to have resolved an owner.
+            function ticketHintFromBranch(ref) {
               const m = (ref || '').match(/t(\d{3,5})/i);
               return m ? `t/${m[1]}` : null;
+            }
+
+            // MUST-fix (Lead review, PR #3141): exclude the alert's OWN writes (and other bot
+            // activity) from "last activity", or every scheduled run resets its own idle/held
+            // clock. Last activity = newest of the head commit date and the latest comment or
+            // review from a NON-bot actor.
+            async function lastNonBotActivity(pr) {
+              const times = [pr.head?.commit?.committer?.date ?? pr.created_at];
+              const [{ data: comments }, { data: reviews }] = await Promise.all([
+                github.rest.issues.listComments({ owner, repo, issue_number: pr.number, per_page: 100 }),
+                github.rest.pulls.listReviews({ owner, repo, pull_number: pr.number, per_page: 100 }),
+              ]);
+              for (const c of comments) {
+                if (c.user?.type === 'Bot') continue;
+                times.push(c.created_at);
+              }
+              for (const r of reviews) {
+                if (r.user?.type === 'Bot') continue;
+                times.push(r.submitted_at);
+              }
+              return times.filter(Boolean).sort().at(-1);
             }
 
             const blockerFindings = [];
@@ -452,14 +473,19 @@ jobs:
                 owner, repo, head_sha: pr.head.sha, per_page: 100,
               }).catch(() => ({ data: { workflow_runs: [] } }));
 
-              // Newest run per required-context workflow NAME on this exact head SHA --
-              // the #3062 fix: actions/runs, never the check-runs rollup.
-              const byName = new Map();
+              // Newest run per required-context workflow PATH on this exact head SHA (MUST-fix:
+              // match on .path, never .name -- "CI"/"CodeQL SAST" are workflow DISPLAY names,
+              // not the required-context names; see stuck-pr-classifier.mjs's REQUIRED_CONTEXT_PATHS).
+              const requiredPaths = new Set(Object.values(REQUIRED_CONTEXT_PATHS));
+              const byPath = new Map();
               for (const run of runsResp.data.workflow_runs ?? []) {
-                if (!REQUIRED_CONTEXTS.includes(run.name)) continue;
-                const prev = byName.get(run.name);
+                if (!requiredPaths.has(run.path)) continue;
+                const prev = byPath.get(run.path);
                 if (!prev || new Date(run.created_at) > new Date(prev.createdAt)) {
-                  byName.set(run.name, { name: run.name, status: run.status, conclusion: run.conclusion, createdAt: run.created_at, id: run.id });
+                  byPath.set(run.path, {
+                    path: run.path, status: run.status, conclusion: run.conclusion,
+                    createdAt: run.created_at, startedAt: run.run_started_at, runAttempt: run.run_attempt, id: run.id,
+                  });
                 }
               }
 
@@ -468,15 +494,15 @@ jobs:
                 isConflicting: full.mergeable === false,
                 autoMergeEnabled: !!full.auto_merge,
                 labels: (full.labels || []).map((l) => (typeof l === 'string' ? l : l.name)),
-                runs: [...byName.values()],
+                runs: [...byPath.values()],
                 mergeRefusalText: full.mergeable_state === 'blocked'
-                  ? `Derived (not a live REST attempt): mergeable_state=blocked with required contexts ${JSON.stringify([...byName.entries()].map(([n, r]) => `${n}:${r.status}/${r.conclusion}`))}`
+                  ? `Derived (not a live REST attempt): mergeable_state=blocked with required contexts ${JSON.stringify([...byPath.entries()].map(([p, r]) => `${p}:${r.status}/${r.conclusion}`))}`
                   : null,
-                lastActivityAt: full.updated_at,
+                lastActivityAt: await lastNonBotActivity(full),
               };
 
               const blocker = classifyBlocker(prFacts, nowMs);
-              if (blocker) blockerFindings.push({ pr: full, ticket: ticketFromBranch(full.head.ref), ...blocker });
+              if (blocker) blockerFindings.push({ pr: full, ticketHint: ticketHintFromBranch(full.head.ref), ...blocker });
             }
 
             // ── SLA: one idempotent comment per blocker episode, escalate at 2h/6h ─────
@@ -499,11 +525,13 @@ jobs:
               if (existing) continue; // one comment per episode; escalation happens via the digest below, not a repost
 
               const remedyText = f.detail.remedy ? `\n\nRemedy: ${f.detail.remedy}` : '';
-              const ownerText = f.ticket ? `owning ticket ${f.ticket}` : 'owner unresolved (no t/NNNN in branch name — needs resolve_owner on the changed files)';
+              // Owner RESOLUTION happens in the local bridge (Get-StuckPRAlerts.ps1), not here
+              // (Lead review #4): this comment carries the branch-derived ticket as a HINT only.
+              const hintText = f.ticketHint ? `ticket hint ${f.ticketHint} (branch name)` : 'no ticket hint in branch name';
               const body = [
                 `**Stuck-PR alert (t/4115, alert-only — never blocks the merge):**`,
                 `Blocker: \`${f.class}\` — ${JSON.stringify(f.detail)}`,
-                `Owner: ${ownerText}.${remedyText}`,
+                `Owner: resolved by the local bridge from the ticket assignee, falling back to the changed files (${hintText}).${remedyText}`,
                 `This comment is posted once per blocker episode (same class + head SHA). Escalation: owner ping at 2h, TL at 6h, never the PI — via the stuck-pr-alert label bridge.`,
                 marker,
               ].join('\n');
@@ -533,9 +561,9 @@ jobs:
 
             core.summary.addHeading('Stuck-PR alert (t/4115)', 3)
               .addTable([
-                [{ data: 'PR', header: true }, { data: 'Class', header: true }, { data: 'Ticket', header: true }, { data: 'Detail', header: true }],
+                [{ data: 'PR', header: true }, { data: 'Class', header: true }, { data: 'Ticket hint', header: true }, { data: 'Detail', header: true }],
                 ...(blockerFindings.length
-                  ? blockerFindings.map((f) => [`#${f.pr.number}`, f.class, f.ticket ?? '(unresolved)', JSON.stringify(f.detail).slice(0, 100)])
+                  ? blockerFindings.map((f) => [`#${f.pr.number}`, f.class, f.ticketHint ?? '(none)', JSON.stringify(f.detail).slice(0, 100)])
                   : [['—', 'No blockers found', '', '']]),
               ]).write();
 

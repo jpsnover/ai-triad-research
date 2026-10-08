@@ -17,6 +17,15 @@
 
     A gh failure is NOT read as "nothing to report" (same rule as t/3912 cond 1): it returns
     ShouldAct=$true with QueryError set.
+
+    OWNER RESOLUTION ORDER (Lead review, PR #3141 item 4) -- performed by the CALLING AGENT,
+    not this script (branch parsing alone mis-routes any PR whose branch lacks a ticket, or
+    names a parent ticket, so it is a hint only, never the resolution):
+      1. If `.ticket` (the branch-derived hint) is non-null, call `get_ticket` on it. If the
+         ticket has an assignee, ping that role's Main.
+      2. Otherwise (no hint, or the ticket has no assignee), call `resolve_owners_batch` on the
+         PR's changed files (`gh pr view <number> --json files`), and ping the owning role's Main.
+      3. If neither resolves, escalate to the TL rather than silently dropping the alert.
 .EXAMPLE
     ./operations/devops/Get-StuckPRAlerts.ps1
 #>
@@ -34,7 +43,8 @@ function script:Get-PrsByLabel([string]$Label) {
     @($json | ConvertFrom-Json)
 }
 
-function script:Get-TicketFromBranch([string]$Ref) {
+function script:Get-TicketHintFromBranch([string]$Ref) {
+    # A HINT only -- see the OWNER RESOLUTION ORDER note above. Never treated as resolved.
     if ($Ref -match 't(\d{3,5})') { return "t/$($Matches[1])" }
     return $null
 }
@@ -42,20 +52,20 @@ function script:Get-TicketFromBranch([string]$Ref) {
 try {
     $ownerAlerts = @(Get-PrsByLabel 'stuck-pr-alert-owner' | ForEach-Object {
         [pscustomobject]@{
-            number  = $_.number
-            title   = $_.title
-            url     = $_.url
-            ticket  = Get-TicketFromBranch $_.headRefName
-            level   = 'owner'
+            number     = $_.number
+            title      = $_.title
+            url        = $_.url
+            ticketHint = Get-TicketHintFromBranch $_.headRefName
+            level      = 'owner'
         }
     })
     $tlAlerts = @(Get-PrsByLabel 'stuck-pr-alert-tl' | ForEach-Object {
         [pscustomobject]@{
-            number  = $_.number
-            title   = $_.title
-            url     = $_.url
-            ticket  = Get-TicketFromBranch $_.headRefName
-            level   = 'tl'
+            number     = $_.number
+            title      = $_.title
+            url        = $_.url
+            ticketHint = Get-TicketHintFromBranch $_.headRefName
+            level      = 'tl'
         }
     })
     $sweepAlerts = @(Get-PrsByLabel 'sweep-signature-alert' | ForEach-Object {
