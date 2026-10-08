@@ -11,14 +11,6 @@ $script:LineagePovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situatio
 
 # ── Shared ────────────────────────────────────────────────────────────────────
 
-function Resolve-LineageBackend {
-    # The API-key backend for a model id; anything unrecognized resolves as gemini.
-    param([string]$Model)
-    if ($Model -match '^gemini') { return 'gemini' }
-    if ($Model -match '^claude') { return 'claude' }
-    if ($Model -match '^openai') { return 'openai' }
-    'gemini'
-}
 
 function Get-LineageNodeAttribute {
     # The node's graph_attributes when they carry an intellectual_lineage property, else $null.
@@ -359,11 +351,11 @@ function Merge-LineageRegenNode {
 
 function Invoke-LineageRegenBatch {
     # One AI call for a batch of nodes. Returns { Updated; Failed; NoResponse }.
-    param([object[]]$Batch, [string]$SystemPrompt, [string]$Model, [string]$ResolvedKey, [hashtable]$PovModified)
+    param([object[]]$Batch, [string]$SystemPrompt, [string]$Model, [string]$ApiKey, [hashtable]$PovModified)
     $Outcome = @{ Updated = 0; Failed = 0; NoResponse = $false }
     try {
         $Result = Invoke-AIApi -Prompt (Format-LineageRegenPrompt -Batch $Batch) -SystemInstruction $SystemPrompt `
-            -Model $Model -ApiKey $ResolvedKey `
+            -Model $Model -ApiKey $ApiKey `
             -Temperature 0.3 -MaxTokens 16384 -JsonMode
 
         if (-not $Result -or -not $Result.Text) {
@@ -418,13 +410,14 @@ function Invoke-LineageRegenerate {
     param([string]$TaxDir, [string[]]$PovFiles, $FilterNodeIds, [string]$Model, [string]$ApiKey, [int]$NodeBatchSize)
     $SystemPrompt = Get-Prompt -Name 'lineage-regenerate'
 
-    $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend (Resolve-LineageBackend $Model)
-    if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
+    # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4099, t/4087).
+    $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+    if (-not $KeyStatus.HasKey) {
         throw (New-ActionableError `
             -Goal 'Regenerate lineage content' `
-            -Problem 'No API key available' `
+            -Problem "No API key available for the $($KeyStatus.Backend) backend" `
             -Location 'Repair-PovLineage -RegenerateContent' `
-            -NextSteps @('Set GEMINI_API_KEY or ANTHROPIC_API_KEY environment variable', 'Pass -ApiKey parameter'))
+            -NextSteps @("Set the $($KeyStatus.EnvHint) environment variable", 'Pass -ApiKey parameter'))
     }
 
     $NodesToProcess = Get-LineageRegenNode -TaxDir $TaxDir -PovFiles $PovFiles -FilterNodeIds $FilterNodeIds
@@ -458,7 +451,7 @@ function Invoke-LineageRegenerate {
         $BatchNodeIds = ($Batch | ForEach-Object { $_.node_id }) -join ', '
         Write-Host "  Batch $BatchNum/$TotalBatches ($($Batch.Count) nodes: $BatchNodeIds)..." -ForegroundColor Gray -NoNewline
 
-        $Outcome = Invoke-LineageRegenBatch -Batch $Batch -SystemPrompt $SystemPrompt -Model $Model -ResolvedKey $ResolvedKey -PovModified $PovModified
+        $Outcome = Invoke-LineageRegenBatch -Batch $Batch -SystemPrompt $SystemPrompt -Model $Model -ApiKey $ApiKey -PovModified $PovModified
         $TotalUpdated += $Outcome.Updated
         $TotalFailed += $Outcome.Failed
 
@@ -766,15 +759,16 @@ function Write-LineageEnrichPlan {
     Write-Host '  }' -ForegroundColor Gray
 }
 
-function Resolve-LineageEnrichKey {
-    # The API key for enrichment, or $null (with a warning) when none is configured.
+function Test-LineageEnrichKey {
+    # True when the model's REGISTRY backend has a key; false (with a warning) when none is configured.
+    # Backend from ai-models.json, never guessed; the key itself is not returned (t/4099, t/4087).
     param([string]$Model, [string]$ApiKey)
-    $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend (Resolve-LineageBackend $Model)
-    if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
+    $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
+    if (-not $KeyStatus.HasKey) {
         Write-Warning "No API key — can only apply cached enrichments"
-        return $null
+        return $false
     }
-    $ResolvedKey
+    $true
 }
 
 function Find-LineageCacheMatch {
@@ -884,7 +878,7 @@ function Add-LineageEnrichedEntry {
 
 function Invoke-LineageEnrichBatch {
     # One AI call that enriches a batch of bare values into the cache.
-    param([object[]]$Batch, [string]$Model, [string]$ResolvedKey, [System.Collections.IDictionary]$Cache,
+    param([object[]]$Batch, [string]$Model, [string]$ApiKey, [System.Collections.IDictionary]$Cache,
           [hashtable]$DedupMap, [switch]$SkipUrlValidation)
     $BatchList = ($Batch | ForEach-Object { "- $_" }) -join "`n"
     $Prompt = @"
@@ -904,7 +898,7 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
 "@
 
     try {
-        $Result = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ResolvedKey `
+        $Result = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey `
             -Temperature 0.2 -MaxTokens 8192 -JsonMode -TimeoutSec 60
         if (-not ($Result -and $Result.Text)) {
             Write-Host " no response" -ForegroundColor Red
@@ -926,7 +920,7 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
 
 function Invoke-LineageEnrichment {
     # Batch AI enrichment of every value in $NeedEnrichment, pausing between batches.
-    param([object[]]$NeedEnrichment, [int]$BatchSize, [string]$Model, [string]$ResolvedKey,
+    param([object[]]$NeedEnrichment, [int]$BatchSize, [string]$Model, [string]$ApiKey,
           [System.Collections.IDictionary]$Cache, [hashtable]$DedupMap, [switch]$SkipUrlValidation)
     $BatchNum = 0
     $TotalBatches = [Math]::Ceiling($NeedEnrichment.Count / $BatchSize)
@@ -937,7 +931,7 @@ function Invoke-LineageEnrichment {
         Write-Verbose "Batch ${BatchNum}/${TotalBatches}: $($Batch -join ', ')"
         Write-Host "  Batch $BatchNum/$TotalBatches ($($Batch.Count) values)..." -ForegroundColor Gray -NoNewline
 
-        Invoke-LineageEnrichBatch -Batch $Batch -Model $Model -ResolvedKey $ResolvedKey -Cache $Cache `
+        Invoke-LineageEnrichBatch -Batch $Batch -Model $Model -ApiKey $ApiKey -Cache $Cache `
             -DedupMap $DedupMap -SkipUrlValidation:$SkipUrlValidation
 
         # Brief pause between batches to avoid rate limits
@@ -1105,15 +1099,13 @@ function Invoke-LineageEnrich {
         return
     }
 
-    # ── Resolve API key ───────────────────────────────────────────────────────
-    $ResolvedKey = $null
+    # ── Check the API key (registry backend; only the user's -ApiKey is forwarded) ──
     if ($NeedEnrichment.Count -gt 0) {
-        $ResolvedKey = Resolve-LineageEnrichKey -Model $Model -ApiKey $ApiKey
-        if ($null -eq $ResolvedKey) { $NeedEnrichment = @() }
+        if (-not (Test-LineageEnrichKey -Model $Model -ApiKey $ApiKey)) { $NeedEnrichment = @() }
     }
 
     # ── Batch AI enrichment ───────────────────────────────────────────────────
-    Invoke-LineageEnrichment -NeedEnrichment $NeedEnrichment -BatchSize $BatchSize -Model $Model -ResolvedKey $ResolvedKey `
+    Invoke-LineageEnrichment -NeedEnrichment $NeedEnrichment -BatchSize $BatchSize -Model $Model -ApiKey $ApiKey `
         -Cache $Cache -DedupMap $Dedup.DedupMap -SkipUrlValidation:$SkipUrlValidation
 
     # ── Save cache ────────────────────────────────────────────────────────────
