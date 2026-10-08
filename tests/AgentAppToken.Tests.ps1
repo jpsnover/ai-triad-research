@@ -5,6 +5,14 @@
 # a throwaway RSA key is generated per run, so no real App key is ever needed here.
 
 BeforeAll {
+    # CI runners don't have Microsoft.PowerShell.SecretManagement, and Pester can only mock a
+    # command that exists. Provide a stand-in Get-Secret when the real one is absent; every test
+    # mocks it anyway. The module itself already turns a missing Get-Secret into an actionable error.
+    $script:stubbedGetSecret = $false
+    if (-not (Get-Command Get-Secret -ErrorAction SilentlyContinue)) {
+        function global:Get-Secret { param($Vault, $Name, [switch] $AsPlainText) throw 'SecretManagement is not installed (test stand-in)' }
+        $script:stubbedGetSecret = $true
+    }
     Import-Module (Join-Path $PSScriptRoot '..' 'operations' 'devops' 'AgentAppToken.psm1') -Force
 
     function ConvertFrom-Base64Url([string] $s) {
@@ -28,6 +36,7 @@ BeforeAll {
 AfterAll {
     $script:rsa.Dispose()
     Remove-Module AgentAppToken -ErrorAction SilentlyContinue
+    if ($script:stubbedGetSecret) { Remove-Item Function:\global:Get-Secret -ErrorAction SilentlyContinue }
 }
 
 Describe 'Module surface (SO C7)' {
