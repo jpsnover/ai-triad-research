@@ -265,6 +265,11 @@ $script:AIApiKeyEnvVarMap = @{
 $script:AIApiKeyFallbackWarned = @{}
 # FullyQualifiedErrorId of the gemini-only AI_API_KEY refusal (t/4102). Match it with Test-AIApiKeyGeminiOnlyRefusal.
 $script:GeminiOnlyRefusalErrorId = 'AIApiKeyGeminiOnlyRefused'
+# FullyQualifiedErrorId of the refusal of a key that is another backend's named credential (t/4087). Named in
+# parallel with the TS KeyRefusalKind (lib/ai-client/apiKeyFallback.ts) so logs read the same from both tools.
+# NO consumer branches on this id: every path surfaces the refusal, nothing softens it. That is why it shipped
+# T0 (t/4110). THE EXEMPTION LAPSES the moment a consumer branches on it; that change is T1 or higher.
+$script:ForeignCredentialRefusalErrorId = 'AIApiKeyForeignCredentialRefused'
 
 function Test-AIApiKeyGeminiOnlyRefusal {
     <#
@@ -303,12 +308,17 @@ function Assert-AIApiKeyBackend {
     $Owner = Get-AIApiKeyForeignOwner -Key $Key -Backend $Backend
     if (-not $Owner) { return }
     $script:LastApiKeySource = "(refused: $Route matches `$env:$Owner)"
-    throw (@(
+    $Message = @(
         "Goal:     Resolve an API key for the '$Backend' backend"
         "Error:    the $Route key is the value of `$env:$Owner, another backend's credential; it will not be sent to '$Backend' (t/4087)"
         'Location: Resolve-AIApiKey (AIEnrich.psm1)'
         "Resolve:  set the '$Backend' backend's own key variable, or pass -ApiKey with a key issued for '$Backend'"
-    ) -join [Environment]::NewLine)
+    ) -join [Environment]::NewLine
+    # Typed kind, named in parallel with AIApiKeyGeminiOnlyRefused and identical in the TS client (TL e/284#14).
+    # Never softened anywhere: every path surfaces it.
+    throw [System.Management.Automation.ErrorRecord]::new(
+        [System.InvalidOperationException]::new($Message), $script:ForeignCredentialRefusalErrorId,
+        [System.Management.Automation.ErrorCategory]::PermissionDenied, $Backend)
 }
 
 function Resolve-AIApiKey {
