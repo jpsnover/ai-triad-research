@@ -193,16 +193,22 @@ export const ARM_EVENT_RE = /^auto_(merge|squash|rebase|update)_enabled$/;
  * (GraphQL omits AutoMergeEnabledEvent from PR timelines, t/3716#18, so the caller must use the
  * REST issue-events endpoint, not GraphQL).
  *
- * heldAtArmTime is computed by replaying this PR's OWN labeled/unlabeled events, in order, up
- * to the arm timestamp. If this PR has ZERO labeled/unlabeled events anywhere in the supplied
- * feed, heldAtArmTime is `null` (undetermined -- the label may have been applied before the
- * lookback window) rather than `false`, so the caller knows to fall back to a live `pulls.get`
- * read (with a WARN, per t/4123 AC) instead of silently treating "no label events seen" as
- * "never held".
+ * heldAtArmTime is computed by replaying BACKWARDS from the live (current, scan-time) label
+ * state, undoing every labeled/unlabeled event strictly after the arm timestamp, newest first
+ * (Lead review, PR #3152: forward-replay-from-empty missed a PR held BEFORE the lookback
+ * window that then received any OTHER label event inside it -- e.g. this job's own
+ * `stuck-pr-alert-owner` label -- which made `labelEvents.length > 0` true while never showing
+ * the original hold, so the forward replay silently reported `false`). Backward replay is exact
+ * regardless of the lookback: every event after the arm is, by construction, inside the window
+ * that was fetched to find the arm itself. This also removes the `null`/WARN fallback entirely
+ * -- there is no "undetermined" state once the walk starts from a known-current snapshot.
  * @param {Array<{prNumber:number, event:string, actor:string, label?:string, createdAt:string}>} events
- * @returns {Array<{prNumber:number, readyAt:string, armedAt:string, deltaSeconds:number, actor:string, heldAtArmTime:boolean|null, heldLabels:string[]}>}
+ * @param {Map<number,string[]>} liveLabelsByPr - current (scan-time) label names per PR, from
+ *   `pulls.get` -- the only impure input this pure function needs; the caller fetches it once
+ *   per PR that shows a ready+arm hit.
+ * @returns {Array<{prNumber:number, readyAt:string, armedAt:string, deltaSeconds:number, actor:string, heldAtArmTime:boolean, heldLabels:string[]}>}
  */
-export function detectSweepSignature(events) {
+export function detectSweepSignature(events, liveLabelsByPr) {
   const byPr = new Map();
   for (const e of events ?? []) {
     if (!byPr.has(e.prNumber)) byPr.set(e.prNumber, []);
@@ -210,15 +216,18 @@ export function detectSweepSignature(events) {
   }
   const HOLD_LABELS = new Set(['consult-hold', 'joint-gv']);
 
-  function heldStateAt(prEventsSorted, atMs) {
+  function heldStateAt(prNumber, prEventsSorted, armMs) {
+    const liveLabels = liveLabelsByPr?.get(prNumber) ?? [];
+    const held = new Set(liveLabels.filter((l) => HOLD_LABELS.has(l)));
     const labelEvents = prEventsSorted.filter((e) => e.event === 'labeled' || e.event === 'unlabeled');
-    if (labelEvents.length === 0) return { heldAtArmTime: null, heldLabels: [] };
-    const held = new Set();
-    for (const e of labelEvents) {
-      if (Date.parse(e.createdAt) > atMs) break;
+    // Newest first; undo each event strictly after armMs. Once an event's time is <= armMs,
+    // every earlier event (we're walking backwards) is too, so stop.
+    for (let k = labelEvents.length - 1; k >= 0; k--) {
+      const e = labelEvents[k];
+      if (Date.parse(e.createdAt) <= armMs) break;
       if (!HOLD_LABELS.has(e.label)) continue;
-      if (e.event === 'labeled') held.add(e.label);
-      else held.delete(e.label);
+      if (e.event === 'labeled') held.delete(e.label); // before this event, the label wasn't there yet
+      else held.add(e.label); // before this event, the label WAS there (it got removed after)
     }
     return { heldAtArmTime: held.size > 0, heldLabels: [...held] };
   }
@@ -234,7 +243,7 @@ export function detectSweepSignature(events) {
         const armedAt = Date.parse(sorted[j].createdAt);
         const deltaSeconds = (armedAt - readyAt) / 1000;
         if (deltaSeconds >= 0 && deltaSeconds <= SWEEP_WINDOW_SECONDS) {
-          const { heldAtArmTime, heldLabels } = heldStateAt(sorted, armedAt);
+          const { heldAtArmTime, heldLabels } = heldStateAt(prNumber, sorted, armedAt);
           hits.push({
             prNumber, readyAt: sorted[i].createdAt, armedAt: sorted[j].createdAt, deltaSeconds,
             actor: sorted[j].actor, heldAtArmTime, heldLabels,

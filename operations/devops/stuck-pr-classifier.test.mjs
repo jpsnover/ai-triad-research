@@ -223,9 +223,10 @@ test('sweep: auto_rebase_enabled and auto_update_enabled also count as arm event
   }
 });
 
-// ── D2 (t/4123): REAL recorded fixture, #3145 (t/4123 AC) -- held at arm time, label
-// cleared minutes later. A scan-time label read would show "not held" and miss this entirely.
-test('REAL FIXTURE #3145: labeled consult-hold, ready, armed while held, unlabeled later -> heldAtArmTime true, escalates', () => {
+// ── D2, backward-replay fix (Lead review, PR #3152): forward-replay-from-empty missed a PR
+// held BEFORE the lookback window that then received any OTHER label event inside it. Fixed
+// by walking backwards from the LIVE label snapshot, undoing events after the arm time.
+test('REAL FIXTURE #3145 via backward replay: live labels empty (held cleared after), unlabeled event after arm -> heldAtArmTime true', () => {
   const events = [
     { prNumber: 3145, event: 'labeled', label: 'consult-hold', actor: 'jpsnover', createdAt: '2026-10-08T12:52:08Z' },
     { prNumber: 3145, event: 'ready_for_review', actor: 'jpsnover', createdAt: '2026-10-08T12:58:26Z' },
@@ -233,13 +234,48 @@ test('REAL FIXTURE #3145: labeled consult-hold, ready, armed while held, unlabel
     { prNumber: 3145, event: 'auto_merge_disabled', actor: 'jpsnover', createdAt: '2026-10-08T13:02:25Z' },
     { prNumber: 3145, event: 'unlabeled', label: 'consult-hold', actor: 'jpsnover', createdAt: '2026-10-08T13:02:39Z' },
   ];
-  const hits = detectSweepSignature(events);
+  // Live (scan-time) state: consult-hold was removed at 13:02:39, so the CURRENT label set is
+  // empty. Backward replay must still find heldAtArmTime=true at 12:58:30 by undoing the
+  // unlabeled event (which happened AFTER the arm).
+  const liveLabelsByPr = new Map([[3145, []]]);
+  const hits = detectSweepSignature(events, liveLabelsByPr);
   assert.equal(hits.length, 1);
   assert.equal(hits[0].heldAtArmTime, true);
   assert.deepEqual(hits[0].heldLabels, ['consult-hold']);
   const verdicts = classifySweepHits(hits);
   assert.equal(verdicts[0].escalate, true);
   assert.match(verdicts[0].reason, /held/i);
+});
+test('BUG FIX: held BEFORE the window, plus an unrelated label event INSIDE the window -> still escalates', () => {
+  // The exact miss the Lead found: the original "consult-hold" labeled event is outside the
+  // fetched window entirely (never appears in `events`), but the PR gets an unrelated label
+  // (e.g. this job's own stuck-pr-alert-owner) inside the window. Forward-replay-from-empty
+  // saw labelEvents.length > 0 (the unrelated one) and never found the hold -> false. Backward
+  // replay starts from the LIVE state (which DOES show consult-hold, since nothing removed it)
+  // and finds no undo-worthy event after the arm -- correctly stays held.
+  const events = [
+    { prNumber: 5000, event: 'labeled', label: 'stuck-pr-alert-owner', actor: 'github-actions[bot]', createdAt: '2026-10-08T11:00:00Z' },
+    { prNumber: 5000, event: 'ready_for_review', actor: 'jpsnover', createdAt: '2026-10-08T11:05:00Z' },
+    { prNumber: 5000, event: 'auto_squash_enabled', actor: 'jpsnover', createdAt: '2026-10-08T11:05:03Z' },
+  ];
+  const liveLabelsByPr = new Map([[5000, ['consult-hold', 'stuck-pr-alert-owner']]]);
+  const hits = detectSweepSignature(events, liveLabelsByPr);
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].heldAtArmTime, true, 'the pre-window hold must still be found via the live snapshot');
+  const verdicts = classifySweepHits(hits);
+  assert.equal(verdicts[0].escalate, true);
+});
+test('a hold labelled AFTER the arm event does NOT count as held at arm time', () => {
+  const events = [
+    { prNumber: 6000, event: 'ready_for_review', actor: 'x', createdAt: '2026-10-08T12:00:00Z' },
+    { prNumber: 6000, event: 'auto_squash_enabled', actor: 'x', createdAt: '2026-10-08T12:00:05Z' },
+    { prNumber: 6000, event: 'labeled', label: 'consult-hold', actor: 'x', createdAt: '2026-10-08T12:05:00Z' },
+  ];
+  // Live state shows consult-hold (nobody removed it), but it was applied AFTER the arm, so
+  // backward replay must undo it before concluding held-at-arm-time.
+  const liveLabelsByPr = new Map([[6000, ['consult-hold']]]);
+  const hits = detectSweepSignature(events, liveLabelsByPr);
+  assert.equal(hits[0].heldAtArmTime, false);
 });
 test('a label cleared BEFORE the arm event is correctly NOT held at arm time', () => {
   const events = [
@@ -248,16 +284,17 @@ test('a label cleared BEFORE the arm event is correctly NOT held at arm time', (
     { prNumber: 999, event: 'ready_for_review', actor: 'x', createdAt: '2026-10-08T12:35:00Z' },
     { prNumber: 999, event: 'auto_squash_enabled', actor: 'x', createdAt: '2026-10-08T12:35:05Z' },
   ];
-  const hits = detectSweepSignature(events);
+  const liveLabelsByPr = new Map([[999, []]]);
+  const hits = detectSweepSignature(events, liveLabelsByPr);
   assert.equal(hits[0].heldAtArmTime, false);
 });
-test('a PR with zero labeled/unlabeled events anywhere in the feed is UNDETERMINED (null), not false', () => {
+test('a PR with zero labeled/unlabeled events anywhere in the feed just reflects the live snapshot unchanged', () => {
   const events = [
     { prNumber: 1000, event: 'ready_for_review', actor: 'x', createdAt: '2026-10-08T12:00:00Z' },
     { prNumber: 1000, event: 'auto_squash_enabled', actor: 'x', createdAt: '2026-10-08T12:00:05Z' },
   ];
-  const hits = detectSweepSignature(events);
-  assert.equal(hits[0].heldAtArmTime, null, 'must not silently default to "not held" -- caller falls back to a live pulls.get read');
+  assert.equal(detectSweepSignature(events, new Map([[1000, []]]))[0].heldAtArmTime, false);
+  assert.equal(detectSweepSignature(events, new Map([[1000, ['consult-hold']]]))[0].heldAtArmTime, true);
 });
 
 // ── sweep classification: burst vs single legitimate flow, including the design decision

@@ -589,19 +589,19 @@ jobs:
               .map((e) => ({ prNumber: e.issue?.number, event: e.event, label: e.label?.name, actor: e.actor?.login ?? 'unknown', createdAt: e.created_at }))
               .filter((e) => e.prNumber);
 
-            let sweepHits = detectSweepSignature(relevant);
-            // D2 fallback ONLY: a hit whose heldAtArmTime is null means this PR had zero
-            // labeled/unlabeled events anywhere in the fetched window (the label may predate
-            // the lookback) -- resolve via a live pulls.get read, which can only prove
-            // "currently held", and WARN that the result is a scan-time approximation.
-            for (const h of sweepHits) {
-              if (h.heldAtArmTime !== null) continue;
-              core.warning(`sweep-signature #${h.prNumber}: no labeled/unlabeled event in the ${LOOKBACK_MS / 3600000}h window -- falling back to a live (scan-time, not arm-time) label read`);
-              const { data: p } = await github.rest.pulls.get({ owner, repo, pull_number: h.prNumber }).catch(() => ({ data: null }));
-              const liveLabels = p ? (p.labels || []).map((l) => l.name || l) : [];
-              h.heldAtArmTime = liveLabels.includes('consult-hold') || liveLabels.includes('joint-gv');
-              h.heldLabels = liveLabels.filter((l) => l === 'consult-hold' || l === 'joint-gv');
+            // D2 fix (Lead review, PR #3152): held-at-arm-time is computed by the pure
+            // function walking BACKWARDS from the live (current) label snapshot, undoing
+            // every labeled/unlabeled event after the arm -- exact regardless of whether the
+            // PR's original hold label predates the lookback window. Fetch the live snapshot
+            // for every PR that has at least one arm event in the window (a cheap existence
+            // check; the full ready+arm pairing happens inside the pure function itself).
+            const candidatePrNumbers = [...new Set(relevant.filter((e) => ARM_EVENT_RE.test(e.event)).map((e) => e.prNumber))];
+            const liveLabelsByPr = new Map();
+            for (const prNumber of candidatePrNumbers) {
+              const { data: p } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber }).catch(() => ({ data: null }));
+              liveLabelsByPr.set(prNumber, p ? (p.labels || []).map((l) => l.name || l) : []);
             }
+            const sweepHits = detectSweepSignature(relevant, liveLabelsByPr);
             const sweepVerdicts = classifySweepHits(sweepHits);
 
             const SWEEP_MARKER_PREFIX = '<!-- sweep-signature:';
