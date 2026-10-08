@@ -51,7 +51,8 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview'
       azureActiveDirectory: { enabled: aadEnabled, registration: { clientId: aadClientId, openIdIssuer: aadIssuer } }
     }
     login: {
-      tokenStore: { enabled: true }
+      // token store off unless blob-backed (sasUrlSettingName); in-memory store loses sessions on replica recycle (t/4132)
+      tokenStore: { enabled: false }
       allowedExternalRedirectUrls: ['https://${containerApp.properties.configuration.ingress.fqdn}']
       preserveUrlFragmentsForLogins: false
     }
