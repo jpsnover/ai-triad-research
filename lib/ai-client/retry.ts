@@ -3,6 +3,7 @@
 
 import { ActionableError } from '../debate/errors.js';
 import type { RateLimitType, RateLimitHeaders, RetryProgress, FetchFn } from './types.js';
+import { isKeyRoutingRefusal } from './apiKeyFallback.js';
 
 // t/2719: hard ceiling on a single AI-response body before we buffer + JSON.parse it.
 // This is the shared text-generation fetch path (op-ed voices, debate, NLI, chat);
@@ -153,6 +154,8 @@ export async function withRetry<T>(
       // AbortError is non-retryable — rethrow immediately (t/2507).
       // Use name-check rather than instanceof so DOMException works in all environments.
       if ((err as { name?: unknown } | null)?.name === 'AbortError') throw err;
+      // A key-routing refusal is a decision, not a transient failure: never retry it (t/4105 SO cond 6).
+      if (isKeyRoutingRefusal(err)) throw err;
       const msg = err instanceof Error ? err.message : String(err);
       const lower = msg.toLowerCase();
       if (lower.includes('error 401') || lower.includes('error 403') ||

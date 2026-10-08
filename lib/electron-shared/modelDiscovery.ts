@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ActionableError } from '../debate/errors.js';
+import { assertKeyForBackend } from '../ai-client/apiKeyFallback.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { findDanglingRefs, findChainlessDefaults, KNOWN_VERBATIM } from '../ai-config/validate.js';
 import codeReferencedModels from '../ai-config/codeReferencedModels.json' with { type: 'json' };
@@ -525,6 +526,7 @@ async function discoverBackend(
   if (!discover) {
     return { models: existing(), result: { ok: false, count: 0, error: `Unknown backend: ${backendId}` }, source: 'existing' };
   }
+  assertKeyForBackend(apiKey, backendId, 'discovery'); // t/4105 C5: a direct send that bypasses callProvider, so the foreign-key guard runs here
 
   try {
     const { models, source } = await discover(apiKey);

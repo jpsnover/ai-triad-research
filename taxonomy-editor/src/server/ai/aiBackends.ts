@@ -16,7 +16,8 @@ import { createRequire } from 'module';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
-import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, isEmbeddingWorkerOffloadEnabled, type AIBackend } from '../config.js';
+import { getApiKey, getApiKeyForListing, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, isEmbeddingWorkerOffloadEnabled, type AIBackend } from '../config.js';
+import { listingNotConfiguredHint, assertKeyForBackend, isKeyRoutingRefusal, LISTING_WARN } from '../../../../lib/ai-client/apiKeyFallback.js';
 import { writeAICallLogEntry, isAICallLogEnabled } from './aiCallLog.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { parseJsonRobust } from '../../../../lib/debate/helpers.js';
@@ -383,8 +384,17 @@ export async function generateText(
   let lastError: unknown;
   for (let mi = 0; mi < modelsToTry.length; mi++) {
     const currentModel = modelsToTry[mi];
-    const backend = resolveBackend(currentModel);
-    const keys = explicitKeys ?? await getApiKeys(backend);
+    const backend = resolveBackend(currentModel, getModelRegistry()); // registry first (t/4105 cond 3)
+    let keys: string[];
+    try {
+      keys = explicitKeys ?? await getApiKeys(backend);
+    } catch (err) {
+      // SO e/284#12 cond 6: the PRIMARY's refusal throws to the caller, never served by a later link. A SECONDARY
+      // link with only AI_API_KEY is skipped like a keyless one; a foreign-credential refusal always surfaces.
+      if (mi === 0 || !isKeyRoutingRefusal(err, 'AIApiKeyGeminiOnlyRefused')) throw err;
+      log.api.warn({ model: currentModel, backend, fallbackIndex: mi }, `generateText: ${LISTING_WARN} — skipping fallback chain entry`);
+      continue;
+    }
     if (keys.length === 0) {
       if (mi < modelsToTry.length - 1) {
         getGlobalRecorder()?.record({
@@ -434,6 +444,7 @@ export async function generateText(
       // warn-level ai.fallback on user cancel. Rethrow AbortError immediately (same
       // name-check as t/2507; DOMException-compatible).
       if ((err as { name?: unknown } | null)?.name === 'AbortError') throw err;
+      if (isKeyRoutingRefusal(err)) throw err; // cond 6: a refused key is never a reason to fail over
       lastError = err;
       if (mi < modelsToTry.length - 1) {
         const nextModel = modelsToTry[mi + 1];
@@ -446,6 +457,7 @@ export async function generateText(
     }
   }
 
+  if (lastError === undefined) throwNoApiKeyError(resolveBackend(resolved), modelsToTry); // every link was skipped
   throw lastError;
 }
 
@@ -1437,8 +1449,10 @@ export async function classifyNli(
 export async function refreshAIModels(): Promise<unknown> {
   const result: Record<string, { ok: boolean; count: number; error?: string }> = {};
   for (const backend of ['gemini', 'claude', 'groq'] as AIBackend[]) {
-    const key = await getApiKey(backend);
-    if (!key) { result[backend] = { ok: false, count: 0, error: 'No API key' }; continue; }
+    // A listing loop (SO e/284#2 cond 1): a backend with only AI_API_KEY reads 'not configured', never throws.
+    const key = await getApiKeyForListing(backend);
+    if (!key) { result[backend] = { ok: false, count: 0, error: listingNotConfiguredHint(backend) ?? 'No API key' }; continue; }
+    assertKeyForBackend(key, backend, 'discovery'); // t/4105 C5: this send bypasses callProvider, so guard it here
     try {
       if (backend === 'gemini') {
         const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
