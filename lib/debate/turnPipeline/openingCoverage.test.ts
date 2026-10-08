@@ -31,6 +31,11 @@ const FIELD_EXEMPTIONS: Record<string, { engineRequired: boolean; rendererRequir
     rendererRequired: false,
     note: 'intentional: provider defaults suffice; only needed for a model-specific token cap',
   },
+  stageMaxTokens: {
+    engineRequired: false,
+    rendererRequired: false,
+    note: 'intentional: provider defaults suffice; only needed for a model-specific token cap on plan/draft/cite stages (mirrors briefMaxTokens, t/4121)',
+  },
   stageTemperatures: {
     engineRequired: true,
     rendererRequired: false,

@@ -4,6 +4,8 @@
 // t/4117: briefMaxTokens must be driven from ModelEntry.thinks_by_default, not model ID substring.
 // Regression: claude-haiku-5-5 debates died in openings because the substring check only
 // matched 'opus'/'fable'; haiku-5-5 (adaptive thinking) was silently uncapped.
+//
+// t/4121: plan/draft/cite stages also need a maxTokens cap on thinking models (same class).
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
@@ -49,6 +51,24 @@ function captureMaxTokens(briefModel: string, registry?: ModelRegistry): Promise
     makeInput({ model: briefModel, briefModel, registry }),
     generate as any,
   ).then(() => capturedMaxTokens);
+}
+
+/** Capture the maxTokens passed to the plan stage (representative of plan/draft/cite). */
+function captureStageMaxTokens(model: string, registry?: ModelRegistry): Promise<number | undefined> {
+  let captured: number | undefined;
+  const generate = async (
+    _prompt: string,
+    _model: string,
+    opts: { maxTokens?: number } = {},
+    label?: string,
+  ) => {
+    if ((label as string)?.includes('plan')) captured = opts.maxTokens;
+    return STUB_JSON;
+  };
+  return runOpeningPipeline(
+    makeInput({ model, registry }),
+    generate as any,
+  ).then(() => captured);
 }
 
 describe('opening brief — thinks_by_default budget (t/4117)', () => {
@@ -101,5 +121,25 @@ describe('opening brief — thinks_by_default budget (t/4117)', () => {
       const maxTokens = await captureMaxTokens(model.id, registry);
       expect(maxTokens, `${model.id} should resolve to 32_000`).toBe(32_000);
     }
+  });
+});
+
+describe('opening plan/draft/cite — stageMaxTokens budget (t/4121)', () => {
+  it('sets 32_000 for a registry model with thinks_by_default: true', async () => {
+    const registry: ModelRegistry = {
+      backends: [],
+      models: [{ id: 'claude-haiku-5-5', apiModelId: 'claude-haiku-5-5', label: 'Haiku 5.5', backend: 'claude', thinks_by_default: true }],
+    };
+    const maxTokens = await captureStageMaxTokens('claude-haiku-5-5', registry);
+    expect(maxTokens).toBe(32_000);
+  });
+
+  it('sets undefined for a registry model WITHOUT thinks_by_default', async () => {
+    const registry: ModelRegistry = {
+      backends: [],
+      models: [{ id: 'claude-haiku-4-5', apiModelId: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', backend: 'claude' }],
+    };
+    const maxTokens = await captureStageMaxTokens('claude-haiku-4-5', registry);
+    expect(maxTokens).toBeUndefined();
   });
 });
