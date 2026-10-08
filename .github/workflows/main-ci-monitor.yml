@@ -213,6 +213,66 @@ jobs:
               console.log(`no alert: ${vd.state} — ${vd.reason}`);
             }
 
+      # ── FLAKE-HEAL TRIPWIRE (t/4085, advisory) ───────────────────────────────────────────────
+      # t/4080's rerun verdict heals a test when its own file reruns clean in isolation — the
+      # surviving vector (t/4080 GV, #3093) is an ORDER-DEPENDENT failure: state leaked by an
+      # earlier file in the same shard, invisible to a single-run verdict, visible only by
+      # counting repeats across main runs. This step fetches the last M main ci.yml runs' per-
+      # shard self-heal artifacts (uploaded by the isolated recording step added to ci.yml),
+      # counts repeat healers (operations/devops/flake-heal-tripwire.mjs, pure + unit-tested),
+      # and warns via an idempotent `flake-tripwire`-labelled issue. NEVER fails the job —
+      # continue-on-error plus "|| true" on every gh call that can legitimately 404 (a run with
+      # no matching artifact, e.g. nothing healed that run, or the recording step itself failed).
+      # Scheduled/dispatch only, same cadence reasoning as the scheduled-workflow-health step.
+      - name: Flake-heal tripwire — fetch self-heal artifacts (t/4085)
+        if: github.event_name != 'workflow_run'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node operations/devops/collect-flake-heal-runs.mjs "${{ github.repository }}" > /tmp/flake-tripwire-runs.json
+          echo "----- flake-tripwire-runs.json -----"; cat /tmp/flake-tripwire-runs.json
+          node operations/devops/flake-heal-tripwire.mjs < /tmp/flake-tripwire-runs.json > /tmp/flake-tripwire-verdict.json || true
+          echo "----- flake-tripwire-verdict.json -----"; cat /tmp/flake-tripwire-verdict.json
+
+      - name: Flake-heal tripwire — route verdict (t/4085)
+        if: github.event_name != 'workflow_run'
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const fs = require('fs');
+            let v;
+            try { v = JSON.parse(fs.readFileSync('/tmp/flake-tripwire-verdict.json', 'utf8')); }
+            catch { v = { ok: false, error: 'flake-tripwire-verdict.json missing/empty' }; }
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const LABEL = 'flake-tripwire';
+            const open = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: LABEL, per_page: 1 });
+
+            if (!v.ok) {
+              console.log(`flake-tripwire: CANNOT EVALUATE — ${v.error}`);
+              return; // advisory-only: an eval failure here is not itself alert-worthy (t/4085 scope).
+            }
+            const { flagged = [], unknownRuns = [], evaluableRuns = 0 } = v.verdict || {};
+            console.log(`flake-tripwire: ${evaluableRuns} evaluable run(s), ${unknownRuns.length} unknown, ${flagged.length} flagged`);
+            if (flagged.length === 0) {
+              if (open.data.length) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: open.data[0].number, body: `Resolved — no repeat healers in the last ${v.runsConsidered} main run(s). ${runUrl}` });
+                await github.rest.issues.update({ owner, repo, issue_number: open.data[0].number, state: 'closed' });
+              }
+              return;
+            }
+            const rows = flagged.map(f => `- \`${f.testId}\` — healed in ${f.count}/${v.runsConsidered} runs: ${f.runIds.join(', ')}`).join('\n');
+            const unk = unknownRuns.length ? `\n\n${unknownRuns.length} run(s) could not be evaluated (missing/unreadable artifacts): ${unknownRuns.join(', ')} — excluded from the counts above, not counted as zero heals.` : '';
+            const body = `## Flake-heal tripwire (t/4085, advisory)\n\nTest(s) self-healed on ${process.env.N_REPEAT_HEALS || '3'}+ of the last ${v.runsConsidered} main \`ci.yml\` runs — likely an order-dependent failure (state leaked by an earlier file in the same shard), not a one-off flake:\n\n${rows}${unk}\n\nThis is advisory only; it does not fail any build. Investigate the owning file for shared/global state. Closes automatically once it drops out of the window.\n\n- **Run:** ${runUrl}`;
+            if (open.data.length) {
+              await github.rest.issues.update({ owner, repo, issue_number: open.data[0].number, body });
+              await github.rest.issues.createComment({ owner, repo, issue_number: open.data[0].number, body: `Still present at ${new Date().toISOString()}.` });
+            } else {
+              await github.rest.issues.create({ owner, repo, title: `Flake-heal tripwire: ${flagged.length} repeat healer(s)`, body, labels: [LABEL] });
+            }
+
       # ── SCHEDULED-WORKFLOW HEALTH (t/4058) ───────────────────────────────────────────────────
       # Everything above watches PUSH-event runs on main's head. Scheduled workflows never run on push,
       # so they were unmonitored: deploy-drift-check crashed 7x, compliance-live failed daily since its
