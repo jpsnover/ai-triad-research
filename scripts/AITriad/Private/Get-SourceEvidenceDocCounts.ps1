@@ -31,8 +31,9 @@ function Get-SourceEvidenceDocCounts {
         Load source_evidence_index.json and return a hashtable of nodeId -> count of unique doc_ids.
         Extracted from Invoke-BDIWeightAssignment (t/3910).
     .DESCRIPTION
-        A missing file is a fallback, not an error: it WARNs and returns an empty map, so every
-        Belief's evidence boost is 0 (Fallback-Path Logging).
+        A MISSING file is a fallback, not an error: it WARNs (naming the path and the condition) and
+        returns an empty map, so every Belief's evidence boost is 0 (Fallback-Path Logging). An
+        UNREADABLE file (present but not valid JSON) is not a fallback: it throws (t/3910#42).
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]
@@ -40,7 +41,7 @@ function Get-SourceEvidenceDocCounts {
 
     $Counts = @{}
     if (-not (Test-Path $Path)) {
-        Write-Warning "source_evidence_index.json not found — evidence boost will be 0"
+        Write-Warning "source_evidence_index.json not found at $Path (missing: the file does not exist) — evidence boost will be 0"
         return $Counts
     }
     $Sei = Get-Content $Path -Raw | ConvertFrom-Json -AsHashtable
