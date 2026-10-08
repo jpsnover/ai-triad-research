@@ -16,8 +16,9 @@ import { createRequire } from 'module';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
-import { getApiKey, getApiKeyForListing, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, isEmbeddingWorkerOffloadEnabled, type AIBackend } from '../config.js';
-import { listingNotConfiguredHint, assertKeyForBackend, isKeyRoutingRefusal, LISTING_WARN } from '../../../../lib/ai-client/apiKeyFallback.js';
+import { getApiKey, getApiKeyForListing, getProjectRoot, EMBED_SCRIPT, resolveDataPath, isEmbeddingWorkerOffloadEnabled, type AIBackend } from '../config.js';
+import { listingNotConfiguredHint, assertKeyForBackend, isKeyRoutingRefusal } from '../../../../lib/ai-client/apiKeyFallback.js';
+import { chainLinkKeys, throwNoApiKeyError } from './chainLinkKeys.js';
 import { writeAICallLogEntry, isAICallLogEnabled } from './aiCallLog.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { parseJsonRobust } from '../../../../lib/debate/helpers.js';
@@ -356,18 +357,6 @@ function buildGenerateOptions(
   };
 }
 
-// No key for any model in the chain — throw a backend-named ActionableError.
-function throwNoApiKeyError(backend: string, modelsToTry: string[]): never {
-  const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek', moonshot: 'Moonshot (Kimi)', xai: 'xAI (Grok)' };
-  const backendName = names[backend] ?? backend;
-  throw new ActionableError({
-    goal: `Generate text via ${backendName}`,
-    problem: `No API key configured for any model in the fallback chain: ${modelsToTry.join(' → ')}`,
-    location: 'aiBackends.generateText',
-    nextSteps: [`Set your ${backendName} API key in Settings`, 'Or switch to a backend that has a key configured'],
-  });
-}
-
 export async function generateText(
   prompt: string,
   model?: string,
@@ -386,30 +375,8 @@ export async function generateText(
   for (let mi = 0; mi < modelsToTry.length; mi++) {
     const currentModel = modelsToTry[mi];
     const backend = resolveBackend(currentModel, registry); // registry first (t/4105 cond 3)
-    let keys: string[];
-    try {
-      keys = explicitKeys ?? await getApiKeys(backend);
-    } catch (err) {
-      // SO e/284#12 cond 6: the PRIMARY's refusal throws to the caller, never served by a later link. A SECONDARY
-      // link with only AI_API_KEY is skipped like a keyless one; a foreign-credential refusal always surfaces.
-      if (mi === 0 || !isKeyRoutingRefusal(err, 'AIApiKeyGeminiOnlyRefused')) throw err;
-      log.api.warn({ model: currentModel, backend, fallbackIndex: mi }, `generateText: ${LISTING_WARN} — skipping fallback chain entry`);
-      continue;
-    }
-    if (keys.length === 0) {
-      if (mi < modelsToTry.length - 1) {
-        getGlobalRecorder()?.record({
-          type: 'ai.fallback', component: 'ai-adapter', level: 'info',
-          message: `Skipping ${currentModel}: no ${backend} API key — trying next fallback`,
-          data: { model: currentModel, backend, fallbackIndex: mi, chain: modelsToTry },
-        });
-        // t/3176 (Fallback-Path Logging): the FR record above is info-only → invisible in prod log
-        // dashboards. WARN so a silent key-gap that degrades the model chain is greppable.
-        log.api.warn({ model: currentModel, backend, fallbackIndex: mi }, 'generateText: no API key for backend — skipping to next fallback chain entry');
-        continue;
-      }
-      throwNoApiKeyError(backend, modelsToTry);
-    }
+    const keys = await chainLinkKeys(modelsToTry, mi, backend, explicitKeys);
+    if (!keys) continue;
 
     const apiModel = getApiModelId(currentModel);
     const opts = buildGenerateOptions(options, timeoutMs, currentModel, entryMap);

@@ -6,25 +6,29 @@
  * every non-200 into a bare `HTTP ${status}`, and must record it structured to the
  * flight recorder — with NO key material, since the key rides in the fetch URL.
  *
- * These tests mock getApiKey (so a key is present) and global.fetch (so we control
- * the provider response), then assert both the returned `error` message and the
- * recorded FR event carry { backend, httpStatus, reason } and never the key.
+ * These tests set GEMINI_API_KEY (so a key is present) and mock global.fetch (so we
+ * control the provider response), then assert both the returned `error` message and
+ * the recorded FR event carry { backend, httpStatus, reason } and never the key.
+ *
+ * t/4105: the key comes through the REAL listing resolver (getApiKeyForListing), the path
+ * refreshAIModels uses, set with vi.stubEnv so it never leaks into a shared worker. The
+ * key store is mocked empty so no backend's resolution reaches the disk.
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Keep every real config export except getApiKey (which would otherwise reach the
-// keystore / disk). refreshAIModels only calls getApiKey; the rest are untouched.
-vi.mock('../config.js', async (importActual) => {
-  const actual = await importActual<typeof import('../config.js')>();
-  return { ...actual, getApiKey: vi.fn(async () => 'secret-key-value') };
-});
+vi.mock('../security/keyStore.js', () => ({ getKeyStore: () => ({ getKeys: async () => [] as string[] }) }));
+vi.mock('../security/userContext.js', () => ({ getCurrentUserId: () => 'test-user' }));
 
 import { refreshAIModels } from '../ai/aiBackends.js';
 import { setGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 const realFetch = global.fetch;
-afterEach(() => { global.fetch = realFetch; vi.restoreAllMocks(); setGlobalRecorder(null as never); });
+beforeEach(() => {
+  vi.stubEnv('GEMINI_API_KEY', 'secret-key-value');
+  for (const v of ['AI_API_KEY', 'ANTHROPIC_API_KEY', 'CLAUDE_API_KEY', 'GROQ_API_KEY']) vi.stubEnv(v, '');
+});
+afterEach(() => { global.fetch = realFetch; vi.restoreAllMocks(); vi.unstubAllEnvs(); setGlobalRecorder(null as never); });
 
 describe('refreshAIModels surfaces the specific Gemini failure (t/1624)', () => {
   it('maps a 403 SERVICE_DISABLED body to a distinct message and records it with no key material', async () => {

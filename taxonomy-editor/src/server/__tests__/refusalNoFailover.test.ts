@@ -9,12 +9,13 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { providerCalls, claudeBehavior } = vi.hoisted(() => ({
+const { providerCalls, claudeBehavior, storedKeys } = vi.hoisted(() => ({
   providerCalls: [] as string[],
+  storedKeys: {} as Record<string, string[]>,
   claudeBehavior: { mode: 'transient' as 'transient' | 'foreign', geminiFails: false },
 }));
 
-vi.mock('../security/keyStore.js', () => ({ getKeyStore: () => ({ getKeys: async () => [] as string[] }) }));
+vi.mock('../security/keyStore.js', () => ({ getKeyStore: () => ({ getKeys: async (backend: string) => storedKeys[backend] ?? [] }) }));
 vi.mock('../security/userContext.js', () => ({ getCurrentUserId: () => 'test-user' }));
 vi.mock('../../../../lib/ai-client/index.js', async (importActual) => {
   const actual = await importActual<typeof import('../../../../lib/ai-client/index.js')>();
@@ -39,13 +40,14 @@ vi.mock('../../../../lib/ai-client/index.js', async (importActual) => {
 import { generateText, buildModelsToTry, resolveBackend } from '../ai/aiBackends.js';
 
 const PRIMARY = 'claude-haiku-4-5';
-const KEYS = ['AI_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'CLAUDE_API_KEY', 'GROQ_API_KEY'];
+const KEYS = ['AI_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'CLAUDE_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'XAI_API_KEY', 'DEEPSEEK_API_KEY', 'ZAI_API_KEY', 'MOONSHOT_API_KEY'];
 let saved: Record<string, string | undefined>;
 
 beforeEach(() => {
   providerCalls.length = 0;
   claudeBehavior.mode = 'transient';
   claudeBehavior.geminiFails = false;
+  for (const k of Object.keys(storedKeys)) delete storedKeys[k];
   saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
   for (const k of KEYS) delete process.env[k];
 });
@@ -96,5 +98,18 @@ describe('generateText: a key-routing refusal never fails over (t/4105 C6)', () 
     // The caller sees gemini's own failure, not the secondary's refusal, and no non-gemini provider is called.
     await expect(generateText('p', 'gemini-3.5-flash-lite')).rejects.toThrow(/gemini Service Unavailable/);
     expect(providerCalls.every((b) => b === 'gemini')).toBe(true);
+  });
+
+  it('a SECONDARY link whose key is FOREIGN still surfaces the refusal; only gemini-only is softened by kind', async () => {
+    // gemini primary fails transiently; the cross-provider link's stored key is another backend's credential.
+    process.env.AI_API_KEY = 'google-placeholder';
+    process.env.ANTHROPIC_API_KEY = 'claude-placeholder';
+    const chain = buildModelsToTry('gemini-3.5-flash-lite', false);
+    const secondary = chain.slice(1).map((m) => resolveBackend(m)).find((b) => b !== 'gemini' && b !== 'claude');
+    expect(secondary).toBeDefined(); // fixture has a non-gemini, non-claude link
+    storedKeys[secondary!] = ['claude-placeholder'];
+    claudeBehavior.geminiFails = true;
+    await expect(generateText('p', 'gemini-3.5-flash-lite')).rejects.toThrow(/value of ANTHROPIC_API_KEY/);
+    expect(providerCalls).not.toContain(secondary);
   });
 });
