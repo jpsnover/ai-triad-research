@@ -6,25 +6,43 @@
 # Mints a short-lived (1 hour) GitHub App installation token for one agent role, so agent
 # actions are attributable to an App instead of the PI's own jpsnover account.
 #
+# WHAT A ROLE TOKEN PROVES (SO e/285#2 C1, read before building anything on these Apps):
+#   A role-App action attests that an agent ran with that role, not that a different agent
+#   performed it. All three keys are readable by every process as this user.
+#   So role separation is ATTRIBUTION, not authorization or separation of duties. Never
+#   configure a required-approval rule or ruleset whose satisfaction by a reviewer-App
+#   approval is treated as independent review; T2 approval stays with the PI's own account.
+#   THIS LIMIT LAPSES only if the keys move to per-agent stores that other agents cannot read.
+#
 # SECURITY CONTRACT (t/3918 context):
 #   - The App private key is read from the SecretManagement vault at call time and never
 #     written to disk, logged, or put in an environment variable.
-#   - The minted token is RETURNED to the caller only. Callers pass it to a single command
-#     (bash: GH_TOKEN="$(...)" gh ...; pwsh: Invoke-AsAgentApp) and let it go out of scope.
-#     Never persist it in a file, a profile, or a lasting environment variable.
-#   - Installation tokens expire after 1 hour; mint a fresh one per session or task.
+#   - Tokens are scoped to ONE repository (default ai-triad-research; ai-triad-data must be
+#     named explicitly, and data writes go through /data-mutation) (C3).
+#   - Invoke-AsAgentApp is the agent-facing entry point. It scopes GH_TOKEN to one block and
+#     revokes the token when the block ends (C4), so the token lives only as long as the block.
+#   - Get-AgentAppToken returns a SecureString unless -AsPlainText is passed, so a bare call
+#     cannot print a token into tool output or a transcript (C2). -AsPlainText exists only for
+#     the single bash idiom: GH_TOKEN="$(pwsh -c '. ./AgentAppToken.ps1; Get-AgentAppToken -Role r -AsPlainText')" gh ...
 #
 # Usage:
 #   . ./operations/devops/AgentAppToken.ps1
-#   $t = Get-AgentAppToken -Role reviewer
 #   Invoke-AsAgentApp -Role reviewer -ScriptBlock { gh pr review 123 --approve --body '...' }
 
 # App and installation IDs are not secret (t/4096#10). Gate Co-Location: they live here,
 # at the point of use.
+# Permissions are the role's set from the setup guide (t/4096#8), sent explicitly on every token
+# request (TL ruling e/285#3 on C3) so each token's scope is visible on the wire. A role may only
+# request permissions its App was granted; GitHub refuses anything wider.
 $script:AgentApps = @{
-    author     = @{ AppId = 5236085; InstallationId = 169210396; Slug = 'ai-triad-author-jpsnover' }
-    reviewer   = @{ AppId = 5236159; InstallationId = 169212097; Slug = 'ai-triad-reviewer-jpsnover' }
-    maintainer = @{ AppId = 5236199; InstallationId = 169213604; Slug = 'ai-triad-maintainer-jpsnover' }
+    author     = @{ AppId = 5236085; InstallationId = 169210396; Slug = 'ai-triad-author-jpsnover'
+                    Permissions = @{ contents = 'write'; pull_requests = 'write'; issues = 'write'; workflows = 'write'
+                                     actions = 'read'; checks = 'read'; statuses = 'read' } }
+    reviewer   = @{ AppId = 5236159; InstallationId = 169212097; Slug = 'ai-triad-reviewer-jpsnover'
+                    Permissions = @{ contents = 'read'; pull_requests = 'write'; issues = 'write' } }
+    maintainer = @{ AppId = 5236199; InstallationId = 169213604; Slug = 'ai-triad-maintainer-jpsnover'
+                    Permissions = @{ contents = 'write'; pull_requests = 'write'; issues = 'write'; workflows = 'write'
+                                     actions = 'write'; checks = 'read'; statuses = 'read' } }
 }
 $script:AgentAppVault = 'AiTriadAgentApps'
 
@@ -69,11 +87,29 @@ function New-GitHubAppJwt {
 function Get-AgentAppToken {
     <#
     .SYNOPSIS
-    Returns a 1-hour installation token for the given agent role. Never persists it.
+    Mints a 1-hour installation token for one agent role, scoped to one repository.
+    Returns a SecureString unless -AsPlainText is passed (SO C2). Agents should use
+    Invoke-AsAgentApp instead; -AsPlainText is only for the documented bash idiom.
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][ValidateSet('author', 'reviewer', 'maintainer')][string] $Role,
+        [ValidateSet('ai-triad-research', 'ai-triad-data')][string] $Repository = 'ai-triad-research',
+        [switch] $AsPlainText,
+        [string] $Vault = $script:AgentAppVault
+    )
+    $token = New-AgentAppInstallationToken -Role $Role -Repository $Repository -Vault $Vault
+    if ($AsPlainText) { return $token }
+    ConvertTo-SecureString -String $token -AsPlainText -Force
+}
+
+function New-AgentAppInstallationToken {
+    # PRIVATE: returns the plaintext token. Called only by Get-AgentAppToken and
+    # Invoke-AsAgentApp, which keep it out of the output stream.
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateSet('author', 'reviewer', 'maintainer')][string] $Role,
+        [Parameter(Mandatory)][ValidateSet('ai-triad-research', 'ai-triad-data')][string] $Repository,
         [string] $Vault = $script:AgentAppVault
     )
     $ErrorActionPreference = 'Stop'
@@ -89,8 +125,10 @@ function Get-AgentAppToken {
     $pem = $null
     $uri = "https://api.github.com/app/installations/$($app.InstallationId)/access_tokens"
     $headers = @{ Authorization = "Bearer $jwt"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
+    # C3: scope the token to exactly one repository instead of every repo the App is installed on.
+    $body = @{ repositories = @($Repository); permissions = $app.Permissions } | ConvertTo-Json -Compress -Depth 3
     try {
-        $resp = Invoke-RestMethod -Method Post -Uri $uri -Headers $headers
+        $resp = Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -Body $body -ContentType 'application/json'
     } catch {
         throw (New-AgentAppTokenError -Problem "GitHub refused to mint an installation token for $($app.Slug): $($_.Exception.Message)" `
             -NextSteps 'Check the App ID and Installation ID match the installed App, and that the private key is the current one for that App.')
@@ -107,14 +145,29 @@ function Invoke-AsAgentApp {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][ValidateSet('author', 'reviewer', 'maintainer')][string] $Role,
-        [Parameter(Mandatory)][scriptblock] $ScriptBlock
+        [Parameter(Mandatory)][scriptblock] $ScriptBlock,
+        [ValidateSet('ai-triad-research', 'ai-triad-data')][string] $Repository = 'ai-triad-research'
     )
     $previous = $env:GH_TOKEN
+    $token = $null
     try {
-        $env:GH_TOKEN = Get-AgentAppToken -Role $Role
+        $token = New-AgentAppInstallationToken -Role $Role -Repository $Repository
+        $env:GH_TOKEN = $token
         & $ScriptBlock
     } finally {
         $env:GH_TOKEN = $previous
+        # C4: revoke so the token lives only as long as the block. Best-effort: a failure here
+        # does not fail the caller's work, but it is logged (fallback-path logging rule).
+        if ($token) {
+            try {
+                Invoke-RestMethod -Method Delete -Uri 'https://api.github.com/installation/token' -Headers @{
+                    Authorization = "Bearer $token"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28'
+                } | Out-Null
+            } catch {
+                Write-Warning "AgentAppToken: could not revoke the $Role token after use ($($_.Exception.Message)); it expires on its own within 1 hour."
+            }
+            $token = $null
+        }
     }
 }
 

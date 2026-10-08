@@ -80,19 +80,54 @@ Describe 'Get-AgentAppToken vault handling (t/4096)' {
         Should -Invoke Invoke-RestMethod -Times 0
     }
 
-    It 'posts to the reviewer installation and returns only the token' {
+    It 'with -AsPlainText, posts to the reviewer installation and returns only the token' {
         Mock Get-Secret { $script:pem }
         Mock Invoke-RestMethod { [pscustomobject]@{ token = 'ghs_TESTONLY'; expires_at = '2026-10-08T13:00:00Z' } }
-        Get-AgentAppToken -Role reviewer | Should -Be 'ghs_TESTONLY'
+        Get-AgentAppToken -Role reviewer -AsPlainText | Should -Be 'ghs_TESTONLY'
         Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter {
             $Uri -eq 'https://api.github.com/app/installations/169212097/access_tokens' -and $Method -eq 'Post'
         }
+    }
+
+    It 'C2: without -AsPlainText, writes nothing token-shaped to the output stream' {
+        Mock Get-Secret { $script:pem }
+        Mock Invoke-RestMethod { [pscustomobject]@{ token = 'ghs_TESTONLY'; expires_at = '2026-10-08T13:00:00Z' } }
+        $out = Get-AgentAppToken -Role reviewer
+        $out | Should -BeOfType [securestring]
+        ($out | Out-String) | Should -Not -Match 'ghs_'
+    }
+
+    It 'C3: the request body names exactly one repository (default ai-triad-research) and the role''s permissions' {
+        Mock Get-Secret { $script:pem }
+        Mock Invoke-RestMethod { [pscustomobject]@{ token = 'ghs_TESTONLY' } }
+        $null = Get-AgentAppToken -Role reviewer -AsPlainText
+        Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter {
+            $b = $Body | ConvertFrom-Json
+            @($b.repositories).Count -eq 1 -and $b.repositories[0] -eq 'ai-triad-research' -and
+            $b.permissions.pull_requests -eq 'write' -and $b.permissions.contents -eq 'read' -and
+            -not ($b.permissions.PSObject.Properties.Name -contains 'workflows')
+        }
+    }
+
+    It 'C3: ai-triad-data must be named explicitly and is the only repository in the body' {
+        Mock Get-Secret { $script:pem }
+        Mock Invoke-RestMethod { [pscustomobject]@{ token = 'ghs_TESTONLY' } }
+        $null = Get-AgentAppToken -Role author -Repository ai-triad-data -AsPlainText
+        Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter {
+            $b = $Body | ConvertFrom-Json
+            @($b.repositories).Count -eq 1 -and $b.repositories[0] -eq 'ai-triad-data'
+        }
+    }
+
+    It 'C3: rejects a repository outside the installed pair' {
+        { Get-AgentAppToken -Role author -Repository 'some-other-repo' -AsPlainText } | Should -Throw
     }
 }
 
 Describe 'Invoke-AsAgentApp (t/4096)' {
     It 'sets GH_TOKEN only inside the block and restores the previous value afterwards' {
-        Mock Get-AgentAppToken { 'ghs_SCOPED' }
+        Mock New-AgentAppInstallationToken { 'ghs_SCOPED' }
+        Mock Invoke-RestMethod { }
         $before = $env:GH_TOKEN
         $seen = Invoke-AsAgentApp -Role reviewer -ScriptBlock { $env:GH_TOKEN }
         $seen | Should -Be 'ghs_SCOPED'
@@ -100,9 +135,35 @@ Describe 'Invoke-AsAgentApp (t/4096)' {
     }
 
     It 'restores GH_TOKEN even when the block throws' {
-        Mock Get-AgentAppToken { 'ghs_SCOPED' }
+        Mock New-AgentAppInstallationToken { 'ghs_SCOPED' }
+        Mock Invoke-RestMethod { }
         $before = $env:GH_TOKEN
         { Invoke-AsAgentApp -Role reviewer -ScriptBlock { throw 'boom' } } | Should -Throw 'boom'
         $env:GH_TOKEN | Should -Be $before
+    }
+
+    It 'C4: revokes the token when the block ends, with that token' {
+        Mock New-AgentAppInstallationToken { 'ghs_SCOPED' }
+        Mock Invoke-RestMethod { }
+        Invoke-AsAgentApp -Role reviewer -ScriptBlock { 'work' } | Out-Null
+        Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter {
+            $Method -eq 'Delete' -and $Uri -eq 'https://api.github.com/installation/token' -and $Headers.Authorization -eq 'Bearer ghs_SCOPED'
+        }
+    }
+
+    It 'C4: revokes even when the block throws' {
+        Mock New-AgentAppInstallationToken { 'ghs_SCOPED' }
+        Mock Invoke-RestMethod { }
+        { Invoke-AsAgentApp -Role reviewer -ScriptBlock { throw 'boom' } } | Should -Throw 'boom'
+        Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter { $Method -eq 'Delete' }
+    }
+
+    It 'C4: a failed revoke warns but does not fail the caller''s work' {
+        Mock New-AgentAppInstallationToken { 'ghs_SCOPED' }
+        Mock Invoke-RestMethod { throw 'network down' }
+        Mock Write-Warning { }
+        $r = Invoke-AsAgentApp -Role reviewer -ScriptBlock { 'done' }
+        $r | Should -Be 'done'
+        Should -Invoke Write-Warning -Times 1 -ParameterFilter { $Message -like '*could not revoke*' }
     }
 }
