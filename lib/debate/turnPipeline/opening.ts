@@ -28,6 +28,20 @@ const DEFAULT_BRIEF_MAX_RETRIES = 3;
 /** Nominal stage count for the opening pipeline (brief, plan, draft, cite). Repair is conditional and must not extend this. */
 export const OPENING_TOTAL_STAGES = 4;
 
+/** Resolve the max-tokens budget for the brief stage (t/4117).
+ *  Registry-first: if the model is listed, thinks_by_default governs.
+ *  Substring fallback applies only when the model is absent from the registry. */
+export function resolveBriefMaxTokens(
+  model: string,
+  registry?: import('../../ai-client/registry.js').ModelRegistry,
+): number | undefined {
+  const entry = registry?.models.find(m => m.id === model);
+  const thinksDefault = entry
+    ? entry.thinks_by_default === true
+    : (model.includes('opus') || model.includes('fable'));
+  return thinksDefault ? 32_000 : undefined;
+}
+
 function isBriefTimeout(err: unknown): boolean {
   if (err instanceof DOMException && err.name === 'AbortError') return true;
   const msg = err instanceof Error ? err.message : String(err);
@@ -131,18 +145,7 @@ export async function runOpeningPipeline(
   const MAX_OPENING_RETRIES = isOpeningOuterRetry ? 0 : 3;
   const briefTimeoutMs = input.briefTimeoutMs ?? DEFAULT_BRIEF_TIMEOUT_MS;
   const briefMaxRetries = input.briefMaxRetries ?? DEFAULT_BRIEF_MAX_RETRIES;
-  // 32_000 = clampMaxTokens ceiling in aiHandlers.ts; thinking models produce verbose structured
-  // JSON and consistently hit smaller caps on 9+ turn debates (t/3543, t/4117).
-  // Driven from ModelEntry.thinks_by_default (registry-first); substring fallback for call sites
-  // that don't pass a registry (non-engine CLI path, legacy renderers).
-  const briefModelEntry = input.registry?.models.find(m => m.id === oBriefModel);
-  // Registry is authoritative when the model is listed: absence of the flag = not a thinking model.
-  // Substring fallback only applies when the model is absent from the registry (t/4117).
-  const briefModelThinksDefault = briefModelEntry
-    ? briefModelEntry.thinks_by_default === true
-    : (oBriefModel.includes('opus') || oBriefModel.includes('fable'));
-  const briefMaxTokens = input.briefMaxTokens
-    ?? (briefModelThinksDefault ? 32_000 : undefined);
+  const briefMaxTokens = input.briefMaxTokens ?? resolveBriefMaxTokens(oBriefModel, input.registry);
   let brief: OpeningBriefWorkProduct | undefined;
   let briefJson = '';
   let t0: number = Date.now();
