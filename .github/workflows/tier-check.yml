@@ -1,0 +1,132 @@
+name: tier-check
+
+# Advisory tier-declaration check (t/4103, t/4092 SO dissent 2). Never blocks a merge, never
+# touches labels or merge state — comment-only. Promotion to required is a separate T2 PR.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, ready_for_review]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  tier-check:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          fetch-depth: 0
+
+      - name: Self-health — predicate unit suite
+        # t/3737#4 principle: re-run the unit suite on every PR event, so a regression that
+        # breaks detection fails this job loudly instead of letting the check go quietly blind.
+        run: node --test operations/devops/tier-check-predicate.test.mjs
+
+      - name: Evaluate tier declaration
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const { pathToFileURL } = require('url');
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+            const { evaluateTierCheck } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/operations/devops/tier-check-predicate.mjs`).href);
+
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const prNumber = context.payload.pull_request.number;
+            const config = JSON.parse(fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/.github/ci/tier-paths.json`, 'utf8'));
+
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+            const files = await github.paginate(github.rest.pulls.listFiles, { owner, repo, pull_number: prNumber, per_page: 100 });
+            const paths = files.map((f) => f.path);
+            const baseSha = pr.base.sha, headSha = pr.head.sha;
+
+            function diffLines(path) {
+              let raw;
+              try {
+                raw = execSync(`git diff ${baseSha} ${headSha} -- ${JSON.stringify(path)}`, { cwd: process.env.GITHUB_WORKSPACE, encoding: 'utf8', maxBuffer: 1024 * 1024 * 16 });
+              } catch {
+                return { addedLines: [], removedLines: [] };
+              }
+              const addedLines = [], removedLines = [];
+              for (const line of raw.split('\n')) {
+                if (line.startsWith('+++') || line.startsWith('---')) continue;
+                if (line.startsWith('+')) addedLines.push(line.slice(1));
+                else if (line.startsWith('-')) removedLines.push(line.slice(1));
+              }
+              return { addedLines, removedLines };
+            }
+
+            // R2a: every changed workflow yml's removed lines.
+            const workflowDiffs = paths
+              .filter((p) => /^\.github\/workflows\/.*\.ya?ml$/.test(p))
+              .map((p) => ({ path: p, ...diffLines(p) }));
+
+            // R2c: every changed path matching the lint-config globs.
+            function matchGlob(path, glob) {
+              const re = new RegExp('^' + glob.split('*').map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$');
+              return re.test(path);
+            }
+            const lintDiffs = paths
+              .filter((p) => config.r2cGlobs.some((g) => matchGlob(p, g)))
+              .map((p) => ({ path: p, ...diffLines(p) }));
+
+            // R2b: parse ci-gate's `needs:` at base and head, compare sets (not diff lines).
+            function ciGateNeeds(sha) {
+              let content;
+              try {
+                content = execSync(`git show ${sha}:.github/workflows/ci.yml`, { cwd: process.env.GITHUB_WORKSPACE, encoding: 'utf8', maxBuffer: 1024 * 1024 * 16 });
+              } catch {
+                return null;
+              }
+              const m = /^\s*ci-gate:\s*\n\s*name:.*\n\s*needs:\s*\[([^\]]*)\]/m.exec(content);
+              if (!m) return null;
+              return m[1].split(',').map((s) => s.trim()).filter(Boolean);
+            }
+            const baseCiGateNeeds = paths.includes('.github/workflows/ci.yml') ? ciGateNeeds(baseSha) : null;
+            const headCiGateNeeds = paths.includes('.github/workflows/ci.yml') ? ciGateNeeds(headSha) : null;
+
+            const result = evaluateTierCheck({
+              body: pr.body,
+              headRefName: pr.head.ref,
+              paths,
+              prCreatedAt: new Date(pr.created_at),
+              graceCutoff: new Date(config.graceCutoffISO),
+              labels: (pr.labels || []).map((l) => l.name || l),
+              config,
+              workflowDiffs,
+              lintDiffs,
+              baseCiGateNeeds,
+              headCiGateNeeds,
+            });
+
+            core.info(`tier-check verdict: pass=${result.pass} tier=${result.tier} comments=${JSON.stringify(result.comments)}`);
+
+            const MARKER = '<!-- tier-check:verdict -->';
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: prNumber, per_page: 100 });
+            const existing = comments.find((c) => c.body?.includes(MARKER));
+
+            if (result.comments.length === 0) {
+              if (existing) {
+                await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: `${MARKER}\ntier-check: clean — no advisory findings.` });
+              }
+              core.info('tier-check: clean, nothing to comment.');
+              return;
+            }
+
+            const body = [
+              MARKER,
+              `**tier-check (advisory)** — declared tier: \`${result.tier ?? '(none)'}\``,
+              '',
+              ...result.comments.map((c) => `- ${c}`),
+              '',
+              '_This check is advisory and never blocks a merge. See t/4103._',
+            ].join('\n');
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+            }
