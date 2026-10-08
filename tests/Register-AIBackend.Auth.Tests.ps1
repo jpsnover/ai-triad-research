@@ -24,37 +24,72 @@ BeforeAll {
     # reported a definitive failure (false TL hold on PR #2286). An OS-assigned port
     # from the ephemeral range can never collide with a prior run's leftover; a probe
     # listener that never accepts a connection leaves no TIME_WAIT, so it frees cleanly.
-    $script:PortProbe = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
-    $script:PortProbe.Start()
-    $script:TestPort = ([System.Net.IPEndPoint]$script:PortProbe.LocalEndpoint).Port
-    $script:PortProbe.Stop()
-    $script:Job = Start-Job -ScriptBlock {
-        param($ModPath, $Port)
-        Import-Module $ModPath -Force -WarningAction SilentlyContinue
-        Register-AIBackend -NoBrowser -Port $Port
-    } -ArgumentList $ModulePath, $script:TestPort
+    function Get-EphemeralPort {
+        $Probe = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+        $Probe.Start()
+        try { ([System.Net.IPEndPoint]$Probe.LocalEndpoint).Port } finally { $Probe.Stop() }
+    }
 
-    # Wait for the listener to accept connections (expect 401 on unauth GET /). Poll 100ms,
-    # early-exit on first response. Timeout widened 4s -> 30s (t/3665): the Start-Job runspace
-    # first does `Import-Module AITriad -Force` (~4.6s COLD) before Register-AIBackend even binds,
-    # so under CI load import+start exceeds 4s and the whole suite flaked red on server-not-ready
-    # (t/3547 was the port half of this flake; this is the startup-time half). 30s is well clear
-    # of cold-import+bind even on a starved runner; the early-exit keeps the fast path ~instant.
-    $script:ServerReady = $false
-    for ($i = 0; $i -lt 300; $i++) {
-        Start-Sleep -Milliseconds 100
-        try {
-            $null = Invoke-WebRequest -Uri "http://127.0.0.1:$($script:TestPort)/" -UseBasicParsing -ErrorAction Stop
-        } catch {
-            if ($_.Exception.Response) { $script:ServerReady = $true; break }
+    # Wait for the listener (t/3665, t/4111). Poll 100ms for up to 30s: the Start-Job runspace first
+    # does `Import-Module AITriad -Force` (~4.6s COLD) before Register-AIBackend binds, so under CI
+    # load import+start can take far longer than the fast path. Two guards (t/4111):
+    # - Ready means a 401 on unauthenticated GET /, i.e. OUR auth-hardened server. Any other
+    #   response means something else answered on the port, and the tests would assert against it.
+    # - The job is watched while waiting. If it dies (Failed/Completed/Stopped), stop waiting at once
+    #   and keep its error, instead of burning the full 30s and failing with no reason.
+    function Wait-AuthTestServer([System.Management.Automation.Job]$Job, [int]$Port) {
+        for ($i = 0; $i -lt 300; $i++) {
+            Start-Sleep -Milliseconds 100
+            if ($Job.State -in 'Failed', 'Completed', 'Stopped') {
+                $Why = @(Receive-Job $Job -ErrorAction SilentlyContinue -ErrorVariable jobErr 2>&1) + @($jobErr) |
+                    ForEach-Object { "$_" } | Where-Object { $_ } | Select-Object -First 3
+                return [pscustomobject]@{ Ready = $false; Reason = "server job $($Job.State) on port ${Port}: $($Why -join ' | ')" }
+            }
+            try {
+                $null = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
+                return [pscustomobject]@{ Ready = $false; Reason = "port ${Port} answered 200 to an unauthenticated GET /: not our auth-hardened server" }
+            } catch {
+                $Resp = $_.Exception.Response
+                if ($Resp) {
+                    $Code = [int]$Resp.StatusCode
+                    if ($Code -eq 401) { return [pscustomobject]@{ Ready = $true; Reason = '' } }
+                    return [pscustomobject]@{ Ready = $false; Reason = "port ${Port} answered HTTP $Code (expected 401): not our server" }
+                }
+            }
         }
+        [pscustomobject]@{ Ready = $false; Reason = "server on port $Port not listening after 30s (job state $($Job.State))" }
+    }
+
+    # Start the server on an OS-assigned ephemeral port with no browser (t/3547: a fixed port flaked on
+    # TIME_WAIT). The probe-then-release has a small race: another process can take the port between
+    # the probe's Stop() and the server's bind (HttpListener cannot bind port 0 itself). When that
+    # happens the server job fails with "Could not start HTTP listener", or another listener answers
+    # with something other than 401. Either way, retry on a fresh port, up to 3 attempts (t/4111).
+    $script:ServerReady = $false
+    $script:ServerFailure = @()
+    for ($Attempt = 1; $Attempt -le 3 -and -not $script:ServerReady; $Attempt++) {
+        $script:TestPort = Get-EphemeralPort
+        $script:Job = Start-Job -ScriptBlock {
+            param($ModPath, $Port)
+            Import-Module $ModPath -Force -WarningAction SilentlyContinue
+            Register-AIBackend -NoBrowser -Port $Port
+        } -ArgumentList $ModulePath, $script:TestPort
+        $Result = Wait-AuthTestServer -Job $script:Job -Port $script:TestPort
+        if ($Result.Ready) { $script:ServerReady = $true; break }
+        $script:ServerFailure += "attempt ${Attempt}: $($Result.Reason)"
+        Write-Warning "Register-AIBackend auth test: server not ready, retrying on a fresh port (t/4111): $($Result.Reason)"
+        Stop-Job $script:Job -ErrorAction SilentlyContinue
+        Remove-Job $script:Job -Force -ErrorAction SilentlyContinue
+        $script:Job = $null
     }
 }
 
 AfterAll {
+    # Stop-Job ends the child process that owns the HttpListener, so the port is released
+    # deterministically; -Force removes the job even if Stop-Job raced it (t/4111).
     if ($script:Job) {
         Stop-Job  $script:Job -ErrorAction SilentlyContinue
-        Remove-Job $script:Job -ErrorAction SilentlyContinue
+        Remove-Job $script:Job -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -91,7 +126,7 @@ Describe 'Register-AIBackend auth hardening (t/2527)' -Tag 'security' {
     # ── Live-server integration tests ─────────────────────────────────────────
 
     It 'Server started and is listening' {
-        $script:ServerReady | Should -BeTrue
+        $script:ServerReady | Should -BeTrue -Because ($script:ServerFailure -join '; ')
     }
 
     It 'GET / without token returns 401' {
