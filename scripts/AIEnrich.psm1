@@ -219,7 +219,7 @@ function Protect-SensitiveText {
 # ─────────────────────────────────────────────────────────────────────────────
 # Resolve-AIApiKey
 # Resolves the API key for a given backend using the priority:
-#   explicit -ApiKey > backend-specific env var > AI_API_KEY fallback
+#   explicit -ApiKey > backend-specific env var > AI_API_KEY fallback (gemini only, t/4102)
 # ─────────────────────────────────────────────────────────────────────────────
 <#
 .SYNOPSIS
@@ -231,7 +231,9 @@ function Protect-SensitiveText {
     1. Explicit key passed via -ExplicitKey parameter.
     2. Backend-specific environment variable (GEMINI_API_KEY, ANTHROPIC_API_KEY
        or CLAUDE_API_KEY, GROQ_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_API_KEY).
-    3. Universal fallback: $env:AI_API_KEY.
+    3. Gemini only: the generic fallback $env:AI_API_KEY. For any other
+       backend, a set AI_API_KEY with no backend variable is refused with an
+       error naming that backend's own variable (t/4102).
 
     Returns $null if no key is found at any level.  The resolved source is
     tracked in $script:LastApiKeySource for diagnostic logging.
@@ -317,9 +319,21 @@ function Resolve-AIApiKey {
         }
     }
 
-    # AI_API_KEY is the documented generic fallback, so it may still reach any backend (TL decision
-    # pending, t/4087) -- but never when it is demonstrably another backend's key, and never silently.
+    # AI_API_KEY is the generic fallback for the gemini backend ONLY (PI decision, t/4102). The fallback
+    # can't say which provider's key it holds, so offering it elsewhere sends an unknown credential to that
+    # provider. For any other backend a set AI_API_KEY is refused actionably, naming the variable the
+    # backend actually reads. The message names variables, never key material.
     $Fallback = $env:AI_API_KEY
+    if ($Backend -ne 'gemini' -and -not [string]::IsNullOrWhiteSpace($Fallback)) {
+        $OwnVars = if ($script:AIApiKeyEnvVarMap.ContainsKey($Backend)) { @($script:AIApiKeyEnvVarMap[$Backend]) -join ' or ' } else { "the '$Backend' backend's key variable" }
+        $script:LastApiKeySource = '(refused: $env:AI_API_KEY is gemini-only)'
+        throw (@(
+            "Goal:     Resolve an API key for the '$Backend' backend"
+            "Error:    no key for backend '$Backend': `$env:AI_API_KEY is set, but it is the fallback for the gemini backend only and is never sent to '$Backend' (t/4102)"
+            'Location: Resolve-AIApiKey (AIEnrich.psm1)'
+            "Resolve:  set $OwnVars, or pass -ApiKey with a key issued for '$Backend'"
+        ) -join [Environment]::NewLine)
+    }
     if (-not [string]::IsNullOrWhiteSpace($Fallback)) {
         Assert-AIApiKeyBackend -Key $Fallback -Backend $Backend -Route '$env:AI_API_KEY fallback'
         if (-not $script:AIApiKeyFallbackWarned.ContainsKey($Backend)) {
@@ -620,7 +634,7 @@ function Invoke-AIApi {
         $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
         if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
             $EnvHint = switch ($Backend) {
-                'gemini' { 'GEMINI_API_KEY' }
+                'gemini' { 'GEMINI_API_KEY or AI_API_KEY' }   # the AI_API_KEY fallback is gemini-only (t/4102)
                 'claude' { 'ANTHROPIC_API_KEY / CLAUDE_API_KEY' }
                 'groq'   { 'GROQ_API_KEY' }
                 'openai' { 'OPENAI_API_KEY' }
@@ -632,7 +646,7 @@ function Invoke-AIApi {
                 'deepseek' { 'DEEPSEEK_API_KEY' }
                 default  { "(unknown backend '$Backend' — expected gemini/claude/groq/openai/azure/ollama/zai/moonshot/xai/deepseek)" }
             }
-            Write-Warning "No API key found for $Backend backend. Set $EnvHint or AI_API_KEY."
+            Write-Warning "No API key found for $Backend backend. Set $EnvHint."
             return $null
         }
     }

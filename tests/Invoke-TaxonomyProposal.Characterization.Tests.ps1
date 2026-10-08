@@ -464,9 +464,9 @@ Describe 'Invoke-TaxonomyProposal characterization (t/3910)' -Tag 'taxonomy' {
         @{ Name = 'fresh-health-fallback-unmapped'; Text = 'Dictionary not found at' }
         @{ Name = 'dryrun';                         Text = 'DRY RUN complete. No API call made. No files written.' }
         @{ Name = 'dryrun';                         Text = '... (truncated for display)' }
-        @{ Name = 'err-no-key-claude';              Text = 'Set ANTHROPIC_API_KEY or AI_API_KEY, or pass -ApiKey.' }
-        @{ Name = 'err-no-key-groq';                Text = 'Set GROQ_API_KEY or AI_API_KEY, or pass -ApiKey.' }
-        @{ Name = 'err-no-key-unknown-prefix';      Text = 'Set XAI_API_KEY or AI_API_KEY, or pass -ApiKey.' }   # registry backend, not a gemini guess (t/4087)
+        @{ Name = 'err-no-key-claude';              Text = 'Set ANTHROPIC_API_KEY, or pass -ApiKey.' }   # no AI_API_KEY: gemini-only fallback (t/4102)
+        @{ Name = 'err-no-key-groq';                Text = 'Set GROQ_API_KEY, or pass -ApiKey.' }
+        @{ Name = 'err-no-key-unknown-prefix';      Text = 'Set XAI_API_KEY, or pass -ApiKey.' }   # registry backend, not a gemini guess (t/4087)
         @{ Name = 'err-repo-root-missing';          Text = 'Repo root not found' }
         @{ Name = 'parse-repair';                   Text = 'JSON repaired successfully' }
         @{ Name = 'api-returns-null';               Text = 'AI API call returned null' }

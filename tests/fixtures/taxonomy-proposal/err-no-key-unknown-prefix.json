@@ -3,7 +3,7 @@
   "host": [
     "[Cyan] \n▶  Validating environment",
     "[Red]    ✗  No API key found for xai backend.",
-    "[Gray]    →  Set XAI_API_KEY or AI_API_KEY, or pass -ApiKey."
+    "[Gray]    →  Set XAI_API_KEY, or pass -ApiKey."
   ],
   "warnings": [],
   "verbose": [],

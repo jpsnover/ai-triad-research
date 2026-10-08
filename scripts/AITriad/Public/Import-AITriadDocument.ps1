@@ -48,8 +48,9 @@ function Import-AITriadDocument {
     .EXAMPLE
         Import-AITriadDocument -File 'path/to/file.pdf' -Pov skeptic
     .NOTES
-        Set backend-specific env vars (GEMINI_API_KEY, ANTHROPIC_API_KEY,
-        GROQ_API_KEY) or AI_API_KEY for metadata enrichment.
+        Set the backend-specific env var for the model (GEMINI_API_KEY,
+        ANTHROPIC_API_KEY, GROQ_API_KEY, ...) for metadata enrichment.
+        AI_API_KEY is a fallback for gemini models only.
     .LINK
         Show-AITriadHelp
     .LINK
@@ -316,7 +317,7 @@ function Import-AITriadDocument {
         } elseif ($SkipAiMeta) {
             Write-Info "Skipping AI enrichment (-SkipAiMeta)"
         } else {
-            Write-Warn "No API key found for the $($AIKeyStatus.Backend) backend — metadata enrichment skipped. Set $($AIKeyStatus.EnvHint) or AI_API_KEY."
+            Write-Warn "No API key found for the $($AIKeyStatus.Backend) backend — metadata enrichment skipped. Set $($AIKeyStatus.EnvHint)."
         }
 
         # Merge AI results with heuristic values and user-supplied flags

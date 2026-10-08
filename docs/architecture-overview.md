@@ -175,7 +175,7 @@ All AI calls route through a unified abstraction layer. The PowerShell side uses
 | Moonshot (Kimi) | api.moonshot.ai | `MOONSHOT_API_KEY` | kimi-k3 |
 | Ollama (local) | localhost:11434 | — | gemma4:e4b-it-q4_K_M |
 
-Fallback key: `$AI_API_KEY` works for any backend if the specific env var is unset.
+Fallback key: in the PowerShell module, `$AI_API_KEY` is used only for gemini models when `GEMINI_API_KEY` is unset; every other backend needs its own variable (t/4102).
 
 Retry strategy: exponential backoff on HTTP 429/503/529, with delays of 15/45/90/120 seconds across up to 5 attempts.
 

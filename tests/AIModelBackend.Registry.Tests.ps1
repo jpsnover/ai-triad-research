@@ -142,21 +142,84 @@ Describe 'Resolve-AIApiKey: env keys only reach their own backend (t/4087 condit
         (Invoke-ResolveKey -ExplicitKey 'user-supplied-xai-key' -Backend 'xai').Value | Should -Be 'user-supplied-xai-key'
     }
 
-    It 'refuses the AI_API_KEY fallback when it is another backend''s named credential' {
-        $env:GEMINI_API_KEY = 'shared-sentinel'
+    It 'refuses the gemini AI_API_KEY fallback when it is another backend''s named credential' {
+        $env:ANTHROPIC_API_KEY = 'shared-sentinel'
         $env:AI_API_KEY = 'shared-sentinel'
-        { Invoke-ResolveKey -Backend 'claude' } | Should -Throw -ExpectedMessage '*AI_API_KEY fallback*GEMINI_API_KEY*'
+        { Invoke-ResolveKey -Backend 'gemini' } | Should -Throw -ExpectedMessage '*AI_API_KEY fallback*ANTHROPIC_API_KEY*'
     }
 
-    It 'uses a distinct AI_API_KEY fallback, warning once per backend' {
+    It 'gemini uses a distinct AI_API_KEY fallback, warning once (t/4102)' {
         $env:AI_API_KEY = 'generic-sentinel'
-        $First = Invoke-ResolveKey -Backend 'deepseek'
-        $Second = Invoke-ResolveKey -Backend 'deepseek'
+        $First = Invoke-ResolveKey -Backend 'gemini'
+        $Second = Invoke-ResolveKey -Backend 'gemini'
         $First.Value | Should -Be 'generic-sentinel'
         $Second.Value | Should -Be 'generic-sentinel'
         @($First.Warnings).Count | Should -Be 1
-        $First.Warnings[0] | Should -Match "AI_API_KEY.*'deepseek'"
+        $First.Warnings[0] | Should -Match "AI_API_KEY.*'gemini'"
         @($Second.Warnings).Count | Should -Be 0
+    }
+}
+
+Describe 'AI_API_KEY is a fallback for the gemini backend only (t/4102)' -Tag 'security' {
+    # Every keyed backend in ai-models.json except gemini, enumerated at test time (never a pinned list).
+    BeforeAll {
+        $script:NonGeminiBackends = @($script:Models.Backend | Where-Object { $_ -notin @('gemini', 'ollama') } | Sort-Object -Unique)
+    }
+
+    It 'the registry has non-gemini keyed backends to check (guards against a vacuous pass)' {
+        $script:NonGeminiBackends.Count | Should -BeGreaterThan 3
+    }
+
+    It '<_>: a set AI_API_KEY is refused with an error naming the backend''s own variable, never returned' -ForEach @(
+        @((Get-Content -Raw (Join-Path $PSScriptRoot '..' 'ai-models.json') | ConvertFrom-Json).models.backend |
+            Where-Object { $_ -notin @('gemini', 'ollama') } | Sort-Object -Unique)
+    ) {
+        $env:AI_API_KEY = 'generic-sentinel'
+        $Backend = $_
+        $r = InModuleScope AIEnrich -Parameters @{ B = $Backend } {
+            param($B)
+            $Value = $null; $Err = $null
+            try { $Value = Resolve-AIApiKey -Backend $B } catch { $Err = "$_" }
+            [pscustomobject]@{ Value = $Value; Err = $Err; Source = $script:LastApiKeySource }
+        }
+        $r.Value | Should -BeNullOrEmpty -Because "AI_API_KEY must never reach the '$Backend' backend"
+        $r.Err | Should -Match "no key for backend '$Backend'"
+        $r.Err | Should -Match ([regex]::Escape($script:VarOf[$Backend]))
+        $r.Err | Should -Match 'gemini backend only'
+        $r.Err | Should -Not -Match 'generic-sentinel' -Because 'the error names variables, never key material'
+        $r.Source | Should -Match 'refused'
+    }
+
+    It '<_>: with nothing set, there is still no error, just no key (unchanged)' -ForEach @(
+        @((Get-Content -Raw (Join-Path $PSScriptRoot '..' 'ai-models.json') | ConvertFrom-Json).models.backend |
+            Where-Object { $_ -notin @('gemini', 'ollama') } | Sort-Object -Unique)
+    ) {
+        $Backend = $_
+        $Value = InModuleScope AIEnrich -Parameters @{ B = $Backend } { param($B) Resolve-AIApiKey -Backend $B }
+        $Value | Should -BeNullOrEmpty
+    }
+
+    It 'a registered <Backend> model with only AI_API_KEY set fails actionably at the key check' -ForEach @(
+        (Get-Content -Raw (Join-Path $PSScriptRoot '..' 'ai-models.json') | ConvertFrom-Json).models |
+            Where-Object { $_.backend -notin @('gemini', 'ollama') } | Group-Object backend | ForEach-Object { @{ Backend = $_.Name; Id = [string]$_.Group[0].id } }
+    ) {
+        $env:AI_API_KEY = 'generic-sentinel'
+        { InModuleScope AITriad -Parameters @{ Id = $Id } { param($Id) Get-AIModelKeyStatus -Model $Id -ApiKey '' } } |
+            Should -Throw -ExpectedMessage "*no key for backend '$Backend'*"
+    }
+
+    It 'the missing-key hint never offers AI_API_KEY for a non-gemini backend' {
+        $Hints = InModuleScope AITriad -Parameters @{ Models = $script:Models } {
+            param($Models)
+            @($Models | Where-Object { $_.Backend -notin @('gemini', 'ollama') } | Group-Object Backend | ForEach-Object {
+                [pscustomobject]@{ Backend = $_.Name; Hint = (Get-AIModelKeyStatus -Model $_.Group[0].Id -ApiKey '').EnvHint }
+            })
+        }
+        @($Hints).Count | Should -BeGreaterThan 3
+        foreach ($h in $Hints) {
+            $h.Hint | Should -Not -Match '(^|[^A-Z_])AI_API_KEY' -Because "the '$($h.Backend)' hint must not offer the gemini-only fallback"
+            $h.Hint | Should -Be $script:VarOf[$h.Backend]
+        }
     }
 }
 

@@ -103,7 +103,7 @@ function Resolve-POVSummaryApiKey {
     $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
     if (-not $KeyStatus.HasKey) {
         Write-Fail "No API key found for $($KeyStatus.Backend) backend."
-        Write-Info "Set $($KeyStatus.EnvHint) or AI_API_KEY, or pass -ApiKey."
+        Write-Info "Set $($KeyStatus.EnvHint), or pass -ApiKey."
         throw "No API key found for $($KeyStatus.Backend) backend."
     }
     $ApiKey

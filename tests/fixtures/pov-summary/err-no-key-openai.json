@@ -3,7 +3,7 @@
   "host": [
     "[Cyan] \n▶  Validating inputs",
     "[Red]    ✗  No API key found for openai backend.",
-    "[Gray]    →  Set OPENAI_API_KEY or AI_API_KEY, or pass -ApiKey."
+    "[Gray]    →  Set OPENAI_API_KEY, or pass -ApiKey."
   ],
   "warnings": [],
   "verbose": [],
