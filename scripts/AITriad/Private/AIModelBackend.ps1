@@ -66,7 +66,16 @@ function Get-AIModelKeyStatus {
     $EnvHint = if ($script:AIBackendKeyEnvHint.ContainsKey($Backend)) { $script:AIBackendKeyEnvHint[$Backend] } else { 'AI_API_KEY' }
     $HasKey = $true   # ollama is local and keyless
     if ($Backend -ne 'ollama') {
-        $HasKey = -not [string]::IsNullOrWhiteSpace((Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend))
+        # A status check reports the gemini-only $env:AI_API_KEY refusal as "no key", never throws on it
+        # (t/4102, SO e/284#2 cond. 1); the caller's hint names this backend's own variable. Other refusals
+        # (a key that is another backend's credential, t/4087) propagate.
+        try {
+            $HasKey = -not [string]::IsNullOrWhiteSpace((Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend))
+        } catch {
+            if ((Get-AIApiKeySource) -ne '(refused: $env:AI_API_KEY is gemini-only)') { throw }
+            Write-Warning "No key for the '$Backend' backend: `$env:AI_API_KEY is set but applies to gemini only; set $EnvHint."
+            $HasKey = $false
+        }
     }
     [pscustomobject]@{ Backend = $Backend; HasKey = [bool]$HasKey; EnvHint = $EnvHint }
 }

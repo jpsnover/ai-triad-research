@@ -69,9 +69,18 @@ function Test-AIProviderKeyStatus {
     $ProviderStatus = [System.Collections.Generic.List[PSObject]]::new()
 
     foreach ($Bk in @('gemini', 'claude', 'groq', 'openai')) {
-        $Key = Resolve-AIApiKey -ExplicitKey '' -Backend $Bk
+        # Listing context: a backend whose only key is the gemini-only $env:AI_API_KEY is reported as not
+        # configured, never thrown (t/4102, SO e/284#2 cond. 1). Other refusals propagate.
         $KeySrc = $null
-        try { $KeySrc = $script:LastApiKeySource } catch { }
+        try { $Key = Resolve-AIApiKey -ExplicitKey '' -Backend $Bk }
+        catch {
+            $Refused = Get-AIApiKeySource
+            if ($Refused -ne '(refused: $env:AI_API_KEY is gemini-only)') { throw }
+            Write-Warning "Key status: '$Bk' not configured: `$env:AI_API_KEY applies to gemini only."
+            $Key = ''
+            $KeySrc = $Refused
+        }
+        if (-not $KeySrc) { try { $KeySrc = $script:LastApiKeySource } catch { } }
         if (-not $KeySrc) {
             $EnvNames = @{ gemini = 'GEMINI_API_KEY'; claude = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY' }
             if (-not [string]::IsNullOrWhiteSpace($Key)) {

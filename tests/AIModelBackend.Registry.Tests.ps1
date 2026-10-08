@@ -199,13 +199,80 @@ Describe 'AI_API_KEY is a fallback for the gemini backend only (t/4102)' -Tag 's
         $Value | Should -BeNullOrEmpty
     }
 
-    It 'a registered <Backend> model with only AI_API_KEY set fails actionably at the key check' -ForEach @(
+    It 'a registered <Backend> model with only AI_API_KEY set reports no key at the status check, without throwing (SO e/284#2 cond. 1)' -ForEach @(
         (Get-Content -Raw (Join-Path $PSScriptRoot '..' 'ai-models.json') | ConvertFrom-Json).models |
             Where-Object { $_.backend -notin @('gemini', 'ollama') } | Group-Object backend | ForEach-Object { @{ Backend = $_.Name; Id = [string]$_.Group[0].id } }
     ) {
         $env:AI_API_KEY = 'generic-sentinel'
-        { InModuleScope AITriad -Parameters @{ Id = $Id } { param($Id) Get-AIModelKeyStatus -Model $Id -ApiKey '' } } |
-            Should -Throw -ExpectedMessage "*no key for backend '$Backend'*"
+        $r = InModuleScope AITriad -Parameters @{ Id = $Id } {
+            param($Id)
+            $s = Get-AIModelKeyStatus -Model $Id -ApiKey '' -WarningVariable w -WarningAction SilentlyContinue
+            [pscustomobject]@{ Status = $s; Warnings = @($w | ForEach-Object { "$_" }) }
+        }
+        $r.Status.HasKey | Should -BeFalse
+        $r.Status.EnvHint | Should -Be $script:VarOf[$Backend]
+        @($r.Warnings).Count | Should -Be 1 -Because 'the not-configured outcome is a fallback and says why'
+        $r.Warnings[0] | Should -Match 'applies to gemini only'
+        $r.Warnings[0] | Should -Not -Match 'generic-sentinel'
+    }
+
+    It 'a foreign-credential refusal still propagates from the status check (only the gemini-only refusal is softened)' {
+        $env:GEMINI_API_KEY = 'gemini-secret-sentinel'
+        $XaiModel = @($script:Models | Where-Object { $_.Backend -eq 'xai' })[0].Id
+        { InModuleScope AITriad -Parameters @{ Id = $XaiModel } { param($Id) Get-AIModelKeyStatus -Model $Id -ApiKey 'gemini-secret-sentinel' } } |
+            Should -Throw -ExpectedMessage '*GEMINI_API_KEY*'
+    }
+
+    It 'listing: Test-AIProviderKeyStatus with only AI_API_KEY set shows gemini configured and the rest not, without throwing' {
+        $env:AI_API_KEY = 'generic-sentinel'
+        Mock -ModuleName AITriad Invoke-WebRequest { [pscustomobject]@{ StatusCode = 200; Headers = @{} } }
+        $Rows = InModuleScope AITriad { @(Test-AIProviderKeyStatus -WarningAction SilentlyContinue) }
+        @($Rows).Count | Should -Be 4
+        ($Rows | Where-Object Backend -eq 'gemini').KeyConfigured | Should -BeTrue
+        foreach ($Row in @($Rows | Where-Object Backend -ne 'gemini')) {
+            $Row.KeyConfigured | Should -BeFalse -Because "AI_API_KEY must not configure '$($Row.Backend)'"
+            $Row.KeySource | Should -Match 'gemini-only'
+        }
+        Should -Invoke -ModuleName AITriad Invoke-WebRequest -Times 1 -Exactly -Because 'only gemini has a key to probe'
+    }
+
+    It 'sweep: Test-AIApiKey -All with only AI_API_KEY set reports each non-gemini backend unkeyed, without throwing' {
+        $env:AI_API_KEY = 'generic-sentinel'
+        Mock -ModuleName AITriad Invoke-RestMethod { [pscustomobject]@{ data = @(); models = @() } }
+        $Rows = @(Test-AIApiKey -All)
+        foreach ($b in @('claude', 'groq', 'openai')) {
+            $Row = $Rows | Where-Object Backend -eq $b
+            $Row.Functional | Should -BeFalse
+            $Row.ErrorMessage | Should -Match 'applies to gemini only'
+            $Row.ErrorMessage | Should -Not -Match 'generic-sentinel'
+        }
+        Should -Invoke -ModuleName AITriad Invoke-RestMethod -ParameterFilter { $Uri -match 'anthropic|groq|openai\.com' } -Times 0 -Exactly
+    }
+
+    It 'use: a claude call with only AI_API_KEY set still refuses, naming ANTHROPIC_API_KEY' {
+        $env:AI_API_KEY = 'generic-sentinel'
+        $ClaudeModel = @($script:Models | Where-Object { $_.Backend -eq 'claude' })[0].Id
+        { InModuleScope AIEnrich -Parameters @{ M = $ClaudeModel } { param($M) Invoke-AIApi -Prompt 'x' -Model $M -FallbackModels @() } } |
+            Should -Throw -ExpectedMessage '*ANTHROPIC_API_KEY*'
+    }
+
+    It 'cascade: a non-gemini fallback with only AI_API_KEY set is skipped with a WARN, not thrown' {
+        $env:AI_API_KEY = 'generic-sentinel'
+        $ClaudeModel = @($script:Models | Where-Object { $_.Backend -eq 'claude' })[0].Id
+        $GeminiModel = @($script:Models | Where-Object { $_.Backend -eq 'gemini' })[0].Id
+        # The gemini primary fails; the claude fallback has no key of its own. Before the fix the cascade threw.
+        Mock -ModuleName AIEnrich Invoke-RestMethod { throw [System.Net.Http.HttpRequestException]::new('simulated primary failure') }
+        {
+            $script:Out = InModuleScope AIEnrich -Parameters @{ M = $GeminiModel; Fb = $ClaudeModel } {
+                param($M, $Fb)
+                $r = Invoke-AIApi -Prompt 'x' -Model $M -FallbackModels @($Fb) -MaxRetries 1 -RetryDelays @(0) -SkipTokenCheck -WarningVariable w -WarningAction SilentlyContinue
+                [pscustomobject]@{ Result = $r; Warnings = @($w | ForEach-Object { "$_" }) }
+            }
+        } | Should -Not -Throw
+        $script:Out.Result | Should -BeNullOrEmpty
+        @($script:Out.Warnings | Where-Object { $_ -match "Cascade: skipping .*applies to gemini only" }).Count | Should -Be 1
+        @($script:Out.Warnings | Where-Object { $_ -match 'generic-sentinel' }).Count | Should -Be 0
+        Should -Invoke -ModuleName AIEnrich Invoke-RestMethod -ParameterFilter { $Uri -match 'anthropic' } -Times 0 -Exactly
     }
 
     It 'the missing-key hint never offers AI_API_KEY for a non-gemini backend' {

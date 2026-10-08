@@ -1175,7 +1175,14 @@ function Invoke-AIApi {
                 $FbInfo = $script:ModelRegistry[$FbModel]
                 if (-not $FbInfo) { continue }
                 if ($StatusCode -in @(401, 403) -and $FbInfo.Backend -eq $Backend) { continue }
-                $FbKey = Resolve-AIApiKey -ExplicitKey '' -Backend $FbInfo.Backend
+                # A fallback backend whose only key is the gemini-only $env:AI_API_KEY is "not configured"
+                # here, not an error: skip it and say why (t/4102, SO e/284#2 cond. 1). Other refusals propagate.
+                try { $FbKey = Resolve-AIApiKey -ExplicitKey '' -Backend $FbInfo.Backend }
+                catch {
+                    if ($script:LastApiKeySource -ne '(refused: $env:AI_API_KEY is gemini-only)') { throw }
+                    Write-Warning "Cascade: skipping $FbModel ($($FbInfo.Backend)): `$env:AI_API_KEY applies to gemini only and no key for '$($FbInfo.Backend)' is set"
+                    continue
+                }
                 if ([string]::IsNullOrWhiteSpace($FbKey)) { continue }
 
                 Write-Warning "Cascade: falling back to $FbModel ($($FbInfo.Backend))"

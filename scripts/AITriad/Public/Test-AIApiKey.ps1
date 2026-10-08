@@ -105,7 +105,15 @@ function Test-AIApiKey {
         # The gate below only applies to the cloud backends.
         $Key = $null
         if ($B -ne 'ollama') {
-            $Key = Resolve-AIApiKey -ExplicitKey $ExplicitKey -Backend $B
+            # A sweep reports the gemini-only $env:AI_API_KEY refusal as "no key" for this backend instead
+            # of aborting the whole sweep (t/4102, SO e/284#2 cond. 1). Other refusals propagate.
+            try { $Key = Resolve-AIApiKey -ExplicitKey $ExplicitKey -Backend $B }
+            catch {
+                if ((Get-AIApiKeySource) -ne '(refused: $env:AI_API_KEY is gemini-only)') { throw }
+                $Result['KeySource']    = Get-AIApiKeySource
+                $Result['ErrorMessage'] = "No API key for backend '$B': `$env:AI_API_KEY applies to gemini only."
+                return [PSCustomObject]$Result
+            }
             # Resolve-AIApiKey records the source in AIEnrich's module scope; read it
             # back through the exported accessor. The old `& (Get-Module AIEnrich) {...}`
             # read threw (and was swallowed, leaving KeySource '(none found)' on a
