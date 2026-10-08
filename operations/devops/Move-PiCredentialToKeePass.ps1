@@ -159,9 +159,32 @@ function Test-TargetHasName {
 }
 
 function Get-SourceValue {
+    # Returns the RAW object, never a cast (S1). -AsPlainText unwraps a SecureString to a String but
+    # leaves a PSCredential, Hashtable or byte[] as-is; a [string] cast would turn those into their
+    # type name, which would then round-trip "equal" and delete the real credential. The caller
+    # accepts only [string]. The comma stops a byte[] being unrolled.
     param([string] $Kind, [string] $Name)
-    if ($Kind -eq 'SecretStore') { return [string] (Get-Secret -Vault $SourceVault -Name $Name -AsPlainText -ErrorAction Stop) }
+    if ($Kind -eq 'SecretStore') { return , (Get-Secret -Vault $SourceVault -Name $Name -AsPlainText -ErrorAction Stop) }
     return [Environment]::GetEnvironmentVariable($Name, 'User')
+}
+
+function Get-SourceTypeName {
+    # S2: what the dry run shows the PI, from the source vault's own metadata.
+    param([string] $Kind, [string] $Name)
+    if ($Kind -ne 'SecretStore') { return 'String' }
+    $info = @(Get-SecretInfo -Vault $SourceVault -Name ([WildcardPattern]::Escape($Name)) -ErrorAction SilentlyContinue | Where-Object { $_.Name -ceq $Name })
+    if ($info.Count -eq 0) { return 'missing' }
+    [string] $info[0].Type
+}
+
+function ConvertFrom-ReadBack {
+    # Read-back unwrap (TL e/287#10, SO #11): some SecretManagement.KeePass versions return a
+    # PSCredential for a stored entry, and -AsPlainText does not unwrap it. Any other type is $null,
+    # which the caller treats as a MISMATCH.
+    param([object] $ReadBack)
+    if ($ReadBack -is [string]) { return $ReadBack }
+    if ($ReadBack -is [pscredential]) { return $ReadBack.GetNetworkCredential().Password }
+    return $null
 }
 
 function Remove-SourceValue {
@@ -198,10 +221,16 @@ $pass = $null
 
 $results = foreach ($p in $plan) {
     $status = 'pending'
-    $value = $null; $readBack = $null
+    $value = $null; $raw = $null; $readBack = $null
+    $sourceType = 'unknown'
     try {
-        $value = Get-SourceValue -Kind $p.Kind -Name $p.Name
-        if ([string]::IsNullOrEmpty($value)) { $status = 'source empty or missing (skipped)'; continue }
+        $sourceType = Get-SourceTypeName -Kind $p.Kind -Name $p.Name
+        $raw = Get-SourceValue -Kind $p.Kind -Name $p.Name
+        if ($null -eq $raw) { $status = 'source empty or missing (skipped)'; continue }
+        # S1: only a String moves. Anything else is reported and left exactly where it is.
+        if ($raw -isnot [string]) { $status = "unsupported source type $($raw.GetType().Name) (source NOT removed)"; continue }
+        $value = $raw
+        if ($value.Length -eq 0) { $status = 'source empty or missing (skipped)'; continue }
 
         $exists = Test-TargetHasName -Name $p.Name
 
@@ -212,10 +241,15 @@ $results = foreach ($p in $plan) {
 
         # K1: never overwrite an existing entry; verify it instead.
         if (-not $exists) {
-            Set-Secret -Vault $TargetVault -Name $p.Name -Secret ([string] $value) -NoClobber -ErrorAction Stop
+            Set-Secret -Vault $TargetVault -Name $p.Name -Secret $value -NoClobber -ErrorAction Stop
         }
 
-        $readBack = [string] (Get-Secret -Vault $TargetVault -Name $p.Name -AsPlainText -ErrorAction Stop)
+        $rbRaw = Get-Secret -Vault $TargetVault -Name $p.Name -AsPlainText -ErrorAction Stop
+        $readBack = ConvertFrom-ReadBack -ReadBack $rbRaw
+        if ($null -eq $readBack) {
+            $rbType = if ($null -eq $rbRaw) { 'null' } else { $rbRaw.GetType().Name }
+            $status = "MISMATCH (read-back type $rbType; source NOT removed)"; continue
+        }
         if ($readBack -cne $value) { $status = 'MISMATCH (source NOT removed)'; continue }
 
         Remove-SourceValue -Kind $p.Kind -Name $p.Name
@@ -223,8 +257,8 @@ $results = foreach ($p in $plan) {
     } catch {
         $status = "ERROR: $($_.Exception.Message) (source NOT removed)"
     } finally {
-        $value = $null; $readBack = $null
-        [pscustomobject]@{ Name = $p.Name; Source = $p.Kind; Result = $status }
+        $value = $null; $raw = $null; $rbRaw = $null; $readBack = $null
+        [pscustomobject]@{ Name = $p.Name; Source = $p.Kind; SourceType = $sourceType; Result = $status }
     }
 }
 

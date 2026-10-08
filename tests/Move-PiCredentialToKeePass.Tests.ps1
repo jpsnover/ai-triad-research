@@ -28,7 +28,13 @@ BeforeAll {
     function global:Get-SecretInfo {
         param($Vault, $Name, $ErrorAction)
         $n = [WildcardPattern]::Unescape($Name)
-        if ($global:Fake.Target.ContainsKey($n)) { [pscustomobject]@{ Name = $n; VaultName = $Vault } }
+        $store = if ($Vault -eq 'LocalStore') { $global:Fake.Source } else { $global:Fake.Target }
+        if ($store.ContainsKey($n)) {
+            # SecretStore reports a plain-text source as SecureString; other types by their own name.
+            $v = $store[$n]
+            $type = if ($v -is [string]) { 'SecureString' } elseif ($v -is [pscredential]) { 'PSCredential' } elseif ($v -is [hashtable]) { 'Hashtable' } else { 'ByteArray' }
+            [pscustomobject]@{ Name = $n; VaultName = $Vault; Type = $type }
+        }
     }
     function global:Get-Secret {
         param($Vault, $Name, [switch] $AsPlainText, $ErrorAction)
@@ -152,6 +158,66 @@ Describe 'Move-PiCredentialToKeePass: copy, verify, remove' {
         (Invoke-Migration) | Should -Not -BeLike '*TESTVALUE*'
         Reset-Fake
         (Invoke-Migration -Apply) | Should -Not -BeLike '*TESTVALUE*'
+    }
+}
+
+Describe 'Move-PiCredentialToKeePass: source types (S1-S3) and read-back unwrap' {
+    BeforeAll {
+        function New-TestCredential([string] $Pw) { [pscredential]::new('user', (ConvertTo-SecureString $Pw -AsPlainText -Force)) }
+    }
+    BeforeEach { Reset-Fake }
+
+    It 'S3: a String source proceeds' {
+        $out = Invoke-Migration -Apply
+        $out | Should -Match 'match; source removed'
+        $global:Fake.Sets.Count | Should -Be 1
+    }
+
+    It 'S1/S3: a <Kind> source is skipped: nothing written, nothing removed' -ForEach @(
+        @{ Kind = 'PSCredential' }
+        @{ Kind = 'Hashtable' }
+        @{ Kind = 'byte[]' }
+    ) {
+        $global:Fake.Source.GITHUB_OAUTH = switch ($Kind) {
+            'PSCredential' { New-TestCredential 'TESTVALUE-cred' }
+            'Hashtable'    { @{ a = 'TESTVALUE-ht' } }
+            'byte[]'       { , [byte[]] (1, 2, 3) }
+        }
+        $out = Invoke-Migration -Apply
+        $out | Should -Match 'unsupported source type'
+        $out | Should -Match 'source NOT removed'
+        $global:Fake.Sets.Count | Should -Be 0
+        $global:Fake.Removed.Count | Should -Be 0
+    }
+
+    It 'S2: the dry run reports each SecretStore entry''s type' {
+        $global:Fake.Source.GITHUB_OAUTH = New-TestCredential 'TESTVALUE-cred'
+        $out = Invoke-Migration
+        $out | Should -Match 'PSCredential'
+        $out | Should -Match 'unsupported source type'
+        Reset-Fake
+        (Invoke-Migration) | Should -Match 'SecureString'
+    }
+
+    It 'read-back: a PSCredential whose password matches is a match' {
+        Reset-Fake -ReadBackOverride (New-TestCredential $script:Value)
+        $out = Invoke-Migration -Apply
+        $out | Should -Match 'match; source removed'
+        $global:Fake.Removed | Should -Contain 'LocalStore/GITHUB_OAUTH'
+    }
+
+    It 'read-back: a PSCredential whose password differs is a MISMATCH (negative arm)' {
+        Reset-Fake -ReadBackOverride (New-TestCredential 'something-else')
+        $out = Invoke-Migration -Apply
+        $out | Should -Match 'MISMATCH'
+        $global:Fake.Removed.Count | Should -Be 0
+    }
+
+    It 'read-back: any other type is a MISMATCH' {
+        Reset-Fake -ReadBackOverride @{ v = $script:Value }
+        $out = Invoke-Migration -Apply
+        $out | Should -Match 'MISMATCH \(read-back type Hashtable'
+        $global:Fake.Removed.Count | Should -Be 0
     }
 }
 
