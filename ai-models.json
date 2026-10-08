@@ -232,7 +232,8 @@
       "picker": {
         "label": "2.5 Pro",
         "order": 90
-      }
+      },
+      "thinks_by_default": true
     },
     {
       "id": "gemini-2.5-flash",
@@ -243,7 +244,8 @@
       "picker": {
         "label": "2.5 Flash",
         "order": 70
-      }
+      },
+      "thinks_by_default": true
     },
     {
       "id": "gemini-2.5-flash-lite",
@@ -254,7 +256,8 @@
       "picker": {
         "label": "2.5 Flash Lite (fastest)",
         "order": 80
-      }
+      },
+      "thinks_by_default": true
     },
     {
       "id": "claude-opus-5",
@@ -539,25 +542,29 @@
       "id": "openai-o1-2024-12-17",
       "apiModelId": "o1-2024-12-17",
       "label": "O1 2024 12 17",
-      "backend": "openai"
+      "backend": "openai",
+      "thinks_by_default": true
     },
     {
       "id": "openai-o1",
       "apiModelId": "o1",
       "label": "O1",
-      "backend": "openai"
+      "backend": "openai",
+      "thinks_by_default": true
     },
     {
       "id": "openai-o3-mini",
       "apiModelId": "o3-mini",
       "label": "O3 Mini",
-      "backend": "openai"
+      "backend": "openai",
+      "thinks_by_default": true
     },
     {
       "id": "openai-o3-mini-2025-01-31",
       "apiModelId": "o3-mini-2025-01-31",
       "label": "O3 Mini 2025 01 31",
-      "backend": "openai"
+      "backend": "openai",
+      "thinks_by_default": true
     },
     {
       "id": "openai-gpt-4o-2024-11-20",
@@ -581,13 +588,15 @@
       "id": "openai-o1-pro-2025-03-19",
       "apiModelId": "o1-pro-2025-03-19",
       "label": "O1 Pro 2025 03 19",
-      "backend": "openai"
+      "backend": "openai",
+      "thinks_by_default": true
     },
     {
       "id": "openai-o1-pro",
       "apiModelId": "o1-pro",
       "label": "O1 Pro",
-      "backend": "openai"
+      "backend": "openai",
+      "thinks_by_default": true
     },
     {
       "id": "openai-gpt-4o-mini-tts",
@@ -599,25 +608,29 @@
       "id": "openai-o3-2025-04-16",
       "apiModelId": "o3-2025-04-16",
       "label": "O3 2025 04 16",
-      "backend": "openai"
+      "backend": "openai",
+      "thinks_by_default": true
     },
     {
       "id": "openai-o4-mini-2025-04-16",
       "apiModelId": "o4-mini-2025-04-16",
       "label": "O4 Mini 2025 04 16",
-      "backend": "openai"
+      "backend": "openai",
+      "thinks_by_default": true
     },
     {
       "id": "openai-o3",
       "apiModelId": "o3",
       "label": "O3",
-      "backend": "openai"
+      "backend": "openai",
+      "thinks_by_default": true
     },
     {
       "id": "openai-o4-mini",
       "apiModelId": "o4-mini",
       "label": "O4 Mini",
-      "backend": "openai"
+      "backend": "openai",
+      "thinks_by_default": true
     },
     {
       "id": "openai-gpt-4.1-2025-04-14",
