@@ -1,0 +1,249 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+/**
+ * t/4115 (t/4096 item 2): pure classifier for the stuck-PR SLA alert. Alert-only — never
+ * blocks a merge. The impure `pr-triage.yml` step fetches facts (actions/runs?head_sha,
+ * mergeability, labels, issue-events) and calls these functions; this file does no I/O.
+ *
+ * REQUIRED_CONTEXTS mirrors branch protection's required status checks (docs/...; t/3736).
+ * Read from actions/runs?head_sha or check-suites, NEVER from `gh pr checks` or the
+ * check-runs rollup — both collapse to the newest-by-name view and hide a run that is
+ * QUEUED behind an older, already-green run of the same workflow (#3062, t/4096#1): GitHub
+ * evaluates a required context against the NEWEST check suite, so a stuck queued suite
+ * reads as "expected" even though an older green suite for the same workflow exists and is
+ * visible everywhere else. That blind spot is exactly what stuck-required-run exists to catch.
+ */
+export const REQUIRED_CONTEXTS = ['ci-gate', 'CodeQL', 'joint-gv-guard', 'consult-hold-guard'];
+
+// MUST-fix (Lead review, PR #3141): `actions/runs`' `name` field is the WORKFLOW name
+// ('CI', 'CodeQL SAST'), not the required-context/job name ('ci-gate', 'CodeQL') -- matching
+// REQUIRED_CONTEXTS against run.name silently matched NOTHING for ci-gate or CodeQL, so
+// stuck-required-run/required-check-failed never saw them and armed-but-blocked could never
+// fire (its allGreen check needs all four). Match on the WORKFLOW FILE PATH instead, which is
+// stable across a workflow's `name:` edits. Gate Co-Location: this map MUST change whenever
+// branch protection's required contexts change (verify live via `gh api .../branches/main/protection`).
+export const REQUIRED_CONTEXT_PATHS = {
+  'ci-gate': '.github/workflows/ci.yml',
+  CodeQL: '.github/workflows/codeql.yml',
+  'joint-gv-guard': '.github/workflows/joint-gv-guard.yml',
+  'consult-hold-guard': '.github/workflows/consult-hold-guard.yml',
+};
+
+// Gate Co-Location: thresholds at their point of use, with rationale.
+// A QUEUED required run past this is the #3062 signature -- GitHub treats it as "expected"
+// even though it's doing nothing (t/4096#2).
+export const QUEUED_STUCK_MINUTES = 30;
+
+// MUST-fix (Lead review): an IN_PROGRESS run isn't stuck just because it's slow -- `ci.yml`
+// legitimately runs long (PowerShell shards). Threshold is each workflow's own measured p95
+// successful-run duration (updated_at - run_started_at, last 50 successful runs, measured
+// 2026-10-08) * 1.5, floored at 10 min so a fast workflow (joint-gv-guard, consult-hold-guard)
+// isn't flagged on ordinary runner-scheduling jitter:
+//   ci-gate (ci.yml):             p95 1397s (23.3min) -> 35min
+//   CodeQL (codeql.yml):          p95  426s ( 7.1min) -> 11min
+//   joint-gv-guard:               p95  132s ( 2.2min) -> floor 10min
+//   consult-hold-guard:           p95  117s ( 2.0min) -> floor 10min
+// Re-measure if a workflow's steps change materially; these are observed-not-bounded.
+export const IN_PROGRESS_STUCK_MINUTES = {
+  'ci-gate': 35,
+  CodeQL: 11,
+  'joint-gv-guard': 10,
+  'consult-hold-guard': 10,
+};
+
+export const IDLE_DETECT_HOURS = 1;    // no PR activity for this long, with no other named blocker, names "idle".
+export const OWNER_SLA_HOURS = 2;      // blocker episode age at which the owning role is pinged.
+export const TL_SLA_HOURS = 6;         // blocker episode age at which the TL is pinged (never the PI).
+export const SWEEP_WINDOW_SECONDS = 15;  // ready_for_review -> auto_*_enabled within this = the sweep signature.
+export const SWEEP_BURST_SECONDS = 120;  // 2+ PRs showing the signature within this window = the sweep shape.
+
+/**
+ * PURE. Classifies one open, non-draft PR's blocker, or null if it has none.
+ *
+ * @param {object} pr
+ * @param {string} pr.mergeableState - GitHub's mergeable_state, e.g. 'behind'|'clean'|'dirty'|'blocked'|'unknown'.
+ * @param {boolean} pr.isConflicting - true iff mergeable === false / mergeable_state === 'dirty' (GitHub's CONFLICTING).
+ * @param {boolean} pr.autoMergeEnabled
+ * @param {string[]} pr.labels
+ * @param {Array<{path:string, status:string, conclusion:string|null, createdAt:string, startedAt:string|null, runAttempt:number, id:number}>} pr.runs
+ *   The NEWEST run per workflow FILE PATH touching this head SHA (actions/runs?head_sha).
+ *   `path` is matched against REQUIRED_CONTEXT_PATHS, never `name` (MUST-fix, PR #3141 review:
+ *   `name` is the workflow's display name, e.g. 'CI', not the required-context/job name).
+ *   `startedAt` is `run_started_at`; on a re-run (runAttempt > 1) `createdAt` keeps the
+ *   ORIGINAL run's timestamp, so stuck-duration math must use startedAt (falling back to
+ *   createdAt only when startedAt is unset, e.g. a run still queued and never started).
+ * @param {string|null} pr.mergeRefusalText - the REST merge attempt's refusal message, if tried.
+ * @param {string|null} pr.lastActivityAt - ISO timestamp of the PR's last commit or non-bot
+ *   comment/review (MUST exclude the alert's OWN comments and label writes, and other bot
+ *   activity — PR #3141 review: using raw `updated_at` let the alert's own writes reset the
+ *   idle/held-age clock every time it ran).
+ * @param {number} nowMs
+ * @returns {{class:string, detail:object}|null}
+ */
+export function classifyBlocker(pr, nowMs) {
+  const labels = pr.labels ?? [];
+  const runs = pr.runs ?? [];
+  const byPath = new Map(runs.map((r) => [r.path, r]));
+  const runFor = (contextName) => byPath.get(REQUIRED_CONTEXT_PATHS[contextName]);
+  const stuckBasisMs = (run) => Date.parse(run.startedAt || run.createdAt);
+
+  // 1. held — checked FIRST and reported alone: a hold is deliberate, so a PR carrying one
+  //    is never escalated even if it also matches another class underneath.
+  if (labels.includes('consult-hold') || labels.includes('joint-gv')) {
+    const ageHours = pr.lastActivityAt ? (nowMs - Date.parse(pr.lastActivityAt)) / 3600000 : null;
+    return { class: 'held', detail: { labels: labels.filter((l) => l === 'consult-hold' || l === 'joint-gv'), ageHours } };
+  }
+
+  // 2. merge-conflict
+  if (pr.isConflicting) {
+    return { class: 'merge-conflict', detail: {} };
+  }
+
+  // 3. stuck-required-run — the #3062 blind spot. Checked before required-check-failed:
+  //    a run that is still queued/in_progress has no conclusion yet, so it can't be "failed".
+  //    QUEUED and IN_PROGRESS use DIFFERENT thresholds (MUST-fix): a queued run past 30min is
+  //    the #3062 signature regardless of workflow; an in_progress run is only stuck past that
+  //    WORKFLOW's own measured p95 duration -- ci.yml legitimately runs ~20min.
+  for (const name of REQUIRED_CONTEXTS) {
+    const run = runFor(name);
+    if (!run) continue;
+    if (run.status === 'queued') {
+      const stuckMinutes = (nowMs - stuckBasisMs(run)) / 60000;
+      if (stuckMinutes > QUEUED_STUCK_MINUTES) {
+        return {
+          class: 'stuck-required-run',
+          detail: {
+            context: name, runId: run.id, stuckMinutes: Math.round(stuckMinutes), stuckKind: 'queued',
+            remedy: `Re-trigger first (toggle auto-merge or a label); if that doesn't clear it, cancel and re-run run ${run.id}.`,
+          },
+        };
+      }
+    } else if (run.status === 'in_progress') {
+      const stuckMinutes = (nowMs - stuckBasisMs(run)) / 60000;
+      const threshold = IN_PROGRESS_STUCK_MINUTES[name];
+      if (stuckMinutes > threshold) {
+        return {
+          class: 'stuck-required-run',
+          detail: {
+            context: name, runId: run.id, stuckMinutes: Math.round(stuckMinutes), stuckKind: 'in_progress',
+            remedy: `Running ${Math.round(stuckMinutes)}min, past this workflow's ${threshold}min threshold — check run ${run.id} for a hang before re-triggering.`,
+          },
+        };
+      }
+    }
+  }
+
+  // 4. required-check-failed
+  for (const name of REQUIRED_CONTEXTS) {
+    const run = runFor(name);
+    if (run && run.status === 'completed' && run.conclusion !== 'success') {
+      return { class: 'required-check-failed', detail: { context: name, conclusion: run.conclusion, runId: run.id } };
+    }
+  }
+
+  // 5. armed-but-blocked
+  if (pr.autoMergeEnabled) {
+    const allGreen = REQUIRED_CONTEXTS.every((name) => {
+      const run = runFor(name);
+      return run && run.status === 'completed' && run.conclusion === 'success';
+    });
+    if (allGreen && pr.mergeableState === 'blocked') {
+      return { class: 'armed-but-blocked', detail: { mergeRefusalText: pr.mergeRefusalText ?? '(not captured)' } };
+    }
+  }
+
+  // 6. idle
+  if (pr.lastActivityAt) {
+    const idleHours = (nowMs - Date.parse(pr.lastActivityAt)) / 3600000;
+    if (idleHours > IDLE_DETECT_HOURS) {
+      return { class: 'idle', detail: { idleHours: Math.round(idleHours * 10) / 10 } };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * PURE. Given a named blocker and how long its episode has been open, decides who to ping.
+ * 'held' never escalates, regardless of age — holds are deliberate (t/4115 design).
+ * @returns {'none'|'owner'|'tl'}
+ */
+export function escalationLevel(blockerClass, episodeAgeHours) {
+  if (blockerClass === 'held') return 'none';
+  if (episodeAgeHours >= TL_SLA_HOURS) return 'tl';
+  if (episodeAgeHours >= OWNER_SLA_HOURS) return 'owner';
+  return 'none';
+}
+
+/**
+ * PURE. Finds ready_for_review -> auto_*_enabled pairs within SWEEP_WINDOW_SECONDS on the
+ * same PR (t/4096#4 / t/3716). `events` is the repo-wide issue-events feed, already filtered
+ * to these two event types (GraphQL omits AutoMergeEnabledEvent from PR timelines, t/3716#18,
+ * so the caller must use the REST issue-events endpoint, not GraphQL).
+ * @param {Array<{prNumber:number, event:'ready_for_review'|'auto_merge_enabled'|'auto_update_enabled', actor:string, createdAt:string}>} events
+ * @returns {Array<{prNumber:number, readyAt:string, armedAt:string, deltaSeconds:number, actor:string}>}
+ */
+export function detectSweepSignature(events) {
+  const byPr = new Map();
+  for (const e of events ?? []) {
+    if (!byPr.has(e.prNumber)) byPr.set(e.prNumber, []);
+    byPr.get(e.prNumber).push(e);
+  }
+  const hits = [];
+  for (const [prNumber, prEvents] of byPr) {
+    const sorted = [...prEvents].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+    for (let i = 0; i < sorted.length; i++) {
+      if (sorted[i].event !== 'ready_for_review') continue;
+      const readyAt = Date.parse(sorted[i].createdAt);
+      for (let j = i + 1; j < sorted.length; j++) {
+        const ev = sorted[j].event;
+        if (ev !== 'auto_merge_enabled' && ev !== 'auto_update_enabled') continue;
+        const armedAt = Date.parse(sorted[j].createdAt);
+        const deltaSeconds = (armedAt - readyAt) / 1000;
+        if (deltaSeconds >= 0 && deltaSeconds <= SWEEP_WINDOW_SECONDS) {
+          hits.push({ prNumber, readyAt: sorted[i].createdAt, armedAt: sorted[j].createdAt, deltaSeconds, actor: sorted[j].actor });
+        }
+        break; // only the first auto_*_enabled after this ready_for_review counts
+      }
+    }
+  }
+  return hits;
+}
+
+/**
+ * PURE. Decides escalation for each sweep-signature hit.
+ * - A hit on a PR carrying consult-hold or joint-gv escalates straight to DevOps+TL.
+ * - A BURST (2+ distinct PRs hit within SWEEP_BURST_SECONDS of each other) escalates every
+ *   PR in that burst straight to DevOps+TL — no single legitimate owner flow produces this shape.
+ * - Otherwise, one confirmation-request comment on the PR (never escalated).
+ * @param {Array<{prNumber:number, readyAt:string, armedAt:string, actor:string}>} hits
+ * @param {Map<number,string[]>} labelsByPr
+ * @returns {Array<{prNumber:number, escalate:boolean, reason:string}>}
+ */
+export function classifySweepHits(hits, labelsByPr) {
+  const sortedHits = [...hits].sort((a, b) => Date.parse(a.armedAt) - Date.parse(b.armedAt));
+  const burstPrNumbers = new Set();
+  for (let i = 0; i < sortedHits.length; i++) {
+    for (let j = i + 1; j < sortedHits.length; j++) {
+      const deltaSeconds = (Date.parse(sortedHits[j].armedAt) - Date.parse(sortedHits[i].armedAt)) / 1000;
+      if (deltaSeconds > SWEEP_BURST_SECONDS) break;
+      if (sortedHits[i].prNumber !== sortedHits[j].prNumber) {
+        burstPrNumbers.add(sortedHits[i].prNumber);
+        burstPrNumbers.add(sortedHits[j].prNumber);
+      }
+    }
+  }
+
+  return hits.map((h) => {
+    const labels = labelsByPr?.get(h.prNumber) ?? [];
+    const held = labels.includes('consult-hold') || labels.includes('joint-gv');
+    if (held) {
+      return { prNumber: h.prNumber, escalate: true, reason: `held PR (${labels.filter((l) => l === 'consult-hold' || l === 'joint-gv').join(', ')}) shows the sweep signature — escalating to DevOps+TL` };
+    }
+    if (burstPrNumbers.has(h.prNumber)) {
+      return { prNumber: h.prNumber, escalate: true, reason: `sweep burst — ${burstPrNumbers.size} PRs showed the signature within ${SWEEP_BURST_SECONDS}s of each other` };
+    }
+    return { prNumber: h.prNumber, escalate: false, reason: 'single-PR signature, no hold — asking the owner to confirm' };
+  });
+}
