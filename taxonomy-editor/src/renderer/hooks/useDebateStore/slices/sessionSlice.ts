@@ -450,6 +450,28 @@ function normalizeSeatTags(options?: { seatTags?: Partial<Record<SpeakerId, Seat
   return t && Object.keys(t).length > 0 ? { seat_tags: t } : {};
 }
 
+// t/4120: the view setup BOTH load paths need once a session is active. loadDebateFromData (the
+// community popout) used to skip it, so Analysis → Terms showed raw sense IDs (no dictionary), the
+// analysis views ran with the previous debate's prompt config, and the diagnostics popout showed stale
+// state. Deliberately excludes loadDebate's write-side setup (setActiveDebateId, setDebateTemperature):
+// a read-only community view must not change the user's active debate or backend temperature.
+function applyLoadedSessionSetup(get: SessionGet, set: SessionSet, session: DebateSession, caller: string): void {
+  const id = session.id;
+  if (!get().vocabularyTerms) {
+    api.loadDictionary().then(dict => {
+      if (dict.standardized.length > 0 && get().activeDebateId === id) {
+        set({ vocabularyTerms: { standardized: dict.standardized as StandardizedTerm[], colloquial: dict.colloquial as ColloquialTerm[] } });
+      }
+    }).catch((err: unknown) => {
+      getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: `Dictionary load failed (${caller}, non-critical)`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    });
+  }
+  usePromptConfigStore.getState().loadSessionConfig(
+    (session as unknown as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
+  );
+  try { api.sendDiagnosticsState({ debate: session, selectedEntry: null }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: `Diagnostics broadcast to popout failed (${caller})`, error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
+}
+
 export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice> = (set, get) => ({
   sessions: [],
   sessionsLoading: false,
@@ -780,20 +802,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [], selectedDiagEntry: null, _lastSyncedVersion: session._saveVersion ?? 0, _lastSyncedSnapshot: structuredClone(session) });
         setActiveDebateId(id);
         setGapInjectionCount(session.gap_injections?.length ?? 0);
-        if (!get().vocabularyTerms) {
-          api.loadDictionary().then(dict => {
-            if (dict.standardized.length > 0 && get().activeDebateId === id) {
-              set({ vocabularyTerms: { standardized: dict.standardized as StandardizedTerm[], colloquial: dict.colloquial as ColloquialTerm[] } });
-            }
-          }).catch((err: unknown) => {
-            getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Dictionary load failed on debate resume (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-          });
-        }
-        usePromptConfigStore.getState().loadSessionConfig(
-          (session as unknown as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
-        );
+        applyLoadedSessionSetup(get, set, session, 'loadDebate');
         api.setDebateTemperature(session.debate_temperature ?? null).catch((err: unknown) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'setDebateTemperature failed (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
-        try { api.sendDiagnosticsState({ debate: session, selectedEntry: null }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (loadDebate)', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
         getGlobalRecorder()?.setEventContext({ debate_id: id, run_id: runId });
         getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as unknown as Record<string, unknown>).argument_network ? ((session as unknown as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
         getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'debate.start', data: { phase: session.phase, topic: session.topic.final, povers: session.active_povers, protocol: session.protocol_id, model: session.debate_model, transcript_length: session.transcript.length, resumed: true } });
@@ -917,6 +927,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       _lastSyncedSnapshot: structuredClone(session),
     });
     setGapInjectionCount(session.gap_injections?.length ?? 0);
+    applyLoadedSessionSetup(get, set, session, 'loadDebateFromData');
     getGlobalRecorder()?.setEventContext({ debate_id: session.id, run_id: runId });
     getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: session.id, run_id: runId, message: 'Debate loaded from data', data: { phase: session.phase, transcript_length: session.transcript.length, readOnly: opts?.readOnly ?? true } });
   },
