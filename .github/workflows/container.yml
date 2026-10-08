@@ -7,6 +7,11 @@
 #         For production, manually trigger the Deploy to Azure workflow.
 
 name: Container Image
+# t/4129: the run name carries the BUILT commit. Auto-Deploy to Staging (workflow_run) reads it back
+# via operations/devops/Get-BuiltShaFromRunName.ps1, because workflow_run.head_sha is the DISPATCH
+# ref tip, not the commit built from inputs.sha. Keep this expression IDENTICAL to the per-SHA tag
+# (`type=raw,value=sha-...`), BUILD_SHA and the checkout `ref:` below; the staging parser expects `(sha-<hex>)`.
+run-name: Container Image (sha-${{ inputs.sha || github.sha }})
 
 on:
   push:
@@ -310,6 +315,24 @@ jobs:
           build-args: BUILD_SHA=${{ inputs.sha || github.sha }}
           cache-from: type=gha,scope=shared-docker
           cache-to: type=gha,scope=shared-docker,mode=min
+
+      # t/4129: fail the BUILD, not a later deploy, if the per-SHA tag the deploys resolve is absent
+      # from the registry after the push. Reads the registry (authoritative), not metadata-action output.
+      - name: Verify per-SHA tag exists in GHCR after push (t/4129)
+        if: steps.push_mode.outputs.push == 'true'
+        env:
+          BUILT_SHA: ${{ inputs.sha || github.sha }}
+        run: |
+          ref="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${BUILT_SHA}"
+          for attempt in 1 2 3; do
+            if docker buildx imagetools inspect "$ref" > /dev/null 2>&1; then
+              echo "Per-SHA tag present: $ref"; exit 0
+            fi
+            echo "::warning::$ref not visible yet (attempt $attempt/3), retrying in 10s (registry propagation)"
+            sleep 10
+          done
+          echo "::error::Per-SHA tag $ref is missing from GHCR after push. Deploys resolve this tag (Resolve-ImageDigest.ps1) and would fail with ImageTagNotFound. Check the metadata-action tags and the push step."
+          exit 1
 
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567  # v0.3.1

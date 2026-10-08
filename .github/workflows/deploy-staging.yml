@@ -40,18 +40,30 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
+      # t/4129: the BUILT commit comes from the Container Image run's NAME, not workflow_run.head_sha.
+      # On a workflow_dispatch with an explicit `sha` (the only real build path), head_sha is the
+      # DISPATCH ref tip (main at dispatch time) while the build checks out, bakes and tags inputs.sha.
+      # Using head_sha looked up a tag that was never pushed (built eeb267d0, looked up d42561bc).
+      # Fail-closed: no `(sha-<hex>)` marker in the run name aborts the deploy; never fall back to head_sha.
+      - name: Determine the built commit from the Container Image run name (t/4129)
+        id: built
+        shell: pwsh
+        env:
+          RUN_NAME: ${{ github.event.workflow_run.display_title }}
+        run: |
+          & ./operations/devops/Get-BuiltShaFromRunName.ps1 -RunName $env:RUN_NAME -GitHubOutput
+
       - name: Resolve image digest from the built commit (t/3679 — never :latest)
         id: resolve_digest
         shell: pwsh
         env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          BUILT_SHA: ${{ steps.built.outputs.sha }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          # t/3679: the workflow_run trigger gives us the BUILT commit for FREE (head_sha) — so staging
-          # needs no `sha` input (unlike deploy-azure.yml). Resolve its PERMANENT sha-<commit> tag -> the
-          # immutable @sha256 digest (the TESTED artifact), NEVER :latest. Fail-closed on empty/not-found/
-          # ambiguous (Resolve-ImageDigest.ps1). $HEAD_SHA is read from env, not interpolated inline.
-          & ./operations/devops/Resolve-ImageDigest.ps1 -Sha $env:HEAD_SHA -GitHubOutput
+          # t/3679: resolve the BUILT commit's PERMANENT sha-<commit> tag -> the immutable @sha256 digest
+          # (the TESTED artifact), NEVER :latest. Fail-closed on empty/not-found/ambiguous
+          # (Resolve-ImageDigest.ps1). $BUILT_SHA is read from env, not interpolated inline.
+          & ./operations/devops/Resolve-ImageDigest.ps1 -Sha $env:BUILT_SHA -GitHubOutput
 
       - name: Log in to Azure
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906  # v3
@@ -89,7 +101,7 @@ jobs:
         id: new_revision
         shell: pwsh
         env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ steps.built.outputs.sha }}  # t/4129: the BUILT commit, not workflow_run.head_sha
           IMAGE_REF: ${{ steps.resolve_digest.outputs.image_ref }}
           RESOLVED_DIGEST: ${{ steps.resolve_digest.outputs.digest }}
         run: |
@@ -176,7 +188,7 @@ jobs:
           # Full smoke: all 6 endpoint categories (mandatory pre-traffic gate, t/2376).
           Write-Host "=== Full smoke test against 0%-traffic revision: $BaseUrl ==="
           $SmokeResult = Invoke-TaxEditorSmokeTest -BaseUrl $BaseUrl -Detailed `
-            -DeployedSha '${{ github.event.workflow_run.head_sha }}' `
+            -DeployedSha '${{ steps.built.outputs.sha }}' `
             -AssertDataPresence
           if (-not $SmokeResult.OverallPass) {
             Write-Host "::error::Smoke test failed on new staging revision — NOT promoting traffic"
