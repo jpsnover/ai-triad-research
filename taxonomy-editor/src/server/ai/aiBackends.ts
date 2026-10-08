@@ -380,11 +380,12 @@ export async function generateText(
   const explicitKeys = normalizeExplicitKeys(explicitApiKey);
   const modelsToTry = buildModelsToTry(resolved, explicitKeys !== undefined);
   const entryMap = loadModelConfig().entryMap;
+  const registry = getModelRegistry(); // read once per call, not once per chain link (TL e/284#19)
 
   let lastError: unknown;
   for (let mi = 0; mi < modelsToTry.length; mi++) {
     const currentModel = modelsToTry[mi];
-    const backend = resolveBackend(currentModel, getModelRegistry()); // registry first (t/4105 cond 3)
+    const backend = resolveBackend(currentModel, registry); // registry first (t/4105 cond 3)
     let keys: string[];
     try {
       keys = explicitKeys ?? await getApiKeys(backend);
