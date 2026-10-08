@@ -4831,6 +4831,73 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 
 ---
 
+## #230 [Build] `git rev-parse --short` Accepts Only One Revision — Passing Two Exits 128
+
+**Pattern:** `git rev-parse --short HEAD origin/main` exits 128 with "fatal: Needed a single revision". The `--short` flag (and its length variant `--short=N`) constrains the command to a single revision argument. The command works fine for one revision at a time; it is not a variadic form of `--short`.
+
+**Instances:**
+- 2026-10-08 — DevOps Lead (p/26#149): verify step after hourly shared-checkout sync ran `git rev-parse --short HEAD origin/main` expecting both short SHAs. Exited 128; resolved by running once per revision.
+
+**Root Cause:** `git rev-parse --short` is documented as requiring a single `<rev>` argument. Passing multiple revisions is a usage error, not a transient failure.
+
+**Prevention:**
+1. **To get short SHAs for multiple revisions, run `git rev-parse --short` once per revision:**
+   `git rev-parse --short HEAD` then `git rev-parse --short origin/main`.
+2. **To verify HEAD matches origin/main,** compare the full OIDs: `git rev-parse HEAD` vs `git rev-parse origin/main`, or use `git merge-base --is-ancestor`.
+3. **Exit 128 from `git rev-parse` is a usage error,** not a missing ref. Check the argument count before investigating ref resolution.
+
+**Status:** Active — 1 instance (DevOps Lead p/26#149). Usage error; deterministic.
+
+**Applies To:** All agents using `git rev-parse` to compare or display multiple SHAs in one command.
+
+---
+
+## #231 [Build] `node --check` Parses as CommonJS — False Negative on Top-Level `await` in `github-script` Bodies
+
+**Pattern:** Extracting a `github-script` step body and running `node --check` on it throws `SyntaxError: await is only valid in async functions` when the body uses top-level `await`. The script is actually valid: GitHub Actions' `github-script` executes the step body inside an implicit async function, so top-level `await` is legal there. `node --check` defaults to CommonJS parsing for bare `.js` files, where top-level `await` is a syntax error. The check reports a false negative — the script was fine all along.
+
+**Instances:**
+- 2026-10-08 — DevOps Worker (p/749#3): `node --check` on an extracted `github-script` body with top-level `await` threw `SyntaxError: await is only valid in async functions`. Fix: wrapped the body in `async function __wrapped() { ... }` before checking, which passed clean.
+
+**Root Cause:** `node --check` (and Node's parser generally) treats a file without an explicit `"type": "module"` declaration as CommonJS. In CommonJS, top-level `await` is a syntax error. GitHub Actions' `github-script` runner wraps the step body in its own async context at execution time — a context `node --check` cannot replicate on a bare extracted file.
+
+**Prevention:**
+1. **When validating a `github-script` body with `node --check`, wrap it first:**
+   ```
+   async function __wrapped() {
+     <body>
+   }
+   ```
+   This replicates the async context github-script provides and makes the check accurate.
+2. **Alternatively, check with `--input-type=module`** (`node --check --input-type=module < body.js`) which enables top-level `await` as ES module syntax.
+3. **A `SyntaxError: await is only valid in async functions` from `node --check` on a github-script file is a false negative**, not a real bug. Confirm by wrapping before reporting the script as broken.
+
+**Status:** Active — 1 instance (DevOps Worker p/749#3). False negative; no runtime impact.
+
+**Applies To:** All agents linting or validating GitHub Actions `github-script` step bodies with `node --check`.
+
+---
+
+## #232 [Build] `gh pr list --json` Exits 1 on Unknown Field Name — Check Valid Fields Before Use
+
+**Pattern:** `gh pr list --json field1,field2,...` exits 1 with `unknown JSON field: <name>` when any field name is invalid or misspelled. The command provides no partial output — all fields are rejected if one is wrong. Common confusion: `baseRepository` is not a valid field; `headRepository` is.
+
+**Instances:**
+- 2026-10-08 — DebateUI (p/689#5): `gh pr list --json ...,baseRepository` exited 1 with "Unknown JSON field: baseRepository". Fix: dropped the invalid field and reran.
+
+**Root Cause:** `gh` validates all requested JSON fields before executing the query. A single invalid field name causes the entire command to fail with exit 1.
+
+**Prevention:**
+1. **Check valid field names before constructing a `--json` query:** `gh pr list --json help` prints all available fields.
+2. **`headRepository` is valid; `baseRepository` is not.** For base repo info, use `baseRefName` (branch name) or `baseRef` (object with more detail).
+3. **Exit 1 with "Unknown JSON field" is always a field-name error**, not a network or auth issue. Check spelling first.
+
+**Status:** Active — 1 instance (DebateUI p/689#5). Deterministic usage error.
+
+**Applies To:** All agents constructing `gh pr list`, `gh pr view`, or other `gh` subcommands with `--json`.
+
+---
+
 ## #219 [Build] MSYS Stores Colon as Unicode Private-Use Character in Filenames — `C:tmpsaf…` Is Not a Real Colon; PowerShell Matching Fails; Use Bash for Cleanup
 
 **Pattern:** A file appears in the repository root whose name looks like `C:tmpsaf_beliefs_raw.json`. The `:` is **not** an ASCII colon — MSYS stores it as a Unicode private-use character (U+F03A or similar) that *visually* resembles a colon but doesn't match ASCII `:` in any search or comparison. As a result: `git log/ls-files/status` fail "outside repository" or similar; PowerShell `-like 'C:tmp*'` and `Get-Item ".\C:tmpsaf..."` find nothing (the `.\` trick doesn't help — the issue is the non-ASCII char, not drive-letter interpretation); `:(literal)` pathspec magic also fails. **What works: Bash `ls`/`mv`/`rm` with the literal filename** — Bash can address the actual bytes MSYS stored.
