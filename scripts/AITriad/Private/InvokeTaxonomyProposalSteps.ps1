@@ -69,7 +69,9 @@ function Get-TaxonomyProposalCompactNodeList {
         foreach ($Node in $Entry.nodes) {
             $Desc = ''
             if ($Node.PSObject.Properties['description']) { $Desc = $Node.description }
-            $CompactNodes += @{
+            # [ordered]: a plain @{} serializes its keys in a per-process random order, so the prompt
+            # JSON (and the dry-run preview cut from it) would differ run to run.
+            $CompactNodes += [ordered]@{
                 id          = $Node.id
                 label       = $Node.label
                 description = $Desc
@@ -82,7 +84,7 @@ function Get-TaxonomyProposalCompactNodeList {
 # One unmapped concept for the prompt, with its nearest existing nodes (by description embedding).
 function ConvertTo-TaxonomyProposalUnmappedEntry {
     param($Item, $NearestNodeMap, [hashtable]$NodeIndex)
-    $Entry = @{
+    $Entry = [ordered]@{
         concept            = $Item.Concept
         frequency          = $Item.Frequency
         suggested_pov      = $Item.SuggestedPov
@@ -93,7 +95,7 @@ function ConvertTo-TaxonomyProposalUnmappedEntry {
         $Entry.nearest_nodes = @($NearestNodeMap[$Item.NormalizedKey] | ForEach-Object {
             $NodeLabel = ''
             if ($NodeIndex.ContainsKey($_.NodeId)) { $NodeLabel = $NodeIndex[$_.NodeId].label }
-            @{ id = $_.NodeId; similarity = $_.Similarity; label = $NodeLabel }
+            [ordered]@{ id = $_.NodeId; similarity = $_.Similarity; label = $NodeLabel }
         })
     }
     $Entry
@@ -119,16 +121,16 @@ function Get-TaxonomyProposalUnmapped {
 # Citation stats: orphans (capped at 50), most-cited (top 10), high-variance.
 function Get-TaxonomyProposalCitationStatistic {
     param([hashtable]$HealthData)
-    @{
+    [ordered]@{
         orphan_count = $HealthData.OrphanNodes.Count
         orphan_nodes = @($HealthData.OrphanNodes | Select-Object -First 50 | ForEach-Object {
-            @{ id = $_.Id; label = $_.Label }
+            [ordered]@{ id = $_.Id; label = $_.Label }
         })
         most_cited = @($HealthData.MostCited | Select-Object -First 10 | ForEach-Object {
-            @{ id = $_.Id; label = $_.Label; citations = $_.Citations }
+            [ordered]@{ id = $_.Id; label = $_.Label; citations = $_.Citations }
         })
         high_variance = @($HealthData.HighVarianceNodes | ForEach-Object {
-            @{ id = $_.Id; label = $_.Label; total_stances = $_.TotalStances }
+            [ordered]@{ id = $_.Id; label = $_.Label; total_stances = $_.TotalStances }
         })
     }
 }
@@ -154,7 +156,7 @@ function ConvertTo-TaxonomyProposalStandardizedTerm {
     $T = Get-Content $Path -Raw | ConvertFrom-Json
     $Required = 'canonical_form', 'display_form', 'definition', 'primary_camp_origin'
     if (-not (Test-TaxonomyProposalTermComplete -T $T -Required $Required -NameKey 'canonical_form' -Path $Path)) { return }
-    @{
+    [ordered]@{
         canonical_form    = $T.canonical_form
         display_form      = $T.display_form
         definition        = $T.definition
@@ -168,7 +170,7 @@ function ConvertTo-TaxonomyProposalColloquialTerm {
     param([string]$Path)
     $T = Get-Content $Path -Raw | ConvertFrom-Json
     if (-not (Test-TaxonomyProposalTermComplete -T $T -Required 'colloquial_term', 'status' -NameKey 'colloquial_term' -Path $Path)) { return }
-    @{
+    [ordered]@{
         colloquial_term = $T.colloquial_term
         status          = $T.status
         resolves_to     = @(Get-TaxonomyProposalValue $T 'resolves_to' | ForEach-Object { "$($_.standardized_term) ($($_.default_for_camp))" })
