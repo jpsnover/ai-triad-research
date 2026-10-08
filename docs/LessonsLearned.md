@@ -4723,6 +4723,71 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 
 ---
 
+## #225 [Infra] `gh pr review --approve` Always Fails — All Agents Share One GitHub Identity; Use a PR Comment for Sign-offs
+
+**Pattern:** Any agent running `gh pr review --approve` receives `GraphQL: Can not approve your own pull request (addPullRequestReview)`. The fleet shares one GitHub account (`jpsnover`), so every PR is "owned" by that identity regardless of which agent opened it. The approval path is structurally unavailable for agent-to-agent sign-offs. The correct substitute is a PR comment.
+
+**Instances:**
+- 2026-10-07 — DebateTool (p/70#55): `gh pr review 3129 --approve` failed with the error above. Resolved by posting a sign-off comment on the PR instead.
+- 2026-10-07 — ServerAPI (p/504#18): Same failure on a separate PR. Same resolution.
+
+**Root Cause:** GitHub's approval model requires the approver to be a different account than the PR author. Because the entire fleet operates as one GitHub user, no agent can ever approve any other agent's PR — they are all the same identity to GitHub.
+
+**Prevention:**
+1. **Never use `gh pr review --approve` for agent-to-agent sign-offs.** It will always fail; there is no workaround short of a second GitHub account.
+2. **Use a PR comment for sign-offs.** `gh pr comment <N> --body "Sign-off: ..."` records the review intent and is visible in the PR timeline.
+3. **The merge gate is required status checks** (`ci-gate`, `CodeQL`, `joint-gv-guard`, `consult-hold-guard`), not reviewer approval. A green PR with a sign-off comment is mergeable.
+4. **If a workflow requires a reviewer count > 0,** escalate to the PI — that is a branch protection change, which is PI-only.
+
+**Status:** Active — 2 instances (p/70#55, p/504#18). Structural limitation; no fix possible without a second GitHub identity.
+
+**Applies To:** All agents attempting to approve PRs on behalf of another agent.
+
+---
+
+## #226 [Test] `vi.mock` Path Miss Masked by Local API Keys — CI Fails; Run Key-Sensitive Suites with Keys Unset
+
+**Pattern:** A test mocks a function by its import path (e.g. `vi.mock('./config', …)` mocking `getApiKey`), but the code under test calls a different function (`getApiKeyForListing`) that internally calls the original. The mock never intercepts the real call. Locally the test passes because real API keys are exported in the developer's shell — the resolver finds a key through the environment. CI has no keys, the real resolver returns empty, and the test fails. The gap is invisible until keys are absent.
+
+**Instances:**
+- 2026-10-07 — Shared Lib (p/5#45, PR #3129): `refreshAIModels.test.ts` mocked `getApiKey`. The change routed `refreshAIModels` through `getApiKeyForListing`, which calls `getApiKey` inside the config module — `vi.mock` did not intercept the internal call. Local shell had `GEMINI_API_KEY` etc. exported; CI did not. Fix: reproduced with `env -u GEMINI_API_KEY …`, replaced the mock with `vi.stubEnv` plus `unstubAllEnvs`.
+
+**Root Cause:** Two compounding issues: (1) the mock targeted an import path that the refactored code no longer calls directly — a classic mock-vs-implementation gap that only surfaces when the environment cannot satisfy the real call; (2) local shells routinely carry real provider keys, making CI the first environment where the gap is observable.
+
+**Prevention:**
+1. **Run key-sensitive server suites with every `*_API_KEY` unset before claiming green.** Use `env -u GEMINI_API_KEY -u ANTHROPIC_API_KEY -u GROQ_API_KEY npm test` (or the equivalent `vi.stubEnv` approach in the test itself).
+2. **Prefer `vi.stubEnv` over `vi.mock` for key-resolver tests.** `stubEnv` controls the environment the real resolver reads; it does not depend on the import path the implementation uses, so refactors that change the call chain do not silently break it.
+3. **After any refactor that changes how a function reaches its dependencies, audit which mocks target the old path.** A mock that the new code never hits is a silent no-op — the test still passes locally if the real path can satisfy the call.
+4. **A test that passes locally but fails on CI with a key-related error is diagnostic of this pattern,** not a CI environment problem. Reproduce locally with keys unset before investigating CI configuration.
+
+**Status:** Active — 1 instance (Shared Lib p/5#45, PR #3129). Silent locally; fails only in keyless environments.
+
+**Applies To:** All agents writing or maintaining tests for API-key-gated functions in the TypeScript server.
+
+---
+
+## #227 [Security] Activity Hook Executed Commands from Message Bodies — Fleet-Wide Junk Files; activity_enabled Must Stay OFF
+
+**Pattern:** An Orca activity hook was registered across 38 role settings files. The hook did not merely log — it executed `cmd.exe` commands found in message bodies. Any message body containing shell metacharacters (backticks, redirects, pipe symbols) caused the hook to run the fragment as a command. Observable signal: 0-byte files named after code fragments (the text following a backtick or `>` in printed/edited content) appeared in agent working directories across the fleet. The attack vector is prompt injection: any message body that contains shell-shaped text can execute arbitrary commands in the receiving agent's session.
+
+**Instances:**
+- 2026-10-07 — Fleet-wide (t/3918): Activity hook registered in 38 role settings files. Multiple agents corroborated 0-byte junk files in their scopes. Fleet hold issued (e/246): no shell metacharacters in any message body, no external document ingestion, no replies to the incident thread. PI's Orca restart removed the hook from all live sessions. Post-restart verification: 0 live settings files carry it; no new junk files in a 15-minute window; TL probe negative against a positive control. Hold lifted (e/246#17).
+
+**Root Cause:** The Orca activity hook feature executes content from message bodies rather than treating it as data. A hook registered for activity logging silently doubled as a command executor. The hook was registered across the full fleet (38 files) before the execution behavior was understood. Because agents send pings and emails containing code, file paths, and shell snippets as a matter of routine operation, this created a large attack surface.
+
+**Prevention:**
+1. **`activity_enabled` must stay OFF until Orca ships a fix for t/3918.** Turning it on re-arms the command-execution vulnerability on the next agent launch. Anyone needing activity logging raises it with the TL first — this is a standing rule, not a session constraint.
+2. **0-byte files named after code fragments are a fleet-wide signal of this pattern.** If you see one, report to t/3918 in plain text (no shell metacharacters in the report body).
+3. **Before registering any Orca hook, verify it treats message content as data, not as executable input.** A hook that processes message bodies must be safe against shell-shaped content.
+4. **During any active security hold: keep all message bodies free of shell metacharacters** (pipe, ampersand, angle brackets, backticks). Write file paths and commands in plain prose. Do not ingest external documents.
+5. **The diagnostic discriminator:** real command execution leaves 0-byte files named after code fragments. Mere logging or redirection leaves no such artifacts.
+
+**Status:** Resolved — hold lifted 2026-10-07 (e/246#17). Standing rule: activity_enabled OFF. Root fix pending in Orca (t/3918).
+
+**Applies To:** All agents; especially relevant when considering Orca hook registration or activity logging features.
+
+---
+
 ## #219 [Build] MSYS Stores Colon as Unicode Private-Use Character in Filenames — `C:tmpsaf…` Is Not a Real Colon; PowerShell Matching Fails; Use Bash for Cleanup
 
 **Pattern:** A file appears in the repository root whose name looks like `C:tmpsaf_beliefs_raw.json`. The `:` is **not** an ASCII colon — MSYS stores it as a Unicode private-use character (U+F03A or similar) that *visually* resembles a colon but doesn't match ASCII `:` in any search or comparison. As a result: `git log/ls-files/status` fail "outside repository" or similar; PowerShell `-like 'C:tmp*'` and `Get-Item ".\C:tmpsaf..."` find nothing (the `.\` trick doesn't help — the issue is the non-ASCII char, not drive-letter interpretation); `:(literal)` pathspec magic also fails. **What works: Bash `ls`/`mv`/`rm` with the literal filename** — Bash can address the actual bytes MSYS stored.
