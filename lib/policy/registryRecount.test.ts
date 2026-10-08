@@ -130,4 +130,23 @@ describe('serializePolicyRegistry: the committed file format (PowerShell e/264#7
     expect(serializePolicyRegistry(registry()).endsWith('}\n')).toBe(true);
     expect(serializePolicyRegistry(registry())).not.toContain('\r');
   });
+
+  it('a recount of a committed file changes ONLY the recounted ids\' count lines; every other line is byte-identical (TL p/336#587)', () => {
+    // The exemption on RecountPolicyMembersResult lapses if the recount writes anything else, so pin it at the byte level.
+    const committed = serializePolicyRegistry(registry());
+    // All four POV files, each non-empty. pol-001 goes 1 -> 2 and pol-002 goes 5 -> 1; their source_povs are unchanged.
+    const povs = {
+      accelerationist: file(node('acc-x')),
+      safetyist: file(node('saf-1', 'pol-002')),
+      skeptic: file(node('skp-1', 'pol-001', 'pol-001')),
+      situations: file(node('sit-x')),
+    };
+    const { registry: next, changed } = recountPolicyMembers(JSON.parse(committed), povs, ['pol-001', 'pol-002']);
+    expect(changed).toBe(true);
+    const before = committed.split('\n');
+    const after = serializePolicyRegistry(next).split('\n');
+    expect(after).toHaveLength(before.length);
+    const differing = before.flatMap((line, i) => (line === after[i] ? [] : [`${line.trim()} -> ${after[i].trim()}`]));
+    expect(differing).toEqual(['"member_count": 1, -> "member_count": 2,', '"member_count": 5, -> "member_count": 1,']);
+  });
 });

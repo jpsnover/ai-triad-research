@@ -67,6 +67,9 @@ export type PolicyCountUpdate = RecountUpdate;
  *      `needs-commit` notice (#3022) tells the user to commit first, but nothing blocks the run.
  *   3. A pipeline step whose commit includes `policy_actions.json` sweeps the editor's count changes into an
  *      unrelated commit (the t/3943 "unattributed" shape; counts only).
+ * THE EXEMPTION LAPSES (TL p/336#587) if desktop ever commits the registry, or the recount writes any field other than
+ * `member_count` / `source_povs` / a missing `status`; at that point the dirty-registry refusal comes back. The
+ * byte-level test in registryRecount.test.ts pins the second half.
  * The variant was removed with no consumer branching on it (t/4034#7); if a handler ever needs to refuse for another
  * reason, add a new `reason` rather than reviving this one.
  */
