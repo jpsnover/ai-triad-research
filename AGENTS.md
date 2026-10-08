@@ -67,6 +67,7 @@ Orca config (`.orca.yaml`, nested `AGENTS.md`, `.orca/`) lives in a **separate o
   - Never arm consult-hold, joint-gv or draft PRs, or PRs whose base isn't `main`.
 - **Holds:** the `consult-hold` label is the gate; draft alone is not. A PR implementing consult conditions lists them verbatim and stays unarmed until every one is ticked.
 - **Co-landing PRs** carry `joint-gv` and are merged manually after their joint review.
+- **Never run `gh pr review --approve`.** Every agent is jpsnover, and GitHub refuses self-approval. Record approval as a PR comment starting `Approved (<role>):`. Owner: TL. This rule lapses when the t/4096 Reviewer App switch-over lands (Sage #225).
 - **Where this section differs from Change Tiers below, Change Tiers wins.** The hold ceremony is being simplified in t/4093. Ref §4.
 
 ### Claim Before Implement
