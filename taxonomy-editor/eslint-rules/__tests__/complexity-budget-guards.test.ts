@@ -61,12 +61,32 @@ describe('C2: inline bypasses of local/complexity-budget are refused', () => {
     }
   });
 
+  // t/4114 (SO e/286#7): comments are found by the TypeScript parser, not a regex. The first four arms
+  // FAILED on the old regex scanner; they are the discriminating evidence for the switch.
+  it.each([
+    ['a "src/*" string before a real blanket disable', "const g = 'src/*';\nconst x = 1;\n/* eslint-disable */\nexport const y = 2;", 1],
+    ['a template literal containing "// eslint-disable" is not a comment', 'export const t = `\n// eslint-disable\n`;', 0],
+    ['a template with a substitution and "/*" before a real disable', 'const b = 1;\nexport const t = `a ${b} /* c`;\n/* eslint-disable local/complexity-budget */', 1],
+    ['a regex literal containing "/*" before a real disable', 'export const r = /a\\/*b/;\n/* eslint-disable */\nexport const z = 1;', 1],
+    // completeness: comments that are neither before a node nor on a node's line
+    ['a disable on its own line before a closing brace', 'export function f(): number {\n  return 1;\n  /* eslint-disable */\n}', 1],
+    ['a JSDoc block containing "src/*" is one comment, and the real disable after it is still found', '/** reads src/* for files */\nexport const a = 1;\n/* eslint-disable */', 1],
+  ])('parser-based scan: %s', (_label, src, n) => {
+    expect(findBypasses(src as string)).toHaveLength(n as number);
+  });
+
+  it('JSX text that looks like a directive is not a comment (.tsx parses as JSX)', () => {
+    expect(findBypasses('export const e = <div>/* eslint-disable */</div>;', 'x.tsx')).toEqual([]);
+    expect(findBypasses('export const e = <div>{/* eslint-disable */}</div>;', 'x.tsx')).toHaveLength(1); // a real JSX comment
+  });
+
   it('the real lib tree is clean, so the gate starts green', () => {
     expect((scan(LIB) as { violations: unknown[] }).violations).toEqual([]);
   });
 });
 
-describe('C1: generate-complexity-baseline.mjs --ext', () => {
+// Each arm spawns node + typescript-eslint, which can take well over 5s on a loaded machine.
+describe('C1: generate-complexity-baseline.mjs --ext', { timeout: 60_000 }, () => {
   let root: string;
   // Each file holds one function of complexity 17 (> threshold 15), so every measured file becomes an entry.
   const over = `export function f(n: number): number {\n${Array.from({ length: 16 }, (_, i) => `  if (n === ${i}) return ${i};`).join('\n')}\n  return -1;\n}\n`;
