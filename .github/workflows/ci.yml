@@ -2052,6 +2052,19 @@ jobs:
         continue-on-error: true
         run: node --test operations/devops/scheduled-workflow-health.test.mjs
 
+      - name: Flake-heal tripwire unit suites (WARN-FIRST — t/4085)
+        # Same t/3871 lesson as the merge-guard-predicate step above, applied proactively: a .test.mjs
+        # authored but never wired into a workflow is tested-code/running-code drift waiting to happen
+        # (evidence only at authoring time, never re-checked on the next edit). Covers BOTH the pure
+        # tripwire counter (countRepeatHealers — flagged/not-flagged boundaries, CANNOT-EVALUATE arms)
+        # and the artifact-classification predicate added for the t/4085 PR review (classifyRunArtifacts
+        # — partial-upload-is-unknown, malformed-line-is-unknown). WARN-FIRST: flip by removing
+        # continue-on-error after >=1 green cycle (SO + TL GV), same discipline as its neighbors.
+        continue-on-error: true
+        run: |
+          node --test operations/devops/flake-heal-tripwire.test.mjs
+          node --test operations/devops/collect-flake-heal-runs.test.mjs
+
   # ── complexity-tickets: refactor issues for over-budget files (advisory) ─────
   # Collects the complexity-violations-* artifacts that test-electron (ESLint
   # local/complexity-budget) and complexity-budget (PS Test-ComplexityBudget) upload
