@@ -12,22 +12,31 @@ BeforeAll {
 
     function Reset-Fake {
         param([hashtable] $VaultParameters = @{ Path = 'X:\unsynced\AI-Triad-PI.kdbx'; UseMasterPassword = $true },
-            [string] $ModuleName = 'SecretManagement.KeePass', [hashtable] $Target = @{}, [object] $ReadBackOverride = $null, [bool] $SetThrows = $false)
+            [string] $ModuleName = 'SecretManagement.KeePass', [hashtable] $Target = @{}, [object] $ReadBackOverride = $null, [bool] $SetThrows = $false,
+            [bool] $UnlockThrows = $false, [object[]] $TestVaultResult = @($true))
         $global:Fake = [ordered]@{
             Vault = [pscustomobject]@{ Name = 'AI-Triad-PI'; ModuleName = $ModuleName; VaultParameters = $VaultParameters }
             Source = @{ GITHUB_OAUTH = $script:Value }; Target = $Target
             ReadBackOverride = $ReadBackOverride; SetThrows = $SetThrows
+            UnlockThrows = $UnlockThrows; TestVaultResult = $TestVaultResult
+            TargetInfoCalls = 0
             Sets = [Collections.Generic.List[object]]::new(); Removed = [Collections.Generic.List[string]]::new()
             Unlocks = [Collections.Generic.List[object]]::new()
         }
     }
 
     function global:Get-SecretVault { param($Name, $ErrorAction) if ($Name -eq $global:Fake.Vault.Name) { $global:Fake.Vault } }
-    function global:Unlock-SecretVault { param($Name, $Password, $ErrorAction) $global:Fake.Unlocks.Add($Password) }
+    function global:Unlock-SecretVault {
+        param($Name, $Password, $ErrorAction)
+        $global:Fake.Unlocks.Add($Password)
+        if ($global:Fake.UnlockThrows) { throw 'The master key is invalid! (test)' }
+    }
+    function global:Test-SecretVault { param($Name, $ErrorAction) foreach ($r in $global:Fake.TestVaultResult) { $r } }
     function global:Read-Host { param($Prompt, [switch] $AsSecureString) [securestring]::new() }
     function global:Get-SecretInfo {
         param($Vault, $Name, $ErrorAction)
         $n = [WildcardPattern]::Unescape($Name)
+        if ($Vault -ne 'LocalStore') { $global:Fake.TargetInfoCalls++ }
         $store = if ($Vault -eq 'LocalStore') { $global:Fake.Source } else { $global:Fake.Target }
         if ($store.ContainsKey($n)) {
             # SecretStore reports a plain-text source as SecureString; other types by their own name.
@@ -70,10 +79,12 @@ BeforeAll {
     $script:RefLine = '$env:GITHUB_OAUTH = Get-Secret -Name GITHUB_OAUTH -AsPlainText'
 
     function Invoke-Migration {
-        param([switch] $Apply, [string] $RefIn)   # RefIn: a profile property name, 'WinPS51', or empty for clean
+        # RefIn: a profile property name, 'WinPS51', or empty for clean. ProfileText: custom content
+        # for the CurrentUserCurrentHost profile.
+        param([switch] $Apply, [string] $RefIn, [string] $ProfileText = "`$env:OTHER = 'x'")
         $u = New-FakeUser
         try {
-            Set-Content -LiteralPath $u.Profile.CurrentUserCurrentHost -Value "`$env:OTHER = 'x'"
+            Set-Content -LiteralPath $u.Profile.CurrentUserCurrentHost -Value $ProfileText
             if ($RefIn -eq 'WinPS51') {
                 $d = Join-Path $u.Docs 'WindowsPowerShell'
                 New-Item -ItemType Directory -Path $d -Force | Out-Null
@@ -89,7 +100,7 @@ BeforeAll {
 AfterAll {
     Remove-Item Function:\global:Get-SecretVault, Function:\global:Unlock-SecretVault, Function:\global:Read-Host,
         Function:\global:Get-SecretInfo, Function:\global:Get-Secret, Function:\global:Set-Secret,
-        Function:\global:Remove-Secret -ErrorAction SilentlyContinue
+        Function:\global:Remove-Secret, Function:\global:Test-SecretVault -ErrorAction SilentlyContinue
     Remove-Variable -Name Fake -Scope Global -ErrorAction SilentlyContinue
 }
 
@@ -246,6 +257,43 @@ Describe 'Move-PiCredentialToKeePass: C1 profile order' {
     It 'C1: -Apply proceeds once no profile references the name' {
         $out = Invoke-Migration -Apply
         $out | Should -Match 'match; source removed'
+    }
+}
+
+Describe 'Move-PiCredentialToKeePass: whole-token profile match (e/287#15, #16)' {
+    BeforeEach { Reset-Fake }
+
+    It 'does not flag a longer name that merely starts with a planned name' {
+        $text = "`$env:GITHUB_OAUTH_CLIENT_ID = 'x'"
+        (Invoke-Migration -ProfileText $text) | Should -Not -Match 'Profile references'
+        (Invoke-Migration -Apply -ProfileText $text) | Should -Match 'match; source removed'
+    }
+
+    It 'flags a names-array line even when Get-Secret is on a different line' {
+        $text = "`$names = 'GITHUB_OAUTH', 'OTHER'`nforeach (`$n in `$names) { Set-Item env:`$n (Get-Secret -Name `$n -AsPlainText) }"
+        { Invoke-Migration -Apply -ProfileText $text } | Should -Throw '*Refusing -Apply*line(s) 1*'
+        $global:Fake.Removed.Count | Should -Be 0
+    }
+
+    It 'flags a direct Get-Secret line, case-insensitively' {
+        { Invoke-Migration -Apply -ProfileText "`$env:x = Get-Secret -Name github_oauth -AsPlainText" } | Should -Throw '*Refusing -Apply*'
+    }
+}
+
+Describe 'Move-PiCredentialToKeePass: vault must open before any per-name work (e/287#15)' {
+    It 'stops when <Case>: zero rows, zero writes, zero removes (<Mode>)' -ForEach @(
+        @{ Case = 'the unlock throws';            Mode = 'dry run'; Apply = $false; Throws = $true;  Tv = @($true) }
+        @{ Case = 'the unlock throws';            Mode = 'apply';   Apply = $true;  Throws = $true;  Tv = @($true) }
+        @{ Case = 'Test-SecretVault is false';    Mode = 'dry run'; Apply = $false; Throws = $false; Tv = @($false) }
+        @{ Case = 'Test-SecretVault is false';    Mode = 'apply';   Apply = $true;  Throws = $false; Tv = @($false) }
+        @{ Case = 'Test-SecretVault is mixed';    Mode = 'apply';   Apply = $true;  Throws = $false; Tv = @($true, $false) }
+        @{ Case = 'Test-SecretVault says nothing'; Mode = 'apply';  Apply = $true;  Throws = $false; Tv = @() }
+    ) {
+        Reset-Fake -UnlockThrows $Throws -TestVaultResult $Tv
+        { Invoke-Migration -Apply:$Apply } | Should -Throw '*Could not open vault*Nothing was read, written or removed*'
+        $global:Fake.TargetInfoCalls | Should -Be 0
+        $global:Fake.Sets.Count | Should -Be 0
+        $global:Fake.Removed.Count | Should -Be 0
     }
 }
 

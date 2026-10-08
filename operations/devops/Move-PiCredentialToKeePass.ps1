@@ -112,7 +112,11 @@ function Get-ProfileReference {
     # File and line numbers only: a profile line could hold a literal value, so text is never echoed.
     param([string[]] $Names)
     if (@($Names).Count -eq 0) { return }
-    $pattern = @($Names | ForEach-Object { [regex]::Escape($_) })
+    # Whole-token match (e/287#15, #16): GITHUB_OAUTH must not match GITHUB_OAUTH_CLIENT_ID. Deliberately
+    # NOT narrowed to lines that call Get-Secret: a names array on one line feeding
+    # foreach { Get-Secret $_ } on another must still be caught. Over-matching costs the PI one look;
+    # under-matching breaks every agent shell. Select-String is case-insensitive by default.
+    $pattern = @($Names | ForEach-Object { '(?<![\w-])' + [regex]::Escape($_) + '(?![\w-])' })
     foreach ($f in Get-ProfileCandidate) {
         $lines = @(Select-String -LiteralPath $f -Pattern $pattern | ForEach-Object LineNumber | Sort-Object -Unique)
         if ($lines.Count -gt 0) { [pscustomobject]@{ File = $f; Lines = $lines -join ', ' } }
@@ -216,8 +220,25 @@ Assert-KeePassTarget
 
 # K4: unlock once, for this process only. The passphrase never leaves this SecureString.
 $pass = Read-Host -AsSecureString "Master passphrase for vault '$TargetVault'"
-Unlock-SecretVault -Name $TargetVault -Password $pass -ErrorAction Stop
-$pass = $null
+# Stop before any per-name work if the vault did not open (e/287#15): otherwise a rejected passphrase
+# yields a dry run that "passes" against a vault it never read. The extension may report a bad
+# master key as a non-terminating error, so Test-SecretVault is the authoritative check.
+$unlockError = $null
+try { Unlock-SecretVault -Name $TargetVault -Password $pass -ErrorAction Stop } catch { $unlockError = $_.Exception.Message }
+finally { $pass = $null }
+$opened = $false
+if (-not $unlockError) {
+    # The extension can emit more than one value; a [bool] cast of a two-element array is $true,
+    # so "opened" means: said $true and never said $false.
+    try {
+        $tv = @(Test-SecretVault -Name $TargetVault -ErrorAction SilentlyContinue 3>$null)
+        $opened = ($tv -contains $true) -and -not ($tv -contains $false)
+    } catch { $opened = $false }
+}
+if ($unlockError -or -not $opened) {
+    $why = if ($unlockError) { $unlockError } else { 'Test-SecretVault returned false after unlock' }
+    throw "Could not open vault '$TargetVault' ($why). Nothing was read, written or removed. Next: check the master passphrase (and that the .kdbx path in the registration exists), then re-run in a fresh pwsh -NoProfile window."
+}
 
 $results = foreach ($p in $plan) {
     $status = 'pending'
