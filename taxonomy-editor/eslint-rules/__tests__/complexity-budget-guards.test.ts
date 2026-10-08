@@ -80,7 +80,8 @@ describe('C2: inline bypasses of local/complexity-budget are refused', () => {
     expect(findBypasses('export const e = <div>{/* eslint-disable */}</div>;', 'x.tsx')).toHaveLength(1); // a real JSX comment
   });
 
-  it('the real lib tree is clean, so the gate starts green', () => {
+  // Parses all ~370 lib files with the TS parser: ~1.5s as a plain script, ~7s under CI coverage instrumentation.
+  it('the real lib tree is clean, so the gate starts green', { timeout: 60_000 }, () => {
     expect((scan(LIB) as { violations: unknown[] }).violations).toEqual([]);
   });
 });
