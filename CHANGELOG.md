@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lineage panel deduplicates casing variants
 
 ### Changed
+- **PowerShell module: `AI_API_KEY` now applies only to Gemini models.** For other providers, set the provider's own key variable (e.g. `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY`); a set `AI_API_KEY` with no provider variable is refused with an error naming the variable to set (t/4102)
 - Community chat detail metadata section collapsed by default
 - Retired `USER_CONTENT_STORAGE` env var and migration workflow
 
