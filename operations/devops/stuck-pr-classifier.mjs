@@ -176,20 +176,62 @@ export function escalationLevel(blockerClass, episodeAgeHours) {
   return 'none';
 }
 
+// BLOCKING fix (t/4123, D1): the detector matched only `auto_merge_enabled`/`auto_update_enabled`,
+// assumed names never recorded against this repo's live feed. GitHub actually logs
+// `auto_squash_enabled` (781 occurrences) and `auto_rebase_enabled` (183) depending on the
+// configured merge method; `auto_merge_enabled` itself occurred ONCE. The detector was seeing
+// ~0.1% of real arm events -- exactly the #3141 path-mapping defect's shape: a fixture built
+// from an assumed name, never a recorded payload. ARM_EVENT_RE is exported so the workflow's
+// own event-type filter can delegate to this ONE list instead of hardcoding a second one.
+export const ARM_EVENT_RE = /^auto_(merge|squash|rebase|update)_enabled$/;
+
 /**
- * PURE. Finds ready_for_review -> auto_*_enabled pairs within SWEEP_WINDOW_SECONDS on the
- * same PR (t/4096#4 / t/3716). `events` is the repo-wide issue-events feed, already filtered
- * to these two event types (GraphQL omits AutoMergeEnabledEvent from PR timelines, t/3716#18,
- * so the caller must use the REST issue-events endpoint, not GraphQL).
- * @param {Array<{prNumber:number, event:'ready_for_review'|'auto_merge_enabled'|'auto_update_enabled', actor:string, createdAt:string}>} events
- * @returns {Array<{prNumber:number, readyAt:string, armedAt:string, deltaSeconds:number, actor:string}>}
+ * PURE. Finds ready_for_review -> arm-event pairs within SWEEP_WINDOW_SECONDS on the same PR
+ * (t/4096#4 / t/3716), AND whether the PR was held (consult-hold/joint-gv) AT THE ARM EVENT'S
+ * OWN TIME -- not at scan time (D2 fix). `events` is the repo-wide issue-events feed for the
+ * lookback window, covering `ready_for_review`, every ARM_EVENT_RE match, and `labeled`/`unlabeled`
+ * (GraphQL omits AutoMergeEnabledEvent from PR timelines, t/3716#18, so the caller must use the
+ * REST issue-events endpoint, not GraphQL).
+ *
+ * heldAtArmTime is computed by replaying BACKWARDS from the live (current, scan-time) label
+ * state, undoing every labeled/unlabeled event strictly after the arm timestamp, newest first
+ * (Lead review, PR #3152: forward-replay-from-empty missed a PR held BEFORE the lookback
+ * window that then received any OTHER label event inside it -- e.g. this job's own
+ * `stuck-pr-alert-owner` label -- which made `labelEvents.length > 0` true while never showing
+ * the original hold, so the forward replay silently reported `false`). Backward replay is exact
+ * regardless of the lookback: every event after the arm is, by construction, inside the window
+ * that was fetched to find the arm itself. This also removes the `null`/WARN fallback entirely
+ * -- there is no "undetermined" state once the walk starts from a known-current snapshot.
+ * @param {Array<{prNumber:number, event:string, actor:string, label?:string, createdAt:string}>} events
+ * @param {Map<number,string[]>} liveLabelsByPr - current (scan-time) label names per PR, from
+ *   `pulls.get` -- the only impure input this pure function needs; the caller fetches it once
+ *   per PR that shows a ready+arm hit.
+ * @returns {Array<{prNumber:number, readyAt:string, armedAt:string, deltaSeconds:number, actor:string, heldAtArmTime:boolean, heldLabels:string[]}>}
  */
-export function detectSweepSignature(events) {
+export function detectSweepSignature(events, liveLabelsByPr) {
   const byPr = new Map();
   for (const e of events ?? []) {
     if (!byPr.has(e.prNumber)) byPr.set(e.prNumber, []);
     byPr.get(e.prNumber).push(e);
   }
+  const HOLD_LABELS = new Set(['consult-hold', 'joint-gv']);
+
+  function heldStateAt(prNumber, prEventsSorted, armMs) {
+    const liveLabels = liveLabelsByPr?.get(prNumber) ?? [];
+    const held = new Set(liveLabels.filter((l) => HOLD_LABELS.has(l)));
+    const labelEvents = prEventsSorted.filter((e) => e.event === 'labeled' || e.event === 'unlabeled');
+    // Newest first; undo each event strictly after armMs. Once an event's time is <= armMs,
+    // every earlier event (we're walking backwards) is too, so stop.
+    for (let k = labelEvents.length - 1; k >= 0; k--) {
+      const e = labelEvents[k];
+      if (Date.parse(e.createdAt) <= armMs) break;
+      if (!HOLD_LABELS.has(e.label)) continue;
+      if (e.event === 'labeled') held.delete(e.label); // before this event, the label wasn't there yet
+      else held.add(e.label); // before this event, the label WAS there (it got removed after)
+    }
+    return { heldAtArmTime: held.size > 0, heldLabels: [...held] };
+  }
+
   const hits = [];
   for (const [prNumber, prEvents] of byPr) {
     const sorted = [...prEvents].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
@@ -197,14 +239,17 @@ export function detectSweepSignature(events) {
       if (sorted[i].event !== 'ready_for_review') continue;
       const readyAt = Date.parse(sorted[i].createdAt);
       for (let j = i + 1; j < sorted.length; j++) {
-        const ev = sorted[j].event;
-        if (ev !== 'auto_merge_enabled' && ev !== 'auto_update_enabled') continue;
+        if (!ARM_EVENT_RE.test(sorted[j].event)) continue;
         const armedAt = Date.parse(sorted[j].createdAt);
         const deltaSeconds = (armedAt - readyAt) / 1000;
         if (deltaSeconds >= 0 && deltaSeconds <= SWEEP_WINDOW_SECONDS) {
-          hits.push({ prNumber, readyAt: sorted[i].createdAt, armedAt: sorted[j].createdAt, deltaSeconds, actor: sorted[j].actor });
+          const { heldAtArmTime, heldLabels } = heldStateAt(prNumber, sorted, armedAt);
+          hits.push({
+            prNumber, readyAt: sorted[i].createdAt, armedAt: sorted[j].createdAt, deltaSeconds,
+            actor: sorted[j].actor, heldAtArmTime, heldLabels,
+          });
         }
-        break; // only the first auto_*_enabled after this ready_for_review counts
+        break; // only the first arm event after this ready_for_review counts
       }
     }
   }
@@ -213,37 +258,42 @@ export function detectSweepSignature(events) {
 
 /**
  * PURE. Decides escalation for each sweep-signature hit.
- * - A hit on a PR carrying consult-hold or joint-gv escalates straight to DevOps+TL.
- * - A BURST (2+ distinct PRs hit within SWEEP_BURST_SECONDS of each other) escalates every
- *   PR in that burst straight to DevOps+TL — no single legitimate owner flow produces this shape.
- * - Otherwise, one confirmation-request comment on the PR (never escalated).
- * @param {Array<{prNumber:number, readyAt:string, armedAt:string, actor:string}>} hits
- * @param {Map<number,string[]>} labelsByPr
+ * - A hit HELD AT ITS OWN ARM TIME (consult-hold/joint-gv) escalates straight to DevOps+TL,
+ *   regardless of burst membership -- this is #3142/#3145's exact shape (t/4123): the hold was
+ *   cleared minutes later, so a scan-time label read would have missed it entirely (D2).
+ * - A BURST is computed ONLY among hits that are NOT held at arm time. Design decision (t/4123
+ *   AC, "write down what you decide here"): #3141 (not held) armed 94s before #3142 (held) --
+ *   within SWEEP_BURST_SECONDS, but #3141 is the ONLY non-held hit in that window, so it is a
+ *   burst of one and does NOT escalate. Coupling a legitimate, non-held, standalone arm to an
+ *   unrelated PR's hold-clearing via mere time-proximity would escalate normal fleet activity
+ *   every time two unrelated arms land close together; held hits already escalate on their own
+ *   reason, so folding them into the burst count would double up, not add signal.
+ * - Otherwise (not held, not a burst): one confirmation-request comment, never escalated.
+ * @param {Array<{prNumber:number, readyAt:string, armedAt:string, actor:string, heldAtArmTime:boolean|null, heldLabels:string[]}>} hits
  * @returns {Array<{prNumber:number, escalate:boolean, reason:string}>}
  */
-export function classifySweepHits(hits, labelsByPr) {
-  const sortedHits = [...hits].sort((a, b) => Date.parse(a.armedAt) - Date.parse(b.armedAt));
+export function classifySweepHits(hits) {
+  const nonHeld = hits.filter((h) => !h.heldAtArmTime);
+  const sortedNonHeld = [...nonHeld].sort((a, b) => Date.parse(a.armedAt) - Date.parse(b.armedAt));
   const burstPrNumbers = new Set();
-  for (let i = 0; i < sortedHits.length; i++) {
-    for (let j = i + 1; j < sortedHits.length; j++) {
-      const deltaSeconds = (Date.parse(sortedHits[j].armedAt) - Date.parse(sortedHits[i].armedAt)) / 1000;
+  for (let i = 0; i < sortedNonHeld.length; i++) {
+    for (let j = i + 1; j < sortedNonHeld.length; j++) {
+      const deltaSeconds = (Date.parse(sortedNonHeld[j].armedAt) - Date.parse(sortedNonHeld[i].armedAt)) / 1000;
       if (deltaSeconds > SWEEP_BURST_SECONDS) break;
-      if (sortedHits[i].prNumber !== sortedHits[j].prNumber) {
-        burstPrNumbers.add(sortedHits[i].prNumber);
-        burstPrNumbers.add(sortedHits[j].prNumber);
+      if (sortedNonHeld[i].prNumber !== sortedNonHeld[j].prNumber) {
+        burstPrNumbers.add(sortedNonHeld[i].prNumber);
+        burstPrNumbers.add(sortedNonHeld[j].prNumber);
       }
     }
   }
 
   return hits.map((h) => {
-    const labels = labelsByPr?.get(h.prNumber) ?? [];
-    const held = labels.includes('consult-hold') || labels.includes('joint-gv');
-    if (held) {
-      return { prNumber: h.prNumber, escalate: true, reason: `held PR (${labels.filter((l) => l === 'consult-hold' || l === 'joint-gv').join(', ')}) shows the sweep signature — escalating to DevOps+TL` };
+    if (h.heldAtArmTime) {
+      return { prNumber: h.prNumber, escalate: true, reason: `held (${h.heldLabels.join(', ')}) at the moment it was armed — escalating to DevOps+TL` };
     }
     if (burstPrNumbers.has(h.prNumber)) {
-      return { prNumber: h.prNumber, escalate: true, reason: `sweep burst — ${burstPrNumbers.size} PRs showed the signature within ${SWEEP_BURST_SECONDS}s of each other` };
+      return { prNumber: h.prNumber, escalate: true, reason: `sweep burst — ${burstPrNumbers.size} non-held PRs armed within ${SWEEP_BURST_SECONDS}s of each other` };
     }
-    return { prNumber: h.prNumber, escalate: false, reason: 'single-PR signature, no hold — asking the owner to confirm' };
+    return { prNumber: h.prNumber, escalate: false, reason: 'single-PR signature, not held, no burst — asking the owner to confirm' };
   });
 }
