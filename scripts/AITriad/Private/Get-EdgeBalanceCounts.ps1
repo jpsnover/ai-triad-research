@@ -7,9 +7,14 @@ function Get-EdgeBalanceCounts {
         Load edges.json and count SUPPORTS and attacks (CONTRADICTS/WEAKENS) received per node.
         Extracted from Invoke-BDIWeightAssignment (t/3910).
     .DESCRIPTION
-        Rejected edges, untyped edges and target-less edges are skipped. A bidirectional edge also
-        counts for its source. A missing file WARNs and returns empty maps, so every edge boost is
-        0 (Fallback-Path Logging).
+        CONTRACT: the counts cover NON-REJECTED edges only. An edge with status 'rejected' contributes 0
+        even though it is present in edges.json, so callers must not re-filter (t/3910#42). Untyped and
+        target-less edges are skipped too. A bidirectional edge also counts for its source.
+
+        A MISSING file is a fallback: it WARNs (naming the path and the condition) and returns empty
+        maps, so every edge boost is 0 (Fallback-Path Logging). An UNREADABLE file (present but not
+        valid JSON) is not a fallback: it throws, because silently zeroing every boost on a corrupt
+        file would rewrite every weight wrongly.
     .OUTPUTS
         [hashtable] @{ Supports = @{ nodeId = count }; Attacks = @{ nodeId = count } }
     #>
@@ -19,7 +24,7 @@ function Get-EdgeBalanceCounts {
 
     $Result = @{ Supports = @{}; Attacks = @{} }
     if (-not (Test-Path $Path)) {
-        Write-Warning "edges.json not found — edge boost will be 0"
+        Write-Warning "edges.json not found at $Path (missing: the file does not exist) — edge boost will be 0"
         return $Result
     }
     $EdgesRaw = Get-Content $Path -Raw | ConvertFrom-Json

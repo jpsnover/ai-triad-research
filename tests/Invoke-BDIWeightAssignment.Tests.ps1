@@ -270,5 +270,71 @@ Describe 'Invoke-BDIWeightAssignment (t/3910 characterization)' -Tag 'taxonomy' 
             $all | Should -Match 'source_evidence_index\.json not found'
             $all | Should -Match 'edges\.json not found'
         }
+
+        It 'each fallback WARN names the file path and the condition (missing) (t/3910#42)' {
+            New-BdiFixture -Dir $script:TaxDir -NoEvidence -NoEdges
+            $warn = $null
+            Invoke-BDIWeightAssignment -POV skeptic -DryRun -WarningVariable warn -WarningAction SilentlyContinue 6>$null
+            $SeiWarn  = @($warn | ForEach-Object { "$_" } | Where-Object { $_ -match 'source_evidence_index\.json' })
+            $EdgeWarn = @($warn | ForEach-Object { "$_" } | Where-Object { $_ -match 'edges\.json' })
+            $SeiWarn.Count | Should -Be 1
+            $EdgeWarn.Count | Should -Be 1
+            $SeiWarn[0] | Should -Match ([regex]::Escape((Join-Path $script:TaxDir 'source_evidence_index.json')))
+            $SeiWarn[0] | Should -Match 'missing: the file does not exist'
+            $EdgeWarn[0] | Should -Match ([regex]::Escape((Join-Path $script:TaxDir 'edges.json')))
+            $EdgeWarn[0] | Should -Match 'missing: the file does not exist'
+        }
+
+        It 'an UNREADABLE <File> is not a fallback: it throws and writes nothing (t/3910#42)' -ForEach @(
+            @{ File = 'edges.json' }
+            @{ File = 'source_evidence_index.json' }
+        ) {
+            New-BdiFixture -Dir $script:TaxDir -BoundaryMap $script:BoundaryMap
+            Set-Content -LiteralPath (Join-Path $script:TaxDir $File) -Value '{ this is not json' -Encoding UTF8
+            $before = Get-DirHashes $script:TaxDir
+            { Invoke-BDIWeightAssignment -POV skeptic -Confirm:$false -WarningAction SilentlyContinue 6>$null } | Should -Throw
+            (Get-DirHashes $script:TaxDir | ConvertTo-Json) | Should -Be ($before | ConvertTo-Json)
+        }
+    }
+}
+
+Describe 'Get-EdgeBalanceCounts contract: non-rejected edges only (t/3910#42)' -Tag 'taxonomy' {
+
+    BeforeEach {
+        $script:EdgeFile = Join-Path $TestDrive "edges-$(New-Guid).json"
+        function Write-Edges([object[]]$Edges) {
+            [ordered]@{ edges = $Edges } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $script:EdgeFile -Encoding UTF8
+        }
+    }
+
+    It 'a rejected <Type> edge contributes 0 even though it is in edges.json' -ForEach @(
+        @{ Type = 'SUPPORTS';    Bucket = 'Supports' }
+        @{ Type = 'CONTRADICTS'; Bucket = 'Attacks' }
+        @{ Type = 'WEAKENS';     Bucket = 'Attacks' }
+    ) {
+        Write-Edges @([ordered]@{ source = 's'; target = 'n1'; type = $Type; status = 'rejected'; bidirectional = $true })
+        $c = InModuleScope AITriad -Parameters @{ P = $script:EdgeFile } { param($P) Get-EdgeBalanceCounts -Path $P 6>$null }
+        $c[$Bucket].ContainsKey('n1') | Should -BeFalse
+        $c[$Bucket].ContainsKey('s') | Should -BeFalse -Because 'a rejected bidirectional edge counts for neither end'
+    }
+
+    It 'control: the same <Type> edge without the rejected status counts 1 (the exclusion is narrow)' -ForEach @(
+        @{ Type = 'SUPPORTS';    Bucket = 'Supports' }
+        @{ Type = 'CONTRADICTS'; Bucket = 'Attacks' }
+        @{ Type = 'WEAKENS';     Bucket = 'Attacks' }
+    ) {
+        Write-Edges @([ordered]@{ source = 's'; target = 'n1'; type = $Type; status = 'approved' })
+        $c = InModuleScope AITriad -Parameters @{ P = $script:EdgeFile } { param($P) Get-EdgeBalanceCounts -Path $P 6>$null }
+        $c[$Bucket]['n1'] | Should -Be 1
+    }
+
+    It 'a rejected edge does not change a node''s count from its accepted edges' {
+        Write-Edges @(
+            [ordered]@{ source = 'a'; target = 'n1'; type = 'SUPPORTS' }
+            [ordered]@{ source = 'b'; target = 'n1'; type = 'SUPPORTS'; status = 'rejected' }
+            [ordered]@{ source = 'c'; target = 'n1'; type = 'SUPPORTS' }
+        )
+        $c = InModuleScope AITriad -Parameters @{ P = $script:EdgeFile } { param($P) Get-EdgeBalanceCounts -Path $P 6>$null }
+        $c.Supports['n1'] | Should -Be 2
     }
 }
