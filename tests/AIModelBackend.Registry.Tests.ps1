@@ -295,6 +295,56 @@ Describe 'AI_API_KEY is a fallback for the gemini backend only (t/4102)' -Tag 's
         Should -Invoke -ModuleName AIEnrich Invoke-RestMethod -ParameterFilter { $Uri -match 'googleapis' } -Times 1 -Exactly
     }
 
+    It 'listing: Test-AIProviderKeyStatus surfaces a foreign-credential refusal, never softens it (site-level arm)' {
+        # Pins the listing SITE: a catch-everything soften here would report gemini "not configured" instead.
+        # The gemini row's only key (AI_API_KEY) is the value of GROQ_API_KEY: a foreign-credential refusal.
+        $env:GROQ_API_KEY = 'groq-secret-sentinel'
+        $env:AI_API_KEY = 'groq-secret-sentinel'
+        Mock -ModuleName AITriad Invoke-WebRequest { throw 'no probe may run' }
+        $Err = $null
+        try { InModuleScope AITriad { Test-AIProviderKeyStatus -WarningAction SilentlyContinue } } catch { $Err = "$_" }
+        $Err | Should -Match 'GROQ_API_KEY'
+        $Err | Should -Not -Match 'groq-secret-sentinel'
+        Should -Invoke -ModuleName AITriad Invoke-WebRequest -Times 0 -Exactly
+    }
+
+    It 'sweep: Test-AIApiKey -All surfaces a foreign-credential refusal, never softens it (site-level arm)' {
+        $env:GROQ_API_KEY = 'groq-secret-sentinel'
+        $env:AI_API_KEY = 'groq-secret-sentinel'
+        Mock -ModuleName AITriad Invoke-RestMethod { throw 'no probe may run with another backend''s credential' } -ParameterFilter { $Uri -match 'googleapis' }
+        Mock -ModuleName AITriad Invoke-RestMethod { [pscustomobject]@{ data = @(); models = @() } }
+        $Err = $null
+        try { $null = Test-AIApiKey -All } catch { $Err = "$_" }
+        $Err | Should -Match 'GROQ_API_KEY'
+        $Err | Should -Not -Match 'groq-secret-sentinel'
+        Should -Invoke -ModuleName AITriad Invoke-RestMethod -ParameterFilter { $Uri -match 'googleapis' } -Times 0 -Exactly
+    }
+
+    It 'cascade: a SECONDARY link whose key is another backend''s credential surfaces the refusal, never skipped (SO e/284#35 gap)' {
+        # Pins the cascade SITE, not just the classifier: a catch-everything soften at the secondary link would
+        # WARN-and-skip this foreign refusal and return $null. Here the gemini link's only key (AI_API_KEY) is the
+        # value of GROQ_API_KEY, so resolving it is a foreign-credential refusal that must reach the caller.
+        $env:ANTHROPIC_API_KEY = 'own-claude-sentinel'
+        $env:GROQ_API_KEY = 'groq-secret-sentinel'
+        $env:AI_API_KEY = 'groq-secret-sentinel'
+        $ClaudeModel = @($script:Models | Where-Object { $_.Backend -eq 'claude' })[0].Id
+        $GeminiModel = @($script:Models | Where-Object { $_.Backend -eq 'gemini' })[0].Id
+        Mock -ModuleName AIEnrich Invoke-RestMethod {
+            if ($Uri -match 'anthropic') { throw [System.Net.Http.HttpRequestException]::new('simulated transient claude failure') }
+            throw 'gemini must not be called with another backend''s credential'
+        }
+        $Err = $null
+        try {
+            InModuleScope AIEnrich -Parameters @{ M = $ClaudeModel; Fb = $GeminiModel } {
+                param($M, $Fb)
+                Invoke-AIApi -Prompt 'x' -Model $M -FallbackModels @($Fb) -MaxRetries 1 -RetryDelays @(0) -SkipTokenCheck -WarningAction SilentlyContinue
+            }
+        } catch { $Err = "$_" }
+        $Err | Should -Match 'GROQ_API_KEY' -Because 'the foreign-credential refusal must propagate from the secondary link'
+        $Err | Should -Not -Match 'groq-secret-sentinel'
+        Should -Invoke -ModuleName AIEnrich Invoke-RestMethod -ParameterFilter { $Uri -match 'googleapis' } -Times 0 -Exactly
+    }
+
     It 'classification is by error kind: only the gemini-only refusal matches, a foreign-credential refusal does not' {
         $env:AI_API_KEY = 'generic-sentinel'
         $GeminiOnly = InModuleScope AIEnrich { try { Resolve-AIApiKey -Backend 'claude' } catch { $_ } }
