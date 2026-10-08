@@ -262,6 +262,7 @@
       "label": "Claude Opus 5",
       "backend": "claude",
       "minTimeoutMs": 300000,
+      "thinks_by_default": true,
       "picker": {
         "label": "Opus 5 (flagship)",
         "order": 5
@@ -273,6 +274,7 @@
       "label": "Claude Sonnet 5",
       "backend": "claude",
       "minTimeoutMs": 300000,
+      "thinks_by_default": true,
       "picker": {
         "label": "Sonnet 5",
         "order": 7
@@ -284,6 +286,7 @@
       "label": "Claude Sonnet 5.5",
       "backend": "claude",
       "minTimeoutMs": 300000,
+      "thinks_by_default": true,
       "picker": {
         "label": "Sonnet 5.5",
         "order": 8
@@ -295,6 +298,7 @@
       "label": "Claude Fable 5",
       "backend": "claude",
       "minTimeoutMs": 300000,
+      "thinks_by_default": true,
       "picker": {
         "label": "Fable 5",
         "order": 9
@@ -355,6 +359,7 @@
     {
       "id": "claude-haiku-5-5",
       "minTimeoutMs": 300000,
+      "thinks_by_default": true,
       "apiModelId": "claude-haiku-5-5",
       "label": "Claude Haiku 5.5",
       "backend": "claude",
@@ -1001,6 +1006,7 @@
       "label": "Claude Opus 5.5",
       "backend": "claude",
       "minTimeoutMs": 300000,
+      "thinks_by_default": true,
       "picker": {
         "label": "Opus 5.5",
         "order": 6
@@ -1012,6 +1018,7 @@
       "label": "Claude Fable 5.1",
       "backend": "claude",
       "minTimeoutMs": 300000,
+      "thinks_by_default": true,
       "picker": {
         "label": "Fable 5.1 (most capable, $$$)",
         "order": 10

@@ -75,8 +75,12 @@ export interface OpeningPipelineInput {
   stageTimeoutMs?: number;
   /** Max brief-stage timeout retries. Default: 3. */
   briefMaxRetries?: number;
-  /** Max output tokens for brief-stage AI call. Default: 16,000 for opus/fable models, undefined (provider default) for others. */
+  /** Max output tokens for brief-stage AI call. Default: 32,000 for models that think by default,
+   *  undefined (provider default) for others. Driven from ModelEntry.thinks_by_default (t/4117). */
   briefMaxTokens?: number;
+  /** Model registry — used to resolve thinks_by_default for the brief budget (t/4117). When absent
+   *  the budget falls back to the old opus/fable substring check (safe for non-registry callers). */
+  registry?: import('../../ai-client/registry.js').ModelRegistry;
   /** Moderator's narrative voicing of each camp (h3), pre-formatted by narrativeVoicingDebaterBlock. */
   narrativeVoicing?: string;
   /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
@@ -127,10 +131,18 @@ export async function runOpeningPipeline(
   const MAX_OPENING_RETRIES = isOpeningOuterRetry ? 0 : 3;
   const briefTimeoutMs = input.briefTimeoutMs ?? DEFAULT_BRIEF_TIMEOUT_MS;
   const briefMaxRetries = input.briefMaxRetries ?? DEFAULT_BRIEF_MAX_RETRIES;
-  // 32_000 = clampMaxTokens ceiling in aiHandlers.ts; opus/fable produce verbose structured JSON
-  // and consistently hit the old 16_000 cap on 9+ turn debates (t/3543).
+  // 32_000 = clampMaxTokens ceiling in aiHandlers.ts; thinking models produce verbose structured
+  // JSON and consistently hit smaller caps on 9+ turn debates (t/3543, t/4117).
+  // Driven from ModelEntry.thinks_by_default (registry-first); substring fallback for call sites
+  // that don't pass a registry (non-engine CLI path, legacy renderers).
+  const briefModelEntry = input.registry?.models.find(m => m.id === oBriefModel);
+  // Registry is authoritative when the model is listed: absence of the flag = not a thinking model.
+  // Substring fallback only applies when the model is absent from the registry (t/4117).
+  const briefModelThinksDefault = briefModelEntry
+    ? briefModelEntry.thinks_by_default === true
+    : (oBriefModel.includes('opus') || oBriefModel.includes('fable'));
   const briefMaxTokens = input.briefMaxTokens
-    ?? ((oBriefModel.includes('opus') || oBriefModel.includes('fable')) ? 32_000 : undefined);
+    ?? (briefModelThinksDefault ? 32_000 : undefined);
   let brief: OpeningBriefWorkProduct | undefined;
   let briefJson = '';
   let t0: number = Date.now();
