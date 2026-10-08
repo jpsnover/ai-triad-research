@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  classifyBlocker, escalationLevel, detectSweepSignature, classifySweepHits,
+  classifyBlocker, escalationLevel, detectSweepSignature, classifySweepHits, ARM_EVENT_RE,
   REQUIRED_CONTEXTS, REQUIRED_CONTEXT_PATHS, QUEUED_STUCK_MINUTES, IN_PROGRESS_STUCK_MINUTES,
   OWNER_SLA_HOURS, TL_SLA_HOURS, SWEEP_WINDOW_SECONDS, SWEEP_BURST_SECONDS,
 } from './stuck-pr-classifier.mjs';
@@ -187,11 +187,19 @@ test('escalation: held never escalates regardless of age', () => {
   assert.equal(escalationLevel('held', 1000), 'none');
 });
 
-// ── sweep-signature detector ──
-test('sweep: ready_for_review then auto_merge_enabled within 15s -> a hit', () => {
+// ── D1 (t/4123 BLOCKING): real arm-event names, not the assumed ones ──
+test('ARM_EVENT_RE matches every real arm event name seen in the live feed', () => {
+  assert.ok(ARM_EVENT_RE.test('auto_squash_enabled'), '781 occurrences in the live feed (t/4123)');
+  assert.ok(ARM_EVENT_RE.test('auto_rebase_enabled'), '183 occurrences in the live feed (t/4123)');
+  assert.ok(ARM_EVENT_RE.test('auto_merge_enabled'), 'the originally-assumed name -- only 1 occurrence, still valid');
+  assert.ok(ARM_EVENT_RE.test('auto_update_enabled'));
+  assert.ok(!ARM_EVENT_RE.test('auto_merge_disabled'), 'disabling is not arming');
+  assert.ok(!ARM_EVENT_RE.test('ready_for_review'));
+});
+test('sweep: ready_for_review then auto_squash_enabled within 15s -> a hit (the real event name)', () => {
   const events = [
     { prNumber: 101, event: 'ready_for_review', actor: 'agent-a', createdAt: '2026-10-08T10:00:00Z' },
-    { prNumber: 101, event: 'auto_merge_enabled', actor: 'agent-a', createdAt: '2026-10-08T10:00:10Z' },
+    { prNumber: 101, event: 'auto_squash_enabled', actor: 'agent-a', createdAt: '2026-10-08T10:00:10Z' },
   ];
   const hits = detectSweepSignature(events);
   assert.equal(hits.length, 1);
@@ -201,51 +209,105 @@ test('sweep: ready_for_review then auto_merge_enabled within 15s -> a hit', () =
 test('sweep: a gap beyond the window is NOT a hit (legitimate owner flow)', () => {
   const events = [
     { prNumber: 101, event: 'ready_for_review', actor: 'tl', createdAt: '2026-10-08T10:00:00Z' },
-    { prNumber: 101, event: 'auto_merge_enabled', actor: 'tl', createdAt: '2026-10-08T10:05:00Z' }, // 5 min later
+    { prNumber: 101, event: 'auto_squash_enabled', actor: 'tl', createdAt: '2026-10-08T10:05:00Z' }, // 5 min later
   ];
   assert.equal(detectSweepSignature(events).length, 0);
 });
-test('sweep: auto_update_enabled also counts as the arm event', () => {
-  const events = [
-    { prNumber: 7, event: 'ready_for_review', actor: 'x', createdAt: '2026-10-08T10:00:00Z' },
-    { prNumber: 7, event: 'auto_update_enabled', actor: 'x', createdAt: '2026-10-08T10:00:05Z' },
-  ];
-  assert.equal(detectSweepSignature(events).length, 1);
+test('sweep: auto_rebase_enabled and auto_update_enabled also count as arm events', () => {
+  for (const ev of ['auto_rebase_enabled', 'auto_update_enabled']) {
+    const events = [
+      { prNumber: 7, event: 'ready_for_review', actor: 'x', createdAt: '2026-10-08T10:00:00Z' },
+      { prNumber: 7, event: ev, actor: 'x', createdAt: '2026-10-08T10:00:05Z' },
+    ];
+    assert.equal(detectSweepSignature(events).length, 1, ev);
+  }
 });
 
-// ── sweep classification: burst vs single legitimate flow ──
-test('sweep burst: 2+ PRs within the burst window -> both escalate', () => {
-  const hits = [
-    { prNumber: 1, readyAt: '2026-10-08T10:00:00Z', armedAt: '2026-10-08T10:00:05Z', actor: 'x' },
-    { prNumber: 2, readyAt: '2026-10-08T10:01:00Z', armedAt: '2026-10-08T10:01:30Z', actor: 'x' },
+// ── D2 (t/4123): REAL recorded fixture, #3145 (t/4123 AC) -- held at arm time, label
+// cleared minutes later. A scan-time label read would show "not held" and miss this entirely.
+test('REAL FIXTURE #3145: labeled consult-hold, ready, armed while held, unlabeled later -> heldAtArmTime true, escalates', () => {
+  const events = [
+    { prNumber: 3145, event: 'labeled', label: 'consult-hold', actor: 'jpsnover', createdAt: '2026-10-08T12:52:08Z' },
+    { prNumber: 3145, event: 'ready_for_review', actor: 'jpsnover', createdAt: '2026-10-08T12:58:26Z' },
+    { prNumber: 3145, event: 'auto_squash_enabled', actor: 'jpsnover', createdAt: '2026-10-08T12:58:30Z' },
+    { prNumber: 3145, event: 'auto_merge_disabled', actor: 'jpsnover', createdAt: '2026-10-08T13:02:25Z' },
+    { prNumber: 3145, event: 'unlabeled', label: 'consult-hold', actor: 'jpsnover', createdAt: '2026-10-08T13:02:39Z' },
   ];
-  const verdicts = classifySweepHits(hits, new Map());
+  const hits = detectSweepSignature(events);
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].heldAtArmTime, true);
+  assert.deepEqual(hits[0].heldLabels, ['consult-hold']);
+  const verdicts = classifySweepHits(hits);
+  assert.equal(verdicts[0].escalate, true);
+  assert.match(verdicts[0].reason, /held/i);
+});
+test('a label cleared BEFORE the arm event is correctly NOT held at arm time', () => {
+  const events = [
+    { prNumber: 999, event: 'labeled', label: 'consult-hold', actor: 'x', createdAt: '2026-10-08T12:00:00Z' },
+    { prNumber: 999, event: 'unlabeled', label: 'consult-hold', actor: 'x', createdAt: '2026-10-08T12:30:00Z' },
+    { prNumber: 999, event: 'ready_for_review', actor: 'x', createdAt: '2026-10-08T12:35:00Z' },
+    { prNumber: 999, event: 'auto_squash_enabled', actor: 'x', createdAt: '2026-10-08T12:35:05Z' },
+  ];
+  const hits = detectSweepSignature(events);
+  assert.equal(hits[0].heldAtArmTime, false);
+});
+test('a PR with zero labeled/unlabeled events anywhere in the feed is UNDETERMINED (null), not false', () => {
+  const events = [
+    { prNumber: 1000, event: 'ready_for_review', actor: 'x', createdAt: '2026-10-08T12:00:00Z' },
+    { prNumber: 1000, event: 'auto_squash_enabled', actor: 'x', createdAt: '2026-10-08T12:00:05Z' },
+  ];
+  const hits = detectSweepSignature(events);
+  assert.equal(hits[0].heldAtArmTime, null, 'must not silently default to "not held" -- caller falls back to a live pulls.get read');
+});
+
+// ── sweep classification: burst vs single legitimate flow, including the design decision
+// t/4123 AC explicitly asks for: REAL FIXTURE #3141 (not held) + #3142 (held), 94s apart ──
+test('REAL FIXTURE #3141/#3142: #3142 escalates as held; #3141 alone (burst-of-one, non-held) does NOT escalate', () => {
+  const hits = [
+    { prNumber: 3141, readyAt: '2026-10-08T12:37:44Z', armedAt: '2026-10-08T12:37:45Z', actor: 'jpsnover', heldAtArmTime: false, heldLabels: [] },
+    { prNumber: 3142, readyAt: '2026-10-08T12:39:13Z', armedAt: '2026-10-08T12:39:18Z', actor: 'jpsnover', heldAtArmTime: true, heldLabels: ['consult-hold'] },
+  ];
+  // 94 seconds apart -- inside SWEEP_BURST_SECONDS (120), so a naive "any 2 hits within the
+  // window" burst rule would couple them. Design decision (t/4123 AC): burst membership is
+  // computed ONLY among non-held hits. #3142 is held, so it's excluded from the burst pool;
+  // #3141 is then the ONLY non-held hit nearby -- a burst of one, which does not escalate.
+  assert.ok((Date.parse(hits[1].armedAt) - Date.parse(hits[0].armedAt)) / 1000 < SWEEP_BURST_SECONDS);
+  const verdicts = classifySweepHits(hits);
+  const v3141 = verdicts.find((v) => v.prNumber === 3141);
+  const v3142 = verdicts.find((v) => v.prNumber === 3142);
+  assert.equal(v3142.escalate, true, '#3142 escalates on its own held-at-arm-time reason');
+  assert.equal(v3141.escalate, false, '#3141 is not held and not part of a non-held burst -- confirm-only');
+});
+test('sweep burst: 2+ NON-HELD PRs within the burst window -> both escalate', () => {
+  const hits = [
+    { prNumber: 1, readyAt: '2026-10-08T10:00:00Z', armedAt: '2026-10-08T10:00:05Z', actor: 'x', heldAtArmTime: false, heldLabels: [] },
+    { prNumber: 2, readyAt: '2026-10-08T10:01:00Z', armedAt: '2026-10-08T10:01:30Z', actor: 'x', heldAtArmTime: false, heldLabels: [] },
+  ];
+  const verdicts = classifySweepHits(hits);
   assert.ok(verdicts.every((v) => v.escalate));
 });
-test('single legitimate owner flow: one PR, no hold, no burst -> confirm-only, no escalation', () => {
-  const hits = [{ prNumber: 3121, readyAt: '2026-10-07T23:44:00Z', armedAt: '2026-10-07T23:44:05Z', actor: 'tl' }];
-  const verdicts = classifySweepHits(hits, new Map());
+test('single legitimate owner flow: one PR, not held, no burst -> confirm-only, no escalation', () => {
+  const hits = [{ prNumber: 3121, readyAt: '2026-10-07T23:44:00Z', armedAt: '2026-10-07T23:44:05Z', actor: 'tl', heldAtArmTime: false, heldLabels: [] }];
+  const verdicts = classifySweepHits(hits);
   assert.equal(verdicts.length, 1);
   assert.equal(verdicts[0].escalate, false);
 });
-test('sweep: a hit on a held PR (consult-hold) escalates even alone', () => {
-  const hits = [{ prNumber: 50, readyAt: '2026-10-08T10:00:00Z', armedAt: '2026-10-08T10:00:05Z', actor: 'x' }];
-  const labelsByPr = new Map([[50, ['consult-hold']]]);
-  const verdicts = classifySweepHits(hits, labelsByPr);
-  assert.equal(verdicts[0].escalate, true);
-});
-test('sweep: a hit on a joint-gv PR escalates even alone', () => {
-  const hits = [{ prNumber: 51, readyAt: '2026-10-08T10:00:00Z', armedAt: '2026-10-08T10:00:05Z', actor: 'x' }];
-  const labelsByPr = new Map([[51, ['joint-gv']]]);
-  assert.equal(classifySweepHits(hits, labelsByPr)[0].escalate, true);
-});
 test('two hits on the SAME PR far apart do not count as a burst (burst needs 2+ DISTINCT PRs)', () => {
   const hits = [
-    { prNumber: 9, readyAt: '2026-10-08T10:00:00Z', armedAt: '2026-10-08T10:00:05Z', actor: 'x' },
-    { prNumber: 9, readyAt: '2026-10-08T10:01:00Z', armedAt: '2026-10-08T10:01:05Z', actor: 'x' },
+    { prNumber: 9, readyAt: '2026-10-08T10:00:00Z', armedAt: '2026-10-08T10:00:05Z', actor: 'x', heldAtArmTime: false, heldLabels: [] },
+    { prNumber: 9, readyAt: '2026-10-08T10:01:00Z', armedAt: '2026-10-08T10:01:05Z', actor: 'x', heldAtArmTime: false, heldLabels: [] },
   ];
-  const verdicts = classifySweepHits(hits, new Map());
+  const verdicts = classifySweepHits(hits);
   assert.ok(verdicts.every((v) => !v.escalate));
+});
+
+// ── idempotent re-run over the same window (D3 support) ──
+test('re-running detectSweepSignature over the SAME events twice yields identical hits (idempotent by construction)', () => {
+  const events = [
+    { prNumber: 101, event: 'ready_for_review', actor: 'x', createdAt: '2026-10-08T10:00:00Z' },
+    { prNumber: 101, event: 'auto_squash_enabled', actor: 'x', createdAt: '2026-10-08T10:00:05Z' },
+  ];
+  assert.deepEqual(detectSweepSignature(events), detectSweepSignature(events));
 });
 
 test('constants are sane (Gate Co-Location)', () => {
