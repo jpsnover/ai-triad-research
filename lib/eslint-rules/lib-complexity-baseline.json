@@ -49,7 +49,7 @@
     "countOver": 1
   },
   "ai-client/retry.ts": {
-    "max": 45,
+    "max": 46,
     "countOver": 2
   },
   "brief/narrate.ts": {
@@ -65,7 +65,7 @@
     "countOver": 1
   },
   "debate/aiAdapter.ts": {
-    "max": 35,
+    "max": 39,
     "countOver": 2
   },
   "debate/applyDebateDelta.ts": {
@@ -105,7 +105,7 @@
     "countOver": 9
   },
   "debate/calibrationLogger/extract.ts": {
-    "max": 184,
+    "max": 189,
     "countOver": 4
   },
   "debate/calibrationOptimizer.ts": {
@@ -178,6 +178,10 @@
   },
   "debate/debateEngine/explorationSeeding.ts": {
     "max": 23,
+    "countOver": 1
+  },
+  "debate/debateEngine/modelFingerprint.ts": {
+    "max": 16,
     "countOver": 1
   },
   "debate/debateEngine/phases/crossRespond.ts": {
@@ -256,6 +260,10 @@
     "max": 48,
     "countOver": 5
   },
+  "debate/inquiryConfig.ts": {
+    "max": 16,
+    "countOver": 1
+  },
   "debate/inquiryGrounding.ts": {
     "max": 42,
     "countOver": 1
@@ -333,8 +341,8 @@
     "countOver": 2
   },
   "debate/prompts/shared-helpers.ts": {
-    "max": 21,
-    "countOver": 2
+    "max": 16,
+    "countOver": 1
   },
   "debate/prompts/synthesis.ts": {
     "max": 16,
@@ -389,7 +397,7 @@
     "countOver": 3
   },
   "debate/taxonomyContext.ts": {
-    "max": 84,
+    "max": 94,
     "countOver": 4
   },
   "debate/taxonomyGapAnalysis.ts": {
@@ -473,7 +481,7 @@
     "countOver": 1
   },
   "electron-shared/modelDiscovery.ts": {
-    "max": 28,
+    "max": 22,
     "countOver": 1
   },
   "electron-shared/utils/errorMessages.ts": {
