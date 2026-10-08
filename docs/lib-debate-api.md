@@ -390,7 +390,7 @@ interface GenerateOptions {
 function createCLIAdapter(repoRoot: string, explicitKey?: string): AIAdapter;
 ```
 
-Creates an adapter that resolves models from `ai-models.json` and API keys from environment variables (backend-specific → `AI_API_KEY` fallback).
+Creates an adapter that resolves models from `ai-models.json` and API keys from environment variables (backend-specific; `AI_API_KEY` is a fallback for gemini models only, and a non-gemini backend with only `AI_API_KEY` set is refused with an error naming its own variable).
 
 ---
 
