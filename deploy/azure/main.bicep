@@ -993,7 +993,11 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview'
       ]
       preserveUrlFragmentsForLogins: false
       tokenStore: {
-        enabled: true
+        // No blob storage backing is configured. enabled:true causes Easy Auth to use
+        // in-memory token storage that is lost on replica recycle → HTTP 500 for signed-in
+        // users (prod incident 2026-10-08). Stateless cookie validation requires no backing
+        // store and survives replica recycling.
+        enabled: false
       }
     }
   }
@@ -1062,7 +1066,8 @@ resource authConfigStaging 'Microsoft.App/containerApps/authConfigs@2024-10-02-p
       ]
       preserveUrlFragmentsForLogins: false
       tokenStore: {
-        enabled: true
+        // Same fix as prod: no blob backing, so stateless cookie validation.
+        enabled: false
       }
     }
   }
