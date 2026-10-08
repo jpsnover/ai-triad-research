@@ -97,7 +97,7 @@ Platform-tier users get API keys injected server-side. These keys are resolved t
 1. Environment variables: `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`
 2. Azure Key Vault (when `AZURE_KEYVAULT_URL` is set)
 3. Local key store file
-4. `AI_API_KEY` fallback
+4. `AI_API_KEY` fallback, for gemini models only. Other backends never receive it; a call to one with only `AI_API_KEY` set is refused.
 
 In production, store them as Azure Container App secrets.
 
