@@ -463,6 +463,8 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
       };
 
       if (search) {
+        // generateWithSearch returns { text, searchQueries?, citations? } — no servedModel.
+        // Speaker turns never use search=true; servedModel is not required on this path (t/4125 AC).
         json(res, await generateWithSearch(prompt, effectiveModel, explicitKey, { isFree, backend, requestModel, t0 }));
       } else {
         const result = await generateWithPaidFallback(prompt, usageOverrides, explicitKey, {
@@ -479,7 +481,7 @@ export function registerAiRoutes(r: Router, ctx: ServerCtx): void {
         });
 
         applyTokenBudgetHeaders(res, result, limitKey, tier);
-        json(res, { text: result.text, tokenUsage: result.tokenUsage });
+        json(res, { text: result.text, tokenUsage: result.tokenUsage, servedModel: result.servedModel }); // t/4125: forward registry id so the renderer can track failover
       }
     } catch (err) {
       const modelLabel = model ?? 'default';
