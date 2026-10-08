@@ -237,6 +237,20 @@ describe('POST /api/policy-registry/recount (t/4039)', () => {
     expect(writeFileMock).not.toHaveBeenCalled();
   });
 
+  it('returns 500 (fail closed) when a POV file reads successfully but is empty (#3050 guard)', async () => {
+    // SO e/274#2, #7: a fallback that substitutes { nodes: [] } for a failed read must be refused
+    // by the lib's completeness guard, never written as member_count: 0 (the #3048 defect).
+    readFileMock.mockResolvedValue(REGISTRY_RAW);
+    readTaxonomyFileMock.mockImplementation(async (pov: string) =>
+      pov === 'safetyist' ? { nodes: [] } : pov === 'accelerationist' ? ACC_FILE : { nodes: [{ id: 'fixture-filler' }] });
+    writeFileMock.mockResolvedValue(undefined);
+
+    const { status } = await invoke({ body: { ids: ['pol-001', 'pol-002'] } });
+
+    expect(status).toBe(500);
+    expect(writeFileMock).not.toHaveBeenCalled();
+  });
+
   it('returns { status: refused, reason: locked, updated: [] } when lock times out', async () => {
     // Simulate lock always held with a fresh mtime (not stale)
     const eexist = Object.assign(new Error('EEXIST'), { code: 'EEXIST' });

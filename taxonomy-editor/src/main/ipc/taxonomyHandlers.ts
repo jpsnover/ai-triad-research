@@ -66,10 +66,10 @@ import { writeNodeDeleteLogEntry } from '../nodeDeleteLog.js';
 import {
   recountPolicyMembers,
   serializePolicyRegistry,
-  POLICY_POV_FILES,
   type PolicyRegistry,
   type PolicyPovFile,
   type PolicyPovFileData,
+  type PolicyPovFiles,
   type RecountPolicyMembersResult,
 } from '../../../../lib/policy/registryRecount.js';
 
@@ -379,10 +379,14 @@ export function registerTaxonomyHandlers(): void {
           nextSteps: ['Create policy_actions.json before adding policy actions to a node'],
         });
       }
-      const povFiles: Partial<Record<PolicyPovFile, PolicyPovFileData>> = {};
-      for (const pov of POLICY_POV_FILES) {
-        povFiles[pov] = readTaxonomyFile(pov) as PolicyPovFileData;
-      }
+      // All four files, read in order; the PolicyPovFiles type makes a missing key a compile error (t/4034, #3050).
+      const read = (pov: PolicyPovFile): PolicyPovFileData => readTaxonomyFile(pov) as PolicyPovFileData;
+      const povFiles: PolicyPovFiles = {
+        accelerationist: read('accelerationist'),
+        safetyist: read('safetyist'),
+        skeptic: read('skeptic'),
+        situations: read('situations'),
+      };
       const { registry, updated, changed } = recountPolicyMembers(rawRegistry as PolicyRegistry, povFiles, ids);
       if (!changed) {
         return { status: 'unchanged', updated: [] };

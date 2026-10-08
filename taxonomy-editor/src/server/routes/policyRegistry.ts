@@ -19,10 +19,10 @@ import { isAnonymousUser } from '../security/userContext.js';
 import {
   recountPolicyMembers,
   serializePolicyRegistry,
-  POLICY_POV_FILES,
   type PolicyRegistry,
   type PolicyPovFileData,
   type PolicyPovFile,
+  type PolicyPovFiles,
   type RecountPolicyMembersResult,
 } from '../../../../lib/policy/registryRecount.js';
 
@@ -82,12 +82,15 @@ async function acquirePolicyActionsLock(
   }
 }
 
-async function readAllPovFiles(): Promise<Partial<Record<PolicyPovFile, PolicyPovFileData | undefined>>> {
-  const povFiles: Partial<Record<PolicyPovFile, PolicyPovFileData | undefined>> = {};
-  for (const pov of POLICY_POV_FILES) {
-    povFiles[pov] = (await readTaxonomyFile(pov)) as PolicyPovFileData;
-  }
-  return povFiles;
+// All four files, read in order; the PolicyPovFiles type makes a missing key a compile error (t/4034, #3050).
+async function readAllPovFiles(): Promise<PolicyPovFiles> {
+  const read = async (pov: PolicyPovFile): Promise<PolicyPovFileData> => (await readTaxonomyFile(pov)) as PolicyPovFileData;
+  return {
+    accelerationist: await read('accelerationist'),
+    safetyist: await read('safetyist'),
+    skeptic: await read('skeptic'),
+    situations: await read('situations'),
+  };
 }
 
 export function registerPolicyRegistryRoutes(router: Router, ctx: ServerCtx): void {
