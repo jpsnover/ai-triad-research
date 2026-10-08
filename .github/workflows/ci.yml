@@ -502,8 +502,17 @@ jobs:
           $verdict = Get-FlakeRerunVerdict -FailedTests @($failedTests | ForEach-Object { & $asId $_ }) -RerunTests @(if ($null -ne $r2) { $r2.Tests | ForEach-Object { & $asId $_ } })
           if ($verdict.Healed) {
             Write-Host "::warning::test-powershell: all $($failedNames.Count) failing test(s) RE-RAN and PASSED — treated as flake (self-healed): $($failedNames -join '; ')"
+            # t/4085: hand the healed identities to the isolated recording step below via a
+            # plain file -- Get-FlakeRerunVerdict's Healed branch is all-or-nothing (it only
+            # reaches here when EVERY run-1 failed test healed), so $failedTests IS the full
+            # healed set; no partial-heal reconstruction needed.
+            $failedTests | ForEach-Object { [pscustomobject]@{ File = $_.ScriptBlock.File; ExpandedPath = $_.ExpandedPath } } |
+              ConvertTo-Json -AsArray | Out-File -FilePath "$env:RUNNER_TEMP/flake-heals-input.json" -Encoding utf8
             exit 0
           }
+          # Real failure (or NotRerun) path -- nothing healed this shard; record an empty list
+          # so the isolated step below always runs against a well-formed file (never "missing").
+          @() | ConvertTo-Json -AsArray | Out-File -FilePath "$env:RUNNER_TEMP/flake-heals-input.json" -Encoding utf8
           if (@($verdict.NotRerun).Count -gt 0) {
             Write-Host "::error::test-powershell: $(@($verdict.NotRerun).Count) failed test(s) did NOT re-run (not found in the rerun of their own files) — NOT treated as flake (fail safe): $($verdict.NotRerun -join '; ')"
           }
@@ -523,6 +532,47 @@ jobs:
           }
           Format-FlakeVerdictMessage -FailedTest $stillFailedTests | ForEach-Object { Write-Host $_ }
           exit 1
+
+      - name: Record test-powershell self-heals (t/4085, isolated sink)
+        # #2070 sink pattern: this step is ISOLATED from the Pester step's verdict by construction.
+        # if: always() runs it whether the Pester step passed, healed-and-exited-0, or failed;
+        # continue-on-error: true means a bug in the builder, the write, or the upload here can
+        # NEVER retroactively change that step's already-decided outcome. The non-negotiable
+        # (t/4085#1 AC1) is one-directional: this step reads what the Pester step decided, never
+        # the other way around.
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          . ./operations/devops/FlakeVerdict.ps1
+          $inputPath = "$env:RUNNER_TEMP/flake-heals-input.json"
+          # Absent file = a path that never reached the verdict's healed/still-failing branches
+          # (a clean pass, a container/discovery error, a null-result fail-safe) -- all of those
+          # have zero heals to record, same as an explicit empty array. Never an error.
+          $healedRaw = if (Test-Path $inputPath) { @(Get-Content -Raw -LiteralPath $inputPath | ConvertFrom-Json) } else { @() }
+          $healedTest = @($healedRaw | ForEach-Object { [pscustomobject]@{ File = [string]$_.File; ExpandedPath = [string]$_.ExpandedPath } })
+          $records = New-FlakeHealRecord -HealedTest $healedTest -RunId "$env:GITHUB_RUN_ID" -HeadSha "$env:GITHUB_SHA" -Branch "$env:GITHUB_REF_NAME" -Shard "$env:SHARD"
+          $outDir = "$env:RUNNER_TEMP/flake-heals"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          $outFile = "$outDir/flake-heals-shard-$env:SHARD.jsonl"
+          if (@($records).Count -eq 0) {
+            New-Item -ItemType File -Force -Path $outFile | Out-Null
+          } else {
+            $records | ForEach-Object { $_ | ConvertTo-Json -Compress } | Out-File -FilePath $outFile -Encoding utf8
+          }
+          Write-Host "::notice::test-powershell shard $env:SHARD: recorded $(@($records).Count) self-heal(s) (t/4085)"
+
+      - name: Upload test-powershell self-heal records (t/4085)
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: flake-heals-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/flake-heals/flake-heals-shard-${{ matrix.shard }}.jsonl
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Explain a test-powershell mid-run kill
         # t/3665 observability (prevention-per-incident, observability half): a mid-run kill reds

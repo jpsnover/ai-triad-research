@@ -139,3 +139,32 @@ Describe 'Get-FlakeRerunVerdict — t/4080 NotRun must never count as healed' {
         (Get-FlakeRerunVerdict -FailedTests @((F 'S.dup'), (F 'S.dup')) -RerunTests @((T 'S.dup' 'Passed'), (T 'S.dup' 'Passed'))).Healed | Should -BeTrue
     }
 }
+
+Describe 'New-FlakeHealRecord — t/4085 self-heal recording (AC1: pure, no I/O)' {
+    BeforeAll {
+        . (Join-Path $PSScriptRoot '..' 'operations' 'devops' 'FlakeVerdict.ps1')
+        function script:F([string]$p, [string]$file = 'a.Tests.ps1') { [pscustomobject]@{ File = $file; ExpandedPath = $p } }
+    }
+
+    It 'returns one record per healed test, with the full field set' {
+        $r = New-FlakeHealRecord -HealedTest @((F 'S.a'), (F 'S.b' 'b.Tests.ps1')) -RunId '123' -HeadSha 'deadbeef' -Branch 'main' -Shard '2'
+        @($r).Count | Should -Be 2
+        $r[0].TestId | Should -Be 'S.a'
+        $r[0].File | Should -Be 'a.Tests.ps1'
+        $r[0].RunId | Should -Be '123'
+        $r[0].HeadSha | Should -Be 'deadbeef'
+        $r[0].Branch | Should -Be 'main'
+        $r[0].Shard | Should -Be '2'
+        $r[1].TestId | Should -Be 'S.b'
+        $r[1].File | Should -Be 'b.Tests.ps1'
+    }
+    It 'a not-healed (empty) verdict returns an empty array, never null' {
+        $r = New-FlakeHealRecord -HealedTest @() -RunId '1' -HeadSha 'x' -Branch 'main' -Shard '1'
+        ($null -eq $r) | Should -BeFalse -Because 'the array itself must exist (empty), not be $null'
+        @($r).Count | Should -Be 0
+    }
+    It 'stamps every record with a parseable UTC timestamp' {
+        $r = New-FlakeHealRecord -HealedTest @((F 'S.a')) -RunId '1' -HeadSha 'x' -Branch 'main' -Shard '1'
+        { [datetime]::Parse($r[0].TimestampUtc, $null, [System.Globalization.DateTimeStyles]::RoundtripKind) } | Should -Not -Throw
+    }
+}

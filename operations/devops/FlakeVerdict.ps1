@@ -112,3 +112,54 @@ function Get-FlakeRerunVerdict {
         StillFailing = @($stillFailing | Sort-Object)
     }
 }
+
+function New-FlakeHealRecord {
+    <#
+    .SYNOPSIS
+        t/4085: builds one self-heal record per healed test, for an isolated recording
+        step to persist (the #2070 sink pattern) -- this function does no I/O, so a
+        caller can never have its exit code affected by what happens to the records.
+    .DESCRIPTION
+        Get-FlakeRerunVerdict's exit-code branch in ci.yml is all-or-nothing: it only
+        reaches the "::warning:: ... treated as flake (self-healed)" line when EVERY
+        run-1 failed test healed (Healed -eq $true), so at the call site $HealedTest is
+        simply the full failed-test list from that branch -- there is no partial-heal
+        case to reconstruct here. This function stays independent of Get-FlakeRerunVerdict's
+        internals on purpose: it takes the already-healed identities as input rather than
+        recomputing them from FailedTests/RerunTests, so a future change to the verdict's
+        matching logic can't silently change what gets recorded without a caller update.
+
+        IDENTITY mirrors Get-FlakeRerunVerdict's key (File + ExpandedPath, SO e/279#6):
+        each -HealedTest entry must carry File and ExpandedPath.
+    .OUTPUTS
+        One [pscustomobject] per healed test: TestId, File, RunId, HeadSha, Branch, Shard, TimestampUtc.
+        An empty -HealedTest returns an empty array (the "empty list" case in the design,
+        t/4085#1) -- the caller writes that as an empty JSON array / no artifact, never null.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]] $HealedTest,
+        [Parameter(Mandatory)][string] $RunId,
+        [Parameter(Mandatory)][string] $HeadSha,
+        [Parameter(Mandatory)][string] $Branch,
+        [Parameter(Mandatory)][string] $Shard
+    )
+    $nowUtc = (Get-Date).ToUniversalTime().ToString('o')
+    $records = [System.Collections.Generic.List[object]]::new()
+    foreach ($t in @($HealedTest)) {
+        if ($null -eq $t) { continue }
+        $records.Add([pscustomobject]@{
+            TestId       = [string]$t.ExpandedPath
+            File         = [string]$t.File
+            RunId        = $RunId
+            HeadSha      = $HeadSha
+            Branch       = $Branch
+            Shard        = $Shard
+            TimestampUtc = $nowUtc
+        })
+    }
+    # `return $records.ToArray()` on a zero-element array unrolls to $null at the
+    # caller (PowerShell's pipeline-enumeration gotcha) -- -NoEnumerate keeps the
+    # empty array an empty array, per the design's "never null" requirement.
+    Write-Output -NoEnumerate $records.ToArray()
+}
