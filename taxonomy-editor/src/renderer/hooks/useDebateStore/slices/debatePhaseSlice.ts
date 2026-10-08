@@ -88,7 +88,7 @@ import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { classifyAiRetry, parseRetryAfterMs } from '../../../utils/retryClassifier';
 import { cosineSimilarity, scoreNodesLexical } from '../../../utils/taxonomyRelevance';
 import { getConfiguredModel, getSpeakerModel } from '../shared/modelConfig';
-import { generateTextWithProgress, phaseGuardedSet, summarizeTranscriptEntry, makeStageGenerate, routeTurnValidatorHintsIntoSuggestions, getSourceEvidenceIndex, getDocTitles } from '../shared/generation';
+import { generateTextWithProgress, phaseGuardedSet, summarizeTranscriptEntry, makeStageGenerate, servedTurnRecorder, routeTurnValidatorHintsIntoSuggestions, getSourceEvidenceIndex, getDocTitles } from '../shared/generation';
 import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import { pushWarning, recordDiagnostic, recordSignalHistory, getSignalValue, movingAverageSignal, incrementGapInjectionCount, _gapInjectionCount } from '../shared/diagnostics';
 import { runNeutralCheckpoint } from '../shared/neutralCheckpoint';
@@ -1189,7 +1189,7 @@ async function runPostTerminationTurn(activeDebate: DebateSession, aiPovers: _Ai
   const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
   const { pipelineInput, taxonomyBlock, commitBlock } = await buildPostTerminationPipelineInput(activeDebate, responderPover, info, topic, model, currentTranscript, ctx, phase, focusPoint, addressingLabel, get);
 
-  const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
+  const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model), servedTurnRecorder(get, set, responderPover));
   const pipelineResult = await runTurnPipeline(pipelineInput, stageGenerate);
   if (!isStillValid()) { releaseDebateDriver(); set({ debateGenerating: null }); getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'debate_switched' } }); return true; }
 
@@ -1361,7 +1361,7 @@ async function buildTurnPipelineContext(responderPover: _ModResult['responder'],
       lastOpponentStatement,
     };
 
-    const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
+    const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model), servedTurnRecorder(get, set, responderPover));
   return { info, ctx, taxonomyBlock, commitBlock, concessionCandidateIds, pipelineInput, stageGenerate };
 }
 

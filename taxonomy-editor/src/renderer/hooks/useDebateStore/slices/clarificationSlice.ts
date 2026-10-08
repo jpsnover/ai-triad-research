@@ -42,7 +42,7 @@ import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { isLineageDataLoaded } from '../../../data/lineageCategories';
 import { getConfiguredModel, getSpeakerModel, resolveBriefModel } from '../shared/modelConfig';
-import { generateTextWithProgress, summarizeTranscriptEntry, makeStageGenerate } from '../shared/generation';
+import { generateTextWithProgress, summarizeTranscriptEntry, makeStageGenerate, servedTurnRecorder } from '../shared/generation';
 import { createDebateGuard, newAbortController, _abortController, claimDebateDriver, releaseDebateDriver, isDailyLimitError, DAILY_LIMIT_MESSAGE, isCancellationError } from '../shared/guards';
 import type { RunLease } from '../shared/debateRunLease';
 import { isCompressionDue } from '../shared/compressionTrigger';
@@ -1071,7 +1071,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       const slotId = get().upsertTranscriptEntry({ type: 'opening', speaker: poverId, status: 'generating', content: '', taxonomy_refs: [] });
 
       try {
-        const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, poverId, model));
+        const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, poverId, model), servedTurnRecorder(get, set, poverId));
         const recentText = priorStatements.map(ps => ps.statement).join('\n').slice(-500);
         const ctx = await getRelevantTaxonomyContext(info.pov, topic, recentText);
         const speakerClaims = (get().activeDebate?.argument_network?.nodes || []).filter(n => n.speaker === poverId);
