@@ -75,7 +75,7 @@ function Test-AIProviderKeyStatus {
         try { $Key = Resolve-AIApiKey -ExplicitKey '' -Backend $Bk }
         catch {
             $Refused = Get-AIApiKeySource
-            if ($Refused -ne '(refused: $env:AI_API_KEY is gemini-only)') { throw }
+            if (-not (Test-AIApiKeyGeminiOnlyRefusal -ErrorRecord $_)) { throw }
             Write-Warning "Key status: '$Bk' not configured: `$env:AI_API_KEY applies to gemini only."
             $Key = ''
             $KeySrc = $Refused

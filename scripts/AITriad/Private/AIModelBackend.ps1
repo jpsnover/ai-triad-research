@@ -72,7 +72,7 @@ function Get-AIModelKeyStatus {
         try {
             $HasKey = -not [string]::IsNullOrWhiteSpace((Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend))
         } catch {
-            if ((Get-AIApiKeySource) -ne '(refused: $env:AI_API_KEY is gemini-only)') { throw }
+            if (-not (Test-AIApiKeyGeminiOnlyRefusal -ErrorRecord $_)) { throw }
             Write-Warning "No key for the '$Backend' backend: `$env:AI_API_KEY is set but applies to gemini only; set $EnvHint."
             $HasKey = $false
         }

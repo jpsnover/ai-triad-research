@@ -263,6 +263,20 @@ $script:AIApiKeyEnvVarMap = @{
     'deepseek' = @('DEEPSEEK_API_KEY')
 }
 $script:AIApiKeyFallbackWarned = @{}
+# FullyQualifiedErrorId of the gemini-only AI_API_KEY refusal (t/4102). Match it with Test-AIApiKeyGeminiOnlyRefusal.
+$script:GeminiOnlyRefusalErrorId = 'AIApiKeyGeminiOnlyRefused'
+
+function Test-AIApiKeyGeminiOnlyRefusal {
+    <#
+    .SYNOPSIS
+        True when an ErrorRecord is Resolve-AIApiKey's gemini-only AI_API_KEY refusal (t/4102). Classifies by
+        error kind (FullyQualifiedErrorId), so a listing path can soften exactly this refusal and nothing else.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory)][System.Management.Automation.ErrorRecord]$ErrorRecord)
+    return ($ErrorRecord.FullyQualifiedErrorId -like "$script:GeminiOnlyRefusalErrorId*")
+}
 
 # The env var (of a backend OTHER than $Backend) that holds exactly $Key, or '' if none. A key equal to
 # another backend's named variable IS that backend's credential, whatever route it took to get here.
@@ -327,12 +341,18 @@ function Resolve-AIApiKey {
     if ($Backend -ne 'gemini' -and -not [string]::IsNullOrWhiteSpace($Fallback)) {
         $OwnVars = if ($script:AIApiKeyEnvVarMap.ContainsKey($Backend)) { @($script:AIApiKeyEnvVarMap[$Backend]) -join ' or ' } else { "the '$Backend' backend's key variable" }
         $script:LastApiKeySource = '(refused: $env:AI_API_KEY is gemini-only)'
-        throw (@(
+        $Message = @(
             "Goal:     Resolve an API key for the '$Backend' backend"
             "Error:    no key for backend '$Backend': `$env:AI_API_KEY is set, but it is the fallback for the gemini backend only and is never sent to '$Backend' (t/4102)"
             'Location: Resolve-AIApiKey (AIEnrich.psm1)'
             "Resolve:  set $OwnVars, or pass -ApiKey with a key issued for '$Backend'"
-        ) -join [Environment]::NewLine)
+        ) -join [Environment]::NewLine
+        # A typed error kind, so callers classify this refusal by kind, never by message text or check order
+        # (SO e/284#12). Only listing/status paths and SECONDARY cascade links may treat it as "not configured";
+        # a call's primary backend always surfaces it, and it is never a reason to fail over.
+        throw [System.Management.Automation.ErrorRecord]::new(
+            [System.InvalidOperationException]::new($Message), $script:GeminiOnlyRefusalErrorId,
+            [System.Management.Automation.ErrorCategory]::PermissionDenied, $Backend)
     }
     if (-not [string]::IsNullOrWhiteSpace($Fallback)) {
         Assert-AIApiKeyBackend -Key $Fallback -Backend $Backend -Route '$env:AI_API_KEY fallback'
@@ -1175,11 +1195,13 @@ function Invoke-AIApi {
                 $FbInfo = $script:ModelRegistry[$FbModel]
                 if (-not $FbInfo) { continue }
                 if ($StatusCode -in @(401, 403) -and $FbInfo.Backend -eq $Backend) { continue }
-                # A fallback backend whose only key is the gemini-only $env:AI_API_KEY is "not configured"
-                # here, not an error: skip it and say why (t/4102, SO e/284#2 cond. 1). Other refusals propagate.
+                # A SECONDARY link whose only key is the gemini-only $env:AI_API_KEY is "not configured" here,
+                # not an error: skip it and say why (t/4102, SO e/284#2 cond. 1). Other refusals propagate. The
+                # primary backend's refusal never reaches this cascade: it is thrown at key resolution, before
+                # any request, so it can never be served by a link further down the chain (SO e/284#10).
                 try { $FbKey = Resolve-AIApiKey -ExplicitKey '' -Backend $FbInfo.Backend }
                 catch {
-                    if ($script:LastApiKeySource -ne '(refused: $env:AI_API_KEY is gemini-only)') { throw }
+                    if (-not (Test-AIApiKeyGeminiOnlyRefusal -ErrorRecord $_)) { throw }
                     Write-Warning "Cascade: skipping $FbModel ($($FbInfo.Backend)): `$env:AI_API_KEY applies to gemini only and no key for '$($FbInfo.Backend)' is set"
                     continue
                 }
@@ -1847,5 +1869,5 @@ function Repair-TruncatedJson {
 Set-Alias -Name 'Invoke-GeminiApi'   -Value 'Invoke-AIApi'
 Set-Alias -Name 'Get-GeminiMetadata' -Value 'Get-AIMetadata'
 
-Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Get-AIApiKeySource, Repair-TruncatedJson, Measure-PromptTokens, Set-AIApiCorrelationId, Protect-SensitiveText `
+Export-ModuleMember -Function Invoke-AIApi, Get-AIMetadata, Resolve-AIApiKey, Get-AIApiKeySource, Test-AIApiKeyGeminiOnlyRefusal, Repair-TruncatedJson, Measure-PromptTokens, Set-AIApiCorrelationId, Protect-SensitiveText `
                     -Alias    Invoke-GeminiApi, Get-GeminiMetadata

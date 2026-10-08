@@ -256,6 +256,57 @@ Describe 'AI_API_KEY is a fallback for the gemini backend only (t/4102)' -Tag 's
             Should -Throw -ExpectedMessage '*ANTHROPIC_API_KEY*'
     }
 
+    It 'use: a claude PRIMARY with only AI_API_KEY set and gemini in the chain throws; gemini never serves it (SO e/284#10)' {
+        # The cascade softening is for secondary links only. Serving a claude request from gemini would silently
+        # change the provider the user asked for, so the primary refusal must surface before any provider call.
+        $env:AI_API_KEY = 'generic-sentinel'
+        $ClaudeModel = @($script:Models | Where-Object { $_.Backend -eq 'claude' })[0].Id
+        $GeminiModel = @($script:Models | Where-Object { $_.Backend -eq 'gemini' })[0].Id
+        Mock -ModuleName AIEnrich Invoke-RestMethod { throw 'provider mock must not be called' }
+        $Err = $null
+        try {
+            InModuleScope AIEnrich -Parameters @{ M = $ClaudeModel; Fb = $GeminiModel } {
+                param($M, $Fb)
+                Invoke-AIApi -Prompt 'x' -Model $M -FallbackModels @($Fb) -MaxRetries 1 -RetryDelays @(0) -SkipTokenCheck -WarningAction SilentlyContinue
+            }
+        } catch { $Err = "$_" }
+        $Err | Should -Match "no key for backend 'claude'"
+        $Err | Should -Match 'ANTHROPIC_API_KEY'
+        $Err | Should -Not -Match 'generic-sentinel'
+        Should -Invoke -ModuleName AIEnrich Invoke-RestMethod -Times 0 -Exactly -Because 'no provider, gemini included, may be called'
+    }
+
+    It 'control: the same chain still fails over to gemini when the claude primary fails with an ordinary transient error (SO e/284#12)' {
+        # Proves the exclusion above is narrow: failover itself is not switched off.
+        $env:AI_API_KEY = 'generic-sentinel'
+        $env:ANTHROPIC_API_KEY = 'own-claude-sentinel'
+        $ClaudeModel = @($script:Models | Where-Object { $_.Backend -eq 'claude' })[0].Id
+        $GeminiModel = @($script:Models | Where-Object { $_.Backend -eq 'gemini' })[0].Id
+        Mock -ModuleName AIEnrich Invoke-RestMethod {
+            if ($Uri -match 'anthropic') { throw [System.Net.Http.HttpRequestException]::new('simulated transient claude failure') }
+            [pscustomobject]@{ candidates = @([pscustomobject]@{ finishReason = 'STOP'; content = [pscustomobject]@{ parts = @([pscustomobject]@{ text = 'served-by-gemini' }) } }) }
+        }
+        $r = InModuleScope AIEnrich -Parameters @{ M = $ClaudeModel; Fb = $GeminiModel } {
+            param($M, $Fb)
+            Invoke-AIApi -Prompt 'x' -Model $M -FallbackModels @($Fb) -MaxRetries 1 -RetryDelays @(0) -SkipTokenCheck -WarningAction SilentlyContinue
+        }
+        $r.Text | Should -Be 'served-by-gemini'
+        Should -Invoke -ModuleName AIEnrich Invoke-RestMethod -ParameterFilter { $Uri -match 'anthropic' } -Times 1
+        Should -Invoke -ModuleName AIEnrich Invoke-RestMethod -ParameterFilter { $Uri -match 'googleapis' } -Times 1 -Exactly
+    }
+
+    It 'classification is by error kind: only the gemini-only refusal matches, a foreign-credential refusal does not' {
+        $env:AI_API_KEY = 'generic-sentinel'
+        $GeminiOnly = InModuleScope AIEnrich { try { Resolve-AIApiKey -Backend 'claude' } catch { $_ } }
+        $env:AI_API_KEY = $null
+        $env:GEMINI_API_KEY = 'gemini-secret-sentinel'
+        $Foreign = InModuleScope AIEnrich { try { Resolve-AIApiKey -ExplicitKey 'gemini-secret-sentinel' -Backend 'xai' } catch { $_ } }
+        $GeminiOnly | Should -BeOfType [System.Management.Automation.ErrorRecord]
+        $Foreign | Should -BeOfType [System.Management.Automation.ErrorRecord]
+        InModuleScope AIEnrich -Parameters @{ E = $GeminiOnly } { param($E) Test-AIApiKeyGeminiOnlyRefusal -ErrorRecord $E } | Should -BeTrue
+        InModuleScope AIEnrich -Parameters @{ E = $Foreign } { param($E) Test-AIApiKeyGeminiOnlyRefusal -ErrorRecord $E } | Should -BeFalse
+    }
+
     It 'cascade: a non-gemini fallback with only AI_API_KEY set is skipped with a WARN, not thrown' {
         $env:AI_API_KEY = 'generic-sentinel'
         $ClaudeModel = @($script:Models | Where-Object { $_.Backend -eq 'claude' })[0].Id

@@ -109,7 +109,7 @@ function Test-AIApiKey {
             # of aborting the whole sweep (t/4102, SO e/284#2 cond. 1). Other refusals propagate.
             try { $Key = Resolve-AIApiKey -ExplicitKey $ExplicitKey -Backend $B }
             catch {
-                if ((Get-AIApiKeySource) -ne '(refused: $env:AI_API_KEY is gemini-only)') { throw }
+                if (-not (Test-AIApiKeyGeminiOnlyRefusal -ErrorRecord $_)) { throw }
                 $Result['KeySource']    = Get-AIApiKeySource
                 $Result['ErrorMessage'] = "No API key for backend '$B': `$env:AI_API_KEY applies to gemini only."
                 return [PSCustomObject]$Result
