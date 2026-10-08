@@ -4730,16 +4730,18 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Instances:**
 - 2026-10-07 — DebateTool (p/70#55): `gh pr review 3129 --approve` failed with the error above. Resolved by posting a sign-off comment on the PR instead.
 - 2026-10-07 — ServerAPI (p/504#18): Same failure on a separate PR. Same resolution.
+- 2026-10-08 — Quality/Tech Lead (p/447#24, PR #3050): Same failure on a T1 PR requiring a reviewer sign-off. Resolved by posting review as a PR comment.
 
 **Root Cause:** GitHub's approval model requires the approver to be a different account than the PR author. Because the entire fleet operates as one GitHub user, no agent can ever approve any other agent's PR — they are all the same identity to GitHub.
 
 **Prevention:**
-1. **Never use `gh pr review --approve` for agent-to-agent sign-offs.** It will always fail; there is no workaround short of a second GitHub account.
-2. **Use a PR comment for sign-offs.** `gh pr comment <N> --body "Sign-off: ..."` records the review intent and is visible in the PR timeline.
+1. **Never use `gh pr review --approve` for agent-to-agent sign-offs.** It will always fail; there is no workaround short of a second GitHub account. This rule is now in AGENTS.md (§PR-Flow, added PR #3136, 2026-10-08).
+2. **Use a PR comment for sign-offs.** Format: `Approved (<role>): <reason>`. This records the review intent and is visible in the PR timeline.
 3. **The merge gate is required status checks** (`ci-gate`, `CodeQL`, `joint-gv-guard`, `consult-hold-guard`), not reviewer approval. A green PR with a sign-off comment is mergeable.
-4. **If a workflow requires a reviewer count > 0,** escalate to the PI — that is a branch protection change, which is PI-only.
+4. **This rule lapses when the t/4096 Reviewer App switch-over lands** — the PI created the Apps on 2026-10-08, and DevOps is landing the Reviewer switch first.
+5. **If a workflow requires a reviewer count > 0,** escalate to the PI — that is a branch protection change, which is PI-only.
 
-**Status:** Active — 2 instances (p/70#55, p/504#18). Structural limitation; no fix possible without a second GitHub identity.
+**Status:** Active — 3 instances (p/70#55, p/504#18, p/447#24). Systemic fix in AGENTS.md (PR #3136). Structural limitation until t/4096 lands.
 
 **Applies To:** All agents attempting to approve PRs on behalf of another agent.
 
@@ -4785,6 +4787,47 @@ Secondary failure: `git rev-parse --show-toplevel` inside a worktree returns the
 **Status:** Resolved — hold lifted 2026-10-07 (e/246#17). Standing rule: activity_enabled OFF. Root fix pending in Orca (t/3918).
 
 **Applies To:** All agents; especially relevant when considering Orca hook registration or activity logging features.
+
+---
+
+## #228 [Build] `MSYS_NO_PATHCONV=1` Disables Path Conversion for the Whole Command — Only Use It on the `git` Call That Takes the `ref:path` Argument
+
+**Pattern:** An agent prefixes a non-`git` command (e.g. `python script.py`) with `MSYS_NO_PATHCONV=1` to prevent MSYS from mangling a path inside the script. The prefix disables MSYS path conversion for **all** arguments in that command, including the script path itself. MSYS no longer converts `/c/Users/…` to `C:\Users\…` for the interpreter argument, so Python receives a path like `C:\c\Users\…` (the drive letter doubled) and errors "can't open file."
+
+**Instances:**
+- 2026-10-08 — Shared Lib (p/5#47): `MSYS_NO_PATHCONV=1 python /c/Users/.../script.py` errored with "can't open file `C:\c\Users\...`". Fix: ran Python without the prefix; the script itself sets `MSYS_NO_PATHCONV=1` for its internal `git show` calls.
+
+**Root Cause:** `MSYS_NO_PATHCONV=1` is a process-level environment variable that suppresses all MSYS path-conversion for the duration of the command. When placed before `python`, it prevents conversion of the script path that MSYS normally translates for Windows. The intent was to prevent mangling of a `git ref:path` argument used inside the script — but that argument is only in the script's subprocess, not in the outer `python` invocation.
+
+**Prevention:**
+1. **Use `MSYS_NO_PATHCONV=1` only on the specific `git` command that takes a `ref:path` argument** (e.g. `MSYS_NO_PATHCONV=1 git show origin/main:some/path`). Do not prefix non-`git` commands with it.
+2. **If a script calls `git show <ref>:<path>` internally,** set `MSYS_NO_PATHCONV=1` inside the script at the point of the `git` call, not on the outer `python` invocation.
+3. **A "can't open file" error on a path that looks doubled** (`C:\c\Users\…`) is a diagnostic signal that MSYS path conversion was suppressed for the interpreter argument itself.
+
+**Status:** Active — 1 instance (Shared Lib p/5#47).
+
+**Applies To:** All agents running Python (or other interpreters) from Bash on Windows with MSYS.
+
+---
+
+## #229 [Build] `gh --jq` Uses gojq — No Dotall `s` Flag; Avoid Non-Standard Regex Flags
+
+**Pattern:** A `gh` command using `--jq` with a regex flag beyond the basics (e.g. `test("pattern";"s")` for dotall) errors `unsupported regular expression flag: s`. The `gh` CLI embeds `gojq` (a Go implementation of jq), not the standard C jq binary. gojq supports `i` (case-insensitive), `x` (extended), and `g` (global), but not `s` (dotall / make `.` match newlines) or several other flags standard jq accepts.
+
+**Instances:**
+- 2026-10-08 — Shared Lib (p/5#49): `gh … --jq 'test("…";"s")'` errored "unsupported regular expression flag: s". Fix: replaced with `contains()` checks.
+
+**Root Cause:** `gh` bundles its own jq interpreter (gojq) which does not implement all PCRE/POSIX regex flags. The `s` dotall flag is commonly used to match multiline strings in standard jq but is absent from gojq.
+
+**Prevention:**
+1. **In `gh --jq` expressions, only use regex flags `i`, `x`, and `g`.** Treat `s`, `m`, and other flags as unavailable.
+2. **For multiline or substring matching, prefer `contains()`, `startswith()`, `endswith()`, or `ltrimstr()`/`rtrimstr()`** over regex when the pattern does not require it.
+3. **If a regex is necessary, test it in `gojq` locally** before embedding in a `gh --jq` pipeline: `echo '["test"]' | gojq '.[0] | test("pat")'`.
+4. **If the expression works in `jq` but fails in `gh --jq`, the flag is likely the cause.** gojq and standard jq diverge on advanced regex and a few filter functions.
+
+**Status:** Active — 1 instance (Shared Lib p/5#49).
+
+**Applies To:** All agents constructing `gh` commands with `--jq` filters that include regular expressions.
 
 ---
 
