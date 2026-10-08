@@ -120,6 +120,25 @@ export interface ProviderCallDiagnostics {
   e2eMs?: number;
   /** UTF-8 bytes of the response body read. */
   responseBytes: number;
+
+  // ── Output-budget forensics (t/4118). Claude only today. Forensics only, covered by the exemption
+  //    above: NO consumer branches on these, and the exemption lapses the moment one does. They live
+  //    here, not only on ProviderResult, because `diagnostics` is the field that crosses IPC to the
+  //    desktop bridge's ai.response event (t/3569); usage and rawStopReason do not.
+  /** Provider-native stop reason, mirrored from ProviderResult.rawStopReason so the desktop FR sees it. */
+  rawStopReason?: string;
+  /** The max_tokens actually sent in the request body. */
+  maxTokensSent?: number;
+  /** Provider-reported output tokens. For Claude this INCLUDES thinking tokens. */
+  outputTokens?: number;
+  /** Number of thinking + redacted_thinking content blocks in the response (0 = none). */
+  thinkingBlocks?: number;
+  /** UTF-8 bytes of thinking text (`thinking`) plus redacted payloads (`data`). */
+  thinkingBytes?: number;
+  /** thinkingBytes / (thinkingBytes + text bytes), rounded to 2 places: the share of the output spent thinking. */
+  thinkingByteShare?: number;
+  /** Set only when the response hit max_tokens: one sentence naming the cause, i.e. thinking exhaustion vs a long answer. */
+  truncationCause?: string;
 }
 
 export interface ProviderResult {
