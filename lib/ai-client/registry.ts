@@ -28,8 +28,7 @@ export interface ModelEntry {
   picker?: { label: string; order: number };
   /** True for models that think by default (extended reasoning, t/4117). These produce verbose
    *  structured JSON and require a larger output budget for debate openings.
-   *  NO consumer other than the debate-engine brief budget branches on it.
-   *  THE EXEMPTION LAPSES the moment any other consumer branches on this field. */
+   *  Absent = not a thinking model (registry-authoritative; no substring fallback when present). */
   thinks_by_default?: boolean;
 }
 
