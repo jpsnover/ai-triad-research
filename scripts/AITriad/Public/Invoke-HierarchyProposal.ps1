@@ -65,7 +65,7 @@ function Invoke-HierarchyProposal {
     if (-not $DryRun) {
         $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
         if (-not $KeyStatus.HasKey) {
-            Write-Fail "No API key found for backend '$($KeyStatus.Backend)'. Set $($KeyStatus.EnvHint) or AI_API_KEY, or pass -ApiKey."
+            Write-Fail "No API key found for backend '$($KeyStatus.Backend)'. Set $($KeyStatus.EnvHint), or pass -ApiKey."
             return
         }
     }

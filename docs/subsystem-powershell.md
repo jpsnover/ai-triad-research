@@ -142,7 +142,7 @@ Additional cmdlets cover: graph query and reasoning (`Invoke-GraphQuery`, `Invok
 Multi-backend AI API dispatcher. Provides:
 
 - **`Invoke-AIApi`** — Central dispatcher with automatic backend routing, retry logic (exponential backoff on 429/503/529), JSON mode support, and usage tracking.
-- **`Resolve-AIApiKey`** — Key resolution chain: explicit parameter > backend-specific env var > `$AI_API_KEY` fallback.
+- **`Resolve-AIApiKey`** — Key resolution chain: explicit parameter > backend-specific env var > `$AI_API_KEY` fallback (gemini backend only, t/4102).
 - **`Get-AIMetadata`** — Document metadata enrichment (title, authors, date, POV tags, topic tags).
 
 Backend-specific request formatting is handled internally — callers only specify model ID and the module routes to the correct API endpoint with proper headers and response parsing.

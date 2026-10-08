@@ -24,7 +24,7 @@ function Find-PossibleFallacy {
     .PARAMETER Model
         AI model to use. Defaults to 'gemini-3.5-flash-lite'.
     .PARAMETER ApiKey
-        AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
+        AI API key. If omitted, resolved via the backend-specific env var (AI_API_KEY is a fallback for gemini models only).
     .PARAMETER Temperature
         Sampling temperature (0.0-1.0). Default: 0.2.
     .PARAMETER DryRun
@@ -106,7 +106,7 @@ function Find-PossibleFallacy {
         # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
         $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
         if (-not $KeyStatus.HasKey) {
-            Write-Fail "No API key found for the $($KeyStatus.Backend) backend. Set $($KeyStatus.EnvHint) or AI_API_KEY, or pass -ApiKey."
+            Write-Fail "No API key found for the $($KeyStatus.Backend) backend. Set $($KeyStatus.EnvHint), or pass -ApiKey."
             throw 'No API key configured'
         }
     }

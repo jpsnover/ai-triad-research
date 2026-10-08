@@ -418,9 +418,9 @@ Describe 'Invoke-POVSummary characterization (t/3910)' -Tag 'summary' {
         @{ Name = 'err-snapshot-missing';        Text = 'snapshot.md not found for doc-1' }
         @{ Name = 'err-metadata-missing';        Text = 'metadata.json not found for doc-1' }
         @{ Name = 'skip-already-current';        Text = 'Use -Force to re-process anyway' }
-        @{ Name = 'err-no-key-claude';           Text = 'Set ANTHROPIC_API_KEY or AI_API_KEY' }
-        @{ Name = 'err-no-key-openai';           Text = 'Set OPENAI_API_KEY or AI_API_KEY' }   # registry hint, not the missing-entry fallback (t/4087)
-        @{ Name = 'err-no-key-groq';             Text = 'Set GROQ_API_KEY or AI_API_KEY' }
+        @{ Name = 'err-no-key-claude';           Text = 'Set ANTHROPIC_API_KEY, or pass -ApiKey.' }   # no AI_API_KEY: gemini-only fallback (t/4102)
+        @{ Name = 'err-no-key-openai';           Text = 'Set OPENAI_API_KEY, or pass -ApiKey.' }   # registry hint, not the missing-entry fallback (t/4087)
+        @{ Name = 'err-no-key-groq';             Text = 'Set GROQ_API_KEY, or pass -ApiKey.' }
         @{ Name = 'err-version-missing';         Text = 'TAXONOMY_VERSION not found' }
         @{ Name = 'err-pipeline-failed';         Text = 'Pipeline failed for doc-1: CHESS pre-classification timed out' }
         @{ Name = 'err-summary-write-failed';    Text = 'AI response was valid but could not be saved' }

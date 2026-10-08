@@ -3,7 +3,7 @@
   "host": [
     "[Cyan] \n▶  Validating inputs",
     "[Red]    ✗  No API key found for groq backend.",
-    "[Gray]    →  Set GROQ_API_KEY or AI_API_KEY, or pass -ApiKey."
+    "[Gray]    →  Set GROQ_API_KEY, or pass -ApiKey."
   ],
   "warnings": [],
   "verbose": [],

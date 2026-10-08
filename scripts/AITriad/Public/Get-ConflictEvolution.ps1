@@ -127,7 +127,7 @@ function Get-ConflictEvolution {
         # Backend from ai-models.json, never guessed; only the user's -ApiKey is forwarded (t/4087).
         $KeyStatus = Get-AIModelKeyStatus -Model $Model -ApiKey $ApiKey
         if (-not $KeyStatus.HasKey) {
-            Write-Fail "No API key found for the $($KeyStatus.Backend) backend. Set $($KeyStatus.EnvHint) or AI_API_KEY, or pass -ApiKey."
+            Write-Fail "No API key found for the $($KeyStatus.Backend) backend. Set $($KeyStatus.EnvHint), or pass -ApiKey."
             throw 'No API key configured'
         }
     }

@@ -21,7 +21,7 @@ function Invoke-POVSummary {
         Path to the root of the ai-triad-research repository.
         Defaults to the module-resolved repo root.
     .PARAMETER ApiKey
-        AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
+        AI API key. If omitted, resolved via the backend-specific env var (AI_API_KEY is a fallback for gemini models only).
     .PARAMETER Model
         AI model to use. Defaults to "gemini-3.5-flash-lite".
         Supports Gemini, Claude, and Groq backends.

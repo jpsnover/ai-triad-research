@@ -1,7 +1,7 @@
 {
   "scenario": "err-no-key-unknown-prefix",
   "host": [
-    "[Red]    ✗  No API key found for backend 'xai'. Set XAI_API_KEY or AI_API_KEY, or pass -ApiKey."
+    "[Red]    ✗  No API key found for backend 'xai'. Set XAI_API_KEY, or pass -ApiKey."
   ],
   "warnings": [],
   "verbose": [],

@@ -3,7 +3,7 @@
   "host": [
     "[Cyan] \n▶  Validating inputs",
     "[Red]    ✗  No API key found for claude backend.",
-    "[Gray]    →  Set ANTHROPIC_API_KEY or AI_API_KEY, or pass -ApiKey."
+    "[Gray]    →  Set ANTHROPIC_API_KEY, or pass -ApiKey."
   ],
   "warnings": [],
   "verbose": [],

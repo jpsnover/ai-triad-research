@@ -22,8 +22,9 @@ function Assert-BatchSummaryEnvironment {
     )
 
     if (-not $DryRun -and [string]::IsNullOrWhiteSpace($ApiKey)) {
+        # Names only the backend's own variable: AI_API_KEY is the gemini-only fallback (t/4102).
         $EnvHint = if ($script:AIBackendKeyEnvHint.ContainsKey($Backend)) { $script:AIBackendKeyEnvHint[$Backend] } else { 'AI_API_KEY' }
-        Write-Fail "No API key found. Set $EnvHint or AI_API_KEY."
+        Write-Fail "No API key found. Set $EnvHint."
         throw "No API key found for $Backend backend."
     }
 

@@ -14,7 +14,7 @@ function Invoke-TaxonomyProposal {
     .PARAMETER Model
         AI model to use. Defaults to env default or 'gemini-3.5-flash-lite'.
     .PARAMETER ApiKey
-        AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
+        AI API key. If omitted, resolved via the backend-specific env var (AI_API_KEY is a fallback for gemini models only).
     .PARAMETER Temperature
         Sampling temperature (0.0-1.0). Default: 0.3 (slightly creative).
     .PARAMETER RepoRoot
