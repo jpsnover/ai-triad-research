@@ -28,6 +28,20 @@ const DEFAULT_BRIEF_MAX_RETRIES = 3;
 /** Nominal stage count for the opening pipeline (brief, plan, draft, cite). Repair is conditional and must not extend this. */
 export const OPENING_TOTAL_STAGES = 4;
 
+/** Resolve the max-tokens budget for the brief stage (t/4117).
+ *  Registry-first: if the model is listed, thinks_by_default governs.
+ *  Substring fallback applies only when the model is absent from the registry. */
+export function resolveBriefMaxTokens(
+  model: string,
+  registry?: import('../../ai-client/registry.js').ModelRegistry,
+): number | undefined {
+  const entry = registry?.models.find(m => m.id === model);
+  const thinksDefault = entry
+    ? entry.thinks_by_default === true
+    : (model.includes('opus') || model.includes('fable'));
+  return thinksDefault ? 32_000 : undefined;
+}
+
 function isBriefTimeout(err: unknown): boolean {
   if (err instanceof DOMException && err.name === 'AbortError') return true;
   const msg = err instanceof Error ? err.message : String(err);
@@ -75,8 +89,12 @@ export interface OpeningPipelineInput {
   stageTimeoutMs?: number;
   /** Max brief-stage timeout retries. Default: 3. */
   briefMaxRetries?: number;
-  /** Max output tokens for brief-stage AI call. Default: 16,000 for opus/fable models, undefined (provider default) for others. */
+  /** Max output tokens for brief-stage AI call. Default: 32,000 for models that think by default,
+   *  undefined (provider default) for others. Driven from ModelEntry.thinks_by_default (t/4117). */
   briefMaxTokens?: number;
+  /** Model registry — used to resolve thinks_by_default for the brief budget (t/4117). When absent
+   *  the budget falls back to the old opus/fable substring check (safe for non-registry callers). */
+  registry?: import('../../ai-client/registry.js').ModelRegistry;
   /** Moderator's narrative voicing of each camp (h3), pre-formatted by narrativeVoicingDebaterBlock. */
   narrativeVoicing?: string;
   /** Resolved soul for this speaker (t/3988). When present, overrides POVER_INFO for prompt building. */
@@ -127,10 +145,7 @@ export async function runOpeningPipeline(
   const MAX_OPENING_RETRIES = isOpeningOuterRetry ? 0 : 3;
   const briefTimeoutMs = input.briefTimeoutMs ?? DEFAULT_BRIEF_TIMEOUT_MS;
   const briefMaxRetries = input.briefMaxRetries ?? DEFAULT_BRIEF_MAX_RETRIES;
-  // 32_000 = clampMaxTokens ceiling in aiHandlers.ts; opus/fable produce verbose structured JSON
-  // and consistently hit the old 16_000 cap on 9+ turn debates (t/3543).
-  const briefMaxTokens = input.briefMaxTokens
-    ?? ((oBriefModel.includes('opus') || oBriefModel.includes('fable')) ? 32_000 : undefined);
+  const briefMaxTokens = input.briefMaxTokens ?? resolveBriefMaxTokens(oBriefModel, input.registry);
   let brief: OpeningBriefWorkProduct | undefined;
   let briefJson = '';
   let t0: number = Date.now();

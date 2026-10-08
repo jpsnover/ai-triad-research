@@ -26,6 +26,10 @@ export interface ModelEntry {
   minTimeoutMs?: number;
   /** Present iff the model is user-selectable in the UI picker (t/3555 reachability signal). */
   picker?: { label: string; order: number };
+  /** True for models that think by default (extended reasoning, t/4117). These produce verbose
+   *  structured JSON and require a larger output budget for debate openings.
+   *  Absent = not a thinking model (registry-authoritative; no substring fallback when present). */
+  thinks_by_default?: boolean;
 }
 
 export interface ModelPricing {

@@ -129,6 +129,7 @@ export async function runOpeningStatements(engine: DebateEngineInternals): Promi
       availablePovNodeIds: [...engine.getKnownNodeIds()],
       briefTimeoutMs: engine.config.briefTimeoutMs,
       briefMaxRetries: engine.config.briefMaxRetries,
+      registry: engine.adapter.registry,
       narrativeVoicing: engine.session.narrative_voicing
         ? narrativeBlockForDebater(engine.session.narrative_voicing.narratives, poverId)
         : undefined,
