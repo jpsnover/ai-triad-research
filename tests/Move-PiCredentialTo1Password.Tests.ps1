@@ -40,9 +40,14 @@ BeforeAll {
     function global:Get-Secret { param($Vault, $Name, [switch] $AsPlainText, $ErrorAction) $global:FakeOp.Store[$Name] }
     function global:Remove-Secret { param($Vault, $Name, $ErrorAction) $global:FakeOp.Removed.Add($Name) }
 
-    function Invoke-Migration([switch] $Apply) {
+    $script:ProfileWithRef = "`$env:OTHER = 'x'`n`$env:GITHUB_OAUTH = Get-Secret -Name GITHUB_OAUTH -AsPlainText"
+    $script:ProfileClean = "`$env:OTHER = 'x'"
+
+    # Apply runs default to a profile with the reference already removed: that is the order C1 enforces.
+    function Invoke-Migration([switch] $Apply, [string] $ProfileText) {
+        if (-not $PSBoundParameters.ContainsKey('ProfileText')) { $ProfileText = if ($Apply) { $script:ProfileClean } else { $script:ProfileWithRef } }
         $prof = Join-Path ([IO.Path]::GetTempPath()) "fake-profile-$([guid]::NewGuid().ToString('N')).ps1"
-        Set-Content -LiteralPath $prof -Value "`$env:OTHER = 'x'`n`$env:GITHUB_OAUTH = Get-Secret -Name GITHUB_OAUTH -AsPlainText"
+        Set-Content -LiteralPath $prof -Value $ProfileText
         try {
             & $script:Script -SecretStoreName GITHUB_OAUTH -ProfilePath $prof -Apply:$Apply 6>&1 | Out-String
         } finally { Remove-Item -LiteralPath $prof -ErrorAction SilentlyContinue }
@@ -112,10 +117,22 @@ Describe 'Move-PiCredentialTo1Password (t/4096#19)' {
         (Invoke-Migration -Apply) | Should -Not -BeLike "*$($script:Value)*"
     }
 
-    It 'reports profile line numbers, not profile text' {
+    It 'dry run reports profile line numbers, not profile text' {
         $out = Invoke-Migration
-        $out | Should -Match 'remove them by hand\): 2 in '
+        $out | Should -Match 'remove them BEFORE -Apply\): 2 in '
         $out | Should -Not -Match 'Get-Secret -Name GITHUB_OAUTH'
+    }
+
+    It 'C1: -Apply is refused while the profile still loads a planned SecretStore name, and touches nothing' {
+        { Invoke-Migration -Apply -ProfileText $script:ProfileWithRef } | Should -Throw '*Refusing -Apply*line(s) 2*'
+        $global:FakeOp.Calls.Count | Should -Be 0
+        $global:FakeOp.Removed.Count | Should -Be 0
+    }
+
+    It 'C1: -Apply proceeds once the referencing line is gone' {
+        $out = Invoke-Migration -Apply -ProfileText $script:ProfileClean
+        $out | Should -Match 'match; source removed'
+        $global:FakeOp.Removed | Should -Contain 'GITHUB_OAUTH'
     }
 
     It 'refuses to run under a 1Password service account token' {

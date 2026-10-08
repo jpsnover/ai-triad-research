@@ -27,11 +27,31 @@ For each name, in order:
 
 Without -Apply this is a dry run that reports the plan and touches nothing.
 
-AFTER -Apply, the PI must still:
-  - remove the moved names from the PowerShell profile (this script lists the lines);
-  - restart Orca and every agent session, because running processes keep the old
-    User-scope values until they restart (SO e/285#17);
-  - decide rotation per credential (rotate, or record the waiver on t/4096).
+ORDER (SO e/287#2, C1). The profile runs Get-Secret at every shell start, so removing a
+SecretStore entry while the profile still loads it breaks every agent shell. The sequence is:
+  1. Dry run. It lists the profile line numbers that reference the planned names.
+  2. The PI removes those lines from the profile.
+  3. -Apply. It REFUSES to run while the profile still references any SecretStore name in
+     the plan.
+  4. Restart Orca and every agent session; running processes keep the old User-scope values
+     until they restart (SO e/285#17).
+  5. Decide rotation per credential (rotate, or record the waiver on t/4096), GITHUB-PAT
+     first. This script removes credentials from where agents can read them; it does not
+     invalidate copies already taken. Rotation is what closes the exposure.
+
+CANARY FIRST (SO e/287#2, C2). Before any real credential, run -Apply once on a throwaway
+SecretStore secret and a throwaway User-scope variable (e.g. AITRIAD_CANARY_SS and
+AITRIAD_CANARY_ENV with dummy values). Both must report "match; source removed", the items
+must exist in 1Password and the variable must be gone from HKCU. Post the result line on
+t/4096 (names and status only), then delete the canary items. The offline tests stub op, so
+the canary is the first proof that the real CLI accepts this template and read-back path.
+
+RESIDUAL (SO e/287#2, C3; accepted). The template file holds the value in plaintext for about
+the length of one `op item create` call. Its folder is user-only, and Remove-Item is not a
+secure delete, so the bytes may survive in freed disk blocks. Accepted because every value
+moved here is already in every agent process's environment today, so a seconds-long file adds
+close to no exposure. If the PI's op version accepts the template on stdin, prefer that and
+drop the file.
 
 No 1Password service account and no OP_SERVICE_ACCOUNT_TOKEN may be used for these items
 (t/4096#19): a service account reads unattended, which defeats the point. The script
@@ -122,6 +142,26 @@ if (@($plan).Count -eq 0) { throw 'Name at least one credential with -SecretStor
 
 Write-Host "Mode: $(if ($Apply) { 'APPLY' } else { 'DRY RUN (no changes)' }). Target vault: $OpVault"
 
+# Profile lines that still reference a planned name. Line numbers only: a profile line could
+# hold a literal value, so its text is never echoed.
+function Get-ProfileReferenceLine {
+    param([string[]] $Names)
+    if (@($Names).Count -eq 0 -or -not (Test-Path -LiteralPath $ProfilePath)) { return @() }
+    @(Select-String -LiteralPath $ProfilePath -Pattern ($Names | ForEach-Object { [regex]::Escape($_) }) |
+        ForEach-Object LineNumber | Sort-Object -Unique)
+}
+
+$allRefs = @(Get-ProfileReferenceLine -Names @($plan.Name))
+if ($allRefs.Count -gt 0) {
+    Write-Host "Profile lines referencing these names (remove them BEFORE -Apply): $($allRefs -join ', ') in $ProfilePath"
+}
+
+# C1: removing a SecretStore entry the profile still loads breaks every agent shell start.
+$ssRefs = @(Get-ProfileReferenceLine -Names @($plan | Where-Object Kind -eq 'SecretStore' | ForEach-Object Name))
+if ($Apply -and $ssRefs.Count -gt 0) {
+    throw "Refusing -Apply: the profile still loads planned SecretStore names at line(s) $($ssRefs -join ', ') of $ProfilePath. Removing those secrets first would break every agent shell's startup. Remove the lines, then re-run (SO e/287#2, C1)."
+}
+
 # Fails here, before anything moves, if the vault is missing or access isn't approved.
 $null = & op vault get $OpVault --format json
 if ($LASTEXITCODE -ne 0) { throw "op could not open vault '$OpVault'. Create it in 1Password and approve CLI access, then re-run." }
@@ -164,18 +204,10 @@ $results = foreach ($p in $plan) {
 
 $results | Format-Table -AutoSize | Out-String | Write-Host
 
-# Profile lines that still reference a moved name: the PI removes these by hand.
-if (Test-Path -LiteralPath $ProfilePath) {
-    $names = @($plan.Name)
-    $lines = @(Select-String -LiteralPath $ProfilePath -Pattern ($names | ForEach-Object { [regex]::Escape($_) }))
-    if ($lines.Count -gt 0) {
-        # Line numbers only: a profile line could hold a literal value, so its text is never echoed.
-        Write-Host "Profile lines still referencing these names (remove them by hand): $(($lines.LineNumber | Sort-Object -Unique) -join ', ') in $ProfilePath"
-    }
-}
-
+Write-Host ''
 if ($Apply) {
-    Write-Host ''
     Write-Host 'NEXT (required): restart Orca and every agent session so running processes drop the old User-scope values (SO e/285#17).'
-    Write-Host 'THEN: decide rotation per credential on t/4096 (GITHUB-PAT first).'
+    Write-Host 'THEN: decide rotation per credential on t/4096 (GITHUB-PAT first). Moving a credential does not invalidate copies already taken.'
+} else {
+    Write-Host 'NEXT: remove any profile lines listed above, then re-run with -Apply. Run the canary first if you have not (see the script header).'
 }
