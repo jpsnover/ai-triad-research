@@ -107,7 +107,7 @@ export async function generateViaClaude(
         nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
       });
     }
-    return parseClaudeResponse(retryBodyText, retryDiagnostics);
+    return parseClaudeResponse(retryBodyText, retryDiagnostics, reqBody.max_tokens as number);
   }
   // t/3020: Claude returns HTTP 400 `invalid_request_error` for MONTHLY QUOTA EXHAUSTION (not an
   // auth/model problem) — e.g. "You have reached your specified API usage limits. You will regain
@@ -137,12 +137,12 @@ export async function generateViaClaude(
     });
   }
 
-  return parseClaudeResponse(bodyText, diagnostics);
+  return parseClaudeResponse(bodyText, diagnostics, reqBody.max_tokens as number);
 }
 
-function parseClaudeResponse(bodyText: string, diagnostics: ProviderCallDiagnostics): ProviderResult {
+function parseClaudeResponse(bodyText: string, diagnostics: ProviderCallDiagnostics, maxTokensSent: number): ProviderResult {
   let json: {
-    content?: { type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }[];
+    content?: { type: string; text?: string; thinking?: string; data?: string; id?: string; name?: string; input?: Record<string, unknown> }[];
     stop_reason?: string;
     model?: string; // provider-reported served identity (t/3677)
     usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
@@ -185,5 +185,44 @@ function parseClaudeResponse(bodyText: string, diagnostics: ProviderCallDiagnost
     totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0) || undefined,
   } : undefined;
   const rawStopReason = json.stop_reason ?? undefined;
-  return { text, usage, toolCalls, stopReason: normalizeStopReason(rawStopReason), rawStopReason, diagnostics, providerReportedModel: json.model };
+  const outputDiagnostics = claudeOutputDiagnostics(blocks, text, u?.output_tokens, rawStopReason, maxTokensSent);
+  return {
+    text, usage, toolCalls, stopReason: normalizeStopReason(rawStopReason), rawStopReason,
+    diagnostics: { ...diagnostics, ...outputDiagnostics }, providerReportedModel: json.model,
+  };
+}
+
+const utf8Bytes = (s: string): number => new TextEncoder().encode(s).length;
+
+/**
+ * Output-budget forensics for a Claude response (t/4118): enough for a flight-recorder reader to tell
+ * thinking exhaustion apart from a long answer without byte arithmetic. Recorded only; nothing branches
+ * on it (see ProviderCallDiagnostics). It is NOT thrown as an error here, unlike moonshot.ts: both
+ * runtimes attach `diagnostics` to the FR only on a successful call, so a throw would drop these exact
+ * fields in the case they exist for. Callers still raise their own truncation error on stopReason.
+ */
+export function claudeOutputDiagnostics(
+  blocks: { type: string; thinking?: string; data?: string }[],
+  text: string,
+  outputTokens: number | undefined,
+  rawStopReason: string | undefined,
+  maxTokensSent: number,
+): Partial<ProviderCallDiagnostics> {
+  const thinking = blocks.filter((c) => c.type === 'thinking' || c.type === 'redacted_thinking');
+  const thinkingBytes = thinking.reduce((n, c) => n + utf8Bytes(c.thinking ?? c.data ?? ''), 0);
+  const textBytes = utf8Bytes(text);
+  const total = thinkingBytes + textBytes;
+  const thinkingByteShare = total > 0 ? Math.round((thinkingBytes / total) * 100) / 100 : undefined;
+  const out: Partial<ProviderCallDiagnostics> = {
+    rawStopReason, maxTokensSent, outputTokens, thinkingBlocks: thinking.length, thinkingBytes, thinkingByteShare,
+  };
+  if (rawStopReason === 'max_tokens') {
+    const used = `${outputTokens ?? 'unknown'} of max_tokens ${maxTokensSent} output tokens used`;
+    const pct = Math.round((thinkingByteShare ?? 0) * 100);
+    const split = `thinking ${thinkingBytes} bytes in ${thinking.length} block(s) vs ${textBytes} bytes of text`;
+    out.truncationCause = thinking.length > 0 && (thinkingByteShare ?? 0) >= 0.5
+      ? `Thinking exhausted the output budget: ${used}; thinking was ${pct}% of the output (${split}). Raise maxTokens for thinking models (t/4117) or use a non-thinking model.`
+      : `A long answer exhausted the output budget: ${used}; thinking was ${pct}% of the output (${split}). Raise maxTokens or ask for a shorter answer.`;
+  }
+  return out;
 }
