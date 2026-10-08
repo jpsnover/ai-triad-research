@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+// Isolated runtime is 2.7–3.1s; raise timeout so parallel-load runs don't hit the 5s default (t/4112).
+vi.setConfig({ testTimeout: 15_000 });
 import { DebateEngine, modelTierRank } from './debateEngine.js';
 import type { ExtendedAIAdapter } from './aiAdapter.js';
 import { createMockAdapter, createMinimalTaxonomy, createDefaultConfig } from './debateEngine.testHelpers.js';

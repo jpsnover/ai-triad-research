@@ -1189,6 +1189,9 @@ describe('aiAdapter', () => {
   // enabling the Phase-3 divergence classifier (t/3731) on the CLI path.
 
   describe('served-identity classifier integration (t/4017)', () => {
+    // Identity tracker lives in module scope; ensure a fresh import for each test
+    // independent of outer afterEach timing (t/4112).
+    beforeEach(() => { vi.resetModules(); });
     it('warns on divergent served identity and reports registryPresent on firstSeen', async () => {
       // Registry with two distinct Gemini entries so the classifier can detect divergence.
       const divergentRegistry = makeRegistry({
