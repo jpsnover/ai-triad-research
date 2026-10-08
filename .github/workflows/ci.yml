@@ -506,13 +506,29 @@ jobs:
             # plain file -- Get-FlakeRerunVerdict's Healed branch is all-or-nothing (it only
             # reaches here when EVERY run-1 failed test healed), so $failedTests IS the full
             # healed set; no partial-heal reconstruction needed.
-            $failedTests | ForEach-Object { [pscustomobject]@{ File = $_.ScriptBlock.File; ExpandedPath = $_.ExpandedPath } } |
-              ConvertTo-Json -AsArray | Out-File -FilePath "$env:RUNNER_TEMP/flake-heals-input.json" -Encoding utf8
+            # MUST-fix (Lead review, t/4085 PR #3134): this write sits INSIDE the verdict step,
+            # which runs under pwsh's default $ErrorActionPreference='Stop' -- an unhandled
+            # ConvertTo-Json/Out-File failure here would throw and turn a HEALED, green shard
+            # red. The recording step is supposed to be the only thing that can fail on this
+            # path; this try/catch keeps that true by construction, not by hoping the write
+            # never fails. The verdict's own exit code is unconditional either way.
+            try {
+              $failedTests | ForEach-Object { [pscustomobject]@{ File = $_.ScriptBlock.File; ExpandedPath = $_.ExpandedPath } } |
+                ConvertTo-Json -AsArray | Out-File -FilePath "$env:RUNNER_TEMP/flake-heals-input.json" -Encoding utf8
+            } catch {
+              Write-Host "::warning::test-powershell: t/4085 hand-off write failed ($($_.Exception.Message)) -- the self-heal record for this shard will be lost, but the verdict (healed) is unaffected."
+            }
             exit 0
           }
           # Real failure (or NotRerun) path -- nothing healed this shard; record an empty list
           # so the isolated step below always runs against a well-formed file (never "missing").
-          @() | ConvertTo-Json -AsArray | Out-File -FilePath "$env:RUNNER_TEMP/flake-heals-input.json" -Encoding utf8
+          # Same MUST-fix as above: a write failure here must not turn an otherwise-correct
+          # "real failure" verdict into something else, nor abort before the exit 1 below.
+          try {
+            @() | ConvertTo-Json -AsArray | Out-File -FilePath "$env:RUNNER_TEMP/flake-heals-input.json" -Encoding utf8
+          } catch {
+            Write-Host "::warning::test-powershell: t/4085 hand-off write failed ($($_.Exception.Message)) -- the self-heal record for this shard will be lost, but the verdict (not healed) is unaffected."
+          }
           if (@($verdict.NotRerun).Count -gt 0) {
             Write-Host "::error::test-powershell: $(@($verdict.NotRerun).Count) failed test(s) did NOT re-run (not found in the rerun of their own files) — NOT treated as flake (fail safe): $($verdict.NotRerun -join '; ')"
           }
