@@ -17,6 +17,7 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../search/tavily.js';
 import { ActionableError } from './errors.js';
+import { resolveGenericFallbackKey, keyHint, isKeyRoutingRefusal, assertKeyForBackend, LISTING_WARN } from '../ai-client/apiKeyFallback.js';
 import type { GenerateRequest, GenerateResponse } from './cacheTypes.js';
 import { buildCacheUsage, emptyCacheUsage, flattenEnvelope } from './cacheTypes.js';
 
@@ -137,13 +138,14 @@ function resolveApiKey(backend: string, explicitKey?: string): string {
   if (explicitKey) return explicitKey;
   const backendKey = process.env[BACKEND_ENV_KEYS[backend] ?? ''];
   if (backendKey) return backendKey;
-  const fallback = process.env.AI_API_KEY;
+  // AI_API_KEY is a fallback for gemini ONLY (t/4105); for any other backend a set AI_API_KEY throws, naming its own variable.
+  const fallback = resolveGenericFallbackKey(backend);
   if (fallback) return fallback;
   throw new ActionableError({
     goal: `Resolve API key for ${backend} backend`,
     problem: `No API key for ${backend}`,
     location: 'aiAdapter.resolveApiKey',
-    nextSteps: [`Set the ${BACKEND_ENV_KEYS[backend] ?? 'AI_API_KEY'} environment variable or Register-AIBackend`],
+    nextSteps: [`Set ${keyHint(backend)}, or Register-AIBackend`], // PowerShell's hint: gemini alone offers AI_API_KEY
   });
 }
 
@@ -199,6 +201,7 @@ export async function countTokens(
 ): Promise<{ tokenCount: number; accurate: boolean }> {
   const key = apiKey ?? process.env.GEMINI_API_KEY ?? process.env.AI_API_KEY;
   if (key) {
+    assertKeyForBackend(key, 'gemini', 'countTokens'); // t/4105 C5: a direct send that bypasses callProvider, so the foreign-key guard runs here
     try {
       const url = `${GEMINI_BASE}/gemini-2.5-flash:countTokens?key=${key}`;
       const resp = await fetch(url, {
@@ -376,6 +379,10 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
       }
     }
 
+    // SO e/284#12 cond 6: a refused primary key throws to the caller. It is never a reason to fail over,
+    // or another provider would silently serve a request meant for this one.
+    if (isKeyRoutingRefusal(lastErr)) throw lastErr;
+
     const errMsg = lastErr instanceof Error ? lastErr.message : String(lastErr);
     const isAuthError = errMsg.includes('401') || errMsg.includes('403');
     getGlobalRecorder()?.record({
@@ -393,6 +400,13 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
       if (isAuthError && fb.backend === backend) continue;
       let fbKey: string;
       try { fbKey = resolveApiKey(fb.backend, explicitApiKey); } catch (err) {
+        // A SECONDARY link with only AI_API_KEY is skipped (the primary already failed on its own provider);
+        // a foreign-credential refusal is never softened.
+        if (isKeyRoutingRefusal(err, 'AIApiKeyForeignCredentialRefused')) throw err;
+        if (isKeyRoutingRefusal(err, 'AIApiKeyGeminiOnlyRefused')) {
+          process.stderr.write(`[cascade] WARN skipping ${fb.backend}/${fb.apiModelId}: ${LISTING_WARN}
+`);
+        }
         getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'ai-adapter', level: 'warn', message: `Fallback key resolution failed for ${fb.backend}/${fb.apiModelId}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         continue;
       }
@@ -411,6 +425,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         emitUsageTelemetry(fb.backend, fb.apiModelId, performance.now() - t0, fbResult.usage, fbModel);
         return fbResult.text;
       } catch (err) {
+        if (isKeyRoutingRefusal(err)) throw err; // cond 6: a refusal is never absorbed by the cascade
         getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'ai-adapter', level: 'warn', message: `Fallback provider ${fb.backend}/${fb.apiModelId} failed`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         continue;
       }

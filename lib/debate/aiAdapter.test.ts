@@ -564,6 +564,16 @@ describe('aiAdapter', () => {
       expect((fetchOpts.headers as Record<string, string>)['x-goog-api-key']).toBe('universal-key');
     });
 
+    it('REFUSES AI_API_KEY for a non-gemini backend: names ZAI_API_KEY, and nothing is sent (t/4105)', async () => {
+      process.env.AI_API_KEY = 'universal-key'; // no ZAI_API_KEY
+      const mod = await getModule();
+      const adapter = mod.createCLIAdapter('/fake/root');
+      await expect(runWithTimers(adapter.generateText('test', 'zai-glm-5-2')))
+        .rejects.toThrow(/fallback for the gemini backend only/);
+      const sentKey = mockFetch.mock.calls.some(([, opts]) => JSON.stringify((opts as RequestInit | undefined)?.headers ?? {}).includes('universal-key'));
+      expect(sentKey).toBe(false);
+    });
+
     it('throws ActionableError when no API key is available', async () => {
       const mod = await getModule();
       const adapter = mod.createCLIAdapter('/fake/root');
@@ -685,16 +695,14 @@ describe('aiAdapter', () => {
       expect(fetchUrl).toContain('api.anthropic.com');
     });
 
-    it('defaults unknown model IDs (no known prefix) to gemini backend', async () => {
+    it('REFUSES an unknown model id (no known prefix) instead of defaulting to gemini (t/4101)', async () => {
       process.env.GEMINI_API_KEY = 'test-key';
       mockFetch.mockImplementation(async () => freshResponse(geminiOkBody(), 200));
 
       const mod = await getModule();
       const adapter = mod.createCLIAdapter('/fake/root');
-      await adapter.generateText('test', 'totally-unknown-model');
-
-      const fetchUrl = mockFetch.mock.calls[0][0] as string;
-      expect(fetchUrl).toContain('generativelanguage.googleapis.com');
+      await expect(runWithTimers(adapter.generateText('test', 'totally-unknown-model'))).rejects.toThrow(/refusing to guess/);
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('maps registered model ID to correct apiModelId', async () => {

@@ -50,6 +50,7 @@ import {
 } from '../../../lib/ai-client/index.js';
 import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn, UrlContextMetadata, GeminiContent, StopReason, ProviderCallDiagnostics } from '../../../lib/ai-client/index.js';
 import type { ModelEntry, ModelRegistry } from '../../../lib/ai-client/index.js';
+import { assertKeyForBackend } from '../../../lib/ai-client/apiKeyFallback.js';
 import { resolveModelEntry as resolveModelEntryFromCache, getMainRegistry } from './modelConfigCache.js';
 
 // ── Electron net.fetch wrapper ──
@@ -531,6 +532,7 @@ async function callGeminiBatchApi(
   taskType: 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY',
   apiKey: string,
 ): Promise<number[][]> {
+  assertKeyForBackend(apiKey, 'gemini', 'embedding'); // t/4105 C5: a direct send that bypasses callProvider, so the foreign-key guard runs here
   const url = `${GEMINI_BASE}/${GEMINI_MODEL}:batchEmbedContents?key=${apiKey}`;
 
   const requests = texts.map(text => ({
@@ -1017,6 +1019,7 @@ export async function generateTextWithSearch(
     ],
   });
 
+  assertKeyForBackend(apiKey, 'gemini', 'search-grounding'); // t/4105 C5: a direct send that bypasses callProvider, so the foreign-key guard runs here
   const apiModel = resolveModelEntry(resolvedModel)?.apiModelId ?? resolvedModel;
   const url = `${GEMINI_BASE}/${apiModel}:generateContent?key=${apiKey}`;
 

@@ -4,7 +4,7 @@
 import { useDebateStore } from '../store';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
-import { resolveBackend } from '@lib/ai-client/registry';
+import { resolveBackend, inferBackend } from '@lib/ai-client/registry';
 import type { ModelRegistry } from '@lib/ai-client/registry';
 import aiModelsRegistry from '../../../../../../ai-models.json';
 
@@ -41,7 +41,17 @@ export function resolveBriefModel(
  *  of this call path before this function ever runs — this doesn't add a new one. Final
  *  fallback is the configured model itself, so this can never fail open to nothing. */
 export function getCritiqueModel(configuredModel: string): string {
-  const backend = resolveBackend(configuredModel);
+  // t/4105 SO cond 2: a saved session or setting can name an id that is neither registered nor prefixed. That
+  // must not throw synchronously here (the caller has already set its loading flag) and must NOT be re-routed to
+  // gemini, since that silently swaps the provider. Return the configured model itself: the real call then
+  // refuses it with the actionable "not in ai-models.json; choose another" error, surfaced like any AI failure.
+  const backend = registry.models.some((m) => m.id === configuredModel)
+    ? resolveBackend(configuredModel, registry)
+    : inferBackend(configuredModel);
+  if (!backend) {
+    console.warn(`[model] '${configuredModel}' is not in ai-models.json and its prefix names no backend; topic critique keeps it unchanged (t/4105)`);
+    return configuredModel;
+  }
   return registry.debateTiers?.basic?.[backend] || registry.debateTiers?.basic?.gemini || configuredModel;
 }
 

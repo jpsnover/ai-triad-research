@@ -16,7 +16,9 @@ import { createRequire } from 'module';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
-import { getApiKey, getApiKeys, getProjectRoot, EMBED_SCRIPT, resolveDataPath, isEmbeddingWorkerOffloadEnabled, type AIBackend } from '../config.js';
+import { getApiKey, getApiKeyForListing, getProjectRoot, EMBED_SCRIPT, resolveDataPath, isEmbeddingWorkerOffloadEnabled, type AIBackend } from '../config.js';
+import { listingNotConfiguredHint, assertKeyForBackend, isKeyRoutingRefusal } from '../../../../lib/ai-client/apiKeyFallback.js';
+import { chainLinkKeys, throwNoApiKeyError } from './chainLinkKeys.js';
 import { writeAICallLogEntry, isAICallLogEnabled } from './aiCallLog.js';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { parseJsonRobust } from '../../../../lib/debate/helpers.js';
@@ -355,18 +357,6 @@ function buildGenerateOptions(
   };
 }
 
-// No key for any model in the chain — throw a backend-named ActionableError.
-function throwNoApiKeyError(backend: string, modelsToTry: string[]): never {
-  const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek', moonshot: 'Moonshot (Kimi)', xai: 'xAI (Grok)' };
-  const backendName = names[backend] ?? backend;
-  throw new ActionableError({
-    goal: `Generate text via ${backendName}`,
-    problem: `No API key configured for any model in the fallback chain: ${modelsToTry.join(' → ')}`,
-    location: 'aiBackends.generateText',
-    nextSteps: [`Set your ${backendName} API key in Settings`, 'Or switch to a backend that has a key configured'],
-  });
-}
-
 export async function generateText(
   prompt: string,
   model?: string,
@@ -379,26 +369,14 @@ export async function generateText(
   const explicitKeys = normalizeExplicitKeys(explicitApiKey);
   const modelsToTry = buildModelsToTry(resolved, explicitKeys !== undefined);
   const entryMap = loadModelConfig().entryMap;
+  const registry = getModelRegistry(); // read once per call, not once per chain link (TL e/284#19)
 
   let lastError: unknown;
   for (let mi = 0; mi < modelsToTry.length; mi++) {
     const currentModel = modelsToTry[mi];
-    const backend = resolveBackend(currentModel);
-    const keys = explicitKeys ?? await getApiKeys(backend);
-    if (keys.length === 0) {
-      if (mi < modelsToTry.length - 1) {
-        getGlobalRecorder()?.record({
-          type: 'ai.fallback', component: 'ai-adapter', level: 'info',
-          message: `Skipping ${currentModel}: no ${backend} API key — trying next fallback`,
-          data: { model: currentModel, backend, fallbackIndex: mi, chain: modelsToTry },
-        });
-        // t/3176 (Fallback-Path Logging): the FR record above is info-only → invisible in prod log
-        // dashboards. WARN so a silent key-gap that degrades the model chain is greppable.
-        log.api.warn({ model: currentModel, backend, fallbackIndex: mi }, 'generateText: no API key for backend — skipping to next fallback chain entry');
-        continue;
-      }
-      throwNoApiKeyError(backend, modelsToTry);
-    }
+    const backend = resolveBackend(currentModel, registry); // registry first (t/4105 cond 3)
+    const keys = await chainLinkKeys(modelsToTry, mi, backend, explicitKeys);
+    if (!keys) continue;
 
     const apiModel = getApiModelId(currentModel);
     const opts = buildGenerateOptions(options, timeoutMs, currentModel, entryMap);
@@ -434,6 +412,7 @@ export async function generateText(
       // warn-level ai.fallback on user cancel. Rethrow AbortError immediately (same
       // name-check as t/2507; DOMException-compatible).
       if ((err as { name?: unknown } | null)?.name === 'AbortError') throw err;
+      if (isKeyRoutingRefusal(err)) throw err; // cond 6: a refused key is never a reason to fail over
       lastError = err;
       if (mi < modelsToTry.length - 1) {
         const nextModel = modelsToTry[mi + 1];
@@ -446,6 +425,7 @@ export async function generateText(
     }
   }
 
+  if (lastError === undefined) throwNoApiKeyError(resolveBackend(resolved), modelsToTry); // every link was skipped
   throw lastError;
 }
 
@@ -1437,8 +1417,10 @@ export async function classifyNli(
 export async function refreshAIModels(): Promise<unknown> {
   const result: Record<string, { ok: boolean; count: number; error?: string }> = {};
   for (const backend of ['gemini', 'claude', 'groq'] as AIBackend[]) {
-    const key = await getApiKey(backend);
-    if (!key) { result[backend] = { ok: false, count: 0, error: 'No API key' }; continue; }
+    // A listing loop (SO e/284#2 cond 1): a backend with only AI_API_KEY reads 'not configured', never throws.
+    const key = await getApiKeyForListing(backend);
+    if (!key) { result[backend] = { ok: false, count: 0, error: listingNotConfiguredHint(backend) ?? 'No API key' }; continue; }
+    assertKeyForBackend(key, backend, 'discovery'); // t/4105 C5: this send bypasses callProvider, so guard it here
     try {
       if (backend === 'gemini') {
         const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);

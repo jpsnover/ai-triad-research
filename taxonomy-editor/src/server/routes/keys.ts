@@ -16,6 +16,7 @@ import type { ServerCtx } from './context.js';
 import { json, error, param, query, getClientIp } from '../httpKit.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { log } from '../logger.js';
+import { assertKeyForBackend } from '../../../../lib/ai-client/apiKeyFallback.js';
 import * as rateLimiter from '../security/rateLimiter.js';
 import { getConfig } from '../runtimeConfig.js';
 import { resolveDebateTierModel, getResolvedApiModelId } from '../ai/aiBackends.js';
@@ -131,6 +132,7 @@ export { extractProviderReason, deriveKeyErrorMessage };
 export async function validateProviderKey(backend: string, key: string): Promise<{ valid: boolean; error?: string }> {
   const probe = KEY_VALIDATION_PROBES[backend];
   if (!probe) return { valid: false, error: `Unsupported backend: ${backend}` };
+  assertKeyForBackend(key, backend, 'probe'); // t/4105 C5: a direct send that bypasses callProvider, so the foreign-key guard runs here (throws; never a silent 'invalid')
   try {
     const resp = await probe(key);
     if (resp.ok) return { valid: true };

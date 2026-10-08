@@ -46,17 +46,44 @@ export interface ModelRegistry {
   pricing?: Record<string, ModelPricing>;
 }
 
-export function resolveBackend(model: string): BackendId {
-  if (model.startsWith('claude')) return 'claude';
-  if (model.startsWith('groq')) return 'groq';
-  if (model.startsWith('openai')) return 'openai';
-  if (model.startsWith('azure')) return 'azure';
-  if (model.startsWith('ollama')) return 'ollama';
-  if (model.startsWith('deepseek')) return 'deepseek';
-  if (model.startsWith('zai')) return 'zai';
-  if (model.startsWith('moonshot')) return 'moonshot';
-  if (model.startsWith('xai')) return 'xai';
-  return 'gemini';
+/** Id prefix -> backend. Every ai-models.json id carries its backend's prefix (checked by registry.test.ts). */
+const PREFIX_BACKENDS: readonly (readonly [string, BackendId])[] = [
+  ['claude', 'claude'], ['groq', 'groq'], ['openai', 'openai'], ['azure', 'azure'], ['ollama', 'ollama'],
+  ['deepseek', 'deepseek'], ['zai', 'zai'], ['moonshot', 'moonshot'], ['xai', 'xai'], ['gemini', 'gemini'],
+];
+
+/**
+ * The backend an id's prefix names, or `undefined` when no prefix matches. NEVER guesses (t/4101): the old
+ * gemini default made any unknown id a gemini call, and that default could flow into key resolution. Use this
+ * for estimates (timeouts, capability defaults) that can degrade to "unknown"; use {@link resolveBackend} where
+ * the backend routes a request or chooses a key.
+ */
+export function inferBackend(model: string): BackendId | undefined {
+  return PREFIX_BACKENDS.find(([prefix]) => model.startsWith(prefix))?.[1];
+}
+
+/**
+ * The backend that serves `model`. REGISTRY FIRST (SO e/284#2 cond 3, matching PowerShell's Get-AIModelBackend):
+ * when `registry` is given and lists `model`, its entry's backend wins. The prefix is used only for ids the
+ * registry doesn't list: the synthesized `*-latest` aliases (buildModelEntryMap) and the vendor-alias passthrough
+ * (t/3675). The prefix table's agreement with every registry entry is pinned by a parity test (registry.test.ts).
+ * FAILS CLOSED (t/4101): an id that is neither registered nor prefixed throws instead of defaulting to gemini, so
+ * an unknown id can't route a request or a key to a provider by accident.
+ */
+export function resolveBackend(model: string, registry?: Pick<ModelRegistry, 'models'>): BackendId {
+  const entry = registry?.models.find((m) => m.id === model);
+  if (entry?.backend) return entry.backend as BackendId;
+  const backend = inferBackend(model);
+  if (backend) return backend;
+  throw new ActionableError({
+    goal: `Choose the AI backend for model '${model}'`,
+    problem: `'${model}' is not in ai-models.json and its prefix names no backend; refusing to guess (t/4101)`,
+    location: 'lib/ai-client/registry.ts resolveBackend',
+    nextSteps: [
+      'Use a model id registered in ai-models.json',
+      `Or prefix the id with its backend (${PREFIX_BACKENDS.map(([p]) => p).join(', ')})`,
+    ],
+  });
 }
 
 export function resolveModel(registry: ModelRegistry, friendlyId: string): { apiModelId: string; backend: string; fixedTemperature?: number } {
@@ -64,15 +91,13 @@ export function resolveModel(registry: ModelRegistry, friendlyId: string): { api
   if (entry) return { apiModelId: entry.apiModelId, backend: entry.backend, fixedTemperature: entry.fixedTemperature };
 
   // Fallback (t/3675): no exact ai-models.json entry. resolveBackend infers the backend from the id
-  // prefix, defaulting to gemini for an unrecognized prefix; the id is then passed to the provider
-  // VERBATIM as the wire model id. So a typo'd, retired, or vendor-alias id (e.g. `gemini-flash-lite-latest`)
-  // silently becomes a real provider call — and the model actually SERVED is not verified here (that is
-  // t/3677's job, at the response boundary; `resolveModel` runs before the call and can't see `modelVersion`).
-  // Surface that a fallback branch was taken and which one, per the Fallback-Path Logging rule (root
-  // AGENTS.md) — mirrors getModelMinTimeout's registry-miss WARN. Behaviour is unchanged: same apiModelId
-  // passthrough and same backend the explicit branches returned (resolveBackend is their exact equivalent).
+  // prefix and THROWS for an unrecognized prefix (t/4101; it used to default to gemini). A prefixed id is
+  // then passed to the provider VERBATIM as the wire model id, so a typo'd, retired, or vendor-alias id
+  // (e.g. `gemini-flash-lite-latest`) becomes a real provider call, and the model actually SERVED is not
+  // verified here (that is t/3677's job, at the response boundary). Surface that the fallback was taken, per
+  // the Fallback-Path Logging rule (root AGENTS.md), mirroring getModelMinTimeout's registry-miss WARN.
   const backend = resolveBackend(friendlyId);
-  const branch = backend !== 'gemini' || friendlyId.startsWith('gemini') ? 'prefix' : 'default';
+  const branch = 'prefix';
   getGlobalRecorder()?.record({
     type: 'system.error',
     component: 'ai-client',
@@ -157,7 +182,8 @@ export function getModelMinTimeout(model: string, registry: ModelRegistry): numb
 }
 
 export function getDefaultTimeout(model: string, registry: ModelRegistry): number {
-  const backend = resolveBackend(model);
+  // An estimate, so an unknown id degrades to the neutral base timeout instead of throwing (t/4101).
+  const backend: string = inferBackend(model) ?? 'unknown';
   const base = baseTimeout(backend);
   // Tiered default: 2× base for the advanced-tier model of its backend (advanced ≠ basic); base
   // otherwise, and base when there is no registry / no debateTiers. Line below always runs (no early
@@ -315,9 +341,11 @@ const SYSTEM_DEFAULTS: ModelCapabilities = {
  */
 export function getModelCapabilities(registry: ModelRegistry, modelId: string): ModelCapabilities {
   const entry = registry.models.find(m => m.id === modelId);
-  const backend = entry?.backend ?? resolveBackend(modelId);
+  // An unknown id gets the plain system defaults, not gemini's (t/4101): claiming vision or a 1M context for a
+  // model we can't identify is the guess this ticket removes.
+  const backend = entry?.backend ?? inferBackend(modelId);
 
-  const backendDefaults = registry.capabilityDefaults?.[backend] ?? {};
+  const backendDefaults = (backend && registry.capabilityDefaults?.[backend]) || {};
   const modelOverrides = registry.modelCapabilities?.[modelId] ?? {};
 
   return { ...SYSTEM_DEFAULTS, ...backendDefaults, ...modelOverrides };

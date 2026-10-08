@@ -224,23 +224,22 @@ const ENV_KEY_NAMES: Record<AIBackend, string> = {
 // Imported after AIBackend is defined (keyStore depends on the type).
 import { getKeyStore, type KeyRotationResult } from './security/keyStore.js';
 import { getCurrentUserId } from './security/userContext.js';
+import { resolveGenericFallbackKey, assertKeyForBackend, isKeyRoutingRefusal, LISTING_WARN } from '../../../lib/ai-client/apiKeyFallback.js';
 
-/**
- * Resolve an API key for the given backend.
- * Priority: backend-specific env var → keyStore (local file or Azure KV) → AI_API_KEY fallback.
- *
- * In Azure (AZURE_KEYVAULT_URL set), keys are partitioned per authenticated
- * user via getCurrentUserId(). Locally, a single shared key is used per backend.
- */
-export async function getApiKey(backend: AIBackend = 'gemini'): Promise<string | null> {
+/** The backend's OWN key: its env var, then the keyStore. Never the AI_API_KEY fallback. */
+async function ownApiKey(backend: AIBackend): Promise<string | null> {
   const envKey = process.env[ENV_KEY_NAMES[backend]];
   if (envKey) return envKey;
 
   try {
     // t/835: stored value may be a JSON array of keys — take the first.
     const stored = await getKeyStore(getStateRoot).getKeys(backend, getCurrentUserId());
-    if (stored.length > 0) return stored[0];
+    if (stored.length > 0) {
+      assertKeyForBackend(stored[0], backend, 'stored'); // t/4105 C5: another backend's credential is refused
+      return stored[0];
+    }
   } catch (err) {
+    if (isKeyRoutingRefusal(err)) throw err; // a refusal is not a key-store failure; never swallow it
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'server-config',
@@ -250,16 +249,42 @@ export async function getApiKey(backend: AIBackend = 'gemini'): Promise<string |
     });
     log.server.warn({ backend, err }, 'getApiKey failed');
   }
-
-  if (process.env.AI_API_KEY) return process.env.AI_API_KEY;
-
   return null;
+}
+
+/**
+ * Resolve an API key for the given backend, at CALL time.
+ * Priority: backend-specific env var → keyStore (local file or Azure KV) → AI_API_KEY fallback, gemini ONLY (t/4105).
+ * For any other backend a set AI_API_KEY throws an ActionableError naming that backend's own variable.
+ * Listing contexts (key presence, discovery loops) use {@link getApiKeyForListing}, which softens only that refusal.
+ *
+ * In Azure (AZURE_KEYVAULT_URL set), keys are partitioned per authenticated
+ * user via getCurrentUserId(). Locally, a single shared key is used per backend.
+ */
+export async function getApiKey(backend: AIBackend = 'gemini'): Promise<string | null> {
+  return (await ownApiKey(backend)) ?? resolveGenericFallbackKey(backend) ?? null;
+}
+
+/**
+ * The key for a LISTING context (status, key presence, discovery loops): same sources as getApiKey, but a
+ * non-gemini backend with only AI_API_KEY set reports null ("not configured") instead of throwing
+ * (SO e/284#2 cond 1). An operator with only AI_API_KEY then sees gemini configured and nothing fails.
+ */
+export async function getApiKeyForListing(backend: AIBackend = 'gemini'): Promise<string | null> {
+  try {
+    return await getApiKey(backend);
+  } catch (err) {
+    // Soften ONLY the gemini-only refusal, keyed on its kind (SO e/284#10). A foreign-credential refusal surfaces.
+    if (!isKeyRoutingRefusal(err, 'AIApiKeyGeminiOnlyRefused')) throw err;
+    log.server.warn({ backend }, `${LISTING_WARN}: reporting '${backend}' as not configured`);
+    return null;
+  }
 }
 
 /**
  * All API keys for a backend (t/835), in rotation order. Precedence mirrors
  * getApiKey: a configured env key (platform/free, single) wins; otherwise the
- * user's stored BYOK key list; otherwise the AI_API_KEY fallback. Returns [] if
+ * user's stored BYOK key list; otherwise the AI_API_KEY fallback (gemini only, t/4105). Returns [] if
  * none. Used by the key rotator for round-robin selection.
  */
 export async function getApiKeys(backend: AIBackend = 'gemini'): Promise<string[]> {
@@ -268,8 +293,12 @@ export async function getApiKeys(backend: AIBackend = 'gemini'): Promise<string[
 
   try {
     const stored = await getKeyStore(getStateRoot).getKeys(backend, getCurrentUserId());
-    if (stored.length > 0) return stored;
+    if (stored.length > 0) {
+      for (const k of stored) assertKeyForBackend(k, backend, 'stored'); // t/4105 C5
+      return stored;
+    }
   } catch (err) {
+    if (isKeyRoutingRefusal(err)) throw err; // a refusal is not a key-store failure; never swallow it
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'server-config',
@@ -280,8 +309,8 @@ export async function getApiKeys(backend: AIBackend = 'gemini'): Promise<string[
     log.server.warn({ backend, err }, 'getApiKeys failed');
   }
 
-  if (process.env.AI_API_KEY) return [process.env.AI_API_KEY];
-  return [];
+  const fallback = resolveGenericFallbackKey(backend); // gemini only (t/4105); throws for any other backend
+  return fallback ? [fallback] : [];
 }
 
 /** The user's stored BYOK keys for a backend (t/835) — excludes env/platform
@@ -300,8 +329,9 @@ export async function removeApiKey(index: number, backend: AIBackend = 'gemini')
   return getKeyStore(getStateRoot).removeKey(backend, getCurrentUserId(), index);
 }
 
+/** Key PRESENCE (a listing context): never throws, so a non-gemini backend with only AI_API_KEY reads false. */
 export async function hasApiKey(backend: AIBackend = 'gemini'): Promise<boolean> {
-  return (await getApiKey(backend)) !== null;
+  return (await getApiKeyForListing(backend)) !== null;
 }
 
 export async function storeApiKey(key: string, backend: AIBackend = 'gemini'): Promise<void> {

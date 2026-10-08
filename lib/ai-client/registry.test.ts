@@ -9,6 +9,7 @@ import {
   validateModelConfig,
   assertModelConfigValid,
   resolveBackend,
+  inferBackend,
   resolveModel,
   getDefaultTimeout,
   getModelMinTimeout,
@@ -170,12 +171,12 @@ describe('getModelCapabilities', () => {
     expect(caps.maxContextTokens).toBe(128000);
   });
 
-  it('falls back to gemini defaults for unknown models (resolveBackend default)', () => {
+  it('gives an unknown model the plain system defaults, NOT gemini\'s (t/4101: no backend guess)', () => {
     const caps = getModelCapabilities(TEST_REGISTRY, 'unknown-model');
     expect(caps.supportsTools).toBe(true);
-    expect(caps.supportsVision).toBe(true);
+    expect(caps.supportsVision).toBe(false); // gemini would claim vision
     expect(caps.supportsStreaming).toBe(true);
-    expect(caps.maxContextTokens).toBe(1048576);
+    expect(caps.maxContextTokens).toBe(131072); // gemini would claim 1M
   });
 
   it('returns ollama defaults (no tools, no vision) for ollama models', () => {
@@ -434,9 +435,45 @@ describe('resolveModel fallback WARN (t/3675)', () => {
     expect(record.mock.calls[0][0].data).toMatchObject({ branch: 'prefix', backend: 'xai' });
   });
 
-  it('unrecognized prefix → default branch, gemini backend', () => {
-    expect(resolveModel(empty, 'totally-made-up-7')).toEqual({ apiModelId: 'totally-made-up-7', backend: 'gemini' });
-    expect(record.mock.calls[0][0].data).toMatchObject({ branch: 'default', backend: 'gemini' });
+  it('unrecognized prefix → THROWS, never a silent gemini call (t/4101 replaced the old default branch)', () => {
+    expect(() => resolveModel(empty, 'totally-made-up-7')).toThrow(/refusing to guess/);
+    expect(record).not.toHaveBeenCalled(); // no fallback WARN: nothing was resolved
+  });
+});
+
+describe('resolveBackend fails closed; no gemini default (t/4101)', () => {
+  it('an id whose prefix names no backend THROWS an ActionableError instead of becoming a gemini call', () => {
+    expect(() => resolveBackend('learnlm-1.5-pro')).toThrow(/refusing to guess/);
+    expect(() => resolveBackend('unknown-model')).toThrow(/not in ai-models.json/);
+    expect(() => resolveModel(TEST_REGISTRY, 'unknown-model')).toThrow(/refusing to guess/);
+  });
+
+  it('gemini ids still resolve to gemini: they arrived via the old default, now via an explicit prefix', () => {
+    expect(resolveBackend('gemini-2.5-flash')).toBe('gemini');
+    expect(resolveBackend('gemini-flash-lite-latest')).toBe('gemini');
+  });
+
+  it('PARITY: for every id in the real ai-models.json the PREFIX names its registry backend (cond 3)', async () => {
+    const { readFileSync } = await import('fs');
+    const { fileURLToPath } = await import('url');
+    const path = (await import('path')).default;
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../');
+    const real = JSON.parse(readFileSync(path.join(root, 'ai-models.json'), 'utf-8')) as { models: { id: string; backend: string }[] };
+    expect(real.models.length).toBeGreaterThan(10);
+    // inferBackend, not resolveBackend(id, registry): the registry-first path would agree by construction.
+    const wrong = real.models.filter((m) => inferBackend(m.id) !== m.backend).map((m) => `${m.id} -> ${inferBackend(m.id)} (registry: ${m.backend})`);
+    expect(wrong).toEqual([]);
+  });
+
+  it("REGISTRY FIRST: a registered id resolves to its entry's backend even when its prefix says otherwise", () => {
+    const reg = { models: [{ id: 'gemini-but-served-by-groq', apiModelId: 'x', label: 'x', backend: 'groq' }] };
+    expect(resolveBackend('gemini-but-served-by-groq', reg)).toBe('groq');
+    expect(resolveBackend('gemini-but-served-by-groq')).toBe('gemini'); // no registry: the prefix
+    expect(() => resolveBackend('learnlm-1.5-pro', reg)).toThrow(/refusing to guess/); // unregistered + unprefixed
+  });
+
+  it('estimates degrade instead of throwing: an unknown id gets the neutral base timeout', () => {
+    expect(getDefaultTimeout('unknown-model', TEST_REGISTRY)).toBe(120_000);
   });
 });
 

@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
 import { ActionableError } from '../../../lib/debate/errors';
+import { resolveGenericFallbackKey } from '../../../lib/ai-client/apiKeyFallback';
 
 type Backend = 'gemini' | 'claude' | 'groq' | 'openai';
 
@@ -52,8 +53,10 @@ export function loadApiKey(backend?: Backend): string | null {
   const envVar = ENV_VAR_MAP[backend ?? 'gemini'];
   if (envVar && process.env[envVar]) return process.env[envVar]!;
 
-  // 3. Universal fallback
-  if (process.env.AI_API_KEY) return process.env.AI_API_KEY;
+  // 3. AI_API_KEY fallback: gemini ONLY (t/4105). For any other backend a set AI_API_KEY throws, naming its own variable.
+  const ownBackend = backend ?? 'gemini';
+  const fallback = resolveGenericFallbackKey(ownBackend);
+  if (fallback) return fallback;
 
   return null;
 }

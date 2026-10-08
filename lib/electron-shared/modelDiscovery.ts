@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ActionableError } from '../debate/errors.js';
+import { assertKeyForBackend, isKeyRoutingRefusal, listingNotConfiguredHint, LISTING_WARN } from '../ai-client/apiKeyFallback.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { findDanglingRefs, findChainlessDefaults, KNOWN_VERBATIM } from '../ai-config/validate.js';
 import codeReferencedModels from '../ai-config/codeReferencedModels.json' with { type: 'json' };
@@ -509,7 +510,16 @@ async function discoverBackend(
     }
   }
 
-  const apiKey = deps.loadApiKey(backendId);
+  // A LISTING loop (SO e/284#20, C1): only AI_API_KEY set must read "not configured" for a non-gemini backend,
+  // never abort discovery. Soften ONLY the gemini-only refusal, by kind; a foreign-credential refusal propagates.
+  let apiKey: string | null;
+  try {
+    apiKey = deps.loadApiKey(backendId);
+  } catch (err) {
+    if (!isKeyRoutingRefusal(err, 'AIApiKeyGeminiOnlyRefused')) throw err;
+    console.warn(`[ModelDiscovery] ${backendId}: ${LISTING_WARN}; reporting it as not configured`);
+    return { models: existing(), result: { ok: false, count: 0, error: listingNotConfiguredHint(backendId) ?? LISTING_WARN }, source: 'existing' };
+  }
   if (!apiKey) {
     return { models: existing(), result: { ok: false, count: 0, error: 'No API key configured' }, source: 'existing' };
   }
@@ -525,6 +535,7 @@ async function discoverBackend(
   if (!discover) {
     return { models: existing(), result: { ok: false, count: 0, error: `Unknown backend: ${backendId}` }, source: 'existing' };
   }
+  assertKeyForBackend(apiKey, backendId, 'discovery'); // t/4105 C5: a direct send that bypasses callProvider, so the foreign-key guard runs here
 
   try {
     const { models, source } = await discover(apiKey);

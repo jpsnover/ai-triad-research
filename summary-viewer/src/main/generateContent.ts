@@ -36,7 +36,7 @@ export async function generateContent(
             nextSteps: [
               `Set your ${backend} API key in the Settings dialog`,
               'Or set the appropriate environment variable (GEMINI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY)',
-              'Or set the universal fallback: AI_API_KEY',
+              'For gemini only, AI_API_KEY also works (it is never sent to other providers, t/4105)',
             ],
           });
         }

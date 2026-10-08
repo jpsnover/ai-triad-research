@@ -10,7 +10,7 @@ import type { MoveAnnotation } from '../helpers.js';
 import { briefStagePrompt, briefStagePromptV2, planStagePrompt, draftStagePrompt, citeStagePrompt, citeRetryPrompt, draftQualityCheckPrompt, assumptionsExtractionPrompt, classifyOffScopeDrift, offScopeRepairHint } from '../prompts.js';
 import { flattenEnvelope } from '../cacheTypes.js';
 import { briefStageEnvelope, planStageEnvelope, draftStageEnvelope, citeStageEnvelope } from '../envelopes.js';
-import { resolveBackend } from '../../ai-client/registry.js';
+import { inferBackend } from '../../ai-client/registry.js';
 import { buildCitationBank, buildScopedCitationBank, formatCitationBank, scrubCitations, validateCitationsAgainstBank, extractCitationMatches } from '../citationResolution.js';
 import type { CitationBankEntry, CitationResolutionDiagnostics } from '../citationResolution.js';
 import type { DocMetaMap } from '../evidenceFromSummaries.js';
@@ -426,7 +426,8 @@ export async function runTurnPipeline(
   // Path B (gemini/claude tool-calling) requires multi-turn provider support — future enhancement.
   let citationBank: CitationBankEntry[] = [];
   let citationBankBlock = '';
-  const citationBackend = resolveBackend(input.model);
+  // A diagnostic label only (the path used is fixed below), so an unknown id must not throw (t/4101).
+  const citationBackend = inferBackend(input.model);
   const citationPathIntended = (citationBackend === 'gemini' || citationBackend === 'claude') ? 'B' : 'A';
   const citationPathUsed: 'tool-calling' | 'bank-scrub' = 'bank-scrub'; // Path B requires multi-turn provider support (future)
   let citationBankBuildTime = 0;

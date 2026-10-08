@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('../store', () => ({ useDebateStore: { getState: () => ({ debateModel: '' }) } }));
 vi.mock('../../useTaxonomyStore', () => ({ useTaxonomyStore: { getState: () => ({ geminiModel: '' }) } }));
 
-import { resolveBriefModel, getSpeakerModel } from '../modelConfig';
+import { resolveBriefModel, getSpeakerModel, getCritiqueModel } from '../modelConfig';
 
 describe('resolveBriefModel (t/2504 — brief-timeout toast model)', () => {
   const FALLBACK = 'gemini-flash-lite-latest';
@@ -47,5 +47,21 @@ describe('resolveBriefModel (t/2504 — brief-timeout toast model)', () => {
   it('never returns empty string for a real debate (the bug: currentModel was "")', () => {
     const debate = { speaker_models: { skeptic: 'moonshot-kimi-k3' } };
     expect(resolveBriefModel(debate, 'skeptic', FALLBACK)).not.toBe('');
+  });
+});
+
+describe('getCritiqueModel with a saved model id the registry does not know (t/4105 SO cond 2)', () => {
+  it('does not throw and does not re-route to gemini: the configured model is kept, with a WARN', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let picked: string | undefined;
+    expect(() => { picked = getCritiqueModel('learnlm-1.5-pro'); }).not.toThrow();
+    expect(picked).toBe('learnlm-1.5-pro');
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('not in ai-models.json'))).toBe(true);
+    warn.mockRestore();
+  });
+
+  it('a registered or prefixed id still gets the basic tier of its backend', () => {
+    expect(getCritiqueModel('gemini-3.5-flash-lite')).not.toBe('');
+    expect(getCritiqueModel('claude-haiku-4-5')).toMatch(/^claude-/);
   });
 });
