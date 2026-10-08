@@ -13,6 +13,11 @@
 #   configure a required-approval rule or ruleset whose satisfaction by a reviewer-App
 #   approval is treated as independent review; T2 approval stays with the PI's own account.
 #   THIS LIMIT LAPSES only if the keys move to per-agent stores that other agents cannot read.
+#   The vault name is a label, not a boundary unless the backing store is dedicated to these keys
+#   (TL e/285#7, SO e/285#8). Today SecretStore keeps ONE store per user,
+#   so AiTriadAgentApps and LocalStore are two registrations of the same store, its
+#   Authentication None / Interaction None setting is store-wide, and every secret in it is
+#   readable by any process running as this user.
 #
 # SECURITY CONTRACT (t/3918 context):
 #   - The App private key is read from the SecretManagement vault at call time and never
@@ -21,12 +26,17 @@
 #     named explicitly, and data writes go through /data-mutation) (C3).
 #   - Invoke-AsAgentApp is the agent-facing entry point. It scopes GH_TOKEN to one block and
 #     revokes the token when the block ends (C4), so the token lives only as long as the block.
+#   - This is a MODULE that exports only Get-AgentAppToken and Invoke-AsAgentApp (SO C7). The
+#     plaintext minting helper is module-private, so no exported command prints a token.
 #   - Get-AgentAppToken returns a SecureString unless -AsPlainText is passed, so a bare call
 #     cannot print a token into tool output or a transcript (C2). -AsPlainText exists only for
-#     the single bash idiom: GH_TOKEN="$(pwsh -c '. ./AgentAppToken.ps1; Get-AgentAppToken -Role r -AsPlainText')" gh ...
+#     the single bash idiom:
+#       GH_TOKEN="$(pwsh -NoProfile -c 'Import-Module ./operations/devops/AgentAppToken.psm1; Get-AgentAppToken -Role reviewer -AsPlainText')" gh ...
+#     WARNING: that idiom forgoes C4 revocation, so its token stays valid for its full hour.
+#     Prefer Invoke-AsAgentApp, which revokes when the block ends.
 #
 # Usage:
-#   . ./operations/devops/AgentAppToken.ps1
+#   Import-Module ./operations/devops/AgentAppToken.psm1
 #   Invoke-AsAgentApp -Role reviewer -ScriptBlock { gh pr review 123 --approve --body '...' }
 
 # App and installation IDs are not secret (t/4096#10). Gate Co-Location: they live here,
@@ -176,7 +186,10 @@ function New-AgentAppTokenError {
     $cmd = Get-Command New-ActionableError -ErrorAction SilentlyContinue
     if ($cmd) {
         return (New-ActionableError -Goal 'Mint a GitHub App installation token for an agent role (t/4096)' `
-            -Problem $Problem -Location 'operations/devops/AgentAppToken.ps1' -NextSteps $NextSteps)
+            -Problem $Problem -Location 'operations/devops/AgentAppToken.psm1' -NextSteps $NextSteps)
     }
-    "Goal: Mint a GitHub App installation token for an agent role (t/4096)`nError: $Problem`nLocation: operations/devops/AgentAppToken.ps1`nResolve: $NextSteps"
+    "Goal: Mint a GitHub App installation token for an agent role (t/4096)`nError: $Problem`nLocation: operations/devops/AgentAppToken.psm1`nResolve: $NextSteps"
 }
+
+# SO C7: only the two safe entry points leave the module.
+Export-ModuleMember -Function Get-AgentAppToken, Invoke-AsAgentApp
