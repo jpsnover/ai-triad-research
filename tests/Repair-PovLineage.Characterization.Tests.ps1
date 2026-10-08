@@ -554,8 +554,7 @@ Describe 'Repair-PovLineage characterization (t/3910)' -Tag 'taxonomy' {
         @{ Name = 'batches';             Text = "Refreshed stale cache entry: 'Stale Thing'" }                     # t/4077 item 3
         @{ Name = 'force';               Text = 'Need enrichment: 0' }                                             # t/4077 item 4
         @{ Name = 'node-filter';         Text = 'Need enrichment: 0' }                                             # t/4077 item 4
-        # t/4077 item 2 is deferred until t/4075's version-token helper lands: still pinned as-is.
-        @{ Name = 'batches';             Text = "Dedup guard: 'Doctrine 2' → existing 'Doctrine 1'" }
+        @{ Name = 'batches';             Text = "'Doctrine 2'" }                                                  # t/4077 item 2: cached as its own entry
         @{ Name = 'batches';             Text = ' failed: 429 Too Many Requests' }
         @{ Name = 'batches';             Text = ' no response' }
         @{ Name = 'no-key';              Text = 'No API key — can only apply cached enrichments' }
@@ -577,6 +576,11 @@ Describe 'Repair-PovLineage characterization (t/3910)' -Tag 'taxonomy' {
     ) {
         $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir "$Name.json"))
         $g.Contains($Text) | Should -BeTrue -Because "golden $Name should show: $Text"
+    }
+
+    It 'never dedups version-numbered names into one another (t/4077 item 2)' {
+        $g = [System.IO.File]::ReadAllText((Join-Path $script:GoldenDir 'batches.json'))
+        $g | Should -Not -Match "Dedup guard: 'Doctrine \d+' → existing 'Doctrine \d+'"
     }
 
     It '<Name> writes nothing and leaves every file byte-identical' -ForEach @(
