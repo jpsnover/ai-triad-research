@@ -355,6 +355,9 @@ Describe 'AI_API_KEY is a fallback for the gemini backend only (t/4102)' -Tag 's
         $Foreign | Should -BeOfType [System.Management.Automation.ErrorRecord]
         InModuleScope AIEnrich -Parameters @{ E = $GeminiOnly } { param($E) Test-AIApiKeyGeminiOnlyRefusal -ErrorRecord $E } | Should -BeTrue
         InModuleScope AIEnrich -Parameters @{ E = $Foreign } { param($E) Test-AIApiKeyGeminiOnlyRefusal -ErrorRecord $E } | Should -BeFalse
+        # Kind names are a cross-language contract with lib/ai-client (TL e/284#14): logs read the same from both tools.
+        $GeminiOnly.FullyQualifiedErrorId | Should -BeLike 'AIApiKeyGeminiOnlyRefused*'
+        $Foreign.FullyQualifiedErrorId | Should -BeLike 'AIApiKeyForeignCredentialRefused*'
     }
 
     It 'cascade: a non-gemini fallback with only AI_API_KEY set is skipped with a WARN, not thrown' {
