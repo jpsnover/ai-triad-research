@@ -562,7 +562,10 @@ jobs:
           } else {
             $records | ForEach-Object { $_ | ConvertTo-Json -Compress } | Out-File -FilePath $outFile -Encoding utf8
           }
-          Write-Host "::notice::test-powershell shard $env:SHARD: recorded $(@($records).Count) self-heal(s) (t/4085)"
+          # NOTE: "$env:SHARD:" (variable immediately followed by a colon) silently interpolates
+          # empty in a double-quoted string -- PowerShell reads "SHARD:" as part of the drive/scope
+          # name. ${env:SHARD} with braces is the safe form (confirmed empty on real CI before this fix).
+          Write-Host "::notice::test-powershell shard ${env:SHARD}: recorded $(@($records).Count) self-heal(s) (t/4085)"
 
       - name: Upload test-powershell self-heal records (t/4085)
         if: always()
