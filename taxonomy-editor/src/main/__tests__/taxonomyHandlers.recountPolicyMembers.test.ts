@@ -186,13 +186,27 @@ describe('recount-policy-members (t/4034/t/4038)', () => {
   });
 
   // e/274#5-#7 (Second Opinion / Rosetta Stone): the handler's own half of the fail-closed
-  // contract — a thrown read error becomes a rejected call, and NOTHING gets written. #3050
-  // adds the lib-level "nodes: []" refusal arm to this suite separately once it lands.
+  // contract — a thrown read error becomes a rejected call, and NOTHING gets written. The
+  // read-succeeds-but-incomplete arm (the lib's "nodes: []" refusal, #3050) follows below.
   it('fails closed on a POV read error: rejects, writes nothing, and releases the lock', async () => {
     h.registry = { policies: [{ id: 'pol-001', member_count: 0, source_povs: [] }] };
     h.povFileErrors.add('safetyist'); // simulates parseJsonFile's real ENOENT/parse-error throw
 
     await expect(getHandler('recount-policy-members')({}, ['pol-001'])).rejects.toThrow('ENOENT');
+
+    expect(h.writeArg).toBeUndefined();
+    expect(h.releaseCalls).toBe(1);
+  });
+
+  // #3050 (SO e/274#2, #7): a POV that READS successfully but is empty ({ nodes: [] }, e.g. a
+  // fallback substituted for a failed read) must be refused by the lib's completeness guard and
+  // become a rejected call. Without the guard it would write member_count: 0 for every policy
+  // that POV references, which is exactly the #3048 defect.
+  it('fails closed on an empty POV file: rejects naming the POV, writes nothing, and releases the lock', async () => {
+    h.registry = { policies: [{ id: 'pol-001', member_count: 1, source_povs: ['safetyist'] }] };
+    h.povFiles = { safetyist: { nodes: [] } };
+
+    await expect(getHandler('recount-policy-members')({}, ['pol-001'])).rejects.toThrow(/safetyist/);
 
     expect(h.writeArg).toBeUndefined();
     expect(h.releaseCalls).toBe(1);
