@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+// File passes 52/52 in isolation (1.4–1.6s); raise timeout for parallel-load runs (t/4112).
+vi.setConfig({ testTimeout: 15_000 });
 import { DebateEngine } from './debateEngine.js';
 import type { DebateConfig, DebateProgress } from './debateEngine.js';
 import type { AIAdapter, ExtendedAIAdapter } from './aiAdapter.js';
