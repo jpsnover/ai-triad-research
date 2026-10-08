@@ -34,6 +34,8 @@
 #       GH_TOKEN="$(pwsh -NoProfile -c 'Import-Module ./operations/devops/AgentAppToken.psm1; Get-AgentAppToken -Role reviewer -AsPlainText')" gh ...
 #     WARNING: that idiom forgoes C4 revocation, so its token stays valid for its full hour.
 #     Prefer Invoke-AsAgentApp, which revokes when the block ends.
+#     -NoProfile only skips the secrets the PowerShell profile loads; User-scope environment
+#     variables (registry-persisted) are inherited by every process regardless (TL e/285#16).
 #
 # Usage:
 #   Import-Module ./operations/devops/AgentAppToken.psm1
