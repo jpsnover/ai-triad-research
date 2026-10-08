@@ -246,6 +246,7 @@ export const SessionSoulProvenanceSchema = z.object({
  */
 export const DebateSessionSchema = z.object({
   soul_provenance: z.record(z.string(), SessionSoulProvenanceSchema).optional(),
+  failover_untracked: z.boolean().optional(),
 }).passthrough();
 
 // ── Synthesis schemas ─────────────────────────────────────
