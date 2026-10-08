@@ -1,0 +1,223 @@
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
+# t/4096 (SO consult e/287): offline tests for the PI-tier KeePass migration. No real vault,
+# registry or profile: global stand-ins for the SecretManagement cmdlets and Read-Host record
+# every call, and profiles live in a per-test temp folder.
+
+BeforeAll {
+    $script:Script = Join-Path $PSScriptRoot '..' 'operations' 'devops' 'Move-PiCredentialToKeePass.ps1'
+    # K2: quote, backslash and newline, so an escaping bug would show as a MISMATCH.
+    $script:Value = "TESTVALUE-not-real `"q`" back\slash`nline2"
+
+    function Reset-Fake {
+        param([hashtable] $VaultParameters = @{ Path = 'X:\unsynced\AI-Triad-PI.kdbx'; UseMasterPassword = $true },
+            [string] $ModuleName = 'SecretManagement.KeePass', [hashtable] $Target = @{}, [object] $ReadBackOverride = $null, [bool] $SetThrows = $false)
+        $global:Fake = [ordered]@{
+            Vault = [pscustomobject]@{ Name = 'AI-Triad-PI'; ModuleName = $ModuleName; VaultParameters = $VaultParameters }
+            Source = @{ GITHUB_OAUTH = $script:Value }; Target = $Target
+            ReadBackOverride = $ReadBackOverride; SetThrows = $SetThrows
+            Sets = [Collections.Generic.List[object]]::new(); Removed = [Collections.Generic.List[string]]::new()
+            Unlocks = [Collections.Generic.List[object]]::new()
+        }
+    }
+
+    function global:Get-SecretVault { param($Name, $ErrorAction) if ($Name -eq $global:Fake.Vault.Name) { $global:Fake.Vault } }
+    function global:Unlock-SecretVault { param($Name, $Password, $ErrorAction) $global:Fake.Unlocks.Add($Password) }
+    function global:Read-Host { param($Prompt, [switch] $AsSecureString) [securestring]::new() }
+    function global:Get-SecretInfo {
+        param($Vault, $Name, $ErrorAction)
+        $n = [WildcardPattern]::Unescape($Name)
+        if ($global:Fake.Target.ContainsKey($n)) { [pscustomobject]@{ Name = $n; VaultName = $Vault } }
+    }
+    function global:Get-Secret {
+        param($Vault, $Name, [switch] $AsPlainText, $ErrorAction)
+        if ($Vault -eq 'LocalStore') { return $global:Fake.Source[$Name] }
+        if ($null -ne $global:Fake.ReadBackOverride) { return $global:Fake.ReadBackOverride }
+        $global:Fake.Target[$Name]
+    }
+    function global:Set-Secret {
+        param($Vault, $Name, $Secret, [switch] $NoClobber, $ErrorAction)
+        if ($global:Fake.SetThrows) { throw 'vault write failed (test)' }
+        $global:Fake.Sets.Add([pscustomobject]@{ Vault = $Vault; Name = $Name; Secret = $Secret; NoClobber = [bool] $NoClobber })
+        $global:Fake.Target[$Name] = $Secret
+    }
+    function global:Remove-Secret { param($Vault, $Name, $ErrorAction) $global:Fake.Removed.Add("$Vault/$Name") }
+
+    # A fake user: four $PROFILE paths and a Documents folder, all under one temp root.
+    function New-FakeUser {
+        $root = Join-Path ([IO.Path]::GetTempPath()) "kp-mig-$([guid]::NewGuid().ToString('N'))"
+        $docs = Join-Path $root 'Documents'
+        $ps7 = Join-Path $docs 'PowerShell'
+        New-Item -ItemType Directory -Path $ps7, (Join-Path $root 'AllUsers') -Force | Out-Null
+        [pscustomobject]@{
+            Root = $root; Docs = $docs
+            Profile = [pscustomobject]@{
+                AllUsersAllHosts       = Join-Path $root 'AllUsers' 'profile.ps1'
+                AllUsersCurrentHost    = Join-Path $root 'AllUsers' 'Microsoft.PowerShell_profile.ps1'
+                CurrentUserAllHosts    = Join-Path $ps7 'profile.ps1'
+                CurrentUserCurrentHost = Join-Path $ps7 'Microsoft.PowerShell_profile.ps1'
+            }
+        }
+    }
+
+    $script:RefLine = '$env:GITHUB_OAUTH = Get-Secret -Name GITHUB_OAUTH -AsPlainText'
+
+    function Invoke-Migration {
+        param([switch] $Apply, [string] $RefIn)   # RefIn: a profile property name, 'WinPS51', or empty for clean
+        $u = New-FakeUser
+        try {
+            Set-Content -LiteralPath $u.Profile.CurrentUserCurrentHost -Value "`$env:OTHER = 'x'"
+            if ($RefIn -eq 'WinPS51') {
+                $d = Join-Path $u.Docs 'WindowsPowerShell'
+                New-Item -ItemType Directory -Path $d -Force | Out-Null
+                Set-Content -LiteralPath (Join-Path $d 'Microsoft.PowerShell_profile.ps1') -Value "# x`n$($script:RefLine)"
+            } elseif ($RefIn) {
+                Set-Content -LiteralPath $u.Profile.$RefIn -Value "# x`n$($script:RefLine)"
+            }
+            & $script:Script -SecretStoreName GITHUB_OAUTH -ProfileSet $u.Profile -DocumentsPath $u.Docs -Apply:$Apply 3>&1 6>&1 | Out-String
+        } finally { Remove-Item -LiteralPath $u.Root -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+AfterAll {
+    Remove-Item Function:\global:Get-SecretVault, Function:\global:Unlock-SecretVault, Function:\global:Read-Host,
+        Function:\global:Get-SecretInfo, Function:\global:Get-Secret, Function:\global:Set-Secret,
+        Function:\global:Remove-Secret -ErrorAction SilentlyContinue
+    Remove-Variable -Name Fake -Scope Global -ErrorAction SilentlyContinue
+}
+
+Describe 'Move-PiCredentialToKeePass: copy, verify, remove' {
+    BeforeEach { Reset-Fake }
+
+    It 'dry run writes nothing and removes nothing' {
+        $out = Invoke-Migration
+        $out | Should -Match 'DRY RUN'
+        $global:Fake.Sets.Count | Should -Be 0
+        $global:Fake.Removed.Count | Should -Be 0
+    }
+
+    It 'unlocks the target once, with a SecureString (K4)' {
+        $null = Invoke-Migration -Apply
+        $global:Fake.Unlocks.Count | Should -Be 1
+        $global:Fake.Unlocks[0] | Should -BeOfType [securestring]
+    }
+
+    It 'K2: writes the exact value as a [string], with -NoClobber, to AI-Triad-PI' {
+        $null = Invoke-Migration -Apply
+        $global:Fake.Sets.Count | Should -Be 1
+        $s = $global:Fake.Sets[0]
+        $s.Vault | Should -Be 'AI-Triad-PI'
+        $s.Secret | Should -BeOfType [string]
+        $s.Secret | Should -BeExactly $script:Value
+        $s.NoClobber | Should -BeTrue
+    }
+
+    It 'removes the source only after a match' {
+        $out = Invoke-Migration -Apply
+        $out | Should -Match 'match; source removed'
+        $global:Fake.Removed | Should -Contain 'LocalStore/GITHUB_OAUTH'
+    }
+
+    It 'K2: a case-only difference is a MISMATCH and keeps the source (negative arm)' {
+        Reset-Fake -ReadBackOverride $script:Value.ToUpperInvariant()
+        $out = Invoke-Migration -Apply
+        $out | Should -Match 'MISMATCH'
+        $global:Fake.Removed.Count | Should -Be 0
+    }
+
+    It 'a failed write keeps the source' {
+        Reset-Fake -SetThrows $true
+        $out = Invoke-Migration -Apply
+        $out | Should -Match 'source NOT removed'
+        $global:Fake.Removed.Count | Should -Be 0
+    }
+
+    It 'K1: an existing entry is verified, never written' {
+        Reset-Fake -Target @{ GITHUB_OAUTH = $script:Value }
+        $null = Invoke-Migration -Apply
+        $global:Fake.Sets.Count | Should -Be 0
+        $global:Fake.Removed | Should -Contain 'LocalStore/GITHUB_OAUTH'
+    }
+
+    It 'K1: an existing entry with a different value is a MISMATCH, not an overwrite' {
+        Reset-Fake -Target @{ GITHUB_OAUTH = 'older-value' }
+        $out = Invoke-Migration -Apply
+        $global:Fake.Sets.Count | Should -Be 0
+        $global:Fake.Removed.Count | Should -Be 0
+        $out | Should -Match 'MISMATCH'
+    }
+
+    It 'never prints the value, in either mode' {
+        (Invoke-Migration) | Should -Not -BeLike '*TESTVALUE*'
+        Reset-Fake
+        (Invoke-Migration -Apply) | Should -Not -BeLike '*TESTVALUE*'
+    }
+}
+
+Describe 'Move-PiCredentialToKeePass: C1 profile order' {
+    BeforeEach { Reset-Fake }
+
+    It 'dry run reports file and line numbers, not profile text' {
+        $out = Invoke-Migration -RefIn CurrentUserCurrentHost
+        $out | Should -Match 'Microsoft\.PowerShell_profile\.ps1 line\(s\) 2'
+        $out | Should -Not -Match 'Get-Secret -Name GITHUB_OAUTH'
+    }
+
+    It 'C1: -Apply is refused when <RefIn> references a planned name, before the vault is touched' -ForEach @(
+        @{ RefIn = 'CurrentUserCurrentHost' }
+        @{ RefIn = 'CurrentUserAllHosts' }      # the gap e/287#5 named
+        @{ RefIn = 'AllUsersAllHosts' }
+        @{ RefIn = 'AllUsersCurrentHost' }
+        @{ RefIn = 'WinPS51' }                  # Windows PowerShell 5.1 folder, e/287#6
+    ) {
+        { Invoke-Migration -Apply -RefIn $RefIn } | Should -Throw '*Refusing -Apply*line(s) 2*'
+        $global:Fake.Unlocks.Count | Should -Be 0
+        $global:Fake.Sets.Count | Should -Be 0
+        $global:Fake.Removed.Count | Should -Be 0
+    }
+
+    It 'C1: -Apply proceeds once no profile references the name' {
+        $out = Invoke-Migration -Apply
+        $out | Should -Match 'match; source removed'
+    }
+}
+
+Describe 'Move-PiCredentialToKeePass: K3 vault guard' {
+    It 'refuses <Case>, before unlocking' -ForEach @(
+        @{ Case = 'a non-KeePass vault';       Mod = 'Microsoft.PowerShell.SecretStore'; Vp = @{ UseMasterPassword = $true };                              Msg = '*not SecretManagement.KeePass*' }
+        @{ Case = 'no UseMasterPassword';      Mod = 'SecretManagement.KeePass';         Vp = @{ Path = 'X:\a.kdbx' };                                    Msg = '*UseMasterPassword*' }
+        @{ Case = 'a key file';                Mod = 'SecretManagement.KeePass';         Vp = @{ UseMasterPassword = $true; KeyPath = 'X:\a.key' };       Msg = '*key file*' }
+        @{ Case = 'a Windows-account key';     Mod = 'SecretManagement.KeePass';         Vp = @{ UseMasterPassword = $true; UseWindowsAccount = $true };  Msg = '*UseWindowsAccount*' }
+        @{ Case = 'a stored password';         Mod = 'SecretManagement.KeePass';         Vp = @{ UseMasterPassword = $true; MasterPassword = 'x' };       Msg = '*no stored password*' }
+    ) {
+        Reset-Fake -ModuleName $Mod -VaultParameters $Vp
+        { Invoke-Migration -Apply } | Should -Throw $Msg
+        $global:Fake.Unlocks.Count | Should -Be 0
+        $global:Fake.Sets.Count | Should -Be 0
+    }
+
+    It 'refuses an unregistered vault' {
+        Reset-Fake
+        $global:Fake.Vault.Name = 'something-else'
+        { Invoke-Migration -Apply } | Should -Throw '*not registered*'
+    }
+}
+
+Describe 'Move-PiCredentialToKeePass: K5 sync warning' {
+    It 'warns, but proceeds, when the database is under Documents' {
+        Reset-Fake
+        $u = New-FakeUser
+        try {
+            $global:Fake.Vault.VaultParameters = @{ Path = (Join-Path $u.Docs 'AI-Triad-PI.kdbx'); UseMasterPassword = $true }
+            $out = & $script:Script -SecretStoreName GITHUB_OAUTH -ProfileSet $u.Profile -DocumentsPath $u.Docs -Apply 3>&1 6>&1 | Out-String
+        } finally { Remove-Item -LiteralPath $u.Root -Recurse -Force -ErrorAction SilentlyContinue }
+        $out | Should -Match 'may sync to OneDrive'
+        $out | Should -Match 'match; source removed'
+    }
+
+    It 'does not warn for an unsynced path' {
+        Reset-Fake
+        (Invoke-Migration -Apply) | Should -Not -Match 'may sync to OneDrive'
+    }
+}
