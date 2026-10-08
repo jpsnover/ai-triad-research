@@ -25,6 +25,7 @@ permissions:
   contents: write       # updateBranch
   pull-requests: write  # close + comment
   actions: write        # rerequestSuite fallback (silent 403 without this)
+  issues: write         # t/4115: stuck-PR tracking issue + sweep-signature alerts
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -400,3 +401,191 @@ jobs:
               .write();
 
             core.info(`Done — closed:${closedPRs.length} retriggered:${retriggeredPRs.length} nudged:${nudgedPRs.length} digest:${digestItems.length}`);
+
+  # ── Stuck-PR SLA alert + sweep-signature detector (t/4115, t/4096 item 2) ───────────────
+  # ALERT-ONLY — never blocks a merge, never pings the PI. Runs every 2h, same cadence as the
+  # idle-green nudge above. The pure classifier (operations/devops/stuck-pr-classifier.mjs) is
+  # reviewed and unit-tested separately; this step is the thin, impure fact-fetch + routing
+  # half (main-ci-monitor.yml's pure/impure split, same convention).
+  stuck-pr-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+
+      - name: Self-health — classifier unit suite
+        # Same t/3737#4 principle as main-ci-monitor: re-run the unit suite every scheduled
+        # run, so a regression that breaks detection FAILS THIS JOB loudly instead of letting
+        # the alert silently stop firing.
+        run: node --test operations/devops/stuck-pr-classifier.test.mjs
+
+      - name: Stuck-PR SLA + sweep-signature alert
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const { pathToFileURL } = require('url');
+            const {
+              classifyBlocker, escalationLevel, detectSweepSignature, classifySweepHits,
+              REQUIRED_CONTEXTS,
+            } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/operations/devops/stuck-pr-classifier.mjs`).href);
+
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const nowMs = Date.now();
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            // ── Facts: open, non-draft PRs + their required-context runs ──────────────
+            const allPRs = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 });
+            const openPRs = allPRs.filter((pr) => !pr.draft);
+
+            // t/4096#1: derive the owner-ticket from the branch name (t/NNNN), the same
+            // convention used fleet-wide for claim-before-implement. resolve_owner on changed
+            // files is an Orca MCP tool, not callable from a GitHub Actions step -- falling
+            // back to "unresolved" here is a known, flagged gap (t/4115#1), not a silent one.
+            function ticketFromBranch(ref) {
+              const m = (ref || '').match(/t(\d{3,5})/i);
+              return m ? `t/${m[1]}` : null;
+            }
+
+            const blockerFindings = [];
+            for (const pr of openPRs) {
+              const { data: full } = await github.rest.pulls.get({ owner, repo, pull_number: pr.number });
+              const runsResp = await github.rest.actions.listWorkflowRunsForRepo({
+                owner, repo, head_sha: pr.head.sha, per_page: 100,
+              }).catch(() => ({ data: { workflow_runs: [] } }));
+
+              // Newest run per required-context workflow NAME on this exact head SHA --
+              // the #3062 fix: actions/runs, never the check-runs rollup.
+              const byName = new Map();
+              for (const run of runsResp.data.workflow_runs ?? []) {
+                if (!REQUIRED_CONTEXTS.includes(run.name)) continue;
+                const prev = byName.get(run.name);
+                if (!prev || new Date(run.created_at) > new Date(prev.createdAt)) {
+                  byName.set(run.name, { name: run.name, status: run.status, conclusion: run.conclusion, createdAt: run.created_at, id: run.id });
+                }
+              }
+
+              const prFacts = {
+                mergeableState: full.mergeable_state,
+                isConflicting: full.mergeable === false,
+                autoMergeEnabled: !!full.auto_merge,
+                labels: (full.labels || []).map((l) => (typeof l === 'string' ? l : l.name)),
+                runs: [...byName.values()],
+                mergeRefusalText: full.mergeable_state === 'blocked'
+                  ? `Derived (not a live REST attempt): mergeable_state=blocked with required contexts ${JSON.stringify([...byName.entries()].map(([n, r]) => `${n}:${r.status}/${r.conclusion}`))}`
+                  : null,
+                lastActivityAt: full.updated_at,
+              };
+
+              const blocker = classifyBlocker(prFacts, nowMs);
+              if (blocker) blockerFindings.push({ pr: full, ticket: ticketFromBranch(full.head.ref), ...blocker });
+            }
+
+            // ── SLA: one idempotent comment per blocker episode, escalate at 2h/6h ─────
+            const EPISODE_MARKER = '<!-- stuck-pr-alert:';
+            for (const f of blockerFindings) {
+              const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: f.pr.number, per_page: 100 });
+              const marker = `${EPISODE_MARKER}${f.class}:${f.pr.head.sha} -->`;
+              const existing = comments.find((c) => c.body.includes(marker));
+
+              // Episode age: time since this EXACT (class, head sha) was first named, not
+              // since the PR opened -- a new head sha or a new blocker class starts a fresh clock.
+              const episodeStartMs = existing ? Date.parse(existing.created_at) : nowMs;
+              const episodeAgeHours = (nowMs - episodeStartMs) / 3600000;
+              const level = escalationLevel(f.class, episodeAgeHours);
+
+              if (f.class === 'held') {
+                core.info(`#${f.pr.number}: held (${f.detail.labels.join(',')}) -- reporting age only, no action`);
+                continue;
+              }
+              if (existing) continue; // one comment per episode; escalation happens via the digest below, not a repost
+
+              const remedyText = f.detail.remedy ? `\n\nRemedy: ${f.detail.remedy}` : '';
+              const ownerText = f.ticket ? `owning ticket ${f.ticket}` : 'owner unresolved (no t/NNNN in branch name — needs resolve_owner on the changed files)';
+              const body = [
+                `**Stuck-PR alert (t/4115, alert-only — never blocks the merge):**`,
+                `Blocker: \`${f.class}\` — ${JSON.stringify(f.detail)}`,
+                `Owner: ${ownerText}.${remedyText}`,
+                `This comment is posted once per blocker episode (same class + head SHA). Escalation: owner ping at 2h, TL at 6h, never the PI — via the stuck-pr-alert label bridge.`,
+                marker,
+              ].join('\n');
+              await github.rest.issues.createComment({ owner, repo, issue_number: f.pr.number, body });
+              core.info(`#${f.pr.number}: NEW blocker ${f.class}, level=${level}`);
+            }
+
+            // Escalation label: lets a local Orca bridge (same pattern as main-ci-monitor's
+            // alert-escalated label) find PRs needing an owner/TL ping without re-parsing
+            // every PR comment. Applied once the SLA threshold is actually crossed.
+            for (const f of blockerFindings) {
+              if (f.class === 'held') continue;
+              const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: f.pr.number, per_page: 100 });
+              const marker = `${EPISODE_MARKER}${f.class}:${f.pr.head.sha} -->`;
+              const existing = comments.find((c) => c.body.includes(marker));
+              if (!existing) continue;
+              const episodeAgeHours = (nowMs - Date.parse(existing.created_at)) / 3600000;
+              const level = escalationLevel(f.class, episodeAgeHours);
+              if (level === 'none') continue;
+              const label = level === 'tl' ? 'stuck-pr-alert-tl' : 'stuck-pr-alert-owner';
+              const hasLabel = (f.pr.labels || []).some((l) => (l.name || l) === label);
+              if (!hasLabel) {
+                await github.rest.issues.addLabels({ owner, repo, issue_number: f.pr.number, labels: [label] });
+                core.info(`#${f.pr.number}: labelled ${label} (episode age ${episodeAgeHours.toFixed(1)}h)`);
+              }
+            }
+
+            core.summary.addHeading('Stuck-PR alert (t/4115)', 3)
+              .addTable([
+                [{ data: 'PR', header: true }, { data: 'Class', header: true }, { data: 'Ticket', header: true }, { data: 'Detail', header: true }],
+                ...(blockerFindings.length
+                  ? blockerFindings.map((f) => [`#${f.pr.number}`, f.class, f.ticket ?? '(unresolved)', JSON.stringify(f.detail).slice(0, 100)])
+                  : [['—', 'No blockers found', '', '']]),
+              ]).write();
+
+            // ── Sweep-signature detector (t/4096#4, t/3716) ────────────────────────────
+            // Repo-wide issue-events feed, NOT GraphQL timelines (t/3716#18: GraphQL omits
+            // AutoMergeEnabledEvent). Lookback matches this job's own cadence (2h) so a
+            // re-run never reprocesses events it already alerted on.
+            const sinceIso = new Date(nowMs - 2 * 3600000).toISOString();
+            const rawEvents = await github.paginate(github.rest.issues.listEventsForRepo, { owner, repo, per_page: 100 })
+              .catch((e) => { core.warning(`issue-events fetch failed: ${e.message}`); return []; });
+            const relevant = rawEvents
+              .filter((e) => ['ready_for_review', 'auto_merge_enabled', 'auto_update_enabled'].includes(e.event))
+              .filter((e) => new Date(e.created_at).getTime() >= nowMs - 2 * 3600000)
+              .map((e) => ({ prNumber: e.issue?.number, event: e.event, actor: e.actor?.login ?? 'unknown', createdAt: e.created_at }))
+              .filter((e) => e.prNumber);
+
+            const sweepHits = detectSweepSignature(relevant);
+            const labelsByPr = new Map();
+            for (const h of sweepHits) {
+              if (labelsByPr.has(h.prNumber)) continue;
+              const { data: p } = await github.rest.pulls.get({ owner, repo, pull_number: h.prNumber }).catch(() => ({ data: null }));
+              labelsByPr.set(h.prNumber, p ? (p.labels || []).map((l) => l.name || l) : []);
+            }
+            const sweepVerdicts = classifySweepHits(sweepHits, labelsByPr);
+
+            const SWEEP_MARKER_PREFIX = '<!-- sweep-signature:';
+            for (const v of sweepVerdicts) {
+              const hit = sweepHits.find((h) => h.prNumber === v.prNumber);
+              const marker = `${SWEEP_MARKER_PREFIX}${hit.armedAt} -->`;
+              const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: v.prNumber, per_page: 100 }).catch(() => ({ data: [] }));
+              if (comments.some((c) => c.body.includes(marker))) continue; // idempotent per (PR, armedAt)
+
+              if (v.escalate) {
+                const body = [
+                  `🔺 **Sweep-signature ESCALATION (t/4096 item 2, t/3716 pattern)**`,
+                  `\`ready_for_review\` → auto-merge/update armed within the sweep window. ${v.reason}.`,
+                  `Ready at ${hit.readyAt}, armed at ${hit.armedAt} by ${hit.actor}.`,
+                  `@${owner} — escalated straight to DevOps + TL per design (held PR or multi-PR burst).`,
+                  marker,
+                ].join('\n');
+                await github.rest.issues.createComment({ owner, repo, issue_number: v.prNumber, body });
+                await github.rest.issues.addLabels({ owner, repo, issue_number: v.prNumber, labels: ['sweep-signature-alert'] }).catch(() => {});
+              } else {
+                const body = [
+                  `**Sweep-signature check (t/4096 item 2, informational):**`,
+                  `This PR went ready-for-review then had auto-merge/update armed ${hit.deltaSeconds.toFixed(0)}s later, by ${hit.actor}.`,
+                  `This is usually just you moving fast — confirm it was your own action. No escalation; this fires once per arm event.`,
+                  marker,
+                ].join('\n');
+                await github.rest.issues.createComment({ owner, repo, issue_number: v.prNumber, body });
+              }
+            }
+            core.info(`Sweep signature: ${sweepHits.length} hit(s), ${sweepVerdicts.filter((v) => v.escalate).length} escalated`);
