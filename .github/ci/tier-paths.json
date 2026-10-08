@@ -1,0 +1,33 @@
+{
+  "_comment": "t/4103 — tier-declaration check path floor (R1) and lint-severity globs (R2c). See operations/devops/tier-check-predicate.mjs for the rules this config feeds.",
+  "r1Paths": [
+    ".github/ci/required-contexts.json",
+    ".github/ci/tier-paths.json",
+    ".github/CODEOWNERS",
+    ".github/workflows/consult-hold-guard.yml",
+    ".github/workflows/joint-gv-guard.yml",
+    ".github/workflows/required-contexts-drift.yml",
+    ".github/workflows/tier-check.yml",
+    "deploy/azure/main.bicep",
+    "deploy/azure/deploy.ps1",
+    ".github/workflows/deploy-azure.yml"
+  ],
+  "r1Globs": [
+    "operations/devops/AgentAppToken.psm1",
+    "operations/devops/Move-PiCredential*.ps1"
+  ],
+  "r2cGlobs": [
+    "**/eslint.config.js",
+    "**/eslint.config.mjs",
+    "**/eslint.config.cjs",
+    "**/eslint.config.ts",
+    "**/.eslintrc*",
+    "**/PSScriptAnalyzerSettings.psd1"
+  ],
+  "schemaDirPrefixes": [
+    "lib/schema/",
+    "taxonomy/schemas/",
+    "lib/brief/schemas/"
+  ],
+  "graceCutoffISO": "2026-10-08T00:00:00Z"
+}
