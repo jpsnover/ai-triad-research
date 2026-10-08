@@ -325,13 +325,18 @@ jobs:
     # shard-with-Force over the 84-var reset re-architecture). ci-gate aggregates the shards via
     # needs.test-powershell.result (all must pass); test-powershell is NOT itself a required
     # context (only ci-gate is), so this is a ci.yml-only change — no branch-protection edit.
-    # t/4095: 2 -> 4 shards, modulo slicing -> duration-balanced LPT bin-pack (ShardBalancer.ps1),
+    # t/4095: 2 -> 6 shards, modulo slicing -> duration-balanced LPT bin-pack (ShardBalancer.ps1),
     # to bring the critical path (slowest shard) under 8 min -- 2 EQUAL-COUNT shards still let an
-    # imbalanced split of SLOW vs fast files set the ceiling regardless of shard count.
+    # imbalanced split of SLOW vs fast files set the ceiling regardless of shard count. 4 shards
+    # balanced the measured Pester-only time perfectly (187s/shard) but observed 7-8m20s wall
+    # clock per shard on real CI; 5 shards (125s/shard measured) still swung 6m30s-8m25s across
+    # 3 runs on the same head -- fixed per-job overhead dominates and CI runner variance alone
+    # spans close to a minute, so shrinking the variable part further buys margin against that
+    # variance rather than hitting a precise number.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
 
@@ -386,7 +391,7 @@ jobs:
         shell: pwsh
         env:
           SHARD: ${{ matrix.shard }}
-          SHARD_TOTAL: '4'
+          SHARD_TOTAL: '6'
         run: |
           . ./operations/devops/Get-PesterExcludePaths.ps1  # single source of truth (t/3010)
           . ./operations/devops/FlakeVerdict.ps1            # t/3546 verdict message (content regression-guarded by tests/FlakeVerdict.Tests.ps1)
